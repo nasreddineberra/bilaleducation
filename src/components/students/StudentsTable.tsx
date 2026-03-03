@@ -134,7 +134,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
               >
 
                 {/* Élève */}
-                <td className="px-4 py-1.5">
+                <td className="px-4 py-[3px]">
                   <div className="flex items-center gap-2">
                     <span className={clsx(
                       'text-sm font-medium',
@@ -169,7 +169,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* N° élève */}
-                <td className="px-4 py-1.5">
+                <td className="px-4 py-[3px]">
                   <span className={clsx(
                     'font-mono text-xs',
                     student.is_active ? 'text-warm-500' : 'text-warm-300'
@@ -177,7 +177,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* Date de naissance */}
-                <td className="px-4 py-1.5">
+                <td className="px-4 py-[3px]">
                   <span className={clsx(
                     'text-sm',
                     student.is_active ? 'text-secondary-700' : 'text-warm-400'
@@ -186,12 +186,12 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* Genre */}
-                <td className="px-4 py-1.5">
+                <td className="px-4 py-[3px]">
                   <GenderIcon gender={student.gender} />
                 </td>
 
                 {/* Actions */}
-                <td className="px-4 py-1.5">
+                <td className="px-4 py-[3px]">
                   {confirmDeleteId === student.id ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-xs text-warm-500">Supprimer ?</span>

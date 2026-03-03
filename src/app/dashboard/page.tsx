@@ -16,7 +16,7 @@ async function getStats() {
     supabase.from('students').select('*', { count: 'exact', head: true }),
     supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('teachers').select('*', { count: 'exact', head: true }),
-    supabase.from('classes').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('classes').select('*', { count: 'exact', head: true }),
     supabase.from('enrollments').select('*', { count: 'exact', head: true }).eq('status', 'active'),
   ])
 

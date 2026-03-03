@@ -131,7 +131,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                 <tr className="hover:bg-warm-50 transition-colors">
 
                   {/* Tuteur 1 */}
-                  <td className="px-4 py-1.5">
+                  <td className="px-4 py-[3px]">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-secondary-800">
                         {parent.tutor1_last_name} {parent.tutor1_first_name}
@@ -148,7 +148,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   </td>
 
                   {/* Tuteur 2 */}
-                  <td className="px-4 py-1.5">
+                  <td className="px-4 py-[3px]">
                     {parent.tutor2_last_name ? (
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-secondary-800">
@@ -169,7 +169,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   </td>
 
                   {/* Actions */}
-                  <td className="px-4 py-1.5">
+                  <td className="px-4 py-[3px]">
                     {confirmDeleteId === parent.id ? (
                       <div className="flex items-center justify-end gap-2">
                         <span className="text-xs text-warm-500">Supprimer ?</span>

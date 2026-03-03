@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Search, X, BookOpen, Pencil, Trash2, CheckCircle2, XCircle } from 'lucide-react'
+import { Plus, Search, X, BookOpen, Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { clsx } from 'clsx'
 
@@ -31,7 +31,6 @@ interface ClassRow {
   day_of_week: string | null
   start_time: string | null
   end_time: string | null
-  is_active: boolean
   class_teachers: ClassTeacherRow[]
 }
 
@@ -57,8 +56,6 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           c.level?.toLowerCase().includes(q)
         )
       })
-
-  const totalActives = classes.filter(c => c.is_active).length
 
   const handleDelete = async (id: string) => {
     setDeletingId(id)
@@ -95,11 +92,6 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           <span className="text-2xl font-bold text-secondary-800">{classes.length}</span>
           <span className="text-xs text-warm-500 leading-tight">au total</span>
         </div>
-        <div className="card px-4 py-3 flex items-center gap-3">
-          <span className="text-2xl font-bold text-green-600">{totalActives}</span>
-          <span className="text-xs text-warm-500 leading-tight">active{totalActives > 1 ? 's' : ''}</span>
-        </div>
-
         <div className="flex-1" />
 
         {/* Recherche */}
@@ -167,7 +159,6 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Planning</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Capacité</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Enseignants</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Actif</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -226,12 +217,6 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           )}
                         </div>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {cls.is_active
-                        ? <CheckCircle2 size={16} className="text-green-500 mx-auto" />
-                        : <XCircle    size={16} className="text-warm-300 mx-auto" />
-                      }
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">

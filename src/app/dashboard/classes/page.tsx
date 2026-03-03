@@ -4,7 +4,13 @@ import ClassesClient from '@/components/classes/ClassesClient'
 export default async function ClassesPage() {
   const supabase = await createClient()
 
-  const { data: classes } = await supabase
+  const { data: currentYear } = await supabase
+    .from('school_years')
+    .select('label')
+    .eq('is_current', true)
+    .single()
+
+  const query = supabase
     .from('classes')
     .select(`
       *,
@@ -16,6 +22,12 @@ export default async function ClassesPage() {
       )
     `)
     .order('name')
+
+  if (currentYear) {
+    query.eq('academic_year', currentYear.label)
+  }
+
+  const { data: classes } = await query
 
   return (
     <div className="space-y-6 animate-fade-in">

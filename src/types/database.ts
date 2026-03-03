@@ -169,7 +169,6 @@ export interface Class {
   day_of_week?: string | null
   start_time?: string | null
   end_time?: string | null
-  is_active: boolean
   created_at: string
   updated_at: string
 }

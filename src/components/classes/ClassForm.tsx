@@ -41,7 +41,6 @@ type FormData = {
   day_of_week:  string
   start_time:   string
   end_time:     string
-  is_active:    boolean
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -69,7 +68,6 @@ export default function ClassForm({
     day_of_week:  cls?.day_of_week  ?? '',
     start_time:   cls?.start_time   ?? '',
     end_time:     cls?.end_time     ?? '',
-    is_active:    cls?.is_active    ?? true,
   })
 
   const initialForm       = useRef<FormData>({ ...form })
@@ -171,7 +169,6 @@ export default function ClassForm({
         day_of_week:   form.day_of_week        || null,
         start_time:    form.start_time         || null,
         end_time:      form.end_time           || null,
-        is_active:     form.is_active,
       }
 
       let classId: string
@@ -235,22 +232,9 @@ export default function ClassForm({
         {/* ── Colonne gauche — Informations générales ── */}
         <div className="card p-3 space-y-2">
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-              Informations générales
-            </h2>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                onChange={e => set('is_active', e.target.checked)}
-                className="w-4 h-4 rounded accent-amber-500"
-              />
-              <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide group-hover:text-warm-600">
-                Active
-              </span>
-            </label>
-          </div>
+          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            Informations générales
+          </h2>
 
           {/* Nom */}
           <Field
