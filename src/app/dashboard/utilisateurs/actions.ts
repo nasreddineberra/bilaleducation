@@ -1,0 +1,137 @@
+'use server'
+
+import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
+
+export type UserRole =
+  | 'admin'
+  | 'direction'
+  | 'comptable'
+  | 'responsable_pedagogique'
+  | 'enseignant'
+  | 'secretaire'
+  | 'parent'
+
+// ─── Créer un utilisateur ────────────────────────────────────────────────────
+
+export async function createUser(data: {
+  email:      string
+  password:   string
+  role:       UserRole
+  first_name: string
+  last_name:  string
+  phone?:     string
+}): Promise<{ error?: string }> {
+  // Lire l'etablissement_id injecté par le middleware
+  const headersList = await headers()
+  const etablissementId = headersList.get('x-etablissement-id')
+
+  if (!etablissementId) {
+    return { error: 'Établissement non identifié. Veuillez vous reconnecter.' }
+  }
+
+  const supabase = createAdminClient()
+
+  // 1. Créer le compte auth (email_confirm: true = pas de mail de confirmation)
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email:          data.email,
+    password:       data.password,
+    email_confirm:  true,
+  })
+
+  if (authError) {
+    if (authError.message.includes('already registered')) {
+      return { error: 'Cette adresse email est déjà utilisée.' }
+    }
+    return { error: authError.message }
+  }
+
+  // 2. Créer le profil (admin client bypass RLS → etablissement_id obligatoire)
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id:               authData.user.id,
+    email:            data.email,
+    role:             data.role,
+    first_name:       data.first_name,
+    last_name:        data.last_name,
+    phone:            data.phone || null,
+    is_active:        true,
+    etablissement_id: etablissementId,
+  })
+
+  if (profileError) {
+    // Nettoyer l'utilisateur auth si l'insertion du profil échoue
+    await supabase.auth.admin.deleteUser(authData.user.id)
+    return { error: 'Erreur lors de la création du profil.' }
+  }
+
+  revalidatePath('/dashboard/utilisateurs')
+  return {}
+}
+
+// ─── Modifier un profil ───────────────────────────────────────────────────────
+
+export async function updateProfile(id: string, data: {
+  role:       UserRole
+  first_name: string
+  last_name:  string
+  phone?:     string
+}): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+
+  const { error } = await supabase.from('profiles').update({
+    role:       data.role,
+    first_name: data.first_name,
+    last_name:  data.last_name,
+    phone:      data.phone || null,
+  }).eq('id', id)
+
+  if (error) return { error: 'Erreur lors de la mise à jour.' }
+
+  revalidatePath('/dashboard/utilisateurs')
+  return {}
+}
+
+// ─── Activer / désactiver ─────────────────────────────────────────────────────
+
+export async function toggleActive(id: string, is_active: boolean): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+
+  const { error } = await supabase.from('profiles').update({ is_active }).eq('id', id)
+
+  if (error) return { error: 'Erreur lors de la mise à jour du statut.' }
+
+  revalidatePath('/dashboard/utilisateurs')
+  return {}
+}
+
+// ─── Modifier l'email ────────────────────────────────────────────────────────
+
+export async function updateEmail(id: string, email: string): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+
+  const { error: authError } = await supabase.auth.admin.updateUserById(id, { email })
+  if (authError) {
+    if (authError.message.includes('already registered')) return { error: 'Cette adresse email est déjà utilisée.' }
+    return { error: authError.message }
+  }
+
+  const { error: profileError } = await supabase.from('profiles').update({ email }).eq('id', id)
+  if (profileError) return { error: "Erreur lors de la mise à jour de l'email." }
+
+  revalidatePath('/dashboard/utilisateurs')
+  return {}
+}
+
+// ─── Réinitialiser le mot de passe ───────────────────────────────────────────
+
+export async function sendPasswordReset(email: string): Promise<{ error?: string }> {
+  const supabase = createAdminClient()
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback?next=/auth/reset-password`,
+  })
+
+  if (error) return { error: 'Erreur lors de l\'envoi de l\'email.' }
+  return {}
+}
