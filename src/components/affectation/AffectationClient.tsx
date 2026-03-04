@@ -14,8 +14,10 @@ import {
 } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Search, X, Users, CheckCircle2, GripVertical, ChevronDown, Info } from 'lucide-react'
+import { Search, X, Users, CheckCircle2, GripVertical, ChevronDown, Info, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+
+const POOL_PAGE_SIZE = 20
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,10 +80,10 @@ function fmtTime(t: string | null) { return t ? t.slice(0, 5) : null }
 
 function GenderBadge({ gender }: { gender: string | null }) {
   if (gender === 'male') return (
-    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex-shrink-0">M</span>
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[9px] font-bold flex-shrink-0">M</span>
   )
   if (gender === 'female') return (
-    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-pink-100 text-pink-500 text-[10px] font-bold flex-shrink-0">F</span>
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-pink-100 text-pink-500 text-[9px] font-bold flex-shrink-0">F</span>
   )
   return null
 }
@@ -151,7 +153,7 @@ function DraggableCard({
       ref={setNodeRef}
       {...(!disabled ? { ...listeners, ...attributes } : {})}
       className={clsx(
-        'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors select-none',
+        'flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors select-none',
         isDragging && 'opacity-30',
         disabled
           ? 'bg-warm-50 border-warm-100 text-warm-400 cursor-not-allowed'
@@ -159,7 +161,7 @@ function DraggableCard({
       )}
     >
       <span className={clsx('flex-shrink-0', disabled ? 'text-warm-300' : 'text-warm-400')}>
-        <GripVertical size={14} />
+        <GripVertical size={12} />
       </span>
 
       {/* Nom + icône info */}
@@ -172,7 +174,7 @@ function DraggableCard({
           onMouseEnter={e => onInfoEnter?.(student, e)}
           onMouseLeave={onInfoLeave}
         >
-          <Info size={13} className="text-warm-300 hover:text-primary-400 transition-colors" />
+          <Info size={11} className="text-warm-300 hover:text-primary-400 transition-colors" />
         </span>
       </span>
 
@@ -183,20 +185,20 @@ function DraggableCard({
       {student.has_pai && (
         <span
           title="Projet d'Accueil Individualisé"
-          className="text-[10px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded flex-shrink-0"
+          className="text-[9px] font-bold text-red-500 bg-red-100 px-1 py-px rounded flex-shrink-0"
         >
           PAI
         </span>
       )}
 
       {/* Âge */}
-      <span className="text-xs text-warm-400 flex-shrink-0">{calcAge(student.date_of_birth)} ans</span>
+      <span className="text-[10px] text-warm-400 flex-shrink-0">{calcAge(student.date_of_birth)} ans</span>
 
       {/* Classe assignée */}
       {assignedClassName && (
         <span
           title={assignedClassTeacher ?? undefined}
-          className="text-xs bg-warm-200 text-warm-600 px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+          className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0"
         >
           {assignedClassName}
         </span>
@@ -227,7 +229,7 @@ function DropZone({
     <div
       ref={setNodeRef}
       className={clsx(
-        'flex-1 rounded-xl border-2 border-dashed transition-colors min-h-[200px]',
+        'flex-1 min-h-0 rounded-xl border-2 border-dashed transition-colors flex flex-col overflow-hidden',
         isFull
           ? 'border-red-200 bg-red-50/30'
           : isOver
@@ -236,12 +238,12 @@ function DropZone({
       )}
     >
       {rosterStudents.length === 0 ? (
-        <div className="h-full flex flex-col items-center justify-center gap-2 py-10 text-warm-400">
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-warm-400">
           <Users size={28} className="text-warm-300" />
           <p className="text-sm">Glisser des élèves ici</p>
         </div>
       ) : (
-        <div className="p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {rosterStudents.map(s => (
             <div
               key={s.id}
@@ -327,6 +329,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
       : []
   )
   const [search,   setSearch]   = useState('')
+  const [poolPage, setPoolPage] = useState(1)
   const [saving,   setSaving]   = useState(false)
   const [error,    setError]    = useState<string | null>(null)
   const [success,  setSuccess]  = useState(false)
@@ -441,6 +444,10 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
     return true
   })
 
+  const poolTotalPages = Math.ceil(poolStudents.length / POOL_PAGE_SIZE)
+  const poolCurPage    = Math.min(poolPage, poolTotalPages || 1)
+  const pagedStudents  = poolStudents.slice((poolCurPage - 1) * POOL_PAGE_SIZE, poolCurPage * POOL_PAGE_SIZE)
+
   const activeStudent = activeId ? students.find(s => s.id === activeId) : null
 
   // ── Infos classe ──────────────────────────────────────────────────────────
@@ -478,10 +485,10 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="h-full flex flex-col gap-3">
 
       {/* Sélecteur classe */}
-      <div className="card p-4 space-y-2">
+      <div className="card p-4 space-y-2 flex-shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
           <div ref={classDropRef} className="relative w-72">
             {/* Trigger */}
@@ -554,13 +561,13 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
 
       {/* Messages */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
+        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
           <span>{error}</span>
           <button onClick={() => setError(null)}><X size={14} /></button>
         </div>
       )}
       {success && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 flex items-center gap-2">
+        <div className="flex-shrink-0 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 flex items-center gap-2">
           <CheckCircle2 size={15} />
           Affectations enregistrées avec succès.
         </div>
@@ -568,16 +575,16 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
 
       {/* Panels DnD */}
       {!selectedClassId ? (
-        <div className="card py-16 text-center">
-          <Users size={32} className="mx-auto text-warm-300 mb-3" />
+        <div className="flex-1 min-h-0 card flex flex-col items-center justify-center">
+          <Users size={32} className="text-warm-300 mb-3" />
           <p className="text-warm-400 text-sm">Sélectionnez une classe pour commencer l'affectation</p>
         </div>
       ) : (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
 
             {/* ── Panel gauche : élèves disponibles ── */}
-            <div className="card p-3 space-y-3 flex flex-col">
+            <div className="card p-3 flex flex-col gap-3 min-h-0">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-wide">
                   Élèves ({students.length} actifs)
@@ -587,23 +594,23 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   <input
                     type="text"
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => { setSearch(e.target.value); setPoolPage(1) }}
                     placeholder="Rechercher..."
                     className="pl-7 pr-6 py-1.5 text-xs bg-warm-50 border border-warm-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-300 w-40"
                   />
                   {search && (
-                    <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-400">
+                    <button onClick={() => { setSearch(''); setPoolPage(1) }} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-400">
                       <X size={11} />
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-380px)]">
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
                 {poolStudents.length === 0 && q && (
                   <p className="text-xs text-warm-400 text-center py-6">Aucun résultat</p>
                 )}
-                {poolStudents.map(s => {
+                {pagedStudents.map(s => {
                   const isInCurrentClass      = roster.includes(s.id)
                   const isSavedInCurrentClass = originalRoster.includes(s.id)
                   const assignedClassId       = isInCurrentClass ? null : serverMap[s.id]
@@ -639,11 +646,60 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   )
                 })}
               </div>
+              {/* Pagination panel gauche */}
+              {poolTotalPages > 1 && (
+                <div className="flex-shrink-0 flex items-center justify-between pt-2 border-t border-warm-100">
+                  <span className="text-[11px] text-warm-400">
+                    {(poolCurPage - 1) * POOL_PAGE_SIZE + 1}–{Math.min(poolCurPage * POOL_PAGE_SIZE, poolStudents.length)} / {poolStudents.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPoolPage(p => Math.max(1, p - 1))}
+                      disabled={poolCurPage === 1}
+                      className="p-1 rounded text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={13} />
+                    </button>
+                    {Array.from({ length: poolTotalPages }, (_, i) => i + 1)
+                      .filter(p => p === 1 || p === poolTotalPages || Math.abs(p - poolCurPage) <= 1)
+                      .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                        if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('…')
+                        acc.push(p)
+                        return acc
+                      }, [])
+                      .map((p, i) =>
+                        p === '…' ? (
+                          <span key={`e${i}`} className="text-[11px] text-warm-400 px-0.5">…</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => setPoolPage(p as number)}
+                            className={clsx(
+                              'w-6 h-6 rounded text-[11px] font-medium transition-colors',
+                              p === poolCurPage
+                                ? 'bg-primary-600 text-white'
+                                : 'text-warm-500 hover:bg-warm-100 hover:text-secondary-700'
+                            )}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                    <button
+                      onClick={() => setPoolPage(p => Math.min(poolTotalPages, p + 1))}
+                      disabled={poolCurPage === poolTotalPages}
+                      className="p-1 rounded text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── Panel droit : élèves dans la classe ── */}
-            <div className="card p-3 space-y-3 flex flex-col">
-              <div className="space-y-1">
+            <div className="card p-3 flex flex-col gap-3 min-h-0">
+              <div className="flex-shrink-0 space-y-1">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-secondary-800">
                     {selectedClass?.name}
@@ -682,7 +738,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
 
       {/* Bouton enregistrer */}
       {selectedClassId && (
-        <div className="flex justify-end">
+        <div className="flex-shrink-0 flex justify-end">
           <button
             onClick={save}
             disabled={!hasChanges || saving}

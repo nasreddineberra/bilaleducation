@@ -57,7 +57,7 @@ export default async function AffectationPage() {
   ])
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="h-full animate-fade-in">
       <AffectationClient
         classes={classes ?? []}
         students={students ?? []}

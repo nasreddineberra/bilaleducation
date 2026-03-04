@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Plus, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import type { SchoolYear, EvalTypeConfig, EvalTypeKind, PeriodType } from '@/types/database'
+import type { SchoolYear, EvalTypeConfig, PeriodType } from '@/types/database'
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -14,12 +14,15 @@ interface SchoolYearFormProps {
   etablissementId?: string   // requis pour la création
 }
 
+// Type frontend uniquement : scored_10 / scored_20 remplacent "scored" + max_score
+type FormEvalType = 'diagnostic' | 'scored_10' | 'scored_20' | 'stars'
+
 type FormData = {
-  label:           string
-  is_current:      boolean
-  period_type:     PeriodType
-  eval_type:       EvalTypeKind | null
-  eval_scored_max: 10 | 20
+  label:               string
+  is_current:          boolean
+  period_type:         PeriodType
+  eval_types:          FormEvalType[]
+  diagnostic_options:  string[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,22 +52,29 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
   const getInitialForm = (): FormData => {
     if (!schoolYear) {
       return {
-        label:           suggestNextLabel(),
-        is_current:      false,
-        period_type:     'trimestrial',
-        eval_type:       null,
-        eval_scored_max: 20,
+        label:              suggestNextLabel(),
+        is_current:         false,
+        period_type:        'trimestrial',
+        eval_types:         [],
+        diagnostic_options: ['AC', 'EC', 'NA'],
       }
     }
-    const configs = schoolYear.eval_type_configs ?? []
-    const active  = configs.find(c => c.is_active)
-    const scored  = configs.find(c => c.eval_type === 'scored')
+    const configs     = schoolYear.eval_type_configs ?? []
+    const activeTypes: FormEvalType[] = configs
+      .filter(c => c.is_active)
+      .map(c => {
+        if (c.eval_type === 'scored') return c.max_score === 10 ? 'scored_10' : 'scored_20'
+        return c.eval_type as FormEvalType
+      })
+    const diagnosticConfig = configs.find(c => c.eval_type === 'diagnostic' && c.is_active)
     return {
-      label:           schoolYear.label,
-      is_current:      schoolYear.is_current,
-      period_type:     schoolYear.period_type,
-      eval_type:       (active?.eval_type ?? null) as EvalTypeKind | null,
-      eval_scored_max: (scored?.max_score === 10 ? 10 : 20),
+      label:              schoolYear.label,
+      is_current:         schoolYear.is_current,
+      period_type:        schoolYear.period_type,
+      eval_types:         activeTypes,
+      diagnostic_options: diagnosticConfig?.diagnostic_options?.length
+        ? diagnosticConfig.diagnostic_options
+        : ['AC', 'EC', 'NA'],
     }
   }
 
@@ -80,8 +90,35 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
   const touch = (field: string) =>
     setTouched(prev => new Set([...prev, field]))
 
+  const toggleEvalType = (type: FormEvalType) =>
+    setForm(prev => ({
+      ...prev,
+      eval_types: prev.eval_types.includes(type)
+        ? prev.eval_types.filter(t => t !== type)
+        : [...prev.eval_types, type],
+    }))
+
+  const updateDiagnosticOption = (index: number, value: string) =>
+    setForm(prev => {
+      const opts = [...prev.diagnostic_options]
+      opts[index] = value
+      return { ...prev, diagnostic_options: opts }
+    })
+
+  const removeDiagnosticOption = (index: number) =>
+    setForm(prev => ({
+      ...prev,
+      diagnostic_options: prev.diagnostic_options.filter((_, i) => i !== index),
+    }))
+
+  const addDiagnosticOption = () =>
+    setForm(prev => ({
+      ...prev,
+      diagnostic_options: [...prev.diagnostic_options, ''],
+    }))
+
   const vLabel  = !isValidLabel(form.label)
-  const vNoEval = form.eval_type === null
+  const vNoEval = form.eval_types.length === 0
   const isValid = !vLabel && !vNoEval
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -141,15 +178,19 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
       const { error: errPeriods } = await supabase.from('periods').insert(periodsToInsert)
       if (errPeriods) throw errPeriods
 
-      // 4. Réinitialiser et recréer la config d'évaluation (un seul type actif)
+      // 4. Réinitialiser et recréer les configs d'évaluation (multiple types actifs)
       await supabase.from('eval_type_configs').delete().eq('school_year_id', yearId)
-      if (form.eval_type) {
-        const { error: errEval } = await supabase.from('eval_type_configs').insert({
-          school_year_id: yearId,
-          eval_type:      form.eval_type,
-          is_active:      true,
-          max_score:      form.eval_type === 'scored' ? form.eval_scored_max : null,
-        })
+      if (form.eval_types.length > 0) {
+        const evalInserts = form.eval_types.map(type => ({
+          school_year_id:     yearId,
+          eval_type:          type === 'scored_10' || type === 'scored_20' ? 'scored' : type,
+          is_active:          true,
+          max_score:          type === 'scored_10' ? 10 : type === 'scored_20' ? 20 : null,
+          diagnostic_options: type === 'diagnostic'
+            ? form.diagnostic_options.map(o => o.trim()).filter(Boolean)
+            : null,
+        }))
+        const { error: errEval } = await supabase.from('eval_type_configs').insert(evalInserts)
         if (errEval) throw errEval
       }
 
@@ -262,74 +303,103 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
         </h2>
 
         {vNoEval && hasSubmitted && (
-          <p className="text-xs text-red-500">Sélectionnez un type d'évaluation.</p>
+          <p className="text-xs text-red-500">Sélectionnez au moins un type d'évaluation.</p>
         )}
 
         <div className="space-y-2">
 
           {/* Diagnostique */}
-          <label className={clsx(
-            'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-            form.eval_type === 'diagnostic' ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
-          )}>
-            <input
-              type="radio"
-              name="eval_type"
-              checked={form.eval_type === 'diagnostic'}
-              onChange={() => set('eval_type', 'diagnostic')}
-              className="accent-primary-500 flex-shrink-0"
-            />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-secondary-800">Évaluation diagnostique</p>
-              <p className="text-xs text-warm-400">AC · EC · NA</p>
-            </div>
-          </label>
-
-          {/* Notée */}
           <div className={clsx(
             'px-4 py-3 rounded-xl border transition-colors',
-            form.eval_type === 'scored' ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white'
+            form.eval_types.includes('diagnostic') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white'
           )}>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
-                type="radio"
-                name="eval_type"
-                checked={form.eval_type === 'scored'}
-                onChange={() => set('eval_type', 'scored')}
-                className="accent-primary-500 flex-shrink-0"
+                type="checkbox"
+                checked={form.eval_types.includes('diagnostic')}
+                onChange={() => toggleEvalType('diagnostic')}
+                className="accent-primary-500 flex-shrink-0 w-4 h-4"
               />
-              <p className="text-sm font-semibold text-secondary-800">Évaluation notée</p>
+              <p className="text-sm font-semibold text-secondary-800">Évaluation diagnostique</p>
             </label>
 
-            {form.eval_type === 'scored' && (
-              <div className="mt-2 ml-7 flex gap-4">
-                {([10, 20] as const).map(n => (
-                  <label key={n} className="flex items-center gap-1.5 cursor-pointer">
+            {form.eval_types.includes('diagnostic') && (
+              <div className="mt-2 ml-7 space-y-1.5">
+                {form.diagnostic_options.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
                     <input
-                      type="radio"
-                      name="eval_scored_max"
-                      checked={form.eval_scored_max === n}
-                      onChange={() => set('eval_scored_max', n)}
-                      className="accent-primary-500"
+                      type="text"
+                      value={opt}
+                      onChange={e => updateDiagnosticOption(i, e.target.value)}
+                      className="input text-sm py-1 w-28"
                     />
-                    <span className="text-sm text-secondary-700">Sur {n}</span>
-                  </label>
+                    {form.diagnostic_options.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeDiagnosticOption(i)}
+                        className="p-1 text-warm-300 hover:text-danger-500 rounded transition-colors"
+                        title="Supprimer"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
                 ))}
+                <button
+                  type="button"
+                  onClick={addDiagnosticOption}
+                  className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
+                >
+                  <Plus size={12} /> Ajouter une option
+                </button>
               </div>
             )}
           </div>
 
+          {/* Notée sur 10 */}
+          <label className={clsx(
+            'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+            form.eval_types.includes('scored_10') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+          )}>
+            <input
+              type="checkbox"
+              checked={form.eval_types.includes('scored_10')}
+              onChange={() => toggleEvalType('scored_10')}
+              className="accent-primary-500 flex-shrink-0 w-4 h-4"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-secondary-800">Évaluation notée sur 10</p>
+              <p className="text-xs text-warm-400">Notes de 0 à 10</p>
+            </div>
+          </label>
+
+          {/* Notée sur 20 */}
+          <label className={clsx(
+            'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+            form.eval_types.includes('scored_20') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+          )}>
+            <input
+              type="checkbox"
+              checked={form.eval_types.includes('scored_20')}
+              onChange={() => toggleEvalType('scored_20')}
+              className="accent-primary-500 flex-shrink-0 w-4 h-4"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-secondary-800">Évaluation notée sur 20</p>
+              <p className="text-xs text-warm-400">Notes de 0 à 20</p>
+            </div>
+          </label>
+
           {/* Étoilée */}
           <label className={clsx(
             'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-            form.eval_type === 'stars' ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+            form.eval_types.includes('stars') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
           )}>
             <input
-              type="radio"
-              name="eval_type"
-              checked={form.eval_type === 'stars'}
-              onChange={() => set('eval_type', 'stars')}
-              className="accent-primary-500 flex-shrink-0"
+              type="checkbox"
+              checked={form.eval_types.includes('stars')}
+              onChange={() => toggleEvalType('stars')}
+              className="accent-primary-500 flex-shrink-0 w-4 h-4"
             />
             <div className="flex-1">
               <p className="text-sm font-semibold text-secondary-800">Évaluation étoilée</p>

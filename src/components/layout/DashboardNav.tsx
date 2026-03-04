@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { LogOut, Bell, User } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
+import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { Profile } from '@/types/database'
 import type { User } from '@supabase/supabase-js'
 
@@ -18,11 +19,11 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/teachers':          'Enseignants',
   '/dashboard/teachers/new':      'Nouvel enseignant',
   '/dashboard/classes':           'Paramétrage des classes',
-  '/dashboard/affectation':       'Affectation pédagogique',
+  '/dashboard/affectation':       'Affectations pédagogiques',
   '/dashboard/classes/new':       'Nouvelle classe',
-  '/dashboard/grades':            'Notes',
+  '/dashboard/grades':            'Saisie notes',
   '/dashboard/absences':          'Absences',
-  '/dashboard/evaluations':       'Évaluations',
+  '/dashboard/evaluations':       'Élaboration des évaluations',
   '/dashboard/announcements':     'Communications',
   '/dashboard/payments':          'Paiements',
   '/dashboard/etablissement':     'Établissement',
@@ -63,6 +64,8 @@ export default function DashboardNav({ user, profile }: DashboardNavProps) {
       console.error('Erreur de déconnexion:', error)
     }
   }
+
+  useInactivityLogout(handleLogout)
 
   return (
     <nav className="bg-white shadow-nav px-6 py-3 sticky top-0 z-30">

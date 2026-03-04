@@ -72,28 +72,35 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'secretaire'],
   },
   {
-    name:  'Affectation',
+    name:  'Affectations',
     href:  '/dashboard/affectation',
     icon:  UserCheck,
     roles: ['admin', 'direction', 'responsable_pedagogique'],
   },
   {
-    name:  'Notes',
-    href:  '/dashboard/grades',
-    icon:  FileText,
+    name:  'Évaluations',
+    icon:  ClipboardList,
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+    children: [
+      {
+        name:  'Élaboration',
+        href:  '/dashboard/evaluations',
+        icon:  ClipboardList,
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
+      },
+      {
+        name:  'Saisie notes',
+        href:  '/dashboard/grades',
+        icon:  FileText,
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+      },
+    ],
   },
   {
     name:  'Absences',
     href:  '/dashboard/absences',
     icon:  Calendar,
     roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
-  },
-  {
-    name:  'Évaluations',
-    href:  '/dashboard/evaluations',
-    icon:  ClipboardList,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
   },
   {
     name:  'Communications',

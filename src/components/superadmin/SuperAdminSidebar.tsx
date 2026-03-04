@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Building2, LogOut } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
+import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import { clsx } from 'clsx'
 
 interface SuperAdminSidebarProps {
@@ -23,6 +24,8 @@ export default function SuperAdminSidebar({ email }: SuperAdminSidebarProps) {
       console.error('Erreur de déconnexion:', error)
     }
   }
+
+  useInactivityLogout(handleLogout)
 
   return (
     <aside

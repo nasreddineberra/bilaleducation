@@ -63,7 +63,8 @@ export interface EvalTypeConfig {
   school_year_id: string
   eval_type: EvalTypeKind
   is_active: boolean
-  max_score?: number | null  // 10 ou 20 pour 'scored', null sinon
+  max_score?: number | null           // 10 ou 20 pour 'scored', null sinon
+  diagnostic_options?: string[] | null // ex. ['AC','EC','NA'] pour 'diagnostic'
   created_at: string
 }
 
@@ -235,14 +236,19 @@ export interface Evaluation {
   id: string
   etablissement_id: string
   class_id: string
-  module_id: string
+  module_id?: string | null       // ancien système (nullable depuis migration)
+  cours_id?: string | null        // nouveau référentiel
+  period_id?: string | null       // période scolaire
   teacher_id?: string
   title: string
   description?: string
   evaluation_type?: EvaluationType
-  max_score: number
+  eval_kind?: EvalTypeKind | null // nouveau : diagnostic | scored | stars
+  max_score?: number | null
   coefficient: number
-  evaluation_date: string
+  evaluation_date?: string | null
+  display_ue_id?: string | null     // override UE pour le panneau d'élaboration
+  display_module_id?: string | null // override module pour le panneau d'élaboration
   created_at: string
   updated_at: string
 }
@@ -342,6 +348,7 @@ export interface CoursModule {
   unite_enseignement_id: string
   nom_fr: string
   nom_ar: string | null
+  code: string | null
   order_index: number
   created_at: string
 }
@@ -352,6 +359,7 @@ export interface Cours {
   module_id: string | null
   nom_fr: string
   nom_ar: string | null
+  code: string | null
   duree_minutes: number | null
   order_index: number
   created_at: string

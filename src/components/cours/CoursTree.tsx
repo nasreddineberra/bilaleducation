@@ -23,6 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 type FieldDef = {
   label: string; value: string; onChange: (v: string) => void
   placeholder?: string; type?: string; dir?: string
+  maxWidth?: string  // largeur fixe pour les champs courts (ex. Ref)
 }
 
 type AddingKind =
@@ -61,10 +62,10 @@ interface SharedCardProps {
   submitting:       boolean
   fNomFr:           string
   fNomAr:           string
-  fDuree:           string
+  fRef:             string
   setFNomFr:        (v: string) => void
   setFNomAr:        (v: string) => void
-  setFDuree:        (v: string) => void
+  setFRef:          (v: string) => void
   ueFields:         FieldDef[]
   moduleFields:     FieldDef[]
   coursFields:      FieldDef[]
@@ -83,7 +84,7 @@ interface SharedCardProps {
   search:           string
 }
 
-// ─── Formulaire inline générique ─────────────────────────────────────────────
+// ─── Formulaire inline avec mini-libellés ─────────────────────────────────────
 
 function InlineForm({
   fields, onSubmit, onCancel, submitting,
@@ -91,24 +92,32 @@ function InlineForm({
   fields: FieldDef[]; onSubmit: () => void; onCancel: () => void; submitting: boolean
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 mt-1 mb-2 pl-1">
+    <div className="flex flex-wrap items-end gap-2 mt-1 mb-2 pl-1">
       {fields.map((f, i) => (
-        <input
+        <div
           key={i}
-          type={f.type ?? 'text'}
-          dir={f.dir ?? 'auto'}
-          value={f.value}
-          onChange={e => f.onChange(e.target.value)}
-          placeholder={f.placeholder ?? f.label}
-          className="input text-sm py-1 flex-1 min-w-[120px]"
-          disabled={submitting}
-          autoFocus={i === 0}
-        />
+          className="flex flex-col gap-0.5"
+          style={f.maxWidth ? { width: f.maxWidth, flexShrink: 0 } : { flex: '1 1 120px' }}
+        >
+          <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide px-0.5 leading-none">
+            {f.label}
+          </label>
+          <input
+            type={f.type ?? 'text'}
+            dir={f.dir ?? 'auto'}
+            value={f.value}
+            onChange={e => f.onChange(e.target.value)}
+            placeholder={f.placeholder ?? ''}
+            className="input text-sm py-1 w-full"
+            disabled={submitting}
+            autoFocus={i === 0}
+          />
+        </div>
       ))}
-      <button onClick={onSubmit} disabled={submitting} className="btn btn-primary py-1 px-3 text-sm">
+      <button onClick={onSubmit} disabled={submitting} className="btn btn-primary py-1 px-3 text-sm self-end">
         <Check size={14} />
       </button>
-      <button onClick={onCancel} className="btn btn-secondary py-1 px-3 text-sm">
+      <button onClick={onCancel} className="btn btn-secondary py-1 px-3 text-sm self-end">
         <X size={14} />
       </button>
     </div>
@@ -140,7 +149,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 // ─── Ligne de cours ────────────────────────────────────────────────────────────
 
 function CourseRow({
-  c, editing, fNomFr, setFNomFr, fNomAr, setFNomAr, fDuree, setFDuree,
+  c, editing, fNomFr, setFNomFr, fNomAr, setFNomAr, fRef, setFRef,
   coursFields, error, submitting,
   openEdit, setConfirmDelete, setDeleteError, onSubmit, onCancel, search,
 }: {
@@ -148,7 +157,7 @@ function CourseRow({
   editing:         EditingKind | null
   fNomFr:          string; setFNomFr: (v: string) => void
   fNomAr:          string; setFNomAr: (v: string) => void
-  fDuree:          string; setFDuree: (v: string) => void
+  fRef:            string; setFRef:   (v: string) => void
   coursFields:     FieldDef[]
   error:           string | null
   submitting:      boolean
@@ -159,7 +168,7 @@ function CourseRow({
   onCancel:        () => void
   search:          string
 }) {
-  void setFNomFr; void setFNomAr; void setFDuree
+  void setFNomFr; void setFNomAr; void setFRef
 
   const isEditing = editing?.kind === 'cours' && editing.item.id === c.id
 
@@ -175,7 +184,13 @@ function CourseRow({
   return (
     <div className="flex items-center gap-1.5 group py-0.5 px-1 -mx-1 rounded hover:bg-primary-50 transition-colors">
       <span className="w-1.5 h-1.5 rounded-full bg-warm-300 flex-shrink-0 self-center" />
-      {/* FR · AR sur une ligne */}
+      {/* Ref */}
+      {c.code && (
+        <span className="text-[10px] font-mono text-warm-400 bg-warm-100 px-1 py-px rounded flex-shrink-0">
+          <Highlight text={c.code} query={search} />
+        </span>
+      )}
+      {/* FR · AR */}
       <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
         <span dir="auto" className="font-semibold text-secondary-700 text-sm"><Highlight text={c.nom_fr} query={search} /></span>
         {c.nom_ar && <span className="text-warm-300 flex-shrink-0 select-none">·</span>}
@@ -183,9 +198,6 @@ function CourseRow({
           <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
         )}
       </div>
-      {c.duree_minutes && (
-        <span className="text-xs text-warm-400 flex-shrink-0">{c.duree_minutes} min</span>
-      )}
       <button
         onClick={() => openEdit({ kind: 'cours', item: c })}
         className="p-1 text-warm-300 hover:text-primary-600 hover:bg-primary-50 rounded opacity-0 group-hover:opacity-100 transition-all"
@@ -213,7 +225,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
 
   const {
     cours, expandedModules, adding, editing, error, submitting,
-    fNomFr, fNomAr, fDuree, setFNomFr, setFNomAr, setFDuree,
+    fNomFr, fNomAr, fRef, setFNomFr, setFNomAr, setFRef,
     moduleFields, coursFields, toggleModule, openEdit, openAdd, cancel,
     setConfirmDelete, setDeleteError, handleEditModule, handleEditCours, handleAddCours,
     search,
@@ -250,6 +262,11 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
         ) : (
           <>
             <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
+              {mod.code && (
+                <span className="text-[10px] font-mono text-warm-400 bg-warm-100 px-1 py-px rounded flex-shrink-0">
+                  <Highlight text={mod.code} query={search} />
+                </span>
+              )}
               <span dir="auto" className="font-semibold text-secondary-700 text-sm"><Highlight text={mod.nom_fr} query={search} /></span>
               {mod.nom_ar && <span className="text-warm-300 flex-shrink-0 select-none">·</span>}
               {mod.nom_ar && (
@@ -274,7 +291,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
               key={c.id} c={c} editing={editing}
               fNomFr={fNomFr} setFNomFr={setFNomFr}
               fNomAr={fNomAr} setFNomAr={setFNomAr}
-              fDuree={fDuree} setFDuree={setFDuree}
+              fRef={fRef} setFRef={setFRef}
               coursFields={coursFields}
               error={error} submitting={submitting}
               openEdit={openEdit}
@@ -307,7 +324,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
   const {
     modules, cours, expandedUEs, expandedModules, adding, editing,
     error, submitting,
-    fNomFr, fNomAr, fDuree, setFNomFr, setFNomAr, setFDuree,
+    fNomFr, fNomAr, fRef, setFNomFr, setFNomAr, setFRef,
     ueFields, moduleFields, coursFields,
     toggleUE, toggleModule, openEdit, openAdd, cancel,
     setConfirmDelete, setDeleteError,
@@ -439,7 +456,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
                   key={c.id} c={c} editing={editing}
                   fNomFr={fNomFr} setFNomFr={setFNomFr}
                   fNomAr={fNomAr} setFNomAr={setFNomAr}
-                  fDuree={fDuree} setFDuree={setFDuree}
+                  fRef={fRef} setFRef={setFRef}
                   coursFields={coursFields}
                   error={error} submitting={submitting}
                   openEdit={openEdit}
@@ -490,8 +507,8 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
   const [fNomFr, setFNomFr] = useState('')
   const [fNomAr, setFNomAr] = useState('')
-  const [fCode,  setFCode]  = useState('')
-  const [fDuree, setFDuree] = useState('')
+  const [fCode,  setFCode]  = useState('')   // ref UE
+  const [fRef,   setFRef]   = useState('')   // ref module / cours
 
   // Synchroniser si les props changent (après router.refresh())
   useEffect(() => { setOrderedUEs(ues) }, [ues])
@@ -537,7 +554,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     const oldIndex = orderedUEs.findIndex(u => u.id === active.id)
     const newIndex = orderedUEs.findIndex(u => u.id === over.id)
     const reordered = arrayMove(orderedUEs, oldIndex, newIndex)
-    setOrderedUEs(reordered)  // mise à jour optimiste
+    setOrderedUEs(reordered)
 
     const supabase = createClient()
     await Promise.all(
@@ -567,15 +584,15 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
   const openAdd = (a: AddingKind) => {
     setAdding(a); setEditing(null)
-    setFNomFr(''); setFNomAr(''); setFCode(''); setFDuree('')
+    setFNomFr(''); setFNomAr(''); setFCode(''); setFRef('')
     setError(null)
   }
 
   const openEdit = (e: EditingKind) => {
     setEditing(e); setAdding(null); setError(null)
     if (e.kind === 'ue')     { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFCode(e.item.code ?? '') }
-    if (e.kind === 'module') { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? '') }
-    if (e.kind === 'cours')  { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFDuree(e.item.duree_minutes?.toString() ?? '') }
+    if (e.kind === 'module') { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFRef(e.item.code ?? '') }
+    if (e.kind === 'cours')  { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFRef(e.item.code ?? '') }
   }
 
   const cancel = () => { setAdding(null); setEditing(null); setError(null) }
@@ -585,7 +602,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   const refreshAndReset = () => {
     router.refresh()
     setAdding(null); setEditing(null)
-    setFNomFr(''); setFNomAr(''); setFCode(''); setFDuree('')
+    setFNomFr(''); setFNomAr(''); setFCode(''); setFRef('')
     setSubmitting(false)
   }
 
@@ -611,6 +628,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
       unite_enseignement_id: ueId,
       nom_fr:                fNomFr.trim(),
       nom_ar:                fNomAr.trim() || null,
+      code:                  fRef.trim() || null,
     })
     if (error) { setError(error.message); setSubmitting(false); return }
     setExpandedUEs(prev => new Set([...prev, ueId]))
@@ -626,7 +644,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
       module_id:             moduleId,
       nom_fr:                fNomFr.trim(),
       nom_ar:                fNomAr.trim() || null,
-      duree_minutes:         fDuree ? parseInt(fDuree, 10) : null,
+      code:                  fRef.trim() || null,
     })
     if (error) { setError(error.message); setSubmitting(false); return }
     if (moduleId) setExpandedModules(prev => new Set([...prev, moduleId]))
@@ -650,7 +668,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     setSubmitting(true); setError(null)
     const supabase = createClient()
     const { error } = await supabase.from('cours_modules')
-      .update({ nom_fr: fNomFr.trim(), nom_ar: fNomAr.trim() || null })
+      .update({ nom_fr: fNomFr.trim(), nom_ar: fNomAr.trim() || null, code: fRef.trim() || null })
       .eq('id', id)
     if (error) { setError(error.message); setSubmitting(false); return }
     refreshAndReset()
@@ -661,7 +679,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     setSubmitting(true); setError(null)
     const supabase = createClient()
     const { error } = await supabase.from('cours')
-      .update({ nom_fr: fNomFr.trim(), nom_ar: fNomAr.trim() || null, duree_minutes: fDuree ? parseInt(fDuree, 10) : null })
+      .update({ nom_fr: fNomFr.trim(), nom_ar: fNomAr.trim() || null, code: fRef.trim() || null })
       .eq('id', id)
     if (error) { setError(error.message); setSubmitting(false); return }
     refreshAndReset()
@@ -715,28 +733,33 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     return false
   })
 
-  // Définition des champs de formulaire
+  // ── Définition des champs de formulaire ───────────────────────────────────
+
+  // UE : Réf réduit (80px), Nom FR élastique, Nom AR élastique
   const ueFields: FieldDef[] = [
-    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr, placeholder: 'ex. Mathématiques' },
-    { label: 'Nom (AR / autre)', value: fNomAr, onChange: setFNomAr, placeholder: 'الرياضيات', dir: 'auto' },
-    { label: 'Code', value: fCode, onChange: setFCode, placeholder: 'MATH' },
+    { label: 'Réf',      value: fCode,  onChange: setFCode,  maxWidth: '80px' },
+    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
+    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
   ]
+  // Module : Réf réduit, Nom FR, Nom AR
   const moduleFields: FieldDef[] = [
-    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr, placeholder: 'ex. Algèbre' },
-    { label: 'Nom (AR / autre)', value: fNomAr, onChange: setFNomAr, placeholder: 'الجبر', dir: 'auto' },
+    { label: 'Réf',      value: fRef,   onChange: setFRef,   maxWidth: '80px' },
+    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
+    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
   ]
+  // Cours : Réf réduit, Nom FR, Nom AR
   const coursFields: FieldDef[] = [
-    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr, placeholder: 'ex. Introduction' },
-    { label: 'Nom (AR / autre)', value: fNomAr, onChange: setFNomAr, placeholder: 'مقدمة', dir: 'auto' },
-    { label: 'Durée (min)', value: fDuree, onChange: setFDuree, type: 'number', placeholder: 'min' },
+    { label: 'Réf',      value: fRef,   onChange: setFRef,   maxWidth: '80px' },
+    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
+    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
   ]
 
   // Props partagées pour toutes les cartes UE
   const shared: SharedCardProps = {
     modules, cours, expandedUEs, expandedModules, adding, editing,
     error, submitting,
-    fNomFr, fNomAr, fDuree,
-    setFNomFr, setFNomAr, setFDuree,
+    fNomFr, fNomAr, fRef,
+    setFNomFr, setFNomAr, setFRef,
     ueFields, moduleFields, coursFields,
     toggleUE, toggleModule, openEdit, openAdd, cancel,
     setConfirmDelete, setDeleteError,
