@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState, useMemo, useRef } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plus, Check, X, Pencil, Trash2,
-  Search, ChevronRight, ChevronDown, BookOpen, GripVertical,
+  Search, ChevronUp, ChevronRight, ChevronDown, BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -36,12 +36,15 @@ type EvaluationRow = {
   evaluation_date: string | null
   display_module_id: string | null
   display_ue_id: string | null
+  sort_order: number | null
 }
 
-type DragItem   = { type: 'eval'; evalId: string }
-                | { type: 'module'; moduleId: string | null; ueId: string }
-type DropTarget = { type: 'module'; moduleId: string | null; ueId: string }
-                | { type: 'ue'; ueId: string }
+type EvalOrderConfig = {
+  class_id:     string
+  period_id:    string
+  ue_order:     string[]
+  module_order: Record<string, string[]>
+}
 
 type EvalOption = {
   configId: string
@@ -58,11 +61,23 @@ interface Props {
   modules:            CoursModule[]
   cours:              Cours[]
   initialEvaluations: EvaluationRow[]
+  evalOrderConfigs:   EvalOrderConfig[]
   etablissementId:    string
   schoolYearId:       string | null
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const PERIOD_LABELS: Record<string, string> = {
+  S1: 'Semestre 1',
+  S2: 'Semestre 2',
+  T1: 'Trimestre 1',
+  T2: 'Trimestre 2',
+  T3: 'Trimestre 3',
+}
+function formatPeriodLabel(label: string): string {
+  return PERIOD_LABELS[label] ?? label
+}
 
 function evalOptionLabel(c: EvalTypeConfig): string {
   if (c.eval_type === 'scored')     return `Notée /${c.max_score}`
@@ -213,7 +228,7 @@ function InlineEvalForm({
 
 export default function EvaluationsClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
-  initialEvaluations, etablissementId, schoolYearId,
+  initialEvaluations, evalOrderConfigs, etablissementId, schoolYearId,
 }: Props) {
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes[0]?.id ?? null)
@@ -231,16 +246,25 @@ export default function EvaluationsClient({
 
   // ── Référentiel search ───────────────────────────────────────────────────────
   const [search,       setSearch]       = useState('')
-  const [expandedUEs,  setExpandedUEs]  = useState<Set<string>>(new Set(ues.map(u => u.id)))
+  const [expandedUEs,  setExpandedUEs]  = useState<Set<string>>(new Set())
 
   // ── Évaluations locales ──────────────────────────────────────────────────────
-  const [evalsList, setEvalsList] = useState<EvaluationRow[]>(initialEvaluations)
+  const [evalsList,    setEvalsList]    = useState<EvaluationRow[]>(initialEvaluations)
+  const [moduleOrder,  setModuleOrder]  = useState<Record<string, string[]>>({})
+  const [ueOrder,      setUeOrder]      = useState<string[]>([])
+  const [orderDirty,   setOrderDirty]   = useState(false)
+  const [savingOrder,  setSavingOrder]  = useState(false)
 
-  // ── Drag & drop ──────────────────────────────────────────────────────────────
-  const [dragging,   setDragging]   = useState<DragItem | null>(null)
-  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
-  // Ref synchrone pour éviter les stale closures dans onDragOver / onDrop
-  const draggingRef = useRef<DragItem | null>(null)
+  // Charger la config d'ordre propre à la classe × période sélectionnée
+  useEffect(() => {
+    const config = evalOrderConfigs.find(
+      c => c.class_id === selectedClassId && c.period_id === selectedPeriodId
+    )
+    setUeOrder(config?.ue_order ?? [])
+    setModuleOrder((config?.module_order ?? {}) as Record<string, string[]>)
+    setOrderDirty(false)
+  }, [selectedClassId, selectedPeriodId]) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // ── Options du select type ───────────────────────────────────────────────────
   const evalOptions: EvalOption[] = useMemo(() =>
@@ -304,7 +328,13 @@ export default function EvaluationsClient({
     return ids
   }, [currentEvals, cours, adding])
 
-  const rightUEs = ues.filter(ue => rightUEIds.has(ue.id))
+  const rightUEs = useMemo(() => {
+    const natural = ues.filter(ue => rightUEIds.has(ue.id))
+    if (ueOrder.length === 0) return natural
+    const known   = ueOrder.filter(id => rightUEIds.has(id)).map(id => ues.find(u => u.id === id)).filter((u): u is UniteEnseignement => Boolean(u))
+    const newOnes = natural.filter(ue => !ueOrder.includes(ue.id))
+    return [...known, ...newOnes]
+  }, [ues, rightUEIds, ueOrder])
 
   // ── Helpers formulaire ───────────────────────────────────────────────────────
   const getOption = () => evalOptions.find(o => o.configId === formConfigId)
@@ -352,11 +382,12 @@ export default function EvaluationsClient({
         display_ue_id:     coursItem.unite_enseignement_id,
         display_module_id: coursItem.module_id ?? null,
       })
-      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id')
+      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
       .single()
 
     if (err) { setError(err.message); setSubmitting(false); return }
     setEvalsList(prev => [...prev, data as EvaluationRow])
+    setOrderDirty(true)
     setAdding(null); setSubmitting(false)
   }
 
@@ -390,45 +421,77 @@ export default function EvaluationsClient({
     const { error: err } = await supabase.from('evaluations').delete().eq('id', evalId)
     if (err) { setError(err.message); setSubmitting(false); return }
     setEvalsList(prev => prev.filter(e => e.id !== evalId))
+    setOrderDirty(true)
     setConfirmDelete(null); setSubmitting(false)
   }
 
-  const handleDropEval = async (targetModId: string | null, targetUeId: string) => {
-    const drag = draggingRef.current
-    if (!drag || drag.type !== 'eval') return
-    const evalId = drag.evalId
-    draggingRef.current = null; setDragging(null); setDropTarget(null)
+  // ── Move up / down ───────────────────────────────────────────────────────────
 
-    const supabase = createClient()
-    await supabase.from('evaluations')
-      .update({ display_module_id: targetModId, display_ue_id: targetUeId })
-      .eq('id', evalId)
-    setEvalsList(prev => prev.map(e => e.id === evalId
-      ? { ...e, display_module_id: targetModId, display_ue_id: targetUeId }
-      : e
-    ))
+  const moveEval = (evalId: string, dir: 'up' | 'down', siblings: EvaluationRow[]) => {
+    const idx  = siblings.findIndex(e => e.id === evalId)
+    const next = dir === 'up' ? idx - 1 : idx + 1
+    if (next < 0 || next >= siblings.length) return
+    const swapId = siblings[next].id
+    setEvalsList(prev => {
+      const list = [...prev]
+      const iA = list.findIndex(e => e.id === evalId)
+      const iB = list.findIndex(e => e.id === swapId)
+      ;[list[iA], list[iB]] = [list[iB], list[iA]]
+      return list
+    })
+    setOrderDirty(true)
   }
 
-  const handleDropModule = async (targetUeId: string) => {
-    const drag = draggingRef.current
-    if (!drag || drag.type !== 'module') return
-    const { moduleId: srcModId, ueId: srcUeId } = drag
-    if (srcUeId === targetUeId) { draggingRef.current = null; setDragging(null); setDropTarget(null); return }
-    draggingRef.current = null; setDragging(null); setDropTarget(null)
+  const moveModule = (ueId: string, modId: string, dir: 'up' | 'down', current: string[]) => {
+    const idx  = current.indexOf(modId)
+    const next = dir === 'up' ? idx - 1 : idx + 1
+    if (next < 0 || next >= current.length) return
+    const arr = [...current]
+    ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+    setModuleOrder(prev => ({ ...prev, [ueId]: arr }))
+    setOrderDirty(true)
+  }
 
-    const affectedIds = currentEvals
-      .filter(e => {
-        const eModId = e.display_ue_id !== null ? e.display_module_id : cours.find(c => c.id === e.cours_id)?.module_id ?? null
-        const eUeId  = e.display_ue_id ?? cours.find(c => c.id === e.cours_id)?.unite_enseignement_id ?? ''
-        return eModId === srcModId && eUeId === srcUeId
-      })
-      .map(e => e.id)
-    if (affectedIds.length > 0) {
-      const supabase = createClient()
-      await supabase.from('evaluations').update({ display_ue_id: targetUeId }).in('id', affectedIds)
-      setEvalsList(prev => prev.map(e =>
-        affectedIds.includes(e.id) ? { ...e, display_ue_id: targetUeId } : e
-      ))
+  const moveUE = (ueId: string, dir: 'up' | 'down', current: string[]) => {
+    const idx  = current.indexOf(ueId)
+    const next = dir === 'up' ? idx - 1 : idx + 1
+    if (next < 0 || next >= current.length) return
+    const arr = [...current]
+    ;[arr[idx], arr[next]] = [arr[next], arr[idx]]
+    setUeOrder(arr)
+    setOrderDirty(true)
+  }
+
+  // ── Sauvegarde de l'ordre (propre à la classe × période) ─────────────────
+  const handleSaveOrder = async () => {
+    if (!selectedClassId || !selectedPeriodId) return
+    setSavingOrder(true)
+    setError(null)
+    const supabase = createClient()
+    try {
+      // 1. Ordre des évaluations (sort_order par éval, déjà scoped class+période)
+      await Promise.all(
+        currentEvals.map((ev, idx) =>
+          supabase.from('evaluations').update({ sort_order: idx }).eq('id', ev.id)
+        )
+      )
+      // 2. Ordre des UEs et modules — stocké dans evaluation_order_config
+      await supabase
+        .from('evaluation_order_config')
+        .upsert(
+          {
+            class_id:     selectedClassId,
+            period_id:    selectedPeriodId,
+            ue_order:     ueOrder,
+            module_order: moduleOrder,
+          },
+          { onConflict: 'class_id,period_id' }
+        )
+      setOrderDirty(false)
+    } catch {
+      setError('Erreur lors de la sauvegarde de l\'ordre.')
+    } finally {
+      setSavingOrder(false)
     }
   }
 
@@ -475,7 +538,7 @@ export default function EvaluationsClient({
                     : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
                 )}
               >
-                {p.label}
+                {formatPeriodLabel(p.label)}
               </button>
             ))}
           </div>
@@ -588,12 +651,12 @@ export default function EvaluationsClient({
                           const modCours = ueCours.filter(c => c.module_id === mod.id)
                           if (modCours.length === 0) return null
                           return (
-                            <div key={mod.id} className="mt-0.5">
-                              <p className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100 ml-2">
+                            <div key={mod.id} className="mt-0.5 ml-4">
+                              <p className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
                                 {mod.code && <span className="font-mono">{mod.code}</span>}
                                 {mod.nom_fr}
                               </p>
-                              <div className="pl-5 pr-2">
+                              <div className="pl-6 pr-2">
                                 {modCours.map(c => (
                                   <CoursRefRow
                                     key={c.id} c={c}
@@ -626,9 +689,20 @@ export default function EvaluationsClient({
                 {selectedClassId && selectedPeriodId && (() => {
                   const cls = classes.find(c => c.id === selectedClassId)
                   const per = periods.find(p => p.id === selectedPeriodId)
-                  return <span className="normal-case font-normal ml-1 text-warm-400">— {cls?.name} · {per?.label}</span>
+                  return <span className="normal-case font-normal ml-1 text-warm-400">— {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
                 })()}
               </p>
+              {currentEvals.length > 0 && (
+                <button
+                  onClick={handleSaveOrder}
+                  disabled={!orderDirty || savingOrder}
+                  className="btn btn-primary text-xs py-1 px-3 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+                  title="Enregistrer l'ordre des évaluations, modules et UEs"
+                >
+                  <Check size={12} />
+                  {savingOrder ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              )}
             </div>
 
             {/* Erreur globale */}
@@ -652,7 +726,7 @@ export default function EvaluationsClient({
             {/* Liste évaluations groupées par UE puis par module, avec drag & drop */}
             {!noSchoolYear && !noClassOrPeriod && (currentEvals.length > 0 || adding) && (
               <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
-                {rightUEs.map(ue => {
+                {rightUEs.map((ue, ueIdx) => {
                   // Effective UE/module pour chaque eval (display override > naturel)
                   const getEffUeId  = (e: EvaluationRow) =>
                     e.display_ue_id ?? cours.find(c => c.id === e.cours_id)?.unite_enseignement_id ?? ''
@@ -668,26 +742,23 @@ export default function EvaluationsClient({
 
                   // Modules effectifs présents dans cette UE
                   // + le module du cours en cours d'ajout (même s'il n'a pas encore d'évals)
-                  const modIds = [...new Set([
+                  const naturalModIds = [...new Set([
                     ...ueEvals.map(e => getEffModId(e)).filter((id): id is string => id !== null),
                     ...(addingHere && addingCours?.module_id ? [addingCours.module_id] : []),
                   ])]
+                  const savedOrder = moduleOrder[ue.id]
+                  const modIds = savedOrder
+                    ? [...savedOrder.filter(id => naturalModIds.includes(id)), ...naturalModIds.filter(id => !savedOrder.includes(id))]
+                    : naturalModIds
                   const ueMods = modIds
                     .map(id => modules.find(m => m.id === id))
                     .filter((m): m is CoursModule => Boolean(m))
 
-                  // Helpers DnD highlight (basés sur dropTarget uniquement)
-                  const isModDrop = (modId: string | null, ueId: string) =>
-                    dropTarget?.type === 'module' && dropTarget.moduleId === modId && dropTarget.ueId === ueId
-                  const isUeDrop = (ueId: string) =>
-                    dropTarget?.type === 'ue' && dropTarget.ueId === ueId
-
-                  const renderEval = (ev: EvaluationRow) => {
+                  const renderEval = (ev: EvaluationRow, siblings: EvaluationRow[]) => {
                     const coursItem  = cours.find(c => c.id === ev.cours_id)
                     const badge      = EVAL_BADGE[ev.eval_kind ?? ''] ?? EVAL_BADGE.diagnostic
                     const isEditing  = editing === ev.id
                     const isDeleting = confirmDelete === ev.id
-                    const isDraggingThis = dragging?.type === 'eval' && dragging.evalId === ev.id
 
                     if (isEditing) {
                       return (
@@ -712,26 +783,43 @@ export default function EvaluationsClient({
                       )
                     }
 
+                    const sibIdx = siblings.findIndex(e => e.id === ev.id)
+
                     return (
                       <div
                         key={ev.id}
-                        draggable
-                        onDragStart={e => { e.stopPropagation(); const item: DragItem = { type: 'eval', evalId: ev.id }; draggingRef.current = item; setDragging(item) }}
-                        onDragEnd={() => { draggingRef.current = null; setDragging(null); setDropTarget(null) }}
-                        className={clsx(
-                          'flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-warm-50 group transition-colors',
-                          isDraggingThis ? 'opacity-40 cursor-grabbing' : 'cursor-grab',
-                          'select-none'
-                        )}
+                        className="flex items-center gap-1 px-2 py-px rounded-lg hover:bg-warm-50 group transition-colors"
                       >
-                        <GripVertical size={11} className="text-warm-200 flex-shrink-0" />
+                        <div className="flex items-center flex-shrink-0">
+                          {sibIdx > 0 && (
+                            <button
+                              onClick={() => moveEval(ev.id, 'up', siblings)}
+                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              title="Monter"
+                            >
+                              <ChevronUp size={15} />
+                            </button>
+                          )}
+                          {sibIdx < siblings.length - 1 && (
+                            <button
+                              onClick={() => moveEval(ev.id, 'down', siblings)}
+                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              title="Descendre"
+                            >
+                              <ChevronDown size={15} />
+                            </button>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           {coursItem?.code && (
                             <span className="font-mono text-[10px] text-warm-400 mr-1.5 bg-warm-100 px-1 py-px rounded">
                               {coursItem.code}
                             </span>
                           )}
-                          <span className="text-sm text-secondary-700">{coursItem?.nom_fr ?? '—'}</span>
+                          <span className="text-xs text-secondary-700">{coursItem?.nom_fr ?? '—'}</span>
+                          {coursItem?.nom_ar && (
+                            <span className="text-xs text-warm-400 ml-2">{coursItem.nom_ar}</span>
+                          )}
                         </div>
                         <span className={clsx(
                           'text-[10px] font-semibold border px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0',
@@ -766,7 +854,7 @@ export default function EvaluationsClient({
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                             <button
                               onClick={() => openEdit(ev)}
                               className="p-1 text-warm-400 hover:text-primary-600 rounded transition-colors"
@@ -809,35 +897,44 @@ export default function EvaluationsClient({
                   )
 
                   return (
-                    <div
-                      key={ue.id}
-                      className={clsx(
-                        'rounded-lg p-1 -m-1 transition-colors',
-                        isUeDrop(ue.id) && 'ring-2 ring-primary-300 bg-primary-50/40'
-                      )}
-                      onDragOver={e => { if (draggingRef.current?.type !== 'module') return; e.preventDefault(); setDropTarget({ type: 'ue', ueId: ue.id }) }}
-                      onDrop={e => { if (draggingRef.current?.type !== 'module') return; e.preventDefault(); handleDropModule(ue.id) }}
-                      onDragEnd={() => { draggingRef.current = null; setDragging(null); setDropTarget(null) }}
-                    >
+                    <div key={ue.id}>
                       {/* En-tête UE */}
-                      <p className="text-xs font-bold text-secondary-600 uppercase tracking-wide mb-1.5 px-1 border-b border-warm-100 pb-1">
-                        {ue.code && (
-                          <span className="font-mono text-warm-400 mr-1.5 normal-case">[{ue.code}]</span>
-                        )}
-                        {ue.nom_fr}
-                      </p>
+                      <div className="flex items-center gap-1 text-xs font-bold text-secondary-600 uppercase tracking-wide mb-1.5 px-1 border-b border-warm-100 pb-1">
+                        <div className="flex items-center flex-shrink-0">
+                          {ueIdx > 0 && (
+                            <button
+                              onClick={() => moveUE(ue.id, 'up', rightUEs.map(u => u.id))}
+                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              title="Monter l'UE"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                          )}
+                          {ueIdx < rightUEs.length - 1 && (
+                            <button
+                              onClick={() => moveUE(ue.id, 'down', rightUEs.map(u => u.id))}
+                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              title="Descendre l'UE"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          )}
+                        </div>
+                        <span className="flex-1">
+                          {ue.code && (
+                            <span className="font-mono text-warm-400 mr-1.5 normal-case">[{ue.code}]</span>
+                          )}
+                          {ue.nom_fr}
+                          {ue.nom_ar && (
+                            <span className="font-normal normal-case text-warm-400 ml-2">{ue.nom_ar}</span>
+                          )}
+                        </span>
+                      </div>
 
                       <div className="space-y-1">
-                        {/* Zone "sans module" — drop target pour eval */}
-                        <div
-                          className={clsx(
-                            'rounded transition-colors',
-                            isModDrop(null, ue.id) && 'ring-1 ring-dashed ring-primary-400 bg-primary-50/50 py-0.5'
-                          )}
-                          onDragOver={e => { if (draggingRef.current?.type !== 'eval') return; e.preventDefault(); e.stopPropagation(); setDropTarget({ type: 'module', moduleId: null, ueId: ue.id }) }}
-                          onDrop={e => { if (draggingRef.current?.type !== 'eval') return; e.preventDefault(); handleDropEval(null, ue.id) }}
-                        >
-                          {directEvals.map(ev => renderEval(ev))}
+                        {/* Zone "sans module" */}
+                        <div>
+                          {directEvals.map(ev => renderEval(ev, directEvals))}
                           {addingHere && addingCours && !addingCours.module_id && renderAddForm(addingCours)}
                         </div>
 
@@ -847,28 +944,41 @@ export default function EvaluationsClient({
                           const addingInMod = addingHere && addingCours?.module_id === mod.id
 
                           return (
-                            <div
-                              key={mod.id}
-                              className={clsx(
-                                'mt-1.5 rounded-lg transition-colors',
-                                isModDrop(mod.id, ue.id) && 'ring-1 ring-primary-300 bg-primary-50/50'
-                              )}
-                              onDragOver={e => { if (draggingRef.current?.type !== 'eval') return; e.preventDefault(); e.stopPropagation(); setDropTarget({ type: 'module', moduleId: mod.id, ueId: ue.id }) }}
-                              onDrop={e => { if (draggingRef.current?.type !== 'eval') return; e.preventDefault(); handleDropEval(mod.id, ue.id) }}
-                            >
-                              {/* En-tête module — draggable vers une autre UE */}
-                              <p
-                                draggable
-                                onDragStart={e => { e.stopPropagation(); const item: DragItem = { type: 'module', moduleId: mod.id, ueId: ue.id }; draggingRef.current = item; setDragging(item) }}
-                                onDragEnd={() => { draggingRef.current = null; setDragging(null); setDropTarget(null) }}
-                                className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider px-2 pb-0.5 pt-1 cursor-grab select-none"
-                              >
-                                <GripVertical size={10} className="text-warm-300 flex-shrink-0" />
-                                {mod.code && <span className="font-mono">{mod.code}</span>}
-                                {mod.nom_fr}
-                              </p>
-                              {modEvals.map(ev => renderEval(ev))}
-                              {addingInMod && addingCours && renderAddForm(addingCours)}
+                            <div key={mod.id} className="mt-1.5 ml-4 rounded-lg">
+                              {/* En-tête module */}
+                              <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider px-2 pb-0.5 pt-1">
+                                <div className="flex items-center flex-shrink-0">
+                                  {modIds.indexOf(mod.id) > 0 && (
+                                    <button
+                                      onClick={() => moveModule(ue.id, mod.id, 'up', modIds)}
+                                      className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                      title="Monter le module"
+                                    >
+                                      <ChevronUp size={14} />
+                                    </button>
+                                  )}
+                                  {modIds.indexOf(mod.id) < modIds.length - 1 && (
+                                    <button
+                                      onClick={() => moveModule(ue.id, mod.id, 'down', modIds)}
+                                      className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                      title="Descendre le module"
+                                    >
+                                      <ChevronDown size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                                <span className="flex-1">
+                                  {mod.code && <span className="font-mono">{mod.code}</span>}
+                                  {mod.nom_fr}
+                                  {mod.nom_ar && (
+                                    <span className="normal-case font-normal text-warm-300 ml-2">{mod.nom_ar}</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="pl-4">
+                                {modEvals.map(ev => renderEval(ev, modEvals))}
+                                {addingInMod && addingCours && renderAddForm(addingCours)}
+                              </div>
                             </div>
                           )
                         })}

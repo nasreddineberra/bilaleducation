@@ -83,7 +83,7 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
     children: [
       {
-        name:  'Élaboration',
+        name:  'Gabarits',
         href:  '/dashboard/evaluations',
         icon:  ClipboardList,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],

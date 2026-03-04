@@ -23,7 +23,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/classes/new':       'Nouvelle classe',
   '/dashboard/grades':            'Saisie notes',
   '/dashboard/absences':          'Absences',
-  '/dashboard/evaluations':       'Élaboration des évaluations',
+  '/dashboard/evaluations':       'Gabarits des évaluations',
   '/dashboard/announcements':     'Communications',
   '/dashboard/payments':          'Paiements',
   '/dashboard/etablissement':     'Établissement',

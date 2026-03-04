@@ -24,6 +24,7 @@ type EvaluationRow = {
   evaluation_date: string | null
   display_module_id: string | null
   display_ue_id: string | null
+  sort_order: number | null
 }
 
 export default async function EvaluationsPage() {
@@ -123,6 +124,21 @@ export default async function EvaluationsPage() {
     supabase.from('cours').select('*').order('order_index').order('nom_fr'),
   ])
 
+  // 4b. Configs d'ordre d'affichage par classe × période
+  type EvalOrderConfig = {
+    class_id:     string
+    period_id:    string
+    ue_order:     string[]
+    module_order: Record<string, string[]>
+  }
+  const classIds = classes.map(c => c.id)
+  const { data: evalOrderConfigs } = classIds.length > 0
+    ? await supabase
+        .from('evaluation_order_config')
+        .select('class_id, period_id, ue_order, module_order')
+        .in('class_id', classIds)
+    : { data: [] as EvalOrderConfig[] }
+
   // 5. Évaluations existantes (nouveau système : avec cours_id)
   // On tente d'abord avec les champs display (après migration add-display-grouping)
   // puis on bascule sur un select minimal si la migration n'est pas encore jouée
@@ -130,20 +146,21 @@ export default async function EvaluationsPage() {
   {
     const { data, error } = await supabase
       .from('evaluations')
-      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id')
+      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
       .eq('etablissement_id', etablissementId)
       .not('cours_id', 'is', null)
+      .order('sort_order')
     if (!error) {
       evaluations = data as EvaluationRow[]
     } else {
-      // Migration non encore exécutée — chargement sans les champs display
+      // Migration non encore exécutée — chargement sans les champs display/sort_order
       const { data: data2 } = await supabase
         .from('evaluations')
         .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date')
         .eq('etablissement_id', etablissementId)
         .not('cours_id', 'is', null)
-      evaluations = ((data2 ?? []) as Omit<EvaluationRow, 'display_module_id' | 'display_ue_id'>[])
-        .map(e => ({ ...e, display_module_id: null, display_ue_id: null }))
+      evaluations = ((data2 ?? []) as Omit<EvaluationRow, 'display_module_id' | 'display_ue_id' | 'sort_order'>[])
+        .map(e => ({ ...e, display_module_id: null, display_ue_id: null, sort_order: null }))
     }
   }
 
@@ -157,6 +174,7 @@ export default async function EvaluationsPage() {
         modules={(modules ?? []) as CoursModule[]}
         cours={(cours ?? []) as Cours[]}
         initialEvaluations={(evaluations ?? []) as EvaluationRow[]}
+        evalOrderConfigs={(evalOrderConfigs ?? []) as EvalOrderConfig[]}
         etablissementId={etablissementId}
         schoolYearId={schoolYearId}
       />
