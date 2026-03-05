@@ -171,6 +171,9 @@ function InlineEvalForm({
   onCancel:       () => void
   submitting:     boolean
 }) {
+  const selectedKind = evalOptions.find(o => o.configId === configId)?.evalKind
+  const isScored = selectedKind === 'scored'
+
   return (
     <div className="flex flex-wrap items-end gap-2 py-2 px-3 bg-warm-50 rounded-lg border border-warm-200 mt-1">
       {/* Type */}
@@ -188,19 +191,21 @@ function InlineEvalForm({
         </select>
       </div>
 
-      {/* Coefficient */}
-      <div className="flex flex-col gap-0.5">
-        <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Coef.</label>
-        <input
-          type="number"
-          value={coefficient}
-          onChange={e => setCoefficient(e.target.value)}
-          min="0.5"
-          step="0.5"
-          className="input text-sm py-1 w-20"
-          disabled={submitting}
-        />
-      </div>
+      {/* Coefficient — uniquement pour les évaluations notées */}
+      {isScored && (
+        <div className="flex flex-col gap-0.5">
+          <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Coef.</label>
+          <input
+            type="number"
+            value={coefficient}
+            onChange={e => setCoefficient(e.target.value)}
+            min="0.5"
+            step="0.5"
+            className="input text-sm py-1 w-20"
+            disabled={submitting}
+          />
+        </div>
+      )}
 
       {/* Date */}
       <div className="flex flex-col gap-0.5">
@@ -376,7 +381,7 @@ export default function EvaluationsClient({
         cours_id:          adding,
         eval_kind:         option.evalKind,
         max_score:         option.maxScore,
-        coefficient:       parseFloat(formCoefficient) || 1,
+        coefficient:       option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1,
         evaluation_date:   formDate || null,
         title:             coursItem.nom_fr,
         display_ue_id:     coursItem.unite_enseignement_id,
@@ -402,14 +407,14 @@ export default function EvaluationsClient({
       .update({
         eval_kind:       option.evalKind,
         max_score:       option.maxScore,
-        coefficient:     parseFloat(formCoefficient) || 1,
+        coefficient:     option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1,
         evaluation_date: formDate || null,
       })
       .eq('id', editing)
 
     if (err) { setError(err.message); setSubmitting(false); return }
     setEvalsList(prev => prev.map(e => e.id === editing
-      ? { ...e, eval_kind: option.evalKind, max_score: option.maxScore, coefficient: parseFloat(formCoefficient) || 1, evaluation_date: formDate || null }
+      ? { ...e, eval_kind: option.evalKind, max_score: option.maxScore, coefficient: option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1, evaluation_date: formDate || null }
       : e
     ))
     setEditing(null); setSubmitting(false)
