@@ -732,6 +732,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
   const [showWebcam,         setShowWebcam]         = useState(false)
   const [isUploading,        setIsUploading]        = useState(false)
   const [uploadError,        setUploadError]        = useState<string | null>(null)
+  const [confirmDelete,      setConfirmDelete]      = useState(false)
 
   useEffect(() => {
     if (studentId) photoId.current = studentId
@@ -866,16 +867,35 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
             <Camera size={11} />
             Webcam
           </button>
-          {photoUrl && (
+          {photoUrl && !confirmDelete && (
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setConfirmDelete(true)}
               disabled={isUploading}
               className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
             >
               <Trash2 size={11} />
               Supprimer
             </button>
+          )}
+          {confirmDelete && (
+            <div className="flex flex-col gap-1 items-start">
+              <button
+                type="button"
+                onClick={() => { setConfirmDelete(false); handleDelete() }}
+                disabled={isUploading}
+                className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors disabled:opacity-40"
+              >
+                Confirmer ?
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-warm-400 hover:text-warm-600 transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
           )}
         </div>
 

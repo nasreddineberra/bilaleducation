@@ -274,21 +274,15 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-3 max-w-2xl">
+    <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-2xl">
 
-      {/* ── Libellé + En cours ─────────────────────────────────────────────── */}
-      <div className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-          Année scolaire
-        </h2>
+      {/* ── Libellé + Répartition ────────────────────────────────────────────── */}
+      <div className="card p-3">
+        <div className="grid grid-cols-2 gap-4">
 
-        <div className="grid grid-cols-2 gap-3 items-end">
-
-          {/* Libellé */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-              Libellé <span className="text-red-400">*</span>
-            </label>
+          {/* Libellé + En cours */}
+          <div className="space-y-2">
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Année scolaire</h2>
             <input
               type="text"
               placeholder="ex. 2025-2026"
@@ -297,7 +291,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
               onBlur={() => touch('label')}
               disabled={isEditing}
               className={clsx(
-                'input',
+                'input w-full',
                 touched.has('label') && vLabel && 'input-error',
                 isEditing && 'opacity-60 cursor-not-allowed'
               )}
@@ -305,79 +299,76 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
             {touched.has('label') && vLabel && (
               <p className="text-xs text-red-500">Format attendu : AAAA-AAAA (ex. 2025-2026)</p>
             )}
-          </div>
-
-          {/* En cours */}
-          <div className="flex items-center gap-2 pb-1.5">
-            <input
-              type="checkbox"
-              id="is_current"
-              checked={form.is_current}
-              onChange={e => set('is_current', e.target.checked)}
-              className="w-4 h-4 accent-primary-500"
-            />
-            <label htmlFor="is_current" className="text-sm text-secondary-700 cursor-pointer select-none">
-              Définir comme année en cours
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Répartition des périodes ───────────────────────────────────────── */}
-      <div className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-          Répartition <span className="text-red-400">*</span>
-        </h2>
-
-        <div className="flex gap-6">
-          {([
-            { value: 'trimestrial', label: 'Trimestriel', sub: 'T1 · T2 · T3' },
-            { value: 'semestrial',  label: 'Semestriel',  sub: 'S1 · S2' },
-          ] as const).map(opt => (
-            <label
-              key={opt.value}
-              className={clsx(
-                'flex items-center gap-3 flex-1 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
-                form.period_type === opt.value
-                  ? 'border-primary-400 bg-primary-50'
-                  : 'border-warm-200 bg-white hover:border-warm-300'
-              )}
-            >
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
-                type="radio"
-                name="period_type"
-                value={opt.value}
-                checked={form.period_type === opt.value}
-                onChange={() => set('period_type', opt.value)}
-                className="accent-primary-500"
+                type="checkbox"
+                id="is_current"
+                checked={form.is_current}
+                onChange={e => set('is_current', e.target.checked)}
+                className="w-4 h-4 accent-primary-500"
               />
-              <div>
-                <p className="text-sm font-semibold text-secondary-800">{opt.label}</p>
-                <p className="text-xs text-warm-400">{opt.sub}</p>
-              </div>
+              <span className="text-sm text-secondary-700 select-none">Année en cours</span>
             </label>
-          ))}
+          </div>
+
+          {/* Répartition */}
+          <div className="space-y-2">
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              Répartition <span className="text-red-400">*</span>
+            </h2>
+            <div className="flex gap-2">
+              {([
+                { value: 'trimestrial', label: 'Trimestriel', sub: 'T1 · T2 · T3' },
+                { value: 'semestrial',  label: 'Semestriel',  sub: 'S1 · S2' },
+              ] as const).map(opt => (
+                <label
+                  key={opt.value}
+                  className={clsx(
+                    'flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border cursor-pointer transition-colors',
+                    form.period_type === opt.value
+                      ? 'border-primary-400 bg-primary-50'
+                      : 'border-warm-200 bg-white hover:border-warm-300'
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="period_type"
+                    value={opt.value}
+                    checked={form.period_type === opt.value}
+                    onChange={() => set('period_type', opt.value)}
+                    className="accent-primary-500"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-secondary-800">{opt.label}</p>
+                    <p className="text-xs text-warm-400">{opt.sub}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
 
       {/* ── Type d'évaluation ─────────────────────────────────────────────── */}
       <div className={clsx(
-        'card p-4 space-y-3',
+        'card p-3 space-y-2',
         vNoEval && hasSubmitted && 'ring-1 ring-red-300'
       )}>
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-          Type d'évaluation <span className="text-red-400">*</span>
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            Type d'évaluation <span className="text-red-400">*</span>
+          </h2>
+          {vNoEval && hasSubmitted && (
+            <p className="text-xs text-red-500">Sélectionnez au moins un type.</p>
+          )}
+        </div>
 
-        {vNoEval && hasSubmitted && (
-          <p className="text-xs text-red-500">Sélectionnez au moins un type d'évaluation.</p>
-        )}
-
-        <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
 
           {/* Diagnostique */}
           <div className={clsx(
-            'px-4 py-3 rounded-xl border transition-colors',
+            'px-3 py-2 rounded-xl border transition-colors col-span-2',
             form.eval_types.includes('diagnostic') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white'
           )}>
             <label className="flex items-center gap-3 cursor-pointer">
@@ -387,13 +378,13 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
                 onChange={() => toggleEvalType('diagnostic')}
                 className="accent-primary-500 flex-shrink-0 w-4 h-4"
               />
-              <p className="text-sm font-semibold text-secondary-800">Évaluation diagnostique</p>
+              <p className="text-sm font-semibold text-secondary-800">Diagnostique</p>
             </label>
 
             {form.eval_types.includes('diagnostic') && (
-              <div className="mt-2 ml-7 space-y-1.5">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-xs text-warm-400 w-24 text-center">Acronyme</span>
+              <div className="mt-1.5 ml-7 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-warm-400 w-20 text-center">Acronyme</span>
                   <span className="text-xs text-warm-400 flex-1">Commentaire</span>
                 </div>
                 {form.diagnostic_options.map((opt, i) => (
@@ -403,14 +394,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
                       value={opt.acronym}
                       onChange={e => updateDiagnosticOption(i, 'acronym', e.target.value)}
                       placeholder="AC"
-                      className="input text-sm py-1 w-24"
+                      className="input text-sm py-0.5 w-20"
                     />
                     <input
                       type="text"
                       value={opt.comment}
                       onChange={e => updateDiagnosticOption(i, 'comment', e.target.value)}
                       placeholder="ex. Acquis Consolidé"
-                      className="input text-sm py-1 flex-1"
+                      className="input text-sm py-0.5 flex-1"
                     />
                     {form.diagnostic_options.length > 1 && (
                       <button
@@ -427,7 +418,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
                 <button
                   type="button"
                   onClick={addDiagnosticOption}
-                  className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-1"
+                  className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-0.5"
                 >
                   <Plus size={12} /> Ajouter une option
                 </button>
@@ -437,7 +428,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
 
           {/* Notée sur 10 */}
           <label className={clsx(
-            'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+            'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors',
             form.eval_types.includes('scored_10') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
           )}>
             <input
@@ -446,15 +437,15 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
               onChange={() => toggleEvalType('scored_10')}
               className="accent-primary-500 flex-shrink-0 w-4 h-4"
             />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-secondary-800">Évaluation notée sur 10</p>
+            <div>
+              <p className="text-sm font-semibold text-secondary-800">Notée sur 10</p>
               <p className="text-xs text-warm-400">Notes de 0 à 10</p>
             </div>
           </label>
 
           {/* Notée sur 20 */}
           <label className={clsx(
-            'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+            'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors',
             form.eval_types.includes('scored_20') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
           )}>
             <input
@@ -463,15 +454,15 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
               onChange={() => toggleEvalType('scored_20')}
               className="accent-primary-500 flex-shrink-0 w-4 h-4"
             />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-secondary-800">Évaluation notée sur 20</p>
+            <div>
+              <p className="text-sm font-semibold text-secondary-800">Notée sur 20</p>
               <p className="text-xs text-warm-400">Notes de 0 à 20</p>
             </div>
           </label>
 
           {/* Étoilée */}
           <label className={clsx(
-            'flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors',
+            'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors col-span-2',
             form.eval_types.includes('stars') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
           )}>
             <input
@@ -480,8 +471,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
               onChange={() => toggleEvalType('stars')}
               className="accent-primary-500 flex-shrink-0 w-4 h-4"
             />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-secondary-800">Évaluation étoilée</p>
+            <div>
+              <p className="text-sm font-semibold text-secondary-800">Étoilée</p>
               <p className="text-xs text-warm-400">0 à 5 étoiles · par tranche de 0,5</p>
             </div>
           </label>

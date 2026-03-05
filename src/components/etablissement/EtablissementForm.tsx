@@ -2,7 +2,9 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Upload, Trash2, X } from 'lucide-react'
+import Cropper from 'react-easy-crop'
+import type { Area } from 'react-easy-crop'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import type { Etablissement } from '@/types/database'
@@ -21,6 +23,27 @@ type FormData = {
 const toUpperCase  = (v: string) => v.toUpperCase()
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
+async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+  const image = new Image()
+  image.crossOrigin = 'anonymous'
+  await new Promise<void>((resolve, reject) => {
+    image.onload  = () => resolve()
+    image.onerror = reject
+    image.src     = imageSrc
+  })
+  const canvas = document.createElement('canvas')
+  canvas.width  = 300
+  canvas.height = 300
+  canvas.getContext('2d')!.drawImage(
+    image,
+    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+    0, 0, 300, 300
+  )
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas vide')), 'image/png')
+  })
+}
+
 export default function EtablissementForm({ etablissement }: EtablissementFormProps) {
   const router = useRouter()
 
@@ -37,6 +60,10 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const [error,        setError]        = useState<string | null>(null)
   const [success,      setSuccess]      = useState(false)
 
+  // Logo
+  const [logoUrl,      setLogoUrl]      = useState<string | null>(etablissement.logo_url ?? null)
+  const initialLogoUrl = useRef<string | null>(etablissement.logo_url ?? null)
+
   const set = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
   const touch = (field: string) =>
@@ -47,10 +74,10 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const vContact = form.contact.trim().length > 0 && !isValidEmail(form.contact.trim())
   const isValid  = !vNom && !vContact
 
-  // Bouton désactivé si aucun changement par rapport à la dernière sauvegarde
+  // Bouton désactivé si aucun changement
   const isUnchanged = (Object.keys(form) as (keyof FormData)[]).every(
     k => form[k] === initialForm.current[k]
-  )
+  ) && logoUrl === initialLogoUrl.current
 
   const inputCls = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
@@ -70,18 +97,18 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
         adresse:   form.adresse.trim()   || null,
         telephone: form.telephone.trim() || null,
         contact:   form.contact.trim()   || null,
+        logo_url:  logoUrl,
       }
 
       const supabase = createClient()
-
-      // Update par id : l'établissement existe toujours (créé au setup du tenant)
       const { error } = await supabase
         .from('etablissements')
         .update(payload)
         .eq('id', etablissement.id)
       if (error) throw error
 
-      initialForm.current = { ...form }
+      initialForm.current    = { ...form }
+      initialLogoUrl.current = logoUrl
       setSuccess(true)
       router.refresh()
     } catch {
@@ -92,66 +119,70 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in max-w-3xl">
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-3 max-w-2xl">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-        <div className="card p-4 space-y-3">
+        <div className="card p-5">
+          <div className="flex gap-6">
 
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-            Informations générales
-          </h2>
-
-          {/* Nom */}
-          <Field
-            label={<>Nom de l'établissement <span className="text-red-400">*</span></>}
-            error={touched.has('nom') && vNom ? 'Le nom est obligatoire (2 caractères minimum).' : undefined}
-          >
-            <input
-              type="text"
-              value={form.nom}
-              onChange={e => set('nom', toUpperCase(e.target.value))}
-              onBlur={() => touch('nom')}
-              className={inputCls('nom', vNom)}
+            {/* Gauche : Logo 160×160 + boutons */}
+            <LogoField
+              logoUrl={logoUrl}
+              etablissementId={etablissement.id}
+              onChange={setLogoUrl}
             />
-          </Field>
 
-          {/* Adresse */}
-          <Field label="Adresse">
-            <input
-              type="text"
-              value={form.adresse}
-              onChange={e => set('adresse', e.target.value)}
-              className="input"
-            />
-          </Field>
+            {/* Droite : Champs */}
+            <div className="flex-1 space-y-3 min-w-0">
+              <Field
+                label={<>Nom de l'établissement <span className="text-red-400">*</span></>}
+                error={touched.has('nom') && vNom ? 'Le nom est obligatoire (2 caractères minimum).' : undefined}
+              >
+                <input
+                  type="text"
+                  value={form.nom}
+                  onChange={e => set('nom', toUpperCase(e.target.value))}
+                  onBlur={() => touch('nom')}
+                  className={inputCls('nom', vNom)}
+                />
+              </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Téléphone */}
-            <Field label="Téléphone">
-              <input
-                type="tel"
-                value={form.telephone}
-                onChange={e => set('telephone', e.target.value)}
-                className="input"
-              />
-            </Field>
+              <Field label="Adresse">
+                <input
+                  type="text"
+                  value={form.adresse}
+                  onChange={e => set('adresse', e.target.value)}
+                  className="input"
+                />
+              </Field>
 
-            {/* Contact */}
-            <Field
-              label="Email de contact"
-              error={touched.has('contact') && vContact ? 'Adresse email invalide.' : undefined}
-            >
-              <input
-                type="email"
-                value={form.contact}
-                onChange={e => set('contact', e.target.value)}
-                onBlur={() => touch('contact')}
-                className={inputCls('contact', vContact)}
-              />
-            </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Téléphone">
+                  <input
+                    type="tel"
+                    value={form.telephone}
+                    onChange={e => set('telephone', e.target.value)}
+                    className="input"
+                  />
+                </Field>
+
+                <Field
+                  label="Email de contact"
+                  error={touched.has('contact') && vContact ? 'Adresse email invalide.' : undefined}
+                >
+                  <input
+                    type="email"
+                    value={form.contact}
+                    onChange={e => set('contact', e.target.value)}
+                    onBlur={() => touch('contact')}
+                    className={inputCls('contact', vContact)}
+                  />
+                </Field>
+              </div>
+            </div>
+
           </div>
-
         </div>
 
         {/* Messages */}
@@ -168,7 +199,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
         )}
 
         {/* Actions */}
-        <div className="flex justify-end pt-1">
+        <div className="flex justify-end">
           <button
             type="submit"
             disabled={isSubmitting || !isValid || isUnchanged}
@@ -183,6 +214,189 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
 
       </form>
 
+    </div>
+  )
+}
+
+// ─── Logo upload ──────────────────────────────────────────────────────────────
+
+function LogoField({
+  logoUrl, etablissementId, onChange,
+}: {
+  logoUrl: string | null
+  etablissementId: string
+  onChange: (url: string | null) => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [cropSrc,           setCropSrc]           = useState<string | null>(null)
+  const [crop,              setCrop]              = useState({ x: 0, y: 0 })
+  const [zoom,              setZoom]              = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
+  const [isUploading,       setIsUploading]       = useState(false)
+  const [uploadError,       setUploadError]       = useState<string | null>(null)
+  const [confirmDelete,     setConfirmDelete]     = useState(false)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCropSrc(URL.createObjectURL(file))
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    e.target.value = ''
+  }
+
+  const handleCropConfirm = async () => {
+    if (!cropSrc || !croppedAreaPixels) return
+    setUploadError(null)
+    setIsUploading(true)
+    try {
+      const blob = await getCroppedImg(cropSrc, croppedAreaPixels)
+      if (blob.size > 1_048_576) {
+        setUploadError('Logo trop grand après compression (> 1 Mo). Essayez une autre image.')
+        return
+      }
+      const supabase = createClient()
+      const path = `${etablissementId}/logo.png`
+      const { error } = await supabase.storage
+        .from('etablissement-logos')
+        .upload(path, blob, { upsert: true, contentType: 'image/png' })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('etablissement-logos').getPublicUrl(path)
+      onChange(`${publicUrl}?t=${Date.now()}`)
+      setCropSrc(null)
+    } catch (err: any) {
+      setUploadError(err?.message ?? "Erreur lors de l'upload. Veuillez réessayer.")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setUploadError(null)
+    setIsUploading(true)
+    try {
+      const supabase = createClient()
+      await supabase.storage.from('etablissement-logos').remove([`${etablissementId}/logo.png`])
+      onChange(null)
+    } catch {
+      setUploadError('Erreur lors de la suppression.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2 flex-shrink-0">
+      {/* Aperçu 160×160 */}
+      <div className="w-40 h-40 rounded-xl border border-warm-200 bg-white flex items-center justify-center overflow-hidden">
+        {logoUrl
+          ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+          : <span className="text-xs text-warm-300 text-center px-2">Aucun logo</span>
+        }
+      </div>
+
+      {/* Liens sous le logo */}
+      <div className="flex flex-col gap-1 items-center">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors disabled:opacity-40"
+        >
+          <Upload size={11} />
+          {logoUrl ? 'Changer' : 'Importer'}
+        </button>
+        {logoUrl && !confirmDelete && (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            disabled={isUploading}
+            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
+          >
+            <Trash2 size={11} />
+            Supprimer
+          </button>
+        )}
+        {confirmDelete && (
+          <div className="flex flex-col gap-1 items-center">
+            <button
+              type="button"
+              onClick={() => { setConfirmDelete(false); handleDelete() }}
+              disabled={isUploading}
+              className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors disabled:opacity-40"
+            >
+              Confirmer ?
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="text-xs text-warm-400 hover:text-warm-600 transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+        {uploadError && <p className="text-[10px] text-red-500 text-center">{uploadError}</p>}
+      </div>
+
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+
+      {/* Modale recadrage */}
+      {cropSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-secondary-800">Recadrer le logo</h3>
+              <button
+                type="button"
+                onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="relative w-full" style={{ height: 320 }}>
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+              />
+            </div>
+            <div className="px-4 py-3 flex flex-col gap-3">
+              <input
+                type="range"
+                min={1} max={3} step={0.05}
+                value={zoom}
+                onChange={e => setZoom(Number(e.target.value))}
+                className="w-full accent-amber-500"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
+                  className="btn btn-secondary text-sm py-1.5 px-3"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCropConfirm}
+                  disabled={isUploading}
+                  className="btn btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
+                >
+                  {isUploading ? 'Envoi…' : 'Valider'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

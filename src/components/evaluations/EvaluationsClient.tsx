@@ -584,6 +584,7 @@ export default function EvaluationsClient({
           if (!cls) return null
           const parts: string[] = []
           if (cls.main_teacher_name) parts.push(cls.main_teacher_name)
+          if (cls.level) parts.push(`Niveau ${cls.level}`)
           const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
           if (schedule) parts.push(schedule)

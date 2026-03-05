@@ -48,6 +48,7 @@ export interface Etablissement {
   adresse?: string
   telephone?: string
   contact?: string
+  logo_url?: string | null
   is_active: boolean
   subscription_expires_at?: string
   max_students?: number | null    // NULL = illimité
