@@ -3,11 +3,12 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Check, ChevronRight, ChevronDown, ChevronLeft,
-  BookOpen, AlertCircle,
+  BookOpen, AlertCircle, RotateCcw,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
+import { parseDiagnosticOption } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,8 +97,9 @@ export default function GradesClient({
   // ── Données ─────────────────────────────────────────────────────────────────
   const [gradesList, setGradesList] = useState<GradeRow[]>(initialGrades)
   const [pending,    setPending]    = useState<Record<string, PendingEntry>>({})
-  const [saving,     setSaving]     = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
+  const [saving,        setSaving]        = useState(false)
+  const [error,         setError]         = useState<string | null>(null)
+  const [confirmReset,  setConfirmReset]  = useState(false)
 
   // ── Évaluations de la classe × période sélectionnée ─────────────────────────
   const currentEvals = useMemo(() =>
@@ -177,7 +179,9 @@ export default function GradesClient({
   // ── Options diagnostiques ────────────────────────────────────────────────────
   const diagnosticOptions = useMemo(() => {
     const config = evalTypeConfigs.find(c => c.eval_type === 'diagnostic')
-    return config?.diagnostic_options ?? ['AC', 'EC', 'NA']
+    const raw = config?.diagnostic_options
+    if (!raw?.length) return [{ acronym: 'AC', comment: '' }, { acronym: 'EC', comment: '' }, { acronym: 'NA', comment: '' }]
+    return (raw as unknown[]).map(parseDiagnosticOption)
   }, [evalTypeConfigs])
 
   // ── Réinitialisation des pending lors du changement d'évaluation ─────────────
@@ -196,6 +200,7 @@ export default function GradesClient({
     }
     setPending(init)
     setError(null)
+    setConfirmReset(false)
   }, [selectedEvalId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reset de la sélection lors du changement de classe ou période ────────────
@@ -253,6 +258,24 @@ export default function GradesClient({
       ...(data as GradeRow[]),
     ])
     setPending(prev => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, { ...v, dirty: false }])))
+    setSaving(false)
+  }
+
+  // ── Reset toutes les notes d'une évaluation ─────────────────────────────────
+  const handleReset = async () => {
+    if (!selectedEvalId) return
+    setSaving(true); setError(null)
+    const supabase = createClient()
+    const { error: err } = await supabase
+      .from('grades')
+      .delete()
+      .eq('evaluation_id', selectedEvalId)
+    if (err) { setError(err.message); setSaving(false); return }
+    setGradesList(prev => prev.filter(g => g.evaluation_id !== selectedEvalId))
+    setPending(prev => Object.fromEntries(
+      Object.entries(prev).map(([k]) => [k, { scoreValue: '', comment: '', is_absent: false, dirty: false }])
+    ))
+    setConfirmReset(false)
     setSaving(false)
   }
 
@@ -468,6 +491,11 @@ export default function GradesClient({
                           </span>
                         )
                       })()}
+                      {selectedEval.eval_kind === 'diagnostic' && diagnosticOptions.some(o => o.comment) && (
+                        <span className="text-xs text-warm-500">
+                          {diagnosticOptions.filter(o => o.comment).map(o => `${o.acronym} : ${o.comment}`).join(' - ')}
+                        </span>
+                      )}
                       {selectedEval.eval_kind === 'scored' && (
                         <span className="text-xs text-warm-500">Coef. {selectedEval.coefficient}</span>
                       )}
@@ -590,7 +618,7 @@ export default function GradesClient({
                                   >
                                     <option value="">—</option>
                                     {diagnosticOptions.map(opt => (
-                                      <option key={opt} value={opt}>{opt}</option>
+                                      <option key={opt.acronym} value={opt.acronym}>{opt.acronym}</option>
                                     ))}
                                   </select>
                                 ) : (
@@ -647,6 +675,33 @@ export default function GradesClient({
 
                   {/* Boutons */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {confirmReset ? (
+                      <>
+                        <span className="text-xs text-warm-500">Réinitialiser toutes les notes ?</span>
+                        <button
+                          onClick={handleReset}
+                          disabled={saving}
+                          className="text-xs font-medium px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                        >
+                          Oui
+                        </button>
+                        <button
+                          onClick={() => setConfirmReset(false)}
+                          className="btn btn-secondary text-xs py-1 px-2"
+                        >
+                          Non
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmReset(true)}
+                        disabled={saving || !gradesList.some(g => g.evaluation_id === selectedEvalId)}
+                        className="btn btn-secondary text-xs py-1 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Réinitialiser toutes les notes"
+                      >
+                        <RotateCcw size={13} />
+                      </button>
+                    )}
                     <button
                       onClick={handleSave}
                       disabled={!hasDirty || saving}
@@ -763,13 +818,13 @@ function StarInput({
               <button
                 type="button"
                 className="absolute left-0 top-0 w-1/2 h-full cursor-pointer"
-                onClick={() => onChange(value === n - 0.5 ? null : n - 0.5)}
+                onClick={() => onChange(value === n - 0.5 ? 0 : n - 0.5)}
               />
               {/* Zone cliquable droite → n */}
               <button
                 type="button"
                 className="absolute right-0 top-0 w-1/2 h-full cursor-pointer"
-                onClick={() => onChange(value === n ? null : n)}
+                onClick={() => onChange(value === n ? 0 : n)}
               />
             </span>
           )

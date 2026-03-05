@@ -14,6 +14,21 @@ export type PeriodType  = 'trimestrial' | 'semestrial'
 
 export type EvalTypeKind = 'diagnostic' | 'scored' | 'stars'
 
+export interface DiagnosticOption {
+  acronym: string
+  comment: string
+}
+
+/** Parse un élément diagnostic_options (objet, chaîne JSON, ou simple string) */
+export function parseDiagnosticOption(o: unknown): DiagnosticOption {
+  if (typeof o === 'object' && o !== null && 'acronym' in o) return o as DiagnosticOption
+  if (typeof o === 'string') {
+    if (o.startsWith('{')) try { return JSON.parse(o) } catch { /* fallback */ }
+    return { acronym: o, comment: '' }
+  }
+  return { acronym: String(o), comment: '' }
+}
+
 export type AbsenceType = 'absence' | 'late' | 'authorized_absence'
 
 export type AnnouncementType = 'general' | 'class' | 'parent' | 'teacher'
@@ -64,7 +79,7 @@ export interface EvalTypeConfig {
   eval_type: EvalTypeKind
   is_active: boolean
   max_score?: number | null           // 10 ou 20 pour 'scored', null sinon
-  diagnostic_options?: string[] | null // ex. ['AC','EC','NA'] pour 'diagnostic'
+  diagnostic_options?: DiagnosticOption[] | null // ex. [{acronym:'AC',comment:'Acquis Consolidé'}]
   created_at: string
 }
 

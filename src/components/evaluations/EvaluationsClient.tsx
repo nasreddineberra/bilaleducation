@@ -350,7 +350,17 @@ export default function EvaluationsClient({
     setFormCoefficient('1'); setFormDate(''); setError(null)
   }
 
-  const openEdit = (ev: EvaluationRow) => {
+  const openEdit = async (ev: EvaluationRow) => {
+    setError(null)
+    const supabase = createClient()
+    const { count } = await supabase
+      .from('grades')
+      .select('id', { count: 'exact', head: true })
+      .eq('evaluation_id', ev.id)
+    if ((count ?? 0) > 0) {
+      setError('Impossible de modifier cette évaluation : des notes ont déjà été saisies.')
+      return
+    }
     setEditing(ev.id); setAdding(null); setConfirmDelete(null)
     const config = evalTypeConfigs.find(c =>
       c.eval_type === ev.eval_kind &&
@@ -359,7 +369,6 @@ export default function EvaluationsClient({
     setFormConfigId(config?.id ?? evalOptions[0]?.configId ?? '')
     setFormCoefficient(String(ev.coefficient ?? 1))
     setFormDate(ev.evaluation_date ?? '')
-    setError(null)
   }
 
   const cancelForm = () => { setAdding(null); setEditing(null); setError(null) }
@@ -421,8 +430,16 @@ export default function EvaluationsClient({
   }
 
   const handleDelete = async (evalId: string) => {
-    setSubmitting(true)
+    setSubmitting(true); setError(null)
     const supabase = createClient()
+    const { count } = await supabase
+      .from('grades')
+      .select('id', { count: 'exact', head: true })
+      .eq('evaluation_id', evalId)
+    if ((count ?? 0) > 0) {
+      setError('Impossible de supprimer cette évaluation : des notes ont déjà été saisies.')
+      setSubmitting(false); setConfirmDelete(null); return
+    }
     const { error: err } = await supabase.from('evaluations').delete().eq('id', evalId)
     if (err) { setError(err.message); setSubmitting(false); return }
     setEvalsList(prev => prev.filter(e => e.id !== evalId))

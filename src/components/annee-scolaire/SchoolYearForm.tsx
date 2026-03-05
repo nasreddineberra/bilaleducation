@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, Plus, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import type { SchoolYear, EvalTypeConfig, PeriodType } from '@/types/database'
+import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption } from '@/types/database'
+import { parseDiagnosticOption } from '@/types/database'
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ type FormData = {
   is_current:          boolean
   period_type:         PeriodType
   eval_types:          FormEvalType[]
-  diagnostic_options:  string[]
+  diagnostic_options:  DiagnosticOption[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -56,7 +57,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
         is_current:         false,
         period_type:        'trimestrial',
         eval_types:         [],
-        diagnostic_options: ['AC', 'EC', 'NA'],
+        diagnostic_options: [
+        { acronym: 'AC', comment: '' },
+        { acronym: 'EC', comment: '' },
+        { acronym: 'NA', comment: '' },
+      ],
       }
     }
     const configs     = schoolYear.eval_type_configs ?? []
@@ -73,8 +78,12 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
       period_type:        schoolYear.period_type,
       eval_types:         activeTypes,
       diagnostic_options: diagnosticConfig?.diagnostic_options?.length
-        ? diagnosticConfig.diagnostic_options
-        : ['AC', 'EC', 'NA'],
+        ? (diagnosticConfig.diagnostic_options as unknown[]).map(parseDiagnosticOption)
+        : [
+            { acronym: 'AC', comment: '' },
+            { acronym: 'EC', comment: '' },
+            { acronym: 'NA', comment: '' },
+          ],
     }
   }
 
@@ -98,10 +107,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
         : [...prev.eval_types, type],
     }))
 
-  const updateDiagnosticOption = (index: number, value: string) =>
+  const updateDiagnosticOption = (index: number, field: 'acronym' | 'comment', value: string) =>
     setForm(prev => {
       const opts = [...prev.diagnostic_options]
-      opts[index] = value
+      opts[index] = { ...opts[index], [field]: value }
       return { ...prev, diagnostic_options: opts }
     })
 
@@ -114,7 +123,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
   const addDiagnosticOption = () =>
     setForm(prev => ({
       ...prev,
-      diagnostic_options: [...prev.diagnostic_options, ''],
+      diagnostic_options: [...prev.diagnostic_options, { acronym: '', comment: '' }],
     }))
 
   const vLabel  = !isValidLabel(form.label)
@@ -133,6 +142,58 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
     setIsSubmitting(true)
     try {
       const supabase = createClient()
+
+      // 0. Vérifications de sécurité (édition uniquement)
+      if (isEditing) {
+        const yearId = schoolYear.id
+        const originalForm = getInitialForm()
+        const periodTypeChanged = form.period_type !== originalForm.period_type
+        const removedTypes = originalForm.eval_types.filter(t => !form.eval_types.includes(t))
+
+        if (periodTypeChanged || removedTypes.length > 0) {
+          const { data: periodRows } = await supabase
+            .from('periods').select('id').eq('school_year_id', yearId)
+          const periodIds = (periodRows ?? []).map((p: { id: string }) => p.id)
+
+          if (periodIds.length > 0) {
+            const { data: evalRows } = await supabase
+              .from('evaluations').select('id, eval_kind, max_score').in('period_id', periodIds)
+            const allEvalIds = (evalRows ?? []).map((e: { id: string }) => e.id)
+
+            if (allEvalIds.length > 0) {
+              if (periodTypeChanged) {
+                const { count } = await supabase
+                  .from('grades').select('id', { count: 'exact', head: true })
+                  .in('evaluation_id', allEvalIds)
+                if ((count ?? 0) > 0) {
+                  setError('Impossible de changer la répartition des périodes : des notes ont déjà été saisies pour cette année scolaire.')
+                  setIsSubmitting(false); return
+                }
+              }
+
+              if (removedTypes.length > 0) {
+                type EvalRow = { id: string; eval_kind: string; max_score: number | null }
+                const removedEvalIds = (evalRows as EvalRow[])
+                  .filter(e => removedTypes.some(t =>
+                    t === 'scored_10' ? e.eval_kind === 'scored' && e.max_score === 10
+                    : t === 'scored_20' ? e.eval_kind === 'scored' && e.max_score === 20
+                    : e.eval_kind === t
+                  ))
+                  .map(e => e.id)
+
+                if (removedEvalIds.length > 0) {
+                  const labels: Record<string, string> = {
+                    diagnostic: 'Diagnostique', scored_10: 'Notée /10', scored_20: 'Notée /20', stars: 'Étoilée',
+                  }
+                  const names = removedTypes.map(t => labels[t] ?? t).join(', ')
+                  setError(`Impossible de supprimer le(s) type(s) "${names}" : des gabarits d'évaluation utilisent déjà ce(s) type(s). Supprimez d'abord les gabarits concernés.`)
+                  setIsSubmitting(false); return
+                }
+              }
+            }
+          }
+        }
+      }
 
       // 1. Insérer ou mettre à jour l'année scolaire
       let yearId: string
@@ -168,15 +229,19 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
         if (errReset) throw errReset
       }
 
-      // 3. Réinitialiser et recréer les périodes
-      await supabase.from('periods').delete().eq('school_year_id', yearId)
-      const periodsToInsert = periodsForType(form.period_type).map(p => ({
-        school_year_id: yearId,
-        label:          p.label,
-        order_index:    p.order_index,
-      }))
-      const { error: errPeriods } = await supabase.from('periods').insert(periodsToInsert)
-      if (errPeriods) throw errPeriods
+      // 3. Recréer les périodes UNIQUEMENT si le type de répartition a changé
+      //    (ou s'il s'agit d'une création). Évite de NULLifier les period_id des gabarits.
+      const originalPeriodType = isEditing ? schoolYear.period_type : null
+      if (!isEditing || form.period_type !== originalPeriodType) {
+        await supabase.from('periods').delete().eq('school_year_id', yearId)
+        const periodsToInsert = periodsForType(form.period_type).map(p => ({
+          school_year_id: yearId,
+          label:          p.label,
+          order_index:    p.order_index,
+        }))
+        const { error: errPeriods } = await supabase.from('periods').insert(periodsToInsert)
+        if (errPeriods) throw errPeriods
+      }
 
       // 4. Réinitialiser et recréer les configs d'évaluation (multiple types actifs)
       await supabase.from('eval_type_configs').delete().eq('school_year_id', yearId)
@@ -187,7 +252,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
           is_active:          true,
           max_score:          type === 'scored_10' ? 10 : type === 'scored_20' ? 20 : null,
           diagnostic_options: type === 'diagnostic'
-            ? form.diagnostic_options.map(o => o.trim()).filter(Boolean)
+            ? form.diagnostic_options
+                .map(o => ({ acronym: o.acronym.trim(), comment: o.comment.trim() }))
+                .filter(o => o.acronym)
             : null,
         }))
         const { error: errEval } = await supabase.from('eval_type_configs').insert(evalInserts)
@@ -325,13 +392,25 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
 
             {form.eval_types.includes('diagnostic') && (
               <div className="mt-2 ml-7 space-y-1.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-xs text-warm-400 w-24 text-center">Acronyme</span>
+                  <span className="text-xs text-warm-400 flex-1">Commentaire</span>
+                </div>
                 {form.diagnostic_options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-1.5">
                     <input
                       type="text"
-                      value={opt}
-                      onChange={e => updateDiagnosticOption(i, e.target.value)}
-                      className="input text-sm py-1 w-28"
+                      value={opt.acronym}
+                      onChange={e => updateDiagnosticOption(i, 'acronym', e.target.value)}
+                      placeholder="AC"
+                      className="input text-sm py-1 w-24"
+                    />
+                    <input
+                      type="text"
+                      value={opt.comment}
+                      onChange={e => updateDiagnosticOption(i, 'comment', e.target.value)}
+                      placeholder="ex. Acquis Consolidé"
+                      className="input text-sm py-1 flex-1"
                     />
                     {form.diagnostic_options.length > 1 && (
                       <button
