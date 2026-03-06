@@ -23,6 +23,7 @@ type ClassRow = {
   start_time: string | null
   end_time: string | null
   main_teacher_name: string | null
+  main_teacher_civilite: string | null
 }
 
 type EvaluationRow = {
@@ -583,7 +584,12 @@ export default function EvaluationsClient({
           const cls = classes.find(c => c.id === selectedClassId)
           if (!cls) return null
           const parts: string[] = []
-          if (cls.main_teacher_name) parts.push(cls.main_teacher_name)
+          if (cls.main_teacher_name) {
+            const display = cls.main_teacher_civilite
+              ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}`
+              : cls.main_teacher_name
+            parts.push(display)
+          }
           if (cls.level) parts.push(`Niveau ${cls.level}`)
           const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')

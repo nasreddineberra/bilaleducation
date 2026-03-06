@@ -15,6 +15,7 @@ interface TeacherFormProps {
 
 type FormData = {
   employee_number: string
+  civilite:        string
   last_name:       string
   first_name:      string
   email:           string
@@ -23,6 +24,8 @@ type FormData = {
   specialization:  string
   is_active:       boolean
 }
+
+const CIVILITE_OPTIONS = ['', 'M.', 'Mme']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +47,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
   const [form, setForm] = useState<FormData>({
     employee_number: teacher?.employee_number ?? defaultEmployeeNumber ?? '',
+    civilite:        teacher?.civilite        ?? '',
     last_name:       teacher?.last_name       ?? '',
     first_name:      teacher?.first_name      ?? '',
     email:           teacher?.email           ?? '',
@@ -68,6 +72,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
   // Validation
   const v = {
+    civilite:       !form.civilite,
     employeeNumber: form.employee_number.trim().length < 1,
     lastName:       form.last_name.trim().length      < 2,
     firstName:      form.first_name.trim().length     < 2,
@@ -78,7 +83,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
   const cls     = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
 
-  const isFormValid = !v.employeeNumber && !v.lastName && !v.firstName && !v.email && !v.hireDate
+  const isFormValid = !v.civilite && !v.employeeNumber && !v.lastName && !v.firstName && !v.email && !v.hireDate
 
   const isUnchanged = isEditing && (Object.keys(form) as (keyof FormData)[]).every(
     k => form[k] === initialForm.current[k]
@@ -112,6 +117,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
       const payload = {
         employee_number: form.employee_number.trim(),
+        civilite:        clean(form.civilite),
         last_name:       form.last_name.trim(),
         first_name:      form.first_name.trim(),
         email:           form.email.trim().toLowerCase(),
@@ -218,7 +224,19 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
+            <Field label={<>Civilité <span className="text-red-400">*</span></>} error={invalid('civilite', v.civilite) ? 'Requis' : undefined}>
+              <select
+                value={form.civilite}
+                onChange={e => set('civilite', e.target.value)}
+                onBlur={() => touch('civilite')}
+                className={cls('civilite', v.civilite)}
+              >
+                {CIVILITE_OPTIONS.map(c => (
+                  <option key={c} value={c}>{c || '—'}</option>
+                ))}
+              </select>
+            </Field>
             <Field label={<>Nom <span className="text-red-400">*</span></>} error={invalid('last_name', v.lastName) ? 'Minimum 2 caractères' : undefined}>
               <input
                 type="text"

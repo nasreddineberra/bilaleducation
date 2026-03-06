@@ -19,6 +19,7 @@ export async function createUser(data: {
   email:      string
   password:   string
   role:       UserRole
+  civilite?:  string
   first_name: string
   last_name:  string
   phone?:     string
@@ -52,6 +53,7 @@ export async function createUser(data: {
     id:               authData.user.id,
     email:            data.email,
     role:             data.role,
+    civilite:         data.civilite || null,
     first_name:       data.first_name,
     last_name:        data.last_name,
     phone:            data.phone || null,
@@ -73,6 +75,7 @@ export async function createUser(data: {
 
 export async function updateProfile(id: string, data: {
   role:       UserRole
+  civilite?:  string
   first_name: string
   last_name:  string
   phone?:     string
@@ -81,6 +84,7 @@ export async function updateProfile(id: string, data: {
 
   const { error } = await supabase.from('profiles').update({
     role:       data.role,
+    civilite:   data.civilite || null,
     first_name: data.first_name,
     last_name:  data.last_name,
     phone:      data.phone || null,

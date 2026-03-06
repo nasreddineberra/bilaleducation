@@ -15,11 +15,14 @@ interface UtilisateurFormProps {
 type FormData = {
   email:      string
   password:   string
+  civilite:   string
   first_name: string
   last_name:  string
   role:       UserRole
   phone:      string
 }
+
+const CIVILITE_OPTIONS = ['', 'M.', 'Mme']
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'direction',                label: 'Direction'          },
@@ -42,6 +45,7 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
   const [form, setForm] = useState<FormData>({
     email:      profile?.email      ?? '',
     password:   '',
+    civilite:   profile?.civilite   ?? '',
     first_name: profile?.first_name ?? '',
     last_name:  profile?.last_name  ?? '',
     role:       profile?.role       ?? 'enseignant',
@@ -62,11 +66,12 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
     setTouched(prev => new Set([...prev, field]))
 
   // Validation
+  const vCivilite  = !form.civilite
   const vEmail     = !isValidEmail(form.email.trim())
   const vPassword  = !isEditing && !isPasswordValid(form.password, form.first_name, form.last_name)
   const vFirstName = form.first_name.trim().length < 2
   const vLastName  = form.last_name.trim().length  < 2
-  const isValid    = !vEmail && !vPassword && !vFirstName && !vLastName
+  const isValid    = !vCivilite && !vEmail && !vPassword && !vFirstName && !vLastName
 
   // Email modifiable uniquement pour admin et direction
   const emailEditable = !isEditing || profile?.role === 'admin' || profile?.role === 'direction'
@@ -101,6 +106,7 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
         }
         result = await updateProfile(profile.id, {
           role:       form.role,
+          civilite:   form.civilite.trim() || undefined,
           first_name: form.first_name.trim(),
           last_name:  form.last_name.trim(),
           phone:      form.phone.trim() || undefined,
@@ -110,6 +116,7 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
           email:      form.email.trim(),
           password:   form.password,
           role:       form.role,
+          civilite:   form.civilite.trim() || undefined,
           first_name: form.first_name.trim(),
           last_name:  form.last_name.trim(),
           phone:      form.phone.trim() || undefined,
@@ -144,8 +151,20 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
           {isEditing ? 'Informations du compte' : 'Nouveau compte utilisateur'}
         </h2>
 
-        {/* Nom / Prénom */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Civilité / Nom / Prénom */}
+        <div className="grid grid-cols-[auto_1fr_1fr] gap-3">
+          <Field label={<>Civilité <span className="text-red-400">*</span></>} error={touched.has('civilite') && vCivilite ? 'Requis' : undefined}>
+            <select
+              value={form.civilite}
+              onChange={e => set('civilite', e.target.value)}
+              onBlur={() => touch('civilite')}
+              className={inputCls('civilite', vCivilite)}
+            >
+              {CIVILITE_OPTIONS.map(c => (
+                <option key={c} value={c}>{c || '—'}</option>
+              ))}
+            </select>
+          </Field>
           <Field
             label={<>Nom <span className="text-red-400">*</span></>}
             error={touched.has('last_name') && vLastName ? 'Obligatoire (2 caractères min.).' : undefined}

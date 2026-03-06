@@ -72,6 +72,12 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'secretaire'],
   },
   {
+    name:  'Feuille d\'appel',
+    href:  '/dashboard/absences',
+    icon:  Calendar,
+    roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+  },
+  {
     name:  'Affectations',
     href:  '/dashboard/affectation',
     icon:  UserCheck,
@@ -95,12 +101,6 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
       },
     ],
-  },
-  {
-    name:  'Absences',
-    href:  '/dashboard/absences',
-    icon:  Calendar,
-    roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
   },
   {
     name:  'Communications',

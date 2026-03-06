@@ -11,6 +11,7 @@ type ClassRow = {
   start_time: string | null
   end_time: string | null
   main_teacher_name: string | null
+  main_teacher_civilite: string | null
 }
 
 type EvaluationRow = {
@@ -68,7 +69,7 @@ export default async function EvaluationsPage() {
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null })) as ClassRow[]
+    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null })) as ClassRow[]
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -94,27 +95,32 @@ export default async function EvaluationsPage() {
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null })) as ClassRow[]
+        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null })) as ClassRow[]
       }
     }
   }
 
   // 3b. Professeur principal de chaque classe
   if (classes.length > 0) {
-    type CTRow = { class_id: string; teachers: { first_name: string; last_name: string } | null }
+    type CTRow = { class_id: string; teachers: { civilite: string | null; first_name: string; last_name: string } | null }
     const { data: mainTeacherRows } = await supabase
       .from('class_teachers')
-      .select('class_id, teachers(first_name, last_name)')
+      .select('class_id, teachers(civilite, first_name, last_name)')
       .eq('is_main_teacher', true)
       .in('class_id', classes.map(c => c.id)) as { data: CTRow[] | null }
 
     const teacherMap = new Map(
       (mainTeacherRows ?? []).map(ct => [
         ct.class_id,
-        ct.teachers ? `${ct.teachers.first_name} ${ct.teachers.last_name}` : null,
+        ct.teachers
+          ? { name: `${ct.teachers.first_name} ${ct.teachers.last_name}`, civilite: ct.teachers.civilite }
+          : null,
       ])
     )
-    classes = classes.map(c => ({ ...c, main_teacher_name: teacherMap.get(c.id) ?? null }))
+    classes = classes.map(c => {
+      const t = teacherMap.get(c.id)
+      return { ...c, main_teacher_name: t?.name ?? null, main_teacher_civilite: t?.civilite ?? null }
+    })
   }
 
   // 4. Référentiel des cours

@@ -29,7 +29,7 @@ export function parseDiagnosticOption(o: unknown): DiagnosticOption {
   return { acronym: String(o), comment: '' }
 }
 
-export type AbsenceType = 'absence' | 'late' | 'authorized_absence'
+export type AbsenceType = 'absence' | 'retard'
 
 export type AnnouncementType = 'general' | 'class' | 'parent' | 'teacher'
 
@@ -89,6 +89,7 @@ export interface Profile {
   etablissement_id?: string   // NULL pour super_admin
   email: string
   role: UserRole
+  civilite?: string
   first_name: string
   last_name: string
   phone?: string
@@ -161,6 +162,7 @@ export interface Teacher {
   id: string
   etablissement_id: string
   user_id?: string
+  civilite?: string
   first_name: string
   last_name: string
   employee_number: string
@@ -284,13 +286,16 @@ export interface Grade {
 
 export interface Absence {
   id: string
+  etablissement_id: string
   student_id: string
   class_id: string
+  period_id: string
   absence_date: string
-  absence_type?: AbsenceType
-  period?: string
-  reason?: string
+  absence_type: AbsenceType
+  comment?: string
   is_justified: boolean
+  justification_date?: string
+  justification_comment?: string
   justification_document_url?: string
   recorded_by?: string
   created_at: string

@@ -21,7 +21,7 @@ const POOL_PAGE_SIZE = 20
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface TeacherInfo { first_name: string; last_name: string }
+interface TeacherInfo { civilite: string | null; first_name: string; last_name: string }
 interface ClassTeacherRow { is_main_teacher: boolean; subject: string | null; teachers: TeacherInfo | null }
 
 interface ClassRow {
@@ -455,7 +455,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
     if (!selectedClass) return null
     const mainTeacher = selectedClass.class_teachers.find(t => t.is_main_teacher)
     const teacherName = mainTeacher?.teachers
-      ? `${mainTeacher.teachers.last_name} ${mainTeacher.teachers.first_name}`
+      ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
       : null
     const day   = selectedClass.day_of_week ? (DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week) : null
     const start = fmtTime(selectedClass.start_time)
@@ -502,7 +502,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
                   {(() => {
                     const main = selectedClass.class_teachers.find(t => t.is_main_teacher)
-                    const t = main?.teachers ? `${main.teachers.last_name} ${main.teachers.first_name}` : null
+                    const t = main?.teachers ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ') : null
                     return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
                   })()}
                 </span>
@@ -525,7 +525,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                 {classes.map(c => {
                   const main = c.class_teachers.find(t => t.is_main_teacher)
                   const teacher = main?.teachers
-                    ? `${main.teachers.last_name} ${main.teachers.first_name}`
+                    ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
                     : null
                   return (
                     <button
@@ -622,7 +622,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   const badgeName             = badgeClass?.name
                   const badgeMain             = badgeClass?.class_teachers.find(t => t.is_main_teacher)
                   const badgeTeacherName      = badgeMain?.teachers
-                    ? `${badgeMain.teachers.last_name} ${badgeMain.teachers.first_name}`
+                    ? [badgeMain.teachers.civilite, badgeMain.teachers.last_name, badgeMain.teachers.first_name].filter(Boolean).join(' ')
                     : null
                   const badgeDay             = badgeClass?.day_of_week
                     ? (DAYS[badgeClass.day_of_week] ?? badgeClass.day_of_week)

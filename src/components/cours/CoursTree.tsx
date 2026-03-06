@@ -839,8 +839,18 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
       {/* Modal confirmation suppression */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <h3 className="font-bold text-secondary-800 mb-2">Confirmer la suppression</h3>
+          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden">
+            <div className="px-6 pt-5 pb-0 flex items-center justify-between">
+              <h3 className="font-bold text-secondary-800">Confirmer la suppression</h3>
+              <button
+                type="button"
+                onClick={() => { setConfirmDelete(null); setDeleteError(null) }}
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-6 pt-2 pb-6">
             <p className="text-sm text-warm-500 mb-1">
               Supprimer <span dir="auto" className="font-semibold text-secondary-700">&ldquo;{confirmDelete.nom}&rdquo;</span> ?
             </p>
@@ -863,6 +873,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
               >
                 {submitting ? 'Suppression…' : 'Supprimer'}
               </button>
+            </div>
             </div>
           </div>
         </div>

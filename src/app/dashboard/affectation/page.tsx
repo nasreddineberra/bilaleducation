@@ -25,7 +25,7 @@ export default async function AffectationPage() {
             class_teachers (
               is_main_teacher,
               subject,
-              teachers ( first_name, last_name )
+              teachers ( civilite, first_name, last_name )
             )
           `)
           .eq('academic_year', yearLabel)
