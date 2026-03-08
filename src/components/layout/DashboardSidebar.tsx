@@ -100,6 +100,12 @@ const navItems: NavItem[] = [
         icon:  FileText,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
       },
+      {
+        name:  'Bulletins',
+        href:  '/dashboard/bulletins',
+        icon:  FileText,
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+      },
     ],
   },
   {

@@ -19,6 +19,9 @@ export default function LoginPage() {
 
     try {
       await authRepository.signIn(email, password)
+      // Initialiser le cookie de session applicatif (inactivité + durée max)
+      const now = Math.floor(Date.now() / 1000)
+      document.cookie = `app-session=${JSON.stringify({ loginTime: now, lastActivity: now })};path=/;max-age=${24 * 3600};samesite=lax`
       // TODO: réactiver la 2FA en fin de projet (décommenter le bloc ci-dessous)
       // const supabase = createClient()
       // const { data: factors } = await supabase.auth.mfa.listFactors()

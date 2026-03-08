@@ -1,6 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// ── Délais de session (en secondes) ──────────────────────────────────────────
+const INACTIVITY_TIMEOUT = 30 * 60       // 30 minutes d'inactivité
+const MAX_SESSION_DURATION = 24 * 3600   // 24 heures max depuis la connexion
+const SESSION_COOKIE = 'app-session'
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -142,7 +147,59 @@ export async function proxy(request: NextRequest) {
 
   // Protéger /dashboard → redirection login si non authentifié
   if (!user && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirect = NextResponse.redirect(new URL('/login', request.url))
+    redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+    return redirect
+  }
+
+  // ── Gestion inactivité (30 min) + durée max (24h) ──────────────────────────
+  if (user && pathname.startsWith('/dashboard')) {
+    const now = Math.floor(Date.now() / 1000)
+    const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value
+    let loginTime = now
+    let lastActivity = now
+
+    if (sessionCookie) {
+      try {
+        const parsed = JSON.parse(sessionCookie)
+        loginTime = parsed.loginTime ?? now
+        lastActivity = parsed.lastActivity ?? now
+      } catch {
+        // Cookie corrompu → on réinitialise
+      }
+    }
+
+    const inactive = now - lastActivity > INACTIVITY_TIMEOUT
+    const expired = now - loginTime > MAX_SESSION_DURATION
+
+    if (inactive || expired) {
+      // Déconnecter côté Supabase
+      const supabaseForSignOut = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() { return request.cookies.getAll() },
+            setAll() { /* no-op pour sign out */ },
+          },
+        }
+      )
+      await supabaseForSignOut.auth.signOut()
+
+      const redirect = NextResponse.redirect(new URL('/login', request.url))
+      redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+      return redirect
+    }
+
+    // Session valide → mettre à jour la dernière activité
+    const cookieValue = JSON.stringify({ loginTime, lastActivity: now })
+    response.cookies.set(SESSION_COOKIE, cookieValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: MAX_SESSION_DURATION,
+    })
   }
 
   // ── 2FA désactivée temporairement (à réactiver en fin de projet) ──────────
