@@ -269,7 +269,7 @@ export default function StudentScolarite({
                                 Bulletin
                               </a>
                             ) : (
-                              <span className="text-xs text-warm-300 italic">Pas de bulletin</span>
+                              <span className="text-xs text-warm-300 italic">Pas de bulletin archivé</span>
                             )}
                           </div>
                         )

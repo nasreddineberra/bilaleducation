@@ -91,6 +91,62 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     .select('class_id, period_id, file_url')
     .eq('student_id', id)
 
+  // Frères et soeurs (même parent_id)
+  type SiblingRow = {
+    id: string; first_name: string; last_name: string
+    gender: string | null; date_of_birth: string | null
+    class_name: string | null; class_level: string | null
+    day_of_week: string | null; start_time: string | null; end_time: string | null
+    teacher_name: string | null
+  }
+  let siblings: SiblingRow[] = []
+  if (student.parent_id) {
+    const { data: siblingStudents } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, gender, date_of_birth')
+      .eq('parent_id', student.parent_id)
+      .neq('id', id)
+      .eq('is_active', true)
+
+    if (siblingStudents && siblingStudents.length > 0) {
+      const siblingIds = siblingStudents.map(s => s.id)
+      const { data: sibEnrollments } = await supabase
+        .from('enrollments')
+        .select('student_id, class_id, classes(name, level, day_of_week, start_time, end_time)')
+        .in('student_id', siblingIds)
+        .eq('status', 'active')
+
+      const sibClassIds = [...new Set((sibEnrollments ?? []).map((e: any) => e.class_id).filter(Boolean))]
+      const sibTeacherMap = new Map<string, string>()
+      if (sibClassIds.length > 0) {
+        const { data: sibTeachers } = await supabase
+          .from('class_teachers')
+          .select('class_id, teachers(civilite, first_name, last_name)')
+          .eq('is_main_teacher', true)
+          .in('class_id', sibClassIds) as { data: CTRow[] | null }
+        for (const ct of (sibTeachers ?? [])) {
+          if (ct.teachers) {
+            sibTeacherMap.set(ct.class_id, [ct.teachers.civilite, ct.teachers.first_name, ct.teachers.last_name].filter(Boolean).join(' '))
+          }
+        }
+      }
+
+      const enrollMap = new Map<string, any>()
+      for (const e of (sibEnrollments ?? []) as any[]) enrollMap.set(e.student_id, e)
+
+      siblings = siblingStudents.map(s => {
+        const enr = enrollMap.get(s.id)
+        const cls = enr?.classes
+        return {
+          id: s.id, first_name: s.first_name, last_name: s.last_name, gender: s.gender ?? null, date_of_birth: s.date_of_birth ?? null,
+          class_name: cls?.name ?? null, class_level: cls?.level ?? null,
+          day_of_week: cls?.day_of_week ?? null, start_time: cls?.start_time ?? null, end_time: cls?.end_time ?? null,
+          teacher_name: enr ? (sibTeacherMap.get(enr.class_id) ?? null) : null,
+        }
+      })
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -114,6 +170,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         absences={(absences ?? []) as any[]}
         bulletinArchives={(bulletinArchives ?? []) as any[]}
         mainTeachers={mainTeachers as any[]}
+        siblings={siblings}
       />
 
     </div>

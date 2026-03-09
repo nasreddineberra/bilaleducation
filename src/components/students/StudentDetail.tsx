@@ -39,6 +39,7 @@ interface Props {
   absences: any[]
   bulletinArchives: any[]
   mainTeachers: any[]
+  siblings?: any[]
 }
 
 const TABS = [
@@ -52,7 +53,7 @@ type TabKey = typeof TABS[number]['key']
 
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
-  enrollments, evaluations, grades, periods, absences, bulletinArchives, mainTeachers,
+  enrollments, evaluations, grades, periods, absences, bulletinArchives, mainTeachers, siblings,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>('identite')
 
@@ -88,6 +89,7 @@ export default function StudentDetail({
           parents={parents}
           backHref={backHref}
           etablissementId={etablissementId}
+          siblings={siblings}
         />
       )}
 

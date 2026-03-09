@@ -7,6 +7,7 @@ import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User } from 'lucide-r
 import { createClient } from '@/lib/supabase/client'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
+import Link from 'next/link'
 import ParentForm from '@/components/parents/ParentForm'
 import type { Student, Parent } from '@/types/database'
 
@@ -41,12 +42,27 @@ const RELATIONSHIP_LABEL: Record<string, string> = {
 const relLabel = (rel?: string | null, fallback = 'Tuteur') =>
   rel ? (RELATIONSHIP_LABEL[rel] ?? rel) : fallback
 
+type SiblingRow = {
+  id: string
+  first_name: string
+  last_name: string
+  gender?: string | null
+  date_of_birth?: string | null
+  class_name?: string | null
+  class_level?: string | null
+  day_of_week?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  teacher_name?: string | null
+}
+
 interface StudentFormProps {
   student?: Student
   parents: ParentOption[]
   defaultStudentNumber?: string
   backHref?: string
   etablissementId?: string
+  siblings?: SiblingRow[]
 }
 
 type FormData = {
@@ -75,7 +91,7 @@ const normalizeNom = (s: string) =>
   s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '' }: StudentFormProps) {
+export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [] }: StudentFormProps) {
   const router    = useRouter()
   const isEditing = !!student
 
@@ -387,18 +403,32 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
           </div>
         </div>
 
-        {/* Adresse (conditionnelle au parent sélectionné) */}
+        {/* Adresse + Contact d'urgence & Santé */}
         {parentData && (
-          <div className="card p-3 space-y-1.5 flex-1">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
-            <InfoBlock>
-              <p>{tutorInfo?.address || <span className="text-warm-400 italic">Non renseignée</span>}</p>
-              {(tutorInfo?.postal_code || tutorInfo?.city) && (
-                <p className="text-warm-500">
-                  {[tutorInfo.postal_code, tutorInfo.city].filter(Boolean).join(' ')}
-                </p>
-              )}
-            </InfoBlock>
+          <div className="card p-3 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+                <InfoBlock>
+                  <p>{tutorInfo?.address || <span className="text-warm-400 italic">Non renseignée</span>}</p>
+                  {(tutorInfo?.postal_code || tutorInfo?.city) && (
+                    <p className="text-warm-500">
+                      {[tutorInfo.postal_code, tutorInfo.city].filter(Boolean).join(' ')}
+                    </p>
+                  )}
+                </InfoBlock>
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                  Contact d&apos;urgence &amp; Santé
+                </h2>
+                <InfoBlock>
+                  <p className="font-medium">{tutorInfo?.name || <span className="text-warm-400 italic">—</span>}</p>
+                  <p className="font-mono text-xs text-warm-500">{tutorInfo?.phone || '—'}</p>
+                  <p className="text-warm-500 text-xs">{tutorInfo?.email || '—'}</p>
+                </InfoBlock>
+              </div>
+            </div>
           </div>
         )}
 
@@ -455,7 +485,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               {/* Sélecteur source tuteur */}
               <div className="card p-3">
                 <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">
-                  Reprendre les informations du
+                  Reprendre les informations du responsable
                 </p>
                 <div className="flex flex-col gap-1.5">
                   <label className={clsx(
@@ -502,16 +532,52 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                 </div>
               </div>
 
-              {/* Contact d'urgence */}
+              {/* Lien Familial */}
               <div className="card p-3 space-y-1.5 flex-1">
                 <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-                  Contact d'urgence & Santé
+                  Frères / Sœurs
                 </h2>
-                <InfoBlock>
-                  <p className="font-medium">{tutorInfo?.name || <span className="text-warm-400 italic">—</span>}</p>
-                  <p className="font-mono text-xs text-warm-500">{tutorInfo?.phone || '—'}</p>
-                  <p className="text-warm-500 text-xs">{tutorInfo?.email || '—'}</p>
-                </InfoBlock>
+                {siblings.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {siblings.map(sib => (
+                      <div key={sib.id} className="bg-warm-50 border border-warm-100 rounded-lg px-3 py-2 text-sm">
+                        <Link
+                          href={`/dashboard/students/${sib.id}`}
+                          className="font-medium text-primary-600 hover:text-primary-800 hover:underline transition-colors"
+                        >
+                          {sib.last_name} {sib.first_name}
+                        </Link>
+                        {sib.gender && (
+                          <span className={clsx(
+                            'inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold leading-none ml-1.5 align-middle',
+                            sib.gender === 'male' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-500'
+                          )}>
+                            {sib.gender === 'male' ? 'M' : 'F'}
+                          </span>
+                        )}
+                        {sib.date_of_birth && (
+                          <span className="text-xs text-warm-400 ml-1">
+                            ({Math.floor((Date.now() - new Date(sib.date_of_birth).getTime()) / 31557600000)} ans)
+                          </span>
+                        )}
+                        {sib.class_name && (
+                          <p className="text-xs text-warm-500 mt-0.5">
+                            Classe : {sib.class_name}
+                            {sib.teacher_name && <> · {sib.teacher_name}</>}
+                            {sib.day_of_week && (
+                              <>
+                                {' · '}{sib.day_of_week}
+                                {sib.start_time && sib.end_time && ` ${sib.start_time.slice(0, 5)}–${sib.end_time.slice(0, 5)}`}
+                              </>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-warm-400 italic">Aucun frère ou sœur enregistré</p>
+                )}
               </div>
             </>
           )}
