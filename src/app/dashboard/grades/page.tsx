@@ -225,6 +225,17 @@ export default async function GradesPage() {
     grades = (data ?? []) as GradeRow[]
   }
 
+  // 8. Archives de bulletins (pour bloquer la modification des notes)
+  type ArchiveRow = { class_id: string; period_id: string }
+  let bulletinArchives: ArchiveRow[] = []
+  if (classIds.length > 0) {
+    const { data } = await supabase
+      .from('bulletin_archives')
+      .select('class_id, period_id')
+      .in('class_id', classIds)
+    bulletinArchives = (data ?? []) as ArchiveRow[]
+  }
+
   return (
     <div className="h-full animate-fade-in">
       <GradesClient
@@ -241,6 +252,7 @@ export default async function GradesPage() {
         etablissementId={etablissementId}
         schoolYearId={schoolYearId}
         teacherId={teacherId}
+        bulletinArchives={bulletinArchives}
       />
     </div>
   )

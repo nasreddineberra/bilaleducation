@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Check, ChevronRight, ChevronDown, ChevronLeft,
-  BookOpen, AlertCircle, RotateCcw,
+  BookOpen, AlertCircle, RotateCcw, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -47,6 +47,11 @@ type PendingEntry = {
   dirty:      boolean
 }
 
+type BulletinArchiveRow = {
+  class_id: string
+  period_id: string
+}
+
 interface Props {
   classes:         ClassRow[]
   periods:         Period[]
@@ -61,6 +66,7 @@ interface Props {
   etablissementId: string
   schoolYearId:    string | null
   teacherId:       string | null
+  bulletinArchives: BulletinArchiveRow[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,7 +92,7 @@ function getInitialScoreValue(grade: GradeRow | undefined, evalKind: string | nu
 export default function GradesClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
   evaluations, evalOrderConfigs, students, initialGrades,
-  schoolYearId, teacherId,
+  schoolYearId, teacherId, bulletinArchives,
 }: Props) {
 
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
@@ -291,6 +297,12 @@ export default function GradesClient({
   const toggleUE = (id: string) =>
     setExpandedUEs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
 
+  // ── Archivage : les bulletins sont-ils archivés pour cette classe+période ? ─
+  const isArchived = useMemo(() =>
+    bulletinArchives.some(a => a.class_id === selectedClassId && a.period_id === selectedPeriodId),
+    [bulletinArchives, selectedClassId, selectedPeriodId]
+  )
+
   // ── Flags ────────────────────────────────────────────────────────────────────
   const noSchoolYear    = !schoolYearId
   const noClassOrPeriod = !selectedClassId || !selectedPeriodId
@@ -365,6 +377,14 @@ export default function GradesClient({
           return <span className="ml-auto text-sm font-medium text-warm-600 whitespace-nowrap">{parts.join(' · ')}</span>
         })()}
       </div>
+
+      {/* ── Bandeau archivage ── */}
+      {isArchived && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex-shrink-0">
+          <Lock size={13} className="flex-shrink-0" />
+          Bulletins archivés pour cette période — modification des notes impossible.
+        </div>
+      )}
 
       {/* ── Panneau split ── */}
       <div className="flex gap-3 flex-1 min-h-0">
@@ -610,7 +630,7 @@ export default function GradesClient({
                                     value={entry.scoreValue}
                                     onChange={e => updatePending(student.student_id, { scoreValue: e.target.value })}
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNext(idx) } }}
-                                    disabled={isAbsent}
+                                    disabled={isAbsent || isArchived}
                                     placeholder="0,0"
                                     data-row-idx={idx}
                                     className="input text-sm py-0.5 w-24 text-center disabled:opacity-30 disabled:cursor-not-allowed"
@@ -619,7 +639,7 @@ export default function GradesClient({
                                   <select
                                     value={entry.scoreValue}
                                     onChange={e => { updatePending(student.student_id, { scoreValue: e.target.value }); focusNext(idx) }}
-                                    disabled={isAbsent}
+                                    disabled={isAbsent || isArchived}
                                     data-row-idx={idx}
                                     className="input text-sm py-0.5 w-28 disabled:opacity-30 disabled:cursor-not-allowed"
                                   >
@@ -633,7 +653,7 @@ export default function GradesClient({
                                   <StarInput
                                     value={entry.scoreValue === '' ? null : parseFloat(entry.scoreValue)}
                                     onChange={v => updatePending(student.student_id, { scoreValue: v === null ? '' : String(v) })}
-                                    disabled={isAbsent}
+                                    disabled={isAbsent || isArchived}
                                   />
                                 )}
                               </td>
@@ -647,7 +667,8 @@ export default function GradesClient({
                                     is_absent:  e.target.checked,
                                     scoreValue: e.target.checked ? '' : entry.scoreValue,
                                   })}
-                                  className="h-4 w-4 rounded border-warm-300 text-primary-500 focus:ring-primary-400 cursor-pointer"
+                                  disabled={isArchived}
+                                  className="h-4 w-4 rounded border-warm-300 text-primary-500 focus:ring-primary-400 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                                 />
                               </td>
                             </tr>
@@ -682,7 +703,7 @@ export default function GradesClient({
 
                   {/* Boutons */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {confirmReset ? (
+                    {!isArchived && (confirmReset ? (
                       <>
                         <span className="text-xs text-warm-500">Réinitialiser toutes les notes ?</span>
                         <button
@@ -708,10 +729,10 @@ export default function GradesClient({
                       >
                         <RotateCcw size={13} />
                       </button>
-                    )}
+                    ))}
                     <button
                       onClick={handleSave}
-                      disabled={!hasDirty || saving}
+                      disabled={!hasDirty || saving || isArchived}
                       className="btn btn-primary text-xs py-1 px-3 disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Check size={13} />

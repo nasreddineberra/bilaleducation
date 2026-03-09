@@ -120,7 +120,10 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
   doc.setFont('helvetica', 'bold')
   doc.text('Classe :', margin + contentWidth / 2, y + 6)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${data.className} – ${data.classLevel}`, margin + contentWidth / 2 + 20, y + 6)
+  const classInfo = data.classSchedule
+    ? `${data.className} – ${data.classLevel} (${data.classSchedule})`
+    : `${data.className} – ${data.classLevel}`
+  doc.text(classInfo, margin + contentWidth / 2 + 20, y + 6)
 
   doc.setFont('helvetica', 'bold')
   doc.text('Enseignant :', margin + contentWidth / 2, y + 13)
@@ -129,7 +132,21 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
 
   y += 25
 
+  // ── Légende diagnostique (au-dessus du tableau) ────────────────────────────
+
+  if (data.diagnosticLegend) {
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(...COLORS.gray)
+    doc.text(data.diagnosticLegend, margin, y + 3)
+    y += 7
+  }
+
   // ── Tableau des notes par UE ───────────────────────────────────────────────
+
+  // Déterminer si la colonne Coeff. est pertinente (au moins une éval scored)
+  const allLines = data.ueBlocks.flatMap(b => b.lines)
+  const hasScored = allLines.some(l => l.evalKind === 'scored')
 
   const tableBody: any[][] = []
 
@@ -139,21 +156,29 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
       ? `${block.ueName} › ${block.moduleName}`
       : block.ueName
 
-    tableBody.push([
-      { content: ueLabel, colSpan: 4, styles: { fillColor: COLORS.ueBg, fontStyle: 'bold', fontSize: 8, textColor: COLORS.secondary } },
-      {
-        content: block.studentAvg != null ? block.studentAvg.toFixed(2) : '–',
-        styles: { fillColor: COLORS.ueBg, fontStyle: 'bold', halign: 'center', fontSize: 8, textColor: COLORS.secondary }
-      },
-      {
-        content: block.classAvg != null ? block.classAvg.toFixed(2) : '–',
-        styles: { fillColor: COLORS.ueBg, halign: 'center', fontSize: 7, textColor: COLORS.gray }
-      },
-      {
-        content: block.classMin != null && block.classMax != null ? `${block.classMin.toFixed(1)} / ${block.classMax.toFixed(1)}` : '–',
-        styles: { fillColor: COLORS.ueBg, halign: 'center', fontSize: 7, textColor: COLORS.gray }
-      },
-    ])
+    if (hasScored) {
+      tableBody.push([
+        { content: ueLabel, colSpan: 2, styles: { fillColor: COLORS.ueBg, fontStyle: 'bold', fontSize: 8, textColor: COLORS.secondary } },
+        {
+          content: block.studentAvg != null ? `Moy. ${block.studentAvg.toFixed(2)}` : '',
+          styles: { fillColor: COLORS.ueBg, fontStyle: 'bold', halign: 'center', fontSize: 7, textColor: COLORS.secondary }
+        },
+        { content: '', styles: { fillColor: COLORS.ueBg } },
+        {
+          content: block.classAvg != null ? `Moy. ${block.classAvg.toFixed(2)}` : '',
+          styles: { fillColor: COLORS.ueBg, halign: 'center', fontSize: 7, textColor: COLORS.gray }
+        },
+        {
+          content: block.classMin != null && block.classMax != null ? `${block.classMin.toFixed(1)} / ${block.classMax.toFixed(1)}` : '–',
+          styles: { fillColor: COLORS.ueBg, halign: 'center', fontSize: 7, textColor: COLORS.gray }
+        },
+      ])
+    } else {
+      tableBody.push([
+        { content: ueLabel, colSpan: 2, styles: { fillColor: COLORS.ueBg, fontStyle: 'bold', fontSize: 8, textColor: COLORS.secondary } },
+        { content: '', styles: { fillColor: COLORS.ueBg } },
+      ])
+    }
 
     // Lignes de cours
     for (const line of block.lines) {
@@ -168,65 +193,100 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
         noteDisplay = `${line.score}/${line.maxScore ?? 20}`
       }
 
-      const evalKindLabel = line.evalKind === 'diagnostic' ? 'Diag.'
-        : line.evalKind === 'stars' ? 'Étoiles'
-        : line.evalKind === 'scored' ? 'Note'
-        : '–'
-
-      tableBody.push([
-        { content: '', styles: { cellWidth: 3 } },
-        line.coursName,
-        { content: evalKindLabel, styles: { halign: 'center', fontSize: 7, textColor: COLORS.gray } },
-        { content: `×${line.coefficient}`, styles: { halign: 'center', fontSize: 7, textColor: COLORS.gray } },
-        { content: noteDisplay, styles: { halign: 'center', fontStyle: line.isAbsent ? 'italic' : 'normal', textColor: line.isAbsent ? COLORS.redText : COLORS.black } },
-        '',
-        '',
-      ])
+      if (hasScored) {
+        tableBody.push([
+          { content: '', styles: { cellWidth: 3 } },
+          line.coursName,
+          { content: noteDisplay, styles: { halign: 'center', fontStyle: line.isAbsent ? 'italic' : 'normal', textColor: line.isAbsent ? COLORS.redText : COLORS.black } },
+          { content: line.evalKind === 'scored' ? `×${line.coefficient}` : '', styles: { halign: 'center', fontSize: 7, textColor: COLORS.gray } },
+          '',
+          '',
+        ])
+      } else {
+        tableBody.push([
+          { content: '', styles: { cellWidth: 3 } },
+          line.coursName,
+          { content: noteDisplay, styles: { halign: 'center', fontStyle: line.isAbsent ? 'italic' : 'normal', textColor: line.isAbsent ? COLORS.redText : COLORS.black } },
+        ])
+      }
     }
   }
+
+  const tableHead: any[] = hasScored
+    ? [
+        { content: '', styles: { cellWidth: 3 } },
+        { content: 'Matière', styles: { halign: 'left' } },
+        { content: 'Note', styles: { halign: 'center' } },
+        { content: 'Coeff.', styles: { halign: 'center' } },
+        { content: 'Moy. classe', styles: { halign: 'center' } },
+        { content: 'Min / Max', styles: { halign: 'center' } },
+      ]
+    : [
+        { content: '', styles: { cellWidth: 3 } },
+        { content: 'Matière', styles: { halign: 'left' } },
+        { content: 'Note', styles: { halign: 'center' } },
+      ]
+
+  const colStyles: Record<number, any> = hasScored
+    ? {
+        0: { cellWidth: 3 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 14, halign: 'center' },
+        4: { cellWidth: 22, halign: 'center' },
+        5: { cellWidth: 22, halign: 'center' },
+      }
+    : {
+        0: { cellWidth: 3 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 30, halign: 'center' },
+      }
 
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [[
-      { content: '', styles: { cellWidth: 3 } },
-      { content: 'Matière', styles: { halign: 'left' } },
-      { content: 'Type', styles: { halign: 'center' } },
-      { content: 'Coeff.', styles: { halign: 'center' } },
-      { content: 'Note élève', styles: { halign: 'center' } },
-      { content: 'Moy. classe', styles: { halign: 'center' } },
-      { content: 'Min / Max', styles: { halign: 'center' } },
-    ]],
+    head: [tableHead],
     body: tableBody,
     theme: 'grid',
     headStyles: {
       fillColor: COLORS.primary,
       textColor: COLORS.white,
-      fontSize: 8,
+      fontSize: 7,
       fontStyle: 'bold',
-      cellPadding: 2,
+      cellPadding: 1.5,
     },
     bodyStyles: {
-      fontSize: 8,
-      cellPadding: 1.5,
+      fontSize: 7.5,
+      cellPadding: 1.2,
       textColor: COLORS.black,
     },
-    columnStyles: {
-      0: { cellWidth: 3 },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 20, halign: 'center' },
-      3: { cellWidth: 16, halign: 'center' },
-      4: { cellWidth: 28, halign: 'center' },
-      5: { cellWidth: 25, halign: 'center' },
-      6: { cellWidth: 28, halign: 'center' },
-    },
-    didParseCell: (hookData) => {
-      // Style des cellules UE (déjà géré via les styles inline)
-    },
+    columnStyles: colStyles,
   })
 
   // Position après le tableau
   y = (doc as any).lastAutoTable.finalY + 8
+
+  // ── Appréciation ──────────────────────────────────────────────────────────
+
+  if (data.appreciation) {
+    // Vérifier s'il reste assez de place
+    if (y > doc.internal.pageSize.getHeight() - 60) {
+      doc.addPage()
+      y = margin
+    }
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.secondary)
+    doc.text('Appréciation :', margin, y + 4)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(...COLORS.black)
+    const appreciationLines = doc.splitTextToSize(data.appreciation, contentWidth - 30)
+    doc.text(appreciationLines, margin + 28, y + 4)
+    y += 6 + appreciationLines.length * 4
+  }
 
   // ── Résumé général ─────────────────────────────────────────────────────────
 
@@ -280,7 +340,7 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
   doc.setFontSize(7)
   doc.setTextColor(...COLORS.lightGray)
   doc.text(
-    `${data.etablissement.nom} – Bulletin généré le ${new Date().toLocaleDateString('fr-FR')}`,
+    `BULLETIN D'\u00C9VALUATION ${data.periodLabel} – ${data.yearLabel}`,
     pageWidth / 2,
     doc.internal.pageSize.getHeight() - 8,
     { align: 'center' }
@@ -293,6 +353,14 @@ export async function generateBulletinPDF(data: BulletinData): Promise<void> {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   await renderBulletin(doc, data)
   doc.save(`Bulletin_${data.student.last_name}_${data.student.first_name}_${data.periodLabel.replace(/\s/g, '_')}.pdf`)
+}
+
+// ─── Export : bulletin individuel en Blob (pour archivage) ───────────────────
+
+export async function generateBulletinBlob(data: BulletinData): Promise<Blob> {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  await renderBulletin(doc, data)
+  return doc.output('blob')
 }
 
 // ─── Export : tous les bulletins dans un seul PDF ────────────────────────────

@@ -7,6 +7,9 @@ type ClassRow = {
   id: string
   name: string
   level: string
+  day_of_week: string | null
+  start_time: string | null
+  end_time: string | null
   main_teacher_name: string | null
   main_teacher_civilite: string | null
 }
@@ -92,7 +95,7 @@ export default async function BulletinsPage() {
   if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
     const query = supabase
       .from('classes')
-      .select('id, name, level')
+      .select('id, name, level, day_of_week, start_time, end_time')
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
@@ -116,7 +119,7 @@ export default async function BulletinsPage() {
       if (classIds.length > 0) {
         const query = supabase
           .from('classes')
-          .select('id, name, level')
+          .select('id, name, level, day_of_week, start_time, end_time')
           .in('id', classIds)
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
@@ -229,7 +232,29 @@ export default async function BulletinsPage() {
     absences = (data ?? []) as AbsenceRow[]
   }
 
-  // 9. Infos établissement
+  // 9. Archives de bulletins existantes
+  type ArchiveRow = { id: string; student_id: string; class_id: string; period_id: string; file_url: string; archived_at: string }
+  let archives: ArchiveRow[] = []
+  if (classIds.length > 0) {
+    const { data } = await supabase
+      .from('bulletin_archives')
+      .select('id, student_id, class_id, period_id, file_url, archived_at')
+      .in('class_id', classIds)
+    archives = (data ?? []) as ArchiveRow[]
+  }
+
+  // 10. Appréciations
+  type AppreciationRow = { id: string; student_id: string; class_id: string; period_id: string; appreciation: string }
+  let appreciations: AppreciationRow[] = []
+  if (classIds.length > 0) {
+    const { data } = await supabase
+      .from('bulletin_appreciations')
+      .select('id, student_id, class_id, period_id, appreciation')
+      .in('class_id', classIds)
+    appreciations = (data ?? []) as AppreciationRow[]
+  }
+
+  // 11. Infos établissement
   const { data: etab } = await supabase
     .from('etablissements')
     .select('nom, adresse, telephone, logo_url')
@@ -257,6 +282,9 @@ export default async function BulletinsPage() {
         absences={absences}
         etablissement={etablissement}
         yearLabel={yearLabel}
+        etablissementId={etablissementId}
+        initialArchives={archives}
+        initialAppreciations={appreciations}
       />
     </div>
   )
