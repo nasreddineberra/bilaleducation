@@ -153,23 +153,23 @@ export default function StudentScolarite({
 
   if (yearGroups.length === 0) {
     return (
-      <div className="card p-6 text-center">
-        <p className="text-sm text-warm-400 italic">Aucune inscription enregistrée.</p>
+      <div className="card p-4 text-center">
+        <p className="text-xs text-warm-400 italic">Aucune inscription enregistrée.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {yearGroups.map(([year, yearEnrollments]) => (
         <div key={year}>
           {/* En-tête année scolaire */}
-          <div className="flex items-center gap-2 mb-3">
-            <BookOpen size={16} className="text-primary flex-shrink-0" />
-            <h3 className="text-sm font-bold text-secondary-800">{year}</h3>
+          <div className="flex items-center gap-1.5 mb-2">
+            <BookOpen size={13} className="text-primary flex-shrink-0" />
+            <h3 className="text-xs font-bold text-secondary-800">{year}</h3>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {yearEnrollments.map(enrollment => {
               const cls = enrollment.classes!
               const teacher = teacherMap.get(enrollment.class_id)
@@ -182,10 +182,10 @@ export default function StudentScolarite({
               return (
                 <div key={enrollment.id} className="card overflow-hidden">
                   {/* Info classe */}
-                  <div className="px-4 py-3 bg-warm-50 border-b border-warm-100 flex items-center justify-between gap-3">
+                  <div className="px-3 py-2 bg-warm-50 border-b border-warm-100 flex items-center justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-secondary-800">
+                        <p className="text-xs font-bold text-secondary-800">
                           {cls.name} – {cls.level}
                         </p>
                         <span className={clsx(
@@ -195,7 +195,7 @@ export default function StudentScolarite({
                           {STATUS_LABEL[enrollment.status] ?? enrollment.status}
                         </span>
                       </div>
-                      <p className="text-xs text-warm-400 mt-0.5">
+                      <p className="text-[11px] text-warm-400 mt-0.5">
                         {cls.day_of_week && (
                           <>
                             {cls.day_of_week}
@@ -234,15 +234,15 @@ export default function StudentScolarite({
                         const retards = periodAbs.filter(a => a.absence_type === 'retard').length
 
                         return (
-                          <div key={period.id} className="px-4 py-2.5 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs font-semibold text-warm-500 w-24">
+                          <div key={period.id} className="px-3 py-1.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-semibold text-warm-500 w-20">
                                 {PERIOD_LABELS[period.label] ?? period.label}
                               </span>
 
                               {avg != null && (
                                 <span className={clsx(
-                                  'text-sm font-bold',
+                                  'text-xs font-bold',
                                   avg >= 14 ? 'text-green-600' : avg >= 10 ? 'text-amber-600' : 'text-red-600'
                                 )}>
                                   {avg.toFixed(2)}/20
@@ -250,8 +250,8 @@ export default function StudentScolarite({
                               )}
 
                               {(absTotal > 0 || retards > 0) && (
-                                <span className="flex items-center gap-1 text-xs text-warm-400">
-                                  <AlertTriangle size={11} />
+                                <span className="flex items-center gap-1 text-[11px] text-warm-400">
+                                  <AlertTriangle size={10} />
                                   {absTotal > 0 && `${absTotal} abs.`}
                                   {retards > 0 && `${absTotal > 0 ? ' · ' : ''}${retards} ret.`}
                                 </span>
@@ -263,21 +263,21 @@ export default function StudentScolarite({
                                 href={bulletinUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
+                                className="flex items-center gap-1 text-[11px] text-primary-600 hover:text-primary-700 font-medium"
                               >
-                                <Download size={12} />
+                                <Download size={11} />
                                 Bulletin
                               </a>
                             ) : (
-                              <span className="text-xs text-warm-300 italic">Pas de bulletin</span>
+                              <span className="text-[11px] text-warm-300 italic">Bulletin non archivé</span>
                             )}
                           </div>
                         )
                       })}
                     </div>
                   ) : (
-                    <div className="px-4 py-3">
-                      <p className="text-xs text-warm-300 italic">Aucune période trouvée</p>
+                    <div className="px-3 py-2">
+                      <p className="text-[11px] text-warm-300 italic">Aucune période trouvée</p>
                     </div>
                   )}
                 </div>

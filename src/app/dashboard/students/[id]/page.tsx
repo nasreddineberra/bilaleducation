@@ -43,18 +43,33 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     .eq('student_id', id)
     .order('enrollment_date', { ascending: false })
 
-  // Récupérer les class_ids pour les requêtes suivantes
+  // Frères / Sœurs (même parent_id)
+  let siblings: { id: string; last_name: string; first_name: string; gender: string | null; date_of_birth: string; enrollments: { class_id: string; classes: { id: string; name: string } | null }[]; }[] = []
+  if (student.parent_id) {
+    const { data } = await supabase
+      .from('students')
+      .select('id, last_name, first_name, gender, date_of_birth, enrollments(class_id, classes(id, name, day_of_week, start_time, end_time))')
+      .eq('parent_id', student.parent_id)
+      .neq('id', id)
+      .eq('is_active', true)
+      .order('date_of_birth')
+    siblings = (data ?? []) as any[]
+  }
+
+  // Récupérer les class_ids (élève + frères/sœurs) pour les requêtes suivantes
   const classIds = (enrollments ?? []).map((e: any) => e.class_id)
+  const siblingClassIds = siblings.flatMap(s => s.enrollments?.map(e => e.class_id) ?? [])
+  const allClassIds = [...new Set([...classIds, ...siblingClassIds])]
 
   // Professeur principal de chaque classe
   type CTRow = { class_id: string; teachers: { civilite: string | null; first_name: string; last_name: string } | null }
   let mainTeachers: CTRow[] = []
-  if (classIds.length > 0) {
+  if (allClassIds.length > 0) {
     const { data } = await supabase
       .from('class_teachers')
       .select('class_id, teachers(civilite, first_name, last_name)')
       .eq('is_main_teacher', true)
-      .in('class_id', classIds) as { data: CTRow[] | null }
+      .in('class_id', allClassIds) as { data: CTRow[] | null }
     mainTeachers = data ?? []
   }
 
@@ -77,7 +92,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
       ])
     : [{ data: [] }, { data: [] }, { data: [] }]
 
-  // Absences résumé
+  // Absences résumé (pour onglet Scolarité)
   const { data: absences } = classIds.length > 0
     ? await supabase
         .from('absences')
@@ -85,11 +100,42 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         .eq('student_id', id)
     : { data: [] }
 
+  // Absences détaillées (pour onglet Discipline)
+  const { data: absencesFull } = classIds.length > 0
+    ? await supabase
+        .from('absences')
+        .select('id, class_id, period_id, absence_date, absence_type, comment, is_justified')
+        .eq('student_id', id)
+        .order('absence_date', { ascending: false })
+    : { data: [] }
+
+  // Avertissements (pour onglet Discipline)
+  type WarningRow = {
+    id: string; class_id: string; period_id: string; warning_date: string
+    severity: string; motif: string; issued_by: string | null; created_at: string
+    student_warning_attachments: { id: string; file_url: string; file_name: string }[]
+  }
+  let studentWarnings: WarningRow[] = []
+  if (classIds.length > 0) {
+    const { data } = await supabase
+      .from('student_warnings')
+      .select('id, class_id, period_id, warning_date, severity, motif, issued_by, created_at, student_warning_attachments(id, file_url, file_name)')
+      .eq('student_id', id)
+      .order('warning_date', { ascending: false })
+    studentWarnings = (data ?? []) as WarningRow[]
+  }
+
   // Bulletins archivés
   const { data: bulletinArchives } = await supabase
     .from('bulletin_archives')
     .select('class_id, period_id, file_url')
     .eq('student_id', id)
+
+  // Documents administratifs (onglet Documents)
+  const [{ data: docTypeConfigs }, { data: studentDocs }] = await Promise.all([
+    supabase.from('document_type_configs').select('id, category, doc_key, label, is_required, order_index').order('order_index'),
+    supabase.from('student_documents').select('id, doc_type_key, category, file_url, file_name, expires_at, created_at').eq('student_id', id),
+  ])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -112,8 +158,13 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         grades={(gradeResult.data ?? []) as any[]}
         periods={(periodResult.data ?? []) as any[]}
         absences={(absences ?? []) as any[]}
+        absencesFull={(absencesFull ?? []) as any[]}
+        studentWarnings={studentWarnings.map(w => ({ ...w, attachments: w.student_warning_attachments })) as any[]}
         bulletinArchives={(bulletinArchives ?? []) as any[]}
         mainTeachers={mainTeachers as any[]}
+        docTypeConfigs={(docTypeConfigs ?? []) as any[]}
+        studentDocuments={(studentDocs ?? []) as any[]}
+        siblings={siblings as any[]}
       />
 
     </div>

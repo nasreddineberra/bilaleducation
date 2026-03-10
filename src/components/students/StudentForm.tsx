@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User } from 'lucide-react'
+import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User, Users } from 'lucide-react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
@@ -41,12 +42,28 @@ const RELATIONSHIP_LABEL: Record<string, string> = {
 const relLabel = (rel?: string | null, fallback = 'Tuteur') =>
   rel ? (RELATIONSHIP_LABEL[rel] ?? rel) : fallback
 
+type SiblingRow = {
+  id: string
+  last_name: string
+  first_name: string
+  gender: string | null
+  date_of_birth: string
+  enrollments: { class_id: string; classes: { id: string; name: string; day_of_week: string | null; start_time: string | null; end_time: string | null } | null }[]
+}
+
+type MainTeacherRow = {
+  class_id: string
+  teachers: { civilite: string | null; first_name: string; last_name: string } | null
+}
+
 interface StudentFormProps {
   student?: Student
   parents: ParentOption[]
   defaultStudentNumber?: string
   backHref?: string
   etablissementId?: string
+  siblings?: SiblingRow[]
+  mainTeachers?: MainTeacherRow[]
 }
 
 type FormData = {
@@ -75,7 +92,7 @@ const normalizeNom = (s: string) =>
   s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '' }: StudentFormProps) {
+export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [] }: StudentFormProps) {
   const router    = useRouter()
   const isEditing = !!student
 
@@ -387,18 +404,30 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
           </div>
         </div>
 
-        {/* Adresse (conditionnelle au parent sélectionné) */}
+        {/* Adresse + Contact d'urgence côte à côte */}
         {parentData && (
-          <div className="card p-3 space-y-1.5 flex-1">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
-            <InfoBlock>
-              <p>{tutorInfo?.address || <span className="text-warm-400 italic">Non renseignée</span>}</p>
-              {(tutorInfo?.postal_code || tutorInfo?.city) && (
-                <p className="text-warm-500">
-                  {[tutorInfo.postal_code, tutorInfo.city].filter(Boolean).join(' ')}
-                </p>
-              )}
-            </InfoBlock>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="card p-3 space-y-1.5">
+              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+              <InfoBlock>
+                <p>{tutorInfo?.address || <span className="text-warm-400 italic">Non renseignée</span>}</p>
+                {(tutorInfo?.postal_code || tutorInfo?.city) && (
+                  <p className="text-warm-500">
+                    {[tutorInfo.postal_code, tutorInfo.city].filter(Boolean).join(' ')}
+                  </p>
+                )}
+              </InfoBlock>
+            </div>
+            <div className="card p-3 space-y-1.5">
+              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                Contact d'urgence & Santé
+              </h2>
+              <InfoBlock>
+                <p className="font-medium">{tutorInfo?.name || <span className="text-warm-400 italic">—</span>}</p>
+                <p className="font-mono text-xs text-warm-500">{tutorInfo?.phone || '—'}</p>
+                <p className="text-warm-500 text-xs">{tutorInfo?.email || '—'}</p>
+              </InfoBlock>
+            </div>
           </div>
         )}
 
@@ -502,17 +531,57 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                 </div>
               </div>
 
-              {/* Contact d'urgence */}
+              {/* Frères / Sœurs */}
               <div className="card p-3 space-y-1.5 flex-1">
-                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-                  Contact d'urgence & Santé
-                </h2>
-                <InfoBlock>
-                  <p className="font-medium">{tutorInfo?.name || <span className="text-warm-400 italic">—</span>}</p>
-                  <p className="font-mono text-xs text-warm-500">{tutorInfo?.phone || '—'}</p>
-                  <p className="text-warm-500 text-xs">{tutorInfo?.email || '—'}</p>
-                </InfoBlock>
-              </div>
+                <div className="flex items-center gap-1.5">
+                  <Users size={13} className="text-warm-400" />
+                  <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                    Frères / Sœurs
+                  </h2>
+                </div>
+                {siblings.length === 0 ? (
+                  <p className="text-[11px] text-warm-300 italic">Aucun frère ou sœur enregistré.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {siblings.map(sib => {
+                      const age = Math.floor((Date.now() - new Date(sib.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+                      const enrollment = sib.enrollments?.[0]
+                      const cls = enrollment?.classes
+                      const mt = mainTeachers.find(t => t.class_id === enrollment?.class_id)
+                      const teacherName = mt?.teachers
+                        ? `${mt.teachers.civilite ? mt.teachers.civilite + ' ' : ''}${mt.teachers.last_name} ${mt.teachers.first_name}`
+                        : null
+                      const schedule = cls?.day_of_week
+                        ? [cls.day_of_week, cls.start_time && cls.end_time ? `${cls.start_time.slice(0,5)}–${cls.end_time.slice(0,5)}` : null].filter(Boolean).join(' ')
+                        : null
+                      return (
+                        <div key={sib.id} className="bg-warm-50 border border-warm-100 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            {sib.gender === 'male' ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold leading-none">M</span>
+                            ) : sib.gender === 'female' ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-pink-100 text-pink-500 text-[10px] font-bold leading-none">F</span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-400 text-[10px] font-bold leading-none">—</span>
+                            )}
+                            <Link
+                              href={`/dashboard/students/${sib.id}`}
+                              className="text-xs font-medium text-primary-600 hover:text-primary-800 hover:underline transition-colors"
+                            >
+                              {sib.last_name} {sib.first_name}
+                            </Link>
+                            <span className="text-[11px] text-warm-400">{age} ans</span>
+                          </div>
+                          {cls?.name && (
+                            <p className="text-[11px] text-warm-500 mt-0.5 ml-7">
+                              Classe : {cls.name}{schedule ? ` · ${schedule}` : ''}{teacherName ? ` — ${teacherName}` : ''}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}</div>
             </>
           )}
 

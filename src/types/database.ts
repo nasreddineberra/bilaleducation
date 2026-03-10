@@ -31,6 +31,8 @@ export function parseDiagnosticOption(o: unknown): DiagnosticOption {
 
 export type AbsenceType = 'absence' | 'retard'
 
+export type WarningSeverity = 'punition' | 'prevention' | 'conservatoire' | 'sanction'
+
 export type AnnouncementType = 'general' | 'class' | 'parent' | 'teacher'
 
 export type Priority = 'low' | 'normal' | 'high' | 'urgent'
@@ -316,6 +318,53 @@ export interface Announcement {
   expires_at?: string
   created_at: string
   updated_at: string
+}
+
+export interface StudentWarning {
+  id: string
+  etablissement_id: string
+  student_id: string
+  class_id: string
+  period_id: string
+  warning_date: string
+  severity: WarningSeverity
+  motif: string
+  issued_by?: string
+  created_at: string
+}
+
+export interface StudentWarningAttachment {
+  id: string
+  warning_id: string
+  file_url: string
+  file_name: string
+  created_at: string
+}
+
+export type DocumentCategory = 'identite' | 'medical' | 'assurance' | 'autres'
+
+export interface DocumentTypeConfig {
+  id: string
+  etablissement_id: string
+  category: DocumentCategory
+  doc_key: string
+  label: string
+  is_required: boolean
+  order_index: number
+  created_at: string
+}
+
+export interface StudentDocument {
+  id: string
+  etablissement_id: string
+  student_id: string
+  doc_type_key: string
+  category: DocumentCategory
+  file_url: string
+  file_name: string
+  expires_at?: string
+  uploaded_by?: string
+  created_at: string
 }
 
 export interface AnnouncementRecipient {

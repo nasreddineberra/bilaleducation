@@ -5,6 +5,8 @@ import { clsx } from 'clsx'
 import { User, GraduationCap, ShieldAlert, FileText } from 'lucide-react'
 import StudentForm from './StudentForm'
 import StudentScolarite from './StudentScolarite'
+import StudentDiscipline from './StudentDiscipline'
+import StudentDocuments from './StudentDocuments'
 import type { Student } from '@/types/database'
 
 interface ParentOption {
@@ -37,8 +39,13 @@ interface Props {
   grades: any[]
   periods: any[]
   absences: any[]
+  absencesFull: any[]
+  studentWarnings: any[]
   bulletinArchives: any[]
   mainTeachers: any[]
+  docTypeConfigs: any[]
+  studentDocuments: any[]
+  siblings: any[]
 }
 
 const TABS = [
@@ -52,7 +59,7 @@ type TabKey = typeof TABS[number]['key']
 
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
-  enrollments, evaluations, grades, periods, absences, bulletinArchives, mainTeachers,
+  enrollments, evaluations, grades, periods, absences, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>('identite')
 
@@ -88,6 +95,8 @@ export default function StudentDetail({
           parents={parents}
           backHref={backHref}
           etablissementId={etablissementId}
+          siblings={siblings}
+          mainTeachers={mainTeachers}
         />
       )}
 
@@ -105,21 +114,23 @@ export default function StudentDetail({
       )}
 
       {activeTab === 'discipline' && (
-        <div className="card p-6">
-          <p className="text-sm text-warm-400 italic">
-            Absences, retards, justifications et avertissements.
-          </p>
-          <p className="text-xs text-warm-300 mt-2">Bientôt disponible</p>
-        </div>
+        <StudentDiscipline
+          studentId={student.id}
+          etablissementId={etablissementId}
+          absences={absencesFull}
+          warnings={studentWarnings}
+          periods={periods}
+          enrollments={enrollments}
+        />
       )}
 
       {activeTab === 'documents' && (
-        <div className="card p-6">
-          <p className="text-sm text-warm-400 italic">
-            Documents administratifs de l'élève.
-          </p>
-          <p className="text-xs text-warm-300 mt-2">Bientôt disponible</p>
-        </div>
+        <StudentDocuments
+          studentId={student.id}
+          etablissementId={etablissementId}
+          docTypes={docTypeConfigs}
+          documents={studentDocuments}
+        />
       )}
     </div>
   )

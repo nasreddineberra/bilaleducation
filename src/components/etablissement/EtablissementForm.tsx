@@ -119,7 +119,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   }
 
   return (
-    <div className="space-y-4 animate-fade-in max-w-3xl">
+    <div className="space-y-4">
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 

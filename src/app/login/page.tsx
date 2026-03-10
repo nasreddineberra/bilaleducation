@@ -27,8 +27,10 @@ export default function LoginPage() {
       // const { data: factors } = await supabase.auth.mfa.listFactors()
       // const hasVerifiedPhone = factors?.all?.some(f => f.factor_type === 'phone' && f.status === 'verified')
       // router.push(hasVerifiedPhone ? '/auth/mfa-challenge' : '/auth/enroll-phone')
-      router.push('/dashboard')
+      // Attendre que les cookies auth soient bien écrits avant de naviguer
+      await new Promise(resolve => setTimeout(resolve, 100))
       router.refresh()
+      router.push('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Erreur de connexion. Vérifiez vos identifiants.')
     } finally {
