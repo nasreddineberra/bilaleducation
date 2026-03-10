@@ -557,13 +557,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                       return (
                         <div key={sib.id} className="bg-warm-50 border border-warm-100 rounded-lg px-3 py-2">
                           <div className="flex items-center gap-2">
-                            {sib.gender === 'male' ? (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold leading-none">M</span>
-                            ) : sib.gender === 'female' ? (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-pink-100 text-pink-500 text-[10px] font-bold leading-none">F</span>
-                            ) : (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-400 text-[10px] font-bold leading-none">—</span>
-                            )}
                             <Link
                               href={`/dashboard/students/${sib.id}`}
                               className="text-xs font-medium text-primary-600 hover:text-primary-800 hover:underline transition-colors"
@@ -571,9 +564,16 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                               {sib.last_name} {sib.first_name}
                             </Link>
                             <span className="text-[11px] text-warm-400">{age} ans</span>
+                            {sib.gender === 'male' ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold leading-none">M</span>
+                            ) : sib.gender === 'female' ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-pink-100 text-pink-500 text-[10px] font-bold leading-none">F</span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-400 text-[10px] font-bold leading-none">—</span>
+                            )}
                           </div>
                           {cls?.name && (
-                            <p className="text-[11px] text-warm-500 mt-0.5 ml-7">
+                            <p className="text-[11px] text-warm-500 mt-0.5">
                               Classe : {cls.name}{schedule ? ` · ${schedule}` : ''}{teacherName ? ` — ${teacherName}` : ''}
                             </p>
                           )}
