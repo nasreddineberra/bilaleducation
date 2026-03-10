@@ -420,7 +420,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
             </div>
             <div className="card p-3 space-y-1.5">
               <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-                Contact d'urgence & Santé
+                {"Contact d'urgence & Santé"}
               </h2>
               <InfoBlock>
                 <p className="font-medium">{tutorInfo?.name || <span className="text-warm-400 italic">—</span>}</p>
@@ -484,7 +484,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               {/* Sélecteur source tuteur */}
               <div className="card p-3">
                 <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">
-                  Reprendre les informations du
+                  Reprendre les informations du responsable
                 </p>
                 <div className="flex flex-col gap-1.5">
                   <label className={clsx(
@@ -536,11 +536,11 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                 <div className="flex items-center gap-1.5">
                   <Users size={13} className="text-warm-400" />
                   <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-                    Frères / Sœurs
+                    {"Frères / Sœurs"}
                   </h2>
                 </div>
                 {siblings.length === 0 ? (
-                  <p className="text-[11px] text-warm-300 italic">Aucun frère ou sœur enregistré.</p>
+                  <p className="text-[11px] text-warm-300 italic">{"Aucun frère ou sœur enregistré."}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {siblings.map(sib => {

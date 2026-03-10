@@ -44,7 +44,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     .order('enrollment_date', { ascending: false })
 
   // Frères / Sœurs (même parent_id)
-  let siblings: { id: string; last_name: string; first_name: string; gender: string | null; date_of_birth: string; enrollments: { class_id: string; classes: { id: string; name: string } | null }[]; }[] = []
+  let siblings: any[] = []
   if (student.parent_id) {
     const { data } = await supabase
       .from('students')
@@ -58,7 +58,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
 
   // Récupérer les class_ids (élève + frères/sœurs) pour les requêtes suivantes
   const classIds = (enrollments ?? []).map((e: any) => e.class_id)
-  const siblingClassIds = siblings.flatMap(s => s.enrollments?.map(e => e.class_id) ?? [])
+  const siblingClassIds = siblings.flatMap((s: any) => s.enrollments?.map((e: any) => e.class_id) ?? [])
   const allClassIds = [...new Set([...classIds, ...siblingClassIds])]
 
   // Professeur principal de chaque classe
