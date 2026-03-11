@@ -1,12 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { authRepository } from '@/lib/database/auth'
-import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -27,10 +24,8 @@ export default function LoginPage() {
       // const { data: factors } = await supabase.auth.mfa.listFactors()
       // const hasVerifiedPhone = factors?.all?.some(f => f.factor_type === 'phone' && f.status === 'verified')
       // router.push(hasVerifiedPhone ? '/auth/mfa-challenge' : '/auth/enroll-phone')
-      // Attendre que les cookies auth soient bien écrits avant de naviguer
-      await new Promise(resolve => setTimeout(resolve, 100))
-      router.refresh()
-      router.push('/dashboard')
+      // Navigation dure pour garantir que tous les cookies sont envoyés au serveur
+      window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message || 'Erreur de connexion. Vérifiez vos identifiants.')
     } finally {

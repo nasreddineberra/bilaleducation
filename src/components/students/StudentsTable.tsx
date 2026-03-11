@@ -23,7 +23,7 @@ function Tooltip({ children, label }: { children: React.ReactNode; label: string
   )
 }
 
-function GenderIcon({ gender }: { gender: string | null }) {
+function GenderIcon({ gender }: { gender: string | null | undefined }) {
   if (gender === 'male') return (
     <Tooltip label="Masculin">
       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold leading-none">M</span>

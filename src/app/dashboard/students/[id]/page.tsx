@@ -150,7 +150,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
 
       <StudentDetail
         student={student}
-        parents={parents ?? []}
+        parents={(parents ?? []) as any[]}
         backHref={backHref}
         etablissementId={student.etablissement_id}
         enrollments={(enrollments ?? []) as any[]}

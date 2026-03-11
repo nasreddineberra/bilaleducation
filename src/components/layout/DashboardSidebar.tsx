@@ -21,6 +21,7 @@ import {
   ChevronDown,
   School,
   UserCheck,
+  Wallet,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
@@ -79,9 +80,22 @@ const navItems: NavItem[] = [
   },
   {
     name:  'Affectations',
-    href:  '/dashboard/affectation',
     icon:  UserCheck,
     roles: ['admin', 'direction', 'responsable_pedagogique'],
+    children: [
+      {
+        name:  'Apprenants',
+        href:  '/dashboard/affectation',
+        icon:  Users,
+        roles: ['admin', 'direction', 'responsable_pedagogique'],
+      },
+      {
+        name:  'Adultes',
+        href:  '/dashboard/affectation/adultes',
+        icon:  UserCheck,
+        roles: ['admin', 'direction', 'responsable_pedagogique'],
+      },
+    ],
   },
   {
     name:  'Évaluations',
@@ -115,8 +129,8 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
   },
   {
-    name:  'Paiements',
-    href:  '/dashboard/payments',
+    name:  'Financements',
+    href:  '/dashboard/financements',
     icon:  DollarSign,
     roles: ['admin', 'direction', 'comptable', 'parent'],
   },
@@ -161,6 +175,12 @@ const navItems: NavItem[] = [
         href:  '/dashboard/utilisateurs',
         icon:  UserCog,
         roles: ['admin', 'direction'],
+      },
+      {
+        name:  'Côtisations',
+        href:  '/dashboard/cotisations',
+        icon:  Wallet,
+        roles: ['admin', 'direction', 'comptable'],
       },
       {
         name:  'Établissement',

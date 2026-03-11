@@ -190,6 +190,7 @@ export interface Class {
   day_of_week?: string | null
   start_time?: string | null
   end_time?: string | null
+  cotisation_type_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -445,6 +446,93 @@ export interface Schedule {
   end_time: string
   room_number?: string
   is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface CotisationType {
+  id: string
+  etablissement_id: string
+  school_year_id: string
+  label: string
+  amount: number
+  registration_fee: number
+  sibling_discount: number
+  sibling_discount_same_type: boolean  // true = réduction fratrie uniquement entre enfants du même type
+  max_installments: number
+  is_adult: boolean                    // true = cours adultes (parents/tuteurs)
+  order_index: number
+  created_at: string
+}
+
+export interface ParentClassEnrollment {
+  id: string
+  etablissement_id: string
+  parent_id: string
+  class_id: string
+  tutor_number: 1 | 2
+  enrollment_date: string
+  status: 'active' | 'withdrawn'
+  created_at: string
+  updated_at: string
+}
+
+export type FeeStatus = 'pending' | 'partial' | 'paid' | 'overdue'
+
+export type AdjustmentType = 'reduction' | 'avoir'
+
+export type FeePaymentMethod = 'cash' | 'check' | 'card' | 'transfer' | 'online'
+
+export interface FamilyFee {
+  id: string
+  etablissement_id: string
+  parent_id: string
+  school_year_id: string
+  subtotal: number
+  adjustments_total: number
+  total_due: number
+  num_installments: number
+  status: FeeStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface FeeAdjustment {
+  id: string
+  etablissement_id: string
+  family_fee_id: string
+  adjustment_date: string
+  adjustment_type: AdjustmentType
+  label: string
+  amount: number
+  recorded_by?: string
+  created_at: string
+}
+
+export interface PaymentReference {
+  check_number?: string
+  bank?: string
+  transaction_id?: string
+  reference?: string
+  provider?: string
+  payment_intent_id?: string
+}
+
+export interface FeeInstallment {
+  id: string
+  etablissement_id: string
+  family_fee_id: string
+  installment_number: number
+  due_date: string
+  amount_due: number
+  amount_paid: number
+  paid_date?: string
+  payment_method?: FeePaymentMethod
+  payment_reference?: PaymentReference
+  receipt_number?: string
+  status: FeeStatus
+  notes?: string
+  recorded_by?: string
   created_at: string
   updated_at: string
 }

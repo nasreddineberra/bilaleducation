@@ -209,7 +209,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId }: SchoolYe
         const { data: newYear, error: errIns } = await supabase
           .from('school_years')
           .insert({
-            etablissement_id: etablissementId ?? schoolYear?.etablissement_id,
+            etablissement_id: etablissementId!,
             label:            form.label.trim(),
             is_current:       form.is_current,
             period_type:      form.period_type,

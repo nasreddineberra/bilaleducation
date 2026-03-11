@@ -142,7 +142,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         </span>
                       )}
                       {parent.tutor1_adult_courses && (
-                        <GraduationCap size={13} className="text-primary-500 flex-shrink-0" title="Inscrit aux cours adultes" />
+                        <span title="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-500 flex-shrink-0" /></span>
                       )}
                     </div>
                   </td>
@@ -160,7 +160,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                           </span>
                         )}
                         {parent.tutor2_adult_courses && (
-                          <GraduationCap size={13} className="text-primary-500 flex-shrink-0" title="Inscrit aux cours adultes" />
+                          <span title="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-500 flex-shrink-0" /></span>
                         )}
                       </div>
                     ) : (

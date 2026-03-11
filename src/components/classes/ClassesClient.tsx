@@ -31,6 +31,7 @@ interface ClassRow {
   day_of_week: string | null
   start_time: string | null
   end_time: string | null
+  cotisation_types: { id: string; label: string; is_adult: boolean } | null
   class_teachers: ClassTeacherRow[]
 }
 
@@ -170,8 +171,18 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
 
                 return (
                   <tr key={cls.id} className="hover:bg-warm-50/50 transition-colors">
-                    <td className="px-4 py-3 font-semibold text-secondary-800 whitespace-nowrap">
-                      {cls.name}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-semibold text-secondary-800">{cls.name}</span>
+                      {cls.cotisation_types && (
+                        <span className={clsx(
+                          'ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
+                          cls.cotisation_types.is_adult
+                            ? 'bg-violet-100 text-violet-600'
+                            : 'bg-warm-100 text-warm-600'
+                        )}>
+                          {cls.cotisation_types.label}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-secondary-600">
                       {cls.level || <span className="text-warm-300">—</span>}

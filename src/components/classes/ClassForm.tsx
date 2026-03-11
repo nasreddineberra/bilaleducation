@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { Plus, Trash2, UserCheck, BookOpen, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Class, SchoolYear, Teacher } from '@/types/database'
+import type { Class, SchoolYear, Teacher, CotisationType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,24 +23,28 @@ interface UEOption {
   code: string | null
 }
 
+type TeacherOption = Pick<Teacher, 'id' | 'first_name' | 'last_name' | 'employee_number' | 'is_active'>
+
 interface ClassFormProps {
   cls?: Class
   initialAssignments?: AssignmentData[]
   schoolYears: SchoolYear[]
-  teachers: Teacher[]
+  teachers: TeacherOption[]
   ues: UEOption[]
+  cotisationTypes?: CotisationType[]
   backHref?: string
 }
 
 type FormData = {
-  name:         string
-  level:        string
-  room_number:  string
-  max_students: string
-  description:  string
-  day_of_week:  string
-  start_time:   string
-  end_time:     string
+  name:               string
+  level:              string
+  room_number:        string
+  max_students:       string
+  description:        string
+  day_of_week:        string
+  start_time:         string
+  end_time:           string
+  cotisation_type_id: string
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -51,6 +55,7 @@ export default function ClassForm({
   schoolYears,
   teachers,
   ues,
+  cotisationTypes = [],
   backHref = '/dashboard/classes',
 }: ClassFormProps) {
   const router    = useRouter()
@@ -65,9 +70,10 @@ export default function ClassForm({
     room_number:  cls?.room_number  ?? '',
     max_students: String(cls?.max_students ?? 30),
     description:  cls?.description  ?? '',
-    day_of_week:  cls?.day_of_week  ?? '',
-    start_time:   cls?.start_time   ?? '',
-    end_time:     cls?.end_time     ?? '',
+    day_of_week:        cls?.day_of_week        ?? '',
+    start_time:         cls?.start_time         ?? '',
+    end_time:           cls?.end_time           ?? '',
+    cotisation_type_id: cls?.cotisation_type_id ?? '',
   })
 
   const initialForm       = useRef<FormData>({ ...form })
@@ -122,8 +128,9 @@ export default function ClassForm({
 
   // ── Validation ────────────────────────────────────────────────────────────
   const vName        = form.name.trim().length < 2
+  const vCotisation  = !form.cotisation_type_id
   const vAssignments = assignments.length === 0
-  const isFormValid  = !vName && !vAssignments
+  const isFormValid  = !vName && !vCotisation && !vAssignments
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const cls2    = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
@@ -161,14 +168,15 @@ export default function ClassForm({
 
       const payload = {
         name:          form.name.trim(),
-        level:         form.level.trim()       || null,
+        level:         form.level.trim(),
         academic_year: currentYear?.label      ?? null,
         room_number:   form.room_number.trim() || null,
         max_students:  parseInt(form.max_students, 10) || 30,
         description:   form.description.trim() || null,
-        day_of_week:   form.day_of_week        || null,
-        start_time:    form.start_time         || null,
-        end_time:      form.end_time           || null,
+        day_of_week:        form.day_of_week        || null,
+        start_time:         form.start_time         || null,
+        end_time:           form.end_time           || null,
+        cotisation_type_id: form.cotisation_type_id || null,
       }
 
       let classId: string
@@ -289,6 +297,26 @@ export default function ClassForm({
               />
             </Field>
           </div>
+
+          {/* Type de cotisation */}
+          <Field
+            label={<>Type de cotisation <span className="text-red-400">*</span></>}
+            error={invalid('cotisation_type_id', vCotisation) ? 'Le type de cotisation est obligatoire.' : undefined}
+          >
+            <select
+              value={form.cotisation_type_id}
+              onChange={e => set('cotisation_type_id', e.target.value)}
+              onBlur={() => touch('cotisation_type_id')}
+              className={cls2('cotisation_type_id', vCotisation)}
+            >
+              <option value="">— Choisir —</option>
+              {cotisationTypes.map(ct => (
+                <option key={ct.id} value={ct.id}>
+                  {ct.label}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           {/* Horaire */}
           <Field label="Jour de la semaine">

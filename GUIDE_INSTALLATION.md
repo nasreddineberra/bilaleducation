@@ -1,6 +1,6 @@
-# Guide d'installation Bilal Education
+# Guide d'installation BilalNotes
 
-Ce guide vous accompagne pas à pas pour installer et configurer l'application Bilal Education.
+Ce guide vous accompagne pas à pas pour installer et configurer l'application BilalNotes.
 
 ## 📋 Prérequis
 
@@ -32,7 +32,7 @@ npm --version   # Doit afficher 9.x ou supérieur
 
 1. Ouvrir VS Code
 2. File > Open Folder
-3. Sélectionner le dossier `bilaleducation`
+3. Sélectionner le dossier `bilalnotes`
 4. Ouvrir le terminal intégré (Ctrl + `)
 
 ### Étape 2 : Installer les dépendances
@@ -52,7 +52,7 @@ Cette commande va télécharger toutes les bibliothèques nécessaires (Next.js,
 3. Se connecter avec GitHub (ou créer un compte)
 4. Cliquer sur "New Project"
 5. Remplir :
-   - Name: `bilaleducation`
+   - Name: `bilalnotes`
    - Database Password: Choisir un mot de passe fort (le noter !)
    - Region: Europe West (Ireland) pour les meilleures performances
    - Plan: Free (gratuit)
@@ -114,10 +114,10 @@ Cette commande va télécharger toutes les bibliothèques nécessaires (Next.js,
    INSERT INTO profiles (id, email, role, first_name, last_name)
    VALUES (
      'ID_UTILISATEUR',
-     'admin@bilaleducation.fr',
+     'admin@bilalnotes.fr',
      'admin',
      'Admin',
-     'Bilal Education'
+     'BilalNotes'
    );
    ```
 8. Cliquer sur "Run"
@@ -144,7 +144,7 @@ Attendre quelques secondes que le serveur démarre. Vous devriez voir :
 2. Aller sur http://localhost:3000
 3. Vous devriez être redirigé vers la page de connexion
 4. Se connecter avec :
-   - Email: `admin@bilaleducation.fr`
+   - Email: `admin@bilalnotes.fr`
    - Mot de passe: celui que vous avez choisi
 5. Vous devriez accéder au tableau de bord !
 
@@ -196,7 +196,7 @@ Si vous rencontrez des problèmes :
 
 Pour les prochaines fois, il suffit de :
 
-1. Ouvrir VS Code dans le dossier `bilaleducation`
+1. Ouvrir VS Code dans le dossier `bilalnotes`
 2. Ouvrir le terminal (Ctrl + `)
 3. Lancer `npm run dev`
 4. Ouvrir http://localhost:3000

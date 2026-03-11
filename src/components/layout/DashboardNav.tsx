@@ -2,11 +2,11 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, Bell, User } from 'lucide-react'
+import { LogOut, Bell, User as UserIcon } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { Profile } from '@/types/database'
-import type { User } from '@supabase/supabase-js'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 // ─── Mapping route → titre ─────────────────────────────────────────────────
 
@@ -19,19 +19,21 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/teachers':          'Enseignants',
   '/dashboard/teachers/new':      'Nouvel enseignant',
   '/dashboard/classes':           'Paramétrage des classes',
-  '/dashboard/affectation':       'Affectations pédagogiques',
+  '/dashboard/affectation':         'Affectations pédagogiques apprenants',
+  '/dashboard/affectation/adultes': 'Affectations pédagogiques adultes',
   '/dashboard/classes/new':       'Nouvelle classe',
   '/dashboard/grades':            'Saisie notes',
   '/dashboard/bulletins':          'Bulletins',
   '/dashboard/absences':          'Feuille d\'appel',
   '/dashboard/evaluations':       'Gabarits des évaluations',
   '/dashboard/announcements':     'Communications',
-  '/dashboard/payments':          'Paiements',
+  '/dashboard/financements':      'Financements',
   '/dashboard/etablissement':     'Établissement',
   '/dashboard/utilisateurs':      'Utilisateurs',
   '/dashboard/annee-scolaire':    'Année scolaire',
   '/dashboard/annee-scolaire/new':'Nouvelle année scolaire',
   '/dashboard/cours':             'Référentiel des cours',
+  '/dashboard/cotisations':       'Côtisations',
 }
 
 function getPageTitle(pathname: string): string {
@@ -48,7 +50,7 @@ function getPageTitle(pathname: string): string {
 // ─── Composant ────────────────────────────────────────────────────────────
 
 interface DashboardNavProps {
-  user: User
+  user: SupabaseUser
   profile: Profile | null
 }
 
@@ -101,7 +103,7 @@ export default function DashboardNav({ user, profile }: DashboardNavProps) {
               </p>
             </div>
             <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center ring-2 ring-primary-200 shadow-sm">
-              <User className="w-[18px] h-[18px] text-primary-600" />
+              <UserIcon className="w-[18px] h-[18px] text-primary-600" />
             </div>
           </Link>
 

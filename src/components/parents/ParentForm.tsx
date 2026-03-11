@@ -266,9 +266,9 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       }
 
       if (isEditing) {
-        await parentRepository.update(parent.id, payload)
+        await parentRepository.update(parent!.id, payload as any)
       } else {
-        await parentRepository.create(payload as Omit<Parent, 'id' | 'created_at' | 'updated_at'>)
+        await parentRepository.create(payload as any)
       }
 
       router.refresh()

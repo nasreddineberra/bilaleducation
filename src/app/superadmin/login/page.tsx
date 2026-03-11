@@ -1,12 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { authRepository } from '@/lib/database/auth'
-import { createClient } from '@/lib/supabase/client'
 
 export default function SuperAdminLoginPage() {
-  const router = useRouter()
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
@@ -24,8 +21,7 @@ export default function SuperAdminLoginPage() {
       // const { data: factors } = await supabase.auth.mfa.listFactors()
       // const hasVerifiedPhone = factors?.all?.some(f => f.factor_type === 'phone' && f.status === 'verified')
       // router.push(hasVerifiedPhone ? '/auth/mfa-challenge' : '/auth/enroll-phone')
-      router.push('/superadmin')
-      router.refresh()
+      window.location.href = '/superadmin'
     } catch (err: any) {
       setError(err.message || 'Identifiants incorrects.')
     } finally {

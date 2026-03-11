@@ -6,7 +6,7 @@ import ClassForm from '@/components/classes/ClassForm'
 export default async function NewClassPage() {
   const supabase = await createClient()
 
-  const [{ data: schoolYears }, { data: teachers }, { data: ues }] = await Promise.all([
+  const [{ data: schoolYears }, { data: teachers }, { data: ues }, { data: currentYearRow }] = await Promise.all([
     supabase
       .from('school_years')
       .select('*')
@@ -22,7 +22,20 @@ export default async function NewClassPage() {
       .select('id, nom_fr, nom_ar, code')
       .order('order_index', { ascending: true })
       .order('nom_fr'),
+    supabase
+      .from('school_years')
+      .select('id')
+      .eq('is_current', true)
+      .single(),
   ])
+
+  const { data: cotisationTypes } = currentYearRow
+    ? await supabase
+        .from('cotisation_types')
+        .select('*')
+        .eq('school_year_id', currentYearRow.id)
+        .order('order_index')
+    : { data: [] }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -39,6 +52,7 @@ export default async function NewClassPage() {
         schoolYears={schoolYears ?? []}
         teachers={teachers ?? []}
         ues={ues ?? []}
+        cotisationTypes={(cotisationTypes ?? []) as any[]}
       />
 
     </div>

@@ -14,6 +14,7 @@ export default async function ClassesPage() {
     .from('classes')
     .select(`
       *,
+      cotisation_types ( id, label, is_adult ),
       class_teachers (
         teacher_id,
         is_main_teacher,

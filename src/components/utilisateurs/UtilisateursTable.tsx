@@ -8,6 +8,7 @@ import { toggleActive, sendPasswordReset } from '@/app/dashboard/utilisateurs/ac
 import type { Profile, UserRole } from '@/types/database'
 
 const ROLE_LABELS: Record<UserRole, string> = {
+  super_admin:             'Super Admin',
   admin:                   'Administrateur',
   direction:               'Direction',
   comptable:               'Comptable',
@@ -18,6 +19,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 }
 
 const ROLE_COLORS: Record<UserRole, string> = {
+  super_admin:             'bg-violet-100 text-violet-700',
   admin:                   'bg-red-100 text-red-700',
   direction:               'bg-secondary-100 text-secondary-700',
   comptable:               'bg-amber-100 text-amber-700',

@@ -77,7 +77,7 @@ export default async function NewStudentPage() {
           </Link>
         </div>
       ) : (
-        <StudentForm parents={parents ?? []} defaultStudentNumber={defaultStudentNumber} etablissementId={etablissement?.id} />
+        <StudentForm parents={(parents ?? []) as any[]} defaultStudentNumber={defaultStudentNumber} etablissementId={etablissement?.id} />
       )}
 
     </div>

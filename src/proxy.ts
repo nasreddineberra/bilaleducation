@@ -173,20 +173,25 @@ export async function proxy(request: NextRequest) {
     const expired = now - loginTime > MAX_SESSION_DURATION
 
     if (inactive || expired) {
-      // Déconnecter côté Supabase
+      const redirect = NextResponse.redirect(new URL('/login', request.url))
+
+      // Déconnecter côté Supabase et propager la suppression des cookies auth
       const supabaseForSignOut = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           cookies: {
             getAll() { return request.cookies.getAll() },
-            setAll() { /* no-op pour sign out */ },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                redirect.cookies.set(name, value, options)
+              )
+            },
           },
         }
       )
       await supabaseForSignOut.auth.signOut()
 
-      const redirect = NextResponse.redirect(new URL('/login', request.url))
       redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
       return redirect
     }

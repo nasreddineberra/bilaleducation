@@ -3,15 +3,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
+import type { UserRole } from '@/types/database'
 
-export type UserRole =
-  | 'admin'
-  | 'direction'
-  | 'comptable'
-  | 'responsable_pedagogique'
-  | 'enseignant'
-  | 'secretaire'
-  | 'parent'
+export type { UserRole }
 
 // ─── Créer un utilisateur ────────────────────────────────────────────────────
 
