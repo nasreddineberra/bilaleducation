@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { clsx } from 'clsx'
-import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2 } from 'lucide-react'
+import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import type { Period, Absence, AbsenceType } from '@/types/database'
 
 // ─── Types props ─────────────────────────────────────────────────────────────
@@ -25,6 +26,8 @@ type StudentRow = {
   first_name: string
   last_name: string
   student_number: string
+  gender: string | null
+  photo_url: string | null
 }
 
 interface AbsencesClientProps {
@@ -60,7 +63,7 @@ export default function AbsencesClient({
   etablissementId,
   schoolYearId,
 }: AbsencesClientProps) {
-  const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes[0]?.id ?? null)
+  const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
   const [absences,         setAbsences]         = useState<Absence[]>(initialAbsences)
   const [expandedStudent,  setExpandedStudent]  = useState<string | null>(null)
@@ -496,6 +499,26 @@ function buildEntries(classStudents: StudentRow[], existingAbsences: Absence[], 
   })
 }
 
+// ─── Carte photo trombinoscope ──────────────────────────────────────────────
+
+function StudentPhoto({ student, size = 'md' }: { student: StudentRow; size?: 'sm' | 'md' }) {
+  const dim = size === 'sm' ? 'w-10 h-[53px]' : 'w-[78px] h-[104px]'
+  if (student.photo_url) {
+    return <img src={student.photo_url} alt="" className={clsx(dim, 'object-cover rounded-md')} />
+  }
+  if (student.gender === 'male') return <MaleAvatar className={clsx(dim, 'rounded-md')} />
+  if (student.gender === 'female') return <FemaleAvatar className={clsx(dim, 'rounded-md')} />
+  return <DefaultAvatar className={clsx(dim, 'rounded-md')} />
+}
+
+const STATUS_CYCLE: ('present' | 'absence' | 'retard')[] = ['present', 'absence', 'retard']
+
+const STATUS_STYLE = {
+  present: { border: 'border-green-400', bg: 'bg-green-50/50', badge: 'bg-green-500', label: 'Present' },
+  absence: { border: 'border-red-400',   bg: 'bg-red-50/50',   badge: 'bg-red-500',   label: 'Absent' },
+  retard:  { border: 'border-amber-400', bg: 'bg-amber-50/50', badge: 'bg-amber-500', label: 'Retard' },
+}
+
 function SaisieModal({
   classStudents, classId, periodId, etablissementId, existingAbsences, onComplete, onClose,
 }: {
@@ -514,10 +537,20 @@ function SaisieModal({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
+  const [editingComment, setEditingComment] = useState<string | null>(null)
 
   const handleDateChange = (newDate: string) => {
     setDate(newDate)
     setEntries(buildEntries(classStudents, existingAbsences, newDate))
+  }
+
+  const cycleStatus = (idx: number) => {
+    setEntries(prev => prev.map((e, i) => {
+      if (i !== idx) return e
+      const curIdx = STATUS_CYCLE.indexOf(e.status)
+      const next = STATUS_CYCLE[(curIdx + 1) % 3]
+      return { ...e, status: next, comment: next === 'present' ? '' : e.comment }
+    }))
   }
 
   const setEntry = (idx: number, status: 'present' | 'absence' | 'retard') => {
@@ -531,16 +564,27 @@ function SaisieModal({
     setEntries(prev => prev.map((e, i) => i === idx ? { ...e, comment } : e))
   }
 
-  // Entrées à insérer (nouvelles absences)
+  // Compteurs
+  const counts = entries.reduce(
+    (acc, e) => {
+      acc[e.status]++
+      return acc
+    },
+    { present: 0, absence: 0, retard: 0 }
+  )
+
+  // Entrees a inserer / modifier / supprimer
   const toInsert = entries.filter(e => e.status !== 'present' && !e.existingId)
-  // Entrées à mettre à jour (type ou commentaire changé)
   const toUpdate = entries.filter(e => e.status !== 'present' && e.existingId && (
     e.status !== e.existingType || e.comment.trim() !== (existingAbsences.find(a => a.id === e.existingId)?.comment ?? '')
   ))
-  // Entrées à supprimer (repassées en présent alors qu'il y avait une absence)
   const toDelete = entries.filter(e => e.status === 'present' && e.existingId)
-
   const hasChanges = toInsert.length > 0 || toUpdate.length > 0 || toDelete.length > 0
+
+  // Absents + retards pour le recap
+  const nonPresent = entries
+    .map((e, idx) => ({ ...e, idx, student: classStudents[idx] }))
+    .filter(e => e.status !== 'present')
 
   const handleSubmit = async () => {
     if (!hasChanges) { onClose(); return }
@@ -556,7 +600,6 @@ function SaisieModal({
       let updated: Absence[] = []
       const deletedIds: string[] = []
 
-      // Insertions
       if (toInsert.length > 0) {
         const rows = toInsert.map(e => ({
           etablissement_id: etablissementId,
@@ -574,14 +617,10 @@ function SaisieModal({
         added = (data ?? []) as Absence[]
       }
 
-      // Mises à jour
       for (const e of toUpdate) {
         const { data, error: err } = await supabase
           .from('absences')
-          .update({
-            absence_type: e.status as AbsenceType,
-            comment:      e.comment.trim() || null,
-          })
+          .update({ absence_type: e.status as AbsenceType, comment: e.comment.trim() || null })
           .eq('id', e.existingId!)
           .select()
           .single()
@@ -589,7 +628,6 @@ function SaisieModal({
         if (data) updated.push(data as Absence)
       }
 
-      // Suppressions (repassés en présent)
       for (const e of toDelete) {
         const { error: err } = await supabase.from('absences').delete().eq('id', e.existingId!)
         if (err) throw err
@@ -606,91 +644,175 @@ function SaisieModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
 
-        <div className="px-3 py-2 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
-          <h3 className="text-sm font-bold text-secondary-800">Saisie des absences</h3>
-          <div className="flex items-center gap-3">
+        {/* Header */}
+        <div className="px-4 py-2.5 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <h3 className="text-sm font-bold text-secondary-800">Feuille d'appel</h3>
             <input
               type="date"
               value={date}
               onChange={e => handleDateChange(e.target.value)}
               className="input text-sm py-1 px-2"
             />
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Compteurs */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                <span className="text-warm-600">{counts.present}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                <span className="text-warm-600">{counts.absence}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <span className="text-warm-600">{counts.retard}</span>
+              </span>
+            </div>
             <button onClick={onClose} className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-warm-50 z-10">
-              <tr className="text-[11px] text-warm-500 uppercase tracking-wide">
-                <th className="text-left py-1 px-2 pl-3 font-semibold">Élève</th>
-                <th className="text-center py-1 px-2 font-semibold w-20">Présent(e)</th>
-                <th className="text-center py-1 px-2 font-semibold w-16">Absent</th>
-                <th className="text-center py-1 px-2 font-semibold w-16">Retard</th>
-                <th className="text-left py-1 px-2 font-semibold">Commentaire</th>
-              </tr>
-            </thead>
-            <tbody>
+        {/* Corps : trombinoscope + recap */}
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+
+          {/* Panneau gauche : trombinoscope */}
+          <div className="flex-1 min-w-0 overflow-y-auto p-3">
+            <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
               {classStudents.map((s, idx) => {
                 const entry = entries[idx]
+                const style = STATUS_STYLE[entry.status]
                 return (
-                  <tr key={s.student_id} className="border-b border-warm-50">
-                    <td className="py-1 px-2 pl-3 font-medium text-secondary-700">
-                      {s.last_name} {s.first_name}
-                    </td>
-                    <td className="text-center py-1 px-2">
-                      <input
-                        type="radio"
-                        name={`status-${s.student_id}`}
-                        checked={entry.status === 'present'}
-                        onChange={() => setEntry(idx, 'present')}
-                        className="w-3.5 h-3.5 accent-green-500"
-                      />
-                    </td>
-                    <td className="text-center py-1 px-2">
-                      <input
-                        type="radio"
-                        name={`status-${s.student_id}`}
-                        checked={entry.status === 'absence'}
-                        onChange={() => setEntry(idx, 'absence')}
-                        className="w-3.5 h-3.5 accent-red-500"
-                      />
-                    </td>
-                    <td className="text-center py-1 px-2">
-                      <input
-                        type="radio"
-                        name={`status-${s.student_id}`}
-                        checked={entry.status === 'retard'}
-                        onChange={() => setEntry(idx, 'retard')}
-                        className="w-3.5 h-3.5 accent-amber-500"
-                      />
-                    </td>
-                    <td className="py-1 px-2">
-                      <input
-                        type="text"
-                        value={entry.comment}
-                        onChange={e => setComment(idx, e.target.value)}
-                        disabled={entry.status === 'present'}
-                        placeholder={entry.status === 'present' ? '' : 'Optionnel…'}
-                        className={clsx('input text-xs py-0.5', entry.status === 'present' && 'opacity-30')}
-                      />
-                    </td>
-                  </tr>
+                  <button
+                    key={s.student_id}
+                    type="button"
+                    onClick={() => cycleStatus(idx)}
+                    className={clsx(
+                      'relative flex flex-col items-center rounded-lg border-2 p-1.5 transition-all hover:shadow-md cursor-pointer select-none',
+                      style.border, style.bg
+                    )}
+                  >
+                    {/* Photo */}
+                    <div className="w-[60px] h-[80px] rounded-md overflow-hidden flex-shrink-0">
+                      <StudentPhoto student={s} size="md" />
+                    </div>
+                    {/* Nom */}
+                    <p className="text-[10px] font-semibold text-secondary-800 text-center leading-tight mt-1 line-clamp-2">
+                      {s.last_name.toUpperCase()}
+                    </p>
+                    <p className="text-[10px] text-secondary-600 text-center leading-tight line-clamp-1">
+                      {s.first_name}
+                    </p>
+                    {/* Badge statut */}
+                    <span className={clsx(
+                      'absolute top-1 right-1 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-sm',
+                      style.badge
+                    )}>
+                      {entry.status === 'present' ? <Check size={10} /> : style.label[0]}
+                    </span>
+                  </button>
                 )
               })}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Panneau droit : recapitulatif absents/retards */}
+          <div className="w-72 flex-shrink-0 border-l border-warm-100 flex flex-col bg-warm-50/30">
+            <div className="px-3 py-2 border-b border-warm-100 flex-shrink-0">
+              <h4 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                Absences / Retards ({nonPresent.length})
+              </h4>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {nonPresent.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-warm-400">
+                  <Check size={24} />
+                  <p className="text-xs">Tous presents</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-warm-100">
+                  {nonPresent.map(({ student: s, status, comment, idx }) => (
+                    <div key={s.student_id} className="px-3 py-2 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-[27px] rounded overflow-hidden flex-shrink-0">
+                          <StudentPhoto student={s} size="sm" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-secondary-800 truncate">
+                            {s.last_name} {s.first_name}
+                          </p>
+                        </div>
+                        <span className={clsx(
+                          'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                          status === 'absence' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                        )}>
+                          {status === 'absence' ? 'Absent' : 'Retard'}
+                        </span>
+                      </div>
+
+                      {/* Toggle type + commentaire */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEntry(idx, status === 'absence' ? 'retard' : 'absence')}
+                          className="text-[10px] text-primary-600 hover:text-primary-800 font-medium"
+                        >
+                          {status === 'absence' ? 'Retard ?' : 'Absent ?'}
+                        </button>
+                        <span className="text-warm-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setEntry(idx, 'present')}
+                          className="text-[10px] text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Present
+                        </button>
+                      </div>
+
+                      {editingComment === s.student_id ? (
+                        <input
+                          type="text"
+                          autoFocus
+                          value={comment}
+                          onChange={e => setComment(idx, e.target.value)}
+                          onBlur={() => setEditingComment(null)}
+                          onKeyDown={e => e.key === 'Enter' && setEditingComment(null)}
+                          placeholder="Commentaire..."
+                          className="input text-[11px] py-0.5 w-full"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingComment(s.student_id)}
+                          className={clsx(
+                            'text-[10px] truncate w-full text-left',
+                            comment ? 'text-secondary-600' : 'text-warm-400 italic'
+                          )}
+                        >
+                          {comment || '+ Ajouter un commentaire'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Footer */}
         {error && (
           <p className="text-xs text-red-600 bg-red-50 px-4 py-2 border-t border-red-200">{error}</p>
         )}
 
-        <div className="px-3 py-2 border-t border-warm-100 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 py-2.5 border-t border-warm-100 flex items-center justify-between flex-shrink-0">
           <span className="text-xs text-warm-400">
             {!hasChanges
               ? 'Aucune modification'
@@ -708,7 +830,7 @@ function SaisieModal({
               disabled={isSubmitting || !hasChanges}
               className="btn btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
             >
-              {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
             </button>
           </div>
         </div>

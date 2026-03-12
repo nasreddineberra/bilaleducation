@@ -20,6 +20,8 @@ type StudentRow = {
   first_name: string
   last_name: string
   student_number: string
+  gender: string | null
+  photo_url: string | null
 }
 
 export default async function AbsencesPage() {
@@ -120,7 +122,7 @@ export default async function AbsencesPage() {
   if (classIds.length > 0) {
     const { data: enrollments } = await supabase
       .from('enrollments')
-      .select('student_id, class_id, students(id, first_name, last_name, student_number)')
+      .select('student_id, class_id, students(id, first_name, last_name, student_number, gender, photo_url)')
       .in('class_id', classIds)
       .eq('status', 'active')
 
@@ -132,6 +134,8 @@ export default async function AbsencesPage() {
         first_name:     e.students.first_name,
         last_name:      e.students.last_name,
         student_number: e.students.student_number,
+        gender:         e.students.gender ?? null,
+        photo_url:      e.students.photo_url ?? null,
       }))
       .sort((a, b) =>
         a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)

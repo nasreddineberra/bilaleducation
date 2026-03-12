@@ -98,12 +98,28 @@ function GenderBadge({ gender }: { gender: 'male' | 'female' | null }) {
 
 // ─── Carte tuteur draggable ───────────────────────────────────────────────────
 
+function buildClassTooltip(cls: ClassRow): string | null {
+  const main = cls.class_teachers.find(t => t.is_main_teacher)
+  const teacherName = main?.teachers
+    ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
+    : null
+  const day   = cls.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
+  const start = fmtTime(cls.start_time)
+  const end   = fmtTime(cls.end_time)
+  const schedule = day
+    ? `${day}${start ? ` ${start}${end ? `–${end}` : ''}` : ''}`
+    : null
+  const parts = [teacherName, schedule].filter(Boolean)
+  return parts.length ? parts.join('\n') : null
+}
+
 function DraggableTutorCard({
-  tutor, disabled, assignedClassName,
+  tutor, disabled, assignedClassName, assignedClassTooltip,
 }: {
-  tutor:              TutorItem
-  disabled:           boolean
-  assignedClassName?: string
+  tutor:                TutorItem
+  disabled:             boolean
+  assignedClassName?:   string
+  assignedClassTooltip?: string
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id:       tutor.id,
@@ -133,7 +149,10 @@ function DraggableTutorCard({
       <GenderBadge gender={genderFromRelationship(tutor.relationship)} />
 
       {assignedClassName && (
-        <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+        <span
+          title={assignedClassTooltip ?? undefined}
+          className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0"
+        >
           {assignedClassName}
         </span>
       )}
@@ -422,7 +441,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                   })()}
                 </span>
               ) : (
-                <span className="text-warm-400">— Sélectionner un cours adulte —</span>
+                <span className="text-warm-400">— Sélectionner une classe —</span>
               )}
               <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
             </button>
@@ -434,7 +453,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                   onClick={() => { selectClass(null); setClassDropOpen(false) }}
                   className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors"
                 >
-                  — Sélectionner un cours adulte —
+                  — Sélectionner une classe —
                 </button>
                 {classes.length === 0 && (
                   <p className="px-3 py-4 text-sm text-warm-400 text-center">
@@ -534,13 +553,16 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                   const assignedClass         = assignedClassId ? classes.find(c => c.id === assignedClassId) : null
                   const isInOtherClass        = !!assignedClass
                   const isDisabled            = isInCurrentClass || isInOtherClass || (!isInCurrentClass && !isInOtherClass && isFull)
-                  const badgeName             = isInOtherClass ? assignedClass?.name : (isSavedInCurrentClass ? selectedClass?.name : undefined)
+                  const badgeClass            = isInOtherClass ? assignedClass : (isSavedInCurrentClass ? selectedClass : null)
+                  const badgeName             = badgeClass?.name
+                  const badgeTooltip          = badgeClass ? buildClassTooltip(badgeClass) ?? undefined : undefined
                   return (
                     <DraggableTutorCard
                       key={t.id}
                       tutor={t}
                       disabled={isDisabled}
                       assignedClassName={badgeName}
+                      assignedClassTooltip={badgeTooltip}
                     />
                   )
                 })}
@@ -641,7 +663,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
               (!hasChanges || saving) && 'opacity-50 cursor-not-allowed'
             )}
           >
-            {saving ? 'Enregistrement…' : 'Enregistrer le cours'}
+            {saving ? 'Enregistrement…' : 'Enregistrer la classe'}
           </button>
         </div>
       )}

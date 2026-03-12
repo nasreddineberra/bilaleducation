@@ -477,7 +477,7 @@ export interface ParentClassEnrollment {
   updated_at: string
 }
 
-export type FeeStatus = 'pending' | 'partial' | 'paid' | 'overdue'
+export type FeeStatus = 'pending' | 'partial' | 'paid' | 'overpaid'
 
 export type AdjustmentType = 'reduction' | 'avoir'
 

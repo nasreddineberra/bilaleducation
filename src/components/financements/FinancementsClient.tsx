@@ -64,17 +64,17 @@ function fmtDate(d: string) {
 }
 
 const STATUS_LABELS: Record<FeeStatus, string> = {
-  pending: 'En attente',
-  partial: 'Partiel',
-  paid:    'Solde',
-  overdue: 'Impaye',
+  pending:  'En attente',
+  partial:  'Partiel',
+  paid:     'Soldé',
+  overpaid: 'Trop perçu',
 }
 
 const STATUS_COLORS: Record<FeeStatus, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  partial: 'bg-amber-100 text-amber-800',
-  paid:    'bg-green-100 text-green-800',
-  overdue: 'bg-red-100 text-red-800',
+  pending:  'bg-amber-100 text-amber-800',
+  partial:  'bg-orange-100 text-orange-800',
+  paid:     'bg-green-100 text-green-800',
+  overpaid: 'bg-red-100 text-red-800',
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -274,7 +274,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const remaining = totalDue - totalPaid
 
   const derivedStatus: FeeStatus =
-    totalDue <= 0    ? 'paid'
+    totalPaid > totalDue && totalDue > 0 ? 'overpaid'
+    : totalDue <= 0    ? 'paid'
     : totalPaid >= totalDue ? 'paid'
     : totalPaid > 0  ? 'partial'
     : 'pending'
@@ -399,7 +400,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     const totalPaid = updatedInstallments.reduce((s, p: any) => s + (p.amount_paid ?? 0), 0)
     const due = fee?.total_due ?? 0
     let status: FeeStatus = 'pending'
-    if (totalPaid >= due && due > 0) status = 'paid'
+    if (totalPaid > due && due > 0) status = 'overpaid'
+    else if (totalPaid >= due && due > 0) status = 'paid'
     else if (totalPaid > 0) status = 'partial'
 
     // Mettre à jour l'état local
@@ -439,7 +441,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       const newTotalPaid = remaining2.reduce((s, p) => s + p.amount_paid, 0)
       const due = currentFee.total_due
       let status: FeeStatus = 'pending'
-      if (newTotalPaid >= due && due > 0) status = 'paid'
+      if (newTotalPaid > due && due > 0) status = 'overpaid'
+      else if (newTotalPaid >= due && due > 0) status = 'paid'
       else if (newTotalPaid > 0) status = 'partial'
 
       await supabase.from('family_fees').update({ status }).eq('id', currentFee.id)
@@ -695,14 +698,16 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           {/* ── Colonne droite : Paiements ── */}
           <div className="space-y-3">
           <div className={clsx('card overflow-hidden flex flex-col border-2', {
-            'border-green-200': derivedStatus === 'paid',
-            'border-amber-200': derivedStatus === 'partial',
-            'border-warm-200': derivedStatus === 'pending',
+            'border-green-200 bg-green-50/30': derivedStatus === 'paid',
+            'border-orange-200 bg-orange-50/30': derivedStatus === 'partial',
+            'border-amber-200 bg-amber-50/30': derivedStatus === 'pending',
+            'border-red-200 bg-red-50/30': derivedStatus === 'overpaid',
           })}>
             <div className={clsx('px-4 py-2.5 border-b flex items-center justify-between', {
               'bg-green-50/60 border-green-100': derivedStatus === 'paid',
-              'bg-amber-50/60 border-amber-100': derivedStatus === 'partial',
-              'bg-warm-50/60 border-warm-100': derivedStatus === 'pending',
+              'bg-orange-50/60 border-orange-100': derivedStatus === 'partial',
+              'bg-amber-50/60 border-amber-100': derivedStatus === 'pending',
+              'bg-red-50/60 border-red-100': derivedStatus === 'overpaid',
             })}>
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Paiements</h3>
@@ -806,9 +811,9 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center gap-2">
                 <AlertTriangle size={24} className="text-warm-300" />
-                <p className="text-sm text-warm-400">Aucun paiement enregistre.</p>
+                <p className="text-sm text-warm-400">Aucun paiement enregistré.</p>
                 {totalDue > 0 && (
-                  <p className="text-xs text-warm-400">Cliquez sur &quot;+ Paiement&quot; pour enregistrer un reglement.</p>
+                  <p className="text-xs text-warm-400">Cliquez sur &quot;+ Paiement&quot; pour enregistrer un règlement.</p>
                 )}
                 {totalDue <= 0 && (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
