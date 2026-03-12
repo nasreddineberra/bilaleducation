@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
-import { Plus, Trash2, Check, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { Plus, Trash2, Pencil, Check, AlertTriangle, CheckCircle2, MessageSquareText } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import PaymentModal from './PaymentModal'
@@ -22,16 +22,31 @@ interface StudentLine {
   total: number
 }
 
+interface AdultLine {
+  id: string
+  tutor_label: string
+  class_name: string
+  cotisation_label: string
+  class_tooltip: string | null
+  cotisation_amount: number
+  registration_fee: number
+  total: number
+}
+
 interface ParentOption {
   id: string
   tutor1_last_name: string
   tutor1_first_name: string
+  tutor2_last_name: string | null
+  tutor2_first_name: string | null
   students: StudentLine[]
+  adultLines: AdultLine[]
 }
 
 interface Props {
   currentYear: { id: string; label: string }
   parents: any[]
+  adultEnrollments: any[]
   familyFees: any[]
 }
 
@@ -73,7 +88,30 @@ const DAYS: Record<string, string> = {
 
 // ─── Parse parents ────────────────────────────────────────────────────────────
 
-function parseParents(raw: any[]): ParentOption[] {
+function buildClassTooltip(cls: any): string | null {
+  const day   = cls?.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
+  const start = cls?.start_time ? cls.start_time.slice(0, 5) : null
+  const end   = cls?.end_time   ? cls.end_time.slice(0, 5)   : null
+  const mainTeacher = (cls?.class_teachers ?? []).find((t: any) => t.is_main_teacher)
+  const teacherName = mainTeacher?.teachers
+    ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
+    : null
+  const parts = [
+    day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
+    teacherName,
+  ].filter(Boolean)
+  return parts.length ? parts.join('\n') : null
+}
+
+function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
+  // Grouper les inscriptions adultes par parent_id
+  const adultByParent: Record<string, any[]> = {}
+  for (const ae of adultEnrollments) {
+    const pid = ae.parent_id
+    if (!adultByParent[pid]) adultByParent[pid] = []
+    adultByParent[pid].push(ae)
+  }
+
   return raw.map(p => {
     const studentsRaw = p.students ?? []
 
@@ -118,19 +156,7 @@ function parseParents(raw: any[]): ParentOption[] {
       const cotisation = ct?.amount ?? 0
       const regFee = ct?.registration_fee ?? 0
 
-      // Tooltip classe : jour · horaires · prof principal
-      const day   = cls?.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
-      const start = cls?.start_time ? cls.start_time.slice(0, 5) : null
-      const end   = cls?.end_time   ? cls.end_time.slice(0, 5)   : null
-      const mainTeacher = (cls?.class_teachers ?? []).find((t: any) => t.is_main_teacher)
-      const teacherName = mainTeacher?.teachers
-        ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
-        : null
-      const tooltipParts = [
-        day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
-        teacherName,
-      ].filter(Boolean)
-      const class_tooltip = tooltipParts.length ? tooltipParts.join('\n') : null
+      const class_tooltip = buildClassTooltip(cls)
 
       return {
         id: s.id,
@@ -145,28 +171,70 @@ function parseParents(raw: any[]): ParentOption[] {
         total: cotisation + regFee - discount,
       }
     })
+    // Lignes adultes
+    const parentAdultEnrollments = adultByParent[p.id] ?? []
+    const adultLines: AdultLine[] = parentAdultEnrollments.map((ae: any) => {
+      const cls = ae.classes
+      const ct  = cls?.cotisation_types
+      const cotisation = ct?.amount ?? 0
+      const regFee     = ct?.registration_fee ?? 0
+      const tLast  = ae.tutor_number === 1 ? p.tutor1_last_name : (p.tutor2_last_name ?? '')
+      const tFirst = ae.tutor_number === 1 ? p.tutor1_first_name : (p.tutor2_first_name ?? '')
+      const tutorName = `${tLast.toUpperCase()} ${tFirst}`.trim()
+      return {
+        id: `adult-${ae.parent_id}-${ae.tutor_number}-${cls?.id}`,
+        tutor_label: tutorName,
+        class_name: cls?.name ?? '—',
+        cotisation_label: ct?.label ?? '',
+        class_tooltip: buildClassTooltip(cls),
+        cotisation_amount: cotisation,
+        registration_fee: regFee,
+        total: cotisation + regFee,
+      }
+    })
+
     return {
       id: p.id,
       tutor1_last_name: p.tutor1_last_name,
       tutor1_first_name: p.tutor1_first_name,
+      tutor2_last_name: p.tutor2_last_name ?? null,
+      tutor2_first_name: p.tutor2_first_name ?? null,
       students,
+      adultLines,
     }
   })
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, familyFees: initialFees }: Props) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees }: Props) {
   const supabase = createClient()
 
-  const parentOptions = useMemo(() => parseParents(rawParents), [rawParents])
+  const parentOptions = useMemo(() => parseParents(rawParents, adultEnrollments), [rawParents, adultEnrollments])
 
   const [selectedParentId, setSelectedParentId] = useState<string>('')
   const [familyFees, setFamilyFees]             = useState<any[]>(initialFees)
+  const familyFeesRef = useRef(familyFees)
+  familyFeesRef.current = familyFees
   const [saving, setSaving]                     = useState(false)
   const [error, setError]                       = useState<string | null>(null)
   const [success, setSuccess]                   = useState<string | null>(null)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [editingPayment, setEditingPayment]     = useState<FeeInstallment | null>(null)
+  const [deleteStep, setDeleteStep]   = useState<{ id: string; step: 1 | 2 } | null>(null)
+
+  // Auto-dismiss notifications
+  useEffect(() => {
+    if (!success) return
+    const t = setTimeout(() => setSuccess(null), 4000)
+    return () => clearTimeout(t)
+  }, [success])
+
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(null), 6000)
+    return () => clearTimeout(t)
+  }, [error])
 
   // Ajustements
   const [addingAdjustment, setAddingAdjustment] = useState(false)
@@ -183,9 +251,13 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
 
   const currentFee = familyFees.find((f: any) => f.parent_id === selectedParentId) ?? null
 
-  const subtotal = selectedParent
+  const studentsSubtotal = selectedParent
     ? selectedParent.students.reduce((acc, s) => acc + s.total, 0)
     : 0
+  const adultsSubtotal = selectedParent
+    ? selectedParent.adultLines.reduce((acc, a) => acc + a.total, 0)
+    : 0
+  const subtotal = studentsSubtotal + adultsSubtotal
 
   const adjustments: FeeAdjustment[] = (currentFee?.fee_adjustments ?? [])
     .sort((a: FeeAdjustment, b: FeeAdjustment) =>
@@ -312,27 +384,51 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
   // ── Paiement enregistré ──────────────────────────────────────────────────
 
   const handlePaymentSaved = async (newPayment: FeeInstallment) => {
-    if (!currentFee) return
-    const updatedPayments = [...payments, newPayment]
-    const newTotalPaid = updatedPayments.reduce((s, p) => s + p.amount_paid, 0)
-    const due = currentFee.total_due
+    const isEdit = !!editingPayment
+    setPaymentModalOpen(false)
+    setEditingPayment(null)
+
+    const feeId = newPayment.family_fee_id
+
+    // Trouver le fee dans l'état le plus récent (ref évite les closures obsolètes)
+    const fee = familyFeesRef.current.find(f => f.id === feeId)
+    const existingInstallments: FeeInstallment[] = fee?.fee_installments ?? []
+    const updatedInstallments = isEdit
+      ? existingInstallments.map(p => p.id === newPayment.id ? newPayment : p)
+      : [...existingInstallments, newPayment]
+    const totalPaid = updatedInstallments.reduce((s, p: any) => s + (p.amount_paid ?? 0), 0)
+    const due = fee?.total_due ?? 0
     let status: FeeStatus = 'pending'
-    if (newTotalPaid >= due) status = 'paid'
-    else if (newTotalPaid > 0) status = 'partial'
+    if (totalPaid >= due && due > 0) status = 'paid'
+    else if (totalPaid > 0) status = 'partial'
 
-    await supabase.from('family_fees').update({ status }).eq('id', currentFee.id)
-
+    // Mettre à jour l'état local
     setFamilyFees(prev => prev.map(f =>
-      f.id === currentFee.id
-        ? { ...f, status, fee_installments: [...(f.fee_installments ?? []), newPayment] }
+      f.id === feeId
+        ? { ...f, status, fee_installments: updatedInstallments }
         : f
     ))
-    setPaymentModalOpen(false)
-    setSuccess('Paiement enregistre.')
+    setSuccess(isEdit ? 'Paiement modifie.' : 'Paiement enregistre.')
+
+    // Mettre à jour le statut en DB
+    try {
+      await supabase.from('family_fees').update({ status }).eq('id', feeId)
+    } catch {
+      // ignoré — le statut sera corrigé au prochain chargement
+    }
   }
 
   const removePayment = async (payment: FeeInstallment) => {
     if (!currentFee) return
+    if (!deleteStep || deleteStep.id !== payment.id) {
+      setDeleteStep({ id: payment.id, step: 1 })
+      return
+    }
+    if (deleteStep.step === 1) {
+      setDeleteStep({ id: payment.id, step: 2 })
+      return
+    }
+    setDeleteStep(null)
     setSaving(true)
     setError(null)
     try {
@@ -366,19 +462,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
   return (
     <div className="space-y-4">
 
-      {/* En-tete */}
-      <div>
-        <h1 className="text-xl font-bold text-secondary-800">Financements</h1>
-        <p className="text-sm text-warm-500 mt-0.5">
-          Annee scolaire : <span className="font-medium text-secondary-700">{currentYear.label}</span>
-        </p>
-      </div>
-
-      {/* Select responsable + statut */}
+      {/* Select parent + statut */}
       <div className="card p-4">
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1 space-y-1">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Responsable</label>
+            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Parents / Tuteurs legaux</label>
             <select
               value={selectedParentId}
               onChange={e => {
@@ -389,28 +477,20 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
               }}
               className="input text-sm"
             >
-              <option value="">— Choisir un responsable —</option>
-              {parentOptions.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.tutor1_last_name.toUpperCase()} {p.tutor1_first_name} ({p.students.length} eleve{p.students.length > 1 ? 's' : ''})
-                </option>
-              ))}
+              <option value="">— Choisir un parent / tuteur —</option>
+              {parentOptions.map(p => {
+                const t1 = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
+                const t2 = p.tutor2_last_name && p.tutor2_first_name
+                  ? ` | ${p.tutor2_last_name.toUpperCase()} ${p.tutor2_first_name}`
+                  : ''
+                return (
+                  <option key={p.id} value={p.id}>
+                    {t1}{t2}
+                  </option>
+                )
+              })}
             </select>
           </div>
-          {selectedParent && (
-            <div className="flex items-center gap-4">
-              <span className={clsx('px-3 py-1.5 rounded-full text-xs font-semibold', STATUS_COLORS[derivedStatus])}>
-                {STATUS_LABELS[derivedStatus]}
-              </span>
-              <div className="text-sm text-secondary-700">
-                <span className="font-semibold">{fmtEur(totalPaid)}</span>
-                <span className="text-warm-400"> / {fmtEur(totalDue)}</span>
-                {remaining > 0 && (
-                  <span className="ml-2 text-amber-600 font-medium">Reste : {fmtEur(remaining)}</span>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -424,7 +504,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
         </div>
       )}
 
-      {selectedParent && (
+      {selectedParent && (<>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
           {/* ── Colonne gauche ── */}
@@ -475,6 +555,37 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
                       <td className="px-3 py-2 text-sm font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(s.total)}</td>
                     </tr>
                   ))}
+                  {selectedParent.adultLines.length > 0 && (
+                    <>
+                      <tr className="bg-violet-50/40 border-b border-warm-100">
+                        <td colSpan={6} className="px-3 py-1.5 text-[10px] font-bold text-violet-500 uppercase tracking-widest">Cours adultes</td>
+                      </tr>
+                      {selectedParent.adultLines.map(a => (
+                        <tr key={a.id} className="border-b border-warm-50">
+                          <td className="px-3 py-2 text-sm font-medium text-secondary-800">{a.tutor_label}</td>
+                          <td className="px-3 py-2 text-sm text-secondary-600">
+                            <span
+                              title={a.class_tooltip ?? undefined}
+                              className={clsx('cursor-default', a.class_tooltip && 'underline decoration-dotted underline-offset-2')}
+                            >
+                              {a.class_name}
+                            </span>
+                            {a.cotisation_label && (
+                              <span className="ml-1.5 text-[10px] font-medium bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">
+                                {a.cotisation_label}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-secondary-700 text-right tabular-nums">{fmtEur(a.cotisation_amount)}</td>
+                          <td className="px-3 py-2 text-sm text-secondary-700 text-right tabular-nums">
+                            {a.registration_fee > 0 ? fmtEur(a.registration_fee) : <span className="text-warm-300">—</span>}
+                          </td>
+                          <td className="px-3 py-2 text-sm text-right tabular-nums"><span className="text-warm-300">—</span></td>
+                          <td className="px-3 py-2 text-sm font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(a.total)}</td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
                 </tbody>
                 <tfoot>
                   <tr className="bg-warm-50/60">
@@ -579,34 +690,25 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
               )}
             </div>
 
-            {/* Total dû */}
-            <div className="card p-4 bg-secondary-50 border-2 border-secondary-200">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-secondary-700">TOTAL DU</span>
-                <div className="text-right">
-                  {adjustmentsTotal !== 0 && (
-                    <span className="text-sm text-warm-500 mr-1">
-                      {fmtEur(subtotal)} {adjustmentsTotal < 0 ? '-' : '+'} {fmtEur(Math.abs(adjustmentsTotal))} =
-                    </span>
-                  )}
-                  <span className="text-lg font-bold text-secondary-800">{fmtEur(totalDue)}</span>
-                </div>
-              </div>
-            </div>
-
           </div>
 
           {/* ── Colonne droite : Paiements ── */}
-          <div className="card overflow-hidden flex flex-col">
-            <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
-              <div>
+          <div className="space-y-3">
+          <div className={clsx('card overflow-hidden flex flex-col border-2', {
+            'border-green-200': derivedStatus === 'paid',
+            'border-amber-200': derivedStatus === 'partial',
+            'border-warm-200': derivedStatus === 'pending',
+          })}>
+            <div className={clsx('px-4 py-2.5 border-b flex items-center justify-between', {
+              'bg-green-50/60 border-green-100': derivedStatus === 'paid',
+              'bg-amber-50/60 border-amber-100': derivedStatus === 'partial',
+              'bg-warm-50/60 border-warm-100': derivedStatus === 'pending',
+            })}>
+              <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Paiements</h3>
-                {payments.length > 0 && (
-                  <p className="text-xs text-warm-500 mt-0.5">
-                    Paye : <span className="font-semibold text-secondary-700">{fmtEur(totalPaid)}</span>
-                    {remaining > 0 && <span className="ml-2 text-amber-600">Reste : {fmtEur(remaining)}</span>}
-                  </p>
-                )}
+                <span className={clsx('px-2 py-0.5 rounded-full text-[10px] font-semibold', STATUS_COLORS[derivedStatus])}>
+                  {STATUS_LABELS[derivedStatus]}
+                </span>
               </div>
               <button
                 onClick={() => { setPaymentModalOpen(true); setError(null); setSuccess(null) }}
@@ -627,7 +729,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
                     <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Moyen</th>
                     <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Reference</th>
                     <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">N° Recu</th>
-                    <th className="px-3 py-2 w-10"></th>
+                    <th className="px-3 py-2 w-8"></th>
+                    <th className="px-3 py-2 w-16"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -645,34 +748,60 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
                         <td className="px-3 py-2 text-sm text-secondary-600">{p.payment_method ? (METHOD_LABELS[p.payment_method] ?? p.payment_method) : '—'}</td>
                         <td className="px-3 py-2 text-xs text-secondary-500 font-mono">{refLabel || <span className="text-warm-300">—</span>}</td>
                         <td className="px-3 py-2 text-xs text-secondary-500">{p.receipt_number || <span className="text-warm-300">—</span>}</td>
+                        <td className="px-3 py-2 text-center">
+                          {p.notes && (
+                            <span title={p.notes} className="inline-flex text-warm-400 hover:text-secondary-600 cursor-help">
+                              <MessageSquareText size={14} />
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2">
-                          <button
-                            onClick={() => removePayment(p)}
-                            disabled={saving}
-                            className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {deleteStep?.id === p.id ? (
+                            <span className="flex items-center gap-1">
+                              <button
+                                onClick={() => removePayment(p)}
+                                disabled={saving}
+                                className={`text-[11px] font-medium border rounded px-1.5 py-0.5 transition-colors ${
+                                  deleteStep.step === 1
+                                    ? 'text-orange-600 bg-orange-50 hover:bg-orange-100 border-orange-200'
+                                    : 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200'
+                                }`}
+                              >
+                                {deleteStep.step === 1 ? 'Supprimer ?' : 'Confirmer'}
+                              </button>
+                              <button
+                                onClick={() => setDeleteStep(null)}
+                                disabled={saving}
+                                className="text-[11px] font-medium text-warm-500 hover:text-secondary-700 hover:bg-warm-100 rounded px-1.5 py-0.5 transition-colors"
+                              >
+                                Annuler
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <button
+                                onClick={() => { setEditingPayment(p); setPaymentModalOpen(true); setError(null); setSuccess(null) }}
+                                disabled={saving}
+                                className="p-1 text-warm-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                                title="Modifier"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => removePayment(p)}
+                                disabled={saving}
+                                className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </span>
+                          )}
                         </td>
                       </tr>
                     )
                   })}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-warm-50/60">
-                    <td colSpan={2} className="px-3 py-2.5 text-sm font-semibold text-secondary-700 text-right">Total paye</td>
-                    <td className="px-3 py-2.5 text-sm font-bold text-secondary-800 text-right tabular-nums">{fmtEur(totalPaid)}</td>
-                    <td colSpan={4}></td>
-                  </tr>
-                  {remaining > 0 && (
-                    <tr className="bg-amber-50/60">
-                      <td colSpan={2} className="px-3 py-2 text-sm font-semibold text-amber-700 text-right">Reste a payer</td>
-                      <td className="px-3 py-2 text-sm font-bold text-amber-700 text-right tabular-nums">{fmtEur(remaining)}</td>
-                      <td colSpan={4}></td>
-                    </tr>
-                  )}
-                </tfoot>
               </table>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center gap-2">
@@ -690,8 +819,33 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
             )}
           </div>
 
+          </div>
+
         </div>
-      )}
+
+        {/* Totaux en bas de page */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="card p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-secondary-700">{`TOTAL D\u00DB`}</span>
+              <div className="text-right">
+                {adjustmentsTotal !== 0 && (
+                  <span className="text-xs text-warm-500 mr-1">
+                    {fmtEur(subtotal)} {adjustmentsTotal < 0 ? '-' : '+'} {fmtEur(Math.abs(adjustmentsTotal))} =
+                  </span>
+                )}
+                <span className="text-lg font-bold text-secondary-800">{fmtEur(totalDue)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="card p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-secondary-700">{`TOTAL PER\u00C7U`}</span>
+              <span className="text-lg font-bold text-secondary-800">{fmtEur(totalPaid)}</span>
+            </div>
+          </div>
+        </div>
+      </>)}
 
       {/* Modale paiement */}
       {paymentModalOpen && selectedParent && (
@@ -701,10 +855,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, f
           schoolYearId={currentYear.id}
           subtotal={subtotal}
           totalDue={totalDue}
-          remaining={remaining}
-          paymentNumber={payments.length + 1}
+          remaining={editingPayment ? remaining + editingPayment.amount_paid : remaining}
+          paymentNumber={editingPayment ? editingPayment.installment_number : payments.length + 1}
+          editingPayment={editingPayment}
           onEnsureFamilyFee={ensureFamilyFee}
-          onClose={() => setPaymentModalOpen(false)}
+          onClose={() => { setPaymentModalOpen(false); setEditingPayment(null) }}
           onSaved={handlePaymentSaved}
         />
       )}

@@ -35,7 +35,7 @@ export default async function AffectationAdultesPage() {
 
     supabase
       .from('parents')
-      .select('id, tutor1_last_name, tutor1_first_name, tutor1_relationship, tutor2_last_name, tutor2_first_name, tutor2_relationship')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor1_relationship, tutor1_adult_courses, tutor2_last_name, tutor2_first_name, tutor2_relationship, tutor2_adult_courses')
       .order('tutor1_last_name')
       .order('tutor1_first_name'),
 

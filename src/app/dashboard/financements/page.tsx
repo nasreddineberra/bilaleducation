@@ -27,6 +27,12 @@ export default async function FinancementsPage() {
       id,
       tutor1_last_name,
       tutor1_first_name,
+      tutor2_last_name,
+      tutor2_first_name,
+      tutor1_adult_courses,
+      tutor2_adult_courses,
+      tutor1_relationship,
+      tutor2_relationship,
       students!inner (
         id,
         first_name,
@@ -61,6 +67,43 @@ export default async function FinancementsPage() {
     .order('tutor1_last_name')
     .order('tutor1_first_name')
 
+  // Inscriptions adultes (cours parents/tuteurs)
+  const { data: adultEnrollments } = await supabase
+    .from('parent_class_enrollments')
+    .select(`
+      parent_id, tutor_number,
+      classes (
+        id, name, day_of_week, start_time, end_time,
+        class_teachers (
+          is_main_teacher,
+          teachers ( civilite, first_name, last_name )
+        ),
+        cotisation_types (
+          id, label, amount, registration_fee
+        )
+      )
+    `)
+    .eq('status', 'active')
+
+  // Parents inscrits en cours adultes mais sans élève actif cette année
+  const existingParentIds = new Set((parents ?? []).map((p: any) => p.id))
+  const adultParentIds = [...new Set((adultEnrollments ?? []).map((ae: any) => ae.parent_id))]
+    .filter(id => !existingParentIds.has(id))
+
+  let additionalParents: any[] = []
+  if (adultParentIds.length > 0) {
+    const { data } = await supabase
+      .from('parents')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name, tutor1_adult_courses, tutor2_adult_courses, tutor1_relationship, tutor2_relationship')
+      .in('id', adultParentIds)
+      .order('tutor1_last_name')
+      .order('tutor1_first_name')
+    additionalParents = (data ?? []).map(p => ({ ...p, students: [] }))
+  }
+
+  const allParents = [...(parents ?? []), ...additionalParents]
+    .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
+
   // Family fees existants pour cette année
   const { data: familyFees } = await supabase
     .from('family_fees')
@@ -76,7 +119,8 @@ export default async function FinancementsPage() {
     <div className="h-full animate-fade-in">
       <FinancementsClient
         currentYear={currentYear}
-        parents={(parents ?? []) as any[]}
+        parents={allParents as any[]}
+        adultEnrollments={(adultEnrollments ?? []) as any[]}
         familyFees={(familyFees ?? []) as any[]}
       />
     </div>

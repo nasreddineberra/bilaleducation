@@ -133,7 +133,7 @@ export default function BulletinsClient({
   etablissementId, initialArchives, initialAppreciations,
 }: Props) {
 
-  const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes[0]?.id ?? null)
+  const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
   const [generating, setGenerating] = useState<string | null>(null) // student_id or 'all'
   const [archives, setArchives] = useState<ArchiveRow[]>(initialArchives)
@@ -557,38 +557,49 @@ export default function BulletinsClient({
   return (
     <div className="space-y-4">
       {/* ── Barre de sélection ─────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-card p-4">
-        <div className="flex flex-wrap items-end gap-4">
+      <div className="card p-3">
+        <div className="flex flex-wrap items-center gap-4">
           {/* Classe */}
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-semibold text-secondary-600 mb-1">Classe</label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide whitespace-nowrap">Classe</span>
             <select
-              className="input text-sm"
+              className="input text-sm py-1.5"
               value={selectedClassId ?? ''}
               onChange={e => { setSelectedClassId(e.target.value || null); setConfirmUnarchive(false) }}
+              disabled={classes.length === 0}
             >
-              {classes.map(c => (
-                <option key={c.id} value={c.id}>{c.name} – {c.level}</option>
-              ))}
+              {classes.length === 0
+                ? <option value="">Aucune classe disponible</option>
+                : <>
+                    {classes.length > 1 && <option value="">— Selectionner une classe —</option>}
+                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </>
+              }
             </select>
           </div>
 
-          {/* Période */}
-          <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-semibold text-secondary-600 mb-1">Période</label>
-            <select
-              className="input text-sm"
-              value={selectedPeriodId ?? ''}
-              onChange={e => { setSelectedPeriodId(e.target.value || null); setConfirmUnarchive(false) }}
-            >
+          {/* Périodes */}
+          {periods.length > 0 && (
+            <div className="flex items-center gap-1">
               {periods.map(p => (
-                <option key={p.id} value={p.id}>{PERIOD_LABELS[p.label] ?? p.label}</option>
+                <button
+                  key={p.id}
+                  onClick={() => { setSelectedPeriodId(p.id); setConfirmUnarchive(false) }}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors',
+                    selectedPeriodId === p.id
+                      ? 'bg-primary-500 text-white shadow-sm'
+                      : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
+                  )}
+                >
+                  {PERIOD_LABELS[p.label] ?? p.label}
+                </button>
               ))}
-            </select>
-          </div>
+            </div>
+          )}
 
           {/* Bouton télécharger tout */}
-          <div>
+          <div className="ml-auto">
             <button
               onClick={handleDownloadAll}
               disabled={generating !== null || !allComplete || isArchived}
@@ -620,6 +631,16 @@ export default function BulletinsClient({
               {selectedClass.main_teacher_name && (
                 <span>
                   Enseignant : {[selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')}
+                </span>
+              )}
+              {selectedClass.level && (
+                <span>
+                  Niveau {selectedClass.level}
+                </span>
+              )}
+              {selectedClass.day_of_week && selectedClass.start_time && (
+                <span>
+                  {selectedClass.day_of_week} {selectedClass.start_time.slice(0, 5)}{selectedClass.end_time ? `–${selectedClass.end_time.slice(0, 5)}` : ''}
                 </span>
               )}
             </div>

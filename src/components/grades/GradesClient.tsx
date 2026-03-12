@@ -96,7 +96,7 @@ export default function GradesClient({
 }: Props) {
 
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
-  const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes[0]?.id ?? null)
+  const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
   const [selectedEvalId,   setSelectedEvalId]   = useState<string | null>(null)
   const [expandedUEs,      setExpandedUEs]      = useState<Set<string>>(new Set(ues.map(u => u.id)))
@@ -326,7 +326,10 @@ export default function GradesClient({
           >
             {classes.length === 0
               ? <option value="">Aucune classe disponible</option>
-              : classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+              : <>
+                  {classes.length > 1 && <option value="">— Selectionner une classe —</option>}
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </>
             }
           </select>
         </div>

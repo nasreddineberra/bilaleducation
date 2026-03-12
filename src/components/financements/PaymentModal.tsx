@@ -15,6 +15,7 @@ interface Props {
   totalDue:            number
   remaining:           number
   paymentNumber:       number
+  editingPayment?:     FeeInstallment | null
   onEnsureFamilyFee:   () => Promise<string | null>
   onClose:             () => void
   onSaved:             (payment: FeeInstallment) => void
@@ -47,23 +48,27 @@ function genReceiptNumber() {
 export default function PaymentModal({
   familyFeeId, parentId, schoolYearId,
   subtotal, totalDue, remaining, paymentNumber,
+  editingPayment,
   onEnsureFamilyFee, onClose, onSaved,
 }: Props) {
   const supabase = createClient()
+  const isEdit = !!editingPayment
+  const ep = editingPayment
+  const epRef = (ep?.payment_reference ?? {}) as PaymentReference
 
-  const [amount,       setAmount]       = useState(String(remaining > 0 ? remaining : totalDue))
-  const [method,       setMethod]       = useState<FeePaymentMethod>('cash')
-  const [paidDate,     setPaidDate]     = useState(new Date().toISOString().slice(0, 10))
-  const [receipt,      setReceipt]      = useState(genReceiptNumber())
-  const [notes,        setNotes]        = useState('')
+  const [amount,       setAmount]       = useState(String(ep ? ep.amount_paid : (remaining > 0 ? remaining : totalDue)))
+  const [method,       setMethod]       = useState<FeePaymentMethod>(ep?.payment_method ?? 'cash')
+  const [paidDate,     setPaidDate]     = useState(ep?.paid_date ?? new Date().toISOString().slice(0, 10))
+  const [receipt,      setReceipt]      = useState(ep?.receipt_number ?? genReceiptNumber())
+  const [notes,        setNotes]        = useState(ep?.notes ?? '')
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
 
   // Champs spécifiques par méthode
-  const [checkNumber,   setCheckNumber]   = useState('')
-  const [bank,          setBank]          = useState('')
-  const [transactionId, setTransactionId] = useState('')
-  const [transferRef,   setTransferRef]   = useState('')
+  const [checkNumber,   setCheckNumber]   = useState(epRef.check_number ?? '')
+  const [bank,          setBank]          = useState(epRef.bank ?? '')
+  const [transactionId, setTransactionId] = useState(epRef.transaction_id ?? '')
+  const [transferRef,   setTransferRef]   = useState(epRef.reference ?? '')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,32 +96,54 @@ export default function PaymentModal({
     setSaving(true)
     setError(null)
     try {
-      // Créer le family_fee si besoin
-      const feeId = familyFeeId ?? await onEnsureFamilyFee()
-      if (!feeId) { setSaving(false); return }
+      if (isEdit && ep) {
+        // Mode édition : update
+        const { data, error: err } = await supabase
+          .from('fee_installments')
+          .update({
+            amount_due:         parsedAmount,
+            amount_paid:        parsedAmount,
+            due_date:           paidDate,
+            paid_date:          paidDate,
+            payment_method:     method,
+            payment_reference:  Object.keys(reference).length ? reference : null,
+            receipt_number:     receipt.trim() || null,
+            notes:              notes.trim() || null,
+          })
+          .eq('id', ep.id)
+          .select()
+          .single()
+        if (err) throw err
+        setSaving(false)
+        onSaved(data as FeeInstallment)
+      } else {
+        // Mode création : insert
+        const feeId = familyFeeId ?? await onEnsureFamilyFee()
+        if (!feeId) { setSaving(false); return }
 
-      const { data, error: err } = await supabase
-        .from('fee_installments')
-        .insert({
-          family_fee_id:      feeId,
-          installment_number: paymentNumber,
-          due_date:           paidDate,
-          amount_due:         parsedAmount,
-          amount_paid:        parsedAmount,
-          paid_date:          paidDate,
-          payment_method:     method,
-          payment_reference:  Object.keys(reference).length ? reference : null,
-          receipt_number:     receipt.trim() || null,
-          status:             'paid',
-          notes:              notes.trim() || null,
-        })
-        .select()
-        .single()
-      if (err) throw err
-      onSaved(data as FeeInstallment)
+        const { data, error: err } = await supabase
+          .from('fee_installments')
+          .insert({
+            family_fee_id:      feeId,
+            installment_number: paymentNumber,
+            due_date:           paidDate,
+            amount_due:         parsedAmount,
+            amount_paid:        parsedAmount,
+            paid_date:          paidDate,
+            payment_method:     method,
+            payment_reference:  Object.keys(reference).length ? reference : null,
+            receipt_number:     receipt.trim() || null,
+            status:             'paid',
+            notes:              notes.trim() || null,
+          })
+          .select()
+          .single()
+        if (err) throw err
+        setSaving(false)
+        onSaved(data as FeeInstallment)
+      }
     } catch (e: any) {
       setError(e.message ?? 'Erreur lors de l\'enregistrement.')
-    } finally {
       setSaving(false)
     }
   }
@@ -128,7 +155,9 @@ export default function PaymentModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
           <div>
-            <h2 className="text-base font-bold text-secondary-800">Enregistrer un paiement</h2>
+            <h2 className="text-base font-bold text-secondary-800">
+              {isEdit ? 'Modifier le paiement' : 'Enregistrer un paiement'}
+            </h2>
             <p className="text-xs text-warm-500 mt-0.5">
               Total du : {fmtEur(totalDue)}
               {remaining < totalDue && remaining > 0 && ` · Reste : ${fmtEur(remaining)}`}
@@ -297,7 +326,7 @@ export default function PaymentModal({
               className="btn btn-primary flex-1 flex items-center justify-center gap-1.5"
             >
               <Check size={15} />
-              {saving ? 'Enregistrement...' : 'Enregistrer le paiement'}
+              {saving ? 'Enregistrement...' : isEdit ? 'Modifier le paiement' : 'Enregistrer le paiement'}
             </button>
             <button type="button" onClick={onClose} disabled={saving} className="btn btn-secondary">
               Annuler

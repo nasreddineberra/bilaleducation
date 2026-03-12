@@ -36,13 +36,15 @@ interface ClassRow {
 }
 
 interface ParentRow {
-  id:                  string
-  tutor1_last_name:    string
-  tutor1_first_name:   string
-  tutor1_relationship: string | null
-  tutor2_last_name:    string | null
-  tutor2_first_name:   string | null
-  tutor2_relationship: string | null
+  id:                    string
+  tutor1_last_name:      string
+  tutor1_first_name:     string
+  tutor1_relationship:   string | null
+  tutor1_adult_courses:  boolean
+  tutor2_last_name:      string | null
+  tutor2_first_name:     string | null
+  tutor2_relationship:   string | null
+  tutor2_adult_courses:  boolean
 }
 
 interface EnrollmentRow {
@@ -202,17 +204,20 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const router  = useRouter()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  // Construire la liste des tuteurs depuis les parents
+  // Construire la liste des tuteurs inscrits aux cours adultes uniquement
   const tutors: TutorItem[] = parents.flatMap(p => {
-    const items: TutorItem[] = [{
-      id:           `${p.id}-1`,
-      parent_id:    p.id,
-      tutor_number: 1,
-      last_name:    p.tutor1_last_name,
-      first_name:   p.tutor1_first_name,
-      relationship: p.tutor1_relationship,
-    }]
-    if (p.tutor2_last_name && p.tutor2_first_name) {
+    const items: TutorItem[] = []
+    if (p.tutor1_adult_courses) {
+      items.push({
+        id:           `${p.id}-1`,
+        parent_id:    p.id,
+        tutor_number: 1,
+        last_name:    p.tutor1_last_name,
+        first_name:   p.tutor1_first_name,
+        relationship: p.tutor1_relationship,
+      })
+    }
+    if (p.tutor2_adult_courses && p.tutor2_last_name && p.tutor2_first_name) {
       items.push({
         id:           `${p.id}-2`,
         parent_id:    p.id,
@@ -397,11 +402,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   // ── Rendu ─────────────────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col gap-3">
-
-      {/* En-tête */}
-      <div className="flex-shrink-0">
-        <h1 className="text-xl font-bold text-secondary-800">Affectations pédagogiques adultes</h1>
-      </div>
 
       {/* Sélecteur cours adulte */}
       <div className="card p-4 flex-shrink-0">
