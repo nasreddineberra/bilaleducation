@@ -19,12 +19,14 @@ type ClassRow = {
   end_time: string | null
   main_teacher_name: string | null
   main_teacher_civilite: string | null
+  cotisation_label: string | null
 }
 
 type EvaluationRow = {
   id: string; class_id: string; period_id: string | null; cours_id: string | null
   eval_kind: string | null; max_score: number | null; coefficient: number
   evaluation_date: string | null; display_module_id: string | null; display_ue_id: string | null
+  sort_order: number | null
 }
 
 type StudentRow = {
@@ -57,6 +59,11 @@ type AppreciationRow = {
   appreciation: string
 }
 
+type OrderConfigRow = {
+  class_id: string; period_id: string
+  ue_order: string[]; module_order: Record<string, string[]>
+}
+
 interface Props {
   classes:         ClassRow[]
   periods:         Period[]
@@ -73,10 +80,16 @@ interface Props {
   etablissementId: string
   initialArchives: ArchiveRow[]
   initialAppreciations: AppreciationRow[]
+  orderConfigs: OrderConfigRow[]
 }
 
 const PERIOD_LABELS: Record<string, string> = {
   S1: 'Semestre 1', S2: 'Semestre 2', T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
+}
+
+const DAYS: Record<string, string> = {
+  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',
+  thursday: 'Jeudi', friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
 }
 
 // ─── Types internes pour le calcul du bulletin ────────────────────────────────
@@ -122,6 +135,7 @@ export type BulletinData = {
   totalStudents: number
   diagnosticLegend: string | null
   classSchedule: string | null
+  cotisationLabel: string | null
   appreciation: string | null
 }
 
@@ -130,7 +144,7 @@ export type BulletinData = {
 export default function BulletinsClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
   evaluations, students, grades, absences, etablissement, yearLabel,
-  etablissementId, initialArchives, initialAppreciations,
+  etablissementId, initialArchives, initialAppreciations, orderConfigs,
 }: Props) {
 
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
@@ -230,10 +244,13 @@ export default function BulletinsClient({
       ? [selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')
       : ''
 
+    // Trier les évaluations par sort_order (gabarit) avant groupement
+    const sortedEvals = [...evals].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))
+
     // Grouper les évaluations par UE (et éventuellement module)
     const ueBlocksMap = new Map<string, BulletinUEBlock>()
 
-    for (const ev of evals) {
+    for (const ev of sortedEvals) {
       if (!ev.cours_id) continue
       const c = cours.find(cr => cr.id === ev.cours_id)
       if (!c) continue
@@ -281,15 +298,9 @@ export default function BulletinsClient({
       })
     }
 
-    // Calculer les moyennes par bloc UE
+    // Les blocs sont déjà dans l'ordre du gabarit grâce au tri par sort_order
+    // (la Map préserve l'ordre d'insertion)
     const ueBlocks = Array.from(ueBlocksMap.values())
-
-    // Ordonner par order_index de l'UE
-    ueBlocks.sort((a, b) => {
-      const ueA = ues.find(u => u.nom_fr === a.ueName)
-      const ueB = ues.find(u => u.nom_fr === b.ueName)
-      return (ueA?.order_index ?? 99) - (ueB?.order_index ?? 99)
-    })
 
     for (const block of ueBlocks) {
       // Moyenne de l'élève pour ce bloc (scored uniquement)
@@ -405,8 +416,9 @@ export default function BulletinsClient({
       totalStudents: classStudents.length,
       diagnosticLegend,
       classSchedule: selectedClass?.day_of_week && selectedClass?.start_time
-        ? `${selectedClass.day_of_week}${selectedClass.end_time ? ` de ${selectedClass.start_time.slice(0, 5)} à ${selectedClass.end_time.slice(0, 5)}` : ` à ${selectedClass.start_time.slice(0, 5)}`}`
+        ? `${DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week}${selectedClass.end_time ? ` de ${selectedClass.start_time.slice(0, 5)} à ${selectedClass.end_time.slice(0, 5)}` : ` à ${selectedClass.start_time.slice(0, 5)}`}`
         : null,
+      cotisationLabel: selectedClass?.cotisation_label ?? null,
       appreciation: appreciationMap.get(student.student_id) || null,
     }
   }, [currentEvals, selectedPeriod, selectedClass, cours, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
@@ -628,21 +640,27 @@ export default function BulletinsClient({
                 <FileText className="w-3.5 h-3.5" />
                 {currentEvals.length} évaluation{currentEvals.length > 1 ? 's' : ''}
               </span>
-              {selectedClass.main_teacher_name && (
-                <span>
-                  Enseignant : {[selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')}
-                </span>
-              )}
-              {selectedClass.level && (
-                <span>
-                  Niveau {selectedClass.level}
-                </span>
-              )}
-              {selectedClass.day_of_week && selectedClass.start_time && (
-                <span>
-                  {selectedClass.day_of_week} {selectedClass.start_time.slice(0, 5)}{selectedClass.end_time ? `–${selectedClass.end_time.slice(0, 5)}` : ''}
-                </span>
-              )}
+              {(() => {
+                const teacherName = selectedClass.main_teacher_name
+                  ? [selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')
+                  : null
+                const day = selectedClass.day_of_week ? (DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week) : null
+                const schedule = day && selectedClass.start_time
+                  ? `${day} ${selectedClass.start_time.slice(0, 5)}${selectedClass.end_time ? `–${selectedClass.end_time.slice(0, 5)}` : ''}`
+                  : day
+                const parts = [
+                  teacherName,
+                  selectedClass.cotisation_label,
+                  selectedClass.level ? `Niveau ${selectedClass.level}` : null,
+                  schedule,
+                ].filter(Boolean)
+                return parts.map((p, i) => (
+                  <span key={i}>
+                    {i > 0 && <span className="text-warm-300 mx-1">·</span>}
+                    {p}
+                  </span>
+                ))
+              })()}
             </div>
 
             <div className="flex items-center gap-2">

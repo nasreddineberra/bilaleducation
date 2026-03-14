@@ -33,6 +33,7 @@ interface ClassRow {
   start_time:   string | null
   end_time:     string | null
   room_number:  string | null
+  cotisation_types: { label: string; is_adult: boolean } | null
   class_teachers: ClassTeacherRow[]
 }
 
@@ -455,16 +456,18 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
     if (!selectedClass) return null
     const mainTeacher = selectedClass.class_teachers.find(t => t.is_main_teacher)
     const teacherName = mainTeacher?.teachers
-      ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
+      ? [mainTeacher.teachers.civilite, mainTeacher.teachers.first_name, mainTeacher.teachers.last_name].filter(Boolean).join(' ')
       : null
+    const cotisationLabel = selectedClass.cotisation_types?.label ?? null
     const day   = selectedClass.day_of_week ? (DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week) : null
     const start = fmtTime(selectedClass.start_time)
     const end   = fmtTime(selectedClass.end_time)
 
     const parts = [
       teacherName,
+      cotisationLabel,
+      `Niveau ${selectedClass.level}`,
       day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
-      selectedClass.room_number ? `Salle ${selectedClass.room_number}` : null,
     ].filter(Boolean)
 
     if (parts.length === 0) return null
@@ -502,7 +505,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
                   {(() => {
                     const main = selectedClass.class_teachers.find(t => t.is_main_teacher)
-                    const t = main?.teachers ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ') : null
+                    const t = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
                     return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
                   })()}
                 </span>
@@ -525,8 +528,17 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                 {classes.map(c => {
                   const main = c.class_teachers.find(t => t.is_main_teacher)
                   const teacher = main?.teachers
-                    ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
+                    ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ')
                     : null
+                  const cDay = c.day_of_week ? (DAYS[c.day_of_week] ?? c.day_of_week) : null
+                  const cStart = fmtTime(c.start_time)
+                  const cEnd = fmtTime(c.end_time)
+                  const infoParts = [
+                    teacher,
+                    c.cotisation_types?.label,
+                    `Niveau ${c.level}`,
+                    cDay && cStart ? `${cDay} ${cStart}${cEnd ? `–${cEnd}` : ''}` : cDay,
+                  ].filter(Boolean)
                   return (
                     <button
                       key={c.id}
@@ -538,7 +550,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                       )}
                     >
                       <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
+                      <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>
                     </button>
                   )
                 })}

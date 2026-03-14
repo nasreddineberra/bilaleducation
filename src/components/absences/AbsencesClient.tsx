@@ -18,6 +18,7 @@ type ClassRow = {
   end_time: string | null
   main_teacher_name: string | null
   main_teacher_civilite: string | null
+  cotisation_label: string | null
 }
 
 type StudentRow = {
@@ -174,7 +175,10 @@ export default function AbsencesClient({
           >
             {classes.length === 0
               ? <option value="">Aucune classe disponible</option>
-              : classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+              : <>
+                  {classes.length > 1 && <option value="">- S&#233;lectionner une classe -</option>}
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </>
             }
           </select>
         </div>
@@ -210,11 +214,9 @@ export default function AbsencesClient({
           if (!cls) return null
           const parts: string[] = []
           if (cls.main_teacher_name) {
-            const display = cls.main_teacher_civilite
-              ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}`
-              : cls.main_teacher_name
-            parts.push(display)
+            parts.push(cls.main_teacher_civilite ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name)
           }
+          if (cls.cotisation_label) parts.push(cls.cotisation_label)
           if (cls.level) parts.push(`Niveau ${cls.level}`)
           const timeStr  = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')

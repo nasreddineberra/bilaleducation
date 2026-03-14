@@ -12,6 +12,7 @@ type ClassRow = {
   end_time: string | null
   main_teacher_name: string | null
   main_teacher_civilite: string | null
+  cotisation_label: string | null
 }
 
 type EvaluationRow = {
@@ -25,6 +26,7 @@ type EvaluationRow = {
   evaluation_date: string | null
   display_module_id: string | null
   display_ue_id: string | null
+  sort_order: number | null
 }
 
 type StudentRow = {
@@ -95,11 +97,11 @@ export default async function BulletinsPage() {
   if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
     const query = supabase
       .from('classes')
-      .select('id, name, level, day_of_week, start_time, end_time')
+      .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null })) as ClassRow[]
+    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -119,12 +121,12 @@ export default async function BulletinsPage() {
       if (classIds.length > 0) {
         const query = supabase
           .from('classes')
-          .select('id, name, level, day_of_week, start_time, end_time')
+          .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
           .in('id', classIds)
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null })) as ClassRow[]
+        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
       }
     }
   }
@@ -166,7 +168,7 @@ export default async function BulletinsPage() {
   if (classIds.length > 0) {
     const { data, error } = await supabase
       .from('evaluations')
-      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id')
+      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
       .eq('etablissement_id', etablissementId)
       .in('class_id', classIds)
       .not('cours_id', 'is', null)
@@ -180,7 +182,7 @@ export default async function BulletinsPage() {
         .in('class_id', classIds)
         .not('cours_id', 'is', null)
       evaluations = ((data2 ?? []) as any[]).map(e => ({
-        ...e, display_module_id: null, display_ue_id: null,
+        ...e, display_module_id: null, display_ue_id: null, sort_order: null,
       }))
     }
   }
@@ -254,7 +256,18 @@ export default async function BulletinsPage() {
     appreciations = (data ?? []) as AppreciationRow[]
   }
 
-  // 11. Infos établissement
+  // 11. Order configs (gabarit) pour chaque classe/période
+  type OrderConfigRow = { class_id: string; period_id: string; ue_order: string[]; module_order: Record<string, string[]> }
+  let orderConfigs: OrderConfigRow[] = []
+  if (classIds.length > 0) {
+    const { data } = await supabase
+      .from('evaluation_order_config')
+      .select('class_id, period_id, ue_order, module_order')
+      .in('class_id', classIds)
+    orderConfigs = (data ?? []) as OrderConfigRow[]
+  }
+
+  // 12. Infos établissement
   const { data: etab } = await supabase
     .from('etablissements')
     .select('nom, adresse, telephone, logo_url')
@@ -285,6 +298,7 @@ export default async function BulletinsPage() {
         etablissementId={etablissementId}
         initialArchives={archives}
         initialAppreciations={appreciations}
+        orderConfigs={orderConfigs}
       />
     </div>
   )

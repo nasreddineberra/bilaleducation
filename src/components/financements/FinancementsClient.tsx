@@ -96,11 +96,14 @@ function buildClassTooltip(cls: any): string | null {
   const teacherName = mainTeacher?.teachers
     ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
     : null
+  const cotisLabel = cls?.cotisation_types?.label ?? null
   const parts = [
-    day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
     teacherName,
+    cotisLabel,
+    cls?.level ? `Niveau ${cls.level}` : null,
+    day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
   ].filter(Boolean)
-  return parts.length ? parts.join('\n') : null
+  return parts.length ? parts.join(' · ') : null
 }
 
 function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {

@@ -102,7 +102,7 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
   // ── Informations élève ─────────────────────────────────────────────────────
 
   doc.setFillColor(...COLORS.headerBg)
-  doc.roundedRect(margin, y, contentWidth, 20, 2, 2, 'F')
+  doc.roundedRect(margin, y, contentWidth, 27, 2, 2, 'F')
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
@@ -121,16 +121,22 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
   doc.text('Classe :', margin + contentWidth / 2, y + 6)
   doc.setFont('helvetica', 'normal')
   const classInfo = data.classSchedule
-    ? `${data.className} – ${data.classLevel} (${data.classSchedule})`
-    : `${data.className} – ${data.classLevel}`
+    ? `${data.className} ${data.classSchedule}`
+    : data.className
   doc.text(classInfo, margin + contentWidth / 2 + 20, y + 6)
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Enseignant :', margin + contentWidth / 2, y + 13)
+  doc.text('Scolarité :', margin + contentWidth / 2, y + 13)
   doc.setFont('helvetica', 'normal')
-  doc.text(data.teacherName || '–', margin + contentWidth / 2 + 28, y + 13)
+  const scolariteInfo = [data.cotisationLabel, data.classLevel ? `Niveau ${data.classLevel}` : null].filter(Boolean).join(' ')
+  doc.text(scolariteInfo, margin + contentWidth / 2 + 26, y + 13)
 
-  y += 25
+  doc.setFont('helvetica', 'bold')
+  doc.text('Enseignant :', margin + contentWidth / 2, y + 20)
+  doc.setFont('helvetica', 'normal')
+  doc.text(data.teacherName || '–', margin + contentWidth / 2 + 28, y + 20)
+
+  y += 32
 
   // ── Légende diagnostique (au-dessus du tableau) ────────────────────────────
 

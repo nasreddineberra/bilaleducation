@@ -39,7 +39,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   // Données scolarité : inscriptions avec classe + année scolaire
   const { data: enrollments } = await supabase
     .from('enrollments')
-    .select('id, class_id, enrollment_date, status, classes(id, name, level, academic_year, day_of_week, start_time, end_time)')
+    .select('id, class_id, enrollment_date, status, classes(id, name, level, academic_year, day_of_week, start_time, end_time, cotisation_types(label))')
     .eq('student_id', id)
     .order('enrollment_date', { ascending: false })
 

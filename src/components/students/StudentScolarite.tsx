@@ -19,6 +19,7 @@ type EnrollmentRow = {
     day_of_week: string | null
     start_time: string | null
     end_time: string | null
+    cotisation_types: { label: string } | null
   } | null
 }
 
@@ -196,14 +197,15 @@ export default function StudentScolarite({
                         </span>
                       </div>
                       <p className="text-[11px] text-warm-400 mt-0.5">
-                        {cls.day_of_week && (
+                        {teacher && <>{teacher} · </>}
+                        {cls.cotisation_types?.label && <>{cls.cotisation_types.label} · </>}
+                        Niveau {cls.level} · {cls.day_of_week && (
                           <>
                             {cls.day_of_week}
                             {cls.start_time && cls.end_time && ` ${cls.start_time.slice(0, 5)}–${cls.end_time.slice(0, 5)}`}
                             {' · '}
                           </>
                         )}
-                        {teacher && <>{teacher} · </>}
                         Inscrit le {new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}
                       </p>
                     </div>

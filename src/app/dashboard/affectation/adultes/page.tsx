@@ -22,7 +22,7 @@ export default async function AffectationAdultesPage() {
           .from('classes')
           .select(`
             id, name, level, max_students, day_of_week, start_time, end_time, room_number,
-            cotisation_types(is_adult),
+            cotisation_types(label, is_adult),
             class_teachers (
               is_main_teacher,
               subject,

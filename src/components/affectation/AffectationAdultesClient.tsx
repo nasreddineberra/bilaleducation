@@ -33,6 +33,7 @@ interface ClassRow {
   end_time:     string | null
   room_number:  string | null
   class_teachers: ClassTeacherRow[]
+  cotisation_types: { label: string; is_adult: boolean } | null
 }
 
 interface ParentRow {
@@ -109,8 +110,8 @@ function buildClassTooltip(cls: ClassRow): string | null {
   const schedule = day
     ? `${day}${start ? ` ${start}${end ? `–${end}` : ''}` : ''}`
     : null
-  const parts = [teacherName, schedule].filter(Boolean)
-  return parts.length ? parts.join('\n') : null
+  const parts = [teacherName, cls.cotisation_types?.label, cls.level ? `Niveau ${cls.level}` : null, schedule].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
 }
 
 function DraggableTutorCard({
@@ -402,8 +403,9 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     const end   = fmtTime(selectedClass.end_time)
     const parts = [
       teacherName,
+      selectedClass.cotisation_types?.label,
+      selectedClass.level ? `Niveau ${selectedClass.level}` : null,
       day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
-      selectedClass.room_number ? `Salle ${selectedClass.room_number}` : null,
     ].filter(Boolean)
     if (parts.length === 0) return null
     return (

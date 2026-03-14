@@ -12,6 +12,7 @@ type ClassRow = {
   end_time: string | null
   main_teacher_name: string | null
   main_teacher_civilite: string | null
+  cotisation_label: string | null
 }
 
 type StudentRow = {
@@ -58,11 +59,11 @@ export default async function AbsencesPage() {
   if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
     const query = supabase
       .from('classes')
-      .select('id, name, level, day_of_week, start_time, end_time')
+      .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null })) as ClassRow[]
+    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -82,12 +83,12 @@ export default async function AbsencesPage() {
       if (classIds.length > 0) {
         const query = supabase
           .from('classes')
-          .select('id, name, level, day_of_week, start_time, end_time')
+          .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
           .in('id', classIds)
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null })) as ClassRow[]
+        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
       }
     }
   }
