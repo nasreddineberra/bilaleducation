@@ -39,7 +39,7 @@ function fmtEur(n: number) {
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export default function CotisationsClient({ currentYear, cotisationTypes: initial, classesWithoutCount }: Props) {
+export default function CotisationsClient({ currentYear, cotisationTypes: initial, classesWithoutCount, hourlyRates: initialRates }: Props & { hourlyRates?: any }) {
   const router   = useRouter()
   const supabase = createClient()
 
@@ -49,6 +49,13 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
   const [error, setError]                     = useState<string | null>(null)
   const [success, setSuccess]                 = useState<string | null>(null)
   const [saving, setSaving]                   = useState(false)
+
+  // Taux horaires
+  const [rateCours, setRateCours]       = useState(initialRates?.rate_cours?.toString() ?? '')
+  const [rateActivite, setRateActivite] = useState(initialRates?.rate_activite?.toString() ?? '')
+  const [rateMenage, setRateMenage]     = useState(initialRates?.rate_menage?.toString() ?? '')
+  const [rateSaving, setRateSaving]     = useState(false)
+  const [rateSuccess, setRateSuccess]   = useState<string | null>(null)
 
   // ── Pas d'année en cours ──────────────────────────────────────────────────
 
@@ -310,8 +317,7 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
       {/* En-tete */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-secondary-800">Côtisations</h1>
-          <p className="text-sm text-warm-500 mt-0.5">
+          <p className="text-sm text-warm-500">
             Annee scolaire : <span className="font-medium text-secondary-700">{currentYear.label}</span>
           </p>
         </div>
@@ -460,6 +466,95 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
           </Link>
         </div>
       )}
+
+      {/* ── Taux horaires ────────────────────────────────────────────── */}
+      <div className="card overflow-hidden">
+        <div className="px-4 py-3 border-b border-warm-100 bg-warm-50">
+          <h2 className="text-sm font-bold text-secondary-800">Taux horaires — {currentYear.label}</h2>
+          <p className="text-xs text-warm-400 mt-0.5">Utilises pour le calcul du cout dans le temps de presence</p>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Cours</label>
+              <div className="relative mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rateCours}
+                  onChange={e => setRateCours(e.target.value)}
+                  className="input text-sm py-1.5 pr-10 w-full"
+                  placeholder="0.00"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">/h</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Activite scolaire</label>
+              <div className="relative mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rateActivite}
+                  onChange={e => setRateActivite(e.target.value)}
+                  className="input text-sm py-1.5 pr-10 w-full"
+                  placeholder="0.00"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">/h</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Menage</label>
+              <div className="relative mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rateMenage}
+                  onChange={e => setRateMenage(e.target.value)}
+                  className="input text-sm py-1.5 pr-10 w-full"
+                  placeholder="0.00"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">/h</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-4">
+            <button
+              disabled={rateSaving}
+              onClick={async () => {
+                setRateSaving(true)
+                setRateSuccess(null)
+                setError(null)
+                const payload = {
+                  school_year_id: currentYear.id,
+                  rate_cours: parseFloat(rateCours) || 0,
+                  rate_activite: parseFloat(rateActivite) || 0,
+                  rate_menage: parseFloat(rateMenage) || 0,
+                }
+                const { error: err } = initialRates?.id
+                  ? await supabase.from('staff_hourly_rates').update(payload).eq('id', initialRates.id)
+                  : await supabase.from('staff_hourly_rates').insert(payload)
+                setRateSaving(false)
+                if (err) { setError(err.message); return }
+                setRateSuccess('Taux horaires enregistres')
+                router.refresh()
+                setTimeout(() => setRateSuccess(null), 3000)
+              }}
+              className="btn-primary text-xs px-4 py-1.5"
+            >
+              {rateSaving ? 'Enregistrement...' : 'Enregistrer les taux'}
+            </button>
+            {rateSuccess && (
+              <span className="flex items-center gap-1 text-xs text-success-600">
+                <CheckCircle2 size={14} /> {rateSuccess}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

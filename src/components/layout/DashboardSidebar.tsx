@@ -25,6 +25,8 @@ import {
   Send,
   Inbox,
   UsersRound,
+  Bell,
+  Clock,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
@@ -62,6 +64,18 @@ const navItems: NavItem[] = [
     href:  '/dashboard',
     icon:  LayoutDashboard,
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+  },
+  {
+    name:  'Notifications',
+    href:  '/dashboard/notifications',
+    icon:  Bell,
+    roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+  },
+  {
+    name:  'Temps de presence',
+    href:  '/dashboard/temps-presence',
+    icon:  Clock,
+    roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire'],
   },
   {
     name:  'Apprenants',
@@ -152,9 +166,22 @@ const navItems: NavItem[] = [
   },
   {
     name:  'Financements',
-    href:  '/dashboard/financements',
     icon:  DollarSign,
     roles: ['admin', 'direction', 'comptable', 'parent'],
+    children: [
+      {
+        name:  'Vue globale',
+        href:  '/dashboard/financements',
+        icon:  DollarSign,
+        roles: ['admin', 'direction', 'comptable'],
+      },
+      {
+        name:  'Reglements',
+        href:  '/dashboard/financements/reglements',
+        icon:  Wallet,
+        roles: ['admin', 'direction', 'comptable', 'parent'],
+      },
+    ],
   },
   {
     name:  'Paramètres',
@@ -199,7 +226,7 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction'],
       },
       {
-        name:  'Côtisations',
+        name:  'Financiers',
         href:  '/dashboard/cotisations',
         icon:  Wallet,
         roles: ['admin', 'direction', 'comptable'],

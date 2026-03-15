@@ -29,6 +29,32 @@ export default async function DashboardLayout({
     supabase.from('school_years').select('label').eq('is_current', true).maybeSingle(),
   ])
 
+  // Compteur notifications non lues (staff)
+  const { count: staffUnread } = await supabase
+    .from('announcement_staff_recipients')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', user.id)
+    .eq('is_read', false)
+
+  // Compteur notifications non lues (parent)
+  const { data: parentLink } = await supabase
+    .from('parents')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  let parentUnread = 0
+  if (parentLink) {
+    const { count } = await supabase
+      .from('announcement_recipients')
+      .select('id', { count: 'exact', head: true })
+      .eq('parent_id', parentLink.id)
+      .eq('is_read', false)
+    parentUnread = count ?? 0
+  }
+
+  const unreadNotifCount = (staffUnread ?? 0) + parentUnread
+
   return (
     <div className="h-screen overflow-hidden bg-warm-50 flex">
       {/* Sidebar fixe à gauche */}
@@ -40,7 +66,7 @@ export default async function DashboardLayout({
 
       {/* Zone droite : navbar + contenu */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <DashboardNav user={user} profile={profile} />
+        <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} />
         <main className="flex-1 px-8 pt-5 pb-4 overflow-y-auto">
           {children}
         </main>

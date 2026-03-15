@@ -28,12 +28,22 @@ export default async function CotisationsPage() {
         .is('cotisation_type_id', null)
     : { count: 0 }
 
+  // Taux horaires pour l'annee en cours
+  const { data: hourlyRates } = currentYear
+    ? await supabase
+        .from('staff_hourly_rates')
+        .select('*')
+        .eq('school_year_id', currentYear.id)
+        .maybeSingle()
+    : { data: null }
+
   return (
     <div className="h-full animate-fade-in">
       <CotisationsClient
         currentYear={currentYear}
         cotisationTypes={(cotisationTypes ?? []) as any[]}
         classesWithoutCount={classesWithout ?? 0}
+        hourlyRates={hourlyRates as any}
       />
     </div>
   )

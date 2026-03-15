@@ -29,13 +29,16 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/communications':        'Messages envoyés',
   '/dashboard/communications/new':    'Nouveau message',
   '/dashboard/communications/staff':  'Communication interne',
-  '/dashboard/financements':      'Financements',
+  '/dashboard/notifications':      'Notifications',
+  '/dashboard/temps-presence':     'Temps de presence',
+  '/dashboard/financements':              'Vue globale financements',
+  '/dashboard/financements/reglements':  'Reglements',
   '/dashboard/etablissement':     'Établissement',
   '/dashboard/utilisateurs':      'Utilisateurs',
   '/dashboard/annee-scolaire':    'Année scolaire',
   '/dashboard/annee-scolaire/new':'Nouvelle année scolaire',
   '/dashboard/cours':             'Référentiel des cours',
-  '/dashboard/cotisations':       'Côtisations',
+  '/dashboard/cotisations':       'Financiers',
 }
 
 function getPageTitle(pathname: string): string {
@@ -44,6 +47,7 @@ function getPageTitle(pathname: string): string {
   if (/^\/dashboard\/parents\//.test(pathname))        return 'Fiche parents'
   if (/^\/dashboard\/teachers\//.test(pathname))       return 'Fiche enseignant'
   if (/^\/dashboard\/utilisateurs\//.test(pathname))   return 'Utilisateur'
+  if (/^\/dashboard\/notifications\//.test(pathname))   return 'Notification'
   if (/^\/dashboard\/classes\//.test(pathname))        return 'Fiche classe'
   if (/^\/dashboard\/annee-scolaire\//.test(pathname)) return 'Année scolaire'
   return 'Tableau de bord'
@@ -54,9 +58,10 @@ function getPageTitle(pathname: string): string {
 interface DashboardNavProps {
   user: SupabaseUser
   profile: Profile | null
+  unreadNotifCount?: number
 }
 
-export default function DashboardNav({ user, profile }: DashboardNavProps) {
+export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: DashboardNavProps) {
   const router   = useRouter()
   const pathname = usePathname()
 
@@ -83,10 +88,18 @@ export default function DashboardNav({ user, profile }: DashboardNavProps) {
 
         <div className="flex items-center gap-3 ml-auto">
           {/* Notifications */}
-          <button className="relative p-2 text-secondary-400 hover:text-secondary-600 hover:bg-warm-100 rounded-xl transition-all duration-200">
+          <Link
+            href="/dashboard/notifications"
+            className="relative p-2 text-secondary-400 hover:text-secondary-600 hover:bg-warm-100 rounded-xl transition-all duration-200"
+            title="Notifications"
+          >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger-500 rounded-full ring-2 ring-white" />
-          </button>
+            {unreadNotifCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-danger-500 text-white text-[10px] font-bold rounded-full ring-2 ring-white px-1">
+                {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+              </span>
+            )}
+          </Link>
 
           {/* Séparateur */}
           <div className="w-px h-6 bg-warm-200" />

@@ -210,12 +210,12 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees }: Props) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, initialParentId }: Props & { initialParentId?: string }) {
   const supabase = createClient()
 
   const parentOptions = useMemo(() => parseParents(rawParents, adultEnrollments), [rawParents, adultEnrollments])
 
-  const [selectedParentId, setSelectedParentId] = useState<string>('')
+  const [selectedParentId, setSelectedParentId] = useState<string>(initialParentId ?? '')
   const [familyFees, setFamilyFees]             = useState<any[]>(initialFees)
   const familyFeesRef = useRef(familyFees)
   familyFeesRef.current = familyFees
