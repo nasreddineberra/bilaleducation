@@ -479,7 +479,7 @@ export interface ParentClassEnrollment {
 
 export type FeeStatus = 'pending' | 'partial' | 'paid' | 'overpaid'
 
-export type AdjustmentType = 'reduction' | 'avoir'
+export type AdjustmentType = 'reduction' | 'avoir' | 'remboursement'
 
 export type FeePaymentMethod = 'cash' | 'check' | 'card' | 'transfer' | 'online'
 

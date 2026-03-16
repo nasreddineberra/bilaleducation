@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import TempsPresenceClient from '@/components/temps-presence/TempsPresenceClient'
 
-export default async function TempsPresencePage() {
+export default async function TempsPresencePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
+  const { month: initialMonth } = await searchParams
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,7 +16,7 @@ export default async function TempsPresencePage() {
 
   const role = profile?.role ?? 'enseignant'
   const canManageAll = ['admin', 'direction', 'secretaire', 'comptable'].includes(role)
-  const canSeeRecap = ['admin', 'direction', 'comptable'].includes(role)
+  const canSeeRecap = ['admin', 'direction', 'comptable', 'resp_pedagogique'].includes(role)
 
   // Annee scolaire courante
   const { data: currentYear } = await supabase
@@ -55,6 +56,7 @@ export default async function TempsPresencePage() {
         staffList={(staffList ?? []) as any[]}
         hourlyRates={hourlyRates as any}
         schoolYearId={currentYear?.id ?? null}
+        initialMonth={initialMonth}
       />
     </div>
   )

@@ -19,6 +19,7 @@ interface Props {
   currentUserId: string
   canManageAll: boolean
   staffList: StaffMember[]
+  existingEntries: TimeEntry[]
   onClose: () => void
   onSaved: () => void
 }
@@ -30,7 +31,7 @@ const TYPE_OPTIONS: { value: EntryType; label: string; color: string }[] = [
   { value: 'absence',  label: 'Absence',  color: 'peer-checked:bg-red-500 peer-checked:text-white' },
 ]
 
-export default function TimeEntryModal({ date, entry, currentUserId, canManageAll, staffList, onClose, onSaved }: Props) {
+export default function TimeEntryModal({ date, entry, currentUserId, canManageAll, staffList, existingEntries, onClose, onSaved }: Props) {
   const supabase = createClient()
   const isEdit = !!entry
 
@@ -66,6 +67,27 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
       }
     }
 
+    // Vérification chevauchement de créneaux pour la même personne
+    if (!isAbsence && startTime && endTime) {
+      const newStart = startTime
+      const newEnd = endTime
+      const overlap = existingEntries.find(e => {
+        if (e.profile_id !== profileId) return false
+        if (isEdit && e.id === entry!.id) return false
+        if (e.entry_type === 'absence' || !e.start_time || !e.end_time) return false
+        const eStart = e.start_time.slice(0, 5)
+        const eEnd = e.end_time.slice(0, 5)
+        return newStart < eEnd && newEnd > eStart
+      })
+      if (overlap) {
+        const s = staffList.find(st => st.id === profileId)
+        const name = s ? `${s.last_name} ${s.first_name}` : 'Cette personne'
+        setError(`${name} a deja un creneau de ${overlap.start_time?.slice(0, 5)} a ${overlap.end_time?.slice(0, 5)} ce jour. Les creneaux ne peuvent pas se chevaucher.`)
+        setSaving(false)
+        return
+      }
+    }
+
     const payload = {
       profile_id: profileId,
       entry_date: date,
@@ -90,7 +112,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
 
         {/* Header */}

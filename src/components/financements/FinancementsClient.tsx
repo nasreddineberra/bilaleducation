@@ -267,20 +267,21 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       new Date(a.adjustment_date).getTime() - new Date(b.adjustment_date).getTime()
     )
   const adjustmentsTotal = adjustments.reduce((acc, a) => acc + a.amount, 0)
-  const totalDue = subtotal + adjustmentsTotal
+  const totalDue = subtotal
 
   const payments: FeeInstallment[] = (currentFee?.fee_installments ?? [])
     .sort((a: FeeInstallment, b: FeeInstallment) =>
       new Date(a.paid_date ?? a.created_at).getTime() - new Date(b.paid_date ?? b.created_at).getTime()
     )
   const totalPaid = payments.reduce((acc, p) => acc + p.amount_paid, 0)
-  const remaining = totalDue - totalPaid
+  const netPercu = totalPaid + adjustmentsTotal // paiements - |réductions|
+  const remaining = totalDue - netPercu
 
   const derivedStatus: FeeStatus =
-    totalPaid > totalDue && totalDue > 0 ? 'overpaid'
+    netPercu > totalDue && totalDue > 0 ? 'overpaid'
     : totalDue <= 0    ? 'paid'
-    : totalPaid >= totalDue ? 'paid'
-    : totalPaid > 0  ? 'partial'
+    : netPercu >= totalDue ? 'paid'
+    : netPercu > 0  ? 'partial'
     : 'pending'
 
   // ── Créer/récupérer le family_fee ────────────────────────────────────────
@@ -320,9 +321,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
   const addAdjustment = async () => {
     const label = adjForm.label.trim()
-    const amount = parseFloat(adjForm.amount)
+    const rawAmount = parseFloat(adjForm.amount)
     if (!label) { setError('Le motif est obligatoire.'); return }
-    if (isNaN(amount) || amount >= 0) { setError('Le montant doit etre negatif (ex: -50).'); return }
+    if (isNaN(rawAmount) || rawAmount <= 0) { setError('Le montant doit être supérieur à 0.'); return }
+    const amount = -Math.abs(rawAmount)
 
     const feeId = await ensureFamilyFee()
     if (!feeId) return
@@ -344,12 +346,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       if (err) throw err
 
       const newAdjTotal = adjustmentsTotal + amount
-      const newTotalDue = subtotal + newAdjTotal
-      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: newTotalDue }).eq('id', feeId)
+      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: subtotal }).eq('id', feeId)
 
       setFamilyFees(prev => prev.map(f =>
         f.id === feeId
-          ? { ...f, adjustments_total: newAdjTotal, total_due: newTotalDue, fee_adjustments: [...(f.fee_adjustments ?? []), data] }
+          ? { ...f, adjustments_total: newAdjTotal, total_due: subtotal, fee_adjustments: [...(f.fee_adjustments ?? []), data] }
           : f
       ))
       setAddingAdjustment(false)
@@ -370,11 +371,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       const { error: err } = await supabase.from('fee_adjustments').delete().eq('id', adj.id)
       if (err) throw err
       const newAdjTotal = adjustmentsTotal - adj.amount
-      const newTotalDue = subtotal + newAdjTotal
-      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: newTotalDue }).eq('id', currentFee.id)
+      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: subtotal }).eq('id', currentFee.id)
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
-          ? { ...f, adjustments_total: newAdjTotal, total_due: newTotalDue, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
+          ? { ...f, adjustments_total: newAdjTotal, total_due: subtotal, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
           : f
       ))
       setSuccess('Ajustement supprime.')
@@ -602,100 +602,6 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </table>
             </div>
 
-            {/* Réductions & Avoirs */}
-            <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Reductions & Avoirs</h3>
-                {!addingAdjustment && (
-                  <button
-                    onClick={() => { setAddingAdjustment(true); setError(null); setSuccess(null) }}
-                    className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"
-                  >
-                    <Plus size={13} /> Ajouter
-                  </button>
-                )}
-              </div>
-
-              {addingAdjustment && (
-                <div className="p-3 border-b border-warm-100 bg-primary-50/20 space-y-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div>
-                      <label className="text-xs font-medium text-warm-500 mb-0.5 block">Date</label>
-                      <input type="date" value={adjForm.date} onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))} className="input text-sm" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-warm-500 mb-0.5 block">Type</label>
-                      <select value={adjForm.type} onChange={e => setAdjForm(f => ({ ...f, type: e.target.value as AdjustmentType }))} className="input text-sm">
-                        <option value="reduction">Reduction</option>
-                        <option value="avoir">Avoir</option>
-                      </select>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="text-xs font-medium text-warm-500 mb-0.5 block">Motif</label>
-                      <input type="text" placeholder="Famille nombreuse..." value={adjForm.label} onChange={e => setAdjForm(f => ({ ...f, label: e.target.value }))} className="input text-sm" />
-                    </div>
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <div className="w-36">
-                      <label className="text-xs font-medium text-warm-500 mb-0.5 block">Montant (negatif)</label>
-                      <div className="relative">
-                        <input type="number" max="0" step="0.01" placeholder="-50" value={adjForm.amount} onChange={e => setAdjForm(f => ({ ...f, amount: e.target.value }))} className="input text-sm pr-8" />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
-                      </div>
-                    </div>
-                    <button onClick={addAdjustment} disabled={saving} className="btn btn-primary text-sm flex items-center gap-1">
-                      <Check size={14} /> Valider
-                    </button>
-                    <button onClick={() => setAddingAdjustment(false)} disabled={saving} className="btn btn-secondary text-sm">Annuler</button>
-                  </div>
-                </div>
-              )}
-
-              {adjustments.length > 0 ? (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-warm-100 bg-warm-50/30">
-                      <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
-                      <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                      <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Motif</th>
-                      <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
-                      <th className="px-3 py-2 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adjustments.map(a => (
-                      <tr key={a.id} className="border-b border-warm-50">
-                        <td className="px-3 py-2 text-sm text-secondary-600">{fmtDate(a.adjustment_date)}</td>
-                        <td className="px-3 py-2">
-                          <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium',
-                            a.adjustment_type === 'reduction' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
-                          )}>
-                            {a.adjustment_type === 'reduction' ? 'Reduction' : 'Avoir'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-sm text-secondary-700">{a.label}</td>
-                        <td className="px-3 py-2 text-sm font-medium text-green-600 text-right tabular-nums">{fmtEur(a.amount)}</td>
-                        <td className="px-3 py-2">
-                          <button onClick={() => removeAdjustment(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-warm-50/60">
-                      <td colSpan={3} className="px-3 py-2 text-sm font-semibold text-secondary-700 text-right">Total reductions</td>
-                      <td className="px-3 py-2 text-sm font-bold text-green-700 text-right tabular-nums">{fmtEur(adjustmentsTotal)}</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              ) : !addingAdjustment && (
-                <div className="px-4 py-6 text-center text-sm text-warm-400">Aucune reduction ni avoir.</div>
-              )}
-            </div>
-
           </div>
 
           {/* ── Colonne droite : Paiements ── */}
@@ -827,6 +733,101 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             )}
           </div>
 
+          {/* Réductions & Avoirs */}
+          <div className="card overflow-hidden">
+            <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Réductions & Avoirs</h3>
+              {!addingAdjustment && (
+                <button
+                  onClick={() => { setAddingAdjustment(true); setError(null); setSuccess(null) }}
+                  className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"
+                >
+                  <Plus size={13} /> Ajouter
+                </button>
+              )}
+            </div>
+
+            {addingAdjustment && (
+              <div className="p-3 border-b border-warm-100 bg-primary-50/20 space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Date</label>
+                    <input type="date" value={adjForm.date} onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))} className="input text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Type</label>
+                    <select value={adjForm.type} onChange={e => setAdjForm(f => ({ ...f, type: e.target.value as AdjustmentType }))} className="input text-sm">
+                      <option value="reduction">Réduction</option>
+                      <option value="avoir">Avoir</option>
+                      <option value="remboursement">Remboursement</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Motif</label>
+                    <input type="text" placeholder="Famille nombreuse..." value={adjForm.label} onChange={e => setAdjForm(f => ({ ...f, label: e.target.value }))} className="input text-sm" />
+                  </div>
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="w-36">
+                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Montant</label>
+                    <div className="relative">
+                      <input type="number" min="0" step="0.01" placeholder="50" value={adjForm.amount} onChange={e => setAdjForm(f => ({ ...f, amount: e.target.value }))} className="input text-sm pr-8" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
+                    </div>
+                  </div>
+                  <button onClick={addAdjustment} disabled={saving} className="btn btn-primary text-sm flex items-center gap-1">
+                    <Check size={14} /> Valider
+                  </button>
+                  <button onClick={() => setAddingAdjustment(false)} disabled={saving} className="btn btn-secondary text-sm">Annuler</button>
+                </div>
+              </div>
+            )}
+
+            {adjustments.length > 0 ? (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-warm-100 bg-warm-50/30">
+                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Motif</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
+                    <th className="px-3 py-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adjustments.map(a => (
+                    <tr key={a.id} className="border-b border-warm-50">
+                      <td className="px-3 py-2 text-sm text-secondary-600">{fmtDate(a.adjustment_date)}</td>
+                      <td className="px-3 py-2">
+                        <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium',
+                          a.adjustment_type === 'reduction' ? 'bg-blue-50 text-blue-700' : a.adjustment_type === 'remboursement' ? 'bg-orange-50 text-orange-700' : 'bg-purple-50 text-purple-700'
+                        )}>
+                          {a.adjustment_type === 'reduction' ? 'Réduction' : a.adjustment_type === 'remboursement' ? 'Remboursement' : 'Avoir'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-sm text-secondary-700">{a.label}</td>
+                      <td className="px-3 py-2 text-sm font-medium text-green-600 text-right tabular-nums">{fmtEur(Math.abs(a.amount))}</td>
+                      <td className="px-3 py-2">
+                        <button onClick={() => removeAdjustment(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-warm-50/60">
+                    <td colSpan={3} className="px-3 py-2 text-sm font-semibold text-secondary-700 text-right">Total réductions</td>
+                    <td className="px-3 py-2 text-sm font-bold text-green-700 text-right tabular-nums">{fmtEur(Math.abs(adjustmentsTotal))}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            ) : !addingAdjustment && (
+              <div className="px-4 py-6 text-center text-sm text-warm-400">Aucune réduction ni avoir.</div>
+            )}
+          </div>
+
           </div>
 
         </div>
@@ -836,20 +837,20 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           <div className="card p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-secondary-700">{`TOTAL D\u00DB`}</span>
-              <div className="text-right">
-                {adjustmentsTotal !== 0 && (
-                  <span className="text-xs text-warm-500 mr-1">
-                    {fmtEur(subtotal)} {adjustmentsTotal < 0 ? '-' : '+'} {fmtEur(Math.abs(adjustmentsTotal))} =
-                  </span>
-                )}
-                <span className="text-lg font-bold text-secondary-800">{fmtEur(totalDue)}</span>
-              </div>
+              <span className="text-lg font-bold text-secondary-800">{fmtEur(totalDue)}</span>
             </div>
           </div>
           <div className="card p-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-secondary-700">{`TOTAL PER\u00C7U`}</span>
-              <span className="text-lg font-bold text-secondary-800">{fmtEur(totalPaid)}</span>
+              <div className="text-right">
+                {adjustmentsTotal !== 0 && (
+                  <span className="text-xs text-warm-500 mr-1">
+                    {fmtEur(totalPaid)} - {fmtEur(Math.abs(adjustmentsTotal))} =
+                  </span>
+                )}
+                <span className="text-lg font-bold text-secondary-800">{fmtEur(netPercu)}</span>
+              </div>
             </div>
           </div>
         </div>

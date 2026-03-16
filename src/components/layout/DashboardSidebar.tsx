@@ -27,6 +27,7 @@ import {
   UsersRound,
   Bell,
   Clock,
+  Eye,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
@@ -170,16 +171,22 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'comptable', 'parent'],
     children: [
       {
-        name:  'Vue globale',
-        href:  '/dashboard/financements',
-        icon:  DollarSign,
-        roles: ['admin', 'direction', 'comptable'],
-      },
-      {
-        name:  'Reglements',
+        name:  'Règlements',
         href:  '/dashboard/financements/reglements',
         icon:  Wallet,
         roles: ['admin', 'direction', 'comptable', 'parent'],
+      },
+      {
+        name:  'Stats règlements',
+        href:  '/dashboard/financements/vue-globale',
+        icon:  Eye,
+        roles: ['admin', 'direction', 'comptable'],
+      },
+      {
+        name:  'Situation financière',
+        href:  '/dashboard/financements',
+        icon:  DollarSign,
+        roles: ['admin', 'direction', 'comptable'],
       },
     ],
   },

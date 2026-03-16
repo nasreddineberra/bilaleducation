@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import VueGlobaleClient from '@/components/financements/VueGlobaleClient'
+import SyntheseClient from '@/components/financements/SyntheseClient'
 
-export default async function VueGlobalePage() {
+export default async function SynthesePage() {
   const supabase = await createClient()
 
   // Annee en cours
@@ -19,7 +19,7 @@ export default async function VueGlobalePage() {
     )
   }
 
-  // ── Eleves actifs inscrits cette annee avec cotisation ────────────────
+  // ── Cotisations : eleves actifs inscrits cette annee ────────────────────
   const { data: parentsRaw } = await supabase
     .from('parents')
     .select(`
@@ -40,28 +40,25 @@ export default async function VueGlobalePage() {
     .eq('students.is_active', true)
     .eq('students.enrollments.status', 'active')
     .eq('students.enrollments.classes.academic_year', currentYear.label)
-    .order('tutor1_last_name')
 
-  // ── Inscriptions adultes ─────────────────────────────────────────────
+  // Inscriptions adultes
   const { data: adultEnrollments } = await supabase
     .from('parent_class_enrollments')
-    .select(`
-      parent_id, tutor_number,
-      classes ( cotisation_types ( id, amount, registration_fee ) )
-    `)
+    .select(`parent_id, tutor_number, classes ( cotisation_types ( id, amount, registration_fee ) )`)
     .eq('status', 'active')
 
-  // ── Paiements (fee_installments via family_fees) ─────────────────────
+  // Paiements (fee_installments via family_fees)
   const { data: familyFees } = await supabase
     .from('family_fees')
-    .select('id, parent_id, status, total_due, fee_installments ( amount_paid )')
+    .select('id, parent_id, total_due, fee_installments ( amount_paid ), fee_adjustments ( amount )')
     .eq('school_year_id', currentYear.id)
 
-  // Index paiements par parent
-  const feeByParent: Record<string, { status: string; paid: number }> = {}
+  // Index paiements par parent (netPercu = paiements + ajustements)
+  const feeByParent: Record<string, number> = {}
   for (const ff of (familyFees ?? []) as any[]) {
     const paid = (ff.fee_installments ?? []).reduce((s: number, i: any) => s + Number(i.amount_paid || 0), 0)
-    feeByParent[ff.parent_id] = { status: ff.status, paid }
+    const adj = (ff.fee_adjustments ?? []).reduce((s: number, a: any) => s + Number(a.amount || 0), 0)
+    feeByParent[ff.parent_id] = (feeByParent[ff.parent_id] ?? 0) + paid + adj
   }
 
   // Index adult enrollments par parent
@@ -71,47 +68,19 @@ export default async function VueGlobalePage() {
     adultByParent[ae.parent_id].push(ae)
   }
 
-  // ── Calcul par famille ───────────────────────────────────────────────
-  // Collecter tous les parent_ids (eleves + adultes)
+  // Tous les parent_ids (eleves + adultes)
   const allParentIds = new Set<string>()
   for (const p of (parentsRaw ?? [])) allParentIds.add(p.id)
   for (const ae of (adultEnrollments ?? []) as any[]) allParentIds.add(ae.parent_id)
 
-  // Recup info parents manquants (adultes sans eleve)
-  const parentMap: Record<string, { id: string; tutor1_last_name: string; tutor1_first_name: string; tutor2_last_name: string | null; tutor2_first_name: string | null }> = {}
-  for (const p of (parentsRaw ?? []) as any[]) {
-    parentMap[p.id] = { id: p.id, tutor1_last_name: p.tutor1_last_name, tutor1_first_name: p.tutor1_first_name, tutor2_last_name: p.tutor2_last_name, tutor2_first_name: p.tutor2_first_name }
-  }
-
-  const missingIds = [...allParentIds].filter(id => !parentMap[id])
-  if (missingIds.length > 0) {
-    const { data: extra } = await supabase
-      .from('parents')
-      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name')
-      .in('id', missingIds)
-    for (const p of (extra ?? []) as any[]) {
-      parentMap[p.id] = p
-    }
-  }
-
-  type FamilyRow = {
-    id: string; parentId: string; parentName: string; tutor2Name: string | null
-    childrenCount: number; totalDue: number; paid: number; remaining: number; status: string
-  }
-
-  const families: FamilyRow[] = []
-  let grandTotalDue = 0
-  let grandTotalPaid = 0
-  const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0, overpaid: 0 }
+  // Calcul cotisations
+  let totalCotisationsDue = 0
+  let totalCotisationsPaid = 0
 
   for (const parentId of allParentIds) {
-    const pInfo = parentMap[parentId]
-    if (!pInfo) continue
-
     const pData = (parentsRaw ?? []).find((p: any) => p.id === parentId) as any
     const students = pData?.students ?? []
 
-    // Calcul cotisations eleves (meme logique que FinancementsClient)
     const countByType: Record<string, number> = {}
     for (const s of students) {
       const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
@@ -141,70 +110,97 @@ export default async function VueGlobalePage() {
         if (sameTypeOnly) indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
       }
       globalIndex++
-
       familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0) - discount
     }
 
     // Cotisations adultes
-    const parentAdults = adultByParent[parentId] ?? []
-    for (const ae of parentAdults) {
+    for (const ae of (adultByParent[parentId] ?? [])) {
       const ct = ae.classes?.cotisation_types
       if (!ct) continue
       familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0)
     }
 
-    const childrenCount = students.length
-    const feeData = feeByParent[parentId]
-    const paid = feeData?.paid ?? 0
-    const remaining = familyDue - paid
-
-    // Determiner le statut a partir des montants calcules
-    let status: string
-    if (familyDue === 0) {
-      status = 'paid'
-    } else if (paid === 0) {
-      status = 'pending'
-    } else if (paid > familyDue) {
-      status = 'overpaid'
-    } else if (paid >= familyDue) {
-      status = 'paid'
-    } else {
-      status = 'partial'
-    }
-
-    if (status in feesByStatus) (feesByStatus as any)[status]++
-
-    grandTotalDue += familyDue
-    grandTotalPaid += paid
-
-    families.push({
-      id: `${parentId}`,
-      parentId,
-      parentName: `${pInfo.tutor1_last_name} ${pInfo.tutor1_first_name}`,
-      tutor2Name: pInfo.tutor2_last_name ? `${pInfo.tutor2_last_name} ${pInfo.tutor2_first_name}` : null,
-      childrenCount,
-      totalDue: familyDue,
-      paid,
-      remaining,
-      status,
-    })
+    totalCotisationsDue += familyDue
+    totalCotisationsPaid += feeByParent[parentId] ?? 0
   }
 
-  // Trier par nom
-  families.sort((a, b) => a.parentName.localeCompare(b.parentName))
+  // ── Cout enseignement : staff_time_entries + hourly_rates ───────────────
+  const { data: timeEntries } = await supabase
+    .from('staff_time_entries')
+    .select('entry_type, duration_minutes, entry_date')
+    .gte('entry_date', `${currentYear.label.split('-')[0]}-08-01`)
+    .lt('entry_date', `${currentYear.label.split('-')[1]}-08-01`)
+    .neq('entry_type', 'absence')
+
+  const { data: hourlyRates } = await supabase
+    .from('staff_hourly_rates')
+    .select('rate_cours, rate_activite, rate_menage')
+    .eq('school_year_id', currentYear.id)
+    .maybeSingle()
+
+  // Calcul cout par mois
+  const rCours = Number(hourlyRates?.rate_cours ?? 0)
+  const rActivite = Number(hourlyRates?.rate_activite ?? 0)
+  const rMenage = Number(hourlyRates?.rate_menage ?? 0)
+
+  const costByMonth: Record<string, number> = {}
+  let totalTeachingCost = 0
+
+  for (const e of (timeEntries ?? []) as any[]) {
+    const hours = e.duration_minutes / 60
+    let rate = 0
+    if (e.entry_type === 'cours') rate = rCours
+    else if (e.entry_type === 'activite') rate = rActivite
+    else if (e.entry_type === 'menage') rate = rMenage
+    const cost = hours * rate
+    totalTeachingCost += cost
+    const monthKey = e.entry_date.slice(0, 7) // YYYY-MM
+    costByMonth[monthKey] = (costByMonth[monthKey] ?? 0) + cost
+  }
+
+  // Trier les mois
+  const teachingCostsByMonth = Object.entries(costByMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, cost]) => ({ month, cost }))
+
+  // ── Depenses ───────────────────────────────────────────────────────────
+  const { data: expenses } = await supabase
+    .from('expenses')
+    .select('*')
+    .eq('school_year_id', currentYear.id)
+    .order('expense_date', { ascending: false })
+
+  const totalExpenses = (expenses ?? []).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0)
+
+  // ── Revenus autres ─────────────────────────────────────────────────────
+  const { data: revenues } = await supabase
+    .from('other_revenues')
+    .select('*')
+    .eq('school_year_id', currentYear.id)
+    .order('revenue_date', { ascending: false })
+
+  const totalRevenues = (revenues ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0)
 
   return (
     <div className="h-full animate-fade-in">
-      <VueGlobaleClient
+      <SyntheseClient
         yearLabel={currentYear.label}
-        summary={{
-          totalFamilies: families.length,
-          totalDue: grandTotalDue,
-          totalPaid: grandTotalPaid,
-          remaining: grandTotalDue - grandTotalPaid,
-          feesByStatus,
+        schoolYearId={currentYear.id}
+        cotisations={{
+          totalDue: totalCotisationsDue,
+          totalPaid: totalCotisationsPaid,
+          remaining: totalCotisationsDue - totalCotisationsPaid,
+          familyCount: allParentIds.size,
+          collectRate: totalCotisationsDue > 0 ? Math.round((totalCotisationsPaid / totalCotisationsDue) * 100) : 0,
         }}
-        families={families}
+        teachingCosts={{
+          total: totalTeachingCost,
+          byMonth: teachingCostsByMonth,
+        }}
+        initialExpenses={(expenses ?? []) as any[]}
+        totalExpenses={totalExpenses}
+        initialRevenues={(revenues ?? []) as any[]}
+        totalRevenues={totalRevenues}
       />
     </div>
   )

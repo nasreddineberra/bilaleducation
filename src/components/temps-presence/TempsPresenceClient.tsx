@@ -41,6 +41,7 @@ interface Props {
   staffList: StaffMember[]
   hourlyRates: { rate_cours: number; rate_activite: number; rate_menage: number } | null
   schoolYearId: string | null
+  initialMonth?: string // format "YYYY-MM"
 }
 
 const ENTRY_COLORS: Record<EntryType, { bg: string; text: string; dot: string }> = {
@@ -104,19 +105,25 @@ function getWeekDays(refDate: Date): Date[] {
 
 export default function TempsPresenceClient({
   currentUserId, currentUserName, role, canManageAll, canSeeRecap,
-  staffList, hourlyRates, schoolYearId,
+  staffList, hourlyRates, schoolYearId, initialMonth,
 }: Props) {
   const supabase = createClient()
+  const canSeeCosts = ['admin', 'direction', 'comptable'].includes(role)
 
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => {
+    if (initialMonth) {
+      const [y, m] = initialMonth.split('-').map(Number)
+      return new Date(y, m - 1, 1)
+    }
+    return new Date()
+  })
   const [selectedDay, setSelectedDay] = useState<string>(dateKey(new Date()))
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [filterStaff, setFilterStaff] = useState<string>(canManageAll ? '' : currentUserId)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -142,14 +149,20 @@ export default function TempsPresenceClient({
       .order('entry_date')
       .order('start_time')
 
-    if (!canManageAll) {
+    if (role === 'resp_pedagogique') {
+      // Resp. pedagogique voit tous les enseignants + lui-meme
+      const teacherIds = staffList.filter(s => s.role === 'enseignant').map(s => s.id)
+      if (!teacherIds.includes(currentUserId)) teacherIds.push(currentUserId)
+      query = query.in('profile_id', teacherIds)
+    } else if (!canManageAll) {
+      // Enseignant ne voit que ses propres saisies
       query = query.eq('profile_id', currentUserId)
     }
 
     const { data } = await query
     setEntries((data ?? []) as TimeEntry[])
     setLoading(false)
-  }, [year, month, canManageAll, currentUserId, supabase])
+  }, [year, month, canManageAll, currentUserId, role, staffList, supabase])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
 
@@ -166,13 +179,12 @@ export default function TempsPresenceClient({
   // ── Entries indexed by date ─────────────────────────────────────────
   const entriesByDate = useMemo(() => {
     const map: Record<string, TimeEntry[]> = {}
-    const filtered = filterStaff ? entries.filter(e => e.profile_id === filterStaff) : entries
-    for (const e of filtered) {
+    for (const e of entries) {
       if (!map[e.entry_date]) map[e.entry_date] = []
       map[e.entry_date].push(e)
     }
     return map
-  }, [entries, filterStaff])
+  }, [entries])
 
   // ── Day panel data ──────────────────────────────────────────────────
   const dayEntries = entriesByDate[selectedDay] ?? []
@@ -188,8 +200,7 @@ export default function TempsPresenceClient({
   // ── Monthly recap ───────────────────────────────────────────────────
   const monthlyRecap = useMemo(() => {
     const recapMap: Record<string, { cours: number; activite: number; menage: number; absenceDays: number }> = {}
-    const allEntries = filterStaff ? entries.filter(e => e.profile_id === filterStaff) : entries
-    for (const e of allEntries) {
+    for (const e of entries) {
       if (!recapMap[e.profile_id]) recapMap[e.profile_id] = { cours: 0, activite: 0, menage: 0, absenceDays: 0 }
       const r = recapMap[e.profile_id]
       if (e.entry_type === 'absence') r.absenceDays++
@@ -210,7 +221,7 @@ export default function TempsPresenceClient({
     }), { cours: 0, activite: 0, menage: 0, absenceDays: 0, cost: 0 })
 
     return { rows, totals }
-  }, [entries, filterStaff, staffMap, hourlyRates])
+  }, [entries, staffMap, hourlyRates])
 
   // ── Calendar cells ──────────────────────────────────────────────────
   const calDays = viewMode === 'month' ? getMonthDays(year, month) : getWeekDays(currentDate)
@@ -228,32 +239,34 @@ export default function TempsPresenceClient({
     const cellEntries = entriesByDate[dk] ?? []
     if (cellEntries.length === 0) return null
 
-    // Group by person
-    const byPerson: Record<string, { mins: number; types: Set<EntryType> }> = {}
+    // Group by person + type
+    const byPersonType: Record<string, { mins: number; count: number; type: EntryType; profileId: string }> = {}
     for (const e of cellEntries) {
-      if (!byPerson[e.profile_id]) byPerson[e.profile_id] = { mins: 0, types: new Set() }
-      byPerson[e.profile_id].mins += e.duration_minutes
-      byPerson[e.profile_id].types.add(e.entry_type)
+      const key = `${e.profile_id}-${e.entry_type}`
+      if (!byPersonType[key]) byPersonType[key] = { mins: 0, count: 0, type: e.entry_type, profileId: e.profile_id }
+      byPersonType[key].mins += e.duration_minutes
+      byPersonType[key].count++
     }
-    const people = Object.entries(byPerson)
-    const shown = people.slice(0, 3)
-    const extra = people.length - 3
+
+    const badges = Object.values(byPersonType).sort((a, b) => {
+      const nameA = staffMap[a.profileId]?.last_name ?? ''
+      const nameB = staffMap[b.profileId]?.last_name ?? ''
+      return nameA.localeCompare(nameB)
+    })
+    const shown = badges.slice(0, 4)
+    const extra = badges.length - 4
 
     return (
       <div className="flex flex-wrap gap-0.5 mt-0.5">
-        {shown.map(([pid, data]) => {
-          const s = staffMap[pid]
+        {shown.map((data, i) => {
+          const s = staffMap[data.profileId]
           const initials = s ? getInitials(s.first_name, s.last_name) : '??'
-          const fullName = s ? `${s.first_name} ${s.last_name}` : ''
-          // Dominant type for color
-          const dominantType: EntryType = data.types.has('absence') && data.types.size === 1
-            ? 'absence'
-            : [...data.types].filter(t => t !== 'absence')[0] ?? 'cours'
-          const colors = ENTRY_COLORS[dominantType]
+          const fullName = s ? `${s.last_name} ${s.first_name}` : ''
+          const colors = ENTRY_COLORS[data.type]
           return (
             <span
-              key={pid}
-              title={`${fullName} — ${fmtDuration(data.mins)}`}
+              key={i}
+              title={`${fullName} — ${ENTRY_LABELS[data.type]} — ${data.mins > 0 ? fmtDuration(data.mins) : ''}`}
               className={clsx('inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none', colors.bg, colors.text)}
             >
               {initials} {data.mins > 0 ? fmtDuration(data.mins) : 'ABS'}
@@ -301,18 +314,6 @@ export default function TempsPresenceClient({
           <button onClick={next} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500"><ChevronRight size={16} /></button>
         </div>
 
-        {canManageAll && (
-          <select
-            value={filterStaff}
-            onChange={e => setFilterStaff(e.target.value)}
-            className="input text-sm py-1.5 ml-auto"
-          >
-            <option value="">Tout le staff</option>
-            {staffList.map(s => (
-              <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
-            ))}
-          </select>
-        )}
       </div>
 
       {/* ── Calendar + Day panel ─────────────────────────────────────── */}
@@ -399,6 +400,9 @@ export default function TempsPresenceClient({
                             <span className="text-warm-500">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
                           )}
                           <span className="text-warm-400">{fmtDuration(e.duration_minutes)}</span>
+                          {e.notes && (
+                            <span className="italic text-warm-400 text-[10px] truncate">{e.notes}</span>
+                          )}
                           {e.is_replacement && e.replaced_profile_id && (
                             <span className="italic text-warm-400 text-[10px]">
                               rempl. {staffMap[e.replaced_profile_id]?.last_name ?? ''}
@@ -448,7 +452,7 @@ export default function TempsPresenceClient({
             <h3 className="text-sm font-bold text-secondary-800">
               Recapitulatif — {MONTH_NAMES[month]} {year}
             </h3>
-            {hourlyRates && (
+            {canSeeCosts && hourlyRates && (
               <div className="flex gap-3 text-[10px] text-warm-400">
                 <span>Cours {fmtEur(hourlyRates.rate_cours)}/h</span>
                 <span>Activite {fmtEur(hourlyRates.rate_activite)}/h</span>
@@ -467,7 +471,7 @@ export default function TempsPresenceClient({
                   <th className="px-3 py-2 text-center text-xs font-bold text-green-500 uppercase">Activite</th>
                   <th className="px-3 py-2 text-center text-xs font-bold text-purple-500 uppercase">Menage</th>
                   <th className="px-3 py-2 text-center text-xs font-bold text-red-500 uppercase">Absence</th>
-                  <th className="px-3 py-2 text-right text-xs font-bold text-warm-500 uppercase">Cout</th>
+                  {canSeeCosts && <th className="px-3 py-2 text-right text-xs font-bold text-warm-500 uppercase">Cout</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-warm-50">
@@ -478,7 +482,7 @@ export default function TempsPresenceClient({
                     <td className="px-3 py-2 text-center text-warm-600">{r.activite > 0 ? fmtDuration(r.activite) : '—'}</td>
                     <td className="px-3 py-2 text-center text-warm-600">{r.menage > 0 ? fmtDuration(r.menage) : '—'}</td>
                     <td className="px-3 py-2 text-center text-warm-600">{r.absenceDays > 0 ? `${r.absenceDays}j` : '—'}</td>
-                    <td className="px-3 py-2 text-right font-bold text-secondary-800">{fmtEur(r.cost)}</td>
+                    {canSeeCosts && <td className="px-3 py-2 text-right font-bold text-secondary-800">{fmtEur(r.cost)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -489,7 +493,7 @@ export default function TempsPresenceClient({
                   <td className="px-3 py-2 text-center text-green-700">{monthlyRecap.totals.activite > 0 ? fmtDuration(monthlyRecap.totals.activite) : '—'}</td>
                   <td className="px-3 py-2 text-center text-purple-700">{monthlyRecap.totals.menage > 0 ? fmtDuration(monthlyRecap.totals.menage) : '—'}</td>
                   <td className="px-3 py-2 text-center text-red-700">{monthlyRecap.totals.absenceDays > 0 ? `${monthlyRecap.totals.absenceDays}j` : '—'}</td>
-                  <td className="px-3 py-2 text-right text-secondary-800">{fmtEur(monthlyRecap.totals.cost)}</td>
+                  {canSeeCosts && <td className="px-3 py-2 text-right text-secondary-800">{fmtEur(monthlyRecap.totals.cost)}</td>}
                 </tr>
               </tfoot>
             </table>
@@ -505,6 +509,7 @@ export default function TempsPresenceClient({
           currentUserId={currentUserId}
           canManageAll={canManageAll}
           staffList={staffList}
+          existingEntries={dayEntries}
           onClose={() => { setModalOpen(false); setEditingEntry(null) }}
           onSaved={() => { setModalOpen(false); setEditingEntry(null); fetchEntries() }}
         />
