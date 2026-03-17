@@ -6,15 +6,14 @@ import { Users, FileText, AlertTriangle, DollarSign, Bell } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 
 const ABSENCE_TYPE: Record<string, string> = {
-  absence: 'Absence', late: 'Retard', authorized_absence: 'Abs. autorisee',
+  absence: 'Absence', retard: 'Retard', authorized_absence: 'Abs. autorisée',
 }
 
 const FEE_STATUS: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: 'text-warm-500 bg-warm-100' },
   partial: { label: 'Partiel', color: 'text-amber-700 bg-amber-100' },
-  paid:    { label: 'Solde', color: 'text-success-700 bg-success-100' },
+  paid:    { label: 'Soldé', color: 'text-success-700 bg-success-100' },
   overdue: { label: 'En retard', color: 'text-danger-700 bg-danger-100' },
-  overpaid:{ label: 'Trop percu', color: 'text-red-700 bg-red-100' },
 }
 
 interface Props {
@@ -51,7 +50,7 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
           <Users size={14} className="text-primary-500" /> Mes enfants
         </h3>
         {stats.children.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucun enfant enregistre</p>
+          <p className="text-xs text-warm-400 italic py-4 text-center">Aucun enfant enregistré</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {stats.children.map(child => (
@@ -83,10 +82,10 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
         {/* Dernieres notes */}
         <div className="card space-y-3">
           <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-            <FileText size={14} className="text-blue-500" /> Dernieres notes
+            <FileText size={14} className="text-blue-500" /> Dernières notes
           </h3>
           {stats.recentGrades.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune note recente</p>
+            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune note récente</p>
           ) : (
             <div className="space-y-1.5">
               {stats.recentGrades.map(g => (
@@ -131,9 +130,9 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
         <div className="card space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-              <DollarSign size={14} className="text-success-500" /> Situation financiere
+              <DollarSign size={14} className="text-success-500" /> Situation financière
             </h3>
-            <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-800">Details</Link>
+            <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-800">Détails</Link>
           </div>
           <div className="flex items-center gap-3">
             <p className="text-2xl font-bold text-secondary-800">{formatCurrency(Number(stats.familyFee.total_due))}</p>

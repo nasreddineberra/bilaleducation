@@ -291,6 +291,15 @@ export default function NewMessageClient({
           .eq('id', announcement.id)
       }
 
+      // Notifications parents (fire-and-forget)
+      if (announcement?.id) {
+        fetch('/api/notifications/announcement', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ announcement_id: announcement.id, etablissement_id: etablissementId }),
+        }).catch(() => {})
+      }
+
       setSuccess(true)
       // Reset form
       setSubject('')

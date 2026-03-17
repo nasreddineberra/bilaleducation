@@ -9,7 +9,7 @@ import StatCard from './StatCard'
 const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
 
 const ABSENCE_TYPE: Record<string, string> = {
-  absence: 'Absence', late: 'Retard', authorized_absence: 'Abs. autorisee',
+  absence: 'Absence', retard: 'Retard', authorized_absence: 'Abs. autorisée',
 }
 
 interface Props {
@@ -40,7 +40,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <StatCard title="Mes eleves" value={stats.myStudentsCount} subtitle={`${stats.myClasses.length} classe${stats.myClasses.length > 1 ? 's' : ''}`} icon={Users} iconBg="bg-primary-100" iconColor="text-primary-600" accentBar="bg-primary-500" />
+        <StatCard title="Mes élèves" value={stats.myStudentsCount} subtitle={`${stats.myClasses.length} classe${stats.myClasses.length > 1 ? 's' : ''}`} icon={Users} iconBg="bg-primary-100" iconColor="text-primary-600" accentBar="bg-primary-500" />
         <StatCard title="Absences aujourd'hui" value={stats.absencesToday} icon={AlertTriangle} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
         <StatCard title="Classes" value={stats.myClasses.length} icon={BookOpen} iconBg="bg-success-100" iconColor="text-success-600" accentBar="bg-success-500" />
       </div>
@@ -51,7 +51,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
           <BookOpen size={14} className="text-success-500" /> Mes classes
         </h3>
         {stats.myClasses.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune classe assignee</p>
+          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune classe assignée</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {stats.myClasses.map(c => (
@@ -61,7 +61,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
                   {c.isMain && <span className="text-[10px] font-bold uppercase bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">Principal</span>}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-warm-500">
-                  <span>{c.enrolled} eleve{c.enrolled > 1 ? 's' : ''}</span>
+                  <span>{c.enrolled} élève{c.enrolled > 1 ? 's' : ''}</span>
                   {c.schedule && (
                     <span>{DAY_NAMES[c.schedule.day_of_week]} {fmtTime(c.schedule.start_time)}-{fmtTime(c.schedule.end_time)}</span>
                   )}
@@ -76,12 +76,12 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-            <AlertTriangle size={14} className="text-amber-500" /> Dernieres absences
+            <AlertTriangle size={14} className="text-amber-500" /> Dernières absences
           </h3>
           <Link href="/dashboard/absences" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
         </div>
         {stats.recentAbsences.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune absence recente</p>
+          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune absence récente</p>
         ) : (
           <div className="space-y-1.5">
             {stats.recentAbsences.map(a => (

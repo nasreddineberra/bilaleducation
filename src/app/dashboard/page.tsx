@@ -10,9 +10,9 @@ const roleLabel: Record<string, string> = {
   admin: 'Administrateur',
   direction: 'Direction',
   comptable: 'Comptable',
-  responsable_pedagogique: 'Responsable Pedagogique',
+  responsable_pedagogique: 'Responsable Pédagogique',
   enseignant: 'Enseignant',
-  secretaire: 'Secretaire',
+  secretaire: 'Secrétaire',
   parent: 'Parent',
 }
 
@@ -113,6 +113,8 @@ export default async function DashboardPage() {
       { count: msgSentThisMonth },
       { count: msgReadCount },
       { count: msgTotalRecipients },
+      { data: parentsWithEnrollments },
+      { data: adultEnrollments },
     ] = await Promise.all([
       supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('students').select('id', { count: 'exact', head: true }),
@@ -120,20 +122,72 @@ export default async function DashboardPage() {
       supabase.from('classes').select('id', { count: 'exact', head: true }),
       supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('parents').select('id', { count: 'exact', head: true }),
-      supabase.from('absences').select('id', { count: 'exact', head: true }).gte('absence_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
-      supabase.from('absences').select('id', { count: 'exact', head: true }).eq('is_justified', false).gte('absence_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
+      supabase.from('absences').select('id', { count: 'exact', head: true }).neq('absence_type', 'retard').gte('absence_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
+      supabase.from('absences').select('id', { count: 'exact', head: true }).neq('absence_type', 'retard').eq('is_justified', false).gte('absence_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
       supabase.from('classes').select('id, name, max_students, enrollments:enrollments(count)').order('name'),
-      supabase.from('family_fees').select('id, status, total_due'),
-      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name), classes:class_id(name)').order('absence_date', { ascending: false }).limit(5),
+      supabase.from('family_fees').select('id, status, fee_installments(amount_paid), fee_adjustments(amount)'),
+      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
       supabase.from('announcements').select('id', { count: 'exact', head: true }).eq('is_published', true).gte('published_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
       supabase.from('announcement_recipients').select('id', { count: 'exact', head: true }).eq('is_read', true),
       supabase.from('announcement_recipients').select('id', { count: 'exact', head: true }),
+      supabase.from('parents').select(`id, students!inner ( id, is_active, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type ) ) ) )`).eq('students.is_active', true).eq('students.enrollments.status', 'active').eq('students.enrollments.classes.academic_year', currentYear?.label ?? ''),
+      supabase.from('parent_class_enrollments').select(`parent_id, classes ( cotisation_types ( id, amount, registration_fee ) )`).eq('status', 'active'),
     ])
 
-    // Calcul financier
+    // Calcul total du reel a partir des inscriptions
+    const adultByParent: Record<string, any[]> = {}
+    for (const ae of (adultEnrollments ?? []) as any[]) {
+      if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
+      adultByParent[ae.parent_id].push(ae)
+    }
+
+    const allParentIds = new Set<string>()
+    for (const p of (parentsWithEnrollments ?? []) as any[]) allParentIds.add(p.id)
+    for (const ae of (adultEnrollments ?? []) as any[]) allParentIds.add(ae.parent_id)
+
+    let totalDue = 0
+    for (const parentId of allParentIds) {
+      const pData = ((parentsWithEnrollments ?? []) as any[]).find((p: any) => p.id === parentId)
+      const students = pData?.students ?? []
+      const indexByType: Record<string, number> = {}
+      let globalIndex = 0
+      let familyDue = 0
+      for (const s of students) {
+        const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
+        if (!ct) continue
+        const ctId = ct.id ?? ''
+        const sameTypeOnly = ct.sibling_discount_same_type ?? false
+        let discount = 0
+        if (ct.sibling_discount > 0) {
+          if (sameTypeOnly) {
+            const typeIdx = indexByType[ctId] ?? 0
+            if (typeIdx > 0) discount = Number(ct.sibling_discount)
+            indexByType[ctId] = typeIdx + 1
+          } else {
+            if (globalIndex > 0) discount = Number(ct.sibling_discount)
+          }
+        } else {
+          if (sameTypeOnly) indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
+        }
+        globalIndex++
+        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0) - discount
+      }
+      for (const ae of (adultByParent[parentId] ?? [])) {
+        const ct = ae.classes?.cotisation_types
+        if (!ct) continue
+        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0)
+      }
+      totalDue += familyDue
+    }
+
+    // Calcul total percu
     const fees = (familyFees ?? []) as any[]
-    const totalDue = fees.reduce((s: number, f: any) => s + Number(f.total_due || 0), 0)
-    const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0, overpaid: 0 }
+    const totalPercu = fees.reduce((s: number, f: any) => {
+      const paid = (f.fee_installments ?? []).reduce((p: number, i: any) => p + Number(i.amount_paid || 0), 0)
+      const adj = (f.fee_adjustments ?? []).reduce((p: number, a: any) => p + Number(a.amount || 0), 0)
+      return s + paid + adj
+    }, 0)
+    const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0 }
     fees.forEach((f: any) => { if (f.status in feesByStatus) (feesByStatus as any)[f.status]++ })
 
     // Effectifs par classe
@@ -156,6 +210,7 @@ export default async function DashboardPage() {
           absencesThisMonth: absencesThisMonth ?? 0,
           absencesUnjustified: absencesUnjustified ?? 0,
           totalDue,
+          totalPercu,
           feesByStatus,
           classCapacity,
           recentAbsences: (recentAbsences ?? []) as any[],
@@ -173,17 +228,68 @@ export default async function DashboardPage() {
     const [
       { data: familyFees },
       { data: recentPayments },
+      { data: cParentsEnroll },
+      { data: cAdultEnroll },
     ] = await Promise.all([
-      supabase.from('family_fees').select('id, status, total_due, parent_id, parents:parent_id(tutor1_last_name, tutor1_first_name)'),
+      supabase.from('family_fees').select('id, status, parent_id, parents:parent_id(tutor1_last_name, tutor1_first_name), fee_installments(amount_paid), fee_adjustments(amount)'),
       supabase.from('fee_installments').select('id, amount_paid, paid_date, payment_method, family_fees:family_fee_id(parents:parent_id(tutor1_last_name, tutor1_first_name))').eq('status', 'paid').order('paid_date', { ascending: false }).limit(5),
+      supabase.from('parents').select(`id, students!inner ( id, is_active, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type ) ) ) )`).eq('students.is_active', true).eq('students.enrollments.status', 'active').eq('students.enrollments.classes.academic_year', currentYear?.label ?? ''),
+      supabase.from('parent_class_enrollments').select(`parent_id, classes ( cotisation_types ( id, amount, registration_fee ) )`).eq('status', 'active'),
     ])
 
+    // Total du reel
+    const cAdultByParent: Record<string, any[]> = {}
+    for (const ae of (cAdultEnroll ?? []) as any[]) {
+      if (!cAdultByParent[ae.parent_id]) cAdultByParent[ae.parent_id] = []
+      cAdultByParent[ae.parent_id].push(ae)
+    }
+    const cAllParents = new Set<string>()
+    for (const p of (cParentsEnroll ?? []) as any[]) cAllParents.add(p.id)
+    for (const ae of (cAdultEnroll ?? []) as any[]) cAllParents.add(ae.parent_id)
+
+    let totalDue = 0
+    for (const parentId of cAllParents) {
+      const pData = ((cParentsEnroll ?? []) as any[]).find((p: any) => p.id === parentId)
+      const students = pData?.students ?? []
+      const indexByType: Record<string, number> = {}
+      let globalIndex = 0
+      let familyDue = 0
+      for (const s of students) {
+        const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
+        if (!ct) continue
+        const ctId = ct.id ?? ''
+        const sameTypeOnly = ct.sibling_discount_same_type ?? false
+        let discount = 0
+        if (ct.sibling_discount > 0) {
+          if (sameTypeOnly) {
+            const typeIdx = indexByType[ctId] ?? 0
+            if (typeIdx > 0) discount = Number(ct.sibling_discount)
+            indexByType[ctId] = typeIdx + 1
+          } else {
+            if (globalIndex > 0) discount = Number(ct.sibling_discount)
+          }
+        } else {
+          if (sameTypeOnly) indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
+        }
+        globalIndex++
+        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0) - discount
+      }
+      for (const ae of (cAdultByParent[parentId] ?? [])) {
+        const ct = ae.classes?.cotisation_types
+        if (!ct) continue
+        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0)
+      }
+      totalDue += familyDue
+    }
+
     const fees = (familyFees ?? []) as any[]
-    const totalDue = fees.reduce((s: number, f: any) => s + Number(f.total_due || 0), 0)
-    const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0, overpaid: 0 }
+    const totalCollected = fees.reduce((s: number, f: any) => {
+      const paid = (f.fee_installments ?? []).reduce((p: number, i: any) => p + Number(i.amount_paid || 0), 0)
+      const adj = (f.fee_adjustments ?? []).reduce((p: number, a: any) => p + Number(a.amount || 0), 0)
+      return s + paid + adj
+    }, 0)
+    const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0 }
     fees.forEach((f: any) => { if (f.status in feesByStatus) (feesByStatus as any)[f.status]++ })
-    const paidFees = fees.filter((f: any) => f.status === 'paid')
-    const totalCollected = paidFees.reduce((s: number, f: any) => s + Number(f.total_due || 0), 0)
     const overdueFamilies = fees.filter((f: any) => f.status === 'overdue')
 
     return (
@@ -258,8 +364,8 @@ export default async function DashboardPage() {
         { data: recentAbs },
       ] = await Promise.all([
         supabase.from('class_teachers').select('class_id, is_main_teacher, classes:class_id(id, name, level, schedules:schedules(day_of_week, start_time, end_time), enrollments:enrollments(count))').eq('teacher_id', teacherId),
-        supabase.from('absences').select('id', { count: 'exact', head: true }).eq('absence_date', new Date().toISOString().slice(0, 10)),
-        supabase.from('absences').select('id, absence_date, absence_type, students:student_id(first_name, last_name), classes:class_id(name)').order('absence_date', { ascending: false }).limit(5),
+        supabase.from('absences').select('id', { count: 'exact', head: true }).neq('absence_type', 'retard').eq('absence_date', new Date().toISOString().slice(0, 10)),
+        supabase.from('absences').select('id, absence_date, absence_type, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
       ])
 
       myClasses = (classTeachers ?? []).map((ct: any) => ({
@@ -342,7 +448,7 @@ export default async function DashboardPage() {
     ] = await Promise.all([
       supabase.from('students').select('id, first_name, last_name, gender, photo_url, enrollments:enrollments(class_id, classes:class_id(name))').eq('parent_id', parentLink.id).eq('is_active', true),
       supabase.from('grades').select('id, score, evaluations:evaluation_id(title, max_score, evaluation_date), students:student_id(first_name, last_name)').in('student_id', (await supabase.from('students').select('id').eq('parent_id', parentLink.id)).data?.map((s: any) => s.id) ?? []).order('created_at', { ascending: false }).limit(5),
-      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name)').in('student_id', (await supabase.from('students').select('id').eq('parent_id', parentLink.id)).data?.map((s: any) => s.id) ?? []).order('absence_date', { ascending: false }).limit(5),
+      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name)').neq('absence_type', 'retard').in('student_id', (await supabase.from('students').select('id').eq('parent_id', parentLink.id)).data?.map((s: any) => s.id) ?? []).order('absence_date', { ascending: false }).limit(5),
       supabase.from('family_fees').select('id, total_due, status').eq('parent_id', parentLink.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
 

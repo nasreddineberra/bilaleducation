@@ -30,7 +30,7 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Eleves actifs" value={stats.studentsActive} icon={Users} iconBg="bg-primary-100" iconColor="text-primary-600" accentBar="bg-primary-500" />
+        <StatCard title="Élèves actifs" value={stats.studentsActive} icon={Users} iconBg="bg-primary-100" iconColor="text-primary-600" accentBar="bg-primary-500" />
         <StatCard title="Parents" value={stats.parentsCount} icon={Contact} iconBg="bg-blue-100" iconColor="text-blue-600" accentBar="bg-blue-500" />
         <StatCard title="Enseignants" value={stats.teachersCount} icon={GraduationCap} iconBg="bg-secondary-100" iconColor="text-secondary-600" accentBar="bg-secondary-500" />
         <StatCard title="Inscriptions ce mois" value={stats.enrollmentsThisMonth} icon={ClipboardList} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
@@ -40,12 +40,12 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-            <UserPlus size={14} className="text-primary-500" /> Derniers eleves inscrits
+            <UserPlus size={14} className="text-primary-500" /> Derniers élèves inscrits
           </h3>
           <Link href="/dashboard/students" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
         </div>
         {stats.recentStudents.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucun eleve recent</p>
+          <p className="text-xs text-warm-400 italic py-4 text-center">Aucun élève récent</p>
         ) : (
           <div className="space-y-1.5">
             {stats.recentStudents.map(s => (
@@ -71,7 +71,7 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
         <h3 className="text-sm font-bold text-secondary-800">Raccourcis</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           <Link href="/dashboard/students/new" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
-            <UserPlus size={14} /> Nouvel eleve
+            <UserPlus size={14} /> Nouvel élève
           </Link>
           <Link href="/dashboard/parents/new" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
             <Contact size={14} /> Nouveau parent

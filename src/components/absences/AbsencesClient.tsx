@@ -636,6 +636,18 @@ function SaisieModal({
         deletedIds.push(e.existingId!)
       }
 
+      // Notifications parents (fire-and-forget)
+      if (added.length > 0) {
+        fetch('/api/notifications/absence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            absences: added.map(a => ({ id: a.id, student_id: a.student_id, class_id: a.class_id, absence_type: a.absence_type, absence_date: a.absence_date })),
+            etablissement_id: etablissementId,
+          }),
+        }).catch(() => {})
+      }
+
       onComplete(added, updated, deletedIds)
     } catch (err: any) {
       setError(err?.message ?? 'Erreur lors de l\'enregistrement.')

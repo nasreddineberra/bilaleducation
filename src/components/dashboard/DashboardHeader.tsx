@@ -46,18 +46,6 @@ export default function DashboardHeader({ firstName, roleLabel, yearLabel, perio
             {roleLabel} · {today}
           </p>
         </div>
-        <div className="hidden md:flex items-center gap-3 text-xs text-warm-500">
-          {yearLabel && (
-            <span className="bg-white rounded-xl px-3 py-1.5 shadow-card font-medium">
-              {yearLabel}
-            </span>
-          )}
-          {periodLabel && (
-            <span className="bg-primary-50 text-primary-700 rounded-xl px-3 py-1.5 shadow-card font-bold">
-              {expandPeriodLabel(periodLabel)}
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Notifications recentes */}

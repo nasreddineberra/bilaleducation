@@ -20,7 +20,7 @@ interface Props {
     totalCollected: number
     remaining: number
     familiesOverdue: number
-    feesByStatus: { pending: number; partial: number; paid: number; overdue: number; overpaid: number }
+    feesByStatus: { pending: number; partial: number; paid: number; overdue: number }
     totalFamilies: number
     recentPayments: { id: string; amount_paid: number; paid_date: string | null; payment_method: string | null; family_fees: { parents: { tutor1_last_name: string; tutor1_first_name: string } | null } | null }[]
     overdueFamilies: { id: string; total_due: number; parents: { tutor1_last_name: string; tutor1_first_name: string } | null }[]
@@ -28,13 +28,13 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  paid: 'bg-success-500', partial: 'bg-amber-500', pending: 'bg-warm-300', overdue: 'bg-danger-500', overpaid: 'bg-red-500',
+  paid: 'bg-success-500', partial: 'bg-amber-500', pending: 'bg-warm-300', overdue: 'bg-danger-500',
 }
 const STATUS_LABELS: Record<string, string> = {
-  paid: 'Solde', partial: 'Partiel', pending: 'En attente', overdue: 'En retard', overpaid: 'Trop percu',
+  paid: 'Soldé', partial: 'Partiel', pending: 'En attente', overdue: 'En retard',
 }
 const METHOD_LABELS: Record<string, string> = {
-  cash: 'Especes', check: 'Cheque', card: 'CB', transfer: 'Virement', online: 'En ligne',
+  cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
 }
 
 function formatCurrency(n: number): string {
@@ -51,9 +51,9 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
 
       {/* KPIs financiers */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Total du" value={formatCurrency(stats.totalDue)} icon={DollarSign} iconBg="bg-blue-100" iconColor="text-blue-600" accentBar="bg-blue-500" />
-        <StatCard title="Total encaisse" value={formatCurrency(stats.totalCollected)} icon={TrendingUp} iconBg="bg-success-100" iconColor="text-success-600" accentBar="bg-success-500" />
-        <StatCard title="Reste a percevoir" value={formatCurrency(stats.remaining)} icon={TrendingDown} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
+        <StatCard title="Total dû" value={formatCurrency(stats.totalDue)} icon={DollarSign} iconBg="bg-blue-100" iconColor="text-blue-600" accentBar="bg-blue-500" />
+        <StatCard title="Total encaissé" value={formatCurrency(stats.totalCollected)} icon={TrendingUp} iconBg="bg-success-100" iconColor="text-success-600" accentBar="bg-success-500" />
+        <StatCard title="Reste à percevoir" value={formatCurrency(stats.remaining)} icon={TrendingDown} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
         <StatCard title="Familles en retard" value={stats.familiesOverdue} subtitle={`sur ${totalFees} familles`} icon={AlertTriangle} iconBg="bg-danger-100" iconColor="text-danger-600" accentBar="bg-danger-500" />
       </div>
 
@@ -66,7 +66,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
           </h3>
           <div className="flex items-end gap-3">
             <p className="text-4xl font-bold text-secondary-800">{collectRate}%</p>
-            <p className="text-xs text-warm-400 pb-1">du total facture</p>
+            <p className="text-xs text-warm-400 pb-1">du total facturé</p>
           </div>
           <div className="h-3 bg-warm-100 rounded-full overflow-hidden">
             <div className="h-full bg-success-500 rounded-full transition-all" style={{ width: `${collectRate}%` }} />
@@ -76,7 +76,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
         {/* Repartition */}
         <div className="card space-y-3">
           <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-            <Wallet size={14} className="text-blue-500" /> Repartition des statuts
+            <Wallet size={14} className="text-blue-500" /> Répartition des statuts
           </h3>
           {totalFees > 0 && (
             <>
@@ -107,7 +107,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
             <Link href="/dashboard/financements" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
           </div>
           {stats.recentPayments.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucun paiement recent</p>
+            <p className="text-xs text-warm-400 italic py-4 text-center">Aucun paiement récent</p>
           ) : (
             <div className="space-y-1.5">
               {stats.recentPayments.map(p => (

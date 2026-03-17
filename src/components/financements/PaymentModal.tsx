@@ -139,6 +139,14 @@ export default function PaymentModal({
           .select()
           .single()
         if (err) throw err
+
+        // Notification parent (fire-and-forget)
+        fetch('/api/notifications/payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parent_id: parentId, amount: parsedAmount, method, receipt: receipt.trim() || null, paid_date: paidDate }),
+        }).catch(() => {})
+
         setSaving(false)
         onSaved(data as FeeInstallment)
       }

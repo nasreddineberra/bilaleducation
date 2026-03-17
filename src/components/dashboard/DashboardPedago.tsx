@@ -30,20 +30,20 @@ export default function DashboardPedago({ stats, ...headerProps }: Props) {
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <StatCard title="Classes" value={stats.classesCount} icon={BookOpen} iconBg="bg-success-100" iconColor="text-success-600" accentBar="bg-success-500" />
-        <StatCard title="Evaluations creees" value={stats.evalsCount} icon={ClipboardList} iconBg="bg-blue-100" iconColor="text-blue-600" accentBar="bg-blue-500" />
-        <StatCard title="Bulletins archives" value={stats.bulletinsCount} icon={Award} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
+        <StatCard title="Évaluations créées" value={stats.evalsCount} icon={ClipboardList} iconBg="bg-blue-100" iconColor="text-blue-600" accentBar="bg-blue-500" />
+        <StatCard title="Bulletins archivés" value={stats.bulletinsCount} icon={Award} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
       </div>
 
       {/* Evaluations recentes */}
       <div className="card space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-            <ClipboardList size={14} className="text-blue-500" /> Dernieres evaluations
+            <ClipboardList size={14} className="text-blue-500" /> Dernières évaluations
           </h3>
           <Link href="/dashboard/evaluations" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
         </div>
         {stats.recentEvals.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune evaluation recente</p>
+          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune évaluation récente</p>
         ) : (
           <div className="space-y-1.5">
             {stats.recentEvals.map(e => (
@@ -67,7 +67,7 @@ export default function DashboardPedago({ stats, ...headerProps }: Props) {
         <h3 className="text-sm font-bold text-secondary-800">Raccourcis</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Link href="/dashboard/evaluations" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
-            <ClipboardList size={14} /> Gabarits
+            <ClipboardList size={14} /> Évaluations
           </Link>
           <Link href="/dashboard/grades" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
             <FileText size={14} /> Saisie notes
