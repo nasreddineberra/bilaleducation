@@ -99,6 +99,17 @@ export default function GradesClient({
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
+  const [classDropOpen, setClassDropOpen] = useState(false)
+  const classDropRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!classDropOpen) return
+    const handler = (e: MouseEvent) => {
+      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [classDropOpen])
   const [selectedEvalId,   setSelectedEvalId]   = useState<string | null>(null)
   const [expandedUEs,      setExpandedUEs]      = useState<Set<string>>(new Set(ues.map(u => u.id)))
 
@@ -319,20 +330,47 @@ export default function GradesClient({
         {/* Classe */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide whitespace-nowrap">Classe</span>
-          <select
-            value={selectedClassId ?? ''}
-            onChange={e => setSelectedClassId(e.target.value || null)}
-            className="input text-sm py-1.5"
-            disabled={classes.length === 0}
-          >
-            {classes.length === 0
-              ? <option value="">Aucune classe disponible</option>
-              : <>
-                  {classes.length > 1 && <option value="">— Selectionner une classe —</option>}
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </>
-            }
-          </select>
+          <div ref={classDropRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setClassDropOpen(o => !o)}
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
+            >
+              {selectedClassId ? (() => {
+                const cls = classes.find(c => c.id === selectedClassId)
+                if (!cls) return <span className="text-warm-400">— Selectionner une classe —</span>
+                const teacher = cls.main_teacher_civilite && cls.main_teacher_name ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name
+                return (
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold text-secondary-800">{cls.name}</span>
+                    {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
+                  </span>
+                )
+              })() : (
+                <span className="text-warm-400">{classes.length === 0 ? 'Aucune classe disponible' : '— Selectionner une classe —'}</span>
+              )}
+              <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
+            </button>
+            {classDropOpen && (
+              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
+                {classes.length > 1 && (
+                  <button type="button" onClick={() => { setSelectedClassId(null); setClassDropOpen(false) }} className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors">
+                    — Selectionner une classe —
+                  </button>
+                )}
+                {classes.map(c => {
+                  const teacher = c.main_teacher_civilite && c.main_teacher_name ? `${c.main_teacher_civilite} ${c.main_teacher_name}` : c.main_teacher_name
+                  const infoParts = [teacher, c.cotisation_label].filter(Boolean)
+                  return (
+                    <button key={c.id} type="button" onClick={() => { setSelectedClassId(c.id); setClassDropOpen(false) }} className={clsx('w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors', selectedClassId === c.id && 'bg-primary-50')}>
+                      <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
+                      {infoParts.length > 0 && <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Périodes */}
@@ -633,7 +671,7 @@ export default function GradesClient({
                                     onChange={e => updatePending(student.student_id, { scoreValue: e.target.value })}
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); focusNext(idx) } }}
                                     disabled={isAbsent || isArchived}
-                                    placeholder="0,0"
+                                    placeholder=""
                                     data-row-idx={idx}
                                     className="input text-sm py-0.5 w-24 text-center disabled:opacity-30 disabled:cursor-not-allowed"
                                   />

@@ -154,6 +154,13 @@ export default async function AbsencesPage() {
     absences = (data ?? []) as Absence[]
   }
 
+  // 6. Infos établissement (pour PDF feuille d'appel)
+  const { data: etablissement } = await supabase
+    .from('etablissements')
+    .select('nom, adresse, telephone, logo_url')
+    .eq('id', etablissementId)
+    .single()
+
   return (
     <div className="h-full animate-fade-in">
       <AbsencesClient
@@ -163,6 +170,8 @@ export default async function AbsencesPage() {
         initialAbsences={absences}
         etablissementId={etablissementId}
         schoolYearId={schoolYearId}
+        etablissement={etablissement ? { nom: etablissement.nom, adresse: etablissement.adresse, telephone: etablissement.telephone, logo_url: etablissement.logo_url } : null}
+        yearLabel={yearLabel}
       />
     </div>
   )

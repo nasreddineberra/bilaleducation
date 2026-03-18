@@ -1,24 +1,34 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+const transporter =
+  process.env.SMTP_HOST
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT ?? '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      })
+    : null
 
 export async function sendNotificationEmail(params: {
   to: string[]
   subject: string
   html: string
 }): Promise<{ success: boolean; error?: string }> {
-  if (!resend || params.to.length === 0) {
+  if (!transporter || params.to.length === 0) {
     return { success: false, error: 'Email non configuré' }
   }
 
   try {
-    const { error } = await resend.emails.send({
+    await transporter.sendMail({
       from: process.env.EMAIL_FROM ?? 'Bilal Education <noreply@bilaleducation.fr>',
-      to: params.to,
+      to: params.to.join(', '),
       subject: params.subject,
       html: params.html,
     })
-    if (error) return { success: false, error: error.message }
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }

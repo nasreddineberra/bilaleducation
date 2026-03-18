@@ -46,6 +46,7 @@ interface Props {
   docTypeConfigs: any[]
   studentDocuments: any[]
   siblings: any[]
+  currentYearLabel: string
 }
 
 const TABS = [
@@ -59,7 +60,7 @@ type TabKey = typeof TABS[number]['key']
 
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
-  enrollments, evaluations, grades, periods, absences, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings,
+  enrollments, evaluations, grades, periods, absences, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel,
 }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>('identite')
 
@@ -97,6 +98,7 @@ export default function StudentDetail({
           etablissementId={etablissementId}
           siblings={siblings}
           mainTeachers={mainTeachers}
+          hasActiveEnrollment={enrollments.some((e: any) => e.status === 'active')}
         />
       )}
 
@@ -110,6 +112,7 @@ export default function StudentDetail({
           absences={absences}
           bulletinArchives={bulletinArchives}
           mainTeachers={mainTeachers}
+          warnings={studentWarnings}
         />
       )}
 
@@ -121,6 +124,7 @@ export default function StudentDetail({
           warnings={studentWarnings}
           periods={periods}
           enrollments={enrollments}
+          currentYearLabel={currentYearLabel}
         />
       )}
 

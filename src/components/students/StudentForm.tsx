@@ -64,6 +64,7 @@ interface StudentFormProps {
   etablissementId?: string
   siblings?: SiblingRow[]
   mainTeachers?: MainTeacherRow[]
+  hasActiveEnrollment?: boolean
 }
 
 type FormData = {
@@ -92,7 +93,7 @@ const normalizeNom = (s: string) =>
   s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [] }: StudentFormProps) {
+export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false }: StudentFormProps) {
   const router    = useRouter()
   const isEditing = !!student
 
@@ -288,17 +289,32 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
             <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
               Identité de l'élève
             </h2>
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                onChange={e => set('is_active', e.target.checked)}
-                className="w-4 h-4 rounded accent-amber-500"
-              />
-              <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide group-hover:text-warm-600">
-                Actif
-              </span>
-            </label>
+            <div className="relative group/active">
+              <label className={clsx(
+                'flex items-center gap-2 group',
+                hasActiveEnrollment ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={e => set('is_active', e.target.checked)}
+                  disabled={hasActiveEnrollment}
+                  className="w-4 h-4 rounded accent-amber-500 disabled:opacity-50"
+                />
+                <span className={clsx(
+                  'text-xs font-semibold text-warm-500 uppercase tracking-wide',
+                  !hasActiveEnrollment && 'group-hover:text-warm-600'
+                )}>
+                  Actif
+                </span>
+              </label>
+              {hasActiveEnrollment && (
+                <span className="pointer-events-none absolute top-full right-0 mt-1.5 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/active:opacity-100 transition-opacity z-20 shadow-md">
+                  <span className="absolute bottom-full right-4 border-4 border-transparent border-b-secondary-800" />
+                  Inscrit dans une classe
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-4">

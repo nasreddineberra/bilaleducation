@@ -34,6 +34,7 @@ type PeriodRow = {
   id: string
   label: string
   order_index: number
+  school_years?: { label: string } | null
 }
 
 type EnrollmentRow = {
@@ -48,6 +49,7 @@ interface Props {
   warnings: WarningRow[]
   periods: PeriodRow[]
   enrollments: EnrollmentRow[]
+  currentYearLabel: string
 }
 
 // ─── Descriptions des types de gravité ──────────────────────────────────────
@@ -78,24 +80,29 @@ const SEVERITY_CONFIG: Record<WarningSeverity, { label: string; color: string; d
 // ─── Composant principal ────────────────────────────────────────────────────
 
 export default function StudentDiscipline({
-  studentId, etablissementId, absences: initialAbsences, warnings: initialWarnings, periods, enrollments,
+  studentId, etablissementId, absences: initialAbsences, warnings: initialWarnings, periods, enrollments, currentYearLabel,
 }: Props) {
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [warnings, setWarnings] = useState(initialWarnings)
-  const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [expandedHelp, setExpandedHelp] = useState(false)
+  // Filtrer par année en cours
+  const currentPeriodIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const p of periods) {
+      if ((p.school_years as any)?.label === currentYearLabel) ids.add(p.id)
+    }
+    return ids
+  }, [periods, currentYearLabel])
 
-  // Form state
-  const [formPeriod, setFormPeriod] = useState(periods[0]?.id ?? '')
-  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10))
-  const [formSeverity, setFormSeverity] = useState<WarningSeverity | ''>('')
-  const [formMotif, setFormMotif] = useState('')
-  const [formFiles, setFormFiles] = useState<File[]>([])
+  const filteredAbsences = useMemo(
+    () => initialAbsences.filter(a => currentPeriodIds.has(a.period_id)),
+    [initialAbsences, currentPeriodIds]
+  )
+
+  const filteredInitialWarnings = useMemo(
+    () => initialWarnings.filter(w => currentPeriodIds.has(w.period_id)),
+    [initialWarnings, currentPeriodIds]
+  )
 
   // Lookup maps
   const PERIOD_FULL_LABELS: Record<string, string> = {
@@ -103,7 +110,26 @@ export default function StudentDiscipline({
     S1: 'Semestre 1', S2: 'Semestre 2',
   }
   const periodFullLabel = (label: string) => PERIOD_FULL_LABELS[label] ?? label
+  const currentYearPeriods = useMemo(
+    () => periods.filter(p => currentPeriodIds.has(p.id)),
+    [periods, currentPeriodIds]
+  )
   const periodMap = useMemo(() => new Map(periods.map(p => [p.id, periodFullLabel(p.label)])), [periods])
+
+  const [warnings, setWarnings] = useState(filteredInitialWarnings)
+  const [showForm, setShowForm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [expandedHelp, setExpandedHelp] = useState(false)
+
+  // Form state
+  const [formPeriod, setFormPeriod] = useState(currentYearPeriods[0]?.id ?? periods[0]?.id ?? '')
+  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10))
+  const [formSeverity, setFormSeverity] = useState<WarningSeverity | ''>('')
+  const [formMotif, setFormMotif] = useState('')
+  const [formFiles, setFormFiles] = useState<File[]>([])
+
   const classMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const e of enrollments) {
@@ -116,7 +142,7 @@ export default function StudentDiscipline({
 
   const counts = useMemo(() => {
     let abs = 0, unjustified = 0, retards = 0
-    for (const a of initialAbsences) {
+    for (const a of filteredAbsences) {
       if (a.absence_type === 'absence') {
         abs++
         if (!a.is_justified) unjustified++
@@ -125,19 +151,19 @@ export default function StudentDiscipline({
       }
     }
     return { abs, unjustified, retards, warnings: warnings.length }
-  }, [initialAbsences, warnings])
+  }, [filteredAbsences, warnings])
 
   // ─── Ajout d'un avertissement ───────────────────────────────────────────────
 
   const resetForm = useCallback(() => {
     setShowForm(false)
-    setFormPeriod(periods[0]?.id ?? '')
+    setFormPeriod(currentYearPeriods[0]?.id ?? periods[0]?.id ?? '')
     setFormDate(new Date().toISOString().slice(0, 10))
     setFormSeverity('')
     setFormMotif('')
     setFormFiles([])
     setError(null)
-  }, [periods])
+  }, [currentYearPeriods, periods])
 
   const handleSave = useCallback(async () => {
     if (!formSeverity) { setError('Veuillez sélectionner un type.'); return }
@@ -255,8 +281,8 @@ export default function StudentDiscipline({
   // ─── Tri absences par date décroissante ─────────────────────────────────────
 
   const sortedAbsences = useMemo(
-    () => [...initialAbsences].sort((a, b) => b.absence_date.localeCompare(a.absence_date)),
-    [initialAbsences]
+    () => [...filteredAbsences].sort((a, b) => b.absence_date.localeCompare(a.absence_date)),
+    [filteredAbsences]
   )
 
   const sortedWarnings = useMemo(
@@ -268,6 +294,11 @@ export default function StudentDiscipline({
 
   return (
     <div className="space-y-3">
+
+      {/* En-tête année */}
+      {currentYearLabel && (
+        <p className="text-xs font-semibold text-warm-500">Année scolaire {currentYearLabel}</p>
+      )}
 
       {/* Compteurs globaux */}
       <div className="grid grid-cols-4 gap-2">
@@ -366,7 +397,7 @@ export default function StudentDiscipline({
                   value={formPeriod}
                   onChange={e => setFormPeriod(e.target.value)}
                 >
-                  {periods.map(p => (
+                  {currentYearPeriods.map(p => (
                     <option key={p.id} value={p.id}>{periodFullLabel(p.label)}</option>
                   ))}
                 </select>

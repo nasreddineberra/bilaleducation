@@ -131,6 +131,14 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     .select('class_id, period_id, file_url')
     .eq('student_id', id)
 
+  // Année scolaire en cours (pour filtrer onglet Discipline)
+  const { data: currentYear } = await supabase
+    .from('school_years')
+    .select('label')
+    .eq('is_current', true)
+    .single()
+  const currentYearLabel = currentYear?.label ?? ''
+
   // Documents administratifs (onglet Documents)
   const [{ data: docTypeConfigs }, { data: studentDocs }] = await Promise.all([
     supabase.from('document_type_configs').select('id, category, doc_key, label, is_required, order_index').order('order_index'),
@@ -165,6 +173,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         docTypeConfigs={(docTypeConfigs ?? []) as any[]}
         studentDocuments={(studentDocs ?? []) as any[]}
         siblings={siblings as any[]}
+        currentYearLabel={currentYearLabel}
       />
 
     </div>

@@ -427,11 +427,11 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
       {/* Sélecteur cours adulte */}
       <div className="card p-4 flex-shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
-          <div ref={classDropRef} className="relative w-72">
+          <div ref={classDropRef} className="relative">
             <button
               type="button"
               onClick={() => setClassDropOpen(o => !o)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors"
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
             >
               {selectedClass ? (
                 <span className="flex items-center gap-2 min-w-0">
@@ -449,7 +449,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
             </button>
 
             {classDropOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
+              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
                 <button
                   type="button"
                   onClick={() => { selectClass(null); setClassDropOpen(false) }}
@@ -478,7 +478,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                       )}
                     >
                       <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
+                      <span className="text-warm-400 text-xs truncate">{[teacher, c.cotisation_types?.label].filter(Boolean).join(' · ')}</span>
                     </button>
                   )
                 })}

@@ -4,7 +4,7 @@ import { sendPushToUser } from '@/lib/push'
 
 interface CreateNotificationParams {
   etablissement_id: string
-  type: 'absence' | 'retard' | 'payment' | 'announcement'
+  type: 'absence' | 'retard' | 'payment' | 'announcement' | 'homework'
   parent_id: string
   student_id?: string | null
   title: string

@@ -14,14 +14,21 @@ interface ParentsTableProps {
   parentsWithPAI: Set<string>
 }
 
-function Tooltip({ children, label }: { children: React.ReactNode; label: string }) {
+function Tooltip({ children, label, position = 'top' }: { children: React.ReactNode; label: string; position?: 'top' | 'bottom' }) {
   return (
     <span className="relative group/tip inline-flex">
       {children}
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-20 shadow-md">
-        {label}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-secondary-800" />
-      </span>
+      {position === 'top' ? (
+        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-20 shadow-md">
+          {label}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-secondary-800" />
+        </span>
+      ) : (
+        <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-20 shadow-md">
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-secondary-800" />
+          {label}
+        </span>
+      )}
     </span>
   )
 }
@@ -36,8 +43,10 @@ const RELATION_LABEL: Record<string, string> = {
 export default function ParentsTable({ parents, parentsWithChildren, parentsWithPAI }: ParentsTableProps) {
   const router = useRouter()
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [childrenMap, setChildrenMap] = useState<Record<string, Student[]>>({})
+  type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }
+  const [childrenMap, setChildrenMap] = useState<Record<string, StudentWithEnrollment[]>>({})
   const [loadingChildrenId, setLoadingChildrenId] = useState<string | null>(null)
+  const [togglingStudentId, setTogglingStudentId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -56,7 +65,32 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
       setLoadingChildrenId(parentId)
       try {
         const children = await studentRepository.getByParent(parentId)
-        setChildrenMap(prev => ({ ...prev, [parentId]: children }))
+        // Fetch active enrollments with class + main teacher
+        const supabase = createClient()
+        const studentIds = children.map(c => c.id)
+        let enrollmentMap: Record<string, { className: string; teacherLabel: string | null }> = {}
+        if (studentIds.length > 0) {
+          const { data: enrollments } = await supabase
+            .from('enrollments')
+            .select('student_id, classes:class_id(name, class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
+            .in('student_id', studentIds)
+            .eq('status', 'active')
+          for (const e of (enrollments ?? []) as any[]) {
+            const cls = e.classes
+            if (!cls) continue
+            const mainTeacher = cls.class_teachers?.find((ct: any) => ct.is_main_teacher)?.teachers
+            const teacherLabel = mainTeacher
+              ? `${mainTeacher.civilite ? mainTeacher.civilite + ' ' : ''}${mainTeacher.first_name} ${mainTeacher.last_name}`
+              : null
+            enrollmentMap[e.student_id] = { className: cls.name, teacherLabel }
+          }
+        }
+        const enriched = children.map(c => ({
+          ...c,
+          enrollment_class: enrollmentMap[c.id]?.className ?? null,
+          enrollment_teacher: enrollmentMap[c.id]?.teacherLabel ?? null,
+        }))
+        setChildrenMap(prev => ({ ...prev, [parentId]: enriched }))
       } catch {
         setChildrenMap(prev => ({ ...prev, [parentId]: [] }))
       } finally {
@@ -88,6 +122,24 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
       setDeleteError('Une erreur est survenue lors de la suppression.')
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleToggleActive = async (student: StudentWithEnrollment, parentId: string) => {
+    if (student.enrollment_class) return // inscrit dans une classe → pas de toggle
+    setTogglingStudentId(student.id)
+    try {
+      const supabase = createClient()
+      const newActive = !student.is_active
+      await supabase.from('students').update({ is_active: newActive }).eq('id', student.id)
+      setChildrenMap(prev => ({
+        ...prev,
+        [parentId]: prev[parentId].map(s => s.id === student.id ? { ...s, is_active: newActive } : s),
+      }))
+    } catch {
+      // silently fail
+    } finally {
+      setTogglingStudentId(null)
     }
   }
 
@@ -231,43 +283,68 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         <p className="text-sm text-warm-400">Aucun élève rattaché à cette fiche.</p>
                       ) : (
                         <div className="flex flex-wrap gap-3">
-                          {childrenMap[parent.id]?.map(student => (
-                            <button
-                              key={student.id}
-                              onClick={() => router.push(`/dashboard/students/${student.id}?from=parents`)}
-                              className={clsx(
-                                'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
-                                student.has_pai
-                                  ? 'bg-red-50 border-red-100 hover:bg-red-100/70 hover:border-red-200'
-                                  : student.is_active
-                                    ? 'bg-white border-warm-100 hover:bg-primary-50 hover:border-primary-200'
-                                    : 'bg-warm-50 border-warm-100 opacity-60 hover:opacity-80'
-                              )}
-                            >
-                              <span className="font-mono text-xs text-warm-400">{student.student_number}</span>
-                              <span className={clsx('font-medium', student.is_active ? 'text-secondary-700' : 'text-warm-400')}>
-                                {student.last_name} {student.first_name}
-                              </span>
-                              {student.has_pai && (
-                                <Tooltip label="Projet d'Aide Individualisé">
-                                  <span className="text-xs font-semibold text-red-500 bg-red-100 px-1.5 py-0.5 rounded">PAI</span>
+                          {childrenMap[parent.id]?.map(student => {
+                            const isEnrolled = !!student.enrollment_class
+                            const statusTooltip = isEnrolled
+                              ? `Classe : ${student.enrollment_class}${student.enrollment_teacher ? ' — ' + student.enrollment_teacher : ''}`
+                              : student.is_active ? 'Cliquer pour rendre inactif' : 'Cliquer pour rendre actif'
+
+                            return (
+                              <div
+                                key={student.id}
+                                className={clsx(
+                                  'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-colors',
+                                  student.has_pai
+                                    ? 'bg-red-50 border-red-100'
+                                    : student.is_active
+                                      ? 'bg-white border-warm-100'
+                                      : 'bg-warm-100/70 border-warm-200'
+                                )}
+                              >
+                                {/* Pastille statut cliquable */}
+                                <Tooltip label={statusTooltip} position="bottom">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleToggleActive(student, parent.id) }}
+                                    disabled={isEnrolled || togglingStudentId === student.id}
+                                    className={clsx(
+                                      'w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all ring-2 ring-offset-1',
+                                      isEnrolled
+                                        ? 'bg-green-400 ring-green-200 cursor-not-allowed'
+                                        : student.is_active
+                                          ? 'bg-green-500 ring-green-200 hover:bg-red-400 hover:ring-red-200 hover:scale-110 cursor-pointer'
+                                          : 'bg-warm-300 ring-warm-200 hover:bg-green-400 hover:ring-green-200 hover:scale-110 cursor-pointer'
+                                    )}
+                                  />
                                 </Tooltip>
-                              )}
-                              {student.exit_authorization && (
-                                <Tooltip label="Autorisation de sortie accordée">
-                                  <LogOut size={12} className="text-green-500 flex-shrink-0" />
-                                </Tooltip>
-                              )}
-                              {student.media_authorization && (
-                                <Tooltip label="Autorisation média accordée">
-                                  <Camera size={12} className="text-green-500 flex-shrink-0" />
-                                </Tooltip>
-                              )}
-                              {!student.is_active && (
-                                <span className="text-xs bg-warm-200 text-warm-500 px-1 py-0.5 rounded">inactif</span>
-                              )}
-                            </button>
-                          ))}
+
+                                <button
+                                  onClick={() => router.push(`/dashboard/students/${student.id}?from=parents`)}
+                                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                >
+                                  <span className="font-mono text-xs text-warm-400">{student.student_number}</span>
+                                  <span className={clsx('font-medium', student.is_active ? 'text-secondary-700' : 'text-warm-500')}>
+                                    {student.last_name} {student.first_name}
+                                  </span>
+                                </button>
+
+                                {student.has_pai && (
+                                  <Tooltip label="Projet d'Aide Individualisé">
+                                    <span className="text-xs font-semibold text-red-500 bg-red-100 px-1.5 py-0.5 rounded">PAI</span>
+                                  </Tooltip>
+                                )}
+                                {student.exit_authorization && (
+                                  <Tooltip label="Autorisation de sortie accordée">
+                                    <LogOut size={12} className="text-green-500 flex-shrink-0" />
+                                  </Tooltip>
+                                )}
+                                {student.media_authorization && (
+                                  <Tooltip label="Autorisation média accordée">
+                                    <Camera size={12} className="text-green-500 flex-shrink-0" />
+                                  </Tooltip>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </td>

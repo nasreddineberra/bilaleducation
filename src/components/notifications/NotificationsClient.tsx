@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { Bell, Search, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone } from 'lucide-react'
+import { Bell, Search, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import PushSubscribeButton from './PushSubscribeButton'
 
@@ -63,6 +63,7 @@ const AUTO_TYPE_LABELS: Record<string, { label: string; icon: any; color: string
   retard:       { label: 'Retard',       icon: Clock,       color: 'bg-orange-100 text-orange-700' },
   payment:      { label: 'Paiement',     icon: CreditCard,  color: 'bg-green-100 text-green-700' },
   announcement: { label: 'Annonce',      icon: Megaphone,   color: 'bg-blue-100 text-blue-700' },
+  homework:     { label: 'Devoir',      icon: BookOpenText, color: 'bg-purple-100 text-purple-700' },
 }
 
 function formatDate(d: string | null): string {
@@ -175,6 +176,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             <option value="retard">Retards</option>
             <option value="payment">Paiements</option>
             <option value="announcement">Annonces</option>
+            <option value="homework">Devoirs</option>
           </select>
         )}
       </div>

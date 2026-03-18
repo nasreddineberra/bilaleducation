@@ -458,6 +458,23 @@ export default async function DashboardPage() {
     familyFee = fee
   }
 
+  // Devoirs à venir pour les enfants
+  let upcomingHomework: any[] = []
+  if (children.length > 0) {
+    const childClassIds = [...new Set(children.flatMap((c: any) => c.enrollments?.map((e: any) => e.class_id) ?? []))]
+    if (childClassIds.length > 0) {
+      const today = new Date().toISOString().slice(0, 10)
+      const { data: hw } = await supabase
+        .from('homework')
+        .select('id, title, homework_type, due_date, subject, classes:class_id(name)')
+        .in('class_id', childClassIds)
+        .gte('due_date', today)
+        .order('due_date', { ascending: true })
+        .limit(5)
+      upcomingHomework = (hw ?? []) as any[]
+    }
+  }
+
   return (
     <DashboardParent
       {...common}
@@ -466,6 +483,7 @@ export default async function DashboardPage() {
         recentGrades: childGrades,
         recentAbsences: childAbsences,
         familyFee,
+        upcomingHomework,
       }}
     />
   )

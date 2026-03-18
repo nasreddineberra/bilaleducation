@@ -154,15 +154,17 @@ export const studentRepository = {
   /**
    * Récupérer les enfants d'une fiche parents (fratrie incluse)
    */
-  async getByParent(parentId: string): Promise<Student[]> {
+  async getByParent(parentId: string, activeOnly = false): Promise<Student[]> {
     const supabase = createClient()
-    const { data, error } = await supabase
+    const query = supabase
       .from('students')
       .select('*')
       .eq('parent_id', parentId)
-      .eq('is_active', true)
       .order('last_name')
 
+    if (activeOnly) query.eq('is_active', true)
+
+    const { data, error } = await query
     if (error) throw error
     return data || []
   },

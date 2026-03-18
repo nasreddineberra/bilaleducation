@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { Users, FileText, AlertTriangle, DollarSign, Bell } from 'lucide-react'
+import { Users, FileText, AlertTriangle, DollarSign, Bell, BookOpenText, ClipboardList, BookOpen, Lightbulb } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 
 const ABSENCE_TYPE: Record<string, string> = {
@@ -30,7 +30,15 @@ interface Props {
     recentGrades: { id: string; score: number; evaluations: { title: string; max_score: number; evaluation_date: string | null } | null; students: { first_name: string; last_name: string } | null }[]
     recentAbsences: { id: string; absence_date: string; absence_type: string; is_justified: boolean; students: { first_name: string; last_name: string } | null }[]
     familyFee: { id: string; total_due: number; status: string } | null
+    upcomingHomework?: { id: string; title: string; homework_type: string; due_date: string; subject: string; classes: { name: string } | null }[]
   }
+}
+
+const HW_TYPE_BADGE: Record<string, { label: string; color: string; icon: any }> = {
+  exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
+  lecon:    { label: 'Lecon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
+  expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
+  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-600', icon: FileText },
 }
 
 function formatCurrency(n: number): string {
@@ -124,6 +132,39 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
           )}
         </div>
       </div>
+
+      {/* Devoirs à venir */}
+      {(stats.upcomingHomework ?? []).length > 0 && (
+        <div className="card space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
+              <BookOpenText size={14} className="text-primary-500" /> Devoirs a venir
+            </h3>
+            <Link href="/dashboard/cahier-texte" className="text-xs text-primary-600 hover:text-primary-800">
+              Voir tout
+            </Link>
+          </div>
+          <div className="space-y-1.5">
+            {stats.upcomingHomework!.map(hw => {
+              const typeInfo = HW_TYPE_BADGE[hw.homework_type] ?? HW_TYPE_BADGE.autre
+              const TypeIcon = typeInfo.icon
+              return (
+                <div key={hw.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
+                  <span className={clsx('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-bold flex-shrink-0', typeInfo.color)}>
+                    <TypeIcon size={10} />
+                    {typeInfo.label}
+                  </span>
+                  <span className="font-medium text-warm-700 truncate flex-1">{hw.title}</span>
+                  <span className="text-warm-400 flex-shrink-0">{hw.classes?.name}</span>
+                  <span className="ml-1 font-bold text-red-600 flex-shrink-0">
+                    {new Date(hw.due_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Solde financier */}
       {stats.familyFee && feeInfo && (

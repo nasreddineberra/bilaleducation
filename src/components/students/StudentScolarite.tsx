@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { clsx } from 'clsx'
-import { BookOpen, AlertTriangle, FileText, Download } from 'lucide-react'
+import { BookOpen, AlertTriangle, FileText, Download, ShieldAlert, Clock } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +67,11 @@ type MainTeacherRow = {
   teachers: { civilite: string | null; first_name: string; last_name: string } | null
 }
 
+type WarningRow = {
+  period_id: string
+  severity: string
+}
+
 interface Props {
   studentId: string
   enrollments: EnrollmentRow[]
@@ -76,6 +81,7 @@ interface Props {
   absences: AbsenceRow[]
   bulletinArchives: BulletinArchiveRow[]
   mainTeachers: MainTeacherRow[]
+  warnings: WarningRow[]
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -98,7 +104,7 @@ const PERIOD_LABELS: Record<string, string> = {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function StudentScolarite({
-  studentId, enrollments, evaluations, grades, periods, absences, bulletinArchives, mainTeachers,
+  studentId, enrollments, evaluations, grades, periods, absences, bulletinArchives, mainTeachers, warnings,
 }: Props) {
 
   // Index bulletins archivés par class_id:period_id
@@ -138,6 +144,38 @@ export default function StudentScolarite({
     return map
   }, [periods])
 
+  // Map period_id → année scolaire
+  const periodToYear = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of periods) {
+      const year = (p.school_years as any)?.label ?? 'Inconnue'
+      map.set(p.id, year)
+    }
+    return map
+  }, [periods])
+
+  // Statistiques discipline par année scolaire
+  const disciplineStatsByYear = useMemo(() => {
+    const stats = new Map<string, { abs: number; unjustified: number; retards: number; warnings: number }>()
+    for (const a of absences) {
+      const year = periodToYear.get(a.period_id) ?? 'Inconnue'
+      if (!stats.has(year)) stats.set(year, { abs: 0, unjustified: 0, retards: 0, warnings: 0 })
+      const s = stats.get(year)!
+      if (a.absence_type === 'absence') {
+        s.abs++
+        if (!a.is_justified) s.unjustified++
+      } else {
+        s.retards++
+      }
+    }
+    for (const w of warnings) {
+      const year = periodToYear.get(w.period_id) ?? 'Inconnue'
+      if (!stats.has(year)) stats.set(year, { abs: 0, unjustified: 0, retards: 0, warnings: 0 })
+      stats.get(year)!.warnings++
+    }
+    return stats
+  }, [absences, warnings, periodToYear])
+
   // Regrouper les inscriptions par année scolaire (décroissant)
   const yearGroups = useMemo(() => {
     const validEnrollments = enrollments.filter(e => e.classes)
@@ -164,10 +202,36 @@ export default function StudentScolarite({
     <div className="space-y-3">
       {yearGroups.map(([year, yearEnrollments]) => (
         <div key={year}>
-          {/* En-tête année scolaire */}
-          <div className="flex items-center gap-1.5 mb-2">
+          {/* En-tête année scolaire + stats discipline */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <BookOpen size={13} className="text-primary flex-shrink-0" />
             <h3 className="text-xs font-bold text-secondary-800">{year}</h3>
+            {(() => {
+              const ds = disciplineStatsByYear.get(year)
+              if (!ds || (ds.abs === 0 && ds.retards === 0 && ds.warnings === 0)) return null
+              return (
+                <span className="flex items-center gap-2 text-[11px] text-warm-500 ml-2">
+                  {ds.abs > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <AlertTriangle size={10} className="text-red-400" />
+                      {ds.abs} abs.{ds.unjustified > 0 && <span className="text-red-500">({ds.unjustified} nj)</span>}
+                    </span>
+                  )}
+                  {ds.retards > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <Clock size={10} className="text-amber-400" />
+                      {ds.retards} ret.
+                    </span>
+                  )}
+                  {ds.warnings > 0 && (
+                    <span className="flex items-center gap-0.5">
+                      <ShieldAlert size={10} className="text-purple-400" />
+                      {ds.warnings} avert.
+                    </span>
+                  )}
+                </span>
+              )
+            })()}
           </div>
 
           <div className="space-y-2">
@@ -236,29 +300,19 @@ export default function StudentScolarite({
                         const retards = periodAbs.filter(a => a.absence_type === 'retard').length
 
                         return (
-                          <div key={period.id} className="px-3 py-1.5 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-semibold text-warm-500 w-20">
-                                {PERIOD_LABELS[period.label] ?? period.label}
+                          <div key={period.id} className="px-3 py-1.5 flex items-center gap-2">
+                            <span className="text-[11px] font-semibold text-warm-500 w-20 flex-shrink-0">
+                              {PERIOD_LABELS[period.label] ?? period.label}
+                            </span>
+
+                            {avg != null && (
+                              <span className={clsx(
+                                'text-xs font-bold',
+                                avg >= 14 ? 'text-green-600' : avg >= 10 ? 'text-amber-600' : 'text-red-600'
+                              )}>
+                                {avg.toFixed(2)}/20
                               </span>
-
-                              {avg != null && (
-                                <span className={clsx(
-                                  'text-xs font-bold',
-                                  avg >= 14 ? 'text-green-600' : avg >= 10 ? 'text-amber-600' : 'text-red-600'
-                                )}>
-                                  {avg.toFixed(2)}/20
-                                </span>
-                              )}
-
-                              {(absTotal > 0 || retards > 0) && (
-                                <span className="flex items-center gap-1 text-[11px] text-warm-400">
-                                  <AlertTriangle size={10} />
-                                  {absTotal > 0 && `${absTotal} abs.`}
-                                  {retards > 0 && `${absTotal > 0 ? ' · ' : ''}${retards} ret.`}
-                                </span>
-                              )}
-                            </div>
+                            )}
 
                             {bulletinUrl ? (
                               <a
@@ -271,7 +325,14 @@ export default function StudentScolarite({
                                 Bulletin
                               </a>
                             ) : (
-                              <span className="text-[11px] text-warm-300 italic">Bulletin non archivé</span>
+                              <span className="text-[11px] text-warm-300 italic">—</span>
+                            )}
+
+                            {(absTotal > 0 || retards > 0) && (
+                              <span className="flex items-center gap-1 text-[11px] text-warm-400 ml-auto">
+                                {absTotal > 0 && <><AlertTriangle size={10} className="text-red-400" /> {absTotal} abs.</>}
+                                {retards > 0 && <>{absTotal > 0 ? ' · ' : ''}<Clock size={10} className="text-amber-400" /> {retards} ret.</>}
+                              </span>
                             )}
                           </div>
                         )

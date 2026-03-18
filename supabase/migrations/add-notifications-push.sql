@@ -2,6 +2,10 @@
 -- Notifications automatiques parents + Push subscriptions
 -- ============================================================================
 
+-- Ajouter user_id sur parents (lien vers auth.users / profiles)
+ALTER TABLE parents ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_parents_user_id ON parents(user_id);
+
 -- Table unifiée des notifications parents
 CREATE TABLE IF NOT EXISTS notifications (
   id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { clsx } from 'clsx'
-import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check } from 'lucide-react'
+import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import type { Period, Absence, AbsenceType } from '@/types/database'
@@ -31,6 +31,13 @@ type StudentRow = {
   photo_url: string | null
 }
 
+type EtablissementInfo = {
+  nom: string
+  adresse: string | null
+  telephone: string | null
+  logo_url: string | null
+}
+
 interface AbsencesClientProps {
   classes: ClassRow[]
   periods: Period[]
@@ -38,6 +45,8 @@ interface AbsencesClientProps {
   initialAbsences: Absence[]
   etablissementId: string
   schoolYearId: string | null
+  etablissement: EtablissementInfo | null
+  yearLabel: string | null
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -63,6 +72,8 @@ export default function AbsencesClient({
   initialAbsences,
   etablissementId,
   schoolYearId,
+  etablissement,
+  yearLabel,
 }: AbsencesClientProps) {
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
@@ -114,6 +125,164 @@ export default function AbsencesClient({
   // Infos classe
   const noSchoolYear    = !schoolYearId
   const noClassOrPeriod = !selectedClassId || !selectedPeriodId
+
+  // ─── Impression feuille d'appel PDF ─────────────────────────────────────────
+  const handlePrintPdf = async () => {
+    if (!selectedClassId) return
+    const cls = classes.find(c => c.id === selectedClassId)
+    if (!cls) return
+
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 15
+    const contentWidth = pageWidth - margin * 2
+    let y = margin
+
+    const COLORS = {
+      primary:   [80, 117, 131] as [number, number, number],
+      secondary: [46, 69, 80]   as [number, number, number],
+      gray:      [120, 120, 120] as [number, number, number],
+      headerBg:  [240, 245, 248] as [number, number, number],
+    }
+
+    // Logo
+    if (etablissement?.logo_url) {
+      try {
+        const res = await fetch(etablissement.logo_url)
+        if (res.ok) {
+          const blob = await res.blob()
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          doc.addImage(base64, 'PNG', margin, y, 20, 20)
+        }
+      } catch { /* ignore */ }
+    }
+
+    const logoOffset = etablissement?.logo_url ? 25 : 0
+
+    // Nom établissement
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.secondary)
+    doc.text(etablissement?.nom ?? '', margin + logoOffset, y + 7)
+
+    // Adresse + téléphone
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    const infoLines: string[] = []
+    if (etablissement?.adresse) infoLines.push(etablissement.adresse)
+    if (etablissement?.telephone) infoLines.push(`Tél : ${etablissement.telephone}`)
+    infoLines.forEach((line, i) => {
+      doc.text(line, margin + logoOffset, y + 12 + i * 4)
+    })
+
+    // Titre à droite
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.primary)
+    doc.text("FEUILLE D'APPEL", pageWidth - margin, y + 5, { align: 'right' })
+
+    if (yearLabel) {
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.gray)
+      doc.text(yearLabel, pageWidth - margin, y + 11, { align: 'right' })
+    }
+
+    y += 25
+
+    // Ligne de séparation
+    doc.setDrawColor(...COLORS.primary)
+    doc.setLineWidth(0.8)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 6
+
+    // Bloc infos classe
+    doc.setFillColor(...COLORS.headerBg)
+    doc.roundedRect(margin, y, contentWidth, 20, 2, 2, 'F')
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.secondary)
+    doc.text(`Classe : ${cls.name}`, margin + 4, y + 7)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    const infoParts: string[] = []
+    if (cls.main_teacher_name) {
+      infoParts.push(cls.main_teacher_civilite ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name)
+    }
+    if (cls.level) infoParts.push(`Niveau ${cls.level}`)
+    const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+    const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
+    if (schedule) infoParts.push(schedule)
+    doc.text(infoParts.join(' · '), margin + 4, y + 14)
+
+    y += 25
+
+    // Date du jour
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.secondary)
+    doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, margin, y)
+    doc.text(`Effectif : ${classStudents.length} élève${classStudents.length > 1 ? 's' : ''}`, pageWidth - margin, y, { align: 'right' })
+    y += 6
+
+    // Tableau des élèves
+    const sortedStudents = [...classStudents].sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name))
+
+    autoTable(doc, {
+      startY: y,
+      head: [['N°', 'Nom', 'Prénom', 'Présent', 'Absent', 'Retard', 'Observation']],
+      body: sortedStudents.map((s, i) => [
+        String(i + 1),
+        s.last_name,
+        s.first_name,
+        '',
+        '',
+        '',
+        '',
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3, textColor: [30, 30, 30], lineColor: [200, 200, 200], lineWidth: 0.3 },
+      headStyles: { fillColor: COLORS.primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 30 },
+        3: { halign: 'center', cellWidth: 18 },
+        4: { halign: 'center', cellWidth: 18 },
+        5: { halign: 'center', cellWidth: 18 },
+        6: { cellWidth: 'auto' },
+      },
+      margin: { left: margin, right: margin },
+    })
+
+    // Footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(180, 180, 180)
+      doc.text(
+        `FEUILLE D'APPEL – ${cls.name} – ${yearLabel ?? ''}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 8,
+        { align: 'center' }
+      )
+    }
+
+    doc.save(`Feuille_appel_${cls.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`)
+  }
 
   // Callback après saisie (ajouts, mises à jour, suppressions)
   const handleSaisieComplete = (added: Absence[], updated: Absence[], deletedIds: string[]) => {
@@ -239,12 +408,21 @@ export default function AbsencesClient({
           <>
             {/* Barre résumé + bouton saisie */}
             <div className="px-3 py-1.5 flex items-center justify-between border-b border-warm-100 flex-shrink-0">
-              <button
-                onClick={() => setShowSaisie(true)}
-                className="btn btn-primary text-xs py-1 px-2.5 flex items-center gap-1"
-              >
-                <Plus size={14} /> Saisir
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowSaisie(true)}
+                  className="btn btn-primary text-xs py-1 px-2.5 flex items-center gap-1"
+                >
+                  <Plus size={14} /> Saisir
+                </button>
+                <button
+                  onClick={handlePrintPdf}
+                  className="btn text-xs py-1 px-2.5 flex items-center gap-1"
+                  title="Imprimer la feuille d'appel"
+                >
+                  <Printer size={14} /> Imprimer
+                </button>
+              </div>
               <div className="flex items-center gap-4 text-xs text-warm-500">
                 <span>{summary.abs} absence{summary.abs > 1 ? 's' : ''} <span className="text-red-500 font-semibold">({summary.absNJ} NJ)</span></span>
                 <span>{summary.ret} retard{summary.ret > 1 ? 's' : ''}</span>

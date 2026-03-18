@@ -28,6 +28,7 @@ import {
   Bell,
   Clock,
   Eye,
+  BookOpenText,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
@@ -95,6 +96,12 @@ const navItems: NavItem[] = [
     href:  '/dashboard/absences',
     icon:  Calendar,
     roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+  },
+  {
+    name:  'Cahier de texte',
+    href:  '/dashboard/cahier-texte',
+    icon:  BookOpenText,
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
   },
   {
     name:  'Affectations',

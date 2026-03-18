@@ -493,12 +493,12 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
       {/* Sélecteur classe */}
       <div className="card p-4 space-y-2 flex-shrink-0">
         <div className="flex items-center gap-3 flex-wrap">
-          <div ref={classDropRef} className="relative w-72">
+          <div ref={classDropRef} className="relative">
             {/* Trigger */}
             <button
               type="button"
               onClick={() => setClassDropOpen(o => !o)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors"
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
             >
               {selectedClass ? (
                 <span className="flex items-center gap-2 min-w-0">
@@ -517,7 +517,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
 
             {/* Liste déroulante custom */}
             {classDropOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
+              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
                 <button
                   type="button"
                   onClick={() => { selectClass(null); setClassDropOpen(false) }}
@@ -530,14 +530,9 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   const teacher = main?.teachers
                     ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ')
                     : null
-                  const cDay = c.day_of_week ? (DAYS[c.day_of_week] ?? c.day_of_week) : null
-                  const cStart = fmtTime(c.start_time)
-                  const cEnd = fmtTime(c.end_time)
                   const infoParts = [
                     teacher,
                     c.cotisation_types?.label,
-                    `Niveau ${c.level}`,
-                    cDay && cStart ? `${cDay} ${cStart}${cEnd ? `–${cEnd}` : ''}` : cDay,
                   ].filter(Boolean)
                   return (
                     <button

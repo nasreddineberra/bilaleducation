@@ -131,6 +131,7 @@ export interface Student {
 export interface Parent {
   id: string
   etablissement_id: string
+  user_id?: string
   // Tuteur 1 (obligatoire)
   tutor1_last_name: string
   tutor1_first_name: string
@@ -535,4 +536,48 @@ export interface FeeInstallment {
   recorded_by?: string
   created_at: string
   updated_at: string
+}
+
+// ─── Cahier de texte ──────────────────────────────────────────────────────────
+
+export type HomeworkType = 'exercice' | 'lecon' | 'expose' | 'autre'
+
+export interface ClassJournal {
+  id: string
+  etablissement_id: string
+  class_id: string
+  teacher_id: string
+  subject: string | null
+  session_date: string
+  title: string
+  content_html: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Homework {
+  id: string
+  etablissement_id: string
+  class_id: string
+  teacher_id: string
+  subject: string
+  journal_entry_id: string | null
+  title: string
+  description_html: string
+  homework_type: HomeworkType
+  due_date: string
+  created_at: string
+  updated_at: string
+}
+
+export interface HomeworkStatus {
+  id: string
+  homework_id: string
+  student_id: string
+  parent_id: string
+  is_seen: boolean
+  seen_at: string | null
+  is_done: boolean
+  done_at: string | null
+  created_at: string
 }
