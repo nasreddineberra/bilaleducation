@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import Tooltip from '@/components/ui/Tooltip'
 import type {
   UniteEnseignement, CoursModule, Cours,
   Period, EvalTypeConfig, EvalTypeKind,
@@ -132,14 +133,15 @@ function CoursRefRow({
       {isMarked ? (
         <Check size={12} className="text-primary-500 flex-shrink-0" />
       ) : (
-        <button
-          onClick={onAdd}
-          disabled={disabled}
-          className="p-0.5 text-warm-300 hover:text-primary-600 rounded transition-colors disabled:opacity-30"
-          title="Ajouter une évaluation"
-        >
-          <Plus size={13} />
-        </button>
+        <Tooltip content="Ajouter une évaluation">
+          <button
+            onClick={onAdd}
+            disabled={disabled}
+            className="p-0.5 text-warm-300 hover:text-primary-600 rounded transition-colors disabled:opacity-30"
+          >
+            <Plus size={13} />
+          </button>
+        </Tooltip>
       )}
       {tooltip && createPortal(
         <div
@@ -766,7 +768,6 @@ export default function EvaluationsClient({
                   onClick={handleSaveOrder}
                   disabled={!orderDirty || savingOrder}
                   className="btn btn-primary text-xs py-1 px-3 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
-                  title="Enregistrer l'ordre des évaluations, modules et UEs"
                 >
                   <Check size={12} />
                   {savingOrder ? 'Enregistrement…' : 'Enregistrer'}
@@ -861,22 +862,24 @@ export default function EvaluationsClient({
                       >
                         <div className="flex items-center flex-shrink-0">
                           {sibIdx > 0 && (
-                            <button
-                              onClick={() => moveEval(ev.id, 'up', siblings)}
-                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
-                              title="Monter"
-                            >
-                              <ChevronUp size={15} />
-                            </button>
+                            <Tooltip content="Monter">
+                              <button
+                                onClick={() => moveEval(ev.id, 'up', siblings)}
+                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              >
+                                <ChevronUp size={15} />
+                              </button>
+                            </Tooltip>
                           )}
                           {sibIdx < siblings.length - 1 && (
-                            <button
-                              onClick={() => moveEval(ev.id, 'down', siblings)}
-                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
-                              title="Descendre"
-                            >
-                              <ChevronDown size={15} />
-                            </button>
+                            <Tooltip content="Descendre">
+                              <button
+                                onClick={() => moveEval(ev.id, 'down', siblings)}
+                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              >
+                                <ChevronDown size={15} />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -924,20 +927,22 @@ export default function EvaluationsClient({
                           </div>
                         ) : (
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                            <button
-                              onClick={() => openEdit(ev)}
-                              className="p-1 text-warm-400 hover:text-primary-600 rounded transition-colors"
-                              title="Modifier"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              onClick={() => { setConfirmDelete(ev.id); setAdding(null); setEditing(null) }}
-                              className="p-1 text-warm-400 hover:text-danger-500 rounded transition-colors"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <Tooltip content="Modifier">
+                              <button
+                                onClick={() => openEdit(ev)}
+                                className="p-1 text-warm-400 hover:text-primary-600 rounded transition-colors"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            </Tooltip>
+                            <Tooltip content="Supprimer">
+                              <button
+                                onClick={() => { setConfirmDelete(ev.id); setAdding(null); setEditing(null) }}
+                                className="p-1 text-warm-400 hover:text-danger-500 rounded transition-colors"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </Tooltip>
                           </div>
                         )}
                       </div>
@@ -971,22 +976,24 @@ export default function EvaluationsClient({
                       <div className="flex items-center gap-1 text-xs font-bold text-secondary-600 uppercase tracking-wide mb-1.5 px-1 border-b border-warm-100 pb-1">
                         <div className="flex items-center flex-shrink-0">
                           {ueIdx > 0 && (
-                            <button
-                              onClick={() => moveUE(ue.id, 'up', rightUEs.map(u => u.id))}
-                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
-                              title="Monter l'UE"
-                            >
-                              <ChevronUp size={14} />
-                            </button>
+                            <Tooltip content="Monter l'UE">
+                              <button
+                                onClick={() => moveUE(ue.id, 'up', rightUEs.map(u => u.id))}
+                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              >
+                                <ChevronUp size={14} />
+                              </button>
+                            </Tooltip>
                           )}
                           {ueIdx < rightUEs.length - 1 && (
-                            <button
-                              onClick={() => moveUE(ue.id, 'down', rightUEs.map(u => u.id))}
-                              className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
-                              title="Descendre l'UE"
-                            >
-                              <ChevronDown size={14} />
-                            </button>
+                            <Tooltip content="Descendre l'UE">
+                              <button
+                                onClick={() => moveUE(ue.id, 'down', rightUEs.map(u => u.id))}
+                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                              >
+                                <ChevronDown size={14} />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                         <span className="flex-1">
@@ -1018,22 +1025,24 @@ export default function EvaluationsClient({
                               <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider px-2 pb-0.5 pt-1">
                                 <div className="flex items-center flex-shrink-0">
                                   {modIds.indexOf(mod.id) > 0 && (
-                                    <button
-                                      onClick={() => moveModule(ue.id, mod.id, 'up', modIds)}
-                                      className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
-                                      title="Monter le module"
-                                    >
-                                      <ChevronUp size={14} />
-                                    </button>
+                                    <Tooltip content="Monter le module">
+                                      <button
+                                        onClick={() => moveModule(ue.id, mod.id, 'up', modIds)}
+                                        className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                      >
+                                        <ChevronUp size={14} />
+                                      </button>
+                                    </Tooltip>
                                   )}
                                   {modIds.indexOf(mod.id) < modIds.length - 1 && (
-                                    <button
-                                      onClick={() => moveModule(ue.id, mod.id, 'down', modIds)}
-                                      className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
-                                      title="Descendre le module"
-                                    >
-                                      <ChevronDown size={14} />
-                                    </button>
+                                    <Tooltip content="Descendre le module">
+                                      <button
+                                        onClick={() => moveModule(ue.id, mod.id, 'down', modIds)}
+                                        className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                      >
+                                        <ChevronDown size={14} />
+                                      </button>
+                                    </Tooltip>
                                   )}
                                 </div>
                                 <span className="flex-1">

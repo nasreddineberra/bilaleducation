@@ -117,7 +117,15 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   const initialForm     = useRef<FormData>({ ...form })
 
   const [photoUrl,       setPhotoUrl]       = useState<string | null>(student?.photo_url ?? null)
-  const [tutorSource,    setTutorSource]    = useState<'tutor1' | 'tutor2'>('tutor1')
+  // Déterminer le tuteur source initial en comparant le contact d'urgence
+  const detectInitialTutorSource = (): 'tutor1' | 'tutor2' => {
+    if (!student?.parent_id || !student?.emergency_contact_phone) return 'tutor1'
+    const p = parents.find(pr => pr.id === student.parent_id)
+    if (p?.tutor2_phone && p.tutor2_phone === student.emergency_contact_phone && p.tutor1_phone !== student.emergency_contact_phone) return 'tutor2'
+    return 'tutor1'
+  }
+  const [tutorSource,    setTutorSource]    = useState<'tutor1' | 'tutor2'>(detectInitialTutorSource)
+  const initialTutorSource = useRef<'tutor1' | 'tutor2'>(tutorSource)
   const [numberEditable, setNumberEditable] = useState(false)
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,    setIsSubmitting]    = useState(false)
@@ -171,7 +179,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   // En modification : bouton grisé si aucune valeur changée
   const isUnchanged = isEditing && (Object.keys(form) as (keyof FormData)[]).every(
     k => form[k] === initialForm.current[k]
-  ) && photoUrl === (student?.photo_url ?? null)
+  ) && photoUrl === (student?.photo_url ?? null) && tutorSource === initialTutorSource.current
 
   // Parent sélectionné
   const parentData = form.parent_id
@@ -500,7 +508,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               {/* Sélecteur source tuteur */}
               <div className="card p-3">
                 <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">
-                  Reprendre les informations du responsable
+                  Reprendre les informations (adresse et contact) du responsable
                 </p>
                 <div className="flex flex-col gap-1.5">
                   <label className={clsx(

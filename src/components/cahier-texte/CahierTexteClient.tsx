@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import {
   BookOpenText, Search, Plus, CalendarDays, BookOpen,
-  ClipboardList, GraduationCap, FileText, Lightbulb,
+  ClipboardList, GraduationCap, FileText, Lightbulb, ChevronDown,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 
 interface Props {
   role: string
-  classes: { id: string; name: string }[]
+  classes: { id: string; name: string; level?: string | null; day_of_week?: string | null; start_time?: string | null; end_time?: string | null; class_teachers: { is_main_teacher: boolean; teachers: { civilite?: string | null; first_name: string; last_name: string } | null }[]; cotisation_types?: { label: string } | null }[]
   journalEntries: any[]
   homeworkEntries: any[]
   teacherId: string | null
@@ -51,6 +51,19 @@ export default function CahierTexteClient({
   const [filterClass, setFilterClass] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
 
+  // ── Dropdown custom classe ──
+  const [classDropOpen, setClassDropOpen] = useState(false)
+  const classDropRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!classDropOpen) return
+    const handler = (e: MouseEvent) => {
+      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [classDropOpen])
+  const selectedClass = classes.find(c => c.id === filterClass) ?? null
+
   const canCreate = ['enseignant', 'direction', 'responsable_pedagogique'].includes(role)
 
   // Sujets uniques pour le filtre
@@ -85,19 +98,96 @@ export default function CahierTexteClient({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-lg font-bold text-secondary-800 flex items-center gap-2">
-          <BookOpenText size={20} className="text-primary-500" />
-          Cahier de texte
-        </h1>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-warm-500">
-            {journalEntries.length} seance{journalEntries.length !== 1 ? 's' : ''} / {homeworkEntries.length} devoir{homeworkEntries.length !== 1 ? 's' : ''}
-          </span>
+      {/* Barre : select classe + recherche | infos classe + bouton */}
+      <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
+        {/* Gauche : select classe + recherche */}
+        <div ref={classDropRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setClassDropOpen(o => !o)}
+            className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
+          >
+            {selectedClass ? (
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
+                {(() => {
+                  const main = selectedClass.class_teachers?.find(t => t.is_main_teacher)
+                  const t = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
+                  return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
+                })()}
+              </span>
+            ) : (
+              <span className="text-warm-400">— Sélectionner une classe —</span>
+            )}
+            <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
+          </button>
+
+          {classDropOpen && (
+            <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => { setFilterClass(''); setClassDropOpen(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors"
+              >
+                — Toutes les classes —
+              </button>
+              {classes.map(c => {
+                const main = c.class_teachers?.find(t => t.is_main_teacher)
+                const teacher = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
+                const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setFilterClass(c.id); setClassDropOpen(false) }}
+                    className={clsx(
+                      'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
+                      filterClass === c.id && 'bg-primary-50'
+                    )}
+                  >
+                    <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
+                    <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="relative max-w-xs">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher..."
+            className="input text-sm py-1.5 pl-8 w-full"
+          />
+        </div>
+
+        {subjects.length > 0 && (
+          <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} className="input text-sm py-1.5">
+            <option value="">Toutes les matières</option>
+            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+
+        {/* Droite : infos classe + bouton */}
+        <div className="flex items-center gap-3 ml-auto">
+          {selectedClass && (() => {
+            const main = selectedClass.class_teachers?.find(t => t.is_main_teacher)
+            const teacher = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
+            const schedule = selectedClass.day_of_week
+              ? `${selectedClass.day_of_week}${selectedClass.start_time && selectedClass.end_time ? ` ${selectedClass.start_time.slice(0, 5)}–${selectedClass.end_time.slice(0, 5)}` : ''}`
+              : null
+            const parts = [teacher, selectedClass.cotisation_types?.label, selectedClass.level ? `Niveau ${selectedClass.level}` : null, schedule].filter(Boolean)
+            return parts.length > 0 ? (
+              <span className="text-sm font-medium text-warm-600 whitespace-nowrap">{parts.join(' · ')}</span>
+            ) : null
+          })()}
           {canCreate && (
-            <Link href="/dashboard/cahier-texte/new" className="btn btn-primary text-sm flex items-center gap-1.5">
-              <Plus size={16} /> Nouvelle seance
+            <Link href="/dashboard/cahier-texte/new" className="btn btn-primary text-sm flex items-center gap-1.5 whitespace-nowrap">
+              <Plus size={16} /> Nouvelle séance
             </Link>
           )}
         </div>
@@ -113,7 +203,7 @@ export default function CahierTexteClient({
           )}
         >
           <CalendarDays size={14} className="inline mr-1.5" />
-          Journal de seance
+          Journal de séance
         </button>
         <button
           onClick={() => setTab('devoirs')}
@@ -125,30 +215,6 @@ export default function CahierTexteClient({
           <ClipboardList size={14} className="inline mr-1.5" />
           Devoirs
         </button>
-      </div>
-
-      {/* Filtres */}
-      <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher..."
-            className="input text-sm py-1.5 pl-8 w-full"
-          />
-        </div>
-        <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="input text-sm py-1.5">
-          <option value="">Toutes les classes</option>
-          {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        {subjects.length > 0 && (
-          <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} className="input text-sm py-1.5">
-            <option value="">Toutes les matieres</option>
-            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
       </div>
 
       {/* Contenu */}

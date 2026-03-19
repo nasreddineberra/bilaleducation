@@ -48,21 +48,23 @@ export default async function CahierTextePage() {
   }
 
   // Classes selon le rôle
+  const classSelect = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, subject, teachers(civilite, first_name, last_name)), cotisation_types(label)'
+
   let classIds: string[] = []
-  let classes: { id: string; name: string }[] = []
+  let classes: any[] = []
 
   if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
-    const query = supabase.from('classes').select('id, name').order('name')
+    const query = supabase.from('classes').select(classSelect).order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
     classes = (data ?? []) as any[]
-    classIds = classes.map(c => c.id)
+    classIds = classes.map((c: any) => c.id)
 
   } else if (role === 'enseignant' && teacherAssignments.length > 0) {
     classIds = [...new Set(teacherAssignments.map(a => a.class_id))]
     const { data } = await supabase
       .from('classes')
-      .select('id, name')
+      .select(classSelect)
       .in('id', classIds)
       .order('name')
     classes = (data ?? []) as any[]
@@ -86,7 +88,7 @@ export default async function CahierTextePage() {
       if (classIds.length > 0) {
         const { data } = await supabase
           .from('classes')
-          .select('id, name')
+          .select(classSelect)
           .in('id', classIds)
           .order('name')
         classes = (data ?? []) as any[]

@@ -6,31 +6,13 @@ import { ChevronDown, ChevronRight, Pencil, Trash2, Users, LogOut, Camera, Gradu
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { studentRepository } from '@/lib/database/students'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Parent, Student } from '@/types/database'
 
 interface ParentsTableProps {
   parents: Parent[]
   parentsWithChildren: Set<string>
   parentsWithPAI: Set<string>
-}
-
-function Tooltip({ children, label, position = 'top' }: { children: React.ReactNode; label: string; position?: 'top' | 'bottom' }) {
-  return (
-    <span className="relative group/tip inline-flex">
-      {children}
-      {position === 'top' ? (
-        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-20 shadow-md">
-          {label}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-secondary-800" />
-        </span>
-      ) : (
-        <span className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-20 shadow-md">
-          <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-secondary-800" />
-          {label}
-        </span>
-      )}
-    </span>
-  )
 }
 
 const RELATION_LABEL: Record<string, string> = {
@@ -302,7 +284,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                 )}
                               >
                                 {/* Pastille statut cliquable */}
-                                <Tooltip label={statusTooltip} position="bottom">
+                                <Tooltip content={statusTooltip}>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleToggleActive(student, parent.id) }}
                                     disabled={isEnrolled || togglingStudentId === student.id}
@@ -328,17 +310,17 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                 </button>
 
                                 {student.has_pai && (
-                                  <Tooltip label="Projet d'Aide Individualisé">
+                                  <Tooltip content="Projet d'Aide Individualisé">
                                     <span className="text-xs font-semibold text-red-500 bg-red-100 px-1.5 py-0.5 rounded">PAI</span>
                                   </Tooltip>
                                 )}
                                 {student.exit_authorization && (
-                                  <Tooltip label="Autorisation de sortie accordée">
+                                  <Tooltip content="Autorisation de sortie accordée">
                                     <LogOut size={12} className="text-green-500 flex-shrink-0" />
                                   </Tooltip>
                                 )}
                                 {student.media_authorization && (
-                                  <Tooltip label="Autorisation média accordée">
+                                  <Tooltip content="Autorisation média accordée">
                                     <Camera size={12} className="text-green-500 flex-shrink-0" />
                                   </Tooltip>
                                 )}

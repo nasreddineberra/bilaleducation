@@ -16,6 +16,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import { Search, X, Users, CheckCircle2, GripVertical, ChevronDown, Info, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Tooltip from '@/components/ui/Tooltip'
 
 const POOL_PAGE_SIZE = 20
 
@@ -89,6 +90,42 @@ function GenderBadge({ gender }: { gender: string | null }) {
   return null
 }
 
+// ─── Tooltip classe (contenu riche) ──────────────────────────────────────────
+
+function ClassInfoTooltip({ name, teacher, schedule, level, cotisation }: {
+  name: string; teacher?: string; schedule?: string; level?: string; cotisation?: string
+}) {
+  return (
+    <div className="w-44">
+      <span className="block font-bold text-white text-sm mb-1">{name}</span>
+      {(teacher || cotisation || level) && (
+        <>
+          <span className="block border-t border-white/10 mb-1.5" />
+          {teacher && (
+            <span className="block text-secondary-300 text-[11px]">{teacher}</span>
+          )}
+          {cotisation && (
+            <span className="inline-block mt-1 text-[10px] font-bold text-amber-300 bg-amber-900/40 px-1.5 py-0.5 rounded">
+              {cotisation}
+            </span>
+          )}
+          {level && (
+            <span className="inline-block mt-1 ml-1 text-[10px] font-bold text-blue-300 bg-blue-900/40 px-1.5 py-0.5 rounded">
+              Niveau {level}
+            </span>
+          )}
+        </>
+      )}
+      {schedule && (
+        <>
+          <span className="block border-t border-white/10 mt-1.5 mb-1.5" />
+          <span className="block text-secondary-400 text-[11px]">{schedule}</span>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ─── Tooltip identité (fixed, hors du conteneur scrollable) ──────────────────
 
 function StudentTooltip({ student, top, left }: { student: StudentRow; top: number; left: number }) {
@@ -135,12 +172,12 @@ function StudentTooltip({ student, top, left }: { student: StudentRow; top: numb
 // ─── Carte élève draggable ────────────────────────────────────────────────────
 
 function DraggableCard({
-  student, disabled, assignedClassName, assignedClassTeacher, onInfoEnter, onInfoLeave,
+  student, disabled, assignedClassName, assignedClassInfo, onInfoEnter, onInfoLeave,
 }: {
   student:               StudentRow
   disabled:              boolean
   assignedClassName?:    string
-  assignedClassTeacher?: string | null
+  assignedClassInfo?:    { teacher?: string; schedule?: string; level?: string; cotisation?: string } | null
   onInfoEnter?:          (student: StudentRow, e: React.MouseEvent<HTMLSpanElement>) => void
   onInfoLeave?:          () => void
 }) {
@@ -184,12 +221,11 @@ function DraggableCard({
 
       {/* Badge PAI */}
       {student.has_pai && (
-        <span
-          title="Projet d'Accueil Individualisé"
-          className="text-[9px] font-bold text-red-500 bg-red-100 px-1 py-px rounded flex-shrink-0"
-        >
-          PAI
-        </span>
+        <Tooltip content="Projet d'Accueil Individualisé">
+          <span className="text-[9px] font-bold text-red-500 bg-red-100 px-1 py-px rounded flex-shrink-0">
+            PAI
+          </span>
+        </Tooltip>
       )}
 
       {/* Âge */}
@@ -197,12 +233,19 @@ function DraggableCard({
 
       {/* Classe assignée */}
       {assignedClassName && (
-        <span
-          title={assignedClassTeacher ?? undefined}
-          className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0"
-        >
-          {assignedClassName}
-        </span>
+        assignedClassInfo ? (
+          <Tooltip content={
+            <ClassInfoTooltip name={assignedClassName} {...assignedClassInfo} />
+          }>
+            <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+              {assignedClassName}
+            </span>
+          </Tooltip>
+        ) : (
+          <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+            {assignedClassName}
+          </span>
+        )
       )}
     </div>
   )
@@ -269,25 +312,25 @@ function DropZone({
 
               {/* Badge PAI */}
               {s.has_pai && (
-                <span
-                  title="Projet d'Accueil Individualisé"
-                  className="text-[10px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded flex-shrink-0"
-                >
-                  PAI
-                </span>
+                <Tooltip content="Projet d'Accueil Individualisé">
+                  <span className="text-[10px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                    PAI
+                  </span>
+                </Tooltip>
               )}
 
               {/* Âge */}
               <span className="text-xs text-warm-400 flex-shrink-0">{calcAge(s.date_of_birth)} ans</span>
 
               {/* Retirer */}
-              <button
-                onClick={() => onRemove(s.id)}
-                className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
-                title="Retirer de la classe"
-              >
-                <X size={13} />
-              </button>
+              <Tooltip content="Retirer de la classe">
+                <button
+                  onClick={() => onRemove(s.id)}
+                  className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                >
+                  <X size={13} />
+                </button>
+              </Tooltip>
             </div>
           ))}
         </div>
@@ -630,7 +673,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   const badgeMain             = badgeClass?.class_teachers.find(t => t.is_main_teacher)
                   const badgeTeacherName      = badgeMain?.teachers
                     ? [badgeMain.teachers.civilite, badgeMain.teachers.last_name, badgeMain.teachers.first_name].filter(Boolean).join(' ')
-                    : null
+                    : undefined
                   const badgeDay             = badgeClass?.day_of_week
                     ? (DAYS[badgeClass.day_of_week] ?? badgeClass.day_of_week)
                     : null
@@ -638,15 +681,20 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
                   const badgeEnd             = fmtTime(badgeClass?.end_time   ?? null)
                   const badgeSchedule        = badgeDay
                     ? `${badgeDay}${badgeStart ? ` ${badgeStart}${badgeEnd ? `–${badgeEnd}` : ''}` : ''}`
-                    : null
-                  const badgeTeacher         = [badgeTeacherName, badgeSchedule].filter(Boolean).join('\n') || null
+                    : undefined
+                  const badgeInfo = badgeClass ? {
+                    teacher: badgeTeacherName,
+                    schedule: badgeSchedule,
+                    level: badgeClass.level || undefined,
+                    cotisation: badgeClass.cotisation_types?.label || undefined,
+                  } : null
                   return (
                     <DraggableCard
                       key={s.id}
                       student={s}
                       disabled={isDisabled}
                       assignedClassName={badgeName}
-                      assignedClassTeacher={badgeTeacher}
+                      assignedClassInfo={badgeInfo}
                       onInfoEnter={showTooltip}
                       onInfoLeave={hideTooltip}
                     />

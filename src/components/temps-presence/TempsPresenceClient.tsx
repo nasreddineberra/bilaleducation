@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import TimeEntryModal from './TimeEntryModal'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,13 +265,23 @@ export default function TempsPresenceClient({
           const fullName = s ? `${s.last_name} ${s.first_name}` : ''
           const colors = ENTRY_COLORS[data.type]
           return (
-            <span
-              key={i}
-              title={`${fullName} — ${ENTRY_LABELS[data.type]} — ${data.mins > 0 ? fmtDuration(data.mins) : ''}`}
-              className={clsx('inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none', colors.bg, colors.text)}
-            >
-              {initials} {data.mins > 0 ? fmtDuration(data.mins) : 'ABS'}
-            </span>
+            <Tooltip content={
+              <div className="w-40">
+                <span className="block font-bold text-white text-sm">{fullName}</span>
+                <span className="block border-t border-white/10 my-1" />
+                <span className="block text-secondary-300 text-[11px]">{ENTRY_LABELS[data.type]}</span>
+                {data.mins > 0 && (
+                  <span className="block text-secondary-400 text-[11px] mt-0.5">{fmtDuration(data.mins)}</span>
+                )}
+              </div>
+            }>
+              <span
+                key={i}
+                className={clsx('inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none cursor-default', colors.bg, colors.text)}
+              >
+                {initials} {data.mins > 0 ? fmtDuration(data.mins) : 'ABS'}
+              </span>
+            </Tooltip>
           )
         })}
         {extra > 0 && (

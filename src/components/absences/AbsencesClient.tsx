@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -81,6 +81,19 @@ export default function AbsencesClient({
   const [expandedStudent,  setExpandedStudent]  = useState<string | null>(null)
   const [showSaisie,       setShowSaisie]       = useState(false)
   const [justifyTarget,    setJustifyTarget]    = useState<Absence | null>(null)
+
+  // ── Dropdown custom classe ──
+  const [classDropOpen, setClassDropOpen] = useState(false)
+  const classDropRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!classDropOpen) return
+    const handler = (e: MouseEvent) => {
+      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [classDropOpen])
+  const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
 
   // Élèves de la classe sélectionnée
   const classStudents = useMemo(
@@ -334,22 +347,59 @@ export default function AbsencesClient({
 
       {/* ── Barre de sélection ── */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide whitespace-nowrap">Classe</span>
-          <select
-            value={selectedClassId ?? ''}
-            onChange={e => { setSelectedClassId(e.target.value || null); setExpandedStudent(null) }}
-            className="input text-sm py-1.5"
-            disabled={classes.length === 0}
+        <div ref={classDropRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setClassDropOpen(o => !o)}
+            className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
           >
-            {classes.length === 0
-              ? <option value="">Aucune classe disponible</option>
-              : <>
-                  {classes.length > 1 && <option value="">- S&#233;lectionner une classe -</option>}
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </>
-            }
-          </select>
+            {selectedClass ? (
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
+                {(() => {
+                  const t = selectedClass.main_teacher_civilite && selectedClass.main_teacher_name
+                    ? `${selectedClass.main_teacher_civilite} ${selectedClass.main_teacher_name}`
+                    : selectedClass.main_teacher_name
+                  return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
+                })()}
+              </span>
+            ) : (
+              <span className="text-warm-400">— Sélectionner une classe —</span>
+            )}
+            <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
+          </button>
+
+          {classDropOpen && (
+            <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => { setSelectedClassId(null); setExpandedStudent(null); setClassDropOpen(false) }}
+                className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors"
+              >
+                — Sélectionner une classe —
+              </button>
+              {classes.map(c => {
+                const teacher = c.main_teacher_civilite && c.main_teacher_name
+                  ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
+                  : c.main_teacher_name
+                const infoParts = [teacher, c.cotisation_label].filter(Boolean)
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setSelectedClassId(c.id); setExpandedStudent(null); setClassDropOpen(false) }}
+                    className={clsx(
+                      'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
+                      selectedClassId === c.id && 'bg-primary-50'
+                    )}
+                  >
+                    <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
+                    <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {periods.length > 0 && (

@@ -6,7 +6,7 @@ import ClassForm from '@/components/classes/ClassForm'
 export default async function NewClassPage() {
   const supabase = await createClient()
 
-  const [{ data: schoolYears }, { data: teachers }, { data: ues }, { data: currentYearRow }] = await Promise.all([
+  const [{ data: schoolYears }, { data: teachers }, { data: ues }, { data: currentYearRow }, { data: rooms }] = await Promise.all([
     supabase
       .from('school_years')
       .select('*')
@@ -27,6 +27,12 @@ export default async function NewClassPage() {
       .select('id')
       .eq('is_current', true)
       .single(),
+    supabase
+      .from('rooms')
+      .select('id, name, capacity')
+      .eq('is_available', true)
+      .in('room_type', ['salle_cours', 'salle_informatique', 'salle_sport', 'autre'])
+      .order('name'),
   ])
 
   const { data: cotisationTypes } = currentYearRow
@@ -53,6 +59,7 @@ export default async function NewClassPage() {
         teachers={teachers ?? []}
         ues={ues ?? []}
         cotisationTypes={(cotisationTypes ?? []) as any[]}
+        rooms={(rooms ?? []) as any[]}
       />
 
     </div>

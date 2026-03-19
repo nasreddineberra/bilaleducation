@@ -6,9 +6,9 @@ const PAGE_SIZE = 20
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>
+  searchParams: Promise<{ page?: string; q?: string; filter?: string }>
 }) {
-  const { page: pageParam, q = '' } = await searchParams
+  const { page: pageParam, q = '', filter = '' } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? '1', 10))
   const from = (page - 1) * PAGE_SIZE
   const to   = from + PAGE_SIZE - 1
@@ -27,6 +27,9 @@ export default async function StudentsPage({
       `last_name.ilike.%${q.trim()}%,first_name.ilike.%${q.trim()}%,student_number.ilike.%${q.trim()}%`
     )
   }
+
+  if (filter === 'active') studentsQuery = studentsQuery.eq('is_active', true)
+  if (filter === 'no_parent') studentsQuery = studentsQuery.is('parent_id', null)
 
   const [
     { data: students, count: filteredCount },
@@ -48,6 +51,7 @@ export default async function StudentsPage({
       filteredCount={filteredCount ?? 0}
       page={page}
       q={q}
+      filter={filter}
       totalAll={totalAll ?? 0}
       totalActive={totalActive ?? 0}
       totalNoParent={totalNoParent ?? 0}

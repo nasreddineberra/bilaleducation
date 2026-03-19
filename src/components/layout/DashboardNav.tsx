@@ -40,6 +40,9 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/annee-scolaire/new':'Nouvelle année scolaire',
   '/dashboard/cours':             'Référentiel des cours',
   '/dashboard/cotisations':       'Financiers',
+  '/dashboard/ressources':        'Ressources',
+  '/dashboard/cahier-texte':      'Cahier de texte',
+  '/dashboard/cahier-texte/new':  'Nouvelle séance',
 }
 
 function getPageTitle(pathname: string): string {

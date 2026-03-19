@@ -25,6 +25,12 @@ interface UEOption {
 
 type TeacherOption = Pick<Teacher, 'id' | 'first_name' | 'last_name' | 'employee_number' | 'is_active'>
 
+interface RoomOption {
+  id: string
+  name: string
+  capacity: number | null
+}
+
 interface ClassFormProps {
   cls?: Class
   initialAssignments?: AssignmentData[]
@@ -32,6 +38,7 @@ interface ClassFormProps {
   teachers: TeacherOption[]
   ues: UEOption[]
   cotisationTypes?: CotisationType[]
+  rooms?: RoomOption[]
   backHref?: string
 }
 
@@ -39,6 +46,7 @@ type FormData = {
   name:               string
   level:              string
   room_number:        string
+  room_id:            string
   max_students:       string
   description:        string
   day_of_week:        string
@@ -56,6 +64,7 @@ export default function ClassForm({
   teachers,
   ues,
   cotisationTypes = [],
+  rooms = [],
   backHref = '/dashboard/classes',
 }: ClassFormProps) {
   const router    = useRouter()
@@ -68,6 +77,7 @@ export default function ClassForm({
     name:         cls?.name         ?? '',
     level:        cls?.level        ?? '',
     room_number:  cls?.room_number  ?? '',
+    room_id:      cls?.room_id     ?? '',
     max_students: String(cls?.max_students ?? 30),
     description:  cls?.description  ?? '',
     day_of_week:        cls?.day_of_week        ?? '',
@@ -130,7 +140,9 @@ export default function ClassForm({
   const vName        = form.name.trim().length < 2
   const vCotisation  = !form.cotisation_type_id
   const vAssignments = assignments.length === 0
-  const isFormValid  = !vName && !vCotisation && !vAssignments
+  const selectedRoom = rooms.find(r => r.id === form.room_id)
+  const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
+  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const cls2    = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
@@ -170,7 +182,8 @@ export default function ClassForm({
         name:          form.name.trim(),
         level:         form.level.trim(),
         academic_year: currentYear?.label      ?? null,
-        room_number:   form.room_number.trim() || null,
+        room_number:   form.room_id ? (rooms.find(r => r.id === form.room_id)?.name ?? null) : (form.room_number.trim() || null),
+        room_id:       form.room_id || null,
         max_students:  parseInt(form.max_students, 10) || 30,
         description:   form.description.trim() || null,
         day_of_week:        form.day_of_week        || null,
@@ -278,19 +291,43 @@ export default function ClassForm({
           {/* Salle + Capacité */}
           <div className="grid grid-cols-2 gap-2">
             <Field label="Salle">
-              <input
-                type="text"
-                value={form.room_number}
-                onChange={e => set('room_number', e.target.value)}
+              <select
+                value={form.room_id}
+                onChange={e => {
+                  const roomId = e.target.value
+                  set('room_id', roomId)
+                  // Si la salle a une capacité et que max_students la dépasse, ajuster
+                  if (roomId) {
+                    const room = rooms.find(r => r.id === roomId)
+                    if (room?.capacity && parseInt(form.max_students, 10) > room.capacity) {
+                      set('max_students', String(room.capacity))
+                    }
+                  }
+                }}
                 className="input"
-                placeholder="ex. Salle 3..."
-              />
+              >
+                <option value="">— Aucune —</option>
+                {rooms.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
+                  </option>
+                ))}
+              </select>
             </Field>
-            <Field label="Capacité max">
+            <Field
+              label="Capacité max"
+              error={(() => {
+                const room = rooms.find(r => r.id === form.room_id)
+                const max = parseInt(form.max_students, 10)
+                return room?.capacity && max > room.capacity
+                  ? `Max ${room.capacity} (capacité salle)`
+                  : undefined
+              })()}
+            >
               <input
                 type="number"
                 min={1}
-                max={999}
+                max={(() => { const room = rooms.find(r => r.id === form.room_id); return room?.capacity || 999 })()}
                 value={form.max_students}
                 onChange={e => set('max_students', e.target.value)}
                 className="input"

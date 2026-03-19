@@ -187,6 +187,7 @@ export interface Class {
   description?: string
   max_students: number
   room_number?: string
+  room_id?: string | null
   schedule_notes?: string
   day_of_week?: string | null
   start_time?: string | null
@@ -580,4 +581,40 @@ export interface HomeworkStatus {
   is_done: boolean
   done_at: string | null
   created_at: string
+}
+
+// ─── Salles & Ressources matérielles ─────────────────────────────────────────
+
+export type RoomType = 'salle_cours' | 'salle_informatique' | 'bibliotheque' | 'salle_reunion' | 'salle_sport' | 'administration' | 'autre'
+
+export type MaterialCategory = 'informatique' | 'audiovisuel' | 'mobilier' | 'sport' | 'fournitures' | 'autre'
+
+export type MaterialCondition = 'neuf' | 'bon' | 'use' | 'hors_service'
+
+export interface Room {
+  id: string
+  etablissement_id: string
+  name: string
+  room_type: RoomType
+  capacity?: number
+  floor?: string
+  description?: string
+  is_available: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Material {
+  id: string
+  etablissement_id: string
+  name: string
+  category: MaterialCategory
+  quantity: number
+  room_id?: string
+  condition: MaterialCondition
+  serial_number?: string
+  purchase_date?: string
+  notes?: string
+  created_at: string
+  updated_at: string
 }

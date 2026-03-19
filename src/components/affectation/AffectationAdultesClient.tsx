@@ -15,6 +15,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import { Search, X, Users, CheckCircle2, GripVertical, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Tooltip from '@/components/ui/Tooltip'
 
 const POOL_PAGE_SIZE = 20
 
@@ -99,28 +100,66 @@ function GenderBadge({ gender }: { gender: 'male' | 'female' | null }) {
 
 // ─── Carte tuteur draggable ───────────────────────────────────────────────────
 
-function buildClassTooltip(cls: ClassRow): string | null {
+function buildClassInfo(cls: ClassRow): { teacher?: string; schedule?: string; level?: string; cotisation?: string } {
   const main = cls.class_teachers.find(t => t.is_main_teacher)
-  const teacherName = main?.teachers
+  const teacher = main?.teachers
     ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
-    : null
+    : undefined
   const day   = cls.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
   const start = fmtTime(cls.start_time)
   const end   = fmtTime(cls.end_time)
   const schedule = day
     ? `${day}${start ? ` ${start}${end ? `–${end}` : ''}` : ''}`
-    : null
-  const parts = [teacherName, cls.cotisation_types?.label, cls.level ? `Niveau ${cls.level}` : null, schedule].filter(Boolean)
-  return parts.length ? parts.join(' · ') : null
+    : undefined
+  return {
+    teacher,
+    schedule,
+    level: cls.level || undefined,
+    cotisation: cls.cotisation_types?.label || undefined,
+  }
+}
+
+function ClassInfoTooltip({ name, teacher, schedule, level, cotisation }: {
+  name: string; teacher?: string; schedule?: string; level?: string; cotisation?: string
+}) {
+  return (
+    <div className="w-44">
+      <span className="block font-bold text-white text-sm mb-1">{name}</span>
+      {(teacher || cotisation || level) && (
+        <>
+          <span className="block border-t border-white/10 mb-1.5" />
+          {teacher && (
+            <span className="block text-secondary-300 text-[11px]">{teacher}</span>
+          )}
+          {cotisation && (
+            <span className="inline-block mt-1 text-[10px] font-bold text-amber-300 bg-amber-900/40 px-1.5 py-0.5 rounded">
+              {cotisation}
+            </span>
+          )}
+          {level && (
+            <span className="inline-block mt-1 ml-1 text-[10px] font-bold text-blue-300 bg-blue-900/40 px-1.5 py-0.5 rounded">
+              Niveau {level}
+            </span>
+          )}
+        </>
+      )}
+      {schedule && (
+        <>
+          <span className="block border-t border-white/10 mt-1.5 mb-1.5" />
+          <span className="block text-secondary-400 text-[11px]">{schedule}</span>
+        </>
+      )}
+    </div>
+  )
 }
 
 function DraggableTutorCard({
-  tutor, disabled, assignedClassName, assignedClassTooltip,
+  tutor, disabled, assignedClassName, assignedClassInfo,
 }: {
   tutor:                TutorItem
   disabled:             boolean
   assignedClassName?:   string
-  assignedClassTooltip?: string
+  assignedClassInfo?: { teacher?: string; schedule?: string; level?: string; cotisation?: string } | null
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id:       tutor.id,
@@ -150,12 +189,17 @@ function DraggableTutorCard({
       <GenderBadge gender={genderFromRelationship(tutor.relationship)} />
 
       {assignedClassName && (
-        <span
-          title={assignedClassTooltip ?? undefined}
-          className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0"
-        >
-          {assignedClassName}
-        </span>
+        assignedClassInfo ? (
+          <Tooltip content={<ClassInfoTooltip name={assignedClassName} {...assignedClassInfo} />}>
+            <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+              {assignedClassName}
+            </span>
+          </Tooltip>
+        ) : (
+          <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+            {assignedClassName}
+          </span>
+        )
       )}
     </div>
   )
@@ -203,13 +247,14 @@ function DropZone({
                 {t.last_name} {t.first_name}
               </span>
               <GenderBadge gender={genderFromRelationship(t.relationship)} />
-              <button
-                onClick={() => onRemove(t.id)}
-                className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
-                title="Retirer du cours"
-              >
+              <Tooltip content="Retirer du cours">
+                <button
+                  onClick={() => onRemove(t.id)}
+                  className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                >
                 <X size={13} />
               </button>
+              </Tooltip>
             </div>
           ))}
         </div>
@@ -557,14 +602,14 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                   const isDisabled            = isInCurrentClass || isInOtherClass || (!isInCurrentClass && !isInOtherClass && isFull)
                   const badgeClass            = isInOtherClass ? assignedClass : (isSavedInCurrentClass ? selectedClass : null)
                   const badgeName             = badgeClass?.name
-                  const badgeTooltip          = badgeClass ? buildClassTooltip(badgeClass) ?? undefined : undefined
+                  const badgeInfo             = badgeClass ? buildClassInfo(badgeClass) : null
                   return (
                     <DraggableTutorCard
                       key={t.id}
                       tutor={t}
                       disabled={isDisabled}
                       assignedClassName={badgeName}
-                      assignedClassTooltip={badgeTooltip}
+                      assignedClassInfo={badgeInfo}
                     />
                   )
                 })}

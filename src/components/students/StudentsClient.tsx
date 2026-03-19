@@ -4,16 +4,20 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { clsx } from 'clsx'
 import StudentsTable from './StudentsTable'
 import type { Student } from '@/types/database'
 
 const PAGE_SIZE = 20
+
+type StatFilter = '' | 'active' | 'no_parent'
 
 interface StudentsClientProps {
   students:      Student[]
   filteredCount: number
   page:          number
   q:             string
+  filter:        string
   totalAll:      number
   totalActive:   number
   totalNoParent: number
@@ -83,24 +87,31 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function StudentsClient({
-  students, filteredCount, page, q,
+  students, filteredCount, page, q, filter,
   totalAll, totalActive, totalNoParent, maxStudents,
 }: StudentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [inputValue, setInputValue] = useState(q)
+  const activeFilter = (filter || '') as StatFilter
 
   const totalPages   = Math.ceil(filteredCount / PAGE_SIZE)
   const limitReached = maxStudents != null && totalActive >= maxStudents
 
   useEffect(() => { setInputValue(q) }, [q])
 
-  const navigate = (newPage: number, newQ: string) => {
+  const navigate = (newPage: number, newQ: string, newFilter?: StatFilter) => {
     const params = new URLSearchParams()
     if (newQ.trim()) params.set('q', newQ.trim())
     if (newPage > 1)  params.set('page', String(newPage))
+    const f = newFilter ?? activeFilter
+    if (f) params.set('filter', f)
     const qs = params.toString()
     router.push(`/dashboard/students${qs ? `?${qs}` : ''}`)
+  }
+
+  const toggleFilter = (f: StatFilter) => {
+    navigate(1, inputValue, activeFilter === f ? '' : f)
   }
 
   const handleSearch = (value: string) => {
@@ -115,19 +126,39 @@ export default function StudentsClient({
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
 
-        {/* Statistiques */}
-        <div className="card px-4 py-2 flex items-center gap-3">
+        {/* Statistiques (cliquables = filtres) */}
+        <button
+          onClick={() => toggleFilter('')}
+          className={clsx(
+            'card px-4 py-2 flex items-center gap-3 cursor-pointer transition-all',
+            activeFilter === '' ? 'ring-2 ring-[#2e4550]' : 'hover:shadow-md'
+          )}
+        >
           <span className="text-2xl font-bold text-secondary-800">{totalAll}</span>
           <span className="text-xs text-warm-500 leading-tight">au total</span>
-        </div>
-        <div className="card px-4 py-2 flex items-center gap-3">
+        </button>
+        <button
+          onClick={() => toggleFilter('active')}
+          className={clsx(
+            'card px-4 py-2 flex items-center gap-3 cursor-pointer transition-all',
+            activeFilter === 'active' ? 'ring-2 ring-[#2e4550]' : 'hover:shadow-md'
+          )}
+        >
           <span className="text-2xl font-bold text-green-600">{totalActive}</span>
           <span className="text-xs text-warm-500 leading-tight">actif{totalActive > 1 ? 's' : ''}</span>
-        </div>
-        <div className="card px-4 py-2 flex items-center gap-3">
-          <span className="text-2xl font-bold text-red-500">{totalNoParent}</span>
-          <span className="text-xs text-warm-500 leading-tight">sans<br/>rattachement</span>
-        </div>
+        </button>
+        <button
+          onClick={() => toggleFilter('no_parent')}
+          className={clsx(
+            'card px-4 py-2 flex items-center gap-3 cursor-pointer transition-all',
+            activeFilter === 'no_parent'
+              ? 'ring-2 ring-[#2e4550] bg-red-500 border-red-500'
+              : totalNoParent > 0 ? 'bg-red-500 border-red-500 hover:shadow-md' : 'hover:shadow-md'
+          )}
+        >
+          <span className={clsx('text-2xl font-bold', totalNoParent > 0 || activeFilter === 'no_parent' ? 'text-white' : 'text-red-500')}>{totalNoParent}</span>
+          <span className={clsx('text-xs leading-tight', totalNoParent > 0 || activeFilter === 'no_parent' ? 'text-white' : 'text-warm-500')}>sans<br/>rattachement</span>
+        </button>
         {maxStudents != null && (
           <div className={`card px-4 py-2 flex items-center gap-3 ${limitReached ? 'border-orange-300 bg-orange-50' : ''}`}>
             <span className={`text-2xl font-bold ${limitReached ? 'text-orange-500' : 'text-secondary-800'}`}>
@@ -188,7 +219,7 @@ export default function StudentsClient({
             : totalPages > 1 ? ` — page ${page} / ${totalPages}` : ''
           }
         </span>
-        <PaginationBar page={page} totalPages={totalPages} onNavigate={p => navigate(p, q)} />
+        <PaginationBar page={page} totalPages={totalPages} onNavigate={p => navigate(p, q, activeFilter)} />
       </div>
 
     </div>

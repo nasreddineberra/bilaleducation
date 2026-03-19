@@ -146,20 +146,10 @@ export default function NotificationsClient({ notifications, role, parentId }: P
 
       {/* Filtres */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher..."
-            className="input text-sm py-1.5 pl-8 w-full"
-          />
-        </div>
         <select
           value={filterRead}
           onChange={e => setFilterRead(e.target.value as any)}
-          className="input text-sm py-1.5"
+          className="input text-sm py-1.5 w-auto"
         >
           <option value="">Toutes</option>
           <option value="unread">Non lues</option>
@@ -169,7 +159,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
           <select
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            className="input text-sm py-1.5"
+            className="input text-sm py-1.5 w-auto"
           >
             <option value="">Tous types</option>
             <option value="absence">Absences</option>
@@ -179,6 +169,16 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             <option value="homework">Devoirs</option>
           </select>
         )}
+        <div className="relative max-w-xs">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher..."
+            className="input text-sm py-1.5 pl-8 w-full"
+          />
+        </div>
       </div>
 
       {/* Liste */}

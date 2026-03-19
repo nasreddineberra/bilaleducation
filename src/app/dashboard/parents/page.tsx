@@ -6,9 +6,9 @@ const PAGE_SIZE = 20
 export default async function ParentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>
+  searchParams: Promise<{ page?: string; q?: string; filter?: string }>
 }) {
-  const { page: pageParam, q = '' } = await searchParams
+  const { page: pageParam, q = '', filter = '' } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? '1', 10))
   const from = (page - 1) * PAGE_SIZE
   const to   = from + PAGE_SIZE - 1
@@ -28,6 +28,10 @@ export default async function ParentsPage({
     parentsQuery = parentsQuery.or(
       `tutor1_last_name.ilike.%${q.trim()}%,tutor1_first_name.ilike.%${q.trim()}%,tutor2_last_name.ilike.%${q.trim()}%,tutor2_first_name.ilike.%${q.trim()}%`
     )
+  }
+
+  if (filter === 'adult_courses') {
+    parentsQuery = parentsQuery.or('tutor1_adult_courses.eq.true,tutor2_adult_courses.eq.true')
   }
 
   const [
@@ -63,6 +67,7 @@ export default async function ParentsPage({
       filteredCount={filteredCount ?? 0}
       page={page}
       q={q}
+      filter={filter}
       totalAll={totalAll ?? 0}
       totalAdultCourses={(totalAdultCourses1 ?? 0) + (totalAdultCourses2 ?? 0)}
       parentsWithChildren={parentsWithChildren}

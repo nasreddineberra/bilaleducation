@@ -5,6 +5,7 @@ import { Plus, Trash2, Pencil, Check, AlertTriangle, CheckCircle2, MessageSquare
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import PaymentModal from './PaymentModal'
+import Tooltip from '@/components/ui/Tooltip'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -537,12 +538,15 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     <tr key={s.id} className="border-b border-warm-50">
                       <td className="px-3 py-2 text-sm font-medium text-secondary-800">{s.last_name.toUpperCase()} {s.first_name}</td>
                       <td className="px-3 py-2 text-sm text-secondary-600">
-                        <span
-                          title={s.class_tooltip ?? undefined}
-                          className={clsx('cursor-default', s.class_tooltip && 'underline decoration-dotted underline-offset-2')}
-                        >
-                          {s.class_name}
-                        </span>
+                        {s.class_tooltip ? (
+                          <Tooltip content={s.class_tooltip}>
+                            <span className="cursor-default underline decoration-dotted underline-offset-2">
+                              {s.class_name}
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <span className="cursor-default">{s.class_name}</span>
+                        )}
                         {s.cotisation_label && (
                           <span className="ml-1.5 text-[10px] font-medium bg-warm-100 text-warm-600 px-1.5 py-0.5 rounded-full">
                             {s.cotisation_label}
@@ -570,12 +574,15 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                         <tr key={a.id} className="border-b border-warm-50">
                           <td className="px-3 py-2 text-sm font-medium text-secondary-800">{a.tutor_label}</td>
                           <td className="px-3 py-2 text-sm text-secondary-600">
-                            <span
-                              title={a.class_tooltip ?? undefined}
-                              className={clsx('cursor-default', a.class_tooltip && 'underline decoration-dotted underline-offset-2')}
-                            >
-                              {a.class_name}
-                            </span>
+                            {a.class_tooltip ? (
+                              <Tooltip content={a.class_tooltip}>
+                                <span className="cursor-default underline decoration-dotted underline-offset-2">
+                                  {a.class_name}
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <span className="cursor-default">{a.class_name}</span>
+                            )}
                             {a.cotisation_label && (
                               <span className="ml-1.5 text-[10px] font-medium bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">
                                 {a.cotisation_label}
@@ -664,9 +671,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                         <td className="px-3 py-2 text-xs text-secondary-500">{p.receipt_number || <span className="text-warm-300">—</span>}</td>
                         <td className="px-3 py-2 text-center">
                           {p.notes && (
-                            <span title={p.notes} className="inline-flex text-warm-400 hover:text-secondary-600 cursor-help">
-                              <MessageSquareText size={14} />
-                            </span>
+                            <Tooltip content={p.notes}>
+                              <span className="inline-flex text-warm-400 hover:text-secondary-600 cursor-help">
+                                <MessageSquareText size={14} />
+                              </span>
+                            </Tooltip>
                           )}
                         </td>
                         <td className="px-3 py-2">
@@ -693,22 +702,24 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                             </span>
                           ) : (
                             <span className="flex items-center gap-1">
-                              <button
-                                onClick={() => { setEditingPayment(p); setPaymentModalOpen(true); setError(null); setSuccess(null) }}
-                                disabled={saving}
-                                className="p-1 text-warm-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
-                                title="Modifier"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                onClick={() => removePayment(p)}
-                                disabled={saving}
-                                className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Supprimer"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                              <Tooltip content="Modifier">
+                                <button
+                                  onClick={() => { setEditingPayment(p); setPaymentModalOpen(true); setError(null); setSuccess(null) }}
+                                  disabled={saving}
+                                  className="p-1 text-warm-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              </Tooltip>
+                              <Tooltip content="Supprimer">
+                                <button
+                                  onClick={() => removePayment(p)}
+                                  disabled={saving}
+                                  className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </Tooltip>
                             </span>
                           )}
                         </td>
@@ -808,9 +819,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       <td className="px-3 py-2 text-sm text-secondary-700">{a.label}</td>
                       <td className="px-3 py-2 text-sm font-medium text-green-600 text-right tabular-nums">{fmtEur(Math.abs(a.amount))}</td>
                       <td className="px-3 py-2">
-                        <button onClick={() => removeAdjustment(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Supprimer">
-                          <Trash2 size={14} />
-                        </button>
+                        <Tooltip content="Supprimer">
+                          <button onClick={() => removeAdjustment(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
                       </td>
                     </tr>
                   ))}

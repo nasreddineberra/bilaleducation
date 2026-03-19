@@ -20,6 +20,7 @@ export default async function EditClassPage({ params }: Props) {
     { data: teachers },
     { data: ues },
     { data: currentYearRow },
+    { data: rooms },
   ] = await Promise.all([
     supabase.from('classes').select('*').eq('id', id).single(),
     supabase
@@ -46,6 +47,12 @@ export default async function EditClassPage({ params }: Props) {
       .select('id')
       .eq('is_current', true)
       .single(),
+    supabase
+      .from('rooms')
+      .select('id, name, capacity')
+      .eq('is_available', true)
+      .in('room_type', ['salle_cours', 'salle_informatique', 'salle_sport', 'autre'])
+      .order('name'),
   ])
 
   const { data: cotisationTypes } = currentYearRow
@@ -85,6 +92,7 @@ export default async function EditClassPage({ params }: Props) {
         teachers={teachers ?? []}
         ues={ues ?? []}
         cotisationTypes={(cotisationTypes ?? []) as any[]}
+        rooms={(rooms ?? []) as any[]}
       />
 
     </div>

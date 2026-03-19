@@ -5,32 +5,21 @@ import { useRouter } from 'next/navigation'
 import { Pencil, Trash2, Link2Off, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Student } from '@/types/database'
 
 interface StudentsTableProps {
   students: Student[]
 }
 
-function Tooltip({ children, label }: { children: React.ReactNode; label: string }) {
-  return (
-    <span className="relative group/tip inline-flex">
-      {children}
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-20 shadow-md">
-        {label}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-secondary-800" />
-      </span>
-    </span>
-  )
-}
-
 function GenderIcon({ gender }: { gender: string | null | undefined }) {
   if (gender === 'male') return (
-    <Tooltip label="Masculin">
+    <Tooltip content="Masculin">
       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold leading-none">M</span>
     </Tooltip>
   )
   if (gender === 'female') return (
-    <Tooltip label="Féminin">
+    <Tooltip content="Féminin">
       <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-pink-100 text-pink-500 text-xs font-bold leading-none">F</span>
     </Tooltip>
   )
@@ -146,22 +135,22 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">inactif</span>
                     )}
                     {student.has_pai && (
-                      <Tooltip label="Projet d'Aide Individualisé">
+                      <Tooltip content="Projet d'Aide Individualisé">
                         <span className="text-xs font-semibold text-red-500 bg-red-100 px-1.5 py-0.5 rounded">PAI</span>
                       </Tooltip>
                     )}
                     {student.exit_authorization && (
-                      <Tooltip label="Autorisation de sortie accordée">
+                      <Tooltip content="Autorisation de sortie accordée">
                         <LogOut size={13} className="text-green-500 flex-shrink-0" />
                       </Tooltip>
                     )}
                     {student.media_authorization && (
-                      <Tooltip label="Autorisation média accordée">
+                      <Tooltip content="Autorisation média accordée">
                         <Camera size={13} className="text-green-500 flex-shrink-0" />
                       </Tooltip>
                     )}
                     {!student.parent_id && (
-                      <Tooltip label="Sans rattachement parental">
+                      <Tooltip content="Sans rattachement parental">
                         <Link2Off size={13} className="text-red-400 flex-shrink-0" />
                       </Tooltip>
                     )}
@@ -211,7 +200,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
-                      <Tooltip label="Modifier">
+                      <Tooltip content="Modifier">
                         <button
                           onClick={() => router.push(`/dashboard/students/${student.id}`)}
                           className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
@@ -219,7 +208,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                           <Pencil size={14} />
                         </button>
                       </Tooltip>
-                      <Tooltip label="Supprimer">
+                      <Tooltip content="Supprimer">
                         <button
                           onClick={() => { setConfirmDeleteId(student.id); setDeleteError(null) }}
                           className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

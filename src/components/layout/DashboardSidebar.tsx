@@ -29,6 +29,7 @@ import {
   Clock,
   Eye,
   BookOpenText,
+  Boxes,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
@@ -246,6 +247,12 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'comptable'],
       },
       {
+        name:  'Ressources',
+        href:  '/dashboard/ressources',
+        icon:  Boxes,
+        roles: ['admin', 'direction', 'secretaire'],
+      },
+      {
         name:  'Établissement',
         href:  '/dashboard/etablissement',
         icon:  Building2,
@@ -266,18 +273,31 @@ interface DashboardSidebarProps {
 export default function DashboardSidebar({ role, etablissementNom, anneeCourante }: DashboardSidebarProps) {
   const pathname = usePathname()
 
+  // Collecter tous les hrefs du menu pour déterminer le match le plus spécifique
+  const allHrefs: string[] = navItems.flatMap(item =>
+    item.href ? [item.href] : (item.children ?? []).flatMap(c =>
+      c.href ? [c.href] : (c.children ?? []).map(gc => gc.href)
+    )
+  )
+  const bestMatch = allHrefs
+    .filter(h => pathname === h || (h !== '/dashboard' && pathname.startsWith(h + '/')))
+    .sort((a, b) => b.length - a.length)[0] ?? null
+
+  /** true uniquement pour le match le plus spécifique (évite les doubles sélections) */
+  const isRouteActive = (href: string) => href === bestMatch
+
   // Groupe de niveau 1 actuellement ouvert
   const activeGroup = navItems.find(
     item => item.children?.some(c =>
-      (c.href && pathname.startsWith(c.href)) ||
-      c.children?.some(gc => pathname.startsWith(gc.href))
+      (c.href && (pathname === c.href || pathname.startsWith(c.href + '/'))) ||
+      c.children?.some(gc => pathname === gc.href || pathname.startsWith(gc.href + '/'))
     )
   )?.name ?? null
 
   // Sous-groupe de niveau 2 actuellement ouvert
   const activeSubGroup = navItems
     .flatMap(item => item.children ?? [])
-    .find(child => child.children?.some(gc => pathname.startsWith(gc.href)))
+    .find(child => child.children?.some(gc => pathname === gc.href || pathname.startsWith(gc.href + '/')))
     ?.name ?? null
 
   const [openGroup,    setOpenGroup]    = useState<string | null>(activeGroup)
@@ -393,7 +413,7 @@ export default function DashboardSidebar({ role, etablissementNom, anneeCourante
                                 <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 space-y-0.5">
                                   {visibleLeaves.map(leaf => {
                                     const LeafIcon = leaf.icon
-                                    const isActive  = pathname === leaf.href
+                                    const isActive  = isRouteActive(leaf.href)
                                     return (
                                       <Link
                                         key={leaf.href}
@@ -421,7 +441,7 @@ export default function DashboardSidebar({ role, etablissementNom, anneeCourante
                         }
 
                         // ── Lien simple niveau 2 ────────────────────────────
-                        const isActive = pathname === child.href
+                        const isActive = child.href ? isRouteActive(child.href) : false
                         return (
                           <Link
                             key={child.href}
@@ -450,7 +470,7 @@ export default function DashboardSidebar({ role, etablissementNom, anneeCourante
             }
 
             // ── Item simple ─────────────────────────────────────────────────
-            const isActive = pathname === item.href
+            const isActive = item.href ? isRouteActive(item.href) : false
             return (
               <Link
                 key={item.href}
