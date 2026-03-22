@@ -30,6 +30,7 @@ import {
   Eye,
   BookOpenText,
   Boxes,
+  ScrollText,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
@@ -251,6 +252,12 @@ const navItems: NavItem[] = [
         href:  '/dashboard/ressources',
         icon:  Boxes,
         roles: ['admin', 'direction', 'secretaire'],
+      },
+      {
+        name:  'Journal d\'activité',
+        href:  '/dashboard/logs',
+        icon:  ScrollText,
+        roles: ['admin', 'direction'],
       },
       {
         name:  'Établissement',

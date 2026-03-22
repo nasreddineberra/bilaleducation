@@ -41,6 +41,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/cours':             'Référentiel des cours',
   '/dashboard/cotisations':       'Financiers',
   '/dashboard/ressources':        'Ressources',
+  '/dashboard/logs':              'Journal d\'activité',
   '/dashboard/cahier-texte':      'Cahier de texte',
   '/dashboard/cahier-texte/new':  'Nouvelle séance',
 }
@@ -72,11 +73,11 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
   const handleLogout = async () => {
     try {
       await authRepository.signOut()
-      router.push('/login')
-      router.refresh()
     } catch (error) {
       console.error('Erreur de déconnexion:', error)
     }
+    // Navigation dure pour purger tout le state React/Supabase en cache
+    window.location.href = '/login'
   }
 
   useInactivityLogout(handleLogout)

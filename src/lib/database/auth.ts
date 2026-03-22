@@ -17,6 +17,31 @@ export const authRepository = {
     })
 
     if (error) throw error
+
+    // Audit log connexion (non-bloquant)
+    if (data.user) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, etablissement_id')
+          .eq('id', data.user.id)
+          .single()
+
+        if (profile?.etablissement_id) {
+          supabase.from('audit_logs').insert({
+            etablissement_id: profile.etablissement_id,
+            user_id: data.user.id,
+            user_email: email,
+            user_name: `${profile.last_name} ${profile.first_name}`,
+            entity_type: 'auth',
+            action: 'LOGIN',
+          }).then(() => {})
+        }
+      } catch {
+        // ne jamais bloquer la connexion
+      }
+    }
+
     return data
   },
 
@@ -25,6 +50,32 @@ export const authRepository = {
    */
   async signOut() {
     const supabase = createClient()
+
+    // Audit log deconnexion (avant le signOut car on a encore le user)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, etablissement_id')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.etablissement_id) {
+          await supabase.from('audit_logs').insert({
+            etablissement_id: profile.etablissement_id,
+            user_id: user.id,
+            user_email: user.email,
+            user_name: `${profile.last_name} ${profile.first_name}`,
+            entity_type: 'auth',
+            action: 'LOGOUT',
+          })
+        }
+      }
+    } catch {
+      // ne pas bloquer la deconnexion
+    }
+
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   },

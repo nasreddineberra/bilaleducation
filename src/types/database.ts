@@ -604,6 +604,24 @@ export interface Room {
   updated_at: string
 }
 
+// ─── Audit Logs ──────────────────────────────────────────────────────────────
+
+export type AuditAction = 'INSERT' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT'
+
+export interface AuditLog {
+  id: string
+  etablissement_id: string
+  user_id: string | null
+  user_email: string | null
+  user_name: string | null
+  entity_type: string
+  entity_id: string | null
+  action: AuditAction
+  old_data: Record<string, unknown> | null
+  new_data: Record<string, unknown> | null
+  created_at: string
+}
+
 export interface Material {
   id: string
   etablissement_id: string

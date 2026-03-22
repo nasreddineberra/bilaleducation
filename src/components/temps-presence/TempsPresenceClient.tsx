@@ -265,7 +265,7 @@ export default function TempsPresenceClient({
           const fullName = s ? `${s.last_name} ${s.first_name}` : ''
           const colors = ENTRY_COLORS[data.type]
           return (
-            <Tooltip content={
+            <Tooltip key={`${data.profileId}-${data.type}`} content={
               <div className="w-40">
                 <span className="block font-bold text-white text-sm">{fullName}</span>
                 <span className="block border-t border-white/10 my-1" />
@@ -276,7 +276,6 @@ export default function TempsPresenceClient({
               </div>
             }>
               <span
-                key={i}
                 className={clsx('inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none cursor-default', colors.bg, colors.text)}
               >
                 {initials} {data.mins > 0 ? fmtDuration(data.mins) : 'ABS'}
