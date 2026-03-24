@@ -18,6 +18,7 @@ import {
   Building2,
   UserCog,
   CalendarDays,
+  CalendarClock,
   ChevronDown,
   School,
   UserCheck,
@@ -92,6 +93,12 @@ const navItems: NavItem[] = [
     href:  '/dashboard/parents',
     icon:  Contact,
     roles: ['admin', 'direction', 'secretaire'],
+  },
+  {
+    name:  'Emploi du temps',
+    href:  '/dashboard/emploi-du-temps',
+    icon:  CalendarClock,
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
   },
   {
     name:  'Feuille d\'appel',

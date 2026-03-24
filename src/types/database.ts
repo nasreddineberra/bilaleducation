@@ -622,6 +622,38 @@ export interface AuditLog {
   created_at: string
 }
 
+// ─── Emploi du temps ─────────────────────────────────────────────────────────
+
+export type SlotType = 'cours' | 'activite' | 'pause' | 'autre'
+
+export interface ScheduleSlot {
+  id: string
+  etablissement_id: string
+  school_year_id: string
+  class_id: string
+  teacher_id: string
+  cours_id: string | null
+  room_id: string | null
+  day_of_week: number
+  start_time: string
+  end_time: string
+  slot_type: SlotType
+  color: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ScheduleValidation {
+  id: string
+  etablissement_id: string
+  schedule_slot_id: string
+  profile_id: string
+  validation_date: string
+  time_entry_id: string | null
+  created_at: string
+}
+
 export interface Material {
   id: string
   etablissement_id: string
