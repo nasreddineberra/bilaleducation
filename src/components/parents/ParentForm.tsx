@@ -656,7 +656,9 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       </div>
 
       {/* ── Actions ── */}
-      <div className="flex items-center justify-end gap-3 pt-1">
+      <div className="flex items-center gap-3 pt-1">
+        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+        <div className="flex-1" />
         <button
           type="button"
           onClick={() => onClose ? onClose() : router.push('/dashboard/parents')}

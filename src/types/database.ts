@@ -55,8 +55,15 @@ export interface Etablissement {
   subscription_expires_at?: string
   max_students?: number | null    // NULL = illimité
   notes?: string | null           // Notes internes super-admin
+  week_start_day: number          // 1=Lundi, 6=Samedi, 0=Dimanche
   created_at: string
   updated_at: string
+}
+
+export interface VacationPeriod {
+  start_date: string
+  end_date:   string
+  label:      string
 }
 
 export interface SchoolYear {
@@ -65,6 +72,9 @@ export interface SchoolYear {
   label: string              // ex. "2025-2026"
   is_current: boolean
   period_type: PeriodType
+  start_date: string | null  // date de rentrée scolaire
+  end_date: string | null    // date de fin d'année scolaire
+  vacations: VacationPeriod[]
   created_at: string
 }
 

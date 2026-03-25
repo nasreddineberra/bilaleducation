@@ -328,16 +328,18 @@ export default function PaymentModal({
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
+            <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+            <div className="flex-1" />
+            <button type="button" onClick={onClose} disabled={saving} className="btn btn-secondary">
+              Annuler
+            </button>
             <button
               type="submit"
               disabled={saving}
-              className="btn btn-primary flex-1 flex items-center justify-center gap-1.5"
+              className="btn btn-primary flex items-center justify-center gap-1.5"
             >
               <Check size={15} />
               {saving ? 'Enregistrement...' : isEdit ? 'Modifier le paiement' : 'Enregistrer le paiement'}
-            </button>
-            <button type="button" onClick={onClose} disabled={saving} className="btn btn-secondary">
-              Annuler
             </button>
           </div>
 

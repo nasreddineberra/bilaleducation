@@ -12,15 +12,21 @@ export default async function EditAnneeScolairePage({ params }: Props) {
   const { id }   = await params
   const supabase = await createClient()
 
-  const { data: schoolYear } = await supabase
-    .from('school_years')
-    .select(`
-      *,
-      periods ( * ),
-      eval_type_configs ( * )
-    `)
-    .eq('id', id)
-    .single()
+  const [{ data: schoolYear }, { data: etablissement }] = await Promise.all([
+    supabase
+      .from('school_years')
+      .select(`
+        *,
+        periods ( * ),
+        eval_type_configs ( * )
+      `)
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('etablissements')
+      .select('week_start_day')
+      .single(),
+  ])
 
   if (!schoolYear) notFound()
 
@@ -35,7 +41,7 @@ export default async function EditAnneeScolairePage({ params }: Props) {
         Retour à la liste
       </Link>
 
-      <SchoolYearForm schoolYear={schoolYear} />
+      <SchoolYearForm schoolYear={schoolYear} weekStartDay={etablissement?.week_start_day ?? 1} />
 
     </div>
   )

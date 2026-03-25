@@ -3,41 +3,26 @@
 import { useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import SlotCapsule from './SlotCapsule'
-
-interface SlotData {
-  id: string
-  class_id: string
-  teacher_id: string
-  cours_id: string | null
-  room_id: string | null
-  day_of_week: number
-  start_time: string
-  end_time: string
-  slot_type: string
-  color: string | null
-  classes?: { name: string }
-  teachers?: { first_name: string; last_name: string; civilite?: string }
-  cours?: { nom_fr: string } | null
-  rooms?: { name: string } | null
-}
+import type { ResolvedSlot } from './EmploiDuTempsClient'
 
 type ViewMode = 'global' | 'class' | 'teacher'
 
 interface Props {
   day: number
-  slots: SlotData[]
+  slots: ResolvedSlot[]
   startHour: number
   endHour: number
   isToday: boolean
   canEdit: boolean
   viewMode: ViewMode
   isTeacher: boolean
-  isValidated: (slotId: string) => boolean
-  onValidate: (slotId: string) => void
-  onCancelValidation: (slotId: string) => void
-  onClickSlot: (slot: SlotData) => void
+  isValidated: (sourceSlotId: string) => boolean
+  onValidate: (slot: ResolvedSlot) => void
+  onCancelValidation: (sourceSlotId: string) => void
+  onClickSlot: (slot: ResolvedSlot) => void
+  onContextMenuSlot: (e: React.MouseEvent, slot: ResolvedSlot) => void
   onClickEmpty: (day: number, time: string) => void
-  onDeleteSlot: (slotId: string) => void
+  onDeleteSlot: (sourceSlotId: string) => void
 }
 
 function timeToMinutes(t: string): number {
@@ -48,14 +33,13 @@ function timeToMinutes(t: string): number {
 export default function DayColumn({
   day, slots, startHour, endHour, isToday, canEdit, viewMode,
   isTeacher, isValidated, onValidate, onCancelValidation,
-  onClickSlot, onClickEmpty, onDeleteSlot,
+  onClickSlot, onContextMenuSlot, onClickEmpty, onDeleteSlot,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` })
 
   const totalMinutes = (endHour - startHour) * 60
   const startMinutes = startHour * 60
 
-  // Group overlapping slots for stacking
   const groupedSlots = groupOverlapping(slots)
 
   return (
@@ -67,7 +51,6 @@ export default function DayColumn({
         isOver && 'bg-blue-50/50',
       )}
       onClick={(e) => {
-        // Click on empty space → compute time from click position
         if ((e.target as HTMLElement).closest('[data-slot]')) return
         const rect = e.currentTarget.getBoundingClientRect()
         const y = e.clientY - rect.top
@@ -112,11 +95,12 @@ export default function DayColumn({
               canEdit={canEdit}
               isToday={isToday}
               isTeacher={isTeacher}
-              validated={isValidated(slot.id)}
-              onValidate={() => onValidate(slot.id)}
-              onCancelValidation={() => onCancelValidation(slot.id)}
-              onClick={() => canEdit && onClickSlot(slot)}
-              onDelete={() => onDeleteSlot(slot.id)}
+              validated={isValidated(slot.sourceSlotId)}
+              onValidate={() => onValidate(slot)}
+              onCancelValidation={() => onCancelValidation(slot.sourceSlotId)}
+              onClick={() => onClickSlot(slot)}
+              onContextMenu={(e) => onContextMenuSlot(e, slot)}
+              onDelete={() => onDeleteSlot(slot.sourceSlotId)}
             />
           )
         })
@@ -125,22 +109,20 @@ export default function DayColumn({
   )
 }
 
-/** Group overlapping slots so they can be placed side by side */
-function groupOverlapping(slots: SlotData[]): SlotData[][] {
+function groupOverlapping(slots: ResolvedSlot[]): ResolvedSlot[][] {
   if (slots.length === 0) return []
 
   const sorted = [...slots].sort((a, b) =>
     timeToMinutes(a.start_time) - timeToMinutes(b.start_time)
   )
 
-  const groups: SlotData[][] = []
-  let currentGroup: SlotData[] = [sorted[0]]
+  const groups: ResolvedSlot[][] = []
+  let currentGroup: ResolvedSlot[] = [sorted[0]]
   let groupEnd = timeToMinutes(sorted[0].end_time)
 
   for (let i = 1; i < sorted.length; i++) {
     const slotStart = timeToMinutes(sorted[i].start_time)
     if (slotStart < groupEnd) {
-      // Overlaps with current group
       currentGroup.push(sorted[i])
       groupEnd = Math.max(groupEnd, timeToMinutes(sorted[i].end_time))
     } else {

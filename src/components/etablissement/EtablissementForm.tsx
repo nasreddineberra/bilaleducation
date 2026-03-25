@@ -64,27 +64,32 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const [logoUrl,      setLogoUrl]      = useState<string | null>(etablissement.logo_url ?? null)
   const initialLogoUrl = useRef<string | null>(etablissement.logo_url ?? null)
 
+  // Premier jour de la semaine
+  const [weekStartDay, setWeekStartDay] = useState<number>(etablissement.week_start_day ?? -1)
+  const initialWeekStartDay = useRef<number>(etablissement.week_start_day ?? -1)
+
   const set = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
   const touch = (field: string) =>
     setTouched(prev => new Set([...prev, field]))
 
   // Validation
-  const vNom     = form.nom.trim().length < 2
-  const vContact = form.contact.trim().length > 0 && !isValidEmail(form.contact.trim())
-  const isValid  = !vNom && !vContact
+  const vNom          = form.nom.trim().length < 2
+  const vContact      = form.contact.trim().length > 0 && !isValidEmail(form.contact.trim())
+  const vWeekStartDay = weekStartDay === -1
+  const isValid       = !vNom && !vContact && !vWeekStartDay
 
   // Bouton désactivé si aucun changement
   const isUnchanged = (Object.keys(form) as (keyof FormData)[]).every(
     k => form[k] === initialForm.current[k]
-  ) && logoUrl === initialLogoUrl.current
+  ) && logoUrl === initialLogoUrl.current && weekStartDay === initialWeekStartDay.current
 
   const inputCls = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setTouched(new Set(Object.keys(form)))
+    setTouched(new Set([...Object.keys(form), 'weekStartDay']))
     setError(null)
     setSuccess(false)
 
@@ -93,11 +98,12 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
     setIsSubmitting(true)
     try {
       const payload = {
-        nom:       form.nom.trim(),
-        adresse:   form.adresse.trim()   || null,
-        telephone: form.telephone.trim() || null,
-        contact:   form.contact.trim()   || null,
-        logo_url:  logoUrl,
+        nom:            form.nom.trim(),
+        adresse:        form.adresse.trim()   || null,
+        telephone:      form.telephone.trim() || null,
+        contact:        form.contact.trim()   || null,
+        logo_url:       logoUrl,
+        week_start_day: weekStartDay,
       }
 
       const supabase = createClient()
@@ -107,8 +113,9 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
         .eq('id', etablissement.id)
       if (error) throw error
 
-      initialForm.current    = { ...form }
-      initialLogoUrl.current = logoUrl
+      initialForm.current         = { ...form }
+      initialLogoUrl.current      = logoUrl
+      initialWeekStartDay.current = weekStartDay
       setSuccess(true)
       router.refresh()
     } catch {
@@ -180,6 +187,23 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
                   />
                 </Field>
               </div>
+
+              <Field
+                label={<>Premier jour de la semaine <span className="text-red-400">*</span></>}
+                error={touched.has('weekStartDay') && weekStartDay === -1 ? 'Obligatoire.' : undefined}
+              >
+                <select
+                  value={weekStartDay}
+                  onChange={e => setWeekStartDay(Number(e.target.value))}
+                  onBlur={() => touch('weekStartDay')}
+                  className={clsx('input', touched.has('weekStartDay') && weekStartDay === -1 && 'input-error')}
+                >
+                  <option value={-1} disabled>— Sélectionner —</option>
+                  <option value={1}>Lundi</option>
+                  <option value={6}>Samedi</option>
+                  <option value={0}>Dimanche</option>
+                </select>
+              </Field>
             </div>
 
           </div>
@@ -199,7 +223,9 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
         )}
 
         {/* Actions */}
-        <div className="flex justify-end">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <div className="flex-1" />
           <button
             type="submit"
             disabled={isSubmitting || !isValid || isUnchanged}

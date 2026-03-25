@@ -131,7 +131,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {/* Staff select */}
           {canManageAll ? (
             <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Membre du staff</label>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Membre du staff <span className="text-red-400">*</span></label>
               <select value={profileId} onChange={e => setProfileId(e.target.value)} className="input text-sm py-1.5 w-full mt-1">
                 {staffList.map(s => (
                   <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
@@ -146,7 +146,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
 
           {/* Type */}
           <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Type</label>
+            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Type <span className="text-red-400">*</span></label>
             <div className="flex gap-2 mt-1">
               {TYPE_OPTIONS.map(opt => (
                 <label key={opt.value} className="flex-1">
@@ -174,11 +174,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {!isAbsence && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Debut</label>
+                <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Début <span className="text-red-400">*</span></label>
                 <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
               </div>
               <div>
-                <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Fin</label>
+                <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Fin <span className="text-red-400">*</span></label>
                 <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
               </div>
             </div>
@@ -223,7 +223,9 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-warm-100">
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
+          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <div className="flex-1" />
           <button onClick={onClose} className="btn-secondary text-xs px-4 py-1.5">Annuler</button>
           <button onClick={handleSave} disabled={saving} className="btn-primary text-xs px-4 py-1.5">
             {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Enregistrer'}

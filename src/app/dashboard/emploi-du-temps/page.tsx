@@ -31,7 +31,7 @@ export default async function EmploiDuTempsPage() {
     )
   }
 
-  // Classes de l'année en cours avec prof principal
+  // Classes avec prof principal
   const { data: classes } = await supabase
     .from('classes')
     .select('id, name, level, room_id, day_of_week, start_time, end_time, class_teachers(teacher_id, is_main_teacher, teachers(id, first_name, last_name, civilite)), cotisation_types(label)')
@@ -51,8 +51,12 @@ export default async function EmploiDuTempsPage() {
     .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), rooms(name)')
     .eq('school_year_id', currentYear.id)
     .eq('is_active', true)
-    .order('day_of_week')
     .order('start_time')
+
+  // Exceptions
+  const { data: exceptions } = await supabase
+    .from('schedule_exceptions')
+    .select('*')
 
   // Salles disponibles
   const { data: rooms } = await supabase
@@ -85,6 +89,7 @@ export default async function EmploiDuTempsPage() {
         classes={(classes ?? []) as any[]}
         teachers={(teachers ?? []) as any[]}
         slots={(slots ?? []) as any[]}
+        exceptions={(exceptions ?? []) as any[]}
         rooms={(rooms ?? []) as any[]}
         coursList={(coursList ?? []) as any[]}
         todayValidations={(todayValidations ?? []) as any[]}

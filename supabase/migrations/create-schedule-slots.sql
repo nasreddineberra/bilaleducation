@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS schedule_slots (
   etablissement_id  uuid NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
   school_year_id    uuid NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
   class_id          uuid NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  teacher_id        uuid NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  teacher_id        uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   cours_id          uuid REFERENCES cours(id) ON DELETE SET NULL,
   room_id           uuid REFERENCES rooms(id) ON DELETE SET NULL,
   day_of_week       smallint NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),

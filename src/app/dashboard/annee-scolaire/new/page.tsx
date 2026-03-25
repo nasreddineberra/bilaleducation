@@ -7,7 +7,7 @@ export default async function NewAnneeScolairePage() {
   const supabase = await createClient()
   const { data: etablissement } = await supabase
     .from('etablissements')
-    .select('id')
+    .select('id, week_start_day')
     .single()
 
   return (
@@ -21,7 +21,7 @@ export default async function NewAnneeScolairePage() {
         Retour à la liste
       </Link>
 
-      <SchoolYearForm etablissementId={etablissement?.id ?? ''} />
+      <SchoolYearForm etablissementId={etablissement?.id ?? ''} weekStartDay={etablissement?.week_start_day ?? 1} />
 
     </div>
   )

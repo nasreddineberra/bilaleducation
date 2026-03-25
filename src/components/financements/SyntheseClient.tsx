@@ -419,16 +419,16 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
         <div className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Date</label>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Date <span className="text-red-400">*</span></label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
             </div>
             <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Montant</label>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Montant <span className="text-red-400">*</span></label>
               <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="0.00" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Label</label>
+            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Label <span className="text-red-400">*</span></label>
             <input type="text" value={label} onChange={e => setLabel(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="Description de la dépense" />
           </div>
           <div>
@@ -471,7 +471,9 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
           </div>
           {error && <p className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>}
         </div>
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-warm-100">
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
+          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <div className="flex-1" />
           <button onClick={onClose} className="btn-secondary text-xs px-4 py-1.5">Annuler</button>
           <button onClick={handleSave} disabled={saving} className="btn-primary text-xs px-4 py-1.5">
             {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Enregistrer'}
@@ -534,16 +536,16 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
         <div className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Date</label>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Date <span className="text-red-400">*</span></label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
             </div>
             <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Montant</label>
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Montant <span className="text-red-400">*</span></label>
               <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="0.00" />
             </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Label</label>
+            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Label <span className="text-red-400">*</span></label>
             <input type="text" value={label} onChange={e => setLabel(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="Description du revenu" />
           </div>
           <div>
@@ -565,7 +567,9 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
           </div>
           {error && <p className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>}
         </div>
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-warm-100">
+        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
+          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <div className="flex-1" />
           <button onClick={onClose} className="btn-secondary text-xs px-4 py-1.5">Annuler</button>
           <button onClick={handleSave} disabled={saving} className="btn-primary text-xs px-4 py-1.5">
             {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Enregistrer'}

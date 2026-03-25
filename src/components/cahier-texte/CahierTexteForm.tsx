@@ -197,7 +197,7 @@ export default function CahierTexteForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Classe */}
           <div>
-            <label className="label">Classe *</label>
+            <label className="label">Classe <span className="text-red-400">*</span></label>
             <select
               value={classId}
               onChange={e => { setClassId(e.target.value); setSubject(''); setSelectedTeacherId(teacherId ?? '') }}
@@ -211,7 +211,7 @@ export default function CahierTexteForm({
 
           {/* Matière */}
           <div>
-            <label className="label">Matiere {isMainForClass ? '' : '*'}</label>
+            <label className="label">Matiere {isMainForClass ? '' : <span className="text-red-400">*</span>}</label>
             {availableSubjects.length === 0 && !isMainForClass ? (
               <input value={subject} onChange={e => setSubject(e.target.value)} className="input w-full" placeholder="Matiere" />
             ) : (
@@ -229,7 +229,7 @@ export default function CahierTexteForm({
           {/* Enseignant (staff uniquement) */}
           {isStaff && (
             <div>
-              <label className="label">Enseignant *</label>
+              <label className="label">Enseignant <span className="text-red-400">*</span></label>
               <select
                 value={selectedTeacherId}
                 onChange={e => setSelectedTeacherId(e.target.value)}
@@ -246,7 +246,7 @@ export default function CahierTexteForm({
 
           {/* Date */}
           <div>
-            <label className="label">Date de seance *</label>
+            <label className="label">Date de seance <span className="text-red-400">*</span></label>
             <input
               type="date"
               value={sessionDate}
@@ -259,7 +259,7 @@ export default function CahierTexteForm({
 
         {/* Titre */}
         <div>
-          <label className="label">Titre de la seance *</label>
+          <label className="label">Titre de la seance <span className="text-red-400">*</span></label>
           <input
             type="text"
             value={title}
@@ -272,7 +272,7 @@ export default function CahierTexteForm({
 
         {/* Contenu riche */}
         <div>
-          <label className="label">Contenu de la seance *</label>
+          <label className="label">Contenu de la seance <span className="text-red-400">*</span></label>
           <RichTextEditor
             content={contentHtml}
             onChange={setContentHtml}
@@ -308,7 +308,7 @@ export default function CahierTexteForm({
           <div className="space-y-4 border-t border-warm-200 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="label">Titre du devoir *</label>
+                <label className="label">Titre du devoir <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   value={hwTitle}
@@ -318,7 +318,7 @@ export default function CahierTexteForm({
                 />
               </div>
               <div>
-                <label className="label">Type *</label>
+                <label className="label">Type <span className="text-red-400">*</span></label>
                 <select value={hwType} onChange={e => setHwType(e.target.value)} className="input w-full">
                   <option value="exercice">Exercice</option>
                   <option value="lecon">Lecon a apprendre</option>
@@ -327,7 +327,7 @@ export default function CahierTexteForm({
                 </select>
               </div>
               <div>
-                <label className="label">Date de rendu *</label>
+                <label className="label">Date de rendu <span className="text-red-400">*</span></label>
                 <input
                   type="date"
                   value={hwDueDate}
@@ -349,7 +349,9 @@ export default function CahierTexteForm({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+        <div className="flex-1" />
         <Link href="/dashboard/cahier-texte" className="btn btn-ghost">
           Annuler
         </Link>

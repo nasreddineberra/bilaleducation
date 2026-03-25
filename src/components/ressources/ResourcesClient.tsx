@@ -280,7 +280,9 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Description</label>
                 <textarea value={roomForm.description ?? ''} onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))} rows={2} className="input mt-1 resize-none" />
               </div>
-              <div className="flex justify-end gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+                <div className="flex-1" />
                 <button onClick={cancelRoom} className="px-4 py-2 text-sm text-warm-600 hover:text-warm-800 rounded-xl transition-colors">Annuler</button>
                 <button onClick={saveRoom} disabled={roomSaving || !roomFormValid} className={clsx('flex items-center gap-1.5 text-sm font-medium rounded-xl px-4 py-2 transition-colors', roomFormValid ? 'text-white bg-amber-500 hover:bg-amber-600' : 'text-warm-400 bg-warm-100 cursor-not-allowed')}>
                   <Check size={15} /> {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
@@ -397,7 +399,9 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Notes</label>
                 <textarea value={matForm.notes ?? ''} onChange={e => setMatForm(p => ({ ...p, notes: e.target.value }))} rows={2} className="input mt-1 resize-none" />
               </div>
-              <div className="flex justify-end gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+                <div className="flex-1" />
                 <button onClick={cancelMat} className="px-4 py-2 text-sm text-warm-600 hover:text-warm-800 rounded-xl transition-colors">Annuler</button>
                 <button onClick={saveMat} disabled={matSaving || !matFormValid} className={clsx('flex items-center gap-1.5 text-sm font-medium rounded-xl px-4 py-2 transition-colors', matFormValid ? 'text-white bg-amber-500 hover:bg-amber-600' : 'text-warm-400 bg-warm-100 cursor-not-allowed')}>
                   <Check size={15} /> {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}

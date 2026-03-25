@@ -24,6 +24,11 @@ const PERIOD_LABELS: Record<string, string> = {
   semestrial:  'Semestriel',
 }
 
+function fmtDate(iso: string) {
+  const d = new Date(iso + 'T00:00:00')
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 const EVAL_LABELS: Record<string, { label: string; detail: string }> = {
   diagnostic: { label: 'Diagnostique', detail: 'AC · EC · NA' },
   scored:     { label: 'Notée',        detail: '' },
@@ -110,8 +115,9 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
             <thead>
               <tr className="border-b border-warm-100 bg-warm-50">
                 <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Année</th>
+                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Rentrée</th>
+                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Fin</th>
                 <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Répartition</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Périodes</th>
                 <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Évaluation</th>
                 <th className="px-4 py-2" />
               </tr>
@@ -136,14 +142,20 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                       </div>
                     </td>
 
-                    {/* Répartition */}
+                    {/* Rentrée */}
                     <td className="px-4 py-2.5 text-xs text-warm-600 whitespace-nowrap">
-                      {PERIOD_LABELS[year.period_type]}
+                      {year.start_date ? fmtDate(year.start_date) : '—'}
                     </td>
 
-                    {/* Périodes */}
+                    {/* Fin */}
+                    <td className="px-4 py-2.5 text-xs text-warm-600 whitespace-nowrap">
+                      {year.end_date ? fmtDate(year.end_date) : '—'}
+                    </td>
+
+                    {/* Répartition + Périodes */}
                     <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-warm-600">{PERIOD_LABELS[year.period_type]}</span>
                         {year.periods
                           .sort((a, b) => a.order_index - b.order_index)
                           .map(p => (
