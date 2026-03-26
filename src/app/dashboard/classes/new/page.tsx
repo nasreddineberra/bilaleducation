@@ -6,7 +6,7 @@ import ClassForm from '@/components/classes/ClassForm'
 export default async function NewClassPage() {
   const supabase = await createClient()
 
-  const [{ data: schoolYears }, { data: teachers }, { data: ues }, { data: currentYearRow }, { data: rooms }] = await Promise.all([
+  const [{ data: schoolYears }, { data: teachers }, { data: ues }, { data: currentYearRow }, { data: rooms }, { data: etablissement }] = await Promise.all([
     supabase
       .from('school_years')
       .select('*')
@@ -24,7 +24,7 @@ export default async function NewClassPage() {
       .order('nom_fr'),
     supabase
       .from('school_years')
-      .select('id')
+      .select('id, start_date, end_date, vacations')
       .eq('is_current', true)
       .single(),
     supabase
@@ -33,6 +33,10 @@ export default async function NewClassPage() {
       .eq('is_available', true)
       .in('room_type', ['salle_cours', 'salle_informatique', 'salle_sport', 'autre'])
       .order('name'),
+    supabase
+      .from('etablissements')
+      .select('week_start_day')
+      .single(),
   ])
 
   const { data: cotisationTypes } = currentYearRow
@@ -60,6 +64,8 @@ export default async function NewClassPage() {
         ues={ues ?? []}
         cotisationTypes={(cotisationTypes ?? []) as any[]}
         rooms={(rooms ?? []) as any[]}
+        currentSchoolYear={currentYearRow as any}
+        weekStartDay={etablissement?.week_start_day ?? 1}
       />
 
     </div>

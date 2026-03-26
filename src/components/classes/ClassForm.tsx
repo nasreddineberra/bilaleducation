@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { Plus, Trash2, UserCheck, BookOpen, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Class, SchoolYear, Teacher, CotisationType } from '@/types/database'
+import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +31,14 @@ interface RoomOption {
   capacity: number | null
 }
 
+interface ExistingScheduleSlot {
+  id: string
+  day_of_week: number
+  start_time: string
+  end_time: string
+  teacher_id: string | null
+}
+
 interface ClassFormProps {
   cls?: Class
   initialAssignments?: AssignmentData[]
@@ -40,6 +48,9 @@ interface ClassFormProps {
   cotisationTypes?: CotisationType[]
   rooms?: RoomOption[]
   backHref?: string
+  currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] } | null
+  existingScheduleSlot?: ExistingScheduleSlot | null
+  weekStartDay?: number
 }
 
 type FormData = {
@@ -57,6 +68,13 @@ type FormData = {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
+// Mapping jour texte → numéro JS getDay() (0=Dimanche, 1=Lundi … 6=Samedi)
+const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] as const
+const DAY_NAME_TO_JS: Record<string, number> = {
+  'Lundi': 1, 'Mardi': 2, 'Mercredi': 3, 'Jeudi': 4, 'Vendredi': 5, 'Samedi': 6, 'Dimanche': 0,
+}
+function dayNameToNum(name: string): number { return DAY_NAME_TO_JS[name] ?? -1 }
+
 export default function ClassForm({
   cls,
   initialAssignments = [],
@@ -66,6 +84,9 @@ export default function ClassForm({
   cotisationTypes = [],
   rooms = [],
   backHref = '/dashboard/classes',
+  currentSchoolYear,
+  existingScheduleSlot,
+  weekStartDay = 1,
 }: ClassFormProps) {
   const router    = useRouter()
   const isEditing = !!cls
@@ -86,8 +107,11 @@ export default function ClassForm({
     cotisation_type_id: cls?.cotisation_type_id ?? '',
   })
 
+  const [deploySchedule, setDeploySchedule] = useState(!!existingScheduleSlot)
+
   const initialForm       = useRef<FormData>({ ...form })
   const initialAssignStr  = useRef(JSON.stringify(initialAssignments))
+  const initialDeploy     = useRef(!!existingScheduleSlot)
 
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -154,6 +178,7 @@ export default function ClassForm({
   const isUnchanged = isEditing
     && (Object.keys(form) as (keyof FormData)[]).every(k => form[k] === initialForm.current[k])
     && JSON.stringify(assignments) === initialAssignStr.current
+    && deploySchedule === initialDeploy.current
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -217,9 +242,65 @@ export default function ClassForm({
         if (e) throw e
       }
 
+      // ── Deploiement emploi du temps ──────────────────────────────────────
+      const hasPlanning = form.day_of_week && form.start_time && form.end_time
+      const mainTeacher = assignments.find(a => a.is_main_teacher)
+      const hasDates = currentSchoolYear?.start_date && currentSchoolYear?.end_date
+
+      if (hasPlanning && deploySchedule && !hasDates) {
+        setError('Impossible de deployer dans l\'emploi du temps : les dates de rentrée et de fin d\'année scolaire ne sont pas renseignées. Veuillez les configurer dans Année scolaire.')
+        setIsSubmitting(false)
+        return
+      }
+
+      const shouldDeploy = hasPlanning && deploySchedule && currentSchoolYear?.id && hasDates
+      const slotChanged = existingScheduleSlot && (
+        dayNameToNum(form.day_of_week) !== existingScheduleSlot.day_of_week
+        || form.start_time !== existingScheduleSlot.start_time
+        || form.end_time !== existingScheduleSlot.end_time
+      )
+
+      // Confirmation si modification ou suppression d'un créneau existant
+      if (existingScheduleSlot && shouldDeploy && slotChanged) {
+        if (!confirm(`Le créneau récurrent dans l'emploi du temps sera remplacé par : ${form.day_of_week} ${form.start_time}–${form.end_time}. Continuer ?`)) {
+          setIsSubmitting(false)
+          return
+        }
+      }
+      if (existingScheduleSlot && !shouldDeploy) {
+        if (!confirm('Le créneau récurrent dans l\'emploi du temps sera supprimé. Continuer ?')) {
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      if (existingScheduleSlot && (shouldDeploy && slotChanged || !shouldDeploy)) {
+        // Supprimer l'ancien créneau + ses exceptions
+        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', existingScheduleSlot.id)
+        await supabase.from('schedule_slots').delete().eq('id', existingScheduleSlot.id)
+      }
+
+      if (shouldDeploy && (!existingScheduleSlot || slotChanged)) {
+        const { error: slotErr } = await supabase.from('schedule_slots').insert({
+          class_id:       classId,
+          teacher_id:     mainTeacher?.teacher_id || null,
+          school_year_id: currentSchoolYear.id,
+          is_recurring:   true,
+          day_of_week:    dayNameToNum(form.day_of_week),
+          slot_date:      null,
+          start_time:     form.start_time,
+          end_time:       form.end_time,
+          slot_type:      'cours',
+          room_id:        form.room_id || null,
+          is_active:      true,
+        })
+        if (slotErr) throw slotErr
+      }
+
       if (isEditing) {
-        initialForm.current     = { ...form }
+        initialForm.current      = { ...form }
         initialAssignStr.current = JSON.stringify(assignments)
+        initialDeploy.current    = deploySchedule
         setSuccess(true)
         router.refresh()
       } else {
@@ -354,58 +435,6 @@ export default function ClassForm({
               ))}
             </select>
           </Field>
-
-          {/* Horaire */}
-          <Field label="Jour de la semaine">
-            <select
-              value={form.day_of_week}
-              onChange={e => set('day_of_week', e.target.value)}
-              className="input"
-            >
-              <option value="">—</option>
-              {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-          </Field>
-
-          {form.day_of_week && (
-            <div className="space-y-1">
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Début">
-                  <input
-                    type="time"
-                    value={form.start_time}
-                    onChange={e => set('start_time', e.target.value)}
-                    className="input"
-                  />
-                </Field>
-                <Field label="Fin">
-                  <input
-                    type="time"
-                    value={form.end_time}
-                    onChange={e => set('end_time', e.target.value)}
-                    className="input"
-                  />
-                </Field>
-              </div>
-              {form.start_time && form.end_time && (() => {
-                const [sh, sm] = form.start_time.split(':').map(Number)
-                const [eh, em] = form.end_time.split(':').map(Number)
-                const diff = (eh * 60 + em) - (sh * 60 + sm)
-                if (diff <= 0) return null
-                const h = Math.floor(diff / 60)
-                const m = diff % 60
-                return (
-                  <p className="text-xs text-warm-500">
-                    Durée : <span className="font-semibold text-secondary-700">
-                      {h > 0 ? `${h}h` : ''}{m > 0 ? `${m < 10 && h > 0 ? '0' : ''}${m}min` : ''}
-                    </span>
-                  </p>
-                )
-              })()}
-            </div>
-          )}
 
           {/* Description */}
           <Field label="Description">
@@ -606,6 +635,85 @@ export default function ClassForm({
           )}
 
         </div>
+      </div>
+
+      {/* ── Planning ── */}
+      <div className="card p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Planning</h2>
+          {existingScheduleSlot && (
+            <span className="text-[10px] font-semibold bg-primary-100 text-primary-700 border border-primary-200 px-1.5 py-0.5 rounded-full leading-none">
+              Deployé dans EDT
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Jour de la semaine">
+            <select
+              value={form.day_of_week}
+              onChange={e => set('day_of_week', e.target.value)}
+              className="input"
+            >
+              <option value="">—</option>
+              {DAY_NAMES.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Début">
+            <input
+              type="time"
+              value={form.start_time}
+              onChange={e => set('start_time', e.target.value)}
+              className="input"
+              disabled={!form.day_of_week}
+            />
+          </Field>
+          <Field label="Fin">
+            <input
+              type="time"
+              value={form.end_time}
+              onChange={e => set('end_time', e.target.value)}
+              className="input"
+              disabled={!form.day_of_week}
+            />
+          </Field>
+        </div>
+
+        {form.start_time && form.end_time && (() => {
+          const [sh, sm] = form.start_time.split(':').map(Number)
+          const [eh, em] = form.end_time.split(':').map(Number)
+          const diff = (eh * 60 + em) - (sh * 60 + sm)
+          if (diff <= 0) return null
+          const h = Math.floor(diff / 60)
+          const m = diff % 60
+          return (
+            <p className="text-xs text-warm-500">
+              Durée : <span className="font-semibold text-secondary-700">
+                {h > 0 ? `${h}h` : ''}{m > 0 ? `${m < 10 && h > 0 ? '0' : ''}${m}min` : ''}
+              </span>
+            </p>
+          )
+        })()}
+
+        {form.day_of_week && form.start_time && form.end_time && (
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={deploySchedule}
+              onChange={e => setDeploySchedule(e.target.checked)}
+              className="w-4 h-4 accent-primary-500"
+            />
+            <span className="text-sm text-secondary-700 select-none">Deployer dans Emploi du temps</span>
+          </label>
+        )}
+
+        {existingScheduleSlot && !deploySchedule && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Le créneau récurrent existant dans l'emploi du temps sera supprimé à la validation.
+          </p>
+        )}
       </div>
 
       {/* ── Actions ── */}

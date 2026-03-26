@@ -91,6 +91,7 @@ interface Props {
     start_time: string
     end_time: string
     slot_type: string
+    editAll?: boolean
   }) => void
   onSaveException: (data: {
     schedule_slot_id: string
@@ -121,10 +122,36 @@ export default function SlotFormModal({
   const [saving, setSaving] = useState(false)
 
   // Recurring vs Ponctuel (null = pas encore choisi)
+  const isEditingAll = editMode === 'all' && !!slot
+  const isEditMode = !!slot
   const [isRecurring, setIsRecurring] = useState<boolean | null>(slot ? slot.is_recurring : null)
   const [dayOfWeek, setDayOfWeek] = useState<number | ''>(slot?.day_of_week ?? prefillDay ?? '')
   const [slotDate, setSlotDate] = useState<string>(
     slot?.slot_date ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : '')
+  )
+
+  // Track initial values for change detection in edit mode
+  const initVals = useMemo(() => ({
+    classId: slot?.class_id ?? prefillClassId ?? '',
+    teacherId: slot?.teacher_id ?? (prefillTeacherId || initialMainTeacherId || ''),
+    roomId: slot?.room_id ?? initialClass?.room_id ?? '',
+    slotType: slot?.slot_type ?? 'cours',
+    startTime: slot?.start_time?.slice(0, 5) ?? prefillTime ?? '',
+    endTime: slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''),
+    dayOfWeek: slot?.day_of_week ?? prefillDay ?? '',
+    slotDate: slot?.slot_date ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : ''),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [])
+
+  const hasChanges = !isEditMode || (
+    classId !== initVals.classId ||
+    teacherId !== initVals.teacherId ||
+    roomId !== initVals.roomId ||
+    slotType !== initVals.slotType ||
+    startTime !== initVals.startTime ||
+    endTime !== initVals.endTime ||
+    dayOfWeek !== initVals.dayOfWeek ||
+    slotDate !== initVals.slotDate
   )
 
   const selectedClass = classes.find(c => c.id === classId)
@@ -193,10 +220,19 @@ export default function SlotFormModal({
   const handleSubmit = async () => {
     if (!isValid || isRecurring === null) return
 
-    // Confirmation pour récurrent
+    // Confirmation pour récurrent (création)
     if (isRecurring && !slot) {
       const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
       if (!confirm(`Ce créneau sera répété chaque ${day} pour toute l'année scolaire. Continuer ?`)) return
+    }
+
+    // Confirmation pour modification de tous les créneaux
+    if (isEditingAll && hasChanges) {
+      const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
+      if (!confirm(
+        `Tous les créneaux récurrents seront modifiés à partir d'aujourd'hui.\n` +
+        `La fiche classe sera mise à jour avec : ${day} ${startTime}–${endTime}.\n\nContinuer ?`
+      )) return
     }
 
     setSaving(true)
@@ -223,6 +259,7 @@ export default function SlotFormModal({
         start_time: startTime,
         end_time: endTime,
         slot_type: slotType,
+        editAll: isEditingAll,
       })
     }
 
@@ -246,10 +283,9 @@ export default function SlotFormModal({
 
         {/* Body */}
         <div className="px-5 py-4 space-y-3">
-          {/* Recurring/Ponctuel toggle (only for new or editing all) */}
+          {/* Type + Fréquence (greyed in edit mode) */}
           {!isEditingThisOnly && (
             <>
-              {/* Type + Fréquence sur la même ligne */}
               <div className="flex justify-between">
                 <div>
                   <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</label>
@@ -257,12 +293,14 @@ export default function SlotFormModal({
                     {SLOT_TYPES.map(st => (
                       <button
                         key={st.value}
-                        onClick={() => setSlotType(st.value)}
+                        onClick={() => !isEditMode && setSlotType(st.value)}
+                        disabled={isEditMode}
                         className={clsx(
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           slotType === st.value
                             ? 'text-white border-[#2e4550]'
-                            : 'bg-white text-warm-600 border-warm-200 hover:bg-warm-50'
+                            : 'bg-white text-warm-600 border-warm-200 hover:bg-warm-50',
+                          isEditMode && 'opacity-60 cursor-not-allowed'
                         )}
                         style={slotType === st.value ? { backgroundColor: SIDEBAR_COLOR } : undefined}
                       >
@@ -280,12 +318,14 @@ export default function SlotFormModal({
                     ].map(opt => (
                       <button
                         key={String(opt.value)}
-                        onClick={() => setIsRecurring(opt.value)}
+                        onClick={() => !isEditMode && setIsRecurring(opt.value)}
+                        disabled={isEditMode}
                         className={clsx(
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           isRecurring === opt.value
                             ? 'text-white border-[#2e4550]'
-                            : 'bg-white text-warm-600 border-warm-200 hover:bg-warm-50'
+                            : 'bg-white text-warm-600 border-warm-200 hover:bg-warm-50',
+                          isEditMode && 'opacity-60 cursor-not-allowed'
                         )}
                         style={isRecurring === opt.value ? { backgroundColor: SIDEBAR_COLOR } : undefined}
                       >
@@ -352,11 +392,11 @@ export default function SlotFormModal({
             </select>
           </div>
 
-          {/* Day / Date + Times */}
-          {!isEditingThisOnly && isRecurring !== null && (
-            <div className={isRecurring ? 'grid grid-cols-[3fr_2fr_2fr] gap-3' : 'grid grid-cols-3 gap-3'}>
+          {/* Day / Date + Times — toujours visible */}
+          {!isEditingThisOnly && (
+            <div className={isRecurring === true ? 'grid grid-cols-[3fr_2fr_2fr] gap-3' : 'grid grid-cols-3 gap-3'}>
               <div>
-                {isRecurring ? (
+                {isRecurring === true ? (
                   <>
                     <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Jour <span className="text-red-400">*</span></label>
                     <select
@@ -370,7 +410,7 @@ export default function SlotFormModal({
                       ))}
                     </select>
                   </>
-                ) : (
+                ) : isRecurring === false ? (
                   <>
                     <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date <span className="text-red-400">*</span></label>
                     <input
@@ -379,6 +419,20 @@ export default function SlotFormModal({
                       onChange={e => setSlotDate(e.target.value)}
                       className="input mt-1 w-full text-sm"
                     />
+                  </>
+                ) : (
+                  <>
+                    <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Jour <span className="text-red-400">*</span></label>
+                    <select
+                      value={dayOfWeek}
+                      onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="input mt-1 w-full text-sm"
+                    >
+                      <option value="">— Sélectionner —</option>
+                      {DAY_OPTIONS.map(d => (
+                        <option key={d.value} value={d.value}>{d.label}</option>
+                      ))}
+                    </select>
                   </>
                 )}
               </div>
@@ -399,6 +453,28 @@ export default function SlotFormModal({
                   onChange={e => setEndTime(e.target.value)}
                   className="input mt-1 w-full text-sm"
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Fréquence grisée pour modification ce créneau uniquement */}
+          {isEditingThisOnly && (
+            <div className="flex justify-between">
+              <div>
+                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</label>
+                <div className="flex gap-2 mt-1">
+                  <span className="px-3 py-1 rounded-lg text-xs font-medium border text-white border-[#2e4550] opacity-60" style={{ backgroundColor: SIDEBAR_COLOR }}>
+                    {SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Fréquence</label>
+                <div className="flex gap-2 mt-1">
+                  <span className="px-3 py-1 rounded-lg text-xs font-medium border text-white border-[#2e4550] opacity-60" style={{ backgroundColor: SIDEBAR_COLOR }}>
+                    Exception ponctuelle
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -449,15 +525,15 @@ export default function SlotFormModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!isValid || saving}
+            disabled={!isValid || saving || !hasChanges}
             className={clsx(
               'px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-colors',
-              isValid && !saving
+              isValid && !saving && hasChanges
                 ? 'bg-amber-500 hover:bg-amber-600'
                 : 'bg-warm-200 text-warm-400 cursor-not-allowed'
             )}
           >
-            {saving ? 'Enregistrement...' : isEditingThisOnly ? 'Modifier ce jour' : slot ? 'Modifier' : 'Créer'}
+            {saving ? 'Enregistrement...' : isEditingThisOnly ? 'Modifier ce créneau' : slot ? 'Modifier' : 'Créer'}
           </button>
         </div>
       </div>

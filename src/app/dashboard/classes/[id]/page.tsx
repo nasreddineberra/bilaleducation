@@ -21,6 +21,7 @@ export default async function EditClassPage({ params }: Props) {
     { data: ues },
     { data: currentYearRow },
     { data: rooms },
+    { data: etablissement },
   ] = await Promise.all([
     supabase.from('classes').select('*').eq('id', id).single(),
     supabase
@@ -44,7 +45,7 @@ export default async function EditClassPage({ params }: Props) {
       .order('nom_fr'),
     supabase
       .from('school_years')
-      .select('id')
+      .select('id, start_date, end_date, vacations')
       .eq('is_current', true)
       .single(),
     supabase
@@ -53,6 +54,10 @@ export default async function EditClassPage({ params }: Props) {
       .eq('is_available', true)
       .in('room_type', ['salle_cours', 'salle_informatique', 'salle_sport', 'autre'])
       .order('name'),
+    supabase
+      .from('etablissements')
+      .select('week_start_day')
+      .single(),
   ])
 
   const { data: cotisationTypes } = currentYearRow
@@ -62,6 +67,18 @@ export default async function EditClassPage({ params }: Props) {
         .eq('school_year_id', currentYearRow.id)
         .order('order_index')
     : { data: [] }
+
+  // Créneau récurrent existant pour cette classe
+  const { data: existingSlot } = currentYearRow
+    ? await supabase
+        .from('schedule_slots')
+        .select('id, day_of_week, start_time, end_time, teacher_id')
+        .eq('class_id', id)
+        .eq('school_year_id', currentYearRow.id)
+        .eq('is_recurring', true)
+        .eq('is_active', true)
+        .maybeSingle()
+    : { data: null }
 
   if (!cls) notFound()
 
@@ -93,6 +110,9 @@ export default async function EditClassPage({ params }: Props) {
         ues={ues ?? []}
         cotisationTypes={(cotisationTypes ?? []) as any[]}
         rooms={(rooms ?? []) as any[]}
+        currentSchoolYear={currentYearRow as any}
+        existingScheduleSlot={existingSlot as any}
+        weekStartDay={etablissement?.week_start_day ?? 1}
       />
 
     </div>

@@ -1,6 +1,5 @@
 'use client'
 
-import { useDraggable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import { Check, Trash2, CalendarDays } from 'lucide-react'
 import type { CSSProperties } from 'react'
@@ -41,30 +40,22 @@ export default function SlotCapsule({
   slot, style, viewMode, canEdit, isToday, isTeacher,
   validated, onValidate, onCancelValidation, onClick, onContextMenu, onDelete,
 }: Props) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: slot.id,
-    disabled: !canEdit,
-  })
-
   const colorClass = validated ? VALIDATED_COLORS : (SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)
   const showValidation = isTeacher && isToday && slot.slot_type !== 'pause'
 
   return (
     <div
-      ref={setNodeRef}
       data-slot
-      style={{ ...style, zIndex: isDragging ? 50 : 10 }}
+      style={{ ...style, zIndex: 10 }}
       className={clsx(
         'rounded-lg border overflow-hidden transition-shadow group',
         colorClass,
         slot.isModified && MODIFIED_BORDER,
-        isDragging && 'opacity-40',
-        canEdit && 'cursor-grab active:cursor-grabbing',
+        canEdit && 'cursor-pointer',
         !canEdit && 'cursor-default',
       )}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e) }}
-      {...(canEdit ? { ...attributes, ...listeners } : {})}
     >
       <div className="px-1.5 py-0.5 h-full flex flex-col overflow-hidden">
         {/* Course name or type */}

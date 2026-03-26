@@ -19,7 +19,7 @@ export default async function EmploiDuTempsPage() {
   // Annee scolaire courante
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label')
+    .select('id, label, start_date, end_date, vacations')
     .eq('is_current', true)
     .maybeSingle()
 
@@ -71,6 +71,12 @@ export default async function EmploiDuTempsPage() {
     .select('id, nom_fr, unite_enseignement_id, unites_enseignement(nom_fr)')
     .order('nom_fr')
 
+  // Week start day
+  const { data: etablissement } = await supabase
+    .from('etablissements')
+    .select('week_start_day')
+    .single()
+
   // Validations du jour
   const today = new Date().toISOString().split('T')[0]
   const { data: todayValidations } = await supabase
@@ -93,6 +99,10 @@ export default async function EmploiDuTempsPage() {
         rooms={(rooms ?? []) as any[]}
         coursList={(coursList ?? []) as any[]}
         todayValidations={(todayValidations ?? []) as any[]}
+        weekStartDay={etablissement?.week_start_day ?? 1}
+        schoolYearStartDate={currentYear.start_date ?? null}
+        schoolYearEndDate={currentYear.end_date ?? null}
+        vacations={(currentYear.vacations as any[]) ?? []}
       />
     </div>
   )

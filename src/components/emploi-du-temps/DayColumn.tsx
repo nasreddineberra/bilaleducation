@@ -1,6 +1,5 @@
 'use client'
 
-import { useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import SlotCapsule from './SlotCapsule'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
@@ -23,6 +22,7 @@ interface Props {
   onContextMenuSlot: (e: React.MouseEvent, slot: ResolvedSlot) => void
   onClickEmpty: (day: number, time: string) => void
   onDeleteSlot: (sourceSlotId: string) => void
+  vacationLabel?: string | null
 }
 
 function timeToMinutes(t: string): number {
@@ -32,11 +32,9 @@ function timeToMinutes(t: string): number {
 
 export default function DayColumn({
   day, slots, startHour, endHour, isToday, canEdit, viewMode,
-  isTeacher, isValidated, onValidate, onCancelValidation,
+  isTeacher, vacationLabel, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onClickEmpty, onDeleteSlot,
 }: Props) {
-  const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` })
-
   const totalMinutes = (endHour - startHour) * 60
   const startMinutes = startHour * 60
 
@@ -44,13 +42,13 @@ export default function DayColumn({
 
   return (
     <div
-      ref={setNodeRef}
       className={clsx(
-        'relative border-l border-warm-100 cursor-crosshair',
-        isToday && 'bg-amber-50/30',
-        isOver && 'bg-blue-50/50',
+        'relative border-l border-warm-100',
+        vacationLabel ? 'bg-amber-50/40 cursor-default' : 'cursor-crosshair',
+        isToday && !vacationLabel && 'bg-amber-50/30',
       )}
       onClick={(e) => {
+        if (vacationLabel) return
         if ((e.target as HTMLElement).closest('[data-slot]')) return
         const rect = e.currentTarget.getBoundingClientRect()
         const y = e.clientY - rect.top
@@ -62,6 +60,15 @@ export default function DayColumn({
         onClickEmpty(day, `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
       }}
     >
+      {/* Tag vacances */}
+      {vacationLabel && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full uppercase tracking-wide">
+            {vacationLabel}
+          </span>
+        </div>
+      )}
+
       {/* Hour grid lines */}
       {Array.from({ length: endHour - startHour }).map((_, i) => (
         <div

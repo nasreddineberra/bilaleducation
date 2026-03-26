@@ -1,17 +1,9 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
-import {
-  DndContext,
-  DragOverlay,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  type DragStartEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, Check } from 'lucide-react'
 import SlotCapsule from './SlotCapsule'
 import DayColumn from './DayColumn'
@@ -37,8 +29,12 @@ const SLOT_COLORS: Record<string, string> = {
 const DEFAULT_START = 7
 const DEFAULT_END = 19
 
-// Lundi(1) → Dimanche(0)
-const FIXED_DAYS = [1, 2, 3, 4, 5, 6, 0]
+// Ordre des jours dynamique selon weekStartDay
+function buildDayOrder(startDay: number): number[] {
+  const days: number[] = []
+  for (let i = 0; i < 7; i++) days.push((startDay + i) % 7)
+  return days
+}
 
 const SIDEBAR_COLOR = '#2e4550'
 
@@ -159,6 +155,10 @@ interface Props {
   rooms: RoomData[]
   coursList: CoursData[]
   todayValidations: ValidationData[]
+  weekStartDay?: number  // 0=Dimanche, 1=Lundi, 6=Samedi
+  schoolYearStartDate?: string | null  // YYYY-MM-DD
+  schoolYearEndDate?: string | null    // YYYY-MM-DD
+  vacations?: { start_date: string; end_date: string; label: string }[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -186,10 +186,10 @@ function classInfoLine(c: ClassData): string {
   return parts.join(' · ')
 }
 
-function getMondayOf(d: Date) {
+function getWeekStartOf(d: Date, startDay: number) {
   const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  return new Date(d.getFullYear(), d.getMonth(), diff)
+  const diff = (day - startDay + 7) % 7
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff)
 }
 
 function getWeekNumber(d: Date) {
@@ -213,6 +213,8 @@ export default function EmploiDuTempsClient({
   currentUserId, currentUserName, role, canEdit, schoolYearId,
   classes, teachers, slots: initialSlots, exceptions: initialExceptions,
   rooms, coursList, todayValidations: initialValidations,
+  weekStartDay = 1,
+  schoolYearStartDate, schoolYearEndDate, vacations = [],
 }: Props) {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -242,14 +244,8 @@ export default function EmploiDuTempsClient({
   const [prefillTime, setPrefillTime] = useState<string | null>(null)
 
   // Context menu
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slot: ResolvedSlot } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slot: ResolvedSlot; isLastCol: boolean } | null>(null)
   const contextRef = useRef<HTMLDivElement>(null)
-
-  // Drag
-  const [activeSlot, setActiveSlot] = useState<ResolvedSlot | null>(null)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  )
 
   // Custom dropdowns
   const [classDropOpen, setClassDropOpen] = useState(false)
@@ -270,48 +266,65 @@ export default function EmploiDuTempsClient({
   // ─── Week navigation ──────────────────────────────────────────────────────
 
   const [weekOffset, setWeekOffset] = useState(0)
+  const orderedDays = useMemo(() => buildDayOrder(weekStartDay), [weekStartDay])
 
-  const currentMonday = useMemo(() => {
-    const m = getMondayOf(new Date())
+  const currentWeekStart = useMemo(() => {
+    const m = getWeekStartOf(new Date(), weekStartDay)
     m.setDate(m.getDate() + weekOffset * 7)
     return m
-  }, [weekOffset])
+  }, [weekOffset, weekStartDay])
 
-  const currentSunday = useMemo(() => {
-    const s = new Date(currentMonday)
-    s.setDate(currentMonday.getDate() + 6)
+  const currentWeekEnd = useMemo(() => {
+    const s = new Date(currentWeekStart)
+    s.setDate(currentWeekStart.getDate() + 6)
     return s
-  }, [currentMonday])
+  }, [currentWeekStart])
 
-  const weekNum = getWeekNumber(currentMonday)
+  const weekNum = getWeekNumber(currentWeekStart)
   const isCurrentWeek = weekOffset === 0
 
   // Map: dayOfWeek → date string "YYYY-MM-DD"
   const weekDayDates = useMemo(() => {
     const map: Record<number, string> = {}
     for (let i = 0; i < 7; i++) {
-      const d = new Date(currentMonday)
-      d.setDate(currentMonday.getDate() + i)
+      const d = new Date(currentWeekStart)
+      d.setDate(currentWeekStart.getDate() + i)
       map[d.getDay()] = formatDate(d)
     }
     return map
-  }, [currentMonday])
+  }, [currentWeekStart])
 
   // Map: dayOfWeek → "DD/MM/YYYY" for display
   const dayDatesDisplay = useMemo(() => {
     const map: Record<number, string> = {}
     for (let i = 0; i < 7; i++) {
-      const d = new Date(currentMonday)
-      d.setDate(currentMonday.getDate() + i)
+      const d = new Date(currentWeekStart)
+      d.setDate(currentWeekStart.getDate() + i)
       map[d.getDay()] = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
     }
     return map
-  }, [currentMonday])
+  }, [currentWeekStart])
 
   const todayRealDow = new Date().getDay()
   const todayDow = isCurrentWeek ? todayRealDow : -1
 
   // ─── Resolve slots for this week ──────────────────────────────────────────
+
+  // Helper : la date est-elle en vacances ?
+  const getVacationLabel = useCallback((dateStr: string): string | null => {
+    for (const v of vacations) {
+      if (dateStr >= v.start_date && dateStr <= v.end_date) return v.label || 'Vacances'
+    }
+    return null
+  }, [vacations])
+
+  // Helper : la date est-elle dans la période scolaire et hors vacances ?
+  const isSchoolDay = useCallback((dateStr: string) => {
+    if (schoolYearStartDate && dateStr < schoolYearStartDate) return false
+    if (schoolYearEndDate && dateStr > schoolYearEndDate) return false
+    if (getVacationLabel(dateStr)) return false
+    return true
+  }, [schoolYearStartDate, schoolYearEndDate, getVacationLabel])
 
   const resolvedSlots = useMemo(() => {
     const result: ResolvedSlot[] = []
@@ -322,6 +335,9 @@ export default function EmploiDuTempsClient({
       if (!slot.is_recurring || slot.day_of_week === null) continue
       const date = weekDayDates[slot.day_of_week]
       if (!date) continue
+
+      // Ne pas afficher hors période scolaire ou en vacances
+      if (!isSchoolDay(date)) continue
 
       // Check for exception on this date
       const exception = exceptions.find(
@@ -411,11 +427,19 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [slots, exceptions, weekDayDates, teachers, rooms])
+  }, [slots, exceptions, weekDayDates, teachers, rooms, isSchoolDay])
 
   // ─── Computed ─────────────────────────────────────────────────────────────
 
-  const activeDays = selectedDay !== null ? [selectedDay] : FIXED_DAYS
+  const activeDays = selectedDay !== null ? [selectedDay] : orderedDays
+
+  // Semaine entière en vacances ?
+  const isFullWeekVacation = useMemo(() => {
+    return orderedDays.every(d => {
+      const dateStr = weekDayDates[d]
+      return dateStr ? !isSchoolDay(dateStr) : false
+    })
+  }, [orderedDays, weekDayDates, isSchoolDay])
   const startHour = DEFAULT_START
   const endHour = DEFAULT_END
 
@@ -478,6 +502,7 @@ export default function EmploiDuTempsClient({
     start_time: string
     end_time: string
     slot_type: string
+    editAll?: boolean
   }) => {
     const payload = {
       school_year_id: schoolYearId,
@@ -496,6 +521,28 @@ export default function EmploiDuTempsClient({
     if (data.id) {
       const { error } = await supabase.from('schedule_slots').update(payload).eq('id', data.id)
       if (error) { alert('Erreur : ' + error.message); return }
+
+      // Modifier tous les créneaux : mettre à jour la fiche classe + supprimer exceptions futures
+      if (data.editAll && data.is_recurring && data.day_of_week !== null) {
+        const dayName = DAY_LABELS[data.day_of_week] ?? ''
+        // Mise à jour de la fiche classe (day_of_week, start_time, end_time)
+        await supabase
+          .from('classes')
+          .update({
+            day_of_week: dayName,
+            start_time: data.start_time,
+            end_time: data.end_time,
+          })
+          .eq('id', data.class_id)
+
+        // Supprimer les exceptions à partir d'aujourd'hui
+        const today = new Date().toISOString().split('T')[0]
+        await supabase
+          .from('schedule_exceptions')
+          .delete()
+          .eq('schedule_slot_id', data.id)
+          .gte('exception_date', today)
+      }
     } else {
       const { error } = await supabase.from('schedule_slots').insert(payload)
       if (error) { alert('Erreur : ' + error.message); return }
@@ -589,40 +636,6 @@ export default function EmploiDuTempsClient({
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
 
-  const handleDragStart = useCallback((e: DragStartEvent) => {
-    const slot = filteredSlots.find(s => s.id === e.active.id)
-    setActiveSlot(slot ?? null)
-  }, [filteredSlots])
-
-  const handleDragEnd = useCallback(async (e: DragEndEvent) => {
-    setActiveSlot(null)
-    if (!e.over || !canEdit) return
-    const resolved = filteredSlots.find(s => s.id === e.active.id)
-    if (!resolved) return
-    const newDay = Number(String(e.over.id).replace('day-', ''))
-    if (resolved.dayOfWeek === newDay) return
-
-    if (resolved.isRecurring) {
-      // For recurring: update the base slot's day_of_week
-      const { error } = await supabase
-        .from('schedule_slots')
-        .update({ day_of_week: newDay })
-        .eq('id', resolved.sourceSlotId)
-      if (error) { alert('Erreur : ' + error.message); return }
-    } else {
-      // For ponctual: update slot_date to the new day of the same week
-      const newDate = weekDayDates[newDay]
-      if (!newDate) return
-      const { error } = await supabase
-        .from('schedule_slots')
-        .update({ slot_date: newDate })
-        .eq('id', resolved.sourceSlotId)
-      if (error) { alert('Erreur : ' + error.message); return }
-    }
-
-    await refreshData()
-  }, [filteredSlots, canEdit, supabase, weekDayDates, refreshData])
-
   // ─── Validation présence ──────────────────────────────────────────────────
 
   const handleValidate = useCallback(async (resolved: ResolvedSlot) => {
@@ -708,7 +721,13 @@ export default function EmploiDuTempsClient({
   const handleSlotContextMenu = (e: React.MouseEvent, resolved: ResolvedSlot) => {
     if (!canEdit || !resolved.isRecurring) return
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, slot: resolved })
+    e.stopPropagation()
+    const dayIndex = activeDays.indexOf(resolved.dayOfWeek)
+    const isLastCol = dayIndex === activeDays.length - 1
+    // Use nativeEvent for accurate mouse position (dnd-kit can alter React event)
+    const x = e.nativeEvent.clientX
+    const y = e.nativeEvent.clientY
+    setContextMenu({ x, y, slot: resolved, isLastCol })
   }
 
   const handleSlotClick = (resolved: ResolvedSlot) => {
@@ -877,7 +896,7 @@ export default function EmploiDuTempsClient({
             )}
             title={isCurrentWeek ? 'Semaine courante' : 'Revenir à cette semaine'}
           >
-            S{weekNum} — {fmtDateFull(currentMonday)} au {fmtDateFull(currentSunday)} {currentSunday.getFullYear()}
+            S{weekNum} — {fmtDateFull(currentWeekStart)} au {fmtDateFull(currentWeekEnd)} {currentWeekEnd.getFullYear()}
           </button>
           <button
             onClick={() => setWeekOffset(o => o + 1)}
@@ -900,7 +919,6 @@ export default function EmploiDuTempsClient({
       </div>
 
       {/* ── Grid ──────────────────────────────────────────────────────── */}
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="card flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Day headers */}
           <div
@@ -945,55 +963,52 @@ export default function EmploiDuTempsClient({
             </div>
 
             {/* Day columns */}
-            {activeDays.map(d => (
-              <DayColumn
-                key={d}
-                day={d}
-                slots={slotsByDay[d] ?? []}
-                startHour={startHour}
-                endHour={endHour}
-                isToday={d === todayDow}
-                canEdit={canEdit}
-                viewMode={viewMode}
-                isTeacher={role === 'enseignant'}
-                isValidated={(sourceSlotId) => isValidated(sourceSlotId)}
-                onValidate={(resolved) => handleValidate(resolved)}
-                onCancelValidation={(sourceSlotId) => handleCancelValidation(sourceSlotId)}
-                onClickSlot={handleSlotClick}
-                onContextMenuSlot={handleSlotContextMenu}
-                onClickEmpty={(day, time) => canEdit && openNewSlot(day, time)}
-                onDeleteSlot={(sourceSlotId) => handleDeleteSlot(sourceSlotId)}
-              />
-            ))}
+            {activeDays.map(d => {
+              const dateStr = weekDayDates[d]
+              const vacLabel = dateStr ? getVacationLabel(dateStr) : null
+              return (
+                <DayColumn
+                  key={d}
+                  day={d}
+                  slots={slotsByDay[d] ?? []}
+                  startHour={startHour}
+                  endHour={endHour}
+                  isToday={d === todayDow}
+                  canEdit={canEdit}
+                  viewMode={viewMode}
+                  isTeacher={role === 'enseignant'}
+                  vacationLabel={vacLabel}
+                  isValidated={(sourceSlotId) => isValidated(sourceSlotId)}
+                  onValidate={(resolved) => handleValidate(resolved)}
+                  onCancelValidation={(sourceSlotId) => handleCancelValidation(sourceSlotId)}
+                  onClickSlot={handleSlotClick}
+                  onContextMenuSlot={handleSlotContextMenu}
+                  onClickEmpty={(day, time) => canEdit && openNewSlot(day, time)}
+                  onDeleteSlot={(sourceSlotId) => handleDeleteSlot(sourceSlotId)}
+                />
+              )
+            })}
           </div>
         </div>
 
-        {/* Drag overlay */}
-        <DragOverlay>
-          {activeSlot && (
-            <div className={clsx(
-              'rounded-lg border px-2 py-1 text-xs shadow-lg opacity-80',
-              SLOT_COLORS[activeSlot.slot_type] ?? SLOT_COLORS.cours
-            )}>
-              <div className="font-semibold">{activeSlot.cours?.nom_fr ?? activeSlot.slot_type}</div>
-              <div className="text-[10px] opacity-70">{activeSlot.classes?.name}</div>
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
 
-      {/* ── Context menu ──────────────────────────────────────────────── */}
-      {contextMenu && (
+      {/* ── Context menu (portal pour éviter le containing block de animate-fade-in) ── */}
+      {contextMenu && createPortal(
         <div
           ref={contextRef}
-          className="fixed bg-white rounded-xl shadow-xl border border-warm-200 z-[100] py-1 min-w-[200px]"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          className="fixed bg-white rounded-xl shadow-xl border border-warm-200 z-[100] py-1 w-56"
+          style={{
+            top: Math.min(contextMenu.y, window.innerHeight - 200),
+            ...(contextMenu.isLastCol
+              ? { right: window.innerWidth - contextMenu.x }
+              : { left: contextMenu.x }),
+          }}
         >
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-warm-700"
             onClick={() => openEditThisOnly(contextMenu.slot)}
           >
-            Modifier ce jour uniquement
+            Modifier ce créneau
           </button>
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-warm-700"
@@ -1001,7 +1016,7 @@ export default function EmploiDuTempsClient({
               handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
             }}
           >
-            Supprimer ce jour uniquement
+            Supprimer ce créneau
           </button>
           <div className="border-t border-warm-100 my-1" />
           <button
@@ -1019,7 +1034,8 @@ export default function EmploiDuTempsClient({
           >
             Supprimer tous les créneaux
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Modal ─────────────────────────────────────────────────────── */}
