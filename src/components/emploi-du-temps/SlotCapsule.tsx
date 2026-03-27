@@ -21,6 +21,7 @@ interface Props {
   viewMode: ViewMode
   canEdit: boolean
   isToday: boolean
+  canValidate: boolean
   isTeacher: boolean
   validated: boolean
   onValidate: () => void
@@ -37,11 +38,11 @@ function teacherShort(p: { first_name: string; last_name: string; civilite?: str
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, isToday, isTeacher,
+  slot, style, viewMode, canEdit, isToday, canValidate, isTeacher,
   validated, onValidate, onCancelValidation, onClick, onContextMenu, onDelete,
 }: Props) {
   const colorClass = validated ? VALIDATED_COLORS : (SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)
-  const showValidation = isTeacher && isToday && slot.slot_type !== 'pause'
+  const showValidation = (isTeacher || canEdit) && canValidate && slot.slot_type !== 'pause'
 
   return (
     <div

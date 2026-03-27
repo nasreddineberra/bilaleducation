@@ -4,9 +4,11 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Check } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, Check, RotateCcw, CalendarDays, LayoutGrid } from 'lucide-react'
+import { logAudit } from '@/lib/audit'
 import SlotCapsule from './SlotCapsule'
 import DayColumn from './DayColumn'
+import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -55,6 +57,8 @@ export interface SlotData {
   end_time: string
   slot_type: string
   color: string | null
+  effective_from: string | null
+  effective_until: string | null
   classes?: { name: string }
   teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
@@ -93,6 +97,7 @@ interface TeacherData {
   first_name: string
   last_name: string
   civilite?: string
+  user_id?: string | null
 }
 
 interface RoomData {
@@ -207,6 +212,13 @@ function fmtDateFull(d: Date) {
   return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`
 }
 
+/** Vérifie si un créneau récurrent est effectif à une date donnée */
+function isSlotEffective(slot: SlotData, dateStr: string): boolean {
+  if (slot.effective_from && dateStr < slot.effective_from) return false
+  if (slot.effective_until && dateStr > slot.effective_until) return false
+  return true
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EmploiDuTempsClient({
@@ -220,6 +232,9 @@ export default function EmploiDuTempsClient({
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   )
+
+  const classesRef = useRef(classes)
+  classesRef.current = classes
 
   const [slots, setSlots] = useState<SlotData[]>(initialSlots)
   const [exceptions, setExceptions] = useState<ExceptionData[]>(initialExceptions)
@@ -235,6 +250,27 @@ export default function EmploiDuTempsClient({
 
   const todayStr = new Date().toISOString().split('T')[0]
 
+  // Map teacher_id (teachers table) → profile_id (profiles/user_id)
+  const teacherProfileMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const t of teachers) {
+      if (t.user_id) map[t.id] = t.user_id
+    }
+    return map
+  }, [teachers])
+
+  // View type: week or month
+  const [viewType, setViewType] = useState<'week' | 'month'>('month')
+  const [monthOffset, setMonthOffset] = useState(0)
+
+  const currentMonth = useMemo(() => {
+    const now = new Date()
+    const d = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
+    return { month: d.getMonth(), year: d.getFullYear() }
+  }, [monthOffset])
+
+  const isCurrentMonth = monthOffset === 0
+
   // Modal
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSlot, setEditingSlot] = useState<SlotData | null>(null)
@@ -242,6 +278,7 @@ export default function EmploiDuTempsClient({
   const [editDate, setEditDate] = useState<string | null>(null)
   const [prefillDay, setPrefillDay] = useState<number | null>(null)
   const [prefillTime, setPrefillTime] = useState<string | null>(null)
+  const [prefillDate, setPrefillDate] = useState<string | null>(null)
 
   // Context menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slot: ResolvedSlot; isLastCol: boolean } | null>(null)
@@ -336,6 +373,9 @@ export default function EmploiDuTempsClient({
       const date = weekDayDates[slot.day_of_week]
       if (!date) continue
 
+      // Ne pas afficher si hors période effective du créneau
+      if (!isSlotEffective(slot, date)) continue
+
       // Ne pas afficher hors période scolaire ou en vacances
       if (!isSchoolDay(date)) continue
 
@@ -429,6 +469,143 @@ export default function EmploiDuTempsClient({
     return result
   }, [slots, exceptions, weekDayDates, teachers, rooms, isSchoolDay])
 
+  // ─── Month-scoped resolved slots ─────────────────────────────────────────
+
+  const resolvedMonthSlots = useMemo(() => {
+    if (viewType !== 'month') return []
+
+    const result: ResolvedSlot[] = []
+    const firstOfMonth = new Date(currentMonth.year, currentMonth.month, 1)
+    const lastOfMonth = new Date(currentMonth.year, currentMonth.month + 1, 0)
+
+    // Extend to full calendar weeks
+    const firstDow = firstOfMonth.getDay()
+    const offset = (firstDow - weekStartDay + 7) % 7
+    const calStart = new Date(currentMonth.year, currentMonth.month, 1 - offset)
+    const cursor = new Date(calStart)
+    const allDates: string[] = []
+    while (cursor <= lastOfMonth || allDates.length % 7 !== 0) {
+      allDates.push(formatDate(cursor))
+      cursor.setDate(cursor.getDate() + 1)
+    }
+
+    // Build a datesByDow map for recurring lookup
+    const datesByDow: Record<number, string[]> = {}
+    for (const dateStr of allDates) {
+      const d = new Date(dateStr + 'T00:00:00')
+      const dow = d.getDay()
+      if (!datesByDow[dow]) datesByDow[dow] = []
+      datesByDow[dow].push(dateStr)
+    }
+
+    // 1. Recurring slots
+    for (const slot of slots) {
+      if (!slot.is_recurring || slot.day_of_week === null) continue
+      const dates = datesByDow[slot.day_of_week] ?? []
+
+      for (const date of dates) {
+        if (!isSlotEffective(slot, date)) continue
+        if (!isSchoolDay(date)) continue
+
+        const exception = exceptions.find(
+          ex => ex.schedule_slot_id === slot.id && ex.exception_date === date
+        )
+
+        if (exception?.exception_type === 'cancelled') continue
+
+        if (exception?.exception_type === 'modified') {
+          result.push({
+            id: `${slot.id}-${date}`,
+            sourceSlotId: slot.id,
+            isRecurring: true,
+            isModified: true,
+            exceptionId: exception.id,
+            date,
+            dayOfWeek: slot.day_of_week,
+            class_id: slot.class_id,
+            teacher_id: exception.override_teacher_id ?? slot.teacher_id,
+            cours_id: slot.cours_id,
+            room_id: exception.override_room_id ?? slot.room_id,
+            start_time: exception.override_start_time ?? slot.start_time,
+            end_time: exception.override_end_time ?? slot.end_time,
+            slot_type: slot.slot_type,
+            color: slot.color,
+            classes: slot.classes,
+            teachers: exception.override_teacher_id
+              ? teachers.find(t => t.id === exception.override_teacher_id) as any
+              : slot.teachers,
+            cours: slot.cours,
+            rooms: exception.override_room_id
+              ? rooms.find(r => r.id === exception.override_room_id) as any
+              : slot.rooms,
+          })
+        } else {
+          result.push({
+            id: `${slot.id}-${date}`,
+            sourceSlotId: slot.id,
+            isRecurring: true,
+            isModified: false,
+            date,
+            dayOfWeek: slot.day_of_week,
+            class_id: slot.class_id,
+            teacher_id: slot.teacher_id,
+            cours_id: slot.cours_id,
+            room_id: slot.room_id,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            slot_type: slot.slot_type,
+            color: slot.color,
+            classes: slot.classes,
+            teachers: slot.teachers,
+            cours: slot.cours,
+            rooms: slot.rooms,
+          })
+        }
+      }
+    }
+
+    // 2. Ponctual slots
+    for (const slot of slots) {
+      if (slot.is_recurring || !slot.slot_date) continue
+      if (!allDates.includes(slot.slot_date)) continue
+
+      const d = new Date(slot.slot_date + 'T00:00:00')
+      result.push({
+        id: slot.id,
+        sourceSlotId: slot.id,
+        isRecurring: false,
+        isModified: false,
+        date: slot.slot_date,
+        dayOfWeek: d.getDay(),
+        class_id: slot.class_id,
+        teacher_id: slot.teacher_id,
+        cours_id: slot.cours_id,
+        room_id: slot.room_id,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        slot_type: slot.slot_type,
+        color: slot.color,
+        classes: slot.classes,
+        teachers: slot.teachers,
+        cours: slot.cours,
+        rooms: slot.rooms,
+      })
+    }
+
+    return result
+  }, [viewType, currentMonth, slots, exceptions, teachers, rooms, isSchoolDay, weekStartDay])
+
+  // Filter month slots by view mode
+  const filteredMonthSlots = useMemo(() => {
+    if (viewMode === 'class' && selectedClassId) {
+      return resolvedMonthSlots.filter(s => s.class_id === selectedClassId)
+    }
+    if (viewMode === 'teacher' && selectedTeacherId) {
+      return resolvedMonthSlots.filter(s => s.teacher_id === selectedTeacherId)
+    }
+    return resolvedMonthSlots
+  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId])
+
   // ─── Computed ─────────────────────────────────────────────────────────────
 
   const activeDays = selectedDay !== null ? [selectedDay] : orderedDays
@@ -490,6 +667,15 @@ export default function EmploiDuTempsClient({
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
+  // Date effective : aujourd'hui si en cours d'année, sinon date de rentrée
+  const getEffectiveDate = useCallback(() => {
+    const today = formatDate(new Date())
+    if (schoolYearStartDate && schoolYearEndDate && today >= schoolYearStartDate && today <= schoolYearEndDate) {
+      return today
+    }
+    return schoolYearStartDate ?? today
+  }, [schoolYearStartDate, schoolYearEndDate])
+
   const handleSaveSlot = useCallback(async (data: {
     id?: string
     class_id: string
@@ -503,8 +689,14 @@ export default function EmploiDuTempsClient({
     end_time: string
     slot_type: string
     editAll?: boolean
+    pivotDate?: string // date du créneau cliqué (EDT) — si absent, on utilise aujourd'hui/rentrée
   }) => {
-    const payload = {
+    // Date pivot : celle du créneau (EDT) ou aujourd'hui/rentrée (ClassForm)
+    const pivotDate = data.pivotDate ?? getEffectiveDate()
+    const isInSchoolYear = schoolYearStartDate && schoolYearEndDate
+      && pivotDate >= schoolYearStartDate && pivotDate <= schoolYearEndDate
+
+    const basePayload = {
       school_year_id: schoolYearId,
       class_id: data.class_id,
       teacher_id: data.teacher_id,
@@ -518,34 +710,99 @@ export default function EmploiDuTempsClient({
       slot_type: data.slot_type,
     }
 
-    if (data.id) {
-      const { error } = await supabase.from('schedule_slots').update(payload).eq('id', data.id)
-      if (error) { alert('Erreur : ' + error.message); return }
+    if (data.id && data.editAll && data.is_recurring) {
+      // ── Modifier tous les créneaux (récurrent) ──
+      const oldSlot = slots.find(s => s.id === data.id)
 
-      // Modifier tous les créneaux : mettre à jour la fiche classe + supprimer exceptions futures
-      if (data.editAll && data.is_recurring && data.day_of_week !== null) {
+      if (isInSchoolYear && oldSlot) {
+        // En cours d'année : clôturer l'ancien (veille du pivot) + créer un nouveau (à partir du pivot)
+        const pivotD = new Date(pivotDate + 'T00:00:00')
+        pivotD.setDate(pivotD.getDate() - 1)
+        const dayBefore = formatDate(pivotD)
+
+        // Clôturer l'ancien
+        await supabase
+          .from('schedule_slots')
+          .update({ effective_until: dayBefore })
+          .eq('id', data.id)
+
+        // Créer le nouveau créneau avec effective_from = pivotDate
+        const { error } = await supabase.from('schedule_slots').insert({
+          ...basePayload,
+          effective_from: pivotDate,
+          effective_until: null,
+        })
+        if (error) { alert('Erreur : ' + error.message); return }
+      } else {
+        // Hors année scolaire : simple mise à jour + effective_from = rentrée
+        const effectiveFrom = schoolYearStartDate ?? pivotDate
+        const { error } = await supabase.from('schedule_slots').update({
+          ...basePayload,
+          effective_from: effectiveFrom,
+        }).eq('id', data.id)
+        if (error) { alert('Erreur : ' + error.message); return }
+      }
+
+      // Mettre à jour la fiche classe
+      if (data.day_of_week !== null) {
         const dayName = DAY_LABELS[data.day_of_week] ?? ''
-        // Mise à jour de la fiche classe (day_of_week, start_time, end_time)
         await supabase
           .from('classes')
-          .update({
-            day_of_week: dayName,
-            start_time: data.start_time,
-            end_time: data.end_time,
-          })
+          .update({ day_of_week: dayName, start_time: data.start_time, end_time: data.end_time })
           .eq('id', data.class_id)
-
-        // Supprimer les exceptions à partir d'aujourd'hui
-        const today = new Date().toISOString().split('T')[0]
-        await supabase
-          .from('schedule_exceptions')
-          .delete()
-          .eq('schedule_slot_id', data.id)
-          .gte('exception_date', today)
       }
-    } else {
-      const { error } = await supabase.from('schedule_slots').insert(payload)
+
+      // Supprimer les exceptions à partir du pivot (liées à l'ancien créneau)
+      await supabase
+        .from('schedule_exceptions')
+        .delete()
+        .eq('schedule_slot_id', data.id)
+        .gte('exception_date', pivotDate)
+
+      // Log détaillé
+      const cls = classesRef.current.find(c => c.id === data.class_id)
+      const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
+      logAudit(supabase, {
+        action: 'UPDATE',
+        entityType: 'schedule_slots',
+        entityId: data.id,
+        description: `Modification créneau EDT pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}–${data.end_time}, à partir du ${new Date(pivotDate + 'T00:00:00').toLocaleDateString('fr-FR')}`,
+      })
+
+    } else if (data.id) {
+      // ── Modifier un créneau existant (ponctuel ou this_only via exception) ──
+      const { error } = await supabase.from('schedule_slots').update(basePayload).eq('id', data.id)
       if (error) { alert('Erreur : ' + error.message); return }
+
+      const cls = classesRef.current.find(c => c.id === data.class_id)
+      const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
+      const dateInfo = data.slot_date ? ` le ${new Date(data.slot_date + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
+      logAudit(supabase, {
+        action: 'UPDATE',
+        entityType: 'schedule_slots',
+        entityId: data.id,
+        description: `Modification créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}–${data.end_time}${dateInfo}`,
+      })
+
+    } else {
+      // ── Nouveau créneau ──
+      const effectiveFrom = data.is_recurring ? getEffectiveDate() : null
+      const { error } = await supabase.from('schedule_slots').insert({
+        ...basePayload,
+        effective_from: effectiveFrom,
+        effective_until: null,
+      })
+      if (error) { alert('Erreur : ' + error.message); return }
+
+      const cls = classesRef.current.find(c => c.id === data.class_id)
+      const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
+      const dateInfo = data.slot_date ? ` le ${new Date(data.slot_date + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
+      const fromInfo = effectiveFrom ? `, à partir du ${new Date(effectiveFrom + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
+      logAudit(supabase, {
+        action: 'INSERT',
+        entityType: 'schedule_slots',
+        description: `Nouveau créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}–${data.end_time}${dateInfo}${fromInfo}`,
+      })
     }
 
     await refreshData()
@@ -553,7 +810,7 @@ export default function EmploiDuTempsClient({
     setEditingSlot(null)
     setEditMode(null)
     setEditDate(null)
-  }, [supabase, schoolYearId, refreshData])
+  }, [supabase, schoolYearId, slots, schoolYearStartDate, schoolYearEndDate, getEffectiveDate, refreshData])
 
   /** Save a "this day only" modification as an exception */
   const handleSaveException = useCallback(async (data: {
@@ -601,6 +858,15 @@ export default function EmploiDuTempsClient({
       if (error) { alert('Erreur : ' + error.message); return }
     }
 
+    // Log détaillé
+    const cls = classesRef.current.find(c => c.id === slot.class_id)
+    const dateStr = new Date(data.exception_date + 'T00:00:00').toLocaleDateString('fr-FR')
+    logAudit(supabase, {
+      action: existing ? 'UPDATE' : 'INSERT',
+      entityType: 'schedule_exceptions',
+      description: `Modification ponctuelle créneau ${cls?.name ?? 'classe'} du ${dateStr} : ${data.start_time}–${data.end_time}`,
+    })
+
     await refreshData()
     setModalOpen(false)
     setEditingSlot(null)
@@ -608,11 +874,63 @@ export default function EmploiDuTempsClient({
     setEditDate(null)
   }, [supabase, slots, exceptions, refreshData])
 
-  const handleDeleteSlot = useCallback(async (slotId: string) => {
-    if (!confirm('Supprimer ce créneau définitivement (toutes les semaines) ?')) return
-    await supabase.from('schedule_slots').delete().eq('id', slotId)
+  const handleDeleteSlot = useCallback(async (slotId: string, pivotDate?: string) => {
+    const slot = slots.find(s => s.id === slotId)
+    if (!slot) return
+
+    const className = slot.classes?.name ?? 'la classe'
+    // Date pivot : date du créneau (EDT) ou aujourd'hui (ClassForm)
+    const pivot = pivotDate ?? formatDate(new Date())
+    const isInSchoolYear = schoolYearStartDate && schoolYearEndDate
+      && pivot >= schoolYearStartDate && pivot <= schoolYearEndDate
+
+    if (slot.is_recurring && isInSchoolYear) {
+      // En cours d'année : clôturer le créneau (conserver l'historique)
+      if (!confirm(`Supprimer tous les créneaux à partir de cette date ?\n\nLe planning passé de ${className} sera conservé. La fiche classe sera réinitialisée.`)) return
+
+      const pivotD = new Date(pivot + 'T00:00:00')
+      pivotD.setDate(pivotD.getDate() - 1)
+      const dayBefore = formatDate(pivotD)
+
+      await supabase
+        .from('schedule_slots')
+        .update({ effective_until: dayBefore })
+        .eq('id', slotId)
+
+      // Supprimer les exceptions à partir du pivot
+      await supabase
+        .from('schedule_exceptions')
+        .delete()
+        .eq('schedule_slot_id', slotId)
+        .gte('exception_date', pivot)
+    } else {
+      // Hors année scolaire ou ponctuel : suppression définitive
+      if (!confirm(`Supprimer tous les créneaux définitivement ?\n\nCela va également réinitialiser le planning (jour/horaires) de la fiche ${className}.`)) return
+
+      await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId)
+      await supabase.from('schedule_slots').delete().eq('id', slotId)
+    }
+
+    // Réinitialiser le planning de la fiche classe
+    if (slot.is_recurring) {
+      await supabase
+        .from('classes')
+        .update({ day_of_week: null, start_time: null, end_time: null })
+        .eq('id', slot.class_id)
+    }
+
+    // Log détaillé
+    const dayLabel = slot.day_of_week !== null ? DAY_LABELS[slot.day_of_week] : ''
+    const pivotInfo = isInSchoolYear ? `, à partir du ${new Date(pivot + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
+    logAudit(supabase, {
+      action: 'DELETE',
+      entityType: 'schedule_slots',
+      entityId: slotId,
+      description: `Suppression créneau EDT pour ${className} (${dayLabel} ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)})${pivotInfo}. Fiche classe réinitialisée.`,
+    })
+
     await refreshData()
-  }, [supabase, refreshData])
+  }, [supabase, slots, schoolYearStartDate, schoolYearEndDate, refreshData])
 
   const handleCancelForDate = useCallback(async (slotId: string, date: string) => {
     const existing = exceptions.find(
@@ -630,22 +948,46 @@ export default function EmploiDuTempsClient({
       if (error) { alert('Erreur : ' + error.message); return }
     }
 
+    // Log détaillé
+    const slot = slots.find(s => s.id === slotId)
+    const cls = classesRef.current.find(c => c.id === slot?.class_id)
+    const dateStr = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR')
+    logAudit(supabase, {
+      action: 'UPDATE',
+      entityType: 'schedule_exceptions',
+      description: `Annulation créneau ${cls?.name ?? 'classe'} du ${dateStr}`,
+    })
+
     await refreshData()
     setContextMenu(null)
-  }, [supabase, exceptions, refreshData])
+  }, [supabase, slots, exceptions, refreshData])
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
 
   // ─── Validation présence ──────────────────────────────────────────────────
 
   const handleValidate = useCallback(async (resolved: ResolvedSlot) => {
+    const teacherName = resolved.teachers
+      ? `${resolved.teachers.civilite === 'Mme' ? 'Mme' : 'M.'} ${resolved.teachers.last_name}`
+      : 'cet enseignant'
+    const slotDate = resolved.date
+    const [y, m, d] = slotDate.split('-')
+    const dateLabel = `${d}/${m}/${y}`
+
+    if (!confirm(`Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`)) return
+
+    const teacherProfileId = teacherProfileMap[resolved.teacher_id]
+    if (!teacherProfileId) {
+      alert(`${teacherName} n'a pas de compte utilisateur lie. Veuillez d'abord lier un compte dans la fiche enseignant.`)
+      return
+    }
     const durationMin = timeToMinutes(resolved.end_time) - timeToMinutes(resolved.start_time)
 
     const { data: timeEntry, error: teErr } = await supabase
       .from('staff_time_entries')
       .insert({
-        profile_id: currentUserId,
-        entry_date: todayStr,
+        profile_id: teacherProfileId,
+        entry_date: slotDate,
         entry_type: resolved.slot_type,
         start_time: resolved.start_time,
         end_time: resolved.end_time,
@@ -661,8 +1003,8 @@ export default function EmploiDuTempsClient({
       .from('schedule_validations')
       .insert({
         schedule_slot_id: resolved.sourceSlotId,
-        profile_id: currentUserId,
-        validation_date: todayStr,
+        profile_id: teacherProfileId,
+        validation_date: slotDate,
         time_entry_id: timeEntry?.id ?? null,
       })
       .select('*')
@@ -670,30 +1012,32 @@ export default function EmploiDuTempsClient({
 
     if (valErr) { alert('Erreur : ' + valErr.message); return }
     if (val) setValidations(prev => [...prev, val as any])
-  }, [supabase, currentUserId, todayStr])
+  }, [supabase, currentUserId, teacherProfileMap])
 
-  const handleCancelValidation = useCallback(async (sourceSlotId: string) => {
-    const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === todayStr)
+  const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
+    if (!confirm('Annuler cette validation de presence ?')) return
+    const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
     if (!v) return
     if (v.time_entry_id) {
       await supabase.from('staff_time_entries').delete().eq('id', v.time_entry_id)
     }
     await supabase.from('schedule_validations').delete().eq('id', v.id)
     setValidations(prev => prev.filter(x => x.id !== v.id))
-  }, [validations, supabase, todayStr])
+  }, [validations, supabase])
 
-  const isValidated = useCallback((sourceSlotId: string) => {
-    return validations.some(v => v.schedule_slot_id === sourceSlotId && v.validation_date === todayStr)
-  }, [validations, todayStr])
+  const isValidated = useCallback((sourceSlotId: string, slotDate: string) => {
+    return validations.some(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
+  }, [validations])
 
   // ─── Open modal helpers ───────────────────────────────────────────────────
 
-  const openNewSlot = (day?: number, time?: string) => {
+  const openNewSlot = (day?: number, time?: string, date?: string) => {
     setEditingSlot(null)
     setEditMode(null)
     setEditDate(null)
     setPrefillDay(day ?? null)
     setPrefillTime(time ?? null)
+    setPrefillDate(date ?? null)
     setModalOpen(true)
   }
 
@@ -702,7 +1046,7 @@ export default function EmploiDuTempsClient({
     if (!source) return
     setEditingSlot(source)
     setEditMode('all')
-    setEditDate(null)
+    setEditDate(resolved.date)
     setModalOpen(true)
     setContextMenu(null)
   }
@@ -880,37 +1224,72 @@ export default function EmploiDuTempsClient({
 
         <div className="flex-1" />
 
-        {/* Week navigation */}
+        {/* View type toggle: Semaine / Mois */}
+        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200">
+          <button
+            onClick={() => setViewType('week')}
+            className={clsx(
+              'flex items-center gap-1 px-2.5 py-1.5 transition-colors',
+              viewType === 'week' ? 'bg-warm-700 text-white' : 'bg-white text-warm-500 hover:bg-warm-50',
+            )}
+          >
+            <LayoutGrid size={12} />
+            Semaine
+          </button>
+          <button
+            onClick={() => setViewType('month')}
+            className={clsx(
+              'flex items-center gap-1 px-2.5 py-1.5 transition-colors',
+              viewType === 'month' ? 'bg-warm-700 text-white' : 'bg-white text-warm-500 hover:bg-warm-50',
+            )}
+          >
+            <CalendarDays size={12} />
+            Mois
+          </button>
+        </div>
+
+        {/* Navigation */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setWeekOffset(o => o - 1)}
+            onClick={() => viewType === 'week' ? setWeekOffset(o => o - 1) : setMonthOffset(o => o - 1)}
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
+          <span className="text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-500 select-none capitalize">
+            {viewType === 'week'
+              ? `S${weekNum} — ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`
+              : `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`
+            }
+          </span>
           <button
-            onClick={() => setWeekOffset(0)}
-            className={clsx(
-              'text-xs font-medium whitespace-nowrap px-2 py-1 rounded-lg transition-colors',
-              isCurrentWeek ? 'text-warm-500' : 'text-amber-600 hover:bg-amber-50 cursor-pointer'
-            )}
-            title={isCurrentWeek ? 'Semaine courante' : 'Revenir à cette semaine'}
-          >
-            S{weekNum} — {fmtDateFull(currentWeekStart)} au {fmtDateFull(currentWeekEnd)} {currentWeekEnd.getFullYear()}
-          </button>
-          <button
-            onClick={() => setWeekOffset(o => o + 1)}
+            onClick={() => viewType === 'week' ? setWeekOffset(o => o + 1) : setMonthOffset(o => o + 1)}
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"
           >
             <ChevronRight size={16} />
           </button>
+          {((viewType === 'week' && !isCurrentWeek) || (viewType === 'month' && !isCurrentMonth)) && (
+            <button
+              onClick={() => viewType === 'week' ? setWeekOffset(0) : setMonthOffset(0)}
+              className="p-1 rounded-lg hover:bg-warm-100 text-amber-600 transition-colors"
+              title={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}
+            >
+              <RotateCcw size={14} />
+            </button>
+          )}
         </div>
 
         {/* Add slot button */}
         {canEdit && (
           <button
             onClick={() => openNewSlot()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-colors"
+            disabled={viewType === 'week' && isFullWeekVacation}
+            className={clsx(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+              viewType === 'week' && isFullWeekVacation
+                ? 'bg-warm-200 text-warm-400 cursor-not-allowed'
+                : 'bg-amber-500 hover:bg-amber-600 text-white'
+            )}
           >
             <Plus size={14} />
             Nouveau créneau
@@ -919,6 +1298,7 @@ export default function EmploiDuTempsClient({
       </div>
 
       {/* ── Grid ──────────────────────────────────────────────────────── */}
+      {viewType === 'week' ? (
         <div className="card flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Day headers */}
           <div
@@ -966,21 +1346,24 @@ export default function EmploiDuTempsClient({
             {activeDays.map(d => {
               const dateStr = weekDayDates[d]
               const vacLabel = dateStr ? getVacationLabel(dateStr) : null
+              const canValidate = !!dateStr && dateStr <= todayStr
               return (
                 <DayColumn
                   key={d}
                   day={d}
+                  dateStr={dateStr ?? ''}
                   slots={slotsByDay[d] ?? []}
                   startHour={startHour}
                   endHour={endHour}
                   isToday={d === todayDow}
+                  canValidate={canValidate}
                   canEdit={canEdit}
                   viewMode={viewMode}
                   isTeacher={role === 'enseignant'}
                   vacationLabel={vacLabel}
-                  isValidated={(sourceSlotId) => isValidated(sourceSlotId)}
+                  isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}
                   onValidate={(resolved) => handleValidate(resolved)}
-                  onCancelValidation={(sourceSlotId) => handleCancelValidation(sourceSlotId)}
+                  onCancelValidation={(sourceSlotId, slotDate) => handleCancelValidation(sourceSlotId, slotDate)}
                   onClickSlot={handleSlotClick}
                   onContextMenuSlot={handleSlotContextMenu}
                   onClickEmpty={(day, time) => canEdit && openNewSlot(day, time)}
@@ -990,6 +1373,23 @@ export default function EmploiDuTempsClient({
             })}
           </div>
         </div>
+      ) : (
+        <div className="card flex-1 overflow-hidden flex flex-col min-h-0">
+          <MonthGrid
+            month={currentMonth.month}
+            year={currentMonth.year}
+            orderedDays={orderedDays}
+            slots={filteredMonthSlots}
+            viewMode={viewMode}
+            canEdit={canEdit}
+            isSchoolDay={isSchoolDay}
+            getVacationLabel={getVacationLabel}
+            onClickSlot={handleSlotClick}
+            onContextMenuSlot={handleSlotContextMenu}
+            onClickEmpty={(day, time, date) => canEdit && openNewSlot(day, time, date)}
+          />
+        </div>
+      )}
 
 
       {/* ── Context menu (portal pour éviter le containing block de animate-fade-in) ── */}
@@ -1028,7 +1428,7 @@ export default function EmploiDuTempsClient({
           <button
             className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-red-600"
             onClick={() => {
-              handleDeleteSlot(contextMenu.slot.sourceSlotId)
+              handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
               setContextMenu(null)
             }}
           >
@@ -1041,11 +1441,13 @@ export default function EmploiDuTempsClient({
       {/* ── Modal ─────────────────────────────────────────────────────── */}
       {modalOpen && (
         <SlotFormModal
+          key={`${editingSlot?.id ?? 'new'}-${prefillDate}-${prefillDay}-${prefillTime}`}
           slot={editingSlot}
           editMode={editMode}
           editDate={editDate}
           prefillDay={prefillDay ?? selectedDay}
           prefillTime={prefillTime}
+          prefillDate={prefillDate}
           prefillClassId={selectedClassId}
           prefillTeacherId={viewMode === 'teacher' && teachers.some(t => t.id === selectedTeacherId) ? selectedTeacherId : ''}
           weekDayDates={weekDayDates}
@@ -1053,6 +1455,7 @@ export default function EmploiDuTempsClient({
           teachers={teachers}
           rooms={rooms}
           existingSlots={slots}
+          vacations={vacations}
           onSave={handleSaveSlot}
           onSaveException={handleSaveException}
           onClose={() => { setModalOpen(false); setEditingSlot(null); setEditMode(null); setEditDate(null) }}

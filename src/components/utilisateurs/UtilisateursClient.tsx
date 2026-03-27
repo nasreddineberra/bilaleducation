@@ -3,19 +3,30 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, X } from 'lucide-react'
+import { clsx } from 'clsx'
 import UtilisateursTable from './UtilisateursTable'
-import type { Profile } from '@/types/database'
+import type { Profile, UserRole } from '@/types/database'
 
 interface UtilisateursClientProps {
   profiles: Profile[]
 }
 
+const STAFF_ROLES: UserRole[] = ['super_admin', 'admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
+
+type Tab = 'staff' | 'parents'
+
 export default function UtilisateursClient({ profiles }: UtilisateursClientProps) {
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState<Tab>('staff')
+
+  const staffProfiles  = profiles.filter(p => STAFF_ROLES.includes(p.role))
+  const parentProfiles = profiles.filter(p => p.role === 'parent')
+
+  const currentProfiles = tab === 'staff' ? staffProfiles : parentProfiles
 
   const filtered = search.trim() === ''
-    ? profiles
-    : profiles.filter(p => {
+    ? currentProfiles
+    : currentProfiles.filter(p => {
         const q = search.toLowerCase()
         return (
           p.last_name?.toLowerCase().includes(q)  ||
@@ -24,16 +35,42 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
         )
       })
 
-  const totalActifs = profiles.filter(p => p.is_active).length
+  const totalActifs = currentProfiles.filter(p => p.is_active).length
 
   return (
     <div className="space-y-6 animate-fade-in">
+
+      {/* Onglets */}
+      <div className="flex items-center gap-1 bg-warm-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => { setTab('staff'); setSearch('') }}
+          className={clsx(
+            'px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
+            tab === 'staff'
+              ? 'bg-white text-secondary-800 shadow-sm'
+              : 'text-warm-500 hover:text-secondary-700'
+          )}
+        >
+          Staff ({staffProfiles.length})
+        </button>
+        <button
+          onClick={() => { setTab('parents'); setSearch('') }}
+          className={clsx(
+            'px-4 py-1.5 rounded-lg text-sm font-medium transition-colors',
+            tab === 'parents'
+              ? 'bg-white text-secondary-800 shadow-sm'
+              : 'text-warm-500 hover:text-secondary-700'
+          )}
+        >
+          Parents ({parentProfiles.length})
+        </button>
+      </div>
 
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
         {/* Statistiques */}
         <div className="card px-4 py-3 flex items-center gap-3">
-          <span className="text-2xl font-bold text-secondary-800">{profiles.length}</span>
+          <span className="text-2xl font-bold text-secondary-800">{currentProfiles.length}</span>
           <span className="text-xs text-warm-500 leading-tight">au total</span>
         </div>
         <div className="card px-4 py-3 flex items-center gap-3">
@@ -63,13 +100,15 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
           )}
         </div>
 
-        <Link
-          href="/dashboard/utilisateurs/new"
-          className="btn btn-primary flex items-center gap-2 whitespace-nowrap"
-        >
-          <Plus size={16} />
-          Ajouter un utilisateur
-        </Link>
+        {tab === 'staff' && (
+          <Link
+            href="/dashboard/utilisateurs/new"
+            className="btn btn-primary flex items-center gap-2 whitespace-nowrap"
+          >
+            <Plus size={16} />
+            Ajouter un utilisateur
+          </Link>
+        )}
       </div>
 
       {/* Tableau */}

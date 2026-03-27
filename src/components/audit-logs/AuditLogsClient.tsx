@@ -11,16 +11,18 @@ const PAGE_SIZE = 20
 // ─── Labels ──────────────────────────────────────────────────────────────────
 
 const ENTITY_LABELS: Record<string, string> = {
-  students:    'Apprenants',
-  parents:     'Parents',
-  teachers:    'Enseignants',
-  classes:     'Classes',
-  enrollments: 'Inscriptions',
-  evaluations: 'Evaluations',
-  grades:      'Notes',
-  absences:    'Absences',
-  profiles:    'Utilisateurs',
-  auth:        'Authentification',
+  students:             'Apprenants',
+  parents:              'Parents',
+  teachers:             'Enseignants',
+  classes:              'Classes',
+  enrollments:          'Inscriptions',
+  evaluations:          'Evaluations',
+  grades:               'Notes',
+  absences:             'Absences',
+  profiles:             'Utilisateurs',
+  auth:                 'Authentification',
+  schedule_slots:       'Emploi du temps',
+  schedule_exceptions:  'Exception EDT',
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -371,14 +373,16 @@ export default function AuditLogsClient({
                         <span className="ml-1.5 text-warm-500 text-xs">{entityLabel}</span>
                       )}
                     </td>
-                    <td className="py-1.5 px-3 text-xs text-warm-500 truncate" title={changedFields}>
-                      {log.action === 'UPDATE' && changedFields
-                        ? changedFields
-                        : log.action === 'INSERT'
-                          ? 'Nouvel enregistrement'
-                          : log.action === 'DELETE'
-                            ? 'Suppression'
-                            : ''}
+                    <td className="py-1.5 px-3 text-xs text-warm-500 max-w-xs truncate" title={log.description || changedFields}>
+                      {log.description
+                        ? log.description
+                        : log.action === 'UPDATE' && changedFields
+                          ? changedFields
+                          : log.action === 'INSERT'
+                            ? 'Nouvel enregistrement'
+                            : log.action === 'DELETE'
+                              ? 'Suppression'
+                              : ''}
                     </td>
                   </tr>
                 )

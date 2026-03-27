@@ -69,16 +69,22 @@ export default async function EditClassPage({ params }: Props) {
     : { data: [] }
 
   // Créneau récurrent existant pour cette classe
-  const { data: existingSlot } = currentYearRow
+  // Récupérer le créneau récurrent actif (sans effective_until ou effective_until >= aujourd'hui)
+  const todayISO = new Date().toISOString().split('T')[0]
+  const { data: existingSlots } = currentYearRow
     ? await supabase
         .from('schedule_slots')
-        .select('id, day_of_week, start_time, end_time, teacher_id')
+        .select('id, day_of_week, start_time, end_time, teacher_id, effective_from, effective_until')
         .eq('class_id', id)
         .eq('school_year_id', currentYearRow.id)
         .eq('is_recurring', true)
         .eq('is_active', true)
-        .maybeSingle()
+        .order('effective_from', { ascending: false, nullsFirst: true })
     : { data: null }
+  // Le créneau actif est celui sans effective_until ou avec effective_until >= aujourd'hui
+  const existingSlot = existingSlots?.find(s =>
+    !s.effective_until || s.effective_until >= todayISO
+  ) ?? null
 
   if (!cls) notFound()
 

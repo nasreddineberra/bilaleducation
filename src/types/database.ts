@@ -629,6 +629,7 @@ export interface AuditLog {
   action: AuditAction
   old_data: Record<string, unknown> | null
   new_data: Record<string, unknown> | null
+  description: string | null
   created_at: string
 }
 

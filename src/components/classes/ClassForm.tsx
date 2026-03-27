@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { Plus, Trash2, UserCheck, BookOpen, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/audit'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -108,10 +109,16 @@ export default function ClassForm({
   })
 
   const [deploySchedule, setDeploySchedule] = useState(!!existingScheduleSlot)
+  const [deployFromOption, setDeployFromOption] = useState<'' | 'rentree' | 'autre'>('')
+  const [deployFromCustom, setDeployFromCustom] = useState('')
+  const deployFrom = deployFromOption === 'rentree'
+    ? (currentSchoolYear?.start_date ?? '')
+    : deployFromOption === 'autre' ? deployFromCustom : ''
 
   const initialForm       = useRef<FormData>({ ...form })
   const initialAssignStr  = useRef(JSON.stringify(initialAssignments))
   const initialDeploy     = useRef(!!existingScheduleSlot)
+  const initialDeployFrom = useRef({ option: deployFromOption, custom: deployFromCustom })
 
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -166,7 +173,8 @@ export default function ClassForm({
   const vAssignments = assignments.length === 0
   const selectedRoom = rooms.find(r => r.id === form.room_id)
   const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
-  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity
+  const vDeployFrom  = deploySchedule && form.day_of_week && form.start_time && form.end_time && !deployFrom
+  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity && !vDeployFrom
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const cls2    = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
@@ -179,6 +187,8 @@ export default function ClassForm({
     && (Object.keys(form) as (keyof FormData)[]).every(k => form[k] === initialForm.current[k])
     && JSON.stringify(assignments) === initialAssignStr.current
     && deploySchedule === initialDeploy.current
+    && deployFromOption === initialDeployFrom.current.option
+    && deployFromCustom === initialDeployFrom.current.custom
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -274,10 +284,33 @@ export default function ClassForm({
         }
       }
 
+      // Date effective choisie par l'utilisateur
+      const effectiveFrom = deployFrom || currentSchoolYear?.start_date || new Date().toISOString().split('T')[0]
+
       if (existingScheduleSlot && (shouldDeploy && slotChanged || !shouldDeploy)) {
-        // Supprimer l'ancien créneau + ses exceptions
-        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', existingScheduleSlot.id)
-        await supabase.from('schedule_slots').delete().eq('id', existingScheduleSlot.id)
+        // Clôturer l'ancien créneau à la veille de la date effective
+        const dayBefore = new Date(effectiveFrom + 'T00:00:00')
+        dayBefore.setDate(dayBefore.getDate() - 1)
+        const dayBeforeStr = `${dayBefore.getFullYear()}-${String(dayBefore.getMonth() + 1).padStart(2, '0')}-${String(dayBefore.getDate()).padStart(2, '0')}`
+
+        // Si la date effective est après le début du créneau existant : clôturer (conserver l'historique)
+        const existingFrom = (existingScheduleSlot as any).effective_from
+        if (existingFrom && effectiveFrom > existingFrom) {
+          await supabase
+            .from('schedule_slots')
+            .update({ effective_until: dayBeforeStr })
+            .eq('id', existingScheduleSlot.id)
+          // Supprimer les exceptions à partir de la date effective
+          await supabase
+            .from('schedule_exceptions')
+            .delete()
+            .eq('schedule_slot_id', existingScheduleSlot.id)
+            .gte('exception_date', effectiveFrom)
+        } else {
+          // Sinon suppression définitive (la date effective est avant ou au début du créneau)
+          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', existingScheduleSlot.id)
+          await supabase.from('schedule_slots').delete().eq('id', existingScheduleSlot.id)
+        }
       }
 
       if (shouldDeploy && (!existingScheduleSlot || slotChanged)) {
@@ -293,14 +326,36 @@ export default function ClassForm({
           slot_type:      'cours',
           room_id:        form.room_id || null,
           is_active:      true,
+          effective_from: effectiveFrom,
+          effective_until: null,
         })
         if (slotErr) throw slotErr
+
+        const className = form.name.trim()
+        const fromStr = new Date(effectiveFrom + 'T00:00:00').toLocaleDateString('fr-FR')
+        logAudit(supabase, {
+          action: existingScheduleSlot ? 'UPDATE' : 'INSERT',
+          entityType: 'schedule_slots',
+          description: `${existingScheduleSlot ? 'Modification' : 'Déploiement'} créneau EDT pour ${className} : ${form.day_of_week} ${form.start_time}–${form.end_time}, à partir du ${fromStr}`,
+        })
+      }
+
+      // Log si suppression d'un créneau existant (décoché la case deployer)
+      if (existingScheduleSlot && !shouldDeploy) {
+        const className = form.name.trim()
+        logAudit(supabase, {
+          action: 'DELETE',
+          entityType: 'schedule_slots',
+          entityId: existingScheduleSlot.id,
+          description: `Suppression créneau EDT pour ${className} depuis fiche classe`,
+        })
       }
 
       if (isEditing) {
         initialForm.current      = { ...form }
         initialAssignStr.current = JSON.stringify(assignments)
         initialDeploy.current    = deploySchedule
+        initialDeployFrom.current = { option: deployFromOption, custom: deployFromCustom }
         setSuccess(true)
         router.refresh()
       } else {
@@ -646,6 +701,22 @@ export default function ClassForm({
               Deployé dans EDT
             </span>
           )}
+          <div className="flex-1" />
+          {form.start_time && form.end_time && (() => {
+            const [sh, sm] = form.start_time.split(':').map(Number)
+            const [eh, em] = form.end_time.split(':').map(Number)
+            const diff = (eh * 60 + em) - (sh * 60 + sm)
+            if (diff <= 0) return null
+            const h = Math.floor(diff / 60)
+            const m = diff % 60
+            return (
+              <span className="text-xs text-warm-500">
+                Durée : <span className="font-semibold text-secondary-700">
+                  {h > 0 ? `${h}h` : ''}{m > 0 ? `${m < 10 && h > 0 ? '0' : ''}${m}min` : ''}
+                </span>
+              </span>
+            )
+          })()}
         </div>
 
         <div className="grid grid-cols-3 gap-2">
@@ -665,7 +736,10 @@ export default function ClassForm({
             <input
               type="time"
               value={form.start_time}
-              onChange={e => set('start_time', e.target.value)}
+              onChange={e => {
+                set('start_time', e.target.value)
+                if (form.end_time && e.target.value && form.end_time <= e.target.value) set('end_time', '')
+              }}
               className="input"
               disabled={!form.day_of_week}
             />
@@ -674,39 +748,53 @@ export default function ClassForm({
             <input
               type="time"
               value={form.end_time}
-              onChange={e => set('end_time', e.target.value)}
+              onChange={e => { if (!form.start_time || e.target.value > form.start_time) set('end_time', e.target.value) }}
+              min={form.start_time || undefined}
               className="input"
-              disabled={!form.day_of_week}
+              disabled={!form.day_of_week || !form.start_time}
             />
           </Field>
         </div>
 
-        {form.start_time && form.end_time && (() => {
-          const [sh, sm] = form.start_time.split(':').map(Number)
-          const [eh, em] = form.end_time.split(':').map(Number)
-          const diff = (eh * 60 + em) - (sh * 60 + sm)
-          if (diff <= 0) return null
-          const h = Math.floor(diff / 60)
-          const m = diff % 60
-          return (
-            <p className="text-xs text-warm-500">
-              Durée : <span className="font-semibold text-secondary-700">
-                {h > 0 ? `${h}h` : ''}{m > 0 ? `${m < 10 && h > 0 ? '0' : ''}${m}min` : ''}
-              </span>
-            </p>
-          )
-        })()}
-
         {form.day_of_week && form.start_time && form.end_time && (
-          <label className="flex items-center gap-2 cursor-pointer pt-1">
-            <input
-              type="checkbox"
-              checked={deploySchedule}
-              onChange={e => setDeploySchedule(e.target.checked)}
-              className="w-4 h-4 accent-primary-500"
-            />
-            <span className="text-sm text-secondary-700 select-none">Deployer dans Emploi du temps</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={deploySchedule}
+                onChange={e => setDeploySchedule(e.target.checked)}
+                className="w-4 h-4 accent-primary-500"
+              />
+              <span className="text-sm text-secondary-700 select-none">Deployer dans Emploi du temps</span>
+            </label>
+
+            {deploySchedule && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-secondary-700 select-none whitespace-nowrap">
+                  à partir de <span className="text-red-400">*</span>
+                </span>
+                <select
+                  value={deployFromOption}
+                  onChange={e => setDeployFromOption(e.target.value as '' | 'rentree' | 'autre')}
+                  className="input text-sm"
+                >
+                  <option value="">— Sélectionner —</option>
+                  <option value="rentree">Date de rentrée</option>
+                  <option value="autre">Autre date</option>
+                </select>
+                {deployFromOption === 'autre' && (
+                  <input
+                    type="date"
+                    value={deployFromCustom}
+                    onChange={e => setDeployFromCustom(e.target.value)}
+                    min={currentSchoolYear?.start_date ?? undefined}
+                    max={currentSchoolYear?.end_date ?? undefined}
+                    className="input text-sm w-40"
+                  />
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {existingScheduleSlot && !deploySchedule && (

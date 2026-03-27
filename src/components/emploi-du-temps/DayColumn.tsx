@@ -8,16 +8,18 @@ type ViewMode = 'global' | 'class' | 'teacher'
 
 interface Props {
   day: number
+  dateStr: string
   slots: ResolvedSlot[]
   startHour: number
   endHour: number
   isToday: boolean
+  canValidate: boolean
   canEdit: boolean
   viewMode: ViewMode
   isTeacher: boolean
-  isValidated: (sourceSlotId: string) => boolean
+  isValidated: (sourceSlotId: string, slotDate: string) => boolean
   onValidate: (slot: ResolvedSlot) => void
-  onCancelValidation: (sourceSlotId: string) => void
+  onCancelValidation: (sourceSlotId: string, slotDate: string) => void
   onClickSlot: (slot: ResolvedSlot) => void
   onContextMenuSlot: (e: React.MouseEvent, slot: ResolvedSlot) => void
   onClickEmpty: (day: number, time: string) => void
@@ -31,7 +33,7 @@ function timeToMinutes(t: string): number {
 }
 
 export default function DayColumn({
-  day, slots, startHour, endHour, isToday, canEdit, viewMode,
+  day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
   isTeacher, vacationLabel, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onClickEmpty, onDeleteSlot,
 }: Props) {
@@ -101,10 +103,11 @@ export default function DayColumn({
               viewMode={viewMode}
               canEdit={canEdit}
               isToday={isToday}
+              canValidate={canValidate}
               isTeacher={isTeacher}
-              validated={isValidated(slot.sourceSlotId)}
+              validated={isValidated(slot.sourceSlotId, dateStr)}
               onValidate={() => onValidate(slot)}
-              onCancelValidation={() => onCancelValidation(slot.sourceSlotId)}
+              onCancelValidation={() => onCancelValidation(slot.sourceSlotId, dateStr)}
               onClick={() => onClickSlot(slot)}
               onContextMenu={(e) => onContextMenuSlot(e, slot)}
               onDelete={() => onDeleteSlot(slot.sourceSlotId)}

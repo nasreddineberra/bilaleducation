@@ -14,7 +14,7 @@ export default async function EmploiDuTempsPage() {
     .single()
 
   const role = profile?.role ?? 'enseignant'
-  const canEdit = ['admin', 'direction', 'responsable_pedagogique'].includes(role)
+  const canEdit = ['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(role)
 
   // Annee scolaire courante
   const { data: currentYear } = await supabase
@@ -41,7 +41,7 @@ export default async function EmploiDuTempsPage() {
   // Enseignants actifs
   const { data: teachers } = await supabase
     .from('teachers')
-    .select('id, first_name, last_name, civilite')
+    .select('id, first_name, last_name, civilite, user_id')
     .eq('is_active', true)
     .order('last_name')
 
@@ -77,12 +77,10 @@ export default async function EmploiDuTempsPage() {
     .select('week_start_day')
     .single()
 
-  // Validations du jour
-  const today = new Date().toISOString().split('T')[0]
+  // Validations (toutes les dates pour permettre la validation des jours passés)
   const { data: todayValidations } = await supabase
     .from('schedule_validations')
     .select('id, schedule_slot_id, profile_id, validation_date, time_entry_id')
-    .eq('validation_date', today)
 
   return (
     <div className="h-full animate-fade-in">

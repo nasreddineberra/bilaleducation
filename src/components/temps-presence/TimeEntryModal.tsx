@@ -175,11 +175,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Début <span className="text-red-400">*</span></label>
-                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
+                <input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); if (endTime && e.target.value && endTime <= e.target.value) setEndTime('') }} className="input text-sm py-1.5 w-full mt-1" />
               </div>
               <div>
                 <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Fin <span className="text-red-400">*</span></label>
-                <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
+                <input type="time" value={endTime} onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }} min={startTime || undefined} disabled={!startTime} className="input text-sm py-1.5 w-full mt-1" />
               </div>
             </div>
           )}

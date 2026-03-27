@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react'
 import { clsx } from 'clsx'
 import { parentRepository } from '@/lib/database/parents'
 import { createClient } from '@/lib/supabase/client'
+import { createParentWithAccounts, updateParentRecord, type TutorAccountResult } from '@/app/dashboard/parents/actions'
 import type { Parent, TutorRelationship } from '@/types/database'
 
 interface ParentFormProps {
@@ -153,6 +154,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
   const [touched,            setTouched]            = useState<Set<string>>(new Set())
   const [isSubmitting,       setIsSubmitting]       = useState(false)
   const [error,              setError]              = useState<string | null>(null)
+  const [createdAccounts,    setCreatedAccounts]    = useState<TutorAccountResult[] | null>(null)
 
   const set   = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -266,22 +268,82 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       }
 
       if (isEditing) {
-        await parentRepository.update(parent!.id, payload as any)
+        const result = await updateParentRecord(parent!.id, payload)
+        if (result.error) {
+          setError(result.error)
+          setIsSubmitting(false)
+          return
+        }
+        router.refresh()
+        if (onClose) {
+          onClose()
+        } else {
+          router.push('/dashboard/parents')
+        }
       } else {
-        await parentRepository.create(payload as any)
-      }
-
-      router.refresh()
-      if (onClose) {
-        onClose()
-      } else {
-        router.push('/dashboard/parents')
+        // Création avec comptes utilisateurs automatiques
+        const result = await createParentWithAccounts(payload)
+        if (result.error) {
+          setError(result.error)
+          setIsSubmitting(false)
+          return
+        }
+        // Si des comptes ont été créés, afficher les mots de passe
+        if (result.accounts && result.accounts.length > 0) {
+          setCreatedAccounts(result.accounts)
+        } else {
+          router.refresh()
+          if (onClose) {
+            onClose()
+          } else {
+            router.push('/dashboard/parents')
+          }
+        }
       }
     } catch {
       setError('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // ─── Affichage mots de passe temporaires après création ──────────────────
+
+  if (createdAccounts) {
+    return (
+      <div className="max-w-lg mx-auto mt-8">
+        <div className="card p-6 space-y-4">
+          <h2 className="text-lg font-bold text-secondary-800">Fiche parents et comptes utilisateurs créés</h2>
+          <p className="text-sm text-warm-600">
+            {createdAccounts.length === 1 ? 'Un compte utilisateur a été créé' : `${createdAccounts.length} comptes utilisateurs ont été créés`} automatiquement.
+          </p>
+          {createdAccounts.map((acc, i) => (
+            <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">{acc.tutorLabel}</p>
+              <p className="text-sm text-secondary-700">{acc.email}</p>
+              <p className="text-xs text-warm-500 mt-1">Mot de passe temporaire :</p>
+              <p className="text-lg font-mono font-bold text-secondary-800 select-all">{acc.tempPassword}</p>
+            </div>
+          ))}
+          <p className="text-xs text-amber-600">
+            Notez ces mots de passe maintenant. Ils ne seront plus affichés. L'administrateur pourra envoyer un email de réinitialisation depuis la page Utilisateurs.
+          </p>
+          <button
+            onClick={() => {
+              router.refresh()
+              if (onClose) {
+                onClose()
+              } else {
+                router.push('/dashboard/parents')
+              }
+            }}
+            className="btn btn-primary w-full"
+          >
+            Retour à la liste
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -654,6 +716,14 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           />
         </div>
       </div>
+
+      {!isEditing && (
+        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs text-blue-700">
+            Un compte utilisateur (role parent) sera créé automatiquement pour chaque tuteur ayant un email renseigné, avec un mot de passe temporaire.
+          </p>
+        </div>
+      )}
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-3 pt-1">

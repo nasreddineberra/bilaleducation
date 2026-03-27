@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { createTeacherWithAccount, updateTeacher } from '@/app/dashboard/teachers/actions'
 import type { Teacher } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,   setIsSubmitting]   = useState(false)
   const [error,          setError]          = useState<string | null>(null)
+  const [tempPassword,   setTempPassword]   = useState<string | null>(null)
 
   const set   = (field: keyof FormData, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -128,23 +130,58 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
       }
 
       if (isEditing) {
-        const { error } = await supabase.from('teachers').update(payload).eq('id', teacher.id)
-        if (error) throw error
+        const result = await updateTeacher(teacher.id, payload)
+        if (result.error) {
+          setError(result.error)
+          setIsSubmitting(false)
+          return
+        }
+        router.push(backHref)
+        router.refresh()
       } else {
-        const { error } = await supabase.from('teachers').insert(payload)
-        if (error) throw error
+        // Création avec compte utilisateur automatique
+        const result = await createTeacherWithAccount(payload)
+        if (result.error) {
+          setError(result.error)
+          setIsSubmitting(false)
+          return
+        }
+        // Afficher le mot de passe temporaire
+        setTempPassword(result.tempPassword ?? null)
       }
-
-      router.push(backHref)
-      router.refresh()
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        setError("Ce numéro d'employé est déjà utilisé.")
-      } else {
-        setError('Une erreur est survenue. Veuillez réessayer.')
-      }
+    } catch {
+      setError('Une erreur est survenue. Veuillez réessayer.')
       setIsSubmitting(false)
     }
+  }
+
+  // ─── Modal mot de passe temporaire ────────────────────────────────────────
+
+  if (tempPassword) {
+    return (
+      <div className="max-w-lg mx-auto mt-8">
+        <div className="card p-6 space-y-4">
+          <h2 className="text-lg font-bold text-secondary-800">Enseignant et compte utilisateur créés</h2>
+          <p className="text-sm text-warm-600">
+            Un compte utilisateur a été créé automatiquement pour{' '}
+            <span className="font-semibold">{form.first_name} {form.last_name}</span> ({form.email}).
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Mot de passe temporaire</p>
+            <p className="text-lg font-mono font-bold text-secondary-800 select-all">{tempPassword}</p>
+            <p className="text-xs text-amber-600">
+              Notez-le maintenant. Il ne sera plus affiché. L'administrateur pourra envoyer un email de réinitialisation depuis la page Utilisateurs.
+            </p>
+          </div>
+          <button
+            onClick={() => { router.push(backHref); router.refresh() }}
+            className="btn btn-primary w-full"
+          >
+            Retour à la liste
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -156,7 +193,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+      <div className="space-y-2 max-w-2xl">
 
         {/* ── Colonne gauche : Identité ── */}
         <div className="card p-3 space-y-2">
@@ -295,6 +332,14 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               />
             </Field>
           </div>
+
+          {!isEditing && (
+            <div className="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700">
+                Un compte utilisateur (role enseignant) sera créé automatiquement avec un mot de passe temporaire.
+              </p>
+            </div>
+          )}
         </div>
 
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -72,6 +72,7 @@ interface Props {
   editDate: string | null
   prefillDay: number | null
   prefillTime: string | null
+  prefillDate: string | null
   prefillClassId: string
   prefillTeacherId: string
   weekDayDates: Record<number, string>
@@ -79,6 +80,7 @@ interface Props {
   teachers: TeacherData[]
   rooms: RoomData[]
   existingSlots: SlotData[]
+  vacations?: { start_date: string; end_date: string; label: string }[]
   onSave: (data: {
     id?: string
     class_id: string
@@ -92,6 +94,7 @@ interface Props {
     end_time: string
     slot_type: string
     editAll?: boolean
+    pivotDate?: string
   }) => void
   onSaveException: (data: {
     schedule_slot_id: string
@@ -105,8 +108,8 @@ interface Props {
 }
 
 export default function SlotFormModal({
-  slot, editMode, editDate, prefillDay, prefillTime, prefillClassId, prefillTeacherId,
-  weekDayDates, classes, teachers, rooms, existingSlots, onSave, onSaveException, onClose,
+  slot, editMode, editDate, prefillDay, prefillTime, prefillDate, prefillClassId, prefillTeacherId,
+  weekDayDates, classes, teachers, rooms, existingSlots, vacations = [], onSave, onSaveException, onClose,
 }: Props) {
   const isEditingThisOnly = editMode === 'this_only' && !!editDate && !!slot
 
@@ -127,7 +130,7 @@ export default function SlotFormModal({
   const [isRecurring, setIsRecurring] = useState<boolean | null>(slot ? slot.is_recurring : null)
   const [dayOfWeek, setDayOfWeek] = useState<number | ''>(slot?.day_of_week ?? prefillDay ?? '')
   const [slotDate, setSlotDate] = useState<string>(
-    slot?.slot_date ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : '')
+    slot?.slot_date ?? prefillDate ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : '')
   )
 
   // Track initial values for change detection in edit mode
@@ -139,7 +142,7 @@ export default function SlotFormModal({
     startTime: slot?.start_time?.slice(0, 5) ?? prefillTime ?? '',
     endTime: slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''),
     dayOfWeek: slot?.day_of_week ?? prefillDay ?? '',
-    slotDate: slot?.slot_date ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : ''),
+    slotDate: slot?.slot_date ?? prefillDate ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : ''),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [])
 
@@ -164,12 +167,22 @@ export default function SlotFormModal({
     if (mainT?.teachers?.id) setTeacherId(mainT.teachers.id)
   }, [classId, selectedClass, slot])
 
-  // Sync slotDate when changing dayOfWeek in recurring mode (for reference)
+  // Sync slotDate when changing dayOfWeek (week view only, pas quand prefillDate est fourni)
   useEffect(() => {
-    if (!isRecurring && prefillDay !== null && dayOfWeek !== '' && weekDayDates[dayOfWeek]) {
+    if (!isRecurring && !prefillDate && prefillDay !== null && dayOfWeek !== '' && weekDayDates[dayOfWeek]) {
       setSlotDate(weekDayDates[dayOfWeek])
     }
-  }, [dayOfWeek, isRecurring, prefillDay, weekDayDates])
+  }, [dayOfWeek, isRecurring, prefillDay, prefillDate, weekDayDates])
+
+  // Vérifier si une date est en vacances
+  const isVacationDate = useCallback((dateStr: string) => {
+    for (const v of vacations) {
+      if (dateStr >= v.start_date && dateStr <= v.end_date) return true
+    }
+    return false
+  }, [vacations])
+
+  const dateInVacation = !isRecurring && slotDate ? isVacationDate(slotDate) : false
 
   const isValid = useMemo(() => {
     if (isRecurring === null) return false
@@ -178,8 +191,9 @@ export default function SlotFormModal({
     if (startTime >= endTime) return false
     if (isRecurring && dayOfWeek === '') return false
     if (!isRecurring && !slotDate) return false
+    if (dateInVacation) return false
     return true
-  }, [classId, teacherId, startTime, endTime, isRecurring, slotDate, dayOfWeek])
+  }, [classId, teacherId, startTime, endTime, isRecurring, slotDate, dayOfWeek, dateInVacation])
 
   // Conflict detection
   const conflicts = useMemo(() => {
@@ -260,6 +274,7 @@ export default function SlotFormModal({
         end_time: endTime,
         slot_type: slotType,
         editAll: isEditingAll,
+        pivotDate: editDate ?? undefined,
       })
     }
 
@@ -419,6 +434,9 @@ export default function SlotFormModal({
                       onChange={e => setSlotDate(e.target.value)}
                       className="input mt-1 w-full text-sm"
                     />
+                    {dateInVacation && (
+                      <p className="text-xs text-red-500 mt-1">Cette date tombe pendant les vacances scolaires</p>
+                    )}
                   </>
                 ) : (
                   <>
@@ -441,7 +459,10 @@ export default function SlotFormModal({
                 <input
                   type="time"
                   value={startTime}
-                  onChange={e => setStartTime(e.target.value)}
+                  onChange={e => {
+                    setStartTime(e.target.value)
+                    if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+                  }}
                   className="input mt-1 w-full text-sm"
                 />
               </div>
@@ -450,7 +471,9 @@ export default function SlotFormModal({
                 <input
                   type="time"
                   value={endTime}
-                  onChange={e => setEndTime(e.target.value)}
+                  onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+                  min={startTime || undefined}
+                  disabled={!startTime}
                   className="input mt-1 w-full text-sm"
                 />
               </div>
@@ -487,7 +510,10 @@ export default function SlotFormModal({
                 <input
                   type="time"
                   value={startTime}
-                  onChange={e => setStartTime(e.target.value)}
+                  onChange={e => {
+                    setStartTime(e.target.value)
+                    if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+                  }}
                   className="input mt-1 w-full text-sm"
                 />
               </div>
@@ -496,7 +522,9 @@ export default function SlotFormModal({
                 <input
                   type="time"
                   value={endTime}
-                  onChange={e => setEndTime(e.target.value)}
+                  onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+                  min={startTime || undefined}
+                  disabled={!startTime}
                   className="input mt-1 w-full text-sm"
                 />
               </div>

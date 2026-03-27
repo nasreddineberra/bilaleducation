@@ -543,7 +543,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 <input
                   type="date"
                   value={form.start_date}
-                  onChange={e => set('start_date', e.target.value)}
+                  onChange={e => {
+                    set('start_date', e.target.value)
+                    if (form.end_date && e.target.value && form.end_date <= e.target.value) set('end_date', '')
+                  }}
                   onBlur={() => touch('start_date')}
                   className={clsx('input w-full', touched.has('start_date') && vStartDate && 'input-error')}
                 />
@@ -558,8 +561,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 <input
                   type="date"
                   value={form.end_date}
-                  onChange={e => set('end_date', e.target.value)}
+                  onChange={e => { if (!form.start_date || e.target.value > form.start_date) set('end_date', e.target.value) }}
                   onBlur={() => touch('end_date')}
+                  min={form.start_date || undefined}
+                  disabled={!form.start_date}
                   className={clsx('input w-full', touched.has('end_date') && vEndDate && 'input-error')}
                 />
                 {touched.has('end_date') && vEndDate && (
