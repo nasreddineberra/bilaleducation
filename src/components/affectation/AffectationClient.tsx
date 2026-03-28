@@ -9,6 +9,7 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -56,9 +57,10 @@ interface EnrollmentRow {
 }
 
 interface Props {
-  classes:     ClassRow[]
-  students:    StudentRow[]
-  enrollments: EnrollmentRow[]
+  classes:       ClassRow[]
+  students:      StudentRow[]
+  enrollments:   EnrollmentRow[]
+  currentYearId: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -80,14 +82,23 @@ function fmtTime(t: string | null) { return t ? t.slice(0, 5) : null }
 
 // ─── Badge genre ──────────────────────────────────────────────────────────────
 
-function GenderBadge({ gender }: { gender: string | null }) {
-  if (gender === 'male') return (
-    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[9px] font-bold flex-shrink-0">M</span>
-  )
-  if (gender === 'female') return (
-    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-pink-100 text-pink-500 text-[9px] font-bold flex-shrink-0">F</span>
-  )
+function GenderText({ gender }: { gender: string | null }) {
+  if (gender === 'male')          return <span className="text-[10px] text-secondary-600 flex-shrink-0">Masculin</span>
+  if (gender === 'female')        return <span className="text-[10px] text-secondary-600 flex-shrink-0">Féminin</span>
+  if (gender === 'non_specified') return <span className="text-[10px] text-warm-400 flex-shrink-0">Non spéc.</span>
   return null
+}
+
+function StudentAvatar({ lastName, firstName, gender, size = 'sm' }: {
+  lastName: string; firstName: string; gender: string | null; size?: 'sm' | 'md'
+}) {
+  const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
+  const dim = size === 'sm' ? 'w-5 h-5 text-[9px] rounded' : 'w-6 h-6 text-[10px] rounded-md'
+  if (gender === 'male')
+    return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 bg-blue-600 text-white ${dim}`}>{initiales}</span>
+  if (gender === 'female')
+    return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 bg-pink-500 text-white ${dim}`}>{initiales}</span>
+  return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 border border-warm-300 text-warm-400 ${dim}`}>{initiales}</span>
 }
 
 // ─── Tooltip classe (contenu riche) ──────────────────────────────────────────
@@ -202,7 +213,8 @@ function DraggableCard({
         <GripVertical size={12} />
       </span>
 
-      {/* Nom + icône info */}
+      {/* Avatar + Nom + icône info */}
+      <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} size="sm" />
       <span className="flex items-center gap-1 flex-1 min-w-0">
         <span className="truncate font-medium">
           {student.last_name} {student.first_name}
@@ -216,8 +228,8 @@ function DraggableCard({
         </span>
       </span>
 
-      {/* Badge genre */}
-      <GenderBadge gender={student.gender} />
+      {/* Genre */}
+      <GenderText gender={student.gender} />
 
       {/* Badge PAI */}
       {student.has_pai && (
@@ -293,7 +305,8 @@ function DropZone({
               key={s.id}
               className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-warm-100 text-sm"
             >
-              {/* Nom + icône info */}
+              {/* Avatar + Nom + icône info */}
+              <StudentAvatar lastName={s.last_name} firstName={s.first_name} gender={s.gender} size="md" />
               <span className="flex items-center gap-1 flex-1 min-w-0">
                 <span className="truncate font-medium text-secondary-800">
                   {s.last_name} {s.first_name}
@@ -307,8 +320,8 @@ function DropZone({
                 </span>
               </span>
 
-              {/* Badge genre */}
-              <GenderBadge gender={s.gender} />
+              {/* Genre */}
+              <GenderText gender={s.gender} />
 
               {/* Badge PAI */}
               {s.has_pai && (
@@ -341,7 +354,7 @@ function DropZone({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function AffectationClient({ classes, students, enrollments }: Props) {
+export default function AffectationClient({ classes, students, enrollments, currentYearId }: Props) {
   const router  = useRouter()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -425,8 +438,52 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
   }
 
   // ── Retrait depuis le panel droit ─────────────────────────────────────────
-  const removeFromRoster = (studentId: string) =>
+  const removeFromRoster = async (studentId: string) => {
+    if (currentYearId) {
+      const supabase = createClient()
+
+      // Vérifier grades sur l'année courante (via evaluations → period → school_year)
+      const { count: gradesCount } = await supabase
+        .from('grades')
+        .select('id', { count: 'exact', head: true })
+        .eq('student_id', studentId)
+        .in(
+          'evaluation_id',
+          (await supabase
+            .from('evaluations')
+            .select('id')
+            .in(
+              'period_id',
+              (await supabase
+                .from('periods')
+                .select('id')
+                .eq('school_year_id', currentYearId)
+              ).data?.map(p => p.id) ?? []
+            )
+          ).data?.map(e => e.id) ?? []
+        )
+
+      // Vérifier bulletins archivés sur l'année courante
+      const { count: bulletinsCount } = await supabase
+        .from('bulletin_archives')
+        .select('id', { count: 'exact', head: true })
+        .eq('student_id', studentId)
+        .in(
+          'period_id',
+          (await supabase
+            .from('periods')
+            .select('id')
+            .eq('school_year_id', currentYearId)
+          ).data?.map(p => p.id) ?? []
+        )
+
+      if ((gradesCount ?? 0) > 0 || (bulletinsCount ?? 0) > 0) {
+        setError('Impossible de retirer cet élève : il a des évaluations ou des bulletins enregistrés sur l\'année en cours.')
+        return
+      }
+    }
     setRoster(prev => prev.filter(id => id !== studentId))
+  }
 
   // ── Sauvegarde ────────────────────────────────────────────────────────────
   const save = async () => {
@@ -630,7 +687,7 @@ export default function AffectationClient({ classes, students, enrollments }: Pr
           <p className="text-warm-400 text-sm">Sélectionnez une classe pour commencer l'affectation</p>
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
 
             {/* ── Panel gauche : élèves disponibles ── */}

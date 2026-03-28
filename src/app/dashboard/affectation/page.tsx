@@ -6,11 +6,12 @@ export default async function AffectationPage() {
 
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('label')
+    .select('id, label')
     .eq('is_current', true)
     .single()
 
-  const yearLabel = currentYear?.label ?? null
+  const yearLabel  = currentYear?.label ?? null
+  const yearId     = currentYear?.id    ?? null
 
   const [
     { data: classes },
@@ -66,6 +67,7 @@ export default async function AffectationPage() {
         classes={apprenantClasses as any[]}
         students={students ?? []}
         enrollments={enrollments ?? []}
+        currentYearId={yearId}
       />
     </div>
   )

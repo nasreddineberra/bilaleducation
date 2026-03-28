@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
+import { SidebarProvider } from '@/components/layout/SidebarContext'
 
 
 export default async function DashboardLayout({
@@ -25,7 +26,7 @@ export default async function DashboardLayout({
   // RLS filtre automatiquement par etablissement_id du profil
   const [{ data: profile }, { data: etablissement }, { data: currentYear }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('etablissements').select('nom').single(),
+    supabase.from('etablissements').select('nom, logo_url').single(),
     supabase.from('school_years').select('label').eq('is_current', true).maybeSingle(),
   ])
 
@@ -56,21 +57,24 @@ export default async function DashboardLayout({
   const unreadNotifCount = (staffUnread ?? 0) + parentUnread
 
   return (
-    <div className="h-screen overflow-hidden bg-warm-50 flex">
-      {/* Sidebar fixe à gauche */}
-      <DashboardSidebar
-        role={profile?.role}
-        etablissementNom={etablissement?.nom ?? null}
-        anneeCourante={currentYear?.label ?? null}
-      />
+    <SidebarProvider>
+      <div className="h-screen overflow-hidden bg-warm-50 flex">
+        {/* Sidebar fixe à gauche */}
+        <DashboardSidebar
+          role={profile?.role}
+          etablissementNom={etablissement?.nom ?? null}
+          etablissementLogo={etablissement?.logo_url ?? null}
+          anneeCourante={currentYear?.label ?? null}
+        />
 
-      {/* Zone droite : navbar + contenu */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} />
-        <main className="flex-1 px-8 pt-5 pb-4 overflow-y-auto">
-          {children}
-        </main>
+        {/* Zone droite : navbar + contenu */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} />
+          <main className="flex-1 px-8 pt-5 pb-4 overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   )
 }

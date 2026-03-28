@@ -13,17 +13,34 @@ interface StudentsTableProps {
 }
 
 function GenderIcon({ gender }: { gender: string | null | undefined }) {
-  if (gender === 'male') return (
-    <Tooltip content="Masculin">
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold leading-none">M</span>
-    </Tooltip>
+  if (gender === 'male')         return <span className="text-sm text-secondary-700">Masculin</span>
+  if (gender === 'female')       return <span className="text-sm text-secondary-700">Féminin</span>
+  if (gender === 'non_specified') return <span className="text-sm text-warm-400">Non spécifié</span>
+  return <span className="text-sm text-warm-300">—</span>
+}
+
+function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firstName: string; gender: string | null | undefined }) {
+  const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
+  if (gender === 'male') {
+    return (
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-blue-600 text-white">
+        {initiales}
+      </div>
+    )
+  }
+  if (gender === 'female') {
+    return (
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-pink-500 text-white">
+        {initiales}
+      </div>
+    )
+  }
+  // non_specified ou null
+  return (
+    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 select-none border border-warm-300 text-warm-400">
+      {initiales}
+    </div>
   )
-  if (gender === 'female') return (
-    <Tooltip content="Féminin">
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-pink-100 text-pink-500 text-xs font-bold leading-none">F</span>
-    </Tooltip>
-  )
-  return <span className="text-warm-300 text-sm">—</span>
 }
 
 function formatDate(dateStr: string): string {
@@ -124,7 +141,9 @@ export default function StudentsTable({ students }: StudentsTableProps) {
 
                 {/* Élève */}
                 <td className="px-4 py-[3px]">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} />
+                    <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={clsx(
                       'text-sm font-medium',
                       student.is_active ? 'text-secondary-800' : 'text-warm-400'
@@ -154,6 +173,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                         <Link2Off size={13} className="text-red-400 flex-shrink-0" />
                       </Tooltip>
                     )}
+                    </div>
                   </div>
                 </td>
 

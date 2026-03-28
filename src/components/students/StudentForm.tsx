@@ -421,6 +421,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                     <option value="">— Choisir —</option>
                     <option value="male">Masculin</option>
                     <option value="female">Féminin</option>
+                    <option value="non_specified">Non spécifié</option>
                   </select>
                 </Field>
               </div>

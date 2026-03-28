@@ -1,2 +1,2 @@
-export { default } from '@/components/ui/LoadingSpinner'
-
+import { SkeletonFormPage } from '@/components/ui/SkeletonTable'
+export default function Loading() { return <SkeletonFormPage sections={3} /> }

@@ -147,18 +147,18 @@ export default function StudentsClient({
           <span className="text-2xl font-bold text-green-600">{totalActive}</span>
           <span className="text-xs text-warm-500 leading-tight">actif{totalActive > 1 ? 's' : ''}</span>
         </button>
-        <button
-          onClick={() => toggleFilter('no_parent')}
-          className={clsx(
-            'card px-4 py-2 flex items-center gap-3 cursor-pointer transition-all',
-            activeFilter === 'no_parent'
-              ? 'ring-2 ring-[#2e4550] bg-red-500 border-red-500'
-              : totalNoParent > 0 ? 'bg-red-500 border-red-500 hover:shadow-md' : 'hover:shadow-md'
-          )}
-        >
-          <span className={clsx('text-2xl font-bold', totalNoParent > 0 || activeFilter === 'no_parent' ? 'text-white' : 'text-red-500')}>{totalNoParent}</span>
-          <span className={clsx('text-xs leading-tight', totalNoParent > 0 || activeFilter === 'no_parent' ? 'text-white' : 'text-warm-500')}>sans<br/>rattachement</span>
-        </button>
+        {totalNoParent > 0 && (
+          <button
+            onClick={() => toggleFilter('no_parent')}
+            className={clsx(
+              'card px-4 py-2 flex items-center gap-3 cursor-pointer transition-all bg-red-100/60 border-red-200 hover:shadow-md',
+              activeFilter === 'no_parent' && 'ring-2 ring-[#2e4550]'
+            )}
+          >
+            <span className="text-2xl font-bold text-red-500">{totalNoParent}</span>
+            <span className="text-xs leading-tight text-red-400">sans<br/>rattachement</span>
+          </button>
+        )}
         {maxStudents != null && (
           <div className={`card px-4 py-2 flex items-center gap-3 ${limitReached ? 'border-orange-300 bg-orange-50' : ''}`}>
             <span className={`text-2xl font-bold ${limitReached ? 'text-orange-500' : 'text-secondary-800'}`}>
