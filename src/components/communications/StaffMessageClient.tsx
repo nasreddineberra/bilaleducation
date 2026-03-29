@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from 'react'
 import { clsx } from 'clsx'
 import { Send, Paperclip, X, Eye, Loader2, CheckSquare, Square, Bell, Mail, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import type { UserRole } from '@/types/database'
 
@@ -45,6 +46,7 @@ const ENSEIGNANT_ALLOWED_ROLES = ['direction', 'secretaire', 'comptable', 'respo
 export default function StaffMessageClient({
   role, senderEmail, senderName, staffMembers, directionEmails, etablissementId,
 }: Props) {
+  const toast = useToast()
   const [channel, setChannel] = useState<Channel>('email')
   const [selectAll, setSelectAll] = useState(false)
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
@@ -53,8 +55,6 @@ export default function StaffMessageClient({
   const [bodyHtml, setBodyHtml] = useState('')
   const [attachments, setAttachments] = useState<File[]>([])
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [staffSearch, setStaffSearch] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -140,8 +140,6 @@ export default function StaffMessageClient({
   const handleSend = async () => {
     if (!canSend) return
     setSending(true)
-    setError(null)
-    setSuccess(false)
 
     try {
       const supabase = createClient()
@@ -198,7 +196,7 @@ export default function StaffMessageClient({
         }))
       )
 
-      setSuccess(true)
+      toast.success('Message enregistré avec succès.')
       setSubject('')
       setBodyHtml('')
       setAttachments([])
@@ -206,7 +204,7 @@ export default function StaffMessageClient({
       setSelectedRoles(new Set())
       setSelectedIds(new Set())
     } catch (err: any) {
-      setError(err.message ?? 'Erreur lors de l\'envoi')
+      toast.error(err.message ?? 'Erreur lors de l\'envoi')
     } finally {
       setSending(false)
     }
@@ -214,15 +212,6 @@ export default function StaffMessageClient({
 
   return (
     <div className="space-y-5">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2 rounded-lg">{error}</div>
-      )}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2 rounded-lg">
-          Message enregistre avec succes.
-        </div>
-      )}
-
       {/* 1. Canal */}
       <div className="card p-4 space-y-3">
         <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Canal d'envoi</h2>

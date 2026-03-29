@@ -13,8 +13,9 @@ import {
 } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Search, X, Users, CheckCircle2, GripVertical, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, X, Users, GripVertical, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import Tooltip from '@/components/ui/Tooltip'
 
 const POOL_PAGE_SIZE = 20
@@ -267,6 +268,7 @@ function DropZone({
 
 export default function AffectationAdultesClient({ classes, parents, enrollments }: Props) {
   const router  = useRouter()
+  const toast   = useToast()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Construire la liste des tuteurs inscrits aux cours adultes uniquement
@@ -320,8 +322,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const [search,   setSearch]   = useState('')
   const [poolPage, setPoolPage] = useState(1)
   const [saving,   setSaving]   = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [success,  setSuccess]  = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
@@ -337,8 +337,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
       : []
     setRoster(newRoster)
     setOriginalRoster(newRoster)
-    setError(null)
-    setSuccess(false)
   }, [hasChanges, enrollments])
 
   function handleDragStart(event: DragStartEvent) { setActiveId(event.active.id as string) }
@@ -361,8 +359,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const save = async () => {
     if (!selectedClassId) return
     setSaving(true)
-    setError(null)
-    setSuccess(false)
 
     try {
       const supabase = createClient()
@@ -408,12 +404,12 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
       }
 
       setOriginalRoster([...roster])
-      setSuccess(true)
+      toast.success('Affectations enregistrées avec succès.')
       router.refresh()
     } catch (err: unknown) {
       const e = err as Record<string, unknown>
       const msg = (e?.message as string) || (e?.details as string) || (e?.hint as string) || 'Une erreur est survenue. Veuillez réessayer.'
-      setError(msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -541,20 +537,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
           )}
         </div>
       </div>
-
-      {/* Messages */}
-      {error && (
-        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
-          <span>{error}</span>
-          <button onClick={() => setError(null)}><X size={14} /></button>
-        </div>
-      )}
-      {success && (
-        <div className="flex-shrink-0 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 flex items-center gap-2">
-          <CheckCircle2 size={15} />
-          Affectations enregistrées avec succès.
-        </div>
-      )}
 
       {/* Panels DnD */}
       {!selectedClassId ? (

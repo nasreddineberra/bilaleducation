@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Trash2, Download, Eye, X, FileText, AlertCircle, CheckCircle2 } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
+import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -239,7 +240,8 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
           <div key={cat.key} className="card">
             <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
               <h3 className="text-[11px] font-semibold text-warm-600 uppercase tracking-wide">{cat.label}</h3>
-              <button
+              <FloatButton
+                variant="submit"
                 onClick={() => {
                   setUploadingCat(cat.key)
                   setFormDocType(types[0]?.doc_key ?? '')
@@ -247,11 +249,11 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                   setFormFile(null)
                   setError(null)
                 }}
-                className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                className="text-xs flex items-center gap-1"
                 disabled={uploadingCat === cat.key || types.length === 0}
               >
                 <Plus size={11} /> Ajouter
-              </button>
+              </FloatButton>
             </div>
 
             {types.length === 0 && (
@@ -265,23 +267,23 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
               <div className="px-3 py-2 border-b border-warm-200 bg-warm-50/50 space-y-2">
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Type</label>
-                    <select
-                      className="input text-xs w-full"
+                    <FloatSelect
+                      label="Type"
+                      className="text-xs"
                       value={formDocType}
                       onChange={e => setFormDocType(e.target.value)}
                     >
                       {types.map(t => (
                         <option key={t.doc_key} value={t.doc_key}>{t.label}</option>
                       ))}
-                    </select>
+                    </FloatSelect>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Expiration</label>
-                      <input
+                      <FloatInput
+                        label="Expiration"
                         type="date"
-                        className="input text-xs w-full"
+                        className="text-xs"
                         value={formExpires}
                         onChange={e => setFormExpires(e.target.value)}
                       />
@@ -300,10 +302,10 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                 </div>
                 {error && <p className="text-[11px] text-red-600">{error}</p>}
                 <div className="flex gap-2">
-                  <button onClick={handleUpload} disabled={saving} className="btn btn-primary text-xs">
-                    {saving ? 'Envoi...' : 'Enregistrer'}
-                  </button>
-                  <button onClick={resetForm} disabled={saving} className="btn text-xs">Annuler</button>
+                  <FloatButton variant="submit" onClick={handleUpload} disabled={saving} loading={saving} className="text-xs">
+                    Enregistrer
+                  </FloatButton>
+                  <FloatButton variant="secondary" onClick={resetForm} disabled={saving} className="text-xs">Annuler</FloatButton>
                 </div>
               </div>
             )}

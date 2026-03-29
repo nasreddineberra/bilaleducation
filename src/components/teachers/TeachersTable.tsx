@@ -64,11 +64,11 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-40">
-                N° emp.
-              </th>
               <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">
                 Nom
+              </th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-40">
+                N° emp.
               </th>
               <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider hidden md:table-cell">
                 Email
@@ -87,11 +87,6 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
             {teachers.map((teacher) => (
               <tr key={teacher.id} className="hover:bg-warm-50 transition-colors">
 
-                {/* N° employé */}
-                <td className="px-4 py-1.5">
-                  <span className="font-mono text-xs text-warm-500 whitespace-nowrap">{teacher.employee_number}</span>
-                </td>
-
                 {/* Nom */}
                 <td className="px-4 py-1.5">
                   <div className="flex items-center gap-2">
@@ -102,6 +97,11 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                       <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded">inactif</span>
                     )}
                   </div>
+                </td>
+
+                {/* N° employé */}
+                <td className="px-4 py-1.5">
+                  <span className="font-mono text-xs text-warm-500 whitespace-nowrap">{teacher.employee_number}</span>
                 </td>
 
                 {/* Email */}

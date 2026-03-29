@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { clsx } from 'clsx'
 import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User, Users } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import ParentForm from '@/components/parents/ParentForm'
+import { useToast } from '@/lib/toast-context'
+import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatRadioCard, FloatButton } from '@/components/ui/FloatFields'
 import type { Student, Parent } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -95,6 +96,7 @@ const normalizeNom = (s: string) =>
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false }: StudentFormProps) {
   const router    = useRouter()
+  const toast     = useToast()
   const isEditing = !!student
 
   const [form, setForm] = useState<FormData>({
@@ -129,7 +131,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   const [numberEditable, setNumberEditable] = useState(false)
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,    setIsSubmitting]    = useState(false)
-  const [error,           setError]           = useState<string | null>(null)
   const [showParentModal, setShowParentModal] = useState(false)
   const [fullParent,      setFullParent]      = useState<Parent | null>(null)
   const [loadingParent,   setLoadingParent]   = useState(false)
@@ -170,8 +171,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
     gender:        !form.gender,
   }
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
-  const cls     = (field: string, bad: boolean) =>
-    bad && touched.has(field) ? 'input input-error' : 'input'
 
   // Formulaire valide → bouton actif
   const isFormValid = !v.studentNumber && !v.lastName && !v.firstName && !v.dateOfBirth && !v.gender
@@ -211,7 +210,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(new Set(Object.keys(form)))
-    setError(null)
 
     if (!isFormValid) return
 
@@ -229,7 +227,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         normalizeNom(s.first_name) === normFirst
       )
       if (duplicate) {
-        setError(`Un élève "${duplicate.last_name} ${duplicate.first_name}" existe déjà.`)
+        toast.error(`Un élève "${duplicate.last_name} ${duplicate.first_name}" existe déjà.`)
         setIsSubmitting(false)
         return
       }
@@ -269,9 +267,9 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       router.refresh()
     } catch (err: any) {
       if (err?.code === '23505') {
-        setError("Ce numéro d'élève est déjà utilisé.")
+        toast.error("Ce numéro d'élève est déjà utilisé.")
       } else {
-        setError('Une erreur est survenue. Veuillez réessayer.')
+        toast.error('Une erreur est survenue. Veuillez réessayer.')
       }
       setIsSubmitting(false)
     }
@@ -280,12 +278,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
 
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
 
         {/* ── Colonne gauche ── */}
@@ -293,29 +285,29 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
         {/* Identité de l'élève */}
         <div className="card p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+          <div className="flex items-center">
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest whitespace-nowrap">
               Identité de l'élève
             </h2>
-            <div className="relative group/active">
-              <label className={clsx(
-                'flex items-center gap-2 group',
-                hasActiveEnrollment ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-              )}>
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={e => set('is_active', e.target.checked)}
-                  disabled={hasActiveEnrollment}
-                  className="w-4 h-4 rounded accent-amber-500 disabled:opacity-50"
+            <div className="flex-1 flex justify-center">
+              {!isEditing && (
+                <FloatCheckbox
+                  label="Modifier N° élève"
+                  checked={numberEditable}
+                  onChange={v => { setNumberEditable(v); if (!v) set('student_number', originalNumber.current) }}
+                  variant="compact"
                 />
-                <span className={clsx(
-                  'text-xs font-semibold text-warm-500 uppercase tracking-wide',
-                  !hasActiveEnrollment && 'group-hover:text-warm-600'
-                )}>
-                  Actif
-                </span>
-              </label>
+              )}
+            </div>
+            {/* Switch dans un conteneur de largeur fixe pour stabiliser le layout */}
+            <div className="flex-shrink-0 w-24 flex justify-end relative group/active">
+              <FloatCheckbox
+                label={form.is_active ? 'ACTIF' : 'INACTIF'}
+                checked={form.is_active}
+                onChange={v => set('is_active', v)}
+                variant="switch"
+                disabled={hasActiveEnrollment}
+              />
               {hasActiveEnrollment && (
                 <span className="pointer-events-none absolute top-full right-0 mt-1.5 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/active:opacity-100 transition-opacity z-20 shadow-md">
                   <span className="absolute bottom-full right-4 border-4 border-transparent border-b-secondary-800" />
@@ -338,92 +330,77 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               <div className="grid grid-cols-2 gap-2">
                 {/* N° élève */}
                 <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">N° élève</span>
-                    {!isEditing && (
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={numberEditable}
-                          onChange={e => {
-                            setNumberEditable(e.target.checked)
-                            if (!e.target.checked) set('student_number', originalNumber.current)
-                          }}
-                          className="w-3 h-3 rounded accent-amber-500"
-                        />
-                        <span className="text-xs text-warm-400 select-none">Modifier</span>
-                      </label>
-                    )}
-                  </div>
                   {!isEditing && numberEditable ? (
-                    <input
-                      type="text"
+                    <FloatInput
+                      label="N° élève"
                       value={form.student_number}
                       onChange={e => set('student_number', e.target.value)}
                       onBlur={() => touch('student_number')}
-                      className="input font-mono"
+                      className="font-mono"
                       autoFocus
                     />
                   ) : (
-                    <div className="input bg-warm-100 text-secondary-500 font-mono text-sm select-all cursor-default">
-                      {form.student_number}
-                    </div>
+                    <FloatInput
+                      label="N° élève"
+                      value={form.student_number}
+                      onChange={() => {}}
+                      locked
+                      className="font-mono"
+                    />
                   )}
                 </div>
-                <Field label={<>Date d'inscription <span className="text-red-400">*</span></>}>
-                  <input
-                    type="date"
-                    value={form.enrollment_date}
-                    onChange={e => set('enrollment_date', e.target.value)}
-                    className="input"
-                  />
-                </Field>
+                <FloatInput
+                  label="Date d'inscription"
+                  type="date"
+                  required
+                  value={form.enrollment_date}
+                  onChange={e => set('enrollment_date', e.target.value)}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <Field label={<>Nom <span className="text-red-400">*</span></>} error={invalid('last_name', v.lastName) ? 'Minimum 2 caractères' : undefined}>
-                  <input
-                    type="text"
-                    value={form.last_name}
-                    onChange={e => set('last_name', toUpperCase(e.target.value))}
-                    onBlur={() => touch('last_name')}
-                    className={cls('last_name', v.lastName)}
-                  />
-                </Field>
-                <Field label={<>Prénom <span className="text-red-400">*</span></>} error={invalid('first_name', v.firstName) ? 'Minimum 2 caractères' : undefined}>
-                  <input
-                    type="text"
-                    value={form.first_name}
-                    onChange={e => set('first_name', toTitleCase(e.target.value))}
-                    onBlur={() => touch('first_name')}
-                    className={cls('first_name', v.firstName)}
-                  />
-                </Field>
+                <FloatInput
+                  label="Nom"
+                  required
+                  value={form.last_name}
+                  onChange={e => set('last_name', toUpperCase(e.target.value))}
+                  onBlur={() => touch('last_name')}
+                  error={invalid('last_name', v.lastName) ? 'Minimum 2 caractères' : undefined}
+                  className="uppercase"
+                />
+                <FloatInput
+                  label="Prénom"
+                  required
+                  value={form.first_name}
+                  onChange={e => set('first_name', toTitleCase(e.target.value))}
+                  onBlur={() => touch('first_name')}
+                  error={invalid('first_name', v.firstName) ? 'Minimum 2 caractères' : undefined}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <Field label={<>Date de naissance <span className="text-red-400">*</span></>} error={invalid('date_of_birth', v.dateOfBirth) ? 'Champ requis' : undefined}>
-                  <input
-                    type="date"
-                    value={form.date_of_birth}
-                    onChange={e => set('date_of_birth', e.target.value)}
-                    onBlur={() => touch('date_of_birth')}
-                    className={cls('date_of_birth', v.dateOfBirth)}
-                  />
-                </Field>
-                <Field label={<>Genre <span className="text-red-400">*</span></>} error={invalid('gender', v.gender) ? 'Champ requis' : undefined}>
-                  <select
-                    value={form.gender}
-                    onChange={e => { set('gender', e.target.value); touch('gender') }}
-                    onBlur={() => touch('gender')}
-                    className={cls('gender', v.gender)}
-                  >
-                    <option value="">— Choisir —</option>
-                    <option value="male">Masculin</option>
-                    <option value="female">Féminin</option>
-                    <option value="non_specified">Non spécifié</option>
-                  </select>
-                </Field>
+                <FloatInput
+                  label="Date de naissance"
+                  type="date"
+                  required
+                  value={form.date_of_birth}
+                  onChange={e => set('date_of_birth', e.target.value)}
+                  onBlur={() => touch('date_of_birth')}
+                  error={invalid('date_of_birth', v.dateOfBirth) ? 'Champ requis' : undefined}
+                />
+                <FloatSelect
+                  label="Genre"
+                  required
+                  value={form.gender}
+                  onChange={e => { set('gender', e.target.value); touch('gender') }}
+                  onBlur={() => touch('gender')}
+                  error={invalid('gender', v.gender) ? 'Champ requis' : undefined}
+                >
+                  <option value=""></option>
+                  <option value="male">Masculin</option>
+                  <option value="female">Féminin</option>
+                  <option value="non_specified">Non spécifié</option>
+                </FloatSelect>
               </div>
             </div>
           </div>
@@ -468,11 +445,8 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
             </h2>
 
             <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-                  Fiche parents
-                </label>
-                {parentData && (
+              {parentData && (
+                <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={handleOpenParentModal}
@@ -482,24 +456,24 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                     <ExternalLink size={12} />
                     Voir / Modifier
                   </button>
-                )}
-              </div>
-              <select
+                </div>
+              )}
+              <FloatSelect
+                label="Fiche parents"
                 value={form.parent_id}
                 onChange={e => {
                   set('parent_id', e.target.value)
                   setTutorSource('tutor1')
                 }}
-                className="input"
               >
-                <option value="">— Aucun rattachement —</option>
+                <option value=""></option>
                 {parents.map(p => (
                   <option key={p.id} value={p.id}>
                     {p.tutor1_last_name} {p.tutor1_first_name}
                     {p.tutor2_last_name ? ` / ${p.tutor2_last_name} ${p.tutor2_first_name}` : ''}
                   </option>
                 ))}
-              </select>
+              </FloatSelect>
             </div>
           </div>
 
@@ -512,46 +486,26 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                   Reprendre les informations (adresse et contact) du responsable
                 </p>
                 <div className="flex flex-col gap-1.5">
-                  <label className={clsx(
-                    'flex items-center gap-2.5 cursor-pointer px-3 py-1.5 rounded-lg border transition-colors',
-                    tutorSource === 'tutor1'
-                      ? 'border-primary-300 bg-primary-50'
-                      : 'border-warm-200 hover:bg-warm-50'
-                  )}>
-                    <input
-                      type="radio"
-                      name="tutorSource"
-                      value="tutor1"
-                      checked={tutorSource === 'tutor1'}
-                      onChange={() => setTutorSource('tutor1')}
-                      className="accent-amber-500 flex-shrink-0"
-                    />
-                    <span className="text-sm text-secondary-700">
-                      <span className="font-medium">{relLabel(parentData.tutor1_relationship, 'Tuteur 1')}</span>
-                      {' '}— {parentData.tutor1_last_name} {parentData.tutor1_first_name}
-                    </span>
-                  </label>
+                  <FloatRadioCard
+                    name="tutorSource"
+                    value="tutor1"
+                    checked={tutorSource === 'tutor1'}
+                    onChange={() => setTutorSource('tutor1')}
+                  >
+                    <span className="font-medium">{relLabel(parentData.tutor1_relationship, 'Tuteur 1')}</span>
+                    {' '}— {parentData.tutor1_last_name} {parentData.tutor1_first_name}
+                  </FloatRadioCard>
 
                   {hasTutor2 && (
-                    <label className={clsx(
-                      'flex items-center gap-2.5 cursor-pointer px-3 py-1.5 rounded-lg border transition-colors',
-                      tutorSource === 'tutor2'
-                        ? 'border-primary-300 bg-primary-50'
-                        : 'border-warm-200 hover:bg-warm-50'
-                    )}>
-                      <input
-                        type="radio"
-                        name="tutorSource"
-                        value="tutor2"
-                        checked={tutorSource === 'tutor2'}
-                        onChange={() => setTutorSource('tutor2')}
-                        className="accent-amber-500 flex-shrink-0"
-                      />
-                      <span className="text-sm text-secondary-700">
-                        <span className="font-medium">{relLabel(parentData.tutor2_relationship, 'Tuteur 2')}</span>
-                        {' '}— {parentData.tutor2_last_name} {parentData.tutor2_first_name}
-                      </span>
-                    </label>
+                    <FloatRadioCard
+                      name="tutorSource"
+                      value="tutor2"
+                      checked={tutorSource === 'tutor2'}
+                      onChange={() => setTutorSource('tutor2')}
+                    >
+                      <span className="font-medium">{relLabel(parentData.tutor2_relationship, 'Tuteur 2')}</span>
+                      {' '}— {parentData.tutor2_last_name} {parentData.tutor2_first_name}
+                    </FloatRadioCard>
                   )}
                 </div>
               </div>
@@ -620,84 +574,63 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-
-          <label className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-warm-100 hover:bg-warm-50 cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              checked={form.exit_authorization}
-              onChange={e => set('exit_authorization', e.target.checked)}
-              className="w-4 h-4 rounded accent-amber-500 flex-shrink-0"
-            />
-            <p className="text-sm font-medium text-secondary-700">Autorisation de sortie</p>
-          </label>
-
-          <label className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-warm-100 hover:bg-warm-50 cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              checked={form.media_authorization}
-              onChange={e => set('media_authorization', e.target.checked)}
-              className="w-4 h-4 rounded accent-amber-500 flex-shrink-0"
-            />
-            <p className="text-sm font-medium text-secondary-700">Autorisation média</p>
-          </label>
-
-          <label className={clsx(
-            'flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
-            form.has_pai
-              ? 'bg-red-50 border-red-200 hover:bg-red-100/70'
-              : 'border-warm-100 hover:bg-warm-50'
-          )}>
-            <input
-              type="checkbox"
-              checked={form.has_pai}
-              onChange={e => set('has_pai', e.target.checked)}
-              className="w-4 h-4 rounded accent-amber-500 flex-shrink-0"
-            />
-            <p className="text-sm font-medium text-secondary-700 flex items-center gap-1.5">
-              PAI
-              <span
-                title="Projet d'Aide Individualisé"
-                className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-warm-200 text-warm-500 text-[10px] font-bold cursor-help leading-none"
-              >?</span>
-            </p>
-          </label>
-
+          <FloatCheckbox
+            label="Autorisation de sortie"
+            checked={form.exit_authorization}
+            onChange={v => set('exit_authorization', v)}
+          />
+          <FloatCheckbox
+            label="Autorisation média"
+            checked={form.media_authorization}
+            onChange={v => set('media_authorization', v)}
+          />
+          <FloatCheckbox
+            label="Projet d'aide individualisé"
+            checked={form.has_pai}
+            onChange={v => set('has_pai', v)}
+            variant="danger-card"
+          />
         </div>
 
       </div>
 
       {/* ── Notes médicales ── */}
-      <div className="card p-3 space-y-2 max-w-5xl">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Notes médicales</h2>
-        <textarea
+      <div className="card p-3 max-w-5xl">
+        <FloatTextarea
+          label="Notes médicales"
+          placeholder="Allergies, traitements en cours, aménagements pédagogiques…"
           value={form.medical_notes}
           onChange={e => set('medical_notes', e.target.value)}
-          rows={2}
-          placeholder="Allergies, traitements en cours, recommandations, aménagements pédagogiques..."
-          className="input resize-none w-full"
+          rows={3}
         />
       </div>
 
       {/* ── Actions ── */}
-      <div className="flex items-center gap-3 pt-1">
-        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+      <div className="flex items-center gap-2 pt-1">
+        <span className="text-xs text-warm-400"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
         <div className="flex-1" />
-        <button
-          type="button"
-          onClick={() => router.push(backHref)}
-          className="btn btn-secondary"
-        >
+        <FloatButton type="button" variant="secondary" onClick={() => router.push(backHref)}>
           Annuler
-        </button>
-        <button
-          type="submit"
-          disabled={!isFormValid || isSubmitting || isUnchanged}
-          className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting
-            ? 'Enregistrement...'
-            : isEditing ? 'Mettre à jour' : 'Créer la fiche'}
-        </button>
+        </FloatButton>
+        {isEditing ? (
+          <FloatButton
+            type="submit"
+            variant="edit"
+            loading={isSubmitting}
+            disabled={!isFormValid || isUnchanged}
+          >
+            Modifier
+          </FloatButton>
+        ) : (
+          <FloatButton
+            type="submit"
+            variant="submit"
+            loading={isSubmitting}
+            disabled={!isFormValid}
+          >
+            Valider
+          </FloatButton>
+        )}
       </div>
 
       {showParentModal && (
@@ -751,27 +684,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   )
 }
 
-// ─── Sous-composants ─────────────────────────────────────────────────────────
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: React.ReactNode
-  error?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
-  )
-}
+// ─── Sous-composants locaux ───────────────────────────────────────────────────
 
 function InfoBlock({ children }: { children: React.ReactNode }) {
   return (
@@ -933,7 +846,6 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
   return (
     <>
       <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide self-start">Photo</span>
         {/* Vignette 3:4 */}
         <div className="w-[78px] h-[104px] rounded-lg overflow-hidden border border-warm-200 bg-warm-100 flex items-center justify-center flex-shrink-0">
           {photoUrl ? (

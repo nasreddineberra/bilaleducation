@@ -3,9 +3,10 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Plus, X, Pencil } from 'lucide-react'
+import { Plus, X, Pencil } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 
@@ -115,6 +116,7 @@ function getWeeksBetween(startDate: string, endDate: string, startDay: number): 
 
 export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1 }: SchoolYearFormProps) {
   const router    = useRouter()
+  const toast     = useToast()
   const isEditing = !!schoolYear
 
   const getInitialForm = (): FormData => {
@@ -162,8 +164,6 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
-  const [success,      setSuccess]      = useState(false)
 
   // Vacances
   const [vacations, setVacations] = useState<VacationPeriod[]>(
@@ -304,8 +304,6 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
     e.preventDefault()
     setTouched(new Set(['label', 'start_date', 'end_date']))
     setHasSubmitted(true)
-    setError(null)
-    setSuccess(false)
 
     if (!isValid) return
 
@@ -336,7 +334,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   .from('grades').select('id', { count: 'exact', head: true })
                   .in('evaluation_id', allEvalIds)
                 if ((count ?? 0) > 0) {
-                  setError('Impossible de changer la répartition des périodes : des notes ont déjà été saisies pour cette année scolaire.')
+                  toast.error('Impossible de changer la répartition des périodes : des notes ont déjà été saisies pour cette année scolaire.')
                   setIsSubmitting(false); return
                 }
               }
@@ -356,7 +354,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     diagnostic: 'Diagnostique', scored_10: 'Notée /10', scored_20: 'Notée /20', stars: 'Étoilée',
                   }
                   const names = removedTypes.map(t => labels[t] ?? t).join(', ')
-                  setError(`Impossible de supprimer le(s) type(s) "${names}" : des gabarits d'évaluation utilisent déjà ce(s) type(s). Supprimez d'abord les gabarits concernés.`)
+                  toast.error(`Impossible de supprimer le(s) type(s) "${names}" : des gabarits d'évaluation utilisent déjà ce(s) type(s). Supprimez d'abord les gabarits concernés.`)
                   setIsSubmitting(false); return
                 }
               }
@@ -434,13 +432,13 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         if (errEval) throw errEval
       }
 
-      setSuccess(true)
+      toast.success('Année scolaire enregistrée avec succès.')
       router.push('/dashboard/annee-scolaire')
       router.refresh()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message
         : (err as { message?: string })?.message ?? ''
-      setError(msg || 'Une erreur est survenue. Veuillez réessayer.')
+      toast.error(msg || 'Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
@@ -886,19 +884,6 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         </div>,
       document.body)}
 
-      {/* ── Messages ──────────────────────────────────────────────────────── */}
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          {error}
-        </p>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle2 size={16} className="flex-shrink-0" />
-          Année scolaire enregistrée.
-        </div>
-      )}
-
       {/* ── Actions ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 pt-1">
         <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
@@ -908,7 +893,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           disabled={isSubmitting}
           className={clsx('btn btn-primary', isSubmitting && 'opacity-50 cursor-not-allowed')}
         >
-          {isSubmitting ? 'Enregistrement...' : isEditing ? 'Enregistrer' : 'Créer l\'année'}
+          {isSubmitting ? 'Enregistrement...' : isEditing ? 'Modifier' : 'Valider'}
         </button>
       </div>
 

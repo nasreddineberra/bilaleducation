@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from 'react'
 import { clsx } from 'clsx'
 import { Send, Paperclip, X, Eye, Loader2, Search, CheckSquare, Square } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import type { UserRole } from '@/types/database'
 
@@ -75,6 +76,7 @@ function getParentLabel(parent: ParentRow): string {
 export default function NewMessageClient({
   role, senderEmail, senderName, classes, parents, classParentMap, directionEmails, etablissementId, schoolYearId, yearLabel,
 }: Props) {
+  const toast = useToast()
   const [targetType, setTargetType] = useState<TargetType | null>(null)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [selectedParentIds, setSelectedParentIds] = useState<Set<string>>(new Set())
@@ -82,8 +84,6 @@ export default function NewMessageClient({
   const [bodyHtml, setBodyHtml] = useState('')
   const [attachments, setAttachments] = useState<File[]>([])
   const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [parentSearch, setParentSearch] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -183,8 +183,6 @@ export default function NewMessageClient({
   const handleSend = async () => {
     if (!canSend) return
     setSending(true)
-    setError(null)
-    setSuccess(false)
 
     try {
       const supabase = createClient()
@@ -300,7 +298,7 @@ export default function NewMessageClient({
         }).catch(() => {})
       }
 
-      setSuccess(true)
+      toast.success("Message enregistré avec succès. L'envoi des emails est en cours.")
       // Reset form
       setSubject('')
       setBodyHtml('')
@@ -309,7 +307,7 @@ export default function NewMessageClient({
       setSelectedClassId(null)
       setSelectedParentIds(new Set())
     } catch (err: any) {
-      setError(err.message ?? 'Erreur lors de l\'envoi')
+      toast.error(err.message ?? 'Erreur lors de l\'envoi')
     } finally {
       setSending(false)
     }
@@ -317,16 +315,6 @@ export default function NewMessageClient({
 
   return (
     <div className="space-y-5">
-      {/* Erreur / Succes */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2 rounded-lg">{error}</div>
-      )}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2 rounded-lg">
-          Message enregistre avec succes. L'envoi des emails est en cours.
-        </div>
-      )}
-
       {/* 1. Destinataires */}
       <div className="card p-4 space-y-3">
         <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Destinataires</h2>

@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle, Clock, Plus, Trash2, Paperclip, X, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WarningSeverity } from '@/types/database'
+import { FloatSelect, FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -375,14 +376,15 @@ export default function StudentDiscipline({
           <ShieldIcon className="text-warm-500" />
           <h3 className="text-xs font-semibold text-warm-700">Avertissements</h3>
           <span className="text-[11px] text-warm-400">{sortedWarnings.length} enreg.</span>
-          <button
+          <FloatButton
+            variant="submit"
             onClick={() => { setShowForm(true); setError(null) }}
-            className="ml-auto btn btn-primary text-xs flex items-center gap-1"
+            className="ml-auto text-xs flex items-center gap-1"
             disabled={showForm}
           >
             <Plus size={12} />
             Ajouter
-          </button>
+          </FloatButton>
         </div>
 
         {/* Formulaire d'ajout */}
@@ -391,24 +393,24 @@ export default function StudentDiscipline({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {/* Période */}
               <div>
-                <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Période</label>
-                <select
-                  className="input text-xs w-full"
+                <FloatSelect
+                  label="Période"
+                  className="text-xs"
                   value={formPeriod}
                   onChange={e => setFormPeriod(e.target.value)}
                 >
                   {currentYearPeriods.map(p => (
                     <option key={p.id} value={p.id}>{periodFullLabel(p.label)}</option>
                   ))}
-                </select>
+                </FloatSelect>
               </div>
 
               {/* Date */}
               <div>
-                <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Date</label>
-                <input
+                <FloatInput
+                  label="Date"
                   type="date"
-                  className="input text-xs w-full"
+                  className="text-xs"
                   value={formDate}
                   onChange={e => setFormDate(e.target.value)}
                 />
@@ -416,17 +418,17 @@ export default function StudentDiscipline({
 
               {/* Type */}
               <div>
-                <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Type</label>
-                <select
-                  className="input text-xs w-full"
+                <FloatSelect
+                  label="Type"
+                  className="text-xs"
                   value={formSeverity}
                   onChange={e => setFormSeverity(e.target.value as WarningSeverity)}
                 >
-                  <option value="">– Sélectionner –</option>
+                  <option value=""></option>
                   {(Object.keys(SEVERITY_CONFIG) as WarningSeverity[]).map(key => (
                     <option key={key} value={key}>{SEVERITY_CONFIG[key].label}</option>
                   ))}
-                </select>
+                </FloatSelect>
               </div>
             </div>
 
@@ -457,9 +459,9 @@ export default function StudentDiscipline({
 
             {/* Motif */}
             <div>
-              <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Motif</label>
-              <textarea
-                className="input text-xs w-full"
+              <FloatTextarea
+                label="Motif"
+                className="text-xs"
                 rows={2}
                 placeholder="Décrire le motif de l'avertissement..."
                 value={formMotif}
@@ -471,14 +473,15 @@ export default function StudentDiscipline({
             <div>
               <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Pièces jointes</label>
               <div className="flex flex-wrap items-center gap-2">
-                <button
+                <FloatButton
                   type="button"
+                  variant="secondary"
                   onClick={() => fileInputRef.current?.click()}
-                  className="btn text-xs flex items-center gap-1"
+                  className="text-xs flex items-center gap-1"
                 >
                   <Paperclip size={12} />
                   Ajouter un fichier
-                </button>
+                </FloatButton>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -503,20 +506,23 @@ export default function StudentDiscipline({
             )}
 
             <div className="flex gap-2">
-              <button
+              <FloatButton
+                variant="submit"
                 onClick={handleSave}
                 disabled={saving}
-                className="btn btn-primary text-xs"
+                loading={saving}
+                className="text-xs"
               >
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-              <button
+                Enregistrer
+              </FloatButton>
+              <FloatButton
+                variant="secondary"
                 onClick={resetForm}
                 disabled={saving}
-                className="btn text-xs"
+                className="text-xs"
               >
                 Annuler
-              </button>
+              </FloatButton>
             </div>
           </div>
         )}

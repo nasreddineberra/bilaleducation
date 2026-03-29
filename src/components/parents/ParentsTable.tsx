@@ -243,13 +243,21 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         >
                           <Pencil size={14} />
                         </button>
-                        <button
-                          onClick={() => { setConfirmDeleteId(parent.id); setDeleteError(null) }}
-                          className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {parentsWithChildren.has(parent.id) ? (
+                          <Tooltip content="des enfants sont rattachés à cette fiche" position="top-right" maxWidth="w-40">
+                            <span className="p-1.5 text-warm-200 cursor-not-allowed rounded-lg">
+                              <Trash2 size={14} />
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <button
+                            onClick={() => { setConfirmDeleteId(parent.id); setDeleteError(null) }}
+                            className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

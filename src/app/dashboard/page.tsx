@@ -1,4 +1,9 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = {
+  title: 'Tableau de bord',
+}
 import DashboardAdmin from '@/components/dashboard/DashboardAdmin'
 import DashboardComptable from '@/components/dashboard/DashboardComptable'
 import DashboardPedago from '@/components/dashboard/DashboardPedago'

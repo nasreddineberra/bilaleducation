@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, Eye, EyeOff, KeyRound, Check, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createUser, updateProfile, updateEmail, sendPasswordReset } from '@/app/dashboard/utilisateurs/actions'
+import { useToast } from '@/lib/toast-context'
 import type { Profile, UserRole } from '@/types/database'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
 
@@ -40,6 +41,7 @@ const toTitleCase  = (v: string) =>
 
 export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
   const router     = useRouter()
+  const toast      = useToast()
   const isEditing  = !!profile
 
   const [form, setForm] = useState<FormData>({
@@ -56,8 +58,6 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
-  const [success,      setSuccess]      = useState(false)
   const [resetStatus,  setResetStatus]  = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
   const set = (field: keyof FormData, value: string) =>
@@ -90,8 +90,6 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(new Set(Object.keys(form)))
-    setError(null)
-    setSuccess(false)
 
     if (!isValid) return
 
@@ -102,7 +100,7 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
       if (isEditing) {
         if (emailEditable && form.email.trim() !== initialForm.current.email) {
           const emailResult = await updateEmail(profile.id, form.email.trim())
-          if (emailResult.error) { setError(emailResult.error); setIsSubmitting(false); return }
+          if (emailResult.error) { toast.error(emailResult.error); setIsSubmitting(false); return }
         }
         result = await updateProfile(profile.id, {
           role:       form.role,
@@ -124,19 +122,19 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
       }
 
       if (result.error) {
-        setError(result.error)
+        toast.error(result.error)
         return
       }
 
       if (isEditing) {
         initialForm.current = { ...form }
-        setSuccess(true)
+        toast.success('Utilisateur enregistré avec succès.')
       } else {
         router.push('/dashboard/utilisateurs')
         router.refresh()
       }
     } catch {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      toast.error('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
@@ -311,19 +309,6 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
 
       </div>
 
-      {/* Messages */}
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          {error}
-        </p>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle2 size={16} className="flex-shrink-0" />
-          Modifications enregistrées.
-        </div>
-      )}
-
       {/* Actions */}
       <div className="flex items-center gap-3 pt-1">
         <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
@@ -345,7 +330,7 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
         >
           {isSubmitting
             ? 'Enregistrement...'
-            : isEditing ? 'Enregistrer' : 'Créer l\'utilisateur'}
+            : isEditing ? 'Modifier' : 'Valider'}
         </button>
       </div>
 

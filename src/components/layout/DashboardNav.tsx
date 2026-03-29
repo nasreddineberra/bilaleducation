@@ -50,7 +50,7 @@ const EXACT_TITLES: Record<string, string> = {
 }
 
 // Couleur dérivée du nom (stable pour une même personne)
-const AVATAR_COLORS = [
+const AVATAR_COLORS: [string, string][] = [
   ['#3b6cb7', '#1a3a6b'], // bleu
   ['#18aa99', '#0e6b60'], // teal
   ['#e85d04', '#b84a03'], // orange
@@ -259,6 +259,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
             href="/dashboard/notifications"
             className="relative p-2 text-secondary-400 hover:text-secondary-600 hover:bg-warm-100 rounded-xl transition-all duration-200"
             title="Notifications"
+            aria-label={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'}
           >
             <Bell className="w-5 h-5" />
             {unreadNotifCount > 0 && (
@@ -304,6 +305,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
             onClick={handleLogout}
             className="p-2 text-warm-500 hover:text-danger-500 hover:bg-danger-50 rounded-xl transition-all duration-200"
             title="Déconnexion"
+            aria-label="Déconnexion"
           >
             <LogOut className="w-5 h-5" />
           </button>

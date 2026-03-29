@@ -15,9 +15,10 @@ import {
 } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Search, X, Users, CheckCircle2, GripVertical, ChevronDown, Info, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, X, Users, GripVertical, ChevronDown, Info, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
+import { useToast } from '@/lib/toast-context'
 
 const POOL_PAGE_SIZE = 20
 
@@ -356,6 +357,7 @@ function DropZone({
 
 export default function AffectationClient({ classes, students, enrollments, currentYearId }: Props) {
   const router  = useRouter()
+  const toast   = useToast()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Carte rapide : student_id → class_id (état serveur)
@@ -388,8 +390,6 @@ export default function AffectationClient({ classes, students, enrollments, curr
   const [search,   setSearch]   = useState('')
   const [poolPage, setPoolPage] = useState(1)
   const [saving,   setSaving]   = useState(false)
-  const [error,    setError]    = useState<string | null>(null)
-  const [success,  setSuccess]  = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
 
   // Tooltip fixe hors du conteneur scrollable
@@ -414,8 +414,6 @@ export default function AffectationClient({ classes, students, enrollments, curr
       : []
     setRoster(newRoster)
     setOriginalRoster(newRoster)
-    setError(null)
-    setSuccess(false)
   }, [hasChanges, enrollments])
 
   // ── DnD ───────────────────────────────────────────────────────────────────
@@ -478,7 +476,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
         )
 
       if ((gradesCount ?? 0) > 0 || (bulletinsCount ?? 0) > 0) {
-        setError('Impossible de retirer cet élève : il a des évaluations ou des bulletins enregistrés sur l\'année en cours.')
+        toast.error('Impossible de retirer cet élève : il a des évaluations ou des bulletins enregistrés sur l\'année en cours.')
         return
       }
     }
@@ -489,8 +487,6 @@ export default function AffectationClient({ classes, students, enrollments, curr
   const save = async () => {
     if (!selectedClassId) return
     setSaving(true)
-    setError(null)
-    setSuccess(false)
 
     try {
       const supabase = createClient()
@@ -522,11 +518,11 @@ export default function AffectationClient({ classes, students, enrollments, curr
       }
 
       setOriginalRoster([...roster])
-      setSuccess(true)
+      toast.success('Affectations enregistrées avec succès.')
       router.refresh()
     } catch (err: unknown) {
       const msg = (err as { message?: string })?.message
-      setError(msg || 'Une erreur est survenue. Veuillez réessayer.')
+      toast.error(msg || 'Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setSaving(false)
     }
@@ -665,20 +661,6 @@ export default function AffectationClient({ classes, students, enrollments, curr
           )}
         </div>
       </div>
-
-      {/* Messages */}
-      {error && (
-        <div className="flex-shrink-0 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
-          <span>{error}</span>
-          <button onClick={() => setError(null)}><X size={14} /></button>
-        </div>
-      )}
-      {success && (
-        <div className="flex-shrink-0 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 flex items-center gap-2">
-          <CheckCircle2 size={15} />
-          Affectations enregistrées avec succès.
-        </div>
-      )}
 
       {/* Panels DnD */}
       {!selectedClassId ? (

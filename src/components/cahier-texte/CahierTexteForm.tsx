@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { BookOpenText, ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 
 interface Props {
@@ -24,6 +25,7 @@ export default function CahierTexteForm({
   allTeachers, allAssignments, etablissementId, initialData,
 }: Props) {
   const router = useRouter()
+  const toast  = useToast()
   const isEdit = !!initialData
 
   const [classId, setClassId] = useState(initialData?.class_id ?? '')
@@ -40,7 +42,6 @@ export default function CahierTexteForm({
   const [hwDescription, setHwDescription] = useState('')
 
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   const isStaff = ['direction', 'responsable_pedagogique'].includes(role)
 
@@ -89,15 +90,14 @@ export default function CahierTexteForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!classId || !title.trim() || !contentHtml.trim()) {
-      setError('Veuillez remplir tous les champs obligatoires.')
+      toast.error('Veuillez remplir tous les champs obligatoires.')
       return
     }
 
     if (showHomework && (!hwTitle.trim() || !hwDueDate)) {
-      setError('Veuillez remplir le titre et la date de rendu du devoir.')
+      toast.error('Veuillez remplir le titre et la date de rendu du devoir.')
       return
     }
 
@@ -107,7 +107,7 @@ export default function CahierTexteForm({
     try {
       const effectiveTeacherId = isStaff ? selectedTeacherId : teacherId
       if (!effectiveTeacherId) {
-        setError('Enseignant non identifie.')
+        toast.error('Enseignant non identifie.')
         setSaving(false)
         return
       }
@@ -165,7 +165,7 @@ export default function CahierTexteForm({
       router.push('/dashboard/cahier-texte')
       router.refresh()
     } catch (err: any) {
-      setError(err.message ?? 'Erreur lors de l\'enregistrement.')
+      toast.error(err.message ?? 'Erreur lors de l\'enregistrement.')
     } finally {
       setSaving(false)
     }
@@ -183,12 +183,6 @@ export default function CahierTexteForm({
           {isEdit ? 'Modifier la seance' : 'Nouvelle seance'}
         </h1>
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
 
       {/* Séance */}
       <div className="card p-5 space-y-4">
@@ -356,7 +350,7 @@ export default function CahierTexteForm({
           Annuler
         </Link>
         <button type="submit" disabled={saving} className="btn btn-primary">
-          {saving ? 'Enregistrement...' : isEdit ? 'Mettre a jour' : 'Enregistrer'}
+          {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Valider'}
         </button>
       </div>
     </form>

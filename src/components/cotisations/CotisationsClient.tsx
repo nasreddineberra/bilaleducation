@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, X, Check, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, AlertTriangle, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import type { CotisationType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,13 +42,12 @@ function fmtEur(n: number) {
 
 export default function CotisationsClient({ currentYear, cotisationTypes: initial, classesWithoutCount, hourlyRates: initialRates }: Props & { hourlyRates?: any }) {
   const router   = useRouter()
+  const toast    = useToast()
   const supabase = createClient()
 
   const [rows, setRows]                       = useState<CotisationType[]>(initial)
   const [editing, setEditing]                 = useState<EditingRow | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [error, setError]                     = useState<string | null>(null)
-  const [success, setSuccess]                 = useState<string | null>(null)
   const [saving, setSaving]                   = useState(false)
 
   // Taux horaires
@@ -76,8 +76,6 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
   const startAdd = () => {
     setEditing({ ...EMPTY_ROW })
     setConfirmDeleteId(null)
-    setError(null)
-    setSuccess(null)
   }
 
   const startEdit = (row: CotisationType) => {
@@ -92,13 +90,10 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
       is_adult:                   row.is_adult ?? false,
     })
     setConfirmDeleteId(null)
-    setError(null)
-    setSuccess(null)
   }
 
   const cancel = () => {
     setEditing(null)
-    setError(null)
   }
 
   const save = async () => {
@@ -109,17 +104,16 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
     const siblingDiscount  = parseFloat(editing.sibling_discount) || 0
     const maxInst          = parseInt(editing.max_installments, 10)
 
-    if (!label)                       { setError('Le libelle est obligatoire.'); return }
-    if (isNaN(amount) || amount < 0)  { setError('La cotisation annuelle doit etre un nombre positif.'); return }
-    if (registrationFee < 0)          { setError('Les frais de dossier ne peuvent pas etre negatifs.'); return }
-    if (siblingDiscount < 0)          { setError('La reduction fratrie ne peut pas etre negative.'); return }
-    if (isNaN(maxInst) || maxInst < 1){ setError('Le nombre d\'echeances doit etre au moins 1.'); return }
+    if (!label)                       { toast.error('Le libelle est obligatoire.'); return }
+    if (isNaN(amount) || amount < 0)  { toast.error('La cotisation annuelle doit etre un nombre positif.'); return }
+    if (registrationFee < 0)          { toast.error('Les frais de dossier ne peuvent pas etre negatifs.'); return }
+    if (siblingDiscount < 0)          { toast.error('La reduction fratrie ne peut pas etre negative.'); return }
+    if (isNaN(maxInst) || maxInst < 1){ toast.error('Le nombre d\'echeances doit etre au moins 1.'); return }
 
     const duplicate = rows.find(r => r.label.toLowerCase() === label.toLowerCase() && r.id !== editing.id)
-    if (duplicate) { setError(`Le type "${label}" existe deja.`); return }
+    if (duplicate) { toast.error(`Le type "${label}" existe deja.`); return }
 
     setSaving(true)
-    setError(null)
 
     const payload = {
       label,
@@ -139,7 +133,7 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
           .eq('id', editing.id)
         if (err) throw err
         setRows(prev => prev.map(r => r.id === editing.id ? { ...r, ...payload } : r))
-        setSuccess('Type mis a jour.')
+        toast.success('Type mis à jour.')
       } else {
         const nextIndex = rows.length > 0 ? Math.max(...rows.map(r => r.order_index)) + 1 : 0
         const { data, error: err } = await supabase
@@ -153,11 +147,11 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
           .single()
         if (err) throw err
         setRows(prev => [...prev, data as CotisationType])
-        setSuccess('Type ajoute.')
+        toast.success('Type ajouté.')
       }
       setEditing(null)
     } catch (e: any) {
-      setError(e.message ?? 'Erreur lors de l\'enregistrement.')
+      toast.error(e.message ?? 'Erreur lors de l\'enregistrement.')
     } finally {
       setSaving(false)
     }
@@ -165,15 +159,14 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
 
   const remove = async (id: string) => {
     setSaving(true)
-    setError(null)
     try {
       const { error: err } = await supabase.from('cotisation_types').delete().eq('id', id)
       if (err) throw err
       setRows(prev => prev.filter(r => r.id !== id))
       setConfirmDeleteId(null)
-      setSuccess('Type supprime.')
+      toast.success('Type supprimé.')
     } catch (e: any) {
-      setError(e.message ?? 'Erreur lors de la suppression.')
+      toast.error(e.message ?? 'Erreur lors de la suppression.')
     } finally {
       setSaving(false)
     }
@@ -330,19 +323,6 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
         )}
       </div>
 
-      {/* Messages */}
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle2 size={16} />
-          {success}
-        </div>
-      )}
-
       {/* Formulaire d'edition (au-dessus du tableau) */}
       {editForm}
 
@@ -427,7 +407,7 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
                         <Pencil size={15} />
                       </button>
                       <button
-                        onClick={() => { setConfirmDeleteId(row.id); setError(null); setSuccess(null) }}
+                        onClick={() => { setConfirmDeleteId(row.id) }}
                         disabled={!!editing}
                         className={clsx(
                           'p-1.5 rounded-lg transition-colors',
@@ -527,7 +507,6 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
               onClick={async () => {
                 setRateSaving(true)
                 setRateSuccess(null)
-                setError(null)
                 const payload = {
                   school_year_id: currentYear.id,
                   rate_cours: parseFloat(rateCours) || 0,
@@ -538,7 +517,7 @@ export default function CotisationsClient({ currentYear, cotisationTypes: initia
                   ? await supabase.from('staff_hourly_rates').update(payload).eq('id', initialRates.id)
                   : await supabase.from('staff_hourly_rates').insert(payload)
                 setRateSaving(false)
-                if (err) { setError(err.message); return }
+                if (err) { toast.error(err.message); return }
                 setRateSuccess('Taux horaires enregistres')
                 router.refresh()
                 setTimeout(() => setRateSuccess(null), 3000)

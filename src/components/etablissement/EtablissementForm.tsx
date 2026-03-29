@@ -2,11 +2,12 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Upload, Trash2, X } from 'lucide-react'
+import { Upload, Trash2, X } from 'lucide-react'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import type { Etablissement } from '@/types/database'
 
 interface EtablissementFormProps {
@@ -46,6 +47,7 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
 
 export default function EtablissementForm({ etablissement }: EtablissementFormProps) {
   const router = useRouter()
+  const toast  = useToast()
 
   const [form, setForm] = useState<FormData>({
     nom:       etablissement.nom       ?? '',
@@ -57,8 +59,6 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const initialForm    = useRef<FormData>({ ...form })
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
-  const [success,      setSuccess]      = useState(false)
 
   // Logo
   const [logoUrl,      setLogoUrl]      = useState<string | null>(etablissement.logo_url ?? null)
@@ -90,8 +90,6 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(new Set([...Object.keys(form), 'weekStartDay']))
-    setError(null)
-    setSuccess(false)
 
     if (!isValid) return
 
@@ -116,10 +114,10 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       initialForm.current         = { ...form }
       initialLogoUrl.current      = logoUrl
       initialWeekStartDay.current = weekStartDay
-      setSuccess(true)
+      toast.success('Informations enregistrées avec succès.')
       router.refresh()
     } catch {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      toast.error('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
@@ -209,19 +207,6 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
           </div>
         </div>
 
-        {/* Messages */}
-        {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            {error}
-          </p>
-        )}
-        {success && (
-          <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-            <CheckCircle2 size={16} className="flex-shrink-0" />
-            Informations enregistrées avec succès.
-          </div>
-        )}
-
         {/* Actions */}
         <div className="flex items-center gap-3">
           <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
@@ -234,7 +219,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
               (isSubmitting || !isValid || isUnchanged) && 'opacity-50 cursor-not-allowed'
             )}
           >
-            {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+            {isSubmitting ? 'Enregistrement...' : 'Valider'}
           </button>
         </div>
 

@@ -1,39 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
-import { clsx } from 'clsx'
-import { parentRepository } from '@/lib/database/parents'
 import { createClient } from '@/lib/supabase/client'
 import { createParentWithAccounts, updateParentRecord, type TutorAccountResult } from '@/app/dashboard/parents/actions'
+import { useToast } from '@/lib/toast-context'
+import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
+import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
 import type { Parent, TutorRelationship } from '@/types/database'
 
-interface ParentFormProps {
-  parent?: Parent
-  onClose?: () => void
-}
-
-// ─── Indicatifs téléphoniques ─────────────────────────────────────────────────
-const COUNTRY_CODES = [
-  { code: '+33',  iso: 'fr', name: 'France'         },
-  { code: '+32',  iso: 'be', name: 'Belgique'       },
-  { code: '+41',  iso: 'ch', name: 'Suisse'         },
-  { code: '+213', iso: 'dz', name: 'Algérie'        },
-  { code: '+212', iso: 'ma', name: 'Maroc'          },
-  { code: '+216', iso: 'tn', name: 'Tunisie'        },
-  { code: '+221', iso: 'sn', name: 'Sénégal'        },
-  { code: '+223', iso: 'ml', name: 'Mali'           },
-  { code: '+225', iso: 'ci', name: "Côte d'Ivoire"  },
-  { code: '+20',  iso: 'eg', name: 'Égypte'         },
-  { code: '+90',  iso: 'tr', name: 'Turquie'        },
-  { code: '+44',  iso: 'gb', name: 'Royaume-Uni'    },
-  { code: '+49',  iso: 'de', name: 'Allemagne'      },
-  { code: '+34',  iso: 'es', name: 'Espagne'        },
-  { code: '+39',  iso: 'it', name: 'Italie'         },
-]
-
-const flagUrl = (iso: string) => `https://flagcdn.com/w20/${iso}.png`
 
 const RELATIONSHIP_OPTIONS: { value: TutorRelationship; label: string }[] = [
   { value: 'père',   label: 'Père'        },
@@ -56,13 +31,12 @@ const parsePhone = (phone?: string | null): { code: string; number: string } => 
   if (!phone) return { code: '+33', number: '' }
   const country = COUNTRY_CODES.find(c => phone.startsWith(c.code))
   return country
-    ? { code: country.code, number: phone.slice(country.code.length) }
-    : { code: '+33', number: phone }
+    ? { code: country.code, number: digitsOnly(phone.slice(country.code.length)) }
+    : { code: '+33', number: digitsOnly(phone) }
 }
 
 // ─── Situation familiale ──────────────────────────────────────────────────────
 const SITUATION_OPTIONS = [
-  { value: '',            label: '— Non renseignée'    },
   { value: 'mariés',      label: 'Marié(e)s'           },
   { value: 'pacsés',      label: 'Pacsé(e)s'           },
   { value: 'union_libre', label: 'Union libre'         },
@@ -109,9 +83,15 @@ type FormData = {
   notes:                string
 }
 
+interface ParentFormProps {
+  parent?: Parent
+  onClose?: () => void
+}
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function ParentForm({ parent, onClose }: ParentFormProps) {
   const router    = useRouter()
+  const toast     = useToast()
   const isEditing = !!parent
 
   const t1Phone = parsePhone(parent?.tutor1_phone)
@@ -153,7 +133,6 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
   const [sameAddressT1,      setSameAddressT1]      = useState(false)
   const [touched,            setTouched]            = useState<Set<string>>(new Set())
   const [isSubmitting,       setIsSubmitting]       = useState(false)
-  const [error,              setError]              = useState<string | null>(null)
   const [createdAccounts,    setCreatedAccounts]    = useState<TutorAccountResult[] | null>(null)
 
   const set   = (field: keyof FormData, value: string) =>
@@ -163,8 +142,6 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
   // Retourne true si le champ est invalide ET a déjà été touché
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
-  const cls     = (field: string, bad: boolean) =>
-    bad && touched.has(field) ? 'input input-error' : 'input'
 
   // Règles de validation
   const v = {
@@ -188,7 +165,6 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
     e.preventDefault()
     // Marquer tous les champs comme touchés pour afficher toutes les erreurs
     setTouched(new Set(Object.keys(form)))
-    setError(null)
 
     if (v.t1LastName || v.t1FirstName || v.t1Email) return
     if (showTutor2 && (v.t2LastName || v.t2FirstName || v.t2Email)) return
@@ -207,7 +183,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
         normalizeNom(p.tutor1_first_name) === normT1First
       )
       if (dupT1) {
-        setError(`Un tuteur "${dupT1.tutor1_last_name} ${dupT1.tutor1_first_name}" existe déjà dans une autre fiche parents.`)
+        toast.error(`Un tuteur "${dupT1.tutor1_last_name} ${dupT1.tutor1_first_name}" existe déjà dans une autre fiche parents.`)
         setIsSubmitting(false)
         return
       }
@@ -225,7 +201,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           normalizeNom(p.tutor2_first_name ?? '') === normT2First
         )
         if (dupT2) {
-          setError(`Un tuteur 2 "${dupT2.tutor2_last_name} ${dupT2.tutor2_first_name}" existe déjà dans une autre fiche parents.`)
+          toast.error(`Un tuteur 2 "${dupT2.tutor2_last_name} ${dupT2.tutor2_first_name}" existe déjà dans une autre fiche parents.`)
           setIsSubmitting(false)
           return
         }
@@ -270,7 +246,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       if (isEditing) {
         const result = await updateParentRecord(parent!.id, payload)
         if (result.error) {
-          setError(result.error)
+          toast.error(result.error)
           setIsSubmitting(false)
           return
         }
@@ -284,7 +260,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
         // Création avec comptes utilisateurs automatiques
         const result = await createParentWithAccounts(payload)
         if (result.error) {
-          setError(result.error)
+          toast.error(result.error)
           setIsSubmitting(false)
           return
         }
@@ -301,7 +277,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
         }
       }
     } catch {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      toast.error('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
@@ -328,7 +304,9 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           <p className="text-xs text-amber-600">
             Notez ces mots de passe maintenant. Ils ne seront plus affichés. L'administrateur pourra envoyer un email de réinitialisation depuis la page Utilisateurs.
           </p>
-          <button
+          <FloatButton
+            variant="submit"
+            className="w-full justify-center"
             onClick={() => {
               router.refresh()
               if (onClose) {
@@ -337,10 +315,9 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
                 router.push('/dashboard/parents')
               }
             }}
-            className="btn btn-primary w-full"
           >
             Retour à la liste
-          </button>
+          </FloatButton>
         </div>
       </div>
     )
@@ -348,12 +325,6 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          {error}
-        </div>
-      )}
 
       {/* ── Grille tuteurs : 1 col → 2 cols (xl) ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 items-start">
@@ -368,107 +339,86 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
             </h2>
 
             <div className="grid grid-cols-2 gap-2">
-              <Field label={<>Nom <span className="text-red-400">*</span></>} error={invalid('tutor1_last_name', v.t1LastName) ? 'Minimum 2 caractères' : undefined}>
-                <input
-                  type="text"
-                  value={form.tutor1_last_name}
-                  onChange={e => set('tutor1_last_name', toUpperCase(e.target.value))}
-                  onBlur={() => touch('tutor1_last_name')}
-                  className={cls('tutor1_last_name', v.t1LastName)}
-                />
-              </Field>
-              <Field label={<>Prénom <span className="text-red-400">*</span></>} error={invalid('tutor1_first_name', v.t1FirstName) ? 'Minimum 2 caractères' : undefined}>
-                <input
-                  type="text"
-                  value={form.tutor1_first_name}
-                  onChange={e => set('tutor1_first_name', toTitleCase(e.target.value))}
-                  onBlur={() => touch('tutor1_first_name')}
-                  className={cls('tutor1_first_name', v.t1FirstName)}
-                />
-              </Field>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Qualité">
-                <select
-                  value={form.tutor1_relationship}
-                  onChange={e => set('tutor1_relationship', e.target.value)}
-                  className="input"
-                >
-                  {RELATIONSHIP_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Profession">
-                <input
-                  type="text"
-                  value={form.tutor1_profession}
-                  onChange={e => set('tutor1_profession', e.target.value)}
-                  className="input"
-                />
-              </Field>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Téléphone">
-                <PhoneInput
-                  codeValue={form.tutor1_phone_code}
-                  numberValue={form.tutor1_phone_number}
-                  onCodeChange={v => set('tutor1_phone_code', v)}
-                  onNumberChange={v => set('tutor1_phone_number', digitsOnly(v))}
-                />
-              </Field>
-              <Field label={<>Email <span className="text-red-400">*</span></>} error={invalid('tutor1_email', v.t1Email) ? 'Email invalide' : undefined}>
-                <input
-                  type="email"
-                  value={form.tutor1_email}
-                  onChange={e => set('tutor1_email', e.target.value)}
-                  onBlur={() => touch('tutor1_email')}
-                  className={cls('tutor1_email', v.t1Email)}
-                />
-              </Field>
-            </div>
-
-            <label className="flex items-center gap-2 cursor-pointer group w-fit">
-              <input
-                type="checkbox"
-                checked={form.tutor1_adult_courses}
-                onChange={e => setForm(prev => ({ ...prev, tutor1_adult_courses: e.target.checked }))}
-                className="w-4 h-4 rounded accent-amber-500 flex-shrink-0"
+              <FloatInput
+                label="Nom"
+                required
+                value={form.tutor1_last_name}
+                onChange={e => set('tutor1_last_name', toUpperCase(e.target.value))}
+                onBlur={() => touch('tutor1_last_name')}
+                error={invalid('tutor1_last_name', v.t1LastName) ? 'Minimum 2 caractères' : undefined}
               />
-              <span className="text-xs text-warm-500 group-hover:text-warm-600 select-none">Inscrit aux cours adultes</span>
-            </label>
+              <FloatInput
+                label="Prénom"
+                required
+                value={form.tutor1_first_name}
+                onChange={e => set('tutor1_first_name', toTitleCase(e.target.value))}
+                onBlur={() => touch('tutor1_first_name')}
+                error={invalid('tutor1_first_name', v.t1FirstName) ? 'Minimum 2 caractères' : undefined}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <FloatSelect
+                label="Qualité"
+                value={form.tutor1_relationship}
+                onChange={e => set('tutor1_relationship', e.target.value)}
+              >
+                {RELATIONSHIP_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </FloatSelect>
+              <FloatInput
+                label="Profession"
+                value={form.tutor1_profession}
+                onChange={e => set('tutor1_profession', e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <FloatPhoneInput
+                codeValue={form.tutor1_phone_code}
+                numberValue={form.tutor1_phone_number}
+                onCodeChange={v => set('tutor1_phone_code', v)}
+                onNumberChange={v => set('tutor1_phone_number', digitsOnly(v))}
+              />
+              <FloatInput
+                label="Email"
+                required
+                type="email"
+                value={form.tutor1_email}
+                onChange={e => set('tutor1_email', e.target.value)}
+                onBlur={() => touch('tutor1_email')}
+                error={invalid('tutor1_email', v.t1Email) ? 'Email invalide' : undefined}
+              />
+            </div>
+
+            <FloatCheckbox
+              variant="compact"
+              label="Inscrit aux cours adultes"
+              checked={form.tutor1_adult_courses}
+              onChange={val => setForm(prev => ({ ...prev, tutor1_adult_courses: val }))}
+            />
           </div>
 
           {/* Adresse tuteur 1 */}
           <div className="card p-3 space-y-2">
-            <Field label="Adresse">
-              <input
-                type="text"
-                value={form.tutor1_address}
-                onChange={e => set('tutor1_address', e.target.value)}
-                className="input"
-              />
-            </Field>
-
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+            <FloatInput
+              label="Adresse"
+              value={form.tutor1_address}
+              onChange={e => set('tutor1_address', e.target.value)}
+            />
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Ville">
-                <input
-                  type="text"
-                  value={form.tutor1_city}
-                  onChange={e => set('tutor1_city', e.target.value)}
-                  className="input"
-                />
-              </Field>
-              <Field label="Code postal">
-                <input
-                  type="text"
-                  value={form.tutor1_postal_code}
-                  onChange={e => set('tutor1_postal_code', e.target.value)}
-                  className="input"
-                />
-              </Field>
+              <FloatInput
+                label="Ville"
+                value={form.tutor1_city}
+                onChange={e => set('tutor1_city', e.target.value)}
+              />
+              <FloatInput
+                label="Code postal"
+                value={form.tutor1_postal_code}
+                onChange={e => set('tutor1_postal_code', e.target.value)}
+              />
             </div>
           </div>
 
@@ -479,92 +429,77 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
           {/* Infos tuteur 2 */}
           <div className="card p-3 space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="checkbox"
+            <div className="flex items-center gap-2">
+              <FloatCheckbox
+                variant="compact"
+                label="Tuteur 2 — Responsable secondaire"
                 checked={showTutor2}
-                onChange={e => setShowTutor2(e.target.checked)}
-                className="w-4 h-4 rounded accent-amber-500 flex-shrink-0"
+                onChange={setShowTutor2}
               />
-              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest group-hover:text-warm-600">
-                Tuteur 2 — Responsable secondaire
-              </h2>
-            </label>
+            </div>
 
             {showTutor2 ? (
               <>
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label={<>Nom <span className="text-red-400">*</span></>} error={invalid('tutor2_last_name', v.t2LastName) ? 'Minimum 2 caractères' : undefined}>
-                    <input
-                      type="text"
-                      value={form.tutor2_last_name}
-                      onChange={e => set('tutor2_last_name', toUpperCase(e.target.value))}
-                      onBlur={() => touch('tutor2_last_name')}
-                      className={cls('tutor2_last_name', v.t2LastName)}
-                    />
-                  </Field>
-                  <Field label={<>Prénom <span className="text-red-400">*</span></>} error={invalid('tutor2_first_name', v.t2FirstName) ? 'Minimum 2 caractères' : undefined}>
-                    <input
-                      type="text"
-                      value={form.tutor2_first_name}
-                      onChange={e => set('tutor2_first_name', toTitleCase(e.target.value))}
-                      onBlur={() => touch('tutor2_first_name')}
-                      className={cls('tutor2_first_name', v.t2FirstName)}
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Qualité">
-                    <select
-                      value={form.tutor2_relationship}
-                      onChange={e => set('tutor2_relationship', e.target.value)}
-                      className="input"
-                    >
-                      {RELATIONSHIP_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Profession">
-                    <input
-                      type="text"
-                      value={form.tutor2_profession}
-                      onChange={e => set('tutor2_profession', e.target.value)}
-                      className="input"
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label="Téléphone">
-                    <PhoneInput
-                      codeValue={form.tutor2_phone_code}
-                      numberValue={form.tutor2_phone_number}
-                      onCodeChange={v => set('tutor2_phone_code', v)}
-                      onNumberChange={v => set('tutor2_phone_number', digitsOnly(v))}
-                    />
-                  </Field>
-                  <Field label={<>Email <span className="text-red-400">*</span></>} error={invalid('tutor2_email', v.t2Email) ? 'Email invalide' : undefined}>
-                    <input
-                      type="email"
-                      value={form.tutor2_email}
-                      onChange={e => set('tutor2_email', e.target.value)}
-                      onBlur={() => touch('tutor2_email')}
-                      className={cls('tutor2_email', v.t2Email)}
-                    />
-                  </Field>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer group w-fit">
-                  <input
-                    type="checkbox"
-                    checked={form.tutor2_adult_courses}
-                    onChange={e => setForm(prev => ({ ...prev, tutor2_adult_courses: e.target.checked }))}
-                    className="w-4 h-4 rounded accent-amber-500 flex-shrink-0"
+                  <FloatInput
+                    label="Nom"
+                    required
+                    value={form.tutor2_last_name}
+                    onChange={e => set('tutor2_last_name', toUpperCase(e.target.value))}
+                    onBlur={() => touch('tutor2_last_name')}
+                    error={invalid('tutor2_last_name', v.t2LastName) ? 'Minimum 2 caractères' : undefined}
                   />
-                  <span className="text-xs text-warm-500 group-hover:text-warm-600 select-none">Inscrit aux cours adultes</span>
-                </label>
+                  <FloatInput
+                    label="Prénom"
+                    required
+                    value={form.tutor2_first_name}
+                    onChange={e => set('tutor2_first_name', toTitleCase(e.target.value))}
+                    onBlur={() => touch('tutor2_first_name')}
+                    error={invalid('tutor2_first_name', v.t2FirstName) ? 'Minimum 2 caractères' : undefined}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <FloatSelect
+                    label="Qualité"
+                    value={form.tutor2_relationship}
+                    onChange={e => set('tutor2_relationship', e.target.value)}
+                  >
+                    {RELATIONSHIP_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </FloatSelect>
+                  <FloatInput
+                    label="Profession"
+                    value={form.tutor2_profession}
+                    onChange={e => set('tutor2_profession', e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <FloatPhoneInput
+                    codeValue={form.tutor2_phone_code}
+                    numberValue={form.tutor2_phone_number}
+                    onCodeChange={v => set('tutor2_phone_code', v)}
+                    onNumberChange={v => set('tutor2_phone_number', digitsOnly(v))}
+                  />
+                  <FloatInput
+                    label="Email"
+                    required
+                    type="email"
+                    value={form.tutor2_email}
+                    onChange={e => set('tutor2_email', e.target.value)}
+                    onBlur={() => touch('tutor2_email')}
+                    error={invalid('tutor2_email', v.t2Email) ? 'Email invalide' : undefined}
+                  />
+                </div>
+
+                <FloatCheckbox
+                  variant="compact"
+                  label="Inscrit aux cours adultes"
+                  checked={form.tutor2_adult_courses}
+                  onChange={val => setForm(prev => ({ ...prev, tutor2_adult_courses: val }))}
+                />
               </>
             ) : (
               <p className="text-xs text-warm-300 italic">
@@ -576,64 +511,34 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           {/* Adresse tuteur 2 */}
           {showTutor2 && (
             <div className="card p-3 space-y-2">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Adresse</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={sameAddressT1}
-                      onChange={e => setSameAddressT1(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded accent-amber-500"
-                    />
-                    <span className="text-xs text-warm-400 group-hover:text-warm-500 select-none">
-                      Identique tuteur 1
-                    </span>
-                  </label>
-                </div>
-                {sameAddressT1 ? (
-                  <div className="input bg-warm-100 text-secondary-500 text-sm cursor-default">
-                    {form.tutor1_address || <span className="text-warm-300 italic">Non renseignée</span>}
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    value={form.tutor2_address}
-                    onChange={e => set('tutor2_address', e.target.value)}
-                    className="input"
-                  />
-                )}
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+                <FloatCheckbox
+                  variant="compact"
+                  label="Identique tuteur 1"
+                  checked={sameAddressT1}
+                  onChange={setSameAddressT1}
+                />
               </div>
-
+              <FloatInput
+                label="Adresse"
+                locked={sameAddressT1}
+                value={sameAddressT1 ? (form.tutor1_address || '') : form.tutor2_address}
+                onChange={e => set('tutor2_address', e.target.value)}
+              />
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Ville">
-                  {sameAddressT1 ? (
-                    <div className="input bg-warm-100 text-secondary-500 text-sm cursor-default">
-                      {form.tutor1_city || <span className="text-warm-300 italic">—</span>}
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      value={form.tutor2_city}
-                      onChange={e => set('tutor2_city', e.target.value)}
-                      className="input"
-                    />
-                  )}
-                </Field>
-                <Field label="Code postal">
-                  {sameAddressT1 ? (
-                    <div className="input bg-warm-100 text-secondary-500 text-sm cursor-default">
-                      {form.tutor1_postal_code || <span className="text-warm-300 italic">—</span>}
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      value={form.tutor2_postal_code}
-                      onChange={e => set('tutor2_postal_code', e.target.value)}
-                      className="input"
-                    />
-                  )}
-                </Field>
+                <FloatInput
+                  label="Ville"
+                  locked={sameAddressT1}
+                  value={sameAddressT1 ? (form.tutor1_city || '') : form.tutor2_city}
+                  onChange={e => set('tutor2_city', e.target.value)}
+                />
+                <FloatInput
+                  label="Code postal"
+                  locked={sameAddressT1}
+                  value={sameAddressT1 ? (form.tutor1_postal_code || '') : form.tutor2_postal_code}
+                  onChange={e => set('tutor2_postal_code', e.target.value)}
+                />
               </div>
             </div>
           )}
@@ -648,12 +553,10 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           Situation familiale
         </h2>
 
-        <div className="flex flex-wrap items-start gap-3">
-          <div className="flex flex-col gap-1 min-w-[200px]">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-              Situation
-            </label>
-            <select
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[200px]">
+            <FloatSelect
+              label="Situation"
               value={form.situation_familiale}
               onChange={e => {
                 const val = e.target.value
@@ -663,12 +566,12 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
                   type_garde: SITUATIONS_WITH_GARDE.has(val) ? prev.type_garde : '',
                 }))
               }}
-              className="input"
             >
+              <option value=""></option>
               {SITUATION_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </select>
+            </FloatSelect>
           </div>
 
           {SITUATIONS_WITH_GARDE.has(form.situation_familiale) && (
@@ -678,43 +581,28 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
               </label>
               <div className="flex flex-wrap gap-2">
                 {GARDE_OPTIONS.map(opt => (
-                  <label
+                  <FloatRadioCard
                     key={opt.value}
-                    className={clsx(
-                      'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-colors select-none',
-                      form.type_garde === opt.value
-                        ? 'bg-primary-50 border-primary-300 text-primary-700'
-                        : 'bg-white border-warm-200 text-secondary-700 hover:bg-warm-50'
-                    )}
+                    name="type_garde"
+                    value={opt.value}
+                    checked={form.type_garde === opt.value}
+                    onChange={() => setForm(prev => ({ ...prev, type_garde: opt.value }))}
                   >
-                    <input
-                      type="radio"
-                      name="type_garde"
-                      value={opt.value}
-                      checked={form.type_garde === opt.value}
-                      onChange={() => setForm(prev => ({ ...prev, type_garde: opt.value }))}
-                      className="sr-only"
-                    />
                     {opt.label}
-                  </label>
+                  </FloatRadioCard>
                 ))}
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-            Commentaires complémentaires
-          </label>
-          <textarea
-            value={form.notes}
-            onChange={e => set('notes', e.target.value)}
-            rows={2}
-            placeholder="Informations utiles, contexte particulier…"
-            className="input resize-none"
-          />
-        </div>
+        <FloatTextarea
+          label="Commentaires complémentaires"
+          placeholder="Informations utiles, contexte particulier…"
+          value={form.notes}
+          onChange={e => set('notes', e.target.value)}
+          rows={2}
+        />
       </div>
 
       {!isEditing && (
@@ -729,123 +617,24 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       <div className="flex items-center gap-3 pt-1">
         <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
         <div className="flex-1" />
-        <button
+        <FloatButton
           type="button"
+          variant="secondary"
           onClick={() => onClose ? onClose() : router.push('/dashboard/parents')}
-          className="btn btn-secondary"
         >
           Annuler
-        </button>
-        <button
+        </FloatButton>
+        <FloatButton
           type="submit"
-          disabled={!isFormValid || isSubmitting || isUnchanged}
-          className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          variant={isEditing ? 'edit' : 'submit'}
+          loading={isSubmitting}
+          disabled={!isFormValid || isUnchanged}
         >
-          {isSubmitting
-            ? 'Enregistrement...'
-            : isEditing ? 'Mettre à jour' : 'Créer la fiche'}
-        </button>
+          {isEditing ? 'Modifier' : 'Valider'}
+        </FloatButton>
       </div>
 
     </form>
   )
 }
 
-// ─── Sous-composants ─────────────────────────────────────────────────────────
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: React.ReactNode
-  error?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {children}
-      {error && (
-        <p className="text-xs text-red-500">{error}</p>
-      )}
-    </div>
-  )
-}
-
-function PhoneInput({
-  codeValue,
-  numberValue,
-  onCodeChange,
-  onNumberChange,
-}: {
-  codeValue: string
-  numberValue: string
-  onCodeChange: (v: string) => void
-  onNumberChange: (v: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const selected = COUNTRY_CODES.find(c => c.code === codeValue) ?? COUNTRY_CODES[0]
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
-
-  return (
-    <div className="flex gap-2">
-      <div ref={ref} className="relative flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => setOpen(v => !v)}
-          className="input h-full flex items-center gap-1.5 px-3 cursor-pointer select-none whitespace-nowrap"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={flagUrl(selected.iso)} alt={selected.name} className="w-5 h-auto rounded-sm flex-shrink-0" />
-          <span className="text-xs text-warm-500 font-mono">{selected.code}</span>
-          <ChevronDown size={12} className="text-warm-400" />
-        </button>
-
-        {open && (
-          <div className="absolute top-full left-0 mt-1.5 z-50 bg-white border border-warm-200 rounded-xl shadow-lg overflow-y-auto max-h-52 w-48 py-1">
-            {COUNTRY_CODES.map(c => (
-              <button
-                key={c.code}
-                type="button"
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => { onCodeChange(c.code); setOpen(false) }}
-                className={clsx(
-                  'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors',
-                  c.code === codeValue
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'hover:bg-warm-50 text-secondary-700'
-                )}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={flagUrl(c.iso)} alt={c.name} className="w-5 h-auto rounded-sm flex-shrink-0" />
-                <span className="font-mono text-xs w-10 flex-shrink-0">{c.code}</span>
-                <span className="text-xs truncate">{c.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <input
-        type="text"
-        inputMode="numeric"
-        value={numberValue}
-        onChange={e => onNumberChange(e.target.value)}
-        className="input flex-1 min-w-0"
-      />
-    </div>
-  )
-}

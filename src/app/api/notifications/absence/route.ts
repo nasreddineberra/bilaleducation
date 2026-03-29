@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { createNotification, getParentByStudentId } from '@/lib/notifications'
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAuth = await createClient()
+    const { data: { user } } = await supabaseAuth.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
     const { absences, etablissement_id } = await req.json()
     if (!absences?.length || !etablissement_id) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })

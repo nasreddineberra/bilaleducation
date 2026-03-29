@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { createNotification, getParentWithEmails } from '@/lib/notifications'
 
 const METHOD_LABELS: Record<string, string> = {
@@ -12,6 +13,12 @@ function fmtEur(n: number) {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAuth = await createClient()
+    const { data: { user } } = await supabaseAuth.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
+    }
+
     const { parent_id, amount, method, receipt, paid_date, etablissement_id } = await req.json()
     if (!parent_id || !amount) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })

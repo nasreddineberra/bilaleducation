@@ -467,6 +467,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         <button
           onClick={handleToggle}
           title={collapsed ? 'Développer' : 'Réduire'}
+          aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
           className={clsx(
             'flex-shrink-0 rounded-lg p-1 text-secondary-400 hover:text-white hover:bg-white/10 transition-colors',
             collapsed ? 'mt-0' : 'mt-0.5'
@@ -497,6 +498,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
               const btn = (
                 <button
                   onClick={() => handleGroupClick(item)}
+                  aria-label={item.name}
+                  aria-expanded={isOpen}
                   className={clsx(
                     'sidebar-item',
                     collapsed && isGroupActive ? 'sidebar-item-active' : 'sidebar-item-default',
@@ -541,6 +544,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                             <div key={child.name}>
                               <button
                                 onClick={() => toggleSubGroup(child.name)}
+                                aria-label={child.name}
+                                aria-expanded={isSubOpen}
                                 className="sidebar-item sidebar-item-default w-full"
                               >
                                 <ChildIcon size={16} className="flex-shrink-0 text-secondary-300" />
@@ -564,6 +569,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                         key={leaf.href}
                                         href={leaf.href}
                                         onClick={handleLeafClick}
+                                        aria-current={isActive ? 'page' : undefined}
                                         className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
                                       >
                                         <LeafIcon size={14} className={clsx('flex-shrink-0', isActive ? 'text-primary-400' : 'text-secondary-300')} />
@@ -584,6 +590,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                             key={child.href}
                             href={child.href!}
                             onClick={handleLeafClick}
+                            aria-current={isActive ? 'page' : undefined}
                             className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
                           >
                             <ChildIcon size={16} className={clsx('flex-shrink-0', isActive ? 'text-primary-400' : 'text-secondary-300')} />
@@ -603,6 +610,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
               <Link
                 href={item.href!}
                 onClick={() => { setOpenGroup(null); handleLeafClick() }}
+                aria-current={isActive ? 'page' : undefined}
                 className={clsx(
                   'sidebar-item',
                   isActive ? 'sidebar-item-active' : 'sidebar-item-default',

@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { SearchField } from '@/components/ui/FloatFields'
 import { clsx } from 'clsx'
 import StudentsTable from './StudentsTable'
 import type { Student } from '@/types/database'
@@ -171,38 +172,25 @@ export default function StudentsClient({
         <div className="flex-1" />
 
         {/* Recherche */}
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
-          <input
-            type="text"
-            value={inputValue}
-            onChange={e => handleSearch(e.target.value)}
-            placeholder="Nom, prénom ou n° élève..."
-            className="pl-8 pr-8 py-2 text-sm bg-white border border-warm-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent w-64 text-secondary-800 placeholder:text-warm-400"
-          />
-          {inputValue && (
-            <button
-              onClick={() => handleSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600 transition-colors"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
+        <SearchField
+          value={inputValue}
+          onChange={handleSearch}
+          placeholder="Nom, prénom ou n° élève…"
+        />
 
         {/* Ajouter */}
         {limitReached ? (
           <span
-            className="btn btn-primary flex items-center gap-2 whitespace-nowrap opacity-50 cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white opacity-40 cursor-not-allowed whitespace-nowrap"
             title={`Limite de ${maxStudents} élèves atteinte`}
           >
             <Plus size={16} />
             Limite atteinte
           </span>
         ) : (
-          <Link href="/dashboard/students/new" className="btn btn-primary flex items-center gap-2 whitespace-nowrap">
+          <Link href="/dashboard/students/new" className="inline-flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap">
             <Plus size={16} />
-            Ajouter un élève
+            Ajouter
           </Link>
         )}
       </div>

@@ -3,9 +3,10 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { Plus, Trash2, UserCheck, BookOpen, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, UserCheck, BookOpen } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/audit'
+import { useToast } from '@/lib/toast-context'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,6 +91,7 @@ export default function ClassForm({
   weekStartDay = 1,
 }: ClassFormProps) {
   const router    = useRouter()
+  const toast     = useToast()
   const isEditing = !!cls
 
   // Année en cours (read-only)
@@ -122,8 +124,6 @@ export default function ClassForm({
 
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
-  const [success,      setSuccess]      = useState(false)
 
   // ── Affectations ─────────────────────────────────────────────────────────
   const [assignments,  setAssignments]  = useState<AssignmentData[]>(initialAssignments)
@@ -194,8 +194,6 @@ export default function ClassForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(new Set([...Object.keys(form), 'assignments']))
-    setError(null)
-    setSuccess(false)
     if (!isFormValid) return
 
     setIsSubmitting(true)
@@ -208,7 +206,7 @@ export default function ClassForm({
         .select('id')
         .ilike('name', form.name.trim())
       if (same?.find(c => c.id !== cls?.id)) {
-        setError(`Une classe "${form.name.trim()}" existe déjà.`)
+        toast.error(`Une classe "${form.name.trim()}" existe déjà.`)
         setIsSubmitting(false)
         return
       }
@@ -258,7 +256,7 @@ export default function ClassForm({
       const hasDates = currentSchoolYear?.start_date && currentSchoolYear?.end_date
 
       if (hasPlanning && deploySchedule && !hasDates) {
-        setError('Impossible de deployer dans l\'emploi du temps : les dates de rentrée et de fin d\'année scolaire ne sont pas renseignées. Veuillez les configurer dans Année scolaire.')
+        toast.error('Impossible de déployer dans l\'emploi du temps : les dates de rentrée et de fin d\'année scolaire ne sont pas renseignées. Veuillez les configurer dans Année scolaire.')
         setIsSubmitting(false)
         return
       }
@@ -356,14 +354,14 @@ export default function ClassForm({
         initialAssignStr.current = JSON.stringify(assignments)
         initialDeploy.current    = deploySchedule
         initialDeployFrom.current = { option: deployFromOption, custom: deployFromCustom }
-        setSuccess(true)
+        toast.success('Classe enregistrée avec succès.')
         router.refresh()
       } else {
         router.push(backHref)
         router.refresh()
       }
     } catch {
-      setError('Une erreur est survenue. Veuillez réessayer.')
+      toast.error('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
@@ -371,18 +369,6 @@ export default function ClassForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle2 size={16} className="flex-shrink-0" />
-          Classe enregistrée avec succès.
-        </div>
-      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
 
@@ -822,7 +808,7 @@ export default function ClassForm({
         >
           {isSubmitting
             ? 'Enregistrement...'
-            : isEditing ? 'Mettre à jour' : 'Créer la classe'}
+            : isEditing ? 'Modifier' : 'Valider'}
         </button>
       </div>
 
