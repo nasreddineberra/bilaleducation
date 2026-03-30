@@ -9,6 +9,7 @@ import {
   Eye, CheckCircle2, Circle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { FloatButton } from '@/components/ui/FloatFields'
 
 interface Props {
   journal: any
@@ -105,8 +106,10 @@ export default function CahierTexteDetail({
           </div>
         </div>
         {canEdit && (
-          <Link href={`/dashboard/cahier-texte/${journal.id}/edit`} className="btn btn-ghost text-sm flex items-center gap-1">
-            <Pencil size={14} /> Modifier
+          <Link href={`/dashboard/cahier-texte/${journal.id}/edit`}>
+            <FloatButton variant="edit" type="button">
+              <Pencil size={14} /> Modifier
+            </FloatButton>
           </Link>
         )}
       </div>

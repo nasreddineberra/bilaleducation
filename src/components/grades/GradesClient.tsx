@@ -7,8 +7,10 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import Tooltip from '@/components/ui/Tooltip'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
+import { FloatSelect, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,17 +101,6 @@ export default function GradesClient({
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
-  const [classDropOpen, setClassDropOpen] = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!classDropOpen) return
-    const handler = (e: MouseEvent) => {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [classDropOpen])
   const [selectedEvalId,   setSelectedEvalId]   = useState<string | null>(null)
   const [expandedUEs,      setExpandedUEs]      = useState<Set<string>>(new Set(ues.map(u => u.id)))
 
@@ -228,7 +219,8 @@ export default function GradesClient({
   }, [selectedClassId, selectedPeriodId])
 
   // ── Dirty flag global ────────────────────────────────────────────────────────
-  const hasDirty = Object.values(pending).some(e => e.dirty)
+  const hasDirty    = Object.values(pending).some(e => e.dirty)
+  const isEditMode  = selectedEvalId ? gradesList.some(g => g.evaluation_id === selectedEvalId) : false
 
   // ── Complétion par évaluation ────────────────────────────────────────────────
   const getCompletion = useCallback((evalId: string) => {
@@ -328,50 +320,25 @@ export default function GradesClient({
       <div className="card p-3 flex flex-wrap items-center gap-4 flex-shrink-0">
 
         {/* Classe */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide whitespace-nowrap">Classe</span>
-          <div ref={classDropRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setClassDropOpen(o => !o)}
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
-            >
-              {selectedClassId ? (() => {
-                const cls = classes.find(c => c.id === selectedClassId)
-                if (!cls) return <span className="text-warm-400">— Selectionner une classe —</span>
-                const teacher = cls.main_teacher_civilite && cls.main_teacher_name ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name
-                return (
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-secondary-800">{cls.name}</span>
-                    {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
-                  </span>
-                )
-              })() : (
-                <span className="text-warm-400">{classes.length === 0 ? 'Aucune classe disponible' : '— Selectionner une classe —'}</span>
-              )}
-              <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-            </button>
-            {classDropOpen && (
-              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
-                {classes.length > 1 && (
-                  <button type="button" onClick={() => { setSelectedClassId(null); setClassDropOpen(false) }} className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors">
-                    — Selectionner une classe —
-                  </button>
-                )}
-                {classes.map(c => {
-                  const teacher = c.main_teacher_civilite && c.main_teacher_name ? `${c.main_teacher_civilite} ${c.main_teacher_name}` : c.main_teacher_name
-                  const infoParts = [teacher, c.cotisation_label].filter(Boolean)
-                  return (
-                    <button key={c.id} type="button" onClick={() => { setSelectedClassId(c.id); setClassDropOpen(false) }} className={clsx('w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors', selectedClassId === c.id && 'bg-primary-50')}>
-                      <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      {infoParts.length > 0 && <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        <FloatSelect
+          label="Classe"
+          value={selectedClassId ?? ''}
+          onChange={e => setSelectedClassId(e.target.value || null)}
+          wrapperClassName="w-fit"
+        >
+          <option value=""></option>
+          {classes.map(c => {
+            const teacher = c.main_teacher_civilite && c.main_teacher_name
+              ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
+              : c.main_teacher_name
+            const infoParts = [teacher, c.cotisation_label].filter(Boolean)
+            return (
+              <option key={c.id} value={c.id}>
+                {[c.name, ...infoParts].join(' — ')}
+              </option>
+            )
+          })}
+        </FloatSelect>
 
         {/* Périodes */}
         {periods.length > 0 && (
@@ -381,10 +348,10 @@ export default function GradesClient({
                 key={p.id}
                 onClick={() => setSelectedPeriodId(p.id)}
                 className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors',
+                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
-                    ? 'bg-primary-500 text-white shadow-sm'
-                    : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
+                    ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
+                    : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >
                 {PERIOD_LABELS[p.label] ?? p.label}
@@ -699,16 +666,17 @@ export default function GradesClient({
                               </td>
 
                               {/* Absent */}
-                              <td className="py-1 pl-3 text-center">
-                                <input
-                                  type="checkbox"
+                              <td className="py-1 pl-3">
+                                <FloatCheckbox
+                                  label=""
+                                  variant="compact"
                                   checked={isAbsent}
-                                  onChange={e => updatePending(student.student_id, {
-                                    is_absent:  e.target.checked,
-                                    scoreValue: e.target.checked ? '' : entry.scoreValue,
+                                  onChange={v => updatePending(student.student_id, {
+                                    is_absent:  v,
+                                    scoreValue: v ? '' : entry.scoreValue,
                                   })}
                                   disabled={isArchived}
-                                  className="h-4 w-4 rounded border-warm-300 text-primary-500 focus:ring-primary-400 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                  className="justify-center"
                                 />
                               </td>
                             </tr>
@@ -746,54 +714,57 @@ export default function GradesClient({
                     {!isArchived && (confirmReset ? (
                       <>
                         <span className="text-xs text-warm-500">Réinitialiser toutes les notes ?</span>
-                        <button
-                          onClick={handleReset}
-                          disabled={saving}
-                          className="text-xs font-medium px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                        >
+                        <FloatButton variant="danger" type="button" onClick={handleReset} disabled={saving} loading={saving}>
                           Oui
-                        </button>
-                        <button
-                          onClick={() => setConfirmReset(false)}
-                          className="btn btn-secondary text-xs py-1 px-2"
-                        >
+                        </FloatButton>
+                        <FloatButton variant="secondary" type="button" onClick={() => setConfirmReset(false)}>
                           Non
-                        </button>
+                        </FloatButton>
                       </>
                     ) : (
-                      <button
-                        onClick={() => setConfirmReset(true)}
-                        disabled={saving || !gradesList.some(g => g.evaluation_id === selectedEvalId)}
-                        className="btn btn-secondary text-xs py-1 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Réinitialiser toutes les notes"
-                      >
-                        <RotateCcw size={13} />
-                      </button>
+                      <Tooltip content="Réinitialiser toutes les notes">
+                        <FloatButton
+                          variant="secondary"
+                          type="button"
+                          onClick={() => setConfirmReset(true)}
+                          disabled={saving || !gradesList.some(g => g.evaluation_id === selectedEvalId)}
+                          className="!px-2"
+                        >
+                          <RotateCcw size={13} />
+                        </FloatButton>
+                      </Tooltip>
                     ))}
-                    <button
+                    <FloatButton
+                      variant={isEditMode ? 'edit' : 'submit'}
+                      type="button"
                       onClick={handleSave}
-                      disabled={!hasDirty || saving || isArchived}
-                      className="btn btn-primary text-xs py-1 px-3 disabled:opacity-30 disabled:cursor-not-allowed"
+                      disabled={!hasDirty || isArchived}
+                      loading={saving}
                     >
-                      <Check size={13} />
-                      {saving ? 'Enregistrement…' : 'Enregistrer'}
-                    </button>
-                    <button
-                      onClick={() => prevEval && setSelectedEvalId(prevEval.id)}
-                      disabled={!prevEval}
-                      className="btn btn-secondary text-xs py-1 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Évaluation précédente"
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <button
-                      onClick={() => nextEval && setSelectedEvalId(nextEval.id)}
-                      disabled={!nextEval}
-                      className="btn btn-secondary text-xs py-1 px-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Évaluation suivante"
-                    >
-                      <ChevronRight size={14} />
-                    </button>
+                      {isEditMode ? 'Modifier' : 'Valider'}
+                    </FloatButton>
+                    <Tooltip content="Évaluation précédente">
+                      <FloatButton
+                        variant="secondary"
+                        type="button"
+                        onClick={() => prevEval && setSelectedEvalId(prevEval.id)}
+                        disabled={!prevEval}
+                        className="!px-2"
+                      >
+                        <ChevronLeft size={14} />
+                      </FloatButton>
+                    </Tooltip>
+                    <Tooltip content="Évaluation suivante">
+                      <FloatButton
+                        variant="secondary"
+                        type="button"
+                        onClick={() => nextEval && setSelectedEvalId(nextEval.id)}
+                        disabled={!nextEval}
+                        className="!px-2"
+                      >
+                        <ChevronRight size={14} />
+                      </FloatButton>
+                    </Tooltip>
                   </div>
                 </div>
               </>

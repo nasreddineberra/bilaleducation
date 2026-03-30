@@ -2,13 +2,15 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
-  Download, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare, ChevronDown,
+  Download, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { generateBulletinPDF, generateAllBulletinsPDF, generateBulletinBlob } from './bulletinPdf'
+import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,17 +151,6 @@ export default function BulletinsClient({
 
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
-  const [classDropOpen, setClassDropOpen] = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!classDropOpen) return
-    const handler = (e: MouseEvent) => {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [classDropOpen])
   const [generating, setGenerating] = useState<string | null>(null) // student_id or 'all'
   const [archives, setArchives] = useState<ArchiveRow[]>(initialArchives)
   const [archiving, setArchiving] = useState(false)
@@ -583,50 +574,25 @@ export default function BulletinsClient({
       <div className="card p-3">
         <div className="flex flex-wrap items-center gap-4">
           {/* Classe */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide whitespace-nowrap">Classe</span>
-            <div ref={classDropRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setClassDropOpen(o => !o)}
-                className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
-              >
-                {selectedClassId ? (() => {
-                  const cls = classes.find(c => c.id === selectedClassId)
-                  if (!cls) return <span className="text-warm-400">— Selectionner une classe —</span>
-                  const teacher = cls.main_teacher_civilite && cls.main_teacher_name ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name
-                  return (
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="font-semibold text-secondary-800">{cls.name}</span>
-                      {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
-                    </span>
-                  )
-                })() : (
-                  <span className="text-warm-400">{classes.length === 0 ? 'Aucune classe disponible' : '— Selectionner une classe —'}</span>
-                )}
-                <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-              </button>
-              {classDropOpen && (
-                <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
-                  {classes.length > 1 && (
-                    <button type="button" onClick={() => { setSelectedClassId(null); setConfirmUnarchive(false); setClassDropOpen(false) }} className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors">
-                      — Selectionner une classe —
-                    </button>
-                  )}
-                  {classes.map(c => {
-                    const teacher = c.main_teacher_civilite && c.main_teacher_name ? `${c.main_teacher_civilite} ${c.main_teacher_name}` : c.main_teacher_name
-                    const infoParts = [teacher, c.cotisation_label].filter(Boolean)
-                    return (
-                      <button key={c.id} type="button" onClick={() => { setSelectedClassId(c.id); setConfirmUnarchive(false); setClassDropOpen(false) }} className={clsx('w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors', selectedClassId === c.id && 'bg-primary-50')}>
-                        <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                        {infoParts.length > 0 && <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          <FloatSelect
+            label="Classe"
+            value={selectedClassId ?? ''}
+            onChange={e => { setSelectedClassId(e.target.value || null); setConfirmUnarchive(false) }}
+            wrapperClassName="w-fit"
+          >
+            <option value=""></option>
+            {classes.map(c => {
+              const teacher = c.main_teacher_civilite && c.main_teacher_name
+                ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
+                : c.main_teacher_name
+              const infoParts = [teacher, c.cotisation_label].filter(Boolean)
+              return (
+                <option key={c.id} value={c.id}>
+                  {[c.name, ...infoParts].join(' — ')}
+                </option>
+              )
+            })}
+          </FloatSelect>
 
           {/* Périodes */}
           {periods.length > 0 && (
@@ -636,10 +602,10 @@ export default function BulletinsClient({
                   key={p.id}
                   onClick={() => { setSelectedPeriodId(p.id); setConfirmUnarchive(false) }}
                   className={clsx(
-                    'px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors',
+                    'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                     selectedPeriodId === p.id
-                      ? 'bg-primary-500 text-white shadow-sm'
-                      : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
+                      ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
+                      : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
                   )}
                 >
                   {PERIOD_LABELS[p.label] ?? p.label}
@@ -650,19 +616,18 @@ export default function BulletinsClient({
 
           {/* Bouton télécharger tout */}
           <div className="ml-auto">
-            <button
-              onClick={handleDownloadAll}
-              disabled={generating !== null || !allComplete || isArchived}
-              className="btn btn-primary flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              title={isArchived ? 'Bulletins déjà archivés' : !allComplete ? 'Toutes les notes doivent être saisies' : ''}
-            >
-              {generating === 'all' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
+            <Tooltip content={isArchived ? 'Bulletins déjà archivés' : !allComplete ? 'Toutes les notes doivent être saisies' : ''}>
+              <FloatButton
+                variant="print"
+                type="button"
+                onClick={handleDownloadAll}
+                disabled={generating !== null || !allComplete || isArchived}
+                loading={generating === 'all'}
+              >
                 <Download className="w-4 h-4" />
-              )}
-              Télécharger tous les bulletins
-            </button>
+                Télécharger tous les bulletins
+              </FloatButton>
+            </Tooltip>
           </div>
         </div>
 
@@ -706,38 +671,30 @@ export default function BulletinsClient({
                 confirmUnarchive ? (
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-warm-500">Supprimer les bulletins archivés ?</span>
-                    <button
-                      onClick={async () => { await handleUnarchive(); setConfirmUnarchive(false) }}
-                      disabled={archiving}
-                      className="text-xs font-medium px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                    >
-                      {archiving ? <Loader2 className="w-3 h-3 animate-spin inline" /> : 'Oui'}
-                    </button>
-                    <button
-                      onClick={() => setConfirmUnarchive(false)}
-                      className="btn btn-secondary text-xs py-1 px-2"
-                    >
+                    <FloatButton variant="danger" type="button" onClick={async () => { await handleUnarchive(); setConfirmUnarchive(false) }} disabled={archiving} loading={archiving}>
+                      Oui
+                    </FloatButton>
+                    <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(false)}>
                       Non
-                    </button>
+                    </FloatButton>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setConfirmUnarchive(true)}
-                    className="btn btn-secondary flex items-center gap-1.5 text-xs"
-                  >
+                  <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(true)}>
                     Désarchiver
-                  </button>
+                  </FloatButton>
                 )
               ) : (
-                <button
-                  onClick={handleArchive}
-                  disabled={archiving || !allComplete}
-                  className="btn btn-primary flex items-center gap-1.5 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={!allComplete ? 'Toutes les notes doivent être saisies' : ''}
-                >
-                  {archiving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                  Archiver
-                </button>
+                <Tooltip content={!allComplete ? 'Toutes les notes doivent être saisies' : ''}>
+                  <FloatButton
+                    variant="submit"
+                    type="button"
+                    onClick={handleArchive}
+                    disabled={archiving || !allComplete}
+                    loading={archiving}
+                  >
+                    Archiver
+                  </FloatButton>
+                </Tooltip>
               )}
             </div>
           </div>

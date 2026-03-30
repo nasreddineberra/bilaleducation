@@ -213,7 +213,7 @@
   }
 
   .animate-toast-progress {
-    animation: toastProgress 4s linear forwards;
+    animation: toastProgress 10s linear forwards;
     width: 100%;
   }
 

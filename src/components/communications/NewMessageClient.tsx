@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { clsx } from 'clsx'
-import { Send, Paperclip, X, Eye, Loader2, Search, CheckSquare, Square } from 'lucide-react'
+import { Send, Paperclip, X, Eye, CheckSquare, Square } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import type { UserRole } from '@/types/database'
+import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -357,17 +358,17 @@ export default function NewMessageClient({
             : null
           return (
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs text-warm-500">Classe :</span>
-              <select
+              <FloatSelect
+                label="Classe"
                 value={selectedClassId ?? ''}
                 onChange={e => setSelectedClassId(e.target.value || null)}
-                className="input text-sm py-1.5 max-w-xs"
+                wrapperClassName="w-fit"
               >
-                <option value="">- Selectionner une classe -</option>
+                <option value=""></option>
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
-              </select>
+              </FloatSelect>
               {cls && (
                 <span className="text-xs text-warm-500">
                   {[teacherLabel, cls.cotisation_label, cls.level ? `Niveau ${cls.level}` : null, schedule].filter(Boolean).join(' · ')}
@@ -381,16 +382,12 @@ export default function NewMessageClient({
         {targetType === 'selected' && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="relative flex-1 max-w-sm">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-                <input
-                  type="text"
-                  value={parentSearch}
-                  onChange={e => setParentSearch(e.target.value)}
-                  placeholder="Rechercher un parent..."
-                  className="input text-sm py-1.5 pl-8 w-full"
-                />
-              </div>
+              <SearchField
+                value={parentSearch}
+                onChange={setParentSearch}
+                placeholder="Rechercher un parent…"
+                className="max-w-sm"
+              />
               <button type="button" onClick={selectAllFiltered} className="text-xs text-primary-600 hover:underline">
                 Tout selectionner
               </button>
@@ -451,14 +448,12 @@ export default function NewMessageClient({
       </div>
 
       {/* 2. Objet */}
-      <div className="card p-4 space-y-2">
-        <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Objet</label>
-        <input
+      <div className="card p-4">
+        <FloatInput
+          label="Objet"
           type="text"
           value={subject}
           onChange={e => setSubject(e.target.value)}
-          placeholder="Objet du message..."
-          className="input text-sm w-full"
         />
       </div>
 
@@ -506,23 +501,23 @@ export default function NewMessageClient({
 
       {/* 5. Actions */}
       <div className="flex items-center gap-3 justify-end">
-        <button
+        <FloatButton
+          variant="secondary"
           type="button"
           onClick={() => setShowPreview(!showPreview)}
           disabled={!bodyHtml.trim()}
-          className="btn-secondary text-sm px-4 py-2 flex items-center gap-1.5"
         >
-          <Eye size={14} /> Apercu
-        </button>
-        <button
+          <Eye size={14} /> Aperçu
+        </FloatButton>
+        <FloatButton
+          variant="submit"
           type="button"
           onClick={handleSend}
-          disabled={!canSend || sending}
-          className="btn-primary text-sm px-5 py-2 flex items-center gap-1.5"
+          disabled={!canSend}
+          loading={sending}
         >
-          {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-          Envoyer
-        </button>
+          <Send size={14} /> Envoyer
+        </FloatButton>
       </div>
 
       {/* Apercu HTML */}

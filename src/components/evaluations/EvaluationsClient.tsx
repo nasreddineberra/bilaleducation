@@ -4,11 +4,12 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plus, Check, X, Pencil, Trash2,
-  Search, ChevronUp, ChevronRight, ChevronDown, BookOpen,
+  ChevronUp, ChevronRight, ChevronDown, BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
+import { FloatInput, FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import type {
   UniteEnseignement, CoursModule, Cours,
   Period, EvalTypeConfig, EvalTypeKind,
@@ -162,7 +163,7 @@ function InlineEvalForm({
   evalOptions, configId, setConfigId,
   coefficient, setCoefficient,
   date, setDate,
-  onSave, onCancel, submitting,
+  onSave, onCancel, submitting, isEdit, hasChanges,
 }: {
   evalOptions:    EvalOption[]
   configId:       string
@@ -174,6 +175,8 @@ function InlineEvalForm({
   onSave:         () => void
   onCancel:       () => void
   submitting:     boolean
+  isEdit?:        boolean
+  hasChanges?:    boolean
 }) {
   const selectedKind = evalOptions.find(o => o.configId === configId)?.evalKind
   const isScored = selectedKind === 'scored'
@@ -181,54 +184,62 @@ function InlineEvalForm({
   return (
     <div className="flex flex-wrap items-end gap-2 py-2 px-3 bg-warm-50 rounded-lg border border-warm-200 mt-1">
       {/* Type */}
-      <div className="flex flex-col gap-0.5">
-        <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Type</label>
-        <select
-          value={configId}
-          onChange={e => setConfigId(e.target.value)}
-          className="input text-sm py-1 pr-7"
-          disabled={submitting}
-        >
-          {evalOptions.map(o => (
-            <option key={o.configId} value={o.configId}>{o.label}</option>
-          ))}
-        </select>
-      </div>
+      <FloatSelect
+        label="Type"
+        value={configId}
+        onChange={e => setConfigId(e.target.value)}
+        disabled={submitting}
+        compact
+        wrapperClassName="w-40"
+      >
+        {evalOptions.map(o => (
+          <option key={o.configId} value={o.configId}>{o.label}</option>
+        ))}
+      </FloatSelect>
 
       {/* Coefficient — uniquement pour les évaluations notées */}
       {isScored && (
-        <div className="flex flex-col gap-0.5">
-          <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Coef.</label>
-          <input
-            type="number"
-            value={coefficient}
-            onChange={e => setCoefficient(e.target.value)}
-            min="0.5"
-            step="0.5"
-            className="input text-sm py-1 w-20"
-            disabled={submitting}
-          />
-        </div>
+        <FloatInput
+          label="Coef."
+          type="number"
+          value={coefficient}
+          onChange={e => setCoefficient(e.target.value)}
+          min="0.5"
+          step="0.5"
+          disabled={submitting}
+          compact
+          className="w-20"
+        />
       )}
 
       {/* Date */}
-      <div className="flex flex-col gap-0.5">
-        <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Date (optionnelle)</label>
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="input text-sm py-1"
-          disabled={submitting}
-        />
-      </div>
+      <FloatInput
+        label="Date (optionnelle)"
+        type="date"
+        value={date}
+        onChange={e => setDate(e.target.value)}
+        disabled={submitting}
+        compact
+        className="w-44"
+      />
 
-      <button onClick={onSave} disabled={submitting} className="btn btn-primary py-1 px-3 text-sm self-end">
-        <Check size={14} />
-      </button>
-      <button onClick={onCancel} disabled={submitting} className="btn btn-secondary py-1 px-3 text-sm self-end">
-        <X size={14} />
-      </button>
+      <FloatButton
+        variant={isEdit ? 'edit' : 'submit'}
+        type="button"
+        onClick={onSave}
+        disabled={submitting || (isEdit && hasChanges === false)}
+        loading={submitting}
+      >
+        {isEdit ? 'Modifier' : 'Valider'}
+      </FloatButton>
+      <FloatButton
+        variant="secondary"
+        type="button"
+        onClick={onCancel}
+        disabled={submitting}
+      >
+        Annuler
+      </FloatButton>
     </div>
   )
 }
@@ -242,17 +253,6 @@ export default function EvaluationsClient({
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
-  const [classDropOpen, setClassDropOpen] = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!classDropOpen) return
-    const handler = (e: MouseEvent) => {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [classDropOpen])
 
   // ── Formulaire ──────────────────────────────────────────────────────────────
   const [adding,          setAdding]          = useState<string | null>(null)   // cours_id
@@ -261,6 +261,9 @@ export default function EvaluationsClient({
   const [formConfigId,    setFormConfigId]    = useState('')
   const [formCoefficient, setFormCoefficient] = useState('1')
   const [formDate,        setFormDate]        = useState('')
+  const [initConfigId,    setInitConfigId]    = useState('')
+  const [initCoefficient, setInitCoefficient] = useState('1')
+  const [initDate,        setInitDate]        = useState('')
   const [submitting,      setSubmitting]      = useState(false)
   const [error,           setError]           = useState<string | null>(null)
 
@@ -381,9 +384,12 @@ export default function EvaluationsClient({
       c.eval_type === ev.eval_kind &&
       (ev.eval_kind !== 'scored' || c.max_score === ev.max_score)
     )
-    setFormConfigId(config?.id ?? evalOptions[0]?.configId ?? '')
-    setFormCoefficient(String(ev.coefficient ?? 1))
-    setFormDate(ev.evaluation_date ?? '')
+    const initCfg  = config?.id ?? evalOptions[0]?.configId ?? ''
+    const initCoef = String(ev.coefficient ?? 1)
+    const initDt   = ev.evaluation_date ?? ''
+    setFormConfigId(initCfg);    setInitConfigId(initCfg)
+    setFormCoefficient(initCoef); setInitCoefficient(initCoef)
+    setFormDate(initDt);          setInitDate(initDt)
   }
 
   const cancelForm = () => { setAdding(null); setEditing(null); setError(null) }
@@ -546,50 +552,25 @@ export default function EvaluationsClient({
       <div className="card p-3 flex flex-wrap items-center gap-4 flex-shrink-0">
 
         {/* Classe */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide whitespace-nowrap">Classe</span>
-          <div ref={classDropRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setClassDropOpen(o => !o)}
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
-            >
-              {selectedClassId ? (() => {
-                const cls = classes.find(c => c.id === selectedClassId)
-                if (!cls) return <span className="text-warm-400">— Selectionner une classe —</span>
-                const teacher = cls.main_teacher_civilite && cls.main_teacher_name ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name
-                return (
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-secondary-800">{cls.name}</span>
-                    {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
-                  </span>
-                )
-              })() : (
-                <span className="text-warm-400">{classes.length === 0 ? 'Aucune classe disponible' : '— Selectionner une classe —'}</span>
-              )}
-              <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-            </button>
-            {classDropOpen && (
-              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
-                {classes.length > 1 && (
-                  <button type="button" onClick={() => { setSelectedClassId(null); cancelForm(); setClassDropOpen(false) }} className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors">
-                    — Selectionner une classe —
-                  </button>
-                )}
-                {classes.map(c => {
-                  const teacher = c.main_teacher_civilite && c.main_teacher_name ? `${c.main_teacher_civilite} ${c.main_teacher_name}` : c.main_teacher_name
-                  const infoParts = [teacher, c.cotisation_label].filter(Boolean)
-                  return (
-                    <button key={c.id} type="button" onClick={() => { setSelectedClassId(c.id); cancelForm(); setClassDropOpen(false) }} className={clsx('w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors', selectedClassId === c.id && 'bg-primary-50')}>
-                      <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      {infoParts.length > 0 && <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        <FloatSelect
+          label="Classe"
+          value={selectedClassId ?? ''}
+          onChange={e => { setSelectedClassId(e.target.value || null); cancelForm() }}
+          wrapperClassName="w-fit"
+        >
+          <option value=""></option>
+          {classes.map(c => {
+            const teacher = c.main_teacher_civilite && c.main_teacher_name
+              ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
+              : c.main_teacher_name
+            const infoParts = [teacher, c.cotisation_label].filter(Boolean)
+            return (
+              <option key={c.id} value={c.id}>
+                {[c.name, ...infoParts].join(' — ')}
+              </option>
+            )
+          })}
+        </FloatSelect>
 
         {/* Onglets périodes */}
         {periods.length > 0 && (
@@ -599,10 +580,10 @@ export default function EvaluationsClient({
                 key={p.id}
                 onClick={() => { setSelectedPeriodId(p.id); cancelForm() }}
                 className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors',
+                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
-                    ? 'bg-primary-500 text-white shadow-sm'
-                    : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
+                    ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
+                    : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >
                 {formatPeriodLabel(p.label)}
@@ -656,14 +637,11 @@ export default function EvaluationsClient({
             </p>
 
             {/* Recherche */}
-            <div className="relative flex-shrink-0">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
-              <input
-                type="text"
+            <div className="flex-shrink-0">
+              <SearchField
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Rechercher…"
-                className="input pl-8 text-sm py-1.5 w-full"
+                onChange={v => setSearch(v)}
+                className="w-full"
               />
             </div>
 
@@ -764,14 +742,15 @@ export default function EvaluationsClient({
                 })()}
               </p>
               {currentEvals.length > 0 && (
-                <button
+                <FloatButton
+                  variant="submit"
+                  type="button"
                   onClick={handleSaveOrder}
-                  disabled={!orderDirty || savingOrder}
-                  className="btn btn-primary text-xs py-1 px-3 disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+                  disabled={!orderDirty}
+                  loading={savingOrder}
                 >
-                  <Check size={12} />
-                  {savingOrder ? 'Enregistrement…' : 'Enregistrer'}
-                </button>
+                  Valider
+                </FloatButton>
               )}
             </div>
 
@@ -847,7 +826,12 @@ export default function EvaluationsClient({
                             coefficient={formCoefficient} setCoefficient={setFormCoefficient}
                             date={formDate}               setDate={setFormDate}
                             onSave={handleEdit}           onCancel={cancelForm}
-                            submitting={submitting}
+                            submitting={submitting}       isEdit
+                            hasChanges={
+                              formConfigId    !== initConfigId ||
+                              formCoefficient !== initCoefficient ||
+                              formDate        !== initDate
+                            }
                           />
                         </div>
                       )

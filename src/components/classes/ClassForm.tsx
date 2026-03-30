@@ -7,6 +7,7 @@ import { Plus, Trash2, UserCheck, BookOpen } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -124,6 +125,7 @@ export default function ClassForm({
 
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; onConfirm: () => void } | null>(null)
 
   // ── Affectations ─────────────────────────────────────────────────────────
   const [assignments,  setAssignments]  = useState<AssignmentData[]>(initialAssignments)
@@ -268,106 +270,101 @@ export default function ClassForm({
         || form.end_time !== existingScheduleSlot.end_time
       )
 
-      // Confirmation si modification ou suppression d'un créneau existant
-      if (existingScheduleSlot && shouldDeploy && slotChanged) {
-        if (!confirm(`Le créneau récurrent dans l'emploi du temps sera remplacé par : ${form.day_of_week} ${form.start_time}–${form.end_time}. Continuer ?`)) {
-          setIsSubmitting(false)
-          return
-        }
-      }
-      if (existingScheduleSlot && !shouldDeploy) {
-        if (!confirm('Le créneau récurrent dans l\'emploi du temps sera supprimé. Continuer ?')) {
-          setIsSubmitting(false)
-          return
-        }
-      }
-
-      // Date effective choisie par l'utilisateur
+      // Date effective (calculée avant les confirms pour la capturer dans le closure)
       const effectiveFrom = deployFrom || currentSchoolYear?.start_date || new Date().toISOString().split('T')[0]
 
-      if (existingScheduleSlot && (shouldDeploy && slotChanged || !shouldDeploy)) {
-        // Clôturer l'ancien créneau à la veille de la date effective
-        const dayBefore = new Date(effectiveFrom + 'T00:00:00')
-        dayBefore.setDate(dayBefore.getDate() - 1)
-        const dayBeforeStr = `${dayBefore.getFullYear()}-${String(dayBefore.getMonth() + 1).padStart(2, '0')}-${String(dayBefore.getDate()).padStart(2, '0')}`
+      // Opérations EDT + finalisation — extrait en closure pour pouvoir être différé après confirmation
+      const doScheduleAndFinish = async () => {
+        setIsSubmitting(true)
+        try {
+          if (existingScheduleSlot && (shouldDeploy && slotChanged || !shouldDeploy)) {
+            const dayBefore = new Date(effectiveFrom + 'T00:00:00')
+            dayBefore.setDate(dayBefore.getDate() - 1)
+            const dayBeforeStr = `${dayBefore.getFullYear()}-${String(dayBefore.getMonth() + 1).padStart(2, '0')}-${String(dayBefore.getDate()).padStart(2, '0')}`
+            const existingFromDate = (existingScheduleSlot as any).effective_from
+            if (existingFromDate && effectiveFrom > existingFromDate) {
+              await supabase.from('schedule_slots').update({ effective_until: dayBeforeStr }).eq('id', existingScheduleSlot.id)
+              await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', existingScheduleSlot.id).gte('exception_date', effectiveFrom)
+            } else {
+              await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', existingScheduleSlot.id)
+              await supabase.from('schedule_slots').delete().eq('id', existingScheduleSlot.id)
+            }
+          }
 
-        // Si la date effective est après le début du créneau existant : clôturer (conserver l'historique)
-        const existingFrom = (existingScheduleSlot as any).effective_from
-        if (existingFrom && effectiveFrom > existingFrom) {
-          await supabase
-            .from('schedule_slots')
-            .update({ effective_until: dayBeforeStr })
-            .eq('id', existingScheduleSlot.id)
-          // Supprimer les exceptions à partir de la date effective
-          await supabase
-            .from('schedule_exceptions')
-            .delete()
-            .eq('schedule_slot_id', existingScheduleSlot.id)
-            .gte('exception_date', effectiveFrom)
-        } else {
-          // Sinon suppression définitive (la date effective est avant ou au début du créneau)
-          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', existingScheduleSlot.id)
-          await supabase.from('schedule_slots').delete().eq('id', existingScheduleSlot.id)
+          if (shouldDeploy && (!existingScheduleSlot || slotChanged)) {
+            const { error: slotErr } = await supabase.from('schedule_slots').insert({
+              class_id:        classId,
+              teacher_id:      mainTeacher?.teacher_id || null,
+              school_year_id:  currentSchoolYear.id,
+              is_recurring:    true,
+              day_of_week:     dayNameToNum(form.day_of_week),
+              slot_date:       null,
+              start_time:      form.start_time,
+              end_time:        form.end_time,
+              slot_type:       'cours',
+              room_id:         form.room_id || null,
+              is_active:       true,
+              effective_from:  effectiveFrom,
+              effective_until: null,
+            })
+            if (slotErr) throw slotErr
+            logAudit(supabase, {
+              action: existingScheduleSlot ? 'UPDATE' : 'INSERT',
+              entityType: 'schedule_slots',
+              description: `${existingScheduleSlot ? 'Modification' : 'Déploiement'} créneau EDT pour ${form.name.trim()} : ${form.day_of_week} ${form.start_time}–${form.end_time}, à partir du ${new Date(effectiveFrom + 'T00:00:00').toLocaleDateString('fr-FR')}`,
+            })
+          }
+
+          if (existingScheduleSlot && !shouldDeploy) {
+            logAudit(supabase, { action: 'DELETE', entityType: 'schedule_slots', entityId: existingScheduleSlot.id, description: `Suppression créneau EDT pour ${form.name.trim()} depuis fiche classe` })
+          }
+
+          if (isEditing) {
+            initialForm.current       = { ...form }
+            initialAssignStr.current  = JSON.stringify(assignments)
+            initialDeploy.current     = deploySchedule
+            initialDeployFrom.current = { option: deployFromOption, custom: deployFromCustom }
+            toast.success('Classe enregistrée avec succès.')
+            router.refresh()
+          } else {
+            router.push(backHref)
+            router.refresh()
+          }
+        } catch {
+          toast.error('Une erreur est survenue. Veuillez réessayer.')
+        } finally {
+          setIsSubmitting(false)
         }
       }
 
-      if (shouldDeploy && (!existingScheduleSlot || slotChanged)) {
-        const { error: slotErr } = await supabase.from('schedule_slots').insert({
-          class_id:       classId,
-          teacher_id:     mainTeacher?.teacher_id || null,
-          school_year_id: currentSchoolYear.id,
-          is_recurring:   true,
-          day_of_week:    dayNameToNum(form.day_of_week),
-          slot_date:      null,
-          start_time:     form.start_time,
-          end_time:       form.end_time,
-          slot_type:      'cours',
-          room_id:        form.room_id || null,
-          is_active:      true,
-          effective_from: effectiveFrom,
-          effective_until: null,
+      // Confirmation si modification ou suppression d'un créneau existant
+      if (existingScheduleSlot && shouldDeploy && slotChanged) {
+        setIsSubmitting(false)
+        setPendingConfirm({
+          message: `Le créneau récurrent dans l'emploi du temps sera remplacé par : ${form.day_of_week} ${form.start_time}–${form.end_time}. Continuer ?`,
+          onConfirm: doScheduleAndFinish,
         })
-        if (slotErr) throw slotErr
-
-        const className = form.name.trim()
-        const fromStr = new Date(effectiveFrom + 'T00:00:00').toLocaleDateString('fr-FR')
-        logAudit(supabase, {
-          action: existingScheduleSlot ? 'UPDATE' : 'INSERT',
-          entityType: 'schedule_slots',
-          description: `${existingScheduleSlot ? 'Modification' : 'Déploiement'} créneau EDT pour ${className} : ${form.day_of_week} ${form.start_time}–${form.end_time}, à partir du ${fromStr}`,
-        })
+        return
       }
-
-      // Log si suppression d'un créneau existant (décoché la case deployer)
       if (existingScheduleSlot && !shouldDeploy) {
-        const className = form.name.trim()
-        logAudit(supabase, {
-          action: 'DELETE',
-          entityType: 'schedule_slots',
-          entityId: existingScheduleSlot.id,
-          description: `Suppression créneau EDT pour ${className} depuis fiche classe`,
+        setIsSubmitting(false)
+        setPendingConfirm({
+          message: 'Le créneau récurrent dans l\'emploi du temps sera supprimé.',
+          variant: 'danger',
+          onConfirm: doScheduleAndFinish,
         })
+        return
       }
 
-      if (isEditing) {
-        initialForm.current      = { ...form }
-        initialAssignStr.current = JSON.stringify(assignments)
-        initialDeploy.current    = deploySchedule
-        initialDeployFrom.current = { option: deployFromOption, custom: deployFromCustom }
-        toast.success('Classe enregistrée avec succès.')
-        router.refresh()
-      } else {
-        router.push(backHref)
-        router.refresh()
-      }
+      await doScheduleAndFinish()
     } catch {
       toast.error('Une erreur est survenue. Veuillez réessayer.')
-    } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
@@ -813,6 +810,17 @@ export default function ClassForm({
       </div>
 
     </form>
+
+    <ConfirmModal
+      open={!!pendingConfirm}
+      message={pendingConfirm?.message ?? ''}
+      title={pendingConfirm?.title}
+      variant={pendingConfirm?.variant ?? 'warning'}
+      confirmLabel="Continuer"
+      onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
+      onCancel={() => setPendingConfirm(null)}
+    />
+  </>
   )
 }
 

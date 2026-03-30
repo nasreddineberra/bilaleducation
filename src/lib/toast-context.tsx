@@ -28,7 +28,7 @@ const ToastContext = createContext<ToastContextValue | null>(null)
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-const AUTO_DISMISS_MS = 4000
+const AUTO_DISMISS_MS = 10000
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts]   = useState<Toast[]>([])

@@ -6,6 +6,8 @@ import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, Check, RotateCcw, CalendarDays, LayoutGrid } from 'lucide-react'
 import { logAudit } from '@/lib/audit'
+import { useToast } from '@/lib/toast-context'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import SlotCapsule from './SlotCapsule'
 import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
@@ -235,6 +237,9 @@ export default function EmploiDuTempsClient({
 
   const classesRef = useRef(classes)
   classesRef.current = classes
+
+  const toast = useToast()
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; confirmLabel?: string; onConfirm: () => void } | null>(null)
 
   const [slots, setSlots] = useState<SlotData[]>(initialSlots)
   const [exceptions, setExceptions] = useState<ExceptionData[]>(initialExceptions)
@@ -732,7 +737,7 @@ export default function EmploiDuTempsClient({
           effective_from: pivotDate,
           effective_until: null,
         })
-        if (error) { alert('Erreur : ' + error.message); return }
+        if (error) { toast.error('Erreur : ' + error.message); return }
       } else {
         // Hors année scolaire : simple mise à jour + effective_from = rentrée
         const effectiveFrom = schoolYearStartDate ?? pivotDate
@@ -740,7 +745,7 @@ export default function EmploiDuTempsClient({
           ...basePayload,
           effective_from: effectiveFrom,
         }).eq('id', data.id)
-        if (error) { alert('Erreur : ' + error.message); return }
+        if (error) { toast.error('Erreur : ' + error.message); return }
       }
 
       // Mettre à jour la fiche classe
@@ -772,7 +777,7 @@ export default function EmploiDuTempsClient({
     } else if (data.id) {
       // ── Modifier un créneau existant (ponctuel ou this_only via exception) ──
       const { error } = await supabase.from('schedule_slots').update(basePayload).eq('id', data.id)
-      if (error) { alert('Erreur : ' + error.message); return }
+      if (error) { toast.error('Erreur : ' + error.message); return }
 
       const cls = classesRef.current.find(c => c.id === data.class_id)
       const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
@@ -792,7 +797,7 @@ export default function EmploiDuTempsClient({
         effective_from: effectiveFrom,
         effective_until: null,
       })
-      if (error) { alert('Erreur : ' + error.message); return }
+      if (error) { toast.error('Erreur : ' + error.message); return }
 
       const cls = classesRef.current.find(c => c.id === data.class_id)
       const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
@@ -852,10 +857,10 @@ export default function EmploiDuTempsClient({
 
     if (existing) {
       const { error } = await supabase.from('schedule_exceptions').update(payload).eq('id', existing.id)
-      if (error) { alert('Erreur : ' + error.message); return }
+      if (error) { toast.error('Erreur : ' + error.message); return }
     } else {
       const { error } = await supabase.from('schedule_exceptions').insert(payload)
-      if (error) { alert('Erreur : ' + error.message); return }
+      if (error) { toast.error('Erreur : ' + error.message); return }
     }
 
     // Log détaillé
@@ -884,52 +889,39 @@ export default function EmploiDuTempsClient({
     const isInSchoolYear = schoolYearStartDate && schoolYearEndDate
       && pivot >= schoolYearStartDate && pivot <= schoolYearEndDate
 
-    if (slot.is_recurring && isInSchoolYear) {
-      // En cours d'année : clôturer le créneau (conserver l'historique)
-      if (!confirm(`Supprimer tous les créneaux à partir de cette date ?\n\nLe planning passé de ${className} sera conservé. La fiche classe sera réinitialisée.`)) return
+    const doDelete = async () => {
+      if (slot.is_recurring && isInSchoolYear) {
+        const pivotD = new Date(pivot + 'T00:00:00')
+        pivotD.setDate(pivotD.getDate() - 1)
+        const dayBefore = formatDate(pivotD)
+        await supabase.from('schedule_slots').update({ effective_until: dayBefore }).eq('id', slotId)
+        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId).gte('exception_date', pivot)
+      } else {
+        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId)
+        await supabase.from('schedule_slots').delete().eq('id', slotId)
+      }
 
-      const pivotD = new Date(pivot + 'T00:00:00')
-      pivotD.setDate(pivotD.getDate() - 1)
-      const dayBefore = formatDate(pivotD)
+      if (slot.is_recurring) {
+        await supabase.from('classes').update({ day_of_week: null, start_time: null, end_time: null }).eq('id', slot.class_id)
+      }
 
-      await supabase
-        .from('schedule_slots')
-        .update({ effective_until: dayBefore })
-        .eq('id', slotId)
+      const dayLabel = slot.day_of_week !== null ? DAY_LABELS[slot.day_of_week] : ''
+      const pivotInfo = isInSchoolYear ? `, à partir du ${new Date(pivot + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
+      logAudit(supabase, {
+        action: 'DELETE',
+        entityType: 'schedule_slots',
+        entityId: slotId,
+        description: `Suppression créneau EDT pour ${className} (${dayLabel} ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)})${pivotInfo}. Fiche classe réinitialisée.`,
+      })
 
-      // Supprimer les exceptions à partir du pivot
-      await supabase
-        .from('schedule_exceptions')
-        .delete()
-        .eq('schedule_slot_id', slotId)
-        .gte('exception_date', pivot)
-    } else {
-      // Hors année scolaire ou ponctuel : suppression définitive
-      if (!confirm(`Supprimer tous les créneaux définitivement ?\n\nCela va également réinitialiser le planning (jour/horaires) de la fiche ${className}.`)) return
-
-      await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId)
-      await supabase.from('schedule_slots').delete().eq('id', slotId)
+      await refreshData()
     }
 
-    // Réinitialiser le planning de la fiche classe
-    if (slot.is_recurring) {
-      await supabase
-        .from('classes')
-        .update({ day_of_week: null, start_time: null, end_time: null })
-        .eq('id', slot.class_id)
-    }
+    const message = slot.is_recurring && isInSchoolYear
+      ? `Supprimer tous les créneaux à partir de cette date ?\n\nLe planning passé de ${className} sera conservé. La fiche classe sera réinitialisée.`
+      : `Supprimer tous les créneaux définitivement ?\n\nCela va également réinitialiser le planning (jour/horaires) de la fiche ${className}.`
 
-    // Log détaillé
-    const dayLabel = slot.day_of_week !== null ? DAY_LABELS[slot.day_of_week] : ''
-    const pivotInfo = isInSchoolYear ? `, à partir du ${new Date(pivot + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
-    logAudit(supabase, {
-      action: 'DELETE',
-      entityType: 'schedule_slots',
-      entityId: slotId,
-      description: `Suppression créneau EDT pour ${className} (${dayLabel} ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)})${pivotInfo}. Fiche classe réinitialisée.`,
-    })
-
-    await refreshData()
+    setPendingConfirm({ message, variant: 'danger', confirmLabel: 'Supprimer', onConfirm: doDelete })
   }, [supabase, slots, schoolYearStartDate, schoolYearEndDate, refreshData])
 
   const handleCancelForDate = useCallback(async (slotId: string, date: string) => {
@@ -941,11 +933,11 @@ export default function EmploiDuTempsClient({
       const { error } = await supabase.from('schedule_exceptions')
         .update({ exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null, override_room_id: null })
         .eq('id', existing.id)
-      if (error) { alert('Erreur : ' + error.message); return }
+      if (error) { toast.error('Erreur : ' + error.message); return }
     } else {
       const { error } = await supabase.from('schedule_exceptions')
         .insert({ schedule_slot_id: slotId, exception_date: date, exception_type: 'cancelled' })
-      if (error) { alert('Erreur : ' + error.message); return }
+      if (error) { toast.error('Erreur : ' + error.message); return }
     }
 
     // Log détaillé
@@ -974,11 +966,10 @@ export default function EmploiDuTempsClient({
     const [y, m, d] = slotDate.split('-')
     const dateLabel = `${d}/${m}/${y}`
 
-    if (!confirm(`Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`)) return
-
+    const doValidate = async () => {
     const teacherProfileId = teacherProfileMap[resolved.teacher_id]
     if (!teacherProfileId) {
-      alert(`${teacherName} n'a pas de compte utilisateur lie. Veuillez d'abord lier un compte dans la fiche enseignant.`)
+      toast.error(`${teacherName} n'a pas de compte utilisateur lie. Veuillez d'abord lier un compte dans la fiche enseignant.`)
       return
     }
     const durationMin = timeToMinutes(resolved.end_time) - timeToMinutes(resolved.start_time)
@@ -997,7 +988,7 @@ export default function EmploiDuTempsClient({
       .select('id')
       .single()
 
-    if (teErr) { alert('Erreur : ' + teErr.message); return }
+    if (teErr) { toast.error('Erreur : ' + teErr.message); return }
 
     const { data: val, error: valErr } = await supabase
       .from('schedule_validations')
@@ -1010,19 +1001,32 @@ export default function EmploiDuTempsClient({
       .select('*')
       .single()
 
-    if (valErr) { alert('Erreur : ' + valErr.message); return }
+    if (valErr) { toast.error('Erreur : ' + valErr.message); return }
     if (val) setValidations(prev => [...prev, val as any])
+    }
+
+    setPendingConfirm({
+      message: `Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}–${resolved.end_time.slice(0, 5)}) ?`,
+      confirmLabel: 'Valider',
+      onConfirm: doValidate,
+    })
   }, [supabase, currentUserId, teacherProfileMap])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
-    if (!confirm('Annuler cette validation de presence ?')) return
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
     if (!v) return
-    if (v.time_entry_id) {
-      await supabase.from('staff_time_entries').delete().eq('id', v.time_entry_id)
-    }
-    await supabase.from('schedule_validations').delete().eq('id', v.id)
-    setValidations(prev => prev.filter(x => x.id !== v.id))
+    setPendingConfirm({
+      message: 'Annuler cette validation de presence ?',
+      variant: 'danger',
+      confirmLabel: 'Annuler la validation',
+      onConfirm: async () => {
+        if (v.time_entry_id) {
+          await supabase.from('staff_time_entries').delete().eq('id', v.time_entry_id)
+        }
+        await supabase.from('schedule_validations').delete().eq('id', v.id)
+        setValidations(prev => prev.filter(x => x.id !== v.id))
+      },
+    })
   }, [validations, supabase])
 
   const isValidated = useCallback((sourceSlotId: string, slotDate: string) => {
@@ -1285,14 +1289,14 @@ export default function EmploiDuTempsClient({
             onClick={() => openNewSlot()}
             disabled={viewType === 'week' && isFullWeekVacation}
             className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
               viewType === 'week' && isFullWeekVacation
                 ? 'bg-warm-200 text-warm-400 cursor-not-allowed'
-                : 'bg-amber-500 hover:bg-amber-600 text-white'
+                : 'bg-secondary-700 hover:bg-secondary-800 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
             )}
           >
             <Plus size={14} />
-            Nouveau créneau
+            Ajouter
           </button>
         )}
       </div>
@@ -1461,6 +1465,16 @@ export default function EmploiDuTempsClient({
           onClose={() => { setModalOpen(false); setEditingSlot(null); setEditMode(null); setEditDate(null) }}
         />
       )}
+
+      <ConfirmModal
+        open={!!pendingConfirm}
+        message={pendingConfirm?.message ?? ''}
+        title={pendingConfirm?.title}
+        variant={pendingConfirm?.variant ?? 'warning'}
+        confirmLabel={pendingConfirm?.confirmLabel}
+        onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   )
 }

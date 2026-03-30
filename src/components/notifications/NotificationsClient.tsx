@@ -3,9 +3,10 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { Bell, Search, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
+import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import PushSubscribeButton from './PushSubscribeButton'
+import { SearchField } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
         <select
           value={filterRead}
           onChange={e => setFilterRead(e.target.value as any)}
-          className="input text-sm py-1.5 w-auto"
+          className="border border-warm-300 rounded-lg text-sm px-3 py-2 bg-white text-warm-700 focus:outline-none focus:ring-2 focus:ring-primary-400/20 focus:border-primary-400 transition-all"
         >
           <option value="">Toutes</option>
           <option value="unread">Non lues</option>
@@ -159,7 +160,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
           <select
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            className="input text-sm py-1.5 w-auto"
+            className="border border-warm-300 rounded-lg text-sm px-3 py-2 bg-white text-warm-700 focus:outline-none focus:ring-2 focus:ring-primary-400/20 focus:border-primary-400 transition-all"
           >
             <option value="">Tous types</option>
             <option value="absence">Absences</option>
@@ -169,16 +170,12 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             <option value="homework">Devoirs</option>
           </select>
         )}
-        <div className="relative max-w-xs">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher..."
-            className="input text-sm py-1.5 pl-8 w-full"
-          />
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher…"
+          className="max-w-xs"
+        />
       </div>
 
       {/* Liste */}

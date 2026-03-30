@@ -201,21 +201,21 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
     children: [
       {
-        name:  'Nouveau message',
+        name:  'Parents',
         href:  '/dashboard/communications/new',
         icon:  Send,
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
+      },
+      {
+        name:  'Staff / Enseignants',
+        href:  '/dashboard/communications/staff',
+        icon:  UsersRound,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
       },
       {
         name:  'Messages envoyés',
         href:  '/dashboard/communications',
         icon:  Inbox,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
-      },
-      {
-        name:  'Staff interne',
-        href:  '/dashboard/communications/staff',
-        icon:  UsersRound,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
       },
     ],

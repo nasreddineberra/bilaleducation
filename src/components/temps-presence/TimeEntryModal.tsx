@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
 import type { EntryType, TimeEntry } from './TempsPresenceClient'
 
 interface StaffMember {
@@ -47,6 +48,17 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
   const [error, setError] = useState<string | null>(null)
 
   const isAbsence = entryType === 'absence'
+
+  const isDirty = !isEdit || (
+    profileId !== (entry?.profile_id ?? currentUserId) ||
+    entryType !== (entry?.entry_type ?? 'cours') ||
+    startTime !== (entry?.start_time?.slice(0, 5) ?? '09:00') ||
+    endTime !== (entry?.end_time?.slice(0, 5) ?? '12:00') ||
+    isReplacement !== (entry?.is_replacement ?? false) ||
+    replacedId !== (entry?.replaced_profile_id ?? '') ||
+    absenceReason !== (entry?.absence_reason ?? '') ||
+    notes !== (entry?.notes ?? '')
+  )
 
   const dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -130,14 +142,16 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
 
           {/* Staff select */}
           {canManageAll ? (
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Membre du staff <span className="text-red-400">*</span></label>
-              <select value={profileId} onChange={e => setProfileId(e.target.value)} className="input text-sm py-1.5 w-full mt-1">
-                {staffList.map(s => (
-                  <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
-                ))}
-              </select>
-            </div>
+            <FloatSelect
+              label="Membre du staff"
+              required
+              value={profileId}
+              onChange={e => setProfileId(e.target.value)}
+            >
+              {staffList.map(s => (
+                <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
+              ))}
+            </FloatSelect>
           ) : (
             <p className="text-xs text-warm-600">
               <span className="font-bold">{staffList.find(s => s.id === currentUserId)?.last_name} {staffList.find(s => s.id === currentUserId)?.first_name}</span>
@@ -173,48 +187,70 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {/* Horaires (sauf absence) */}
           {!isAbsence && (
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Début <span className="text-red-400">*</span></label>
-                <input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); if (endTime && e.target.value && endTime <= e.target.value) setEndTime('') }} className="input text-sm py-1.5 w-full mt-1" />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Fin <span className="text-red-400">*</span></label>
-                <input type="time" value={endTime} onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }} min={startTime || undefined} disabled={!startTime} className="input text-sm py-1.5 w-full mt-1" />
-              </div>
+              <FloatInput
+                label="Début"
+                required
+                type="time"
+                value={startTime}
+                onChange={e => {
+                  setStartTime(e.target.value)
+                  if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+                }}
+              />
+              <FloatInput
+                label="Fin"
+                required
+                type="time"
+                value={endTime}
+                onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+                min={startTime || undefined}
+                disabled={!startTime}
+              />
             </div>
           )}
 
           {/* Remplacement (sauf absence) */}
           {!isAbsence && (
-            <div>
-              <label className="flex items-center gap-2 text-xs text-warm-600 cursor-pointer">
-                <input type="checkbox" checked={isReplacement} onChange={e => setIsReplacement(e.target.checked)} className="rounded border-warm-300" />
-                <span className="font-medium">Remplacement</span>
-              </label>
+            <div className="space-y-2">
+              <FloatCheckbox
+                variant="compact"
+                label="Remplacement"
+                checked={isReplacement}
+                onChange={val => setIsReplacement(val)}
+              />
               {isReplacement && (
-                <select value={replacedId} onChange={e => setReplacedId(e.target.value)} className="input text-sm py-1.5 w-full mt-2">
-                  <option value="">— Staff remplace —</option>
+                <FloatSelect
+                  label="Staff remplacé"
+                  value={replacedId}
+                  onChange={e => setReplacedId(e.target.value)}
+                >
+                  <option value=""></option>
                   {staffList.filter(s => s.id !== profileId).map(s => (
                     <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
                   ))}
-                </select>
+                </FloatSelect>
               )}
             </div>
           )}
 
           {/* Motif absence */}
           {isAbsence && (
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Motif</label>
-              <input type="text" value={absenceReason} onChange={e => setAbsenceReason(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="Maladie, conge..." />
-            </div>
+            <FloatInput
+              label="Motif"
+              value={absenceReason}
+              onChange={e => setAbsenceReason(e.target.value)}
+              placeholder="Maladie, conge..."
+            />
           )}
 
           {/* Notes */}
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="input text-sm py-1.5 w-full mt-1 resize-none" placeholder="Commentaire optionnel..." />
-          </div>
+          <FloatTextarea
+            label="Notes"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Commentaire optionnel..."
+          />
 
           {/* Error */}
           {error && (
@@ -226,10 +262,16 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
         <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
           <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
-          <button onClick={onClose} className="btn-secondary text-xs px-4 py-1.5">Annuler</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary text-xs px-4 py-1.5">
-            {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Enregistrer'}
-          </button>
+          <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
+          <FloatButton
+            variant={isEdit ? 'edit' : 'submit'}
+            type="button"
+            onClick={handleSave}
+            loading={saving}
+            disabled={!isDirty}
+          >
+            {isEdit ? 'Modifier' : 'Valider'}
+          </FloatButton>
         </div>
       </div>
     </div>

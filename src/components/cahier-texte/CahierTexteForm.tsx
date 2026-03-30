@@ -8,6 +8,7 @@ import { BookOpenText, ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import RichTextEditor from '@/components/ui/RichTextEditor'
+import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 
 interface Props {
   role: string
@@ -50,38 +51,32 @@ export default function CahierTexteForm({
     if (!classId) return []
 
     if (isStaff) {
-      // Direction/resp.péda : toutes les matières de la classe
       const subjects = allAssignments
         .filter(a => a.class_id === classId && a.subject)
         .map(a => a.subject!)
       return [...new Set(subjects)].sort()
     }
 
-    // Enseignant
     const myAssignmentsForClass = teacherAssignments.filter(a => a.class_id === classId)
     const isMain = myAssignmentsForClass.some(a => a.is_main_teacher)
 
     if (isMain) {
-      // Prof principal : toutes les matières de cette classe
       const subjects = allAssignments
         .filter(a => a.class_id === classId && a.subject)
         .map(a => a.subject!)
       return [...new Set(subjects)].sort()
     }
 
-    // Prof de matière : uniquement ses matières
     return myAssignmentsForClass
       .filter(a => a.subject)
       .map(a => a.subject!)
   }, [classId, teacherAssignments, allAssignments, isStaff])
 
-  // Auto-set subject si une seule matière
   const isMainForClass = useMemo(() => {
     if (isStaff) return true
     return teacherAssignments.some(a => a.class_id === classId && a.is_main_teacher)
   }, [classId, teacherAssignments, isStaff])
 
-  // Enseignants disponibles pour cette classe (staff)
   const availableTeachers = useMemo(() => {
     if (!isStaff || !classId) return []
     const teacherIds = [...new Set(allAssignments.filter(a => a.class_id === classId).map(a => a.teacher_id))]
@@ -112,7 +107,6 @@ export default function CahierTexteForm({
         return
       }
 
-      // Insert journal entry
       const { data: journal, error: journalErr } = await supabase
         .from('class_journal')
         .insert({
@@ -129,7 +123,6 @@ export default function CahierTexteForm({
 
       if (journalErr) throw journalErr
 
-      // Insert homework if toggled
       if (showHomework && hwTitle.trim() && hwDueDate) {
         const { data: hw, error: hwErr } = await supabase
           .from('homework')
@@ -149,15 +142,11 @@ export default function CahierTexteForm({
 
         if (hwErr) throw hwErr
 
-        // Fire-and-forget : notifier les parents
         if (hw) {
           fetch('/api/notifications/homework', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              homework_id: hw.id,
-              etablissement_id: etablissementId,
-            }),
+            body: JSON.stringify({ homework_id: hw.id, etablissement_id: etablissementId }),
           }).catch(() => {})
         }
       }
@@ -190,88 +179,81 @@ export default function CahierTexteForm({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Classe */}
-          <div>
-            <label className="label">Classe <span className="text-red-400">*</span></label>
-            <select
-              value={classId}
-              onChange={e => { setClassId(e.target.value); setSubject(''); setSelectedTeacherId(teacherId ?? '') }}
-              className="input w-full"
-              required
-            >
-              <option value="">Selectionner une classe</option>
-              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
+          <FloatSelect
+            label="Classe"
+            required
+            value={classId}
+            onChange={e => { setClassId(e.target.value); setSubject(''); setSelectedTeacherId(teacherId ?? '') }}
+          >
+            <option value=""></option>
+            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </FloatSelect>
 
           {/* Matière */}
-          <div>
-            <label className="label">Matiere {isMainForClass ? '' : <span className="text-red-400">*</span>}</label>
-            {availableSubjects.length === 0 && !isMainForClass ? (
-              <input value={subject} onChange={e => setSubject(e.target.value)} className="input w-full" placeholder="Matiere" />
-            ) : (
-              <select
-                value={subject}
-                onChange={e => setSubject(e.target.value)}
-                className="input w-full"
-              >
-                {isMainForClass && <option value="">General (toutes matieres)</option>}
-                {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            )}
-          </div>
+          {availableSubjects.length === 0 && !isMainForClass ? (
+            <FloatInput
+              label="Matiere"
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+            />
+          ) : (
+            <FloatSelect
+              label="Matiere"
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+            >
+              <option value=""></option>
+              {isMainForClass && <option value="">General (toutes matieres)</option>}
+              {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+            </FloatSelect>
+          )}
 
           {/* Enseignant (staff uniquement) */}
           {isStaff && (
-            <div>
-              <label className="label">Enseignant <span className="text-red-400">*</span></label>
-              <select
-                value={selectedTeacherId}
-                onChange={e => setSelectedTeacherId(e.target.value)}
-                className="input w-full"
-                required
-              >
-                <option value="">Selectionner un enseignant</option>
-                {availableTeachers.map(t => (
-                  <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-                ))}
-              </select>
-            </div>
+            <FloatSelect
+              label="Enseignant"
+              required
+              value={selectedTeacherId}
+              onChange={e => setSelectedTeacherId(e.target.value)}
+            >
+              <option value=""></option>
+              {availableTeachers.map(t => (
+                <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+              ))}
+            </FloatSelect>
           )}
 
           {/* Date */}
-          <div>
-            <label className="label">Date de seance <span className="text-red-400">*</span></label>
-            <input
-              type="date"
-              value={sessionDate}
-              onChange={e => setSessionDate(e.target.value)}
-              className="input w-full"
-              required
-            />
-          </div>
+          <FloatInput
+            label="Date de seance"
+            required
+            type="date"
+            value={sessionDate}
+            onChange={e => setSessionDate(e.target.value)}
+          />
         </div>
 
         {/* Titre */}
-        <div>
-          <label className="label">Titre de la seance <span className="text-red-400">*</span></label>
-          <input
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="input w-full"
-            placeholder="Ex : Les fractions - Introduction"
-            required
-          />
-        </div>
+        <FloatInput
+          label="Titre de la seance"
+          required
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Ex : Les fractions - Introduction"
+        />
 
         {/* Contenu riche */}
         <div>
-          <label className="label">Contenu de la seance <span className="text-red-400">*</span></label>
-          <RichTextEditor
-            content={contentHtml}
-            onChange={setContentHtml}
-            placeholder="Decrivez ce qui a ete fait en classe..."
-          />
+          <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            Contenu de la seance <span className="text-red-400">*</span>
+          </label>
+          <div className="mt-1">
+            <RichTextEditor
+              content={contentHtml}
+              onChange={setContentHtml}
+              placeholder="Decrivez ce qui a ete fait en classe..."
+            />
+          </div>
         </div>
       </div>
 
@@ -280,78 +262,77 @@ export default function CahierTexteForm({
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Devoir</h2>
           {!showHomework ? (
-            <button
+            <FloatButton
+              variant="secondary"
               type="button"
               onClick={() => setShowHomework(true)}
-              className="btn btn-ghost text-sm flex items-center gap-1 text-primary-600"
             >
               <Plus size={14} /> Ajouter un devoir
-            </button>
+            </FloatButton>
           ) : (
-            <button
+            <FloatButton
+              variant="danger"
               type="button"
               onClick={() => { setShowHomework(false); setHwTitle(''); setHwDescription(''); setHwDueDate('') }}
-              className="btn btn-ghost text-sm flex items-center gap-1 text-red-500"
             >
               <Trash2 size={14} /> Retirer
-            </button>
+            </FloatButton>
           )}
         </div>
 
         {showHomework && (
           <div className="space-y-4 border-t border-warm-200 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="label">Titre du devoir <span className="text-red-400">*</span></label>
-                <input
-                  type="text"
-                  value={hwTitle}
-                  onChange={e => setHwTitle(e.target.value)}
-                  className="input w-full"
-                  placeholder="Ex : Exercices page 45"
-                />
-              </div>
-              <div>
-                <label className="label">Type <span className="text-red-400">*</span></label>
-                <select value={hwType} onChange={e => setHwType(e.target.value)} className="input w-full">
-                  <option value="exercice">Exercice</option>
-                  <option value="lecon">Lecon a apprendre</option>
-                  <option value="expose">Expose</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Date de rendu <span className="text-red-400">*</span></label>
-                <input
-                  type="date"
-                  value={hwDueDate}
-                  onChange={e => setHwDueDate(e.target.value)}
-                  className="input w-full"
-                />
-              </div>
+              <FloatInput
+                label="Titre du devoir"
+                required
+                value={hwTitle}
+                onChange={e => setHwTitle(e.target.value)}
+                placeholder="Ex : Exercices page 45"
+              />
+              <FloatSelect
+                label="Type"
+                required
+                value={hwType}
+                onChange={e => setHwType(e.target.value)}
+              >
+                <option value="exercice">Exercice</option>
+                <option value="lecon">Lecon a apprendre</option>
+                <option value="expose">Expose</option>
+                <option value="autre">Autre</option>
+              </FloatSelect>
+              <FloatInput
+                label="Date de rendu"
+                required
+                type="date"
+                value={hwDueDate}
+                onChange={e => setHwDueDate(e.target.value)}
+              />
             </div>
             <div>
-              <label className="label">Consignes</label>
-              <RichTextEditor
-                content={hwDescription}
-                onChange={setHwDescription}
-                placeholder="Instructions pour le devoir..."
-              />
+              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Consignes</label>
+              <div className="mt-1">
+                <RichTextEditor
+                  content={hwDescription}
+                  onChange={setHwDescription}
+                  placeholder="Instructions pour le devoir..."
+                />
+              </div>
             </div>
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
         <div className="flex-1" />
-        <Link href="/dashboard/cahier-texte" className="btn btn-ghost">
+        <FloatButton variant="secondary" type="button" onClick={() => router.push('/dashboard/cahier-texte')}>
           Annuler
-        </Link>
-        <button type="submit" disabled={saving} className="btn btn-primary">
-          {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Valider'}
-        </button>
+        </FloatButton>
+        <FloatButton variant={isEdit ? 'edit' : 'submit'} type="submit" loading={saving}>
+          {isEdit ? 'Modifier' : 'Valider'}
+        </FloatButton>
       </div>
     </form>
   )

@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import {
-  BookOpenText, Search, Plus, CalendarDays, BookOpen,
-  ClipboardList, GraduationCap, FileText, Lightbulb, ChevronDown,
+  BookOpenText, Plus, CalendarDays, BookOpen,
+  ClipboardList, GraduationCap, FileText, Lightbulb,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
+import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 
 interface Props {
   role: string
@@ -51,19 +52,7 @@ export default function CahierTexteClient({
   const [filterClass, setFilterClass] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
 
-  // ── Dropdown custom classe ──
-  const [classDropOpen, setClassDropOpen] = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!classDropOpen) return
-    const handler = (e: MouseEvent) => {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [classDropOpen])
   const selectedClass = classes.find(c => c.id === filterClass) ?? null
-
   const canCreate = ['enseignant', 'direction', 'responsable_pedagogique'].includes(role)
 
   // Sujets uniques pour le filtre
@@ -98,79 +87,42 @@ export default function CahierTexteClient({
 
   return (
     <div className="space-y-4">
-      {/* Barre : select classe + recherche | infos classe + bouton */}
+      {/* Barre filtres + actions */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        {/* Gauche : select classe + recherche */}
-        <div ref={classDropRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setClassDropOpen(o => !o)}
-            className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
-          >
-            {selectedClass ? (
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
-                {(() => {
-                  const main = selectedClass.class_teachers?.find(t => t.is_main_teacher)
-                  const t = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
-                  return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
-                })()}
-              </span>
-            ) : (
-              <span className="text-warm-400">— Sélectionner une classe —</span>
-            )}
-            <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-          </button>
 
-          {classDropOpen && (
-            <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => { setFilterClass(''); setClassDropOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors"
-              >
-                — Toutes les classes —
-              </button>
-              {classes.map(c => {
-                const main = c.class_teachers?.find(t => t.is_main_teacher)
-                const teacher = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
-                const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => { setFilterClass(c.id); setClassDropOpen(false) }}
-                    className={clsx(
-                      'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
-                      filterClass === c.id && 'bg-primary-50'
-                    )}
-                  >
-                    <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                    <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="relative max-w-xs">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher..."
-            className="input text-sm py-1.5 pl-8 w-full"
-          />
-        </div>
+        <FloatSelect
+          label="Classe"
+          value={filterClass}
+          onChange={e => setFilterClass(e.target.value)}
+          wrapperClassName="w-fit"
+        >
+          <option value=""></option>
+          {classes.map(c => {
+            const main = c.class_teachers?.find(t => t.is_main_teacher)
+            const teacher = main?.teachers
+              ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ')
+              : null
+            return (
+              <option key={c.id} value={c.id}>
+                {[c.name, teacher].filter(Boolean).join(' — ')}
+              </option>
+            )
+          })}
+        </FloatSelect>
 
         {subjects.length > 0 && (
-          <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} className="input text-sm py-1.5">
-            <option value="">Toutes les matières</option>
+          <FloatSelect
+            label="Matiere"
+            value={filterSubject}
+            onChange={e => setFilterSubject(e.target.value)}
+            wrapperClassName="w-fit"
+          >
+            <option value=""></option>
             {subjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          </FloatSelect>
         )}
+
+        <SearchField value={search} onChange={setSearch} />
 
         {/* Droite : infos classe + bouton */}
         <div className="flex items-center gap-3 ml-auto">
@@ -186,8 +138,10 @@ export default function CahierTexteClient({
             ) : null
           })()}
           {canCreate && (
-            <Link href="/dashboard/cahier-texte/new" className="btn btn-primary text-sm flex items-center gap-1.5 whitespace-nowrap">
-              <Plus size={16} /> Nouvelle séance
+            <Link href="/dashboard/cahier-texte/new">
+              <FloatButton variant="submit" type="button" className="whitespace-nowrap">
+                <Plus size={14} /> Ajouter
+              </FloatButton>
             </Link>
           )}
         </div>

@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { Send, Search, Mail, Users, UserCheck, Globe, ChevronRight } from 'lucide-react'
+import { Send, Mail, Users, UserCheck, Globe, ChevronRight, UsersRound } from 'lucide-react'
+import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,11 +28,11 @@ interface Props {
 }
 
 const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
-  all_active:     { label: 'Tous (actifs)',    icon: Users,     color: 'bg-blue-100 text-blue-700' },
-  all_registered: { label: 'Tous (base)',      icon: Globe,     color: 'bg-purple-100 text-purple-700' },
-  class:          { label: 'Classe',           icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
-  selected:       { label: 'Selection',        icon: UserCheck, color: 'bg-green-100 text-green-700' },
-  staff:          { label: 'Staff interne',    icon: Users,     color: 'bg-warm-100 text-warm-700' },
+  all_active:     { label: 'Tous les parents (élèves actifs)',  icon: Users,     color: 'bg-blue-100 text-blue-700' },
+  all_registered: { label: 'Tous les parents enregistrés',     icon: Globe,     color: 'bg-purple-100 text-purple-700' },
+  class:          { label: "Parents d'une classe",             icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
+  selected:       { label: 'Parents choisis',                  icon: UserCheck, color: 'bg-green-100 text-green-700' },
+  staff:          { label: 'Staff interne',                    icon: Users,     color: 'bg-warm-100 text-warm-700' },
 }
 
 function formatDate(d: string | null): string {
@@ -60,39 +61,43 @@ export default function SentMessagesClient({ messages, role }: Props) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-end">
-        <Link
-          href="/dashboard/communications/new"
-          className="btn-primary text-sm px-4 py-2 flex items-center gap-1.5"
-        >
-          <Send size={14} /> Nouveau message
+      <div className="flex items-center justify-end gap-2">
+        <Link href="/dashboard/communications/new">
+          <FloatButton variant="submit" type="button">
+            <Send size={14} /> Parents
+          </FloatButton>
+        </Link>
+        <Link href="/dashboard/communications/staff">
+          <FloatButton variant="submit" type="button">
+            <UsersRound size={14} /> Staff / Enseignants
+          </FloatButton>
         </Link>
       </div>
 
       {/* Filtres */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher par objet..."
-            className="input text-sm py-1.5 pl-8 w-full"
-          />
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher par objet…"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(['', 'all_active', 'all_registered', 'class', 'selected', 'staff'] as const).map(type => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setFilterType(type)}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+                filterType === type
+                  ? 'border-primary-300 bg-primary-50 text-primary-700'
+                  : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50'
+              )}
+            >
+              {type === '' ? 'Tous les messages' : TYPE_LABELS[type]?.label}
+            </button>
+          ))}
         </div>
-        <select
-          value={filterType}
-          onChange={e => setFilterType(e.target.value)}
-          className="input text-sm py-1.5"
-        >
-          <option value="">Tous les types</option>
-          <option value="all_active">Tous (actifs)</option>
-          <option value="all_registered">Tous (base)</option>
-          <option value="class">Classe</option>
-          <option value="selected">Selection</option>
-          <option value="staff">Staff</option>
-        </select>
       </div>
 
       {/* Tableau */}

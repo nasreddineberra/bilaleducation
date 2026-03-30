@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext,
@@ -13,10 +13,12 @@ import {
 } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Search, X, Users, GripVertical, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Users, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 
 const POOL_PAGE_SIZE = 20
 
@@ -248,7 +250,7 @@ function DropZone({
                 {t.last_name} {t.first_name}
               </span>
               <GenderBadge gender={genderFromRelationship(t.relationship)} />
-              <Tooltip content="Retirer du cours">
+              <Tooltip content="Retirer de la classe">
                 <button
                   onClick={() => onRemove(t.id)}
                   className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
@@ -303,19 +305,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   )
 
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
-  const [classDropOpen,   setClassDropOpen]   = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!classDropOpen) return
-    const handler = (e: MouseEvent) => {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) {
-        setClassDropOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [classDropOpen])
 
   const [roster,         setRoster]         = useState<string[]>([])
   const [originalRoster, setOriginalRoster] = useState<string[]>([])
@@ -323,20 +312,25 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const [poolPage, setPoolPage] = useState(1)
   const [saving,   setSaving]   = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
   const hasChanges    = JSON.stringify([...roster].sort()) !== JSON.stringify([...originalRoster].sort())
 
   const selectClass = useCallback((classId: string | null) => {
-    if (hasChanges) {
-      if (!confirm('Des modifications non sauvegardées seront perdues. Continuer ?')) return
+    const doSelect = () => {
+      setSelectedClassId(classId)
+      const newRoster = classId
+        ? enrollments.filter(e => e.class_id === classId).map(e => `${e.parent_id}-${e.tutor_number}`)
+        : []
+      setRoster(newRoster)
+      setOriginalRoster(newRoster)
     }
-    setSelectedClassId(classId)
-    const newRoster = classId
-      ? enrollments.filter(e => e.class_id === classId).map(e => `${e.parent_id}-${e.tutor_number}`)
-      : []
-    setRoster(newRoster)
-    setOriginalRoster(newRoster)
+    if (hasChanges) {
+      setPendingConfirm({ message: 'Des modifications non sauvegardées seront perdues. Continuer ?', onConfirm: doSelect })
+    } else {
+      doSelect()
+    }
   }, [hasChanges, enrollments])
 
   function handleDragStart(event: DragStartEvent) { setActiveId(event.active.id as string) }
@@ -466,76 +460,35 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     <div className="h-full flex flex-col gap-3">
 
       {/* Sélecteur cours adulte */}
-      <div className="card p-4 flex-shrink-0">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div ref={classDropRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setClassDropOpen(o => !o)}
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
-            >
-              {selectedClass ? (
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
-                  {(() => {
-                    const main = selectedClass.class_teachers.find(t => t.is_main_teacher)
-                    const t = main?.teachers ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ') : null
-                    return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
-                  })()}
-                </span>
-              ) : (
-                <span className="text-warm-400">— Sélectionner une classe —</span>
-              )}
-              <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-            </button>
+      <div className="card px-3 py-2 flex-shrink-0 flex items-center gap-3 flex-wrap">
+        <FloatSelect
+          label="Classe adulte"
+          value={selectedClassId ?? ''}
+          onChange={e => selectClass(e.target.value || null)}
+          wrapperClassName="w-fit"
+        >
+          <option value=""></option>
+          {classes.map(c => {
+            const main = c.class_teachers.find(t => t.is_main_teacher)
+            const teacher = main?.teachers
+              ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
+              : null
+            return (
+              <option key={c.id} value={c.id}>
+                {[c.name, teacher].filter(Boolean).join(' — ')}
+              </option>
+            )
+          })}
+        </FloatSelect>
 
-            {classDropOpen && (
-              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => { selectClass(null); setClassDropOpen(false) }}
-                  className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors"
-                >
-                  — Sélectionner une classe —
-                </button>
-                {classes.length === 0 && (
-                  <p className="px-3 py-4 text-sm text-warm-400 text-center">
-                    Aucun cours adulte configuré.
-                  </p>
-                )}
-                {classes.map(c => {
-                  const main    = c.class_teachers.find(t => t.is_main_teacher)
-                  const teacher = main?.teachers
-                    ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
-                    : null
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => { selectClass(c.id); setClassDropOpen(false) }}
-                      className={clsx(
-                        'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
-                        selectedClassId === c.id && 'bg-primary-50'
-                      )}
-                    >
-                      <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      <span className="text-warm-400 text-xs truncate">{[teacher, c.cotisation_types?.label].filter(Boolean).join(' · ')}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {selectedClass && (
-            <span className={clsx(
-              'text-sm font-semibold px-3 py-1 rounded-full',
-              isFull ? 'bg-red-100 text-red-600' : 'bg-primary-50 text-primary-700'
-            )}>
-              {roster.length} / {selectedClass.max_students} participants
-            </span>
-          )}
-        </div>
+        {selectedClass && (
+          <span className={clsx(
+            'text-sm font-semibold px-3 py-1 rounded-full',
+            isFull ? 'bg-red-100 text-red-600' : 'bg-primary-50 text-primary-700'
+          )}>
+            {roster.length} / {selectedClass.max_students} participants
+          </span>
+        )}
       </div>
 
       {/* Panels DnD */}
@@ -554,21 +507,10 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-wide">
                   Participants ({tutors.length})
                 </h3>
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={e => { setSearch(e.target.value); setPoolPage(1) }}
-                    placeholder="Rechercher..."
-                    className="pl-7 pr-6 py-1.5 text-xs bg-warm-50 border border-warm-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-300 w-40"
-                  />
-                  {search && (
-                    <button onClick={() => { setSearch(''); setPoolPage(1) }} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-400">
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
+                <SearchField
+                  value={search}
+                  onChange={v => { setSearch(v); setPoolPage(1) }}
+                />
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
@@ -684,18 +626,24 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
       {/* Bouton enregistrer */}
       {selectedClassId && (
         <div className="flex-shrink-0 flex justify-end">
-          <button
+          <FloatButton
+            variant={originalRoster.length > 0 ? 'edit' : 'submit'}
+            type="button"
             onClick={save}
-            disabled={!hasChanges || saving}
-            className={clsx(
-              'btn btn-primary',
-              (!hasChanges || saving) && 'opacity-50 cursor-not-allowed'
-            )}
+            disabled={!hasChanges}
+            loading={saving}
           >
-            {saving ? 'Enregistrement…' : 'Enregistrer la classe'}
-          </button>
+            {originalRoster.length > 0 ? 'Modifier' : 'Valider'}
+          </FloatButton>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!pendingConfirm}
+        message={pendingConfirm?.message ?? ''}
+        onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
+        onCancel={() => setPendingConfirm(null)}
+      />
 
     </div>
   )

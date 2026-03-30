@@ -376,9 +376,9 @@ export default function TempsPresenceClient({
             <h3 className="text-xs font-bold text-secondary-800 capitalize">{selectedDayLabel}</h3>
             <button
               onClick={() => { setEditingEntry(null); setModalOpen(true) }}
-              className="btn-primary text-[10px] px-2 py-1 flex items-center gap-1"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200"
             >
-              <Plus size={12} /> Saisie
+              <Plus size={12} /> Ajouter
             </button>
           </div>
 

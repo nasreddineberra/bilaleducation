@@ -10,9 +10,10 @@ export interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElem
   required?: boolean
   error?:    string
   locked?:   boolean
+  compact?:  boolean
 }
 
-export function FloatInput({ label, required, error, locked, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
+export function FloatInput({ label, required, error, locked, compact, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
   const isDate = type === 'date'
   // Pour les champs date : afficher type="text" quand vide et non focusé
   // afin de masquer le placeholder navigateur (jj/mm/aaaa)
@@ -29,7 +30,8 @@ export function FloatInput({ label, required, error, locked, className, type, on
         onFocus={e => { setFocused(true); onFocus?.(e) }}
         onBlur={e => { setFocused(false); onBlur?.(e) }}
         className={[
-          'peer w-full px-3 pt-5 pb-1.5 rounded-lg border text-sm',
+          'peer w-full px-3 rounded-lg border text-sm',
+          compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
           'transition-all duration-200',
           'focus:outline-none focus:ring-2',
           locked
@@ -42,9 +44,10 @@ export function FloatInput({ label, required, error, locked, className, type, on
       />
       <label className={[
         'absolute left-3 transition-all duration-200 pointer-events-none select-none origin-left',
-        'top-3.5 text-sm',
-        'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase',
-        'peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase',
+        compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
+        compact
+          ? 'peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:top-1 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase'
+          : 'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase',
         locked
           ? 'text-warm-400'
           : error
@@ -61,20 +64,23 @@ export function FloatInput({ label, required, error, locked, className, type, on
 // ─── FloatSelect ──────────────────────────────────────────────────────────────
 
 export interface FloatSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label:     string
-  required?: boolean
-  error?:    string
-  children:  React.ReactNode
+  label:             string
+  required?:         boolean
+  error?:            string
+  children:          React.ReactNode
+  wrapperClassName?: string
+  compact?:          boolean
 }
 
-export function FloatSelect({ label, required, error, children, className, ...props }: FloatSelectProps) {
+export function FloatSelect({ label, required, error, children, className, wrapperClassName, compact, ...props }: FloatSelectProps) {
   const hasValue = !!props.value && props.value !== ''
   return (
-    <div className="relative">
+    <div className={['relative', wrapperClassName].filter(Boolean).join(' ')}>
       <select
         {...props}
         className={[
-          'peer w-full px-3 pt-5 pb-1.5 rounded-lg border text-sm text-gray-800',
+          'peer w-full px-3 rounded-lg border text-sm text-gray-800',
+          compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
           'bg-white transition-all duration-200 appearance-none',
           'focus:outline-none focus:ring-2',
           error
@@ -94,9 +100,11 @@ export function FloatSelect({ label, required, error, children, className, ...pr
       <label className={[
         'absolute left-3 transition-all duration-200 pointer-events-none select-none origin-left',
         hasValue
-          ? 'top-1.5 text-[10px] font-semibold tracking-wide uppercase'
-          : 'top-3.5 text-sm',
-        'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase',
+          ? compact ? 'top-1 text-[10px] font-semibold tracking-wide uppercase' : 'top-1.5 text-[10px] font-semibold tracking-wide uppercase'
+          : compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
+        compact
+          ? 'peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase'
+          : 'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase',
         error
           ? 'text-red-500'
           : hasValue
@@ -175,6 +183,7 @@ export interface FloatCheckboxProps {
   disabled?:    boolean
   activeLabel?: string   // label affiché quand checked (switch uniquement)
   inactiveLabel?: string // label affiché quand !checked (switch uniquement)
+  className?:   string
 }
 
 const CHECK_ICON = (
@@ -192,6 +201,7 @@ export function FloatCheckbox({
   disabled,
   activeLabel,
   inactiveLabel,
+  className,
 }: FloatCheckboxProps) {
 
   // ── Switch (toggle) ──
@@ -238,6 +248,7 @@ export function FloatCheckbox({
       <label className={[
         'flex items-center gap-1.5 select-none',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+        className ?? '',
       ].join(' ')}>
         <span className={[
           'flex-shrink-0 w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors',
@@ -256,7 +267,7 @@ export function FloatCheckbox({
           onChange={e => onChange(e.target.checked)}
           className="sr-only"
         />
-        <span className="text-xs text-warm-400 select-none">{label}</span>
+        {label && <span className="text-xs text-warm-400 select-none">{label}</span>}
       </label>
     )
   }
@@ -352,7 +363,7 @@ export interface SearchFieldProps {
 
 export function SearchField({ value, onChange, placeholder = 'Rechercher…', className }: SearchFieldProps) {
   return (
-    <div className={['relative flex items-center', className ?? ''].join(' ')}>
+    <div className={['relative flex items-center', className ?? 'w-64'].join(' ')}>
       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
       <input
         type="text"
@@ -360,7 +371,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className={[
-          'pl-8 py-2 text-sm rounded-lg border w-64',
+          'pl-8 py-2 text-sm rounded-lg border w-full',
           'bg-white text-secondary-800 placeholder:text-warm-400',
           'border-warm-300 transition-all duration-200',
           'focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400',
@@ -386,9 +397,10 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
 // variant "secondary" : blanc + bordure — Annuler
 // variant "edit"      : orange doré (amber) — Modifier
 // variant "danger"    : rouge — Supprimer
+// variant "print"     : turquoise (primary-500) — Imprimer
 
 export interface FloatButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?:  'submit' | 'secondary' | 'edit' | 'danger'
+  variant?:  'submit' | 'secondary' | 'edit' | 'danger' | 'print'
   loading?:  boolean
   children:  React.ReactNode
 }
@@ -398,6 +410,7 @@ const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
   secondary: 'bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 focus:ring-secondary-300',
   edit:      'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400 shadow-[0_2px_6px_rgba(255,162,0,0.30)] hover:shadow-[0_4px_12px_rgba(255,162,0,0.40)]',
   danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-400 shadow-[0_2px_6px_rgba(220,38,38,0.25)] hover:shadow-[0_4px_12px_rgba(220,38,38,0.35)]',
+  print:     'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-[0_2px_6px_rgba(24,170,153,0.30)] hover:shadow-[0_4px_12px_rgba(24,170,153,0.40)]',
 }
 
 export function FloatButton({

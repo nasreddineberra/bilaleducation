@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { clsx } from 'clsx'
-import { Send, Paperclip, X, Eye, Loader2, CheckSquare, Square, Bell, Mail, Search } from 'lucide-react'
+import { Send, Paperclip, X, Eye, CheckSquare, Square, Bell, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import type { UserRole } from '@/types/database'
+import { FloatInput, FloatButton, SearchField } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ export default function StaffMessageClient({
   const toast = useToast()
   const [channel, setChannel] = useState<Channel>('email')
   const [selectAll, setSelectAll] = useState(false)
+  const [selectGroup, setSelectGroup] = useState<'staff' | 'enseignants' | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [subject, setSubject] = useState('')
@@ -88,13 +90,15 @@ export default function StaffMessageClient({
   // Destinataires resolus
   const resolvedRecipients = useMemo(() => {
     if (selectAll) return availableStaff
+    if (selectGroup === 'staff') return availableStaff.filter(s => s.role !== 'enseignant')
+    if (selectGroup === 'enseignants') return availableStaff.filter(s => s.role === 'enseignant')
     const byRole = availableStaff.filter(s => selectedRoles.has(s.role))
     const byId = availableStaff.filter(s => selectedIds.has(s.id))
     const map = new Map<string, StaffMember>()
     byRole.forEach(s => map.set(s.id, s))
     byId.forEach(s => map.set(s.id, s))
     return [...map.values()]
-  }, [selectAll, selectedRoles, selectedIds, availableStaff])
+  }, [selectAll, selectGroup, selectedRoles, selectedIds, availableStaff])
 
   const recipientEmails = resolvedRecipients.map(s => s.email)
 
@@ -112,6 +116,7 @@ export default function StaffMessageClient({
       return next
     })
     setSelectAll(false)
+    setSelectGroup(null)
   }
 
   const toggleMember = (id: string) => {
@@ -122,10 +127,19 @@ export default function StaffMessageClient({
       return next
     })
     setSelectAll(false)
+    setSelectGroup(null)
   }
 
   const handleSelectAll = () => {
     setSelectAll(!selectAll)
+    setSelectGroup(null)
+    setSelectedRoles(new Set())
+    setSelectedIds(new Set())
+  }
+
+  const handleSelectGroup = (g: 'staff' | 'enseignants') => {
+    setSelectGroup(prev => prev === g ? null : g)
+    setSelectAll(false)
     setSelectedRoles(new Set())
     setSelectedIds(new Set())
   }
@@ -252,6 +266,26 @@ export default function StaffMessageClient({
           >
             Tous
           </button>
+          <button
+            type="button"
+            onClick={() => handleSelectGroup('staff')}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+              selectGroup === 'staff' ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50',
+            )}
+          >
+            Staff
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSelectGroup('enseignants')}
+            className={clsx(
+              'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+              selectGroup === 'enseignants' ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50',
+            )}
+          >
+            Enseignants
+          </button>
           {availableRoles.map(r => (
             <button
               key={r}
@@ -269,16 +303,12 @@ export default function StaffMessageClient({
 
         {/* Selection individuelle */}
         <div className="space-y-2">
-          <div className="relative max-w-sm">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-warm-400" />
-            <input
-              type="text"
-              value={staffSearch}
-              onChange={e => setStaffSearch(e.target.value)}
-              placeholder="Rechercher un membre..."
-              className="input text-sm py-1.5 pl-8 w-full"
-            />
-          </div>
+          <SearchField
+            value={staffSearch}
+            onChange={setStaffSearch}
+            placeholder="Rechercher un membre…"
+            className="max-w-sm"
+          />
 
           <div className="max-h-48 overflow-y-auto border border-warm-100 rounded-lg divide-y divide-warm-50">
             {filteredStaff.map(s => {
@@ -323,14 +353,12 @@ export default function StaffMessageClient({
       </div>
 
       {/* 3. Objet */}
-      <div className="card p-4 space-y-2">
-        <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Objet</label>
-        <input
+      <div className="card p-4">
+        <FloatInput
+          label="Objet"
           type="text"
           value={subject}
           onChange={e => setSubject(e.target.value)}
-          placeholder="Objet du message..."
-          className="input text-sm w-full"
         />
       </div>
 
@@ -371,32 +399,32 @@ export default function StaffMessageClient({
 
       {/* 6. Actions */}
       <div className="flex items-center gap-3 justify-end">
-        <button
+        <FloatButton
+          variant="secondary"
           type="button"
           onClick={() => setShowPreview(!showPreview)}
           disabled={!bodyHtml.trim()}
-          className="btn-secondary text-sm px-4 py-2 flex items-center gap-1.5"
         >
-          <Eye size={14} /> Apercu
-        </button>
-        <button
+          <Eye size={14} /> Aperçu
+        </FloatButton>
+        <FloatButton
+          variant="submit"
           type="button"
           onClick={handleSend}
-          disabled={!canSend || sending}
-          className="btn-primary text-sm px-5 py-2 flex items-center gap-1.5"
+          disabled={!canSend}
+          loading={sending}
         >
-          {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-          Envoyer
-        </button>
+          <Send size={14} /> Envoyer
+        </FloatButton>
       </div>
 
       {showPreview && bodyHtml && (
         <div className="card p-4 space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Apercu du message</h2>
-            <button type="button" onClick={() => setShowPreview(false)} className="text-warm-400 hover:text-warm-600">
+            <FloatButton variant="secondary" type="button" onClick={() => setShowPreview(false)} className="!px-2">
               <X size={14} />
-            </button>
+            </FloatButton>
           </div>
           <div className="border border-warm-100 rounded-lg p-4 bg-white">
             <p className="text-sm font-medium text-warm-700 mb-2">Objet : {subject || '(sans objet)'}</p>

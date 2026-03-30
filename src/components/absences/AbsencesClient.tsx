@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import type { Period, Absence, AbsenceType } from '@/types/database'
 
@@ -81,19 +82,8 @@ export default function AbsencesClient({
   const [expandedStudent,  setExpandedStudent]  = useState<string | null>(null)
   const [showSaisie,       setShowSaisie]       = useState(false)
   const [justifyTarget,    setJustifyTarget]    = useState<Absence | null>(null)
+  const [validatedDates,   setValidatedDates]   = useState<Set<string>>(new Set())
 
-  // ── Dropdown custom classe ──
-  const [classDropOpen, setClassDropOpen] = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!classDropOpen) return
-    const handler = (e: MouseEvent) => {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [classDropOpen])
-  const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
 
   // Élèves de la classe sélectionnée
   const classStudents = useMemo(
@@ -298,7 +288,7 @@ export default function AbsencesClient({
   }
 
   // Callback après saisie (ajouts, mises à jour, suppressions)
-  const handleSaisieComplete = (added: Absence[], updated: Absence[], deletedIds: string[]) => {
+  const handleSaisieComplete = (added: Absence[], updated: Absence[], deletedIds: string[], savedDate: string) => {
     setAbsences(prev => {
       const afterDelete = prev.filter(a => !deletedIds.includes(a.id))
       const afterUpdate = afterDelete.map(a => {
@@ -307,7 +297,8 @@ export default function AbsencesClient({
       })
       return [...afterUpdate, ...added]
     })
-    setShowSaisie(false)
+    setValidatedDates(prev => new Set(prev).add(savedDate))
+    // Ne pas fermer : le modal reste ouvert pour permettre l'impression
   }
 
   // Callback après justification
@@ -347,60 +338,21 @@ export default function AbsencesClient({
 
       {/* ── Barre de sélection ── */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-4 flex-shrink-0">
-        <div ref={classDropRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setClassDropOpen(o => !o)}
-            className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
-          >
-            {selectedClass ? (
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="font-semibold text-secondary-800 truncate">{selectedClass.name}</span>
-                {(() => {
-                  const t = selectedClass.main_teacher_civilite && selectedClass.main_teacher_name
-                    ? `${selectedClass.main_teacher_civilite} ${selectedClass.main_teacher_name}`
-                    : selectedClass.main_teacher_name
-                  return t ? <span className="text-warm-400 text-xs truncate">{t}</span> : null
-                })()}
-              </span>
-            ) : (
-              <span className="text-warm-400">— Sélectionner une classe —</span>
-            )}
-            <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-          </button>
-
-          {classDropOpen && (
-            <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-20 overflow-hidden max-h-64 overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => { setSelectedClassId(null); setExpandedStudent(null); setClassDropOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-warm-400 hover:bg-warm-50 transition-colors"
-              >
-                — Sélectionner une classe —
-              </button>
-              {classes.map(c => {
-                const teacher = c.main_teacher_civilite && c.main_teacher_name
-                  ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
-                  : c.main_teacher_name
-                const infoParts = [teacher, c.cotisation_label].filter(Boolean)
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => { setSelectedClassId(c.id); setExpandedStudent(null); setClassDropOpen(false) }}
-                    className={clsx(
-                      'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
-                      selectedClassId === c.id && 'bg-primary-50'
-                    )}
-                  >
-                    <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                    <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <FloatSelect
+          label="Classe"
+          value={selectedClassId ?? ''}
+          onChange={e => { setSelectedClassId(e.target.value || null); setExpandedStudent(null) }}
+          wrapperClassName="w-fit"
+        >
+          <option value=""></option>
+          {classes.map(c => {
+            const teacher = c.main_teacher_civilite && c.main_teacher_name
+              ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
+              : c.main_teacher_name
+            const infoParts = [c.name, teacher].filter(Boolean)
+            return <option key={c.id} value={c.id}>{infoParts.join(' — ')}</option>
+          })}
+        </FloatSelect>
 
         {periods.length > 0 && (
           <div className="flex items-center gap-1">
@@ -409,10 +361,10 @@ export default function AbsencesClient({
                 key={p.id}
                 onClick={() => { setSelectedPeriodId(p.id); setExpandedStudent(null) }}
                 className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors',
+                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
-                    ? 'bg-primary-500 text-white shadow-sm'
-                    : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
+                    ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
+                    : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >
                 {PERIOD_LABELS[p.label] ?? p.label}
@@ -459,19 +411,22 @@ export default function AbsencesClient({
             {/* Barre résumé + bouton saisie */}
             <div className="px-3 py-1.5 flex items-center justify-between border-b border-warm-100 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <button
+                <FloatButton
+                  variant="submit"
+                  type="button"
                   onClick={() => setShowSaisie(true)}
-                  className="btn btn-primary text-xs py-1 px-2.5 flex items-center gap-1"
+                  className="text-xs px-2.5 py-1"
                 >
-                  <Plus size={14} /> Saisir
-                </button>
-                <button
+                  <Plus size={14} /> Ajouter
+                </FloatButton>
+                <FloatButton
+                  variant="print"
+                  type="button"
                   onClick={handlePrintPdf}
-                  className="btn text-xs py-1 px-2.5 flex items-center gap-1"
-                  title="Imprimer la feuille d'appel"
+                  className="text-xs px-2.5 py-1"
                 >
                   <Printer size={14} /> Imprimer
-                </button>
+                </FloatButton>
               </div>
               <div className="flex items-center gap-4 text-xs text-warm-500">
                 <span>{summary.abs} absence{summary.abs > 1 ? 's' : ''} <span className="text-red-500 font-semibold">({summary.absNJ} NJ)</span></span>
@@ -535,10 +490,14 @@ export default function AbsencesClient({
       {showSaisie && selectedClassId && selectedPeriodId && (
         <SaisieModal
           classStudents={classStudents}
+          classInfo={classes.find(c => c.id === selectedClassId)!}
           classId={selectedClassId}
           periodId={selectedPeriodId}
           etablissementId={etablissementId}
-          existingAbsences={periodAbsences}
+          etablissement={etablissement}
+          yearLabel={yearLabel}
+          existingAbsences={absences.filter(a => a.class_id === selectedClassId)}
+          validatedDates={validatedDates}
           onComplete={handleSaisieComplete}
           onClose={() => setShowSaisie(false)}
         />
@@ -713,7 +672,7 @@ type SaisieEntry = {
 }
 
 function buildEntries(classStudents: StudentRow[], existingAbsences: Absence[], date: string): SaisieEntry[] {
-  const dateAbsences = existingAbsences.filter(a => a.absence_date === date)
+  const dateAbsences = existingAbsences.filter(a => (a.absence_date ?? '').slice(0, 10) === date)
   return classStudents.map(s => {
     const existing = dateAbsences.find(a => a.student_id === s.student_id)
     if (existing) {
@@ -750,28 +709,50 @@ const STATUS_STYLE = {
 }
 
 function SaisieModal({
-  classStudents, classId, periodId, etablissementId, existingAbsences, onComplete, onClose,
+  classStudents, classInfo, classId, periodId, etablissementId, etablissement, yearLabel,
+  existingAbsences, validatedDates, onComplete, onClose,
 }: {
   classStudents: StudentRow[]
+  classInfo: ClassRow
   classId: string
   periodId: string
   etablissementId: string
+  etablissement: EtablissementInfo | null
+  yearLabel: string | null
   existingAbsences: Absence[]
-  onComplete: (added: Absence[], updated: Absence[], deletedIds: string[]) => void
+  validatedDates: Set<string>
+  onComplete: (added: Absence[], updated: Absence[], deletedIds: string[], savedDate: string) => void
   onClose: () => void
 }) {
-  const today = new Date().toISOString().split('T')[0]
-  const [date,         setDate]         = useState(today)
-  const [entries,      setEntries]      = useState<SaisieEntry[]>(
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+  const [date,          setDate]          = useState(today)
+  const [localAbsences, setLocalAbsences] = useState<Absence[]>(existingAbsences)
+  const [entries,       setEntries]       = useState<SaisieEntry[]>(
     () => buildEntries(classStudents, existingAbsences, today)
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [editingComment, setEditingComment] = useState<string | null>(null)
+  const [isSaved,      setIsSaved]      = useState(false)
+
+  // Fetch fresh absences on mount pour avoir les données à jour (évite le cache stale)
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data } = await supabase.from('absences').select('*').eq('class_id', classId)
+      if (data) {
+        const fresh = data as Absence[]
+        setLocalAbsences(fresh)
+        setEntries(buildEntries(classStudents, fresh, today))
+      }
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleDateChange = (newDate: string) => {
     setDate(newDate)
-    setEntries(buildEntries(classStudents, existingAbsences, newDate))
+    setEntries(buildEntries(classStudents, localAbsences, newDate))
   }
 
   const cycleStatus = (idx: number) => {
@@ -779,15 +760,12 @@ function SaisieModal({
       if (i !== idx) return e
       const curIdx = STATUS_CYCLE.indexOf(e.status)
       const next = STATUS_CYCLE[(curIdx + 1) % 3]
-      return { ...e, status: next, comment: next === 'present' ? '' : e.comment }
+      return { ...e, status: next }
     }))
   }
 
   const setEntry = (idx: number, status: 'present' | 'absence' | 'retard') => {
-    setEntries(prev => prev.map((e, i) => i === idx
-      ? { ...e, status, comment: status === 'present' ? '' : e.comment }
-      : e
-    ))
+    setEntries(prev => prev.map((e, i) => i === idx ? { ...e, status } : e))
   }
 
   const setComment = (idx: number, comment: string) => {
@@ -806,10 +784,11 @@ function SaisieModal({
   // Entrees a inserer / modifier / supprimer
   const toInsert = entries.filter(e => e.status !== 'present' && !e.existingId)
   const toUpdate = entries.filter(e => e.status !== 'present' && e.existingId && (
-    e.status !== e.existingType || e.comment.trim() !== (existingAbsences.find(a => a.id === e.existingId)?.comment ?? '')
+    e.status !== e.existingType || e.comment.trim() !== (localAbsences.find(a => a.id === e.existingId)?.comment ?? '')
   ))
   const toDelete = entries.filter(e => e.status === 'present' && e.existingId)
   const hasChanges = toInsert.length > 0 || toUpdate.length > 0 || toDelete.length > 0
+  const isEditMode = entries.some(e => e.existingId) || validatedDates.has(date)
 
   // Absents + retards pour le recap
   const nonPresent = entries
@@ -876,11 +855,187 @@ function SaisieModal({
         }).catch(() => {})
       }
 
-      onComplete(added, updated, deletedIds)
+      // Mettre à jour localAbsences pour refléter les nouvelles données
+      setLocalAbsences(prev => {
+        const afterDelete = prev.filter(a => !deletedIds.includes(a.id))
+        const afterUpdate = afterDelete.map(a => { const u = updated.find(u => u.id === a.id); return u ?? a })
+        return [...afterUpdate, ...added]
+      })
+      onComplete(added, updated, deletedIds, date)
+      setIsSaved(true)
     } catch (err: any) {
       setError(err?.message ?? 'Erreur lors de l\'enregistrement.')
       setIsSubmitting(false)
     }
+  }
+
+  const handlePrintSaisie = async () => {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 15
+    const contentWidth = pageWidth - margin * 2
+    let y = margin
+
+    const COLORS = {
+      primary:   [80, 117, 131]   as [number, number, number],
+      secondary: [46, 69, 80]     as [number, number, number],
+      gray:      [120, 120, 120]  as [number, number, number],
+      headerBg:  [240, 245, 248]  as [number, number, number],
+      green:     [22, 163, 74]    as [number, number, number],
+      red:       [220, 38, 38]    as [number, number, number],
+      amber:     [217, 119, 6]    as [number, number, number],
+    }
+
+    // Logo
+    if (etablissement?.logo_url) {
+      try {
+        const res = await fetch(etablissement.logo_url)
+        if (res.ok) {
+          const blob = await res.blob()
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+          doc.addImage(base64, 'PNG', margin, y, 20, 20)
+        }
+      } catch { /* ignore */ }
+    }
+
+    const logoOffset = etablissement?.logo_url ? 25 : 0
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.secondary)
+    doc.text(etablissement?.nom ?? '', margin + logoOffset, y + 7)
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    const infoLines: string[] = []
+    if (etablissement?.adresse) infoLines.push(etablissement.adresse)
+    if (etablissement?.telephone) infoLines.push(`Tél : ${etablissement.telephone}`)
+    infoLines.forEach((line, i) => { doc.text(line, margin + logoOffset, y + 12 + i * 4) })
+
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.primary)
+    doc.text("FEUILLE D'APPEL", pageWidth - margin, y + 5, { align: 'right' })
+
+    if (yearLabel) {
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...COLORS.gray)
+      doc.text(yearLabel, pageWidth - margin, y + 11, { align: 'right' })
+    }
+
+    y += 25
+    doc.setDrawColor(...COLORS.primary)
+    doc.setLineWidth(0.8)
+    doc.line(margin, y, pageWidth - margin, y)
+    y += 6
+
+    doc.setFillColor(...COLORS.headerBg)
+    doc.roundedRect(margin, y, contentWidth, 20, 2, 2, 'F')
+
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...COLORS.secondary)
+    doc.text(`Classe : ${classInfo.name}`, margin + 4, y + 7)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.gray)
+    const infoParts: string[] = []
+    if (classInfo.main_teacher_name) {
+      infoParts.push(classInfo.main_teacher_civilite ? `${classInfo.main_teacher_civilite} ${classInfo.main_teacher_name}` : classInfo.main_teacher_name)
+    }
+    if (classInfo.level) infoParts.push(`Niveau ${classInfo.level}`)
+    const timeStr = [classInfo.start_time, classInfo.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+    const schedule = [classInfo.day_of_week, timeStr].filter(Boolean).join(' ')
+    if (schedule) infoParts.push(schedule)
+    doc.text(infoParts.join(' · '), margin + 4, y + 14)
+
+    y += 25
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...COLORS.secondary)
+    const dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    doc.text(`Date : ${dateLabel}`, margin, y)
+    doc.text(`Effectif : ${classStudents.length} élève${classStudents.length > 1 ? 's' : ''}`, pageWidth - margin, y, { align: 'right' })
+    y += 6
+
+    const sortedEntries = classStudents
+      .map((s, i) => ({ student: s, entry: entries[i] }))
+      .sort((a, b) => a.student.last_name.localeCompare(b.student.last_name) || a.student.first_name.localeCompare(b.student.first_name))
+
+    const statusLabel = (status: 'present' | 'absence' | 'retard', gender: string | null) => {
+      const female = gender === 'female'
+      if (status === 'present') return female ? 'PRÉSENTE' : 'PRÉSENT'
+      if (status === 'absence') return female ? 'ABSENTE' : 'ABSENT'
+      return 'RETARD'
+    }
+
+    const statusColor = (status: 'present' | 'absence' | 'retard'): [number, number, number] => {
+      if (status === 'present') return COLORS.green
+      if (status === 'absence') return COLORS.red
+      return COLORS.amber
+    }
+
+    autoTable(doc, {
+      startY: y,
+      head: [['N°', 'Nom', 'Prénom', 'Statut', 'Commentaire']],
+      body: sortedEntries.map((row, i) => [
+        String(i + 1),
+        row.student.last_name,
+        row.student.first_name,
+        statusLabel(row.entry.status, row.student.gender),
+        row.entry.comment || '',
+      ]),
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3, textColor: [30, 30, 30], lineColor: [200, 200, 200], lineWidth: 0.3 },
+      headStyles: { fillColor: COLORS.primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 35 },
+        3: { halign: 'center', cellWidth: 28 },
+        4: { cellWidth: 'auto' },
+      },
+      didDrawCell: (data) => {
+        if (data.section === 'body' && data.column.index === 3) {
+          const row = sortedEntries[data.row.index]
+          if (!row) return
+          const color = statusColor(row.entry.status)
+          doc.setTextColor(...color)
+          doc.setFont('helvetica', 'bold')
+          const txt = statusLabel(row.entry.status, row.student.gender)
+          doc.text(txt, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 1, { align: 'center' })
+          doc.setTextColor(30, 30, 30)
+          doc.setFont('helvetica', 'normal')
+        }
+      },
+      margin: { left: margin, right: margin },
+    })
+
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(180, 180, 180)
+      doc.text(
+        `FEUILLE D'APPEL – ${classInfo.name} – ${dateLabel}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 8,
+        { align: 'center' }
+      )
+    }
+
+    doc.save(`Feuille_appel_${classInfo.name.replace(/\s+/g, '_')}_${date}.pdf`)
   }
 
   return (
@@ -889,14 +1044,16 @@ function SaisieModal({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
 
         {/* Header */}
-        <div className="px-4 py-2.5 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-4">
-            <h3 className="text-sm font-bold text-secondary-800">Feuille d'appel</h3>
-            <input
+        <div className="px-4 py-2 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-bold text-secondary-800 whitespace-nowrap">Feuille d'appel du</h3>
+            <FloatInput
+              label="Date"
               type="date"
               value={date}
               onChange={e => handleDateChange(e.target.value)}
-              className="input text-sm py-1 px-2"
+              max={today}
+              className="w-44"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -1019,27 +1176,51 @@ function SaisieModal({
                       </div>
 
                       {editingComment === s.student_id ? (
-                        <input
-                          type="text"
-                          autoFocus
-                          value={comment}
-                          onChange={e => setComment(idx, e.target.value)}
-                          onBlur={() => setEditingComment(null)}
-                          onKeyDown={e => e.key === 'Enter' && setEditingComment(null)}
-                          placeholder="Commentaire..."
-                          className="input text-[11px] py-0.5 w-full"
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setEditingComment(s.student_id)}
-                          className={clsx(
-                            'text-[10px] truncate w-full text-left',
-                            comment ? 'text-secondary-600' : 'text-warm-400 italic'
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={comment}
+                            onChange={e => setComment(idx, e.target.value)}
+                            onBlur={() => setEditingComment(null)}
+                            onKeyDown={e => e.key === 'Enter' && setEditingComment(null)}
+                            placeholder="Commentaire..."
+                            className="border border-warm-300 rounded-md text-[11px] py-0.5 px-1.5 w-full focus:outline-none focus:border-primary-400 bg-white"
+                          />
+                          {comment && (
+                            <button
+                              type="button"
+                              onMouseDown={e => { e.preventDefault(); setComment(idx, ''); setEditingComment(null) }}
+                              className="flex-shrink-0 text-warm-400 hover:text-red-500 transition-colors"
+                            >
+                              <X size={12} />
+                            </button>
                           )}
-                        >
-                          {comment || '+ Ajouter un commentaire'}
-                        </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingComment(s.student_id)}
+                            className={clsx(
+                              'text-[10px] truncate flex-1 text-left',
+                              comment
+                                ? status === 'absence' ? 'text-red-600 font-medium' : 'text-amber-600 font-medium'
+                                : 'text-warm-400 italic'
+                            )}
+                          >
+                            {comment || '+ Ajouter un commentaire'}
+                          </button>
+                          {comment && (
+                            <button
+                              type="button"
+                              onClick={() => setComment(idx, '')}
+                              className="flex-shrink-0 text-warm-300 hover:text-red-500 transition-colors"
+                            >
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1066,14 +1247,23 @@ function SaisieModal({
             }
           </span>
           <div className="flex gap-2">
-            <button onClick={onClose} className="btn btn-secondary text-sm py-1.5 px-3">Annuler</button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !hasChanges}
-              className="btn btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
-            </button>
+            <FloatButton variant="print" type="button" onClick={handlePrintSaisie}>
+              <Printer size={14} /> Imprimer
+            </FloatButton>
+            <FloatButton variant="secondary" type="button" onClick={onClose}>
+              {isSaved ? 'Fermer' : 'Annuler'}
+            </FloatButton>
+            {!isSaved && (
+              <FloatButton
+                variant={isEditMode ? 'edit' : 'submit'}
+                type="button"
+                onClick={handleSubmit}
+                disabled={isEditMode ? !hasChanges : counts.absence === 0 && counts.retard === 0}
+                loading={isSubmitting}
+              >
+                {isEditMode ? 'Modifier' : 'Valider'}
+              </FloatButton>
+            )}
           </div>
         </div>
       </div>
@@ -1092,7 +1282,7 @@ function JustificationModal({
   onComplete: (updated: Absence) => void
   onClose: () => void
 }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [justDate,    setJustDate]    = useState(absence.justification_date ?? today)
   const [comment,     setComment]     = useState(absence.justification_comment ?? '')
   const [file,        setFile]        = useState<File | null>(null)
@@ -1164,43 +1354,34 @@ function JustificationModal({
             {' du '}{fmtDate(absence.absence_date)}
           </p>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-              Date de justification
-            </label>
-            <input
-              type="date"
-              value={justDate}
-              onChange={e => setJustDate(e.target.value)}
-              className="input text-sm"
-            />
-          </div>
+          <FloatInput
+            label="Date de justification"
+            type="date"
+            value={justDate}
+            onChange={e => setJustDate(e.target.value)}
+          />
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-              Commentaire
-            </label>
-            <input
-              type="text"
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              className="input text-sm"
-              placeholder="Certificat médical, mot des parents…"
-            />
-          </div>
+          <FloatInput
+            label="Commentaire"
+            type="text"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Certificat médical, mot des parents…"
+          />
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
               Document justificatif
             </label>
             <div className="flex items-center gap-2">
-              <button
+              <FloatButton
+                variant="secondary"
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="btn btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+                className="text-xs px-3 py-1.5"
               >
                 <Upload size={12} /> {file ? 'Changer' : 'Importer'}
-              </button>
+              </FloatButton>
               {file && <span className="text-xs text-warm-500 truncate">{file.name}</span>}
             </div>
             <input ref={fileRef} type="file" className="hidden" onChange={e => setFile(e.target.files?.[0] ?? null)} />
@@ -1210,14 +1391,15 @@ function JustificationModal({
         </div>
 
         <div className="px-4 py-3 border-t border-warm-100 flex justify-end gap-2">
-          <button onClick={onClose} className="btn btn-secondary text-sm py-1.5 px-3">Annuler</button>
-          <button
+          <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
+          <FloatButton
+            variant="submit"
+            type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="btn btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
+            loading={isSubmitting}
           >
-            {isSubmitting ? 'Envoi…' : 'Valider'}
-          </button>
+            Valider
+          </FloatButton>
         </div>
       </div>
     </div>

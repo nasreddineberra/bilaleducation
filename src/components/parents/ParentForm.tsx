@@ -549,11 +549,18 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
       {/* ── Situation familiale ── */}
       <div className="card p-3 space-y-2">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-          Situation familiale
-        </h2>
+        <div className="flex gap-3">
+          <h2 className="min-w-[200px] text-xs font-bold text-warm-500 uppercase tracking-widest">
+            Situation familiale
+          </h2>
+          {SITUATIONS_WITH_GARDE.has(form.situation_familiale) && (
+            <span className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              Type de garde
+            </span>
+          )}
+        </div>
 
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-[200px]">
             <FloatSelect
               label="Situation"
@@ -575,23 +582,18 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           </div>
 
           {SITUATIONS_WITH_GARDE.has(form.situation_familiale) && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-                Type de garde
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {GARDE_OPTIONS.map(opt => (
-                  <FloatRadioCard
-                    key={opt.value}
-                    name="type_garde"
-                    value={opt.value}
-                    checked={form.type_garde === opt.value}
-                    onChange={() => setForm(prev => ({ ...prev, type_garde: opt.value }))}
-                  >
-                    {opt.label}
-                  </FloatRadioCard>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {GARDE_OPTIONS.map(opt => (
+                <FloatRadioCard
+                  key={opt.value}
+                  name="type_garde"
+                  value={opt.value}
+                  checked={form.type_garde === opt.value}
+                  onChange={() => setForm(prev => ({ ...prev, type_garde: opt.value }))}
+                >
+                  {opt.label}
+                </FloatRadioCard>
+              ))}
             </div>
           )}
         </div>

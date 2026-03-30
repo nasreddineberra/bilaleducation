@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
+import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 interface SlotData {
   id: string
@@ -123,6 +125,7 @@ export default function SlotFormModal({
   const [startTime, setStartTime] = useState(slot?.start_time?.slice(0, 5) ?? prefillTime ?? '')
   const [endTime, setEndTime] = useState(slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''))
   const [saving, setSaving] = useState(false)
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   // Recurring vs Ponctuel (null = pas encore choisi)
   const isEditingAll = editMode === 'all' && !!slot
@@ -234,51 +237,55 @@ export default function SlotFormModal({
   const handleSubmit = async () => {
     if (!isValid || isRecurring === null) return
 
+    const doSave = async () => {
+      setSaving(true)
+      if (isEditingThisOnly && slot) {
+        await onSaveException({
+          schedule_slot_id: slot.id,
+          exception_date: editDate!,
+          start_time: startTime,
+          end_time: endTime,
+          teacher_id: teacherId,
+          room_id: roomId || null,
+        })
+      } else {
+        await onSave({
+          id: slot?.id,
+          class_id: classId,
+          teacher_id: teacherId,
+          cours_id: null,
+          room_id: roomId || null,
+          day_of_week: isRecurring && dayOfWeek !== '' ? dayOfWeek : null,
+          slot_date: isRecurring ? null : slotDate,
+          is_recurring: isRecurring,
+          start_time: startTime,
+          end_time: endTime,
+          slot_type: slotType,
+          editAll: isEditingAll,
+          pivotDate: editDate ?? undefined,
+        })
+      }
+      setSaving(false)
+    }
+
     // Confirmation pour récurrent (création)
     if (isRecurring && !slot) {
       const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
-      if (!confirm(`Ce créneau sera répété chaque ${day} pour toute l'année scolaire. Continuer ?`)) return
+      setPendingConfirm({ message: `Ce créneau sera répété chaque ${day} pour toute l'année scolaire. Continuer ?`, onConfirm: doSave })
+      return
     }
 
     // Confirmation pour modification de tous les créneaux
     if (isEditingAll && hasChanges) {
       const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
-      if (!confirm(
-        `Tous les créneaux récurrents seront modifiés à partir d'aujourd'hui.\n` +
-        `La fiche classe sera mise à jour avec : ${day} ${startTime}–${endTime}.\n\nContinuer ?`
-      )) return
+      setPendingConfirm({
+        message: `Tous les créneaux récurrents seront modifiés à partir d'aujourd'hui.\nLa fiche classe sera mise à jour avec : ${day} ${startTime}–${endTime}.\n\nContinuer ?`,
+        onConfirm: doSave,
+      })
+      return
     }
 
-    setSaving(true)
-
-    if (isEditingThisOnly && slot) {
-      await onSaveException({
-        schedule_slot_id: slot.id,
-        exception_date: editDate!,
-        start_time: startTime,
-        end_time: endTime,
-        teacher_id: teacherId,
-        room_id: roomId || null,
-      })
-    } else {
-      await onSave({
-        id: slot?.id,
-        class_id: classId,
-        teacher_id: teacherId,
-        cours_id: null,
-        room_id: roomId || null,
-        day_of_week: isRecurring && dayOfWeek !== '' ? dayOfWeek : null,
-        slot_date: isRecurring ? null : slotDate,
-        is_recurring: isRecurring,
-        start_time: startTime,
-        end_time: endTime,
-        slot_type: slotType,
-        editAll: isEditingAll,
-        pivotDate: editDate ?? undefined,
-      })
-    }
-
-    setSaving(false)
+    await doSave()
   }
 
   const modalTitle = isEditingThisOnly
@@ -286,6 +293,7 @@ export default function SlotFormModal({
     : slot ? 'Modifier le créneau' : 'Nouveau créneau'
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
         {/* Header */}
@@ -352,131 +360,116 @@ export default function SlotFormModal({
               </div>
 
               {/* Class */}
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Classe <span className="text-red-400">*</span></label>
-                <select
-                  value={classId}
-                  onChange={e => setClassId(e.target.value)}
-                  className="input mt-1 w-full text-sm"
-                >
-                  <option value="">— Sélectionner —</option>
-                  {classes.map(c => {
-                    const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
-                    const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
-                    const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {c.name}{infoParts.length > 0 ? ` — ${infoParts.join(' · ')}` : ''}
-                      </option>
-                    )
-                  })}
-                </select>
-              </div>
+              <FloatSelect
+                label="Classe"
+                required
+                value={classId}
+                onChange={e => setClassId(e.target.value)}
+              >
+                <option value=""></option>
+                {classes.map(c => {
+                  const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
+                  const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
+                  const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{infoParts.length > 0 ? ` — ${infoParts.join(' · ')}` : ''}
+                    </option>
+                  )
+                })}
+              </FloatSelect>
             </>
           )}
 
           {/* Teacher */}
-          <div>
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Enseignant <span className="text-red-400">*</span></label>
-            <select
-              value={teacherId}
-              onChange={e => setTeacherId(e.target.value)}
-              className="input mt-1 w-full text-sm"
-            >
-              <option value="">— Sélectionner —</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-              ))}
-            </select>
-          </div>
+          <FloatSelect
+            label="Enseignant"
+            required
+            value={teacherId}
+            onChange={e => setTeacherId(e.target.value)}
+          >
+            <option value=""></option>
+            {teachers.map(t => (
+              <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+            ))}
+          </FloatSelect>
 
           {/* Room */}
-          <div>
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Salle</label>
-            <select
-              value={roomId}
-              onChange={e => setRoomId(e.target.value)}
-              className="input mt-1 w-full text-sm"
-            >
-              <option value="">— Aucune —</option>
-              {rooms.map(r => (
-                <option key={r.id} value={r.id}>
-                  {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FloatSelect
+            label="Salle"
+            value={roomId}
+            onChange={e => setRoomId(e.target.value)}
+          >
+            <option value=""></option>
+            {rooms.map(r => (
+              <option key={r.id} value={r.id}>
+                {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
+              </option>
+            ))}
+          </FloatSelect>
 
           {/* Day / Date + Times — toujours visible */}
           {!isEditingThisOnly && (
             <div className={isRecurring === true ? 'grid grid-cols-[3fr_2fr_2fr] gap-3' : 'grid grid-cols-3 gap-3'}>
               <div>
                 {isRecurring === true ? (
-                  <>
-                    <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Jour <span className="text-red-400">*</span></label>
-                    <select
-                      value={dayOfWeek}
-                      onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="input mt-1 w-full text-sm"
-                    >
-                      <option value="">— Sélectionner —</option>
-                      {DAY_OPTIONS.map(d => (
-                        <option key={d.value} value={d.value}>{d.recurring}</option>
-                      ))}
-                    </select>
-                  </>
+                  <FloatSelect
+                    label="Jour"
+                    required
+                    value={String(dayOfWeek)}
+                    onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
+                  >
+                    <option value=""></option>
+                    {DAY_OPTIONS.map(d => (
+                      <option key={d.value} value={d.value}>{d.recurring}</option>
+                    ))}
+                  </FloatSelect>
                 ) : isRecurring === false ? (
-                  <>
-                    <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date <span className="text-red-400">*</span></label>
-                    <input
+                  <div>
+                    <FloatInput
+                      label="Date"
+                      required
                       type="date"
                       value={slotDate}
                       onChange={e => setSlotDate(e.target.value)}
-                      className="input mt-1 w-full text-sm"
                     />
                     {dateInVacation && (
                       <p className="text-xs text-red-500 mt-1">Cette date tombe pendant les vacances scolaires</p>
                     )}
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Jour <span className="text-red-400">*</span></label>
-                    <select
-                      value={dayOfWeek}
-                      onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="input mt-1 w-full text-sm"
-                    >
-                      <option value="">— Sélectionner —</option>
-                      {DAY_OPTIONS.map(d => (
-                        <option key={d.value} value={d.value}>{d.label}</option>
-                      ))}
-                    </select>
-                  </>
+                  <FloatSelect
+                    label="Jour"
+                    required
+                    value={String(dayOfWeek)}
+                    onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
+                  >
+                    <option value=""></option>
+                    {DAY_OPTIONS.map(d => (
+                      <option key={d.value} value={d.value}>{d.label}</option>
+                    ))}
+                  </FloatSelect>
                 )}
               </div>
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Début <span className="text-red-400">*</span></label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={e => {
-                    setStartTime(e.target.value)
-                    if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
-                  }}
-                  className="input mt-1 w-full text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Fin <span className="text-red-400">*</span></label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
-                  min={startTime || undefined}
-                  disabled={!startTime}
-                  className="input mt-1 w-full text-sm"
-                />
-              </div>
+              <FloatInput
+                label="Début"
+                required
+                type="time"
+                value={startTime}
+                onChange={e => {
+                  setStartTime(e.target.value)
+                  if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+                }}
+              />
+              <FloatInput
+                label="Fin"
+                required
+                type="time"
+                value={endTime}
+                onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+                min={startTime || undefined}
+                disabled={!startTime}
+              />
             </div>
           )}
 
@@ -505,29 +498,25 @@ export default function SlotFormModal({
           {/* Times only for this_only edit */}
           {isEditingThisOnly && (
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Début <span className="text-red-400">*</span></label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={e => {
-                    setStartTime(e.target.value)
-                    if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
-                  }}
-                  className="input mt-1 w-full text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Fin <span className="text-red-400">*</span></label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
-                  min={startTime || undefined}
-                  disabled={!startTime}
-                  className="input mt-1 w-full text-sm"
-                />
-              </div>
+              <FloatInput
+                label="Début"
+                required
+                type="time"
+                value={startTime}
+                onChange={e => {
+                  setStartTime(e.target.value)
+                  if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+                }}
+              />
+              <FloatInput
+                label="Fin"
+                required
+                type="time"
+                value={endTime}
+                onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+                min={startTime || undefined}
+                disabled={!startTime}
+              />
             </div>
           )}
 
@@ -545,27 +534,28 @@ export default function SlotFormModal({
         <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
           <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-lg text-xs font-medium text-warm-600 hover:bg-warm-50"
-          >
-            Annuler
-          </button>
-          <button
+          <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
+          <FloatButton
+            variant={slot ? 'edit' : 'submit'}
+            type="button"
             onClick={handleSubmit}
-            disabled={!isValid || saving || !hasChanges}
-            className={clsx(
-              'px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-colors',
-              isValid && !saving && hasChanges
-                ? 'bg-amber-500 hover:bg-amber-600'
-                : 'bg-warm-200 text-warm-400 cursor-not-allowed'
-            )}
+            disabled={!isValid || !hasChanges}
+            loading={saving}
           >
-            {saving ? 'Enregistrement...' : isEditingThisOnly ? 'Modifier ce créneau' : slot ? 'Modifier' : 'Créer'}
-          </button>
+            {isEditingThisOnly ? 'Modifier ce créneau' : slot ? 'Modifier' : 'Valider'}
+          </FloatButton>
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      open={!!pendingConfirm}
+      message={pendingConfirm?.message ?? ''}
+      confirmLabel="Continuer"
+      onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
+      onCancel={() => setPendingConfirm(null)}
+    />
+  </>
   )
 }
 

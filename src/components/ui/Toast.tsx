@@ -40,7 +40,6 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   const cfg = TOAST_CONFIG[toast.type]
   const Icon = cfg.icon
 
-  // Entrée : légère animation slide-in
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 10)
     return () => clearTimeout(t)
@@ -55,10 +54,10 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     <div
       className={[
         'relative overflow-hidden flex items-start gap-3',
-        'w-80 rounded-xl border px-4 py-3 shadow-lg',
+        'w-96 rounded-xl border px-4 py-3 shadow-lg',
         'transition-all duration-200',
         cfg.container,
-        visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8',
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3',
       ].join(' ')}
       role="alert"
     >
@@ -80,7 +79,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   )
 }
 
-// ─── Conteneur global (bottom-right) ─────────────────────────────────────────
+// ─── Conteneur global (top-center) ───────────────────────────────────────────
 
 export function ToastContainer() {
   const { toasts, removeToast } = useToast()
@@ -89,7 +88,7 @@ export function ToastContainer() {
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 items-end"
+      className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center"
       aria-live="polite"
     >
       {toasts.map(toast => (
