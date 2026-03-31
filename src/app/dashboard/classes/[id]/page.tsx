@@ -68,23 +68,17 @@ export default async function EditClassPage({ params }: Props) {
         .order('order_index')
     : { data: [] }
 
-  // Créneau récurrent existant pour cette classe
-  // Récupérer le créneau récurrent actif (sans effective_until ou effective_until >= aujourd'hui)
-  const todayISO = new Date().toISOString().split('T')[0]
+  // Tous les créneaux récurrents actifs pour cette classe dans l'année en cours
   const { data: existingSlots } = currentYearRow
     ? await supabase
         .from('schedule_slots')
-        .select('id, day_of_week, start_time, end_time, teacher_id, effective_from, effective_until')
+        .select('id, day_of_week, start_time, end_time, effective_from, effective_until')
         .eq('class_id', id)
         .eq('school_year_id', currentYearRow.id)
         .eq('is_recurring', true)
         .eq('is_active', true)
-        .order('effective_from', { ascending: false, nullsFirst: true })
+        .order('effective_from', { ascending: true, nullsFirst: true })
     : { data: null }
-  // Le créneau actif est celui sans effective_until ou avec effective_until >= aujourd'hui
-  const existingSlot = existingSlots?.find(s =>
-    !s.effective_until || s.effective_until >= todayISO
-  ) ?? null
 
   if (!cls) notFound()
 
@@ -117,7 +111,7 @@ export default async function EditClassPage({ params }: Props) {
         cotisationTypes={(cotisationTypes ?? []) as any[]}
         rooms={(rooms ?? []) as any[]}
         currentSchoolYear={currentYearRow as any}
-        existingScheduleSlot={existingSlot as any}
+        existingSlots={(existingSlots ?? []) as any[]}
         weekStartDay={etablissement?.week_start_day ?? 1}
       />
 

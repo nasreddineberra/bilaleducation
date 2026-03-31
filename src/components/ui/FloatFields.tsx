@@ -359,9 +359,10 @@ export interface SearchFieldProps {
   onChange:     (value: string) => void
   placeholder?: string
   className?:   string
+  onFocus?:     () => void
 }
 
-export function SearchField({ value, onChange, placeholder = 'Rechercher…', className }: SearchFieldProps) {
+export function SearchField({ value, onChange, placeholder = 'Rechercher…', className, onFocus }: SearchFieldProps) {
   return (
     <div className={['relative flex items-center', className ?? 'w-64'].join(' ')}>
       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
@@ -369,6 +370,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
+        onFocus={onFocus}
         placeholder={placeholder}
         className={[
           'pl-8 py-2 text-sm rounded-lg border w-full',

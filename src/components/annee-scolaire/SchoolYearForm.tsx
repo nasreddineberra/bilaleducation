@@ -1,21 +1,24 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Plus, X, Pencil } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
+import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
 interface SchoolYearFormProps {
-  schoolYear?:      SchoolYear & { eval_type_configs: EvalTypeConfig[] }
-  etablissementId?: string   // requis pour la création
-  weekStartDay?:    number   // 1=Lundi, 6=Samedi, 0=Dimanche
+  schoolYear?:       SchoolYear & { eval_type_configs: EvalTypeConfig[] }
+  etablissementId?:  string   // requis pour la création
+  weekStartDay?:     number   // 1=Lundi, 6=Samedi, 0=Dimanche
+  gradedEvalTypes?:  string[] // types ayant des notes saisies → badge "Notes saisies"
+  usedEvalTypes?:    string[] // types utilisés dans gabarits sans note → badge "Utilisé dans gabarit"
 }
 
 // Type frontend uniquement : scored_10 / scored_20 remplacent "scored" + max_score
@@ -114,7 +117,7 @@ function getWeeksBetween(startDate: string, endDate: string, startDay: number): 
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1 }: SchoolYearFormProps) {
+export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1, gradedEvalTypes = [], usedEvalTypes = [] }: SchoolYearFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!schoolYear
@@ -168,6 +171,20 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   // Vacances
   const [vacations, setVacations] = useState<VacationPeriod[]>(
     () => (schoolYear?.vacations ?? []) as VacationPeriod[]
+  )
+
+  const initialFormRef      = useRef<FormData>(getInitialForm())
+  const initialVacationsRef = useRef<VacationPeriod[]>((schoolYear?.vacations ?? []) as VacationPeriod[])
+
+  const hasChanges = !isEditing || (
+    form.label        !== initialFormRef.current.label ||
+    form.start_date   !== initialFormRef.current.start_date ||
+    form.end_date     !== initialFormRef.current.end_date ||
+    form.is_current   !== initialFormRef.current.is_current ||
+    form.period_type  !== initialFormRef.current.period_type ||
+    JSON.stringify(form.eval_types.slice().sort())   !== JSON.stringify(initialFormRef.current.eval_types.slice().sort()) ||
+    JSON.stringify(form.diagnostic_options)          !== JSON.stringify(initialFormRef.current.diagnostic_options) ||
+    JSON.stringify(vacations)                        !== JSON.stringify(initialVacationsRef.current)
   )
   const [editingVacLabel, setEditingVacLabel] = useState<string | null>(null)
   const [vacLabelDraft, setVacLabelDraft]     = useState('')
@@ -275,6 +292,19 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         : [...prev.eval_types, type],
     }))
 
+  // Un type est verrouillé s'il a des notes ou est utilisé dans un gabarit
+  const isEvalTypeLocked = (type: FormEvalType): boolean =>
+    gradedEvalTypes.includes(type) || usedEvalTypes.includes(type)
+
+  // Badge affiché sur le type verrouillé
+  const lockBadge = (type: FormEvalType) => {
+    if (gradedEvalTypes.includes(type))
+      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Notes saisies — verrouillé</span>
+    if (usedEvalTypes.includes(type))
+      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Utilisé dans gabarit — verrouillé</span>
+    return null
+  }
+
   const updateDiagnosticOption = (index: number, field: 'acronym' | 'comment', value: string) =>
     setForm(prev => {
       const opts = [...prev.diagnostic_options]
@@ -298,7 +328,21 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   const vStartDate = !form.start_date
   const vEndDate   = !form.end_date
   const vNoEval    = form.eval_types.length === 0
-  const isValid    = !vLabel && !vStartDate && !vEndDate && !vNoEval
+
+  // Date fin > date rentrée
+  const vDateOrder = !!(form.start_date && form.end_date && form.end_date <= form.start_date)
+
+  // Diagnostique : au moins une option avec acronyme non vide
+  const vDiagOptions = form.eval_types.includes('diagnostic') &&
+    form.diagnostic_options.filter(o => o.acronym.trim()).length === 0
+
+  // Cohérence libellé / dates (avertissement non bloquant — juste informatif)
+  const labelYearStart = form.label.match(/^(\d{4})-\d{4}$/) ? parseInt(form.label.split('-')[0]) : null
+  const dateYear       = form.start_date ? new Date(form.start_date + 'T00:00:00').getFullYear() : null
+  const vLabelYearMismatch = !!(labelYearStart && dateYear && Math.abs(labelYearStart - dateYear) > 1)
+
+  const isValid = !vLabel && !vStartDate && !vEndDate && !vDateOrder &&
+    !vNoEval && !vDiagOptions
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -453,25 +497,20 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
           {/* Colonne 1 : Libellé + En cours + Vacances */}
           <div className="space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-              Année scolaire <span className="text-red-400">*</span>
-            </h2>
-            <input
+            <FloatInput
+              label="Année scolaire"
               type="text"
               placeholder="ex. 2025-2026"
               value={form.label}
               onChange={e => set('label', e.target.value)}
               onBlur={() => touch('label')}
-              disabled={isEditing}
-              className={clsx(
-                'input w-full',
-                touched.has('label') && vLabel && 'input-error',
-                isEditing && 'opacity-60 cursor-not-allowed'
-              )}
+              locked={isEditing}
+              required
+              error={
+                touched.has('label') && vLabel ? 'Format attendu : AAAA-AAAA (ex. 2025-2026)' :
+                vLabelYearMismatch ? 'Le libellé ne correspond pas aux dates saisies.' : undefined
+              }
             />
-            {touched.has('label') && vLabel && (
-              <p className="text-xs text-red-500">Format attendu : AAAA-AAAA (ex. 2025-2026)</p>
-            )}
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -488,13 +527,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Vacances</h3>
                 {weeks.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowVacModal(true)}
-                    className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-0.5 transition-colors"
-                  >
-                    <Plus size={12} /> Gérer
-                  </button>
+                  <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} className="!px-2 !py-0.5 !text-xs !rounded">
+                    Gérer
+                  </FloatButton>
                 )}
               </div>
               {vacations.length === 0 ? (
@@ -534,47 +569,41 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           {/* Colonne 2 : Dates + Répartition */}
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
-                  Date de rentrée <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={form.start_date}
-                  onChange={e => {
-                    set('start_date', e.target.value)
-                    if (form.end_date && e.target.value && form.end_date <= e.target.value) set('end_date', '')
-                  }}
-                  onBlur={() => touch('start_date')}
-                  className={clsx('input w-full', touched.has('start_date') && vStartDate && 'input-error')}
-                />
-                {touched.has('start_date') && vStartDate && (
-                  <p className="text-xs text-red-500 mt-0.5">Obligatoire.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
-                  Date de fin d'année <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={form.end_date}
-                  onChange={e => { if (!form.start_date || e.target.value > form.start_date) set('end_date', e.target.value) }}
-                  onBlur={() => touch('end_date')}
-                  min={form.start_date || undefined}
-                  disabled={!form.start_date}
-                  className={clsx('input w-full', touched.has('end_date') && vEndDate && 'input-error')}
-                />
-                {touched.has('end_date') && vEndDate && (
-                  <p className="text-xs text-red-500 mt-0.5">Obligatoire.</p>
-                )}
-              </div>
+              <FloatInput
+                label="Date de rentrée"
+                type="date"
+                value={form.start_date}
+                onChange={e => {
+                  set('start_date', e.target.value)
+                  if (form.end_date && e.target.value && form.end_date <= e.target.value) set('end_date', '')
+                }}
+                onBlur={() => touch('start_date')}
+                required
+                error={touched.has('start_date') && vStartDate ? 'Obligatoire.' : undefined}
+              />
+              <FloatInput
+                label="Date de fin d'année"
+                type="date"
+                value={form.end_date}
+                onChange={e => { if (!form.start_date || e.target.value > form.start_date) set('end_date', e.target.value) }}
+                onBlur={() => touch('end_date')}
+                min={form.start_date || undefined}
+                locked={!form.start_date}
+                required
+                error={
+                  touched.has('end_date') && vEndDate ? 'Obligatoire.' :
+                  vDateOrder ? 'Doit être postérieure à la rentrée.' : undefined
+                }
+              />
             </div>
 
             <div>
-              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest mb-2">
-                Répartition <span className="text-red-400">*</span>
-              </h2>
+              <div className="flex items-center gap-2 mb-2">
+                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                  Répartition <span className="text-red-400">*</span>
+                </h2>
+                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies — verrouillé</span>}
+              </div>
             <div className="flex gap-2">
               {([
                 { value: 'trimestrial', label: 'Trimestriel', sub: 'T1 · T2 · T3' },
@@ -583,7 +612,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 <label
                   key={opt.value}
                   className={clsx(
-                    'flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border cursor-pointer transition-colors',
+                    'flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border transition-colors',
+                    (gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
                     form.period_type === opt.value
                       ? 'border-primary-400 bg-primary-50'
                       : 'border-warm-200 bg-white hover:border-warm-300'
@@ -594,7 +624,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     name="period_type"
                     value={opt.value}
                     checked={form.period_type === opt.value}
-                    onChange={() => set('period_type', opt.value)}
+                    onChange={() => (gradedEvalTypes.length === 0 && usedEvalTypes.length === 0) && set('period_type', opt.value)}
+                    disabled={gradedEvalTypes.length > 0 || usedEvalTypes.length > 0}
                     className="accent-primary-500"
                   />
                   <div>
@@ -627,115 +658,158 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         <div className="grid grid-cols-2 gap-2">
 
           {/* Diagnostique */}
-          <div className={clsx(
-            'px-3 py-2 rounded-xl border transition-colors col-span-2',
-            form.eval_types.includes('diagnostic') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white'
-          )}>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.eval_types.includes('diagnostic')}
-                onChange={() => toggleEvalType('diagnostic')}
-                className="accent-primary-500 flex-shrink-0 w-4 h-4"
-              />
-              <p className="text-sm font-semibold text-secondary-800">Diagnostique</p>
-            </label>
+          {(() => {
+            const locked = isEvalTypeLocked('diagnostic')
+            return (
+              <div className={clsx(
+                'px-3 py-2 rounded-xl border transition-colors col-span-2',
+                locked ? 'opacity-60 pointer-events-none' : '',
+                form.eval_types.includes('diagnostic') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white'
+              )}>
+                <label className={clsx('flex items-center gap-3', locked ? 'cursor-not-allowed' : 'cursor-pointer')}>
+                  <input
+                    type="checkbox"
+                    checked={form.eval_types.includes('diagnostic')}
+                    onChange={() => !locked && toggleEvalType('diagnostic')}
+                    disabled={locked}
+                    className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                  />
+                  <p className="text-sm font-semibold text-secondary-800">
+                    Diagnostique
+                    {lockBadge('diagnostic')}
+                  </p>
+                </label>
 
-            {form.eval_types.includes('diagnostic') && (
-              <div className="mt-1.5 ml-7 space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-warm-400 w-20 text-center">Acronyme</span>
-                  <span className="text-xs text-warm-400 flex-1">Commentaire</span>
-                </div>
-                {form.diagnostic_options.map((opt, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={opt.acronym}
-                      onChange={e => updateDiagnosticOption(i, 'acronym', e.target.value)}
-                      placeholder="AC"
-                      className="input text-sm py-0.5 w-20"
-                    />
-                    <input
-                      type="text"
-                      value={opt.comment}
-                      onChange={e => updateDiagnosticOption(i, 'comment', e.target.value)}
-                      placeholder="ex. Acquis Consolidé"
-                      className="input text-sm py-0.5 flex-1"
-                    />
-                    {form.diagnostic_options.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeDiagnosticOption(i)}
-                        className="p-1 text-warm-300 hover:text-danger-500 rounded transition-colors"
-                        title="Supprimer"
-                      >
-                        <X size={13} />
-                      </button>
+                {form.eval_types.includes('diagnostic') && (
+                  <div className="mt-1.5 ml-7 space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-warm-400 w-20 text-center">Acronyme</span>
+                      <span className="text-xs text-warm-400 flex-1">Commentaire</span>
+                    </div>
+                    {form.diagnostic_options.map((opt, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={opt.acronym}
+                          onChange={e => updateDiagnosticOption(i, 'acronym', e.target.value)}
+                          placeholder="AC"
+                          className="input text-sm py-0.5 w-20"
+                        />
+                        <input
+                          type="text"
+                          value={opt.comment}
+                          onChange={e => updateDiagnosticOption(i, 'comment', e.target.value)}
+                          placeholder="ex. Acquis Consolidé"
+                          className="input text-sm py-0.5 flex-1"
+                        />
+                        {form.diagnostic_options.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeDiagnosticOption(i)}
+                            className="p-1 text-warm-300 hover:text-danger-500 rounded transition-colors"
+                            title="Supprimer"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addDiagnosticOption}
+                      className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-0.5"
+                    >
+                      <Plus size={12} /> Ajouter une option
+                    </button>
+                    {vDiagOptions && hasSubmitted && (
+                      <p className="text-xs text-red-500 mt-1">Au moins une option avec un acronyme est requise.</p>
                     )}
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addDiagnosticOption}
-                  className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-0.5"
-                >
-                  <Plus size={12} /> Ajouter une option
-                </button>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })()}
 
           {/* Notée sur 10 */}
-          <label className={clsx(
-            'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors',
-            form.eval_types.includes('scored_10') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
-          )}>
-            <input
-              type="checkbox"
-              checked={form.eval_types.includes('scored_10')}
-              onChange={() => toggleEvalType('scored_10')}
-              className="accent-primary-500 flex-shrink-0 w-4 h-4"
-            />
-            <div>
-              <p className="text-sm font-semibold text-secondary-800">Notée sur 10</p>
-              <p className="text-xs text-warm-400">Notes de 0 à 10</p>
-            </div>
-          </label>
+          {(() => {
+            const locked = isEvalTypeLocked('scored_10')
+            return (
+              <label className={clsx(
+                'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
+                locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
+                form.eval_types.includes('scored_10') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={form.eval_types.includes('scored_10')}
+                  onChange={() => !locked && toggleEvalType('scored_10')}
+                  disabled={locked}
+                  className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-secondary-800">
+                    Notée sur 10
+                    {lockBadge('scored_10')}
+                  </p>
+                  <p className="text-xs text-warm-400">Notes de 0 à 10</p>
+                </div>
+              </label>
+            )
+          })()}
 
           {/* Notée sur 20 */}
-          <label className={clsx(
-            'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors',
-            form.eval_types.includes('scored_20') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
-          )}>
-            <input
-              type="checkbox"
-              checked={form.eval_types.includes('scored_20')}
-              onChange={() => toggleEvalType('scored_20')}
-              className="accent-primary-500 flex-shrink-0 w-4 h-4"
-            />
-            <div>
-              <p className="text-sm font-semibold text-secondary-800">Notée sur 20</p>
-              <p className="text-xs text-warm-400">Notes de 0 à 20</p>
-            </div>
-          </label>
+          {(() => {
+            const locked = isEvalTypeLocked('scored_20')
+            return (
+              <label className={clsx(
+                'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
+                locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
+                form.eval_types.includes('scored_20') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={form.eval_types.includes('scored_20')}
+                  onChange={() => !locked && toggleEvalType('scored_20')}
+                  disabled={locked}
+                  className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-secondary-800">
+                    Notée sur 20
+                    {lockBadge('scored_20')}
+                  </p>
+                  <p className="text-xs text-warm-400">Notes de 0 à 20</p>
+                </div>
+              </label>
+            )
+          })()}
 
           {/* Étoilée */}
-          <label className={clsx(
-            'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors col-span-2',
-            form.eval_types.includes('stars') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
-          )}>
-            <input
-              type="checkbox"
-              checked={form.eval_types.includes('stars')}
-              onChange={() => toggleEvalType('stars')}
-              className="accent-primary-500 flex-shrink-0 w-4 h-4"
-            />
-            <div>
-              <p className="text-sm font-semibold text-secondary-800">Étoilée</p>
-              <p className="text-xs text-warm-400">0 à 5 étoiles · par tranche de 0,5</p>
-            </div>
-          </label>
+          {(() => {
+            const locked = isEvalTypeLocked('stars')
+            return (
+              <label className={clsx(
+                'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors col-span-2',
+                locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
+                form.eval_types.includes('stars') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+              )}>
+                <input
+                  type="checkbox"
+                  checked={form.eval_types.includes('stars')}
+                  onChange={() => !locked && toggleEvalType('stars')}
+                  disabled={locked}
+                  className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-secondary-800">
+                    Étoilée
+                    {lockBadge('stars')}
+                  </p>
+                  <p className="text-xs text-warm-400">0 à 5 étoiles · par tranche de 0,5</p>
+                </div>
+              </label>
+            )
+          })()}
 
         </div>
       </div>
@@ -843,8 +917,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               if (e.key === 'Escape') setEditingVacLabel(null)
                             }}
                           />
-                          <button type="button" onClick={() => saveVacLabel(groupKey, vacLabelDraft)} className="btn btn-primary text-xs px-2 py-1">OK</button>
-                          <button type="button" onClick={() => setEditingVacLabel(null)} className="btn btn-secondary text-xs px-2 py-1">Annuler</button>
+                          <FloatButton type="button" variant="submit" onClick={() => saveVacLabel(groupKey, vacLabelDraft)} className="!px-2 !py-0.5 !text-xs !rounded">OK</FloatButton>
+                          <FloatButton type="button" variant="secondary" onClick={() => setEditingVacLabel(null)} className="!px-2 !py-0.5 !text-xs !rounded">Annuler</FloatButton>
                         </div>
                       )
                     }
@@ -872,13 +946,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
             {/* Footer */}
             <div className="flex items-center justify-end px-5 py-3 border-t border-warm-100">
-              <button
-                type="button"
-                onClick={() => setShowVacModal(false)}
-                className="btn btn-primary"
-              >
+              <FloatButton type="button" variant="secondary" onClick={() => setShowVacModal(false)}>
                 Fermer
-              </button>
+              </FloatButton>
             </div>
           </div>
         </div>,
@@ -888,13 +958,12 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       <div className="flex items-center gap-3 pt-1">
         <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
         <div className="flex-1" />
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={clsx('btn btn-primary', isSubmitting && 'opacity-50 cursor-not-allowed')}
-        >
-          {isSubmitting ? 'Enregistrement...' : isEditing ? 'Modifier' : 'Valider'}
-        </button>
+        <FloatButton type="button" variant="secondary" onClick={() => router.push('/dashboard/annee-scolaire')} disabled={isSubmitting}>
+          Annuler
+        </FloatButton>
+        <FloatButton type="submit" variant={isEditing ? 'edit' : 'submit'} disabled={isSubmitting || !hasChanges || !isValid}>
+          {isEditing ? 'Modifier' : 'Valider'}
+        </FloatButton>
       </div>
 
     </form>

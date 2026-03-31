@@ -39,15 +39,22 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'text-amber-600',
+  pending: 'text-gray-500',
+  partial: 'text-orange-600',
+  paid: 'text-success-600',
+  overpaid: 'text-danger-600',
+}
+
+const STATUS_ICON_COLORS: Record<string, string> = {
+  pending: 'text-red-500',
   partial: 'text-orange-600',
   paid: 'text-success-600',
   overpaid: 'text-danger-600',
 }
 
 const STATUS_ICONS: Record<string, typeof CheckCircle2> = {
-  pending: Clock,
-  partial: AlertTriangle,
+  pending: AlertTriangle,
+  partial: Clock,
   paid: CheckCircle2,
   overpaid: AlertCircle,
 }
@@ -66,7 +73,9 @@ export default function VueGlobaleClient({ rows, yearLabel }: Props) {
   const router = useRouter()
 
   const { nonSoldes, soldes } = useMemo(() => {
-    const nonSoldes = rows.filter(r => r.status === 'pending' || r.status === 'partial')
+    const nonSoldes = rows
+      .filter(r => r.status === 'pending' || r.status === 'partial')
+      .sort((a, b) => b.remaining - a.remaining)
     const soldes = rows.filter(r => r.status === 'paid' || r.status === 'overpaid')
     return { nonSoldes, soldes }
   }, [rows])
@@ -133,8 +142,8 @@ export default function VueGlobaleClient({ rows, yearLabel }: Props) {
       <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
         {/* ── Non soldés ─────────────────────────────────────────── */}
         <div className="flex flex-col rounded-lg border border-warm-200 bg-white overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-2 bg-amber-50 border-b border-warm-200">
-            <h2 className="text-sm font-semibold text-amber-800">
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-warm-200">
+            <h2 className="text-sm font-semibold text-gray-700">
               Non soldés ({nonSoldes.length})
             </h2>
           </div>
@@ -163,7 +172,7 @@ export default function VueGlobaleClient({ rows, yearLabel }: Props) {
                       <td className="px-3 py-1.5 font-medium text-warm-900 truncate max-w-[180px]">{r.parentLabel}</td>
                       <td className="px-2 py-1.5 text-center">
                         <span className={clsx('inline-flex items-center gap-1', STATUS_COLORS[r.status])}>
-                          <Icon className="w-3 h-3" />
+                          <Icon className={clsx('w-3 h-3', STATUS_ICON_COLORS[r.status])} />
                           <span className="text-[10px]">{STATUS_LABELS[r.status]}</span>
                         </span>
                       </td>
@@ -181,7 +190,7 @@ export default function VueGlobaleClient({ rows, yearLabel }: Props) {
           </div>
 
           {/* Totaux non soldés */}
-          <div className="border-t border-warm-200 bg-amber-50/50 px-3 py-2 grid grid-cols-3 gap-2 text-xs">
+          <div className="border-t border-warm-200 bg-gray-50/50 px-3 py-2 grid grid-cols-3 gap-2 text-xs">
             <div>
               <span className="text-warm-500">Total dû</span>
               <span className="ml-2 font-bold text-warm-900">{fmt(nonSoldesTotals.totalDue)}</span>
@@ -228,7 +237,7 @@ export default function VueGlobaleClient({ rows, yearLabel }: Props) {
                       <td className={clsx('px-3 py-1.5 font-medium truncate max-w-[180px]', r.status === 'overpaid' ? 'text-red-800' : 'text-warm-900')}>{r.parentLabel}</td>
                       <td className="px-2 py-1.5 text-center">
                         <span className={clsx('inline-flex items-center gap-1', STATUS_COLORS[r.status])}>
-                          <Icon className="w-3 h-3" />
+                          <Icon className={clsx('w-3 h-3', STATUS_ICON_COLORS[r.status])} />
                           <span className="text-[10px]">{STATUS_LABELS[r.status]}</span>
                         </span>
                       </td>

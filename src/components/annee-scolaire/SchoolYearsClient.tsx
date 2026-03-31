@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2, Star, Hash, Activity, CalendarDays } from 'lucide-react'
+import { Pencil, Trash2, Star, Hash, Activity, CalendarDays, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { FloatButton } from '@/components/ui/FloatFields'
 import type { SchoolYear, EvalTypeConfig, Period } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,12 +83,9 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
 
       {/* Barre supérieure */}
       <div className="flex justify-end">
-        <button
-          onClick={() => router.push('/dashboard/annee-scolaire/new')}
-          className="btn btn-primary"
-        >
-          + Nouvelle année
-        </button>
+        <FloatButton type="button" variant="submit" onClick={() => router.push('/dashboard/annee-scolaire/new')}>
+          <Plus size={14} /> Nouvelle année
+        </FloatButton>
       </div>
 
       {/* Erreur suppression */}

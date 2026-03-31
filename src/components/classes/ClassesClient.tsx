@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Plus, Search, X, BookOpen, Pencil, Trash2 } from 'lucide-react'
+import { Plus, BookOpen, Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { clsx } from 'clsx'
+import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,20 +42,17 @@ interface ClassesClientProps {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function ClassesClient({ classes }: ClassesClientProps) {
-  const router  = useRouter()
-  const [search,       setSearch]       = useState('')
-  const [deletingId,   setDeletingId]   = useState<string | null>(null)
-  const [deleteError,  setDeleteError]  = useState<string | null>(null)
-  const [confirmId,    setConfirmId]    = useState<string | null>(null)
+  const router = useRouter()
+  const [search,      setSearch]      = useState('')
+  const [deletingId,  setDeletingId]  = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [confirmId,   setConfirmId]   = useState<string | null>(null)
 
   const filtered = search.trim() === ''
     ? classes
     : classes.filter(c => {
         const q = search.toLowerCase()
-        return (
-          c.name.toLowerCase().includes(q) ||
-          c.level?.toLowerCase().includes(q)
-        )
+        return c.name.toLowerCase().includes(q) || c.level?.toLowerCase().includes(q)
       })
 
   const handleDelete = async (id: string) => {
@@ -65,11 +62,9 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
       const supabase = createClient()
       const { error } = await supabase.from('classes').delete().eq('id', id)
       if (error) {
-        if (error.code === '23503') {
-          setDeleteError('Des élèves sont inscrits dans cette classe. Retirez-les avant de supprimer.')
-        } else {
-          setDeleteError('Une erreur est survenue. Veuillez réessayer.')
-        }
+        setDeleteError(error.code === '23503'
+          ? 'Des élèves sont inscrits dans cette classe. Retirez-les avant de supprimer.'
+          : 'Une erreur est survenue. Veuillez réessayer.')
         setDeletingId(null)
         setConfirmId(null)
         return
@@ -88,40 +83,15 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
 
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Stats */}
         <div className="card px-4 py-3 flex items-center gap-3">
           <span className="text-2xl font-bold text-secondary-800">{classes.length}</span>
           <span className="text-xs text-warm-500 leading-tight">au total</span>
         </div>
         <div className="flex-1" />
-
-        {/* Recherche */}
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Nom, niveau..."
-            className="pl-8 pr-8 py-2 text-sm bg-white border border-warm-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent w-56 text-secondary-800 placeholder:text-warm-400"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600 transition-colors"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
-
-        <Link
-          href="/dashboard/classes/new"
-          className="btn btn-primary flex items-center gap-2 whitespace-nowrap"
-        >
-          <Plus size={16} />
-          Nouvelle classe
-        </Link>
+        <SearchField value={search} onChange={setSearch} placeholder="Nom, niveau..." />
+        <FloatButton type="button" variant="submit" onClick={() => router.push('/dashboard/classes/new')}>
+          <Plus size={14} /> Ajouter
+        </FloatButton>
       </div>
 
       {/* Erreur suppression */}
@@ -129,7 +99,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
           <span>{deleteError}</span>
           <button onClick={() => setDeleteError(null)} className="text-red-400 hover:text-red-600">
-            <X size={14} />
+            <Plus size={14} className="rotate-45" />
           </button>
         </div>
       )}
@@ -143,9 +113,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
               {search ? 'Aucune classe trouvée' : 'Aucune classe configurée'}
             </p>
             <p className="text-sm text-warm-400 mt-1">
-              {search
-                ? 'Modifiez votre recherche.'
-                : 'Créez votre première classe pour commencer.'}
+              {search ? 'Modifiez votre recherche.' : 'Créez votre première classe pour commencer.'}
             </p>
           </div>
         </div>
@@ -202,9 +170,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         <span className="text-warm-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center text-secondary-600">
-                      {cls.max_students}
-                    </td>
+                    <td className="px-4 py-3 text-center text-secondary-600">{cls.max_students}</td>
                     <td className="px-4 py-3">
                       {teachers.length === 0 ? (
                         <span className="text-warm-300 text-xs italic">Non affecté</span>
@@ -212,14 +178,10 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         <div className="flex flex-col gap-0.5">
                           {teachers.slice(0, 2).map((t, i) => (
                             <span key={i} className="text-xs text-secondary-600">
-                              {t.teachers
-                                ? `${t.teachers.last_name} ${t.teachers.first_name}`
-                                : '—'}
+                              {t.teachers ? `${t.teachers.last_name} ${t.teachers.first_name}` : '—'}
                               {t.is_main_teacher
                                 ? <span className="ml-1 text-[10px] text-primary-500 font-medium">(principal)</span>
-                                : t.subject
-                                  ? <span className="ml-1 text-warm-400">· {t.subject}</span>
-                                  : null
+                                : t.subject ? <span className="ml-1 text-warm-400">· {t.subject}</span> : null
                               }
                             </span>
                           ))}
@@ -249,13 +211,13 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           </>
                         ) : (
                           <>
-                            <Link
-                              href={`/dashboard/classes/${cls.id}`}
+                            <button
+                              onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
                               className="p-1.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                               title="Modifier"
                             >
                               <Pencil size={14} />
-                            </Link>
+                            </button>
                             <button
                               onClick={() => { setConfirmId(cls.id); setDeleteError(null) }}
                               className="p-1.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

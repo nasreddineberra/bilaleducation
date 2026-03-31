@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { Plus, Trash2, Pencil, Check, AlertTriangle, CheckCircle2, MessageSquareText } from 'lucide-react'
+import { Plus, Trash2, Pencil, AlertTriangle, CheckCircle2, MessageSquareText } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
+import { FloatInput, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ const STATUS_LABELS: Record<FeeStatus, string> = {
 }
 
 const STATUS_COLORS: Record<FeeStatus, string> = {
-  pending:  'bg-amber-100 text-amber-800',
+  pending:  'bg-gray-100 text-gray-600',
   partial:  'bg-orange-100 text-orange-800',
   paid:     'bg-green-100 text-green-800',
   overpaid: 'bg-red-100 text-red-800',
@@ -217,6 +218,25 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const parentOptions = useMemo(() => parseParents(rawParents, adultEnrollments), [rawParents, adultEnrollments])
 
   const [selectedParentId, setSelectedParentId] = useState<string>(initialParentId ?? '')
+
+  // Combobox parent
+  const initParent = initialParentId ? parentOptions.find(p => p.id === initialParentId) : null
+  const initLabel  = initParent
+    ? `${initParent.tutor1_last_name.toUpperCase()} ${initParent.tutor1_first_name}${initParent.tutor2_last_name && initParent.tutor2_first_name ? ` | ${initParent.tutor2_last_name.toUpperCase()} ${initParent.tutor2_first_name}` : ''}`
+    : ''
+  const [parentSearch,   setParentSearch]   = useState(initLabel)
+  const [parentDropOpen, setParentDropOpen] = useState(false)
+  const parentDropRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (parentDropRef.current && !parentDropRef.current.contains(e.target as Node)) {
+        setParentDropOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
   const [familyFees, setFamilyFees]             = useState<any[]>(initialFees)
   const familyFeesRef = useRef(familyFees)
   familyFeesRef.current = familyFees
@@ -252,6 +272,18 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   // ── Données dérivées ─────────────────────────────────────────────────────
 
   const selectedParent = parentOptions.find(p => p.id === selectedParentId)
+
+  const filteredParents = useMemo(() => {
+    const q = parentSearch.trim().toLowerCase()
+    if (!q) return parentOptions
+    return parentOptions.filter(p => {
+      const t1 = `${p.tutor1_last_name} ${p.tutor1_first_name}`.toLowerCase()
+      const t2 = p.tutor2_last_name && p.tutor2_first_name
+        ? `${p.tutor2_last_name} ${p.tutor2_first_name}`.toLowerCase()
+        : ''
+      return t1.includes(q) || t2.includes(q)
+    })
+  }, [parentOptions, parentSearch])
 
   const currentFee = familyFees.find((f: any) => f.parent_id === selectedParentId) ?? null
 
@@ -469,35 +501,56 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   return (
     <div className="space-y-4">
 
-      {/* Select parent + statut */}
-      <div className="card p-4">
-        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-          <div className="flex-1 space-y-1">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Parents / Tuteurs legaux</label>
-            <select
-              value={selectedParentId}
-              onChange={e => {
-                setSelectedParentId(e.target.value)
-                setError(null)
-                setSuccess(null)
-                setAddingAdjustment(false)
-              }}
-              className="input text-sm"
-            >
-              <option value="">— Choisir un parent / tuteur —</option>
-              {parentOptions.map(p => {
+      {/* Combobox parent */}
+      <div className="card p-3">
+        <div ref={parentDropRef} className="relative w-fit">
+          <div className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
+            Parents / Tuteurs légaux
+          </div>
+          <SearchField
+            value={parentSearch}
+            onChange={v => {
+              setParentSearch(v)
+              setParentDropOpen(true)
+              if (!v) { setSelectedParentId('') }
+            }}
+            onFocus={() => setParentDropOpen(true)}
+            placeholder="Rechercher un parent…"
+            className="w-[400px]"
+          />
+          {parentDropOpen && (
+            <div className="absolute z-20 top-full mt-1 w-full bg-white border border-warm-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              {filteredParents.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-warm-400">Aucun résultat</div>
+              ) : filteredParents.map(p => {
                 const t1 = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
                 const t2 = p.tutor2_last_name && p.tutor2_first_name
                   ? ` | ${p.tutor2_last_name.toUpperCase()} ${p.tutor2_first_name}`
                   : ''
+                const label = `${t1}${t2}`
                 return (
-                  <option key={p.id} value={p.id}>
-                    {t1}{t2}
-                  </option>
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedParentId(p.id)
+                      setParentSearch(label)
+                      setParentDropOpen(false)
+                      setError(null)
+                      setSuccess(null)
+                      setAddingAdjustment(false)
+                    }}
+                    className={clsx(
+                      'w-full text-left px-3 py-2 text-sm hover:bg-warm-50 transition-colors',
+                      selectedParentId === p.id && 'bg-primary-50 text-primary-700 font-medium',
+                    )}
+                  >
+                    {label}
+                  </button>
                 )
               })}
-            </select>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -508,6 +561,52 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       {success && (
         <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
           <CheckCircle2 size={16} /> {success}
+        </div>
+      )}
+
+      {!selectedParent && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 animate-pulse">
+          {/* Skeleton colonne gauche */}
+          <div className="card overflow-hidden">
+            <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100">
+              <div className="h-3 w-40 bg-warm-200 rounded-full" />
+            </div>
+            <div className="p-4 space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="h-4 bg-warm-100 rounded-full flex-1" />
+                  <div className="h-4 bg-warm-100 rounded-full w-20" />
+                  <div className="h-4 bg-warm-100 rounded-full w-16" />
+                  <div className="h-4 bg-warm-100 rounded-full w-16" />
+                </div>
+              ))}
+              <div className="pt-2 border-t border-warm-100 flex justify-end">
+                <div className="h-4 w-24 bg-warm-200 rounded-full" />
+              </div>
+            </div>
+          </div>
+          {/* Skeleton colonne droite */}
+          <div className="space-y-3">
+            <div className="card overflow-hidden">
+              <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
+                <div className="h-3 w-24 bg-warm-200 rounded-full" />
+                <div className="h-7 w-20 bg-warm-100 rounded-lg" />
+              </div>
+              <div className="p-4 flex flex-col items-center gap-3 py-12">
+                <div className="h-6 w-6 bg-warm-200 rounded-full" />
+                <div className="h-3 w-40 bg-warm-100 rounded-full" />
+              </div>
+            </div>
+            <div className="card overflow-hidden">
+              <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
+                <div className="h-3 w-36 bg-warm-200 rounded-full" />
+                <div className="h-7 w-20 bg-warm-100 rounded-lg" />
+              </div>
+              <div className="px-4 py-6 flex justify-center">
+                <div className="h-3 w-48 bg-warm-100 rounded-full" />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -616,13 +715,13 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           <div className={clsx('card overflow-hidden flex flex-col border-2', {
             'border-green-200 bg-green-50/30': derivedStatus === 'paid',
             'border-orange-200 bg-orange-50/30': derivedStatus === 'partial',
-            'border-amber-200 bg-amber-50/30': derivedStatus === 'pending',
+            'border-gray-200 bg-gray-50/30': derivedStatus === 'pending',
             'border-red-200 bg-red-50/30': derivedStatus === 'overpaid',
           })}>
             <div className={clsx('px-4 py-2.5 border-b flex items-center justify-between', {
               'bg-green-50/60 border-green-100': derivedStatus === 'paid',
               'bg-orange-50/60 border-orange-100': derivedStatus === 'partial',
-              'bg-amber-50/60 border-amber-100': derivedStatus === 'pending',
+              'bg-gray-50/60 border-gray-100': derivedStatus === 'pending',
               'bg-red-50/60 border-red-100': derivedStatus === 'overpaid',
             })}>
               <div className="flex items-center gap-2">
@@ -631,13 +730,14 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   {STATUS_LABELS[derivedStatus]}
                 </span>
               </div>
-              <button
+              <FloatButton
+                variant="submit"
+                type="button"
                 onClick={() => { setPaymentModalOpen(true); setError(null); setSuccess(null) }}
                 disabled={totalDue <= 0}
-                className="btn btn-primary text-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus size={14} /> Paiement
-              </button>
+                <Plus size={14} /> Ajouter
+              </FloatButton>
             </div>
 
             {payments.length > 0 ? (
@@ -730,10 +830,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </table>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center gap-2">
-                <AlertTriangle size={24} className="text-warm-300" />
-                <p className="text-sm text-warm-400">Aucun paiement enregistré.</p>
+                <AlertTriangle size={24} className={derivedStatus === 'pending' ? 'text-red-500' : 'text-warm-300'} />
+                <p className={clsx('text-sm', derivedStatus === 'pending' ? 'text-red-500 font-medium' : 'text-warm-400')}>Aucun paiement enregistré.</p>
                 {totalDue > 0 && (
-                  <p className="text-xs text-warm-400">Cliquez sur &quot;+ Paiement&quot; pour enregistrer un règlement.</p>
+                  <p className="text-xs text-warm-400">Cliquez sur &quot;+ Ajouter&quot; pour enregistrer un règlement.</p>
                 )}
                 {totalDue <= 0 && (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
@@ -749,47 +849,62 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
               <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Réductions & Avoirs</h3>
               {!addingAdjustment && (
-                <button
+                <FloatButton
+                  variant="submit"
+                  type="button"
                   onClick={() => { setAddingAdjustment(true); setError(null); setSuccess(null) }}
-                  className="text-xs text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"
                 >
                   <Plus size={13} /> Ajouter
-                </button>
+                </FloatButton>
               )}
             </div>
 
             {addingAdjustment && (
               <div className="p-3 border-b border-warm-100 bg-primary-50/20 space-y-2">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div>
-                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Date</label>
-                    <input type="date" value={adjForm.date} onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))} className="input text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Type</label>
-                    <select value={adjForm.type} onChange={e => setAdjForm(f => ({ ...f, type: e.target.value as AdjustmentType }))} className="input text-sm">
-                      <option value="reduction">Réduction</option>
-                      <option value="avoir">Avoir</option>
-                      <option value="remboursement">Remboursement</option>
-                    </select>
-                  </div>
+                  <FloatInput
+                    label="Date"
+                    type="date"
+                    value={adjForm.date}
+                    onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))}
+                    compact
+                  />
+                  <FloatSelect
+                    label="Type"
+                    value={adjForm.type}
+                    onChange={e => setAdjForm(f => ({ ...f, type: e.target.value as AdjustmentType }))}
+                    compact
+                  >
+                    <option value="reduction">Réduction</option>
+                    <option value="avoir">Avoir</option>
+                    <option value="remboursement">Remboursement</option>
+                  </FloatSelect>
                   <div className="sm:col-span-2">
-                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Motif</label>
-                    <input type="text" placeholder="Famille nombreuse..." value={adjForm.label} onChange={e => setAdjForm(f => ({ ...f, label: e.target.value }))} className="input text-sm" />
+                    <FloatInput
+                      label="Motif"
+                      type="text"
+                      placeholder="Famille nombreuse..."
+                      value={adjForm.label}
+                      onChange={e => setAdjForm(f => ({ ...f, label: e.target.value }))}
+                      compact
+                    />
                   </div>
                 </div>
                 <div className="flex items-end gap-2">
                   <div className="w-36">
-                    <label className="text-xs font-medium text-warm-500 mb-0.5 block">Montant</label>
-                    <div className="relative">
-                      <input type="number" min="0" step="0.01" placeholder="50" value={adjForm.amount} onChange={e => setAdjForm(f => ({ ...f, amount: e.target.value }))} className="input text-sm pr-8" />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
-                    </div>
+                    <FloatInput
+                      label="Montant (EUR)"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="50"
+                      value={adjForm.amount}
+                      onChange={e => setAdjForm(f => ({ ...f, amount: e.target.value }))}
+                      compact
+                    />
                   </div>
-                  <button onClick={addAdjustment} disabled={saving} className="btn btn-primary text-sm flex items-center gap-1">
-                    <Check size={14} /> Valider
-                  </button>
-                  <button onClick={() => setAddingAdjustment(false)} disabled={saving} className="btn btn-secondary text-sm">Annuler</button>
+                  <FloatButton variant="submit" type="button" onClick={addAdjustment} disabled={saving}>Valider</FloatButton>
+                  <FloatButton variant="secondary" type="button" onClick={() => setAddingAdjustment(false)} disabled={saving}>Annuler</FloatButton>
                 </div>
               </div>
             )}
@@ -837,7 +952,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </tfoot>
               </table>
             ) : !addingAdjustment && (
-              <div className="px-4 py-6 text-center text-sm text-warm-400">Aucune réduction ni avoir.</div>
+              <div className="px-4 py-6 text-center space-y-1">
+                <p className="text-sm text-warm-400">Aucune réduction ni avoir.</p>
+                <p className="text-xs text-warm-400">Cliquez sur &quot;+ Ajouter&quot; pour enregistrer une réduction ou un avoir.</p>
+              </div>
             )}
           </div>
 

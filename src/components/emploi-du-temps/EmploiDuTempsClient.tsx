@@ -187,9 +187,6 @@ function classInfoLine(c: ClassData): string {
   if (mainT?.teachers) parts.push(teacherLabel(mainT.teachers))
   if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
   if (c.level) parts.push(`Niveau ${c.level}`)
-  if (c.day_of_week && c.start_time && c.end_time) {
-    parts.push(`${c.day_of_week} ${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}`)
-  }
   return parts.join(' · ')
 }
 

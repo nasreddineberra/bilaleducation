@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,11 +37,9 @@ function fmtEur(n: number) {
   }).format(n)
 }
 
-function genReceiptNumber() {
+function getReceiptPrefix() {
   const now = new Date()
-  const yymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
-  const rand = String(Math.floor(Math.random() * 900) + 100)
-  return `REC-${yymm}-${rand}`
+  return `REC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -56,19 +55,69 @@ export default function PaymentModal({
   const ep = editingPayment
   const epRef = (ep?.payment_reference ?? {}) as PaymentReference
 
-  const [amount,       setAmount]       = useState(String(ep ? ep.amount_paid : (remaining > 0 ? remaining : totalDue)))
-  const [method,       setMethod]       = useState<FeePaymentMethod>(ep?.payment_method ?? 'cash')
-  const [paidDate,     setPaidDate]     = useState(ep?.paid_date ?? new Date().toISOString().slice(0, 10))
-  const [receipt,      setReceipt]      = useState(ep?.receipt_number ?? genReceiptNumber())
-  const [notes,        setNotes]        = useState(ep?.notes ?? '')
+  const initAmount      = String(ep ? ep.amount_paid : remaining)
+  const initMethod      = ep?.payment_method ?? ''
+  const initPaidDate    = ep?.paid_date ?? new Date().toISOString().slice(0, 10)
+  const initReceipt     = ep?.receipt_number ?? ''
+  const initNotes       = ep?.notes ?? ''
+  const initCheckNumber = epRef.check_number ?? ''
+  const initBank        = epRef.bank ?? ''
+  const initTxId        = epRef.transaction_id ?? ''
+  const initTransferRef = epRef.reference ?? ''
+
+  const [amount,       setAmount]       = useState(initAmount)
+  const [method,       setMethod]       = useState<FeePaymentMethod | ''>(initMethod)
+  const [paidDate,     setPaidDate]     = useState(initPaidDate)
+  const [receipt,      setReceipt]      = useState(initReceipt)
+  const [notes,        setNotes]        = useState(initNotes)
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
 
   // Champs spécifiques par méthode
-  const [checkNumber,   setCheckNumber]   = useState(epRef.check_number ?? '')
-  const [bank,          setBank]          = useState(epRef.bank ?? '')
-  const [transactionId, setTransactionId] = useState(epRef.transaction_id ?? '')
-  const [transferRef,   setTransferRef]   = useState(epRef.reference ?? '')
+  const [checkNumber,   setCheckNumber]   = useState(initCheckNumber)
+  const [bank,          setBank]          = useState(initBank)
+  const [transactionId, setTransactionId] = useState(initTxId)
+  const [transferRef,   setTransferRef]   = useState(initTransferRef)
+
+  // Génération séquentielle du N° reçu en mode création
+  useEffect(() => {
+    if (isEdit) return
+    const prefix = getReceiptPrefix()
+    supabase
+      .from('fee_installments')
+      .select('receipt_number')
+      .like('receipt_number', `${prefix}-%`)
+      .order('receipt_number', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        let next = 1
+        if (data && data.length > 0 && data[0].receipt_number) {
+          const parts = (data[0].receipt_number as string).split('-')
+          const last = parseInt(parts[parts.length - 1], 10)
+          if (!isNaN(last)) next = last + 1
+        }
+        setReceipt(`${prefix}-${String(next).padStart(3, '0')}`)
+      })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const methodFieldOk =
+    method === 'check'    ? !!checkNumber.trim() && !!bank.trim() :
+    method === 'card'     ? !!transactionId.trim() :
+    method === 'transfer' ? !!transferRef.trim() : true
+
+  const canSubmit = !!amount && parseFloat(amount) > 0 && !!paidDate && !!method && methodFieldOk
+
+  const hasChanges = !isEdit || (
+    amount !== initAmount ||
+    method !== initMethod ||
+    paidDate !== initPaidDate ||
+    receipt !== initReceipt ||
+    notes !== initNotes ||
+    checkNumber !== initCheckNumber ||
+    bank !== initBank ||
+    transactionId !== initTxId ||
+    transferRef !== initTransferRef
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,19 +126,36 @@ export default function PaymentModal({
       setError('Le montant doit etre positif.')
       return
     }
-    if (method === 'check' && !checkNumber.trim()) {
+    if (!method) {
+      setError('Le mode de paiement est obligatoire.')
+      return
+    }
+    const safeMethod = method as FeePaymentMethod
+    if (safeMethod === 'check' && !checkNumber.trim()) {
       setError('Le numero de cheque est obligatoire.')
+      return
+    }
+    if (safeMethod === 'check' && !bank.trim()) {
+      setError('La banque est obligatoire.')
+      return
+    }
+    if (safeMethod === 'card' && !transactionId.trim()) {
+      setError('Le numero de transaction est obligatoire.')
+      return
+    }
+    if (safeMethod === 'transfer' && !transferRef.trim()) {
+      setError('La reference de virement est obligatoire.')
       return
     }
 
     // Construire la référence selon la méthode
     const reference: PaymentReference = {}
-    if (method === 'check') {
+    if (safeMethod === 'check') {
       reference.check_number = checkNumber.trim()
       if (bank.trim()) reference.bank = bank.trim()
-    } else if (method === 'card' && transactionId.trim()) {
+    } else if (safeMethod === 'card' && transactionId.trim()) {
       reference.transaction_id = transactionId.trim()
-    } else if (method === 'transfer' && transferRef.trim()) {
+    } else if (safeMethod === 'transfer' && transferRef.trim()) {
       reference.reference = transferRef.trim()
     }
 
@@ -105,7 +171,7 @@ export default function PaymentModal({
             amount_paid:        parsedAmount,
             due_date:           paidDate,
             paid_date:          paidDate,
-            payment_method:     method,
+            payment_method:     safeMethod,
             payment_reference:  Object.keys(reference).length ? reference : null,
             receipt_number:     receipt.trim() || null,
             notes:              notes.trim() || null,
@@ -130,7 +196,7 @@ export default function PaymentModal({
             amount_due:         parsedAmount,
             amount_paid:        parsedAmount,
             paid_date:          paidDate,
-            payment_method:     method,
+            payment_method:     safeMethod,
             payment_reference:  Object.keys(reference).length ? reference : null,
             receipt_number:     receipt.trim() || null,
             status:             'paid',
@@ -144,7 +210,7 @@ export default function PaymentModal({
         fetch('/api/notifications/payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parent_id: parentId, amount: parsedAmount, method, receipt: receipt.trim() || null, paid_date: paidDate }),
+          body: JSON.stringify({ parent_id: parentId, amount: parsedAmount, method: safeMethod, receipt: receipt.trim() || null, paid_date: paidDate }),
         }).catch(() => {})
 
         setSaving(false)
@@ -184,34 +250,23 @@ export default function PaymentModal({
 
           {/* Montant + Date */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
-                Montant <span className="text-red-400">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  className="input text-sm pr-8"
-                  autoFocus
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
-                Date <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="date"
-                value={paidDate}
-                onChange={e => setPaidDate(e.target.value)}
-                className="input text-sm"
-              />
-            </div>
+            <FloatInput
+              label="Montant (EUR)"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              required
+              autoFocus
+            />
+            <FloatInput
+              label="Date"
+              type="date"
+              value={paidDate}
+              onChange={e => setPaidDate(e.target.value)}
+              required
+            />
           </div>
 
           {/* Mode de paiement */}
@@ -252,95 +307,78 @@ export default function PaymentModal({
           {/* Champs dynamiques selon méthode */}
           {method === 'check' && (
             <div className="grid grid-cols-2 gap-3 p-3 bg-blue-50/40 rounded-xl border border-blue-100">
-              <div>
-                <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
-                  N° cheque <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="78542"
-                  value={checkNumber}
-                  onChange={e => setCheckNumber(e.target.value)}
-                  className="input text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">Banque</label>
-                <input
-                  type="text"
-                  placeholder="BNP Paribas..."
-                  value={bank}
-                  onChange={e => setBank(e.target.value)}
-                  className="input text-sm"
-                />
-              </div>
+              <FloatInput
+                label="N° chèque"
+                type="text"
+                placeholder="78542"
+                value={checkNumber}
+                onChange={e => setCheckNumber(e.target.value.replace(/\D/g, ''))}
+                required
+              />
+              <FloatInput
+                label="Banque"
+                type="text"
+                placeholder="BNP Paribas..."
+                value={bank}
+                onChange={e => setBank(e.target.value.replace(/[^A-Za-zÀ-ÿ\s]/g, '').toUpperCase())}
+                required
+              />
             </div>
           )}
 
           {method === 'card' && (
             <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100">
-              <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">N° transaction</label>
-              <input
+              <FloatInput
+                label="N° transaction"
                 type="text"
                 placeholder="TXN-9A3F21..."
                 value={transactionId}
                 onChange={e => setTransactionId(e.target.value)}
-                className="input text-sm"
+                required
               />
             </div>
           )}
 
           {method === 'transfer' && (
             <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100">
-              <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">Reference virement</label>
-              <input
+              <FloatInput
+                label="Référence virement"
                 type="text"
                 placeholder="VIR-20251103..."
                 value={transferRef}
                 onChange={e => setTransferRef(e.target.value)}
-                className="input text-sm"
+                required
               />
             </div>
           )}
 
           {/* N° reçu + Notes */}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">N° recu</label>
-              <input
-                type="text"
-                value={receipt}
-                onChange={e => setReceipt(e.target.value)}
-                className="input text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">Notes</label>
-              <input
-                type="text"
-                placeholder="Remarque..."
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="input text-sm"
-              />
-            </div>
+            <FloatInput
+              label="N° reçu"
+              type="text"
+              value={receipt}
+              onChange={e => setReceipt(e.target.value)}
+            />
+            <FloatInput
+              label="Notes"
+              type="text"
+              placeholder="Remarque..."
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+            />
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
             <div className="flex-1" />
-            <button type="button" onClick={onClose} disabled={saving} className="btn btn-secondary">
+            <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn btn-primary flex items-center justify-center gap-1.5"
-            >
-              <Check size={15} />
-              {saving ? 'Enregistrement...' : isEdit ? 'Modifier le paiement' : 'Enregistrer le paiement'}
-            </button>
+            </FloatButton>
+            <FloatButton type="submit" variant={isEdit ? 'edit' : 'submit'} disabled={saving || !canSubmit || !hasChanges}>
+              {isEdit ? 'Modifier' : 'Valider'}
+            </FloatButton>
           </div>
 
         </form>

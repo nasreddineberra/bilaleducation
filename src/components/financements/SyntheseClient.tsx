@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { TrendingUp, TrendingDown, Plus, Pencil, Trash2, X, FileText, Upload, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { FloatButton, FloatInput, FloatSelect, FloatTextarea } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -206,9 +207,9 @@ export default function SyntheseClient({
         <div className="card overflow-hidden">
           <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <h3 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Dépenses</h3>
-            <button onClick={() => setExpenseModal('new')} className="btn-primary text-[9px] px-1.5 py-0.5 flex items-center gap-0.5">
-              <Plus size={10} /> Ajout
-            </button>
+            <FloatButton type="button" variant="submit" onClick={() => setExpenseModal('new')} className="!px-2 !py-0.5 !text-xs !font-medium !rounded">
+              <Plus size={10} /> Ajouter
+            </FloatButton>
           </div>
           {expenses.length === 0 ? (
             <p className="text-[10px] text-warm-400 italic text-center py-3">Aucune dépense</p>
@@ -258,9 +259,9 @@ export default function SyntheseClient({
         <div className="card overflow-hidden">
           <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <h3 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Revenus autres</h3>
-            <button onClick={() => setRevenueModal('new')} className="btn-primary text-[9px] px-1.5 py-0.5 flex items-center gap-0.5">
-              <Plus size={10} /> Ajout
-            </button>
+            <FloatButton type="button" variant="submit" onClick={() => setRevenueModal('new')} className="!px-2 !py-0.5 !text-xs !font-medium !rounded">
+              <Plus size={10} /> Ajouter
+            </FloatButton>
           </div>
           {revenues.length === 0 ? (
             <p className="text-[10px] text-warm-400 italic text-center py-3">Aucun revenu</p>
@@ -350,15 +351,28 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
   const supabase = createClient()
   const isEdit = !!entry
 
-  const [date, setDate] = useState(entry?.expense_date ?? new Date().toISOString().slice(0, 10))
-  const [label, setLabel] = useState(entry?.label ?? '')
-  const [amount, setAmount] = useState(entry ? String(entry.amount) : '')
-  const [category, setCategory] = useState(entry?.category ?? '')
-  const [notes, setNotes] = useState(entry?.notes ?? '')
-  const [documentUrl, setDocumentUrl] = useState(entry?.document_url ?? '')
-  const [uploading, setUploading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const initDate     = entry?.expense_date ?? new Date().toISOString().slice(0, 10)
+  const initLabel    = entry?.label ?? ''
+  const initAmount   = entry ? String(entry.amount) : ''
+  const initCategory = entry?.category ?? ''
+  const initNotes    = entry?.notes ?? ''
+  const initDoc      = entry?.document_url ?? ''
+
+  const [date,        setDate]        = useState(initDate)
+  const [label,       setLabel]       = useState(initLabel)
+  const [amount,      setAmount]      = useState(initAmount)
+  const [category,    setCategory]    = useState(initCategory)
+  const [notes,       setNotes]       = useState(initNotes)
+  const [documentUrl, setDocumentUrl] = useState(initDoc)
+  const [uploading,   setUploading]   = useState(false)
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+
+  const canSubmit = !!date && !!label.trim() && !!amount && parseFloat(amount) > 0
+  const hasChanges = !isEdit || (
+    date !== initDate || label !== initLabel || amount !== initAmount ||
+    category !== initCategory || notes !== initNotes || documentUrl !== initDoc
+  )
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -410,50 +424,36 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <h3 className="text-sm font-bold text-secondary-800">{isEdit ? 'Modifier la dépense' : 'Nouvelle dépense'}</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-warm-100 text-warm-400"><X size={16} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
+          <h3 className="text-base font-bold text-secondary-800">{isEdit ? 'Modifier la dépense' : 'Nouvelle dépense'}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"><X size={16} /></button>
         </div>
         <div className="px-5 py-4 space-y-3">
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Date <span className="text-red-400">*</span></label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Montant <span className="text-red-400">*</span></label>
-              <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="0.00" />
-            </div>
+            <FloatInput label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            <FloatInput label="Montant (EUR)" type="number" step="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
+          <FloatInput label="Libellé" type="text" placeholder="Description de la dépense" value={label} onChange={e => setLabel(e.target.value)} required />
+          <FloatSelect label="Catégorie" value={category} onChange={e => setCategory(e.target.value)}>
+            <option value=""></option>
+            <option value="Loyer">Loyer — Location des locaux</option>
+            <option value="Charges">Charges — Eau, électricité, gaz, internet</option>
+            <option value="Fournitures">Fournitures — Matériel pédagogique, papeterie</option>
+            <option value="Assurance">Assurance — Assurance locaux, RC</option>
+            <option value="Déplacements">Déplacements — Transport, frais de route</option>
+            <option value="Communication">Communication — Impression, site web, pub</option>
+            <option value="Événements">Événements — Sorties, fêtes, cérémonies</option>
+            <option value="Alimentation">Alimentation — Goûters, repas</option>
+            <option value="Banque">Banque — Frais bancaires</option>
+            <option value="Autre">Autre — Divers</option>
+          </FloatSelect>
+          <FloatTextarea label="Notes" placeholder="Remarque optionnelle..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
           <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Label <span className="text-red-400">*</span></label>
-            <input type="text" value={label} onChange={e => setLabel(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="Description de la dépense" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Catégorie</label>
-            <select value={category} onChange={e => setCategory(e.target.value)} className="input text-sm py-1.5 w-full mt-1">
-              <option value="">-- Sélectionner --</option>
-              <option value="Loyer">Loyer — Location des locaux</option>
-              <option value="Charges">Charges — Eau, électricité, gaz, internet</option>
-              <option value="Fournitures">Fournitures — Matériel pédagogique, papeterie</option>
-              <option value="Assurance">Assurance — Assurance locaux, RC</option>
-              <option value="Déplacements">Déplacements — Transport, frais de route</option>
-              <option value="Communication">Communication — Impression, site web, pub</option>
-              <option value="Événements">Événements — Sorties, fêtes, cérémonies</option>
-              <option value="Alimentation">Alimentation — Goûters, repas</option>
-              <option value="Banque">Banque — Frais bancaires</option>
-              <option value="Autre">Autre — Divers</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="input text-sm py-1.5 w-full mt-1 resize-none" placeholder="Remarque optionnelle..." />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Document</label>
-            <div className="mt-1 flex items-center gap-2">
+            <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">Document</label>
+            <div className="flex items-center gap-2">
               <label className="btn-secondary text-xs px-3 py-1.5 cursor-pointer flex items-center gap-1">
                 <Upload size={12} />
                 {uploading ? 'Envoi...' : 'Choisir un fichier'}
@@ -469,15 +469,14 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
               )}
             </div>
           </div>
-          {error && <p className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>}
         </div>
         <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
           <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
-          <button onClick={onClose} className="btn-secondary text-xs px-4 py-1.5">Annuler</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary text-xs px-4 py-1.5">
-            {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Enregistrer'}
-          </button>
+          <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>Annuler</FloatButton>
+          <FloatButton type="button" variant={isEdit ? 'edit' : 'submit'} onClick={handleSave} disabled={saving || !canSubmit || !hasChanges}>
+            {isEdit ? 'Modifier' : 'Valider'}
+          </FloatButton>
         </div>
       </div>
     </div>
@@ -492,13 +491,25 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
   const supabase = createClient()
   const isEdit = !!entry
 
-  const [date, setDate] = useState(entry?.revenue_date ?? new Date().toISOString().slice(0, 10))
-  const [label, setLabel] = useState(entry?.label ?? '')
-  const [amount, setAmount] = useState(entry ? String(entry.amount) : '')
-  const [sourceType, setSourceType] = useState(entry?.source_type ?? '')
-  const [notes, setNotes] = useState(entry?.notes ?? '')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const initDate       = entry?.revenue_date ?? new Date().toISOString().slice(0, 10)
+  const initLabel      = entry?.label ?? ''
+  const initAmount     = entry ? String(entry.amount) : ''
+  const initSourceType = entry?.source_type ?? ''
+  const initNotes      = entry?.notes ?? ''
+
+  const [date,       setDate]       = useState(initDate)
+  const [label,      setLabel]      = useState(initLabel)
+  const [amount,     setAmount]     = useState(initAmount)
+  const [sourceType, setSourceType] = useState(initSourceType)
+  const [notes,      setNotes]      = useState(initNotes)
+  const [saving,     setSaving]     = useState(false)
+  const [error,      setError]      = useState<string | null>(null)
+
+  const canSubmit = !!date && !!label.trim() && !!amount && parseFloat(amount) > 0
+  const hasChanges = !isEdit || (
+    date !== initDate || label !== initLabel || amount !== initAmount ||
+    sourceType !== initSourceType || notes !== initNotes
+  )
 
   const handleSave = async () => {
     if (!label.trim() || !amount) { setError('Label et montant requis'); return }
@@ -527,53 +538,38 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <h3 className="text-sm font-bold text-secondary-800">{isEdit ? 'Modifier le revenu' : 'Nouveau revenu'}</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-warm-100 text-warm-400"><X size={16} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-fade-in">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
+          <h3 className="text-base font-bold text-secondary-800">{isEdit ? 'Modifier le revenu' : 'Nouveau revenu'}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"><X size={16} /></button>
         </div>
         <div className="px-5 py-4 space-y-3">
+          {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Date <span className="text-red-400">*</span></label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input text-sm py-1.5 w-full mt-1" />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Montant <span className="text-red-400">*</span></label>
-              <input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="0.00" />
-            </div>
+            <FloatInput label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+            <FloatInput label="Montant (EUR)" type="number" step="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Label <span className="text-red-400">*</span></label>
-            <input type="text" value={label} onChange={e => setLabel(e.target.value)} className="input text-sm py-1.5 w-full mt-1" placeholder="Description du revenu" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Source</label>
-            <select value={sourceType} onChange={e => setSourceType(e.target.value)} className="input text-sm py-1.5 w-full mt-1">
-              <option value="">-- Sélectionner --</option>
-              <option value="Don">Don — Dons de particuliers ou entreprises</option>
-              <option value="Subvention">Subvention — Aide publique ou associative</option>
-              <option value="Événement">Événement — Recettes kermesse, fête, vente</option>
-              <option value="Cotisation exceptionnelle">Cotisation exceptionnelle — Contribution ponctuelle</option>
-              <option value="Remboursement">Remboursement — Remboursement fournisseur / assurance</option>
-              <option value="Partenariat">Partenariat — Sponsoring, mécénat</option>
-              <option value="Autre">Autre — Divers</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="input text-sm py-1.5 w-full mt-1 resize-none" placeholder="Remarque optionnelle..." />
-          </div>
-          {error && <p className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>}
+          <FloatInput label="Libellé" type="text" placeholder="Description du revenu" value={label} onChange={e => setLabel(e.target.value)} required />
+          <FloatSelect label="Source" value={sourceType} onChange={e => setSourceType(e.target.value)}>
+            <option value=""></option>
+            <option value="Don">Don — Dons de particuliers ou entreprises</option>
+            <option value="Subvention">Subvention — Aide publique ou associative</option>
+            <option value="Événement">Événement — Recettes kermesse, fête, vente</option>
+            <option value="Cotisation exceptionnelle">Cotisation exceptionnelle — Contribution ponctuelle</option>
+            <option value="Remboursement">Remboursement — Remboursement fournisseur / assurance</option>
+            <option value="Partenariat">Partenariat — Sponsoring, mécénat</option>
+            <option value="Autre">Autre — Divers</option>
+          </FloatSelect>
+          <FloatTextarea label="Notes" placeholder="Remarque optionnelle..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
         </div>
         <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
           <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
-          <button onClick={onClose} className="btn-secondary text-xs px-4 py-1.5">Annuler</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary text-xs px-4 py-1.5">
-            {saving ? 'Enregistrement...' : isEdit ? 'Modifier' : 'Enregistrer'}
-          </button>
+          <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>Annuler</FloatButton>
+          <FloatButton type="button" variant={isEdit ? 'edit' : 'submit'} onClick={handleSave} disabled={saving || !canSubmit || !hasChanges}>
+            {isEdit ? 'Modifier' : 'Valider'}
+          </FloatButton>
         </div>
       </div>
     </div>
