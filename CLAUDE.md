@@ -89,30 +89,41 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 
 ### Phase 2 — Palette matieres + Drag & Drop creation
 - [x] Nouveau composant `SubjectPalette.tsx` : panneau lateral gauche (vue semaine + filtre classe + mode multi)
-- [ ] Chaque tranche 15min de la grille = zone droppable (dnd-kit)
-- [ ] Drop matiere sur grille → creation auto du slot (prof + matiere + horaire)
-- [ ] DndContext + DragOverlay (meme pattern que AffectationClient)
+- [x] Chaque tranche 15min de la grille = zone droppable (dnd-kit)
+- [x] Drop matiere sur grille → creation auto du slot (prof + matiere + horaire)
+- [x] DndContext + DragOverlay (meme pattern que AffectationClient)
 
 ### Phase 3 — Deplacement de creneaux existants
-- [ ] Capsules EDT draggables (vue semaine + filtre classe uniquement)
-- [ ] Drop sur autre creneau → deplacement (conservation duree, MAJ day_of_week + start_time)
-- [ ] Detection collisions avant validation, blocage drop jours non travailles / vacances
+- [x] Capsules EDT draggables (vue semaine + filtre classe uniquement)
+- [x] Drop sur autre creneau → deplacement (conservation duree, MAJ day_of_week + start_time)
+- [x] Detection collisions avant validation, blocage drop jours non travailles / vacances
 
 ### Phase 4 — Cascade et coherence
-- [ ] Mode single : changement prof principal → MAJ auto tous les slots de la classe
-- [ ] Mode multi : retrait prof → slots passes en "sans prof" avec alerte
-- [ ] Matiere sans prof autorisee : bordure pointillee + badge "Prof non affecte" sur EDT
-- [ ] Suppression classe : double confirmation (liste dependances + saisie nom classe)
+- [x] Mode single : changement prof principal → MAJ auto tous les slots de la classe
+- [x] Mode multi : retrait prof → slots passes en "sans prof" avec alerte
+- [x] Matiere sans prof autorisee : bordure pointillee + badge "Prof non affecte" sur EDT
+- [x] Suppression classe : double confirmation (liste dependances + saisie nom classe)
+- [x] Suppression classe : bloquer si des eleves sont affectes a la classe (verification avant suppression)
+
+### Phase 5 — Historique affectations en cours d'annee
+- [x] Migration SQL : `effective_from` / `effective_until` sur `class_teachers`
+- [x] Modification affectation en cours d'annee : cloture ancienne + creation nouvelle avec date d'effet
+- [x] Suppression affectation en cours d'annee : cloture avec date d'effet (pas de suppression physique)
+- [x] Modale de confirmation avec date picker (defaut = aujourd'hui, anticipation possible)
+- [x] Hors periode scolaire : modification/suppression directe (pas de cloture)
+- [x] Cloture automatique des slots EDT lies aux affectations cloturees
+- [x] Historique des affectations cloturees visible sur la fiche classe (lignes grisees avec dates)
 
 ### Fichiers impactes
 | Fichier | Phases |
 |---|---|
 | `supabase/migrations/add-teaching-mode-working-days-color.sql` | 1 |
 | `src/components/etablissement/EtablissementForm.tsx` | 1 |
-| `src/components/classes/ClassForm.tsx` | 1, 4 |
+| `src/components/classes/ClassForm.tsx` | 1, 4, 5 |
 | `src/components/classes/ClassesClient.tsx` | 4 |
 | `src/app/dashboard/classes/new/page.tsx` | 1 |
-| `src/app/dashboard/classes/[id]/page.tsx` | 1 |
+| `src/app/dashboard/classes/[id]/page.tsx` | 1, 5 |
+| `supabase/migrations/add-class-teachers-effective-dates.sql` | 5 |
 | `src/components/emploi-du-temps/EmploiDuTempsClient.tsx` | 1, 2, 3 |
 | `src/components/emploi-du-temps/DayColumn.tsx` | 1, 2 |
 | `src/components/emploi-du-temps/SlotCapsule.tsx` | 3, 4 |
@@ -125,6 +136,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 
 ## Actions SQL en attente
 
-- [ ] Executer `supabase/migrations/fix-student-numbers-add-month.sql` dans Supabase SQL Editor
-- [ ] Executer `supabase/seed-teachers-demo.sql` dans Supabase SQL Editor
-- [ ] Executer `supabase/migrations/add-teaching-mode-working-days-color.sql` (apres phase 1)
+- [x] Executer `supabase/migrations/fix-student-numbers-add-month.sql` dans Supabase SQL Editor
+- [x] Executer `supabase/seed-teachers-demo.sql` dans Supabase SQL Editor
+- [x] Executer `supabase/migrations/add-teaching-mode-working-days-color.sql` (apres phase 1)
+- [x] Executer `supabase/migrations/add-class-teachers-effective-dates.sql` (phase 5)

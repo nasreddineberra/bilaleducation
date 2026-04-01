@@ -19,6 +19,8 @@ export interface AssignmentData {
   teacher_name: string
   is_main_teacher: boolean
   subject: string
+  effective_from: string | null
+  effective_until: string | null
 }
 
 interface UEOption {
@@ -68,7 +70,7 @@ interface ClassFormProps {
   weekStartDay?: number
 }
 
-type TeachingMode = 'single' | 'multi'
+type TeachingMode = 'single' | 'multi' | ''
 
 type FormData = {
   name:               string
@@ -91,6 +93,14 @@ const DAY_NUM_TO_NAME: Record<number, string> = {
   0: 'Dimanche', 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi',
 }
 function dayNameToNum(name: string): number { return DAY_NAME_TO_JS[name] ?? -1 }
+
+function todayISO() { return new Date().toISOString().slice(0, 10) }
+
+function isYearActive(sy: { start_date: string | null; end_date: string | null } | null | undefined): boolean {
+  if (!sy?.start_date || !sy?.end_date) return false
+  const today = todayISO()
+  return today >= sy.start_date && today <= sy.end_date
+}
 
 function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -137,7 +147,7 @@ export default function ClassForm({
     max_students:       String(cls?.max_students ?? 30),
     description:        cls?.description        ?? '',
     cotisation_type_id: cls?.cotisation_type_id ?? '',
-    teaching_mode:      (cls?.teaching_mode as TeachingMode) ?? 'single',
+    teaching_mode:      (cls?.teaching_mode as TeachingMode) ?? '',
   })
 
   // ── Slots EDT ─────────────────────────────────────────────────────────────
@@ -163,19 +173,35 @@ export default function ClassForm({
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,   setIsSubmitting]   = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; onConfirm: () => void } | null>(null)
+  const [modeConfirmed,  setModeConfirmed]  = useState(!!cls) // en edition = deja confirmé ; en creation = pas encore
+  const [confirmedMode,  setConfirmedMode]  = useState<TeachingMode | null>(cls ? (cls.teaching_mode as TeachingMode) : null)
+  const modeChanged = modeConfirmed && form.teaching_mode !== confirmedMode
 
   const [assignments,  setAssignments]  = useState<AssignmentData[]>(initialAssignments)
   const [showAddRow,   setShowAddRow]   = useState(false)
   const [addTeacherId, setAddTeacherId] = useState('')
-  const [addIsMain,    setAddIsMain]    = useState(true)
+  const [addIsMain,    setAddIsMain]    = useState(false)
   const [addSubject,   setAddSubject]   = useState('')
+  const [editingIdx,      setEditingIdx]      = useState<number | null>(null)
+  const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
+  const [editTeacherId, setEditTeacherId] = useState('')
+  const [editSubject,   setEditSubject]   = useState('')
+  const [editIsMain,    setEditIsMain]    = useState(false)
+  const [pendingAssignAction, setPendingAssignAction] = useState<{
+    type: 'edit' | 'delete'
+    idx: number
+    effectiveDate: string
+    applyFn: (date: string) => void
+    message: string
+  } | null>(null)
 
-  const hasMain           = assignments.some(a => a.is_main_teacher)
+  const yearActive        = isYearActive(currentSchoolYear)
+  const hasMain           = assignments.filter(a => !a.effective_until).some(a => a.is_main_teacher)
   const assignedIds       = new Set(assignments.map(a => a.teacher_id))
   const availableTeachers = teachers.filter(t => !assignedIds.has(t.id))
 
   const openAddRow = () => {
-    setAddIsMain(!hasMain)
+    setAddIsMain(false)
     setAddTeacherId('')
     setAddSubject('')
     setShowAddRow(true)
@@ -196,6 +222,8 @@ export default function ClassForm({
       teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
       is_main_teacher: addIsMain,
       subject,
+      effective_from:  null,
+      effective_until: null,
     }])
     setShowAddRow(false)
   }
@@ -254,7 +282,7 @@ export default function ClassForm({
     : assignments.length === 0
   const selectedRoom = rooms.find(r => r.id === form.room_id)
   const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
-  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity
+  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity && modeConfirmed && !modeChanged
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const touch = (field: string) => setTouched(prev => new Set([...prev, field]))
   const set = (field: keyof FormData, value: string) =>
@@ -323,15 +351,35 @@ export default function ClassForm({
       // Affectations
       await supabase.from('class_teachers').delete().eq('class_id', classId)
       if (assignments.length > 0) {
-        const { error: e } = await supabase.from('class_teachers').insert(
-          assignments.map(a => ({
+        const rows = assignments
+          .filter(a => a.teacher_id || a.subject) // ignorer les lignes vides
+          .map(a => ({
             class_id:        classId,
-            teacher_id:      a.teacher_id,
+            teacher_id:      a.teacher_id || null,
             is_main_teacher: a.is_main_teacher,
             subject:         a.subject || null,
+            effective_from:  a.effective_from || null,
+            effective_until: a.effective_until || null,
           }))
-        )
-        if (e) throw e
+        if (rows.length > 0) {
+          const { error: e } = await supabase.from('class_teachers').insert(rows)
+          if (e) throw e
+        }
+      }
+
+      // Cloturer les slots EDT des affectations cloturees en cours d'annee
+      if (currentSchoolYear?.id) {
+        const closedAssignments = assignments.filter(a => a.effective_until && a.teacher_id)
+        for (const ca of closedAssignments) {
+          await supabase
+            .from('schedule_slots')
+            .update({ effective_until: ca.effective_until })
+            .eq('class_id', classId)
+            .eq('teacher_id', ca.teacher_id)
+            .eq('school_year_id', currentSchoolYear.id)
+            .eq('is_recurring', true)
+            .is('effective_until', null)
+        }
       }
 
       // Réconciliation slots EDT
@@ -410,7 +458,7 @@ export default function ClassForm({
     <>
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-2">
 
         {/* ── Colonne gauche — Informations générales ── */}
         <div className="card p-4 space-y-3">
@@ -435,35 +483,6 @@ export default function ClassForm({
             locked
             onChange={() => {}}
           />
-
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Mode d'enseignement</span>
-            <div className="flex gap-2">
-              <FloatRadioCard
-                name="teaching_mode" value="single"
-                checked={form.teaching_mode === 'single'}
-                onChange={() => set('teaching_mode', 'single')}
-              >
-                <span className="flex items-center gap-1.5">
-                  <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Primaire
-                </span>
-              </FloatRadioCard>
-              <FloatRadioCard
-                name="teaching_mode" value="multi"
-                checked={form.teaching_mode === 'multi'}
-                onChange={() => set('teaching_mode', 'multi')}
-              >
-                <span className="flex items-center gap-1.5">
-                  <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Secondaire
-                </span>
-              </FloatRadioCard>
-            </div>
-            <p className="text-[10px] text-warm-400 italic">
-              {form.teaching_mode === 'single'
-                ? 'Un seul professeur principal pour tous les cours.'
-                : 'Plusieurs professeurs, chacun affecté à une ou plusieurs matières.'}
-            </p>
-          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <FloatSelect
@@ -518,6 +537,68 @@ export default function ClassForm({
             rows={3}
             placeholder="Remarques, spécificités de la classe..."
           />
+
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Mode d&apos;enseignement <span className="text-red-400">*</span></span>
+            <div className="flex items-center gap-2">
+              <FloatRadioCard
+                name="teaching_mode" value="single"
+                checked={form.teaching_mode === 'single'}
+                onChange={() => set('teaching_mode', 'single')}
+              >
+                <span className="flex items-center gap-1.5">
+                  <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Primaire
+                </span>
+              </FloatRadioCard>
+              <FloatRadioCard
+                name="teaching_mode" value="multi"
+                checked={form.teaching_mode === 'multi'}
+                onChange={() => set('teaching_mode', 'multi')}
+              >
+                <span className="flex items-center gap-1.5">
+                  <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Secondaire
+                </span>
+              </FloatRadioCard>
+              {(!modeConfirmed || modeChanged) && form.teaching_mode !== '' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (modeChanged) {
+                      const hasDeps = assignments.filter(a => !a.effective_until).length > 0 || slots.length > 0
+                      if (hasDeps) {
+                        const label = form.teaching_mode === 'single' ? 'Primaire' : 'Secondaire'
+                        setPendingConfirm({
+                          title: 'Changement de mode',
+                          message: `Passer en ${label} supprimera les affectations et l'emploi du temps actuels. Continuer ?`,
+                          variant: 'danger',
+                          onConfirm: () => {
+                            setAssignments([])
+                            setSlots([])
+                            setDeletedSlotIds(prev => [...prev, ...slots.filter(s => s.id).map(s => s.id!)])
+                            setModeConfirmed(true)
+                            setConfirmedMode(form.teaching_mode)
+                          },
+                        })
+                        return
+                      }
+                    }
+                    setModeConfirmed(true)
+                    setConfirmedMode(form.teaching_mode)
+                  }}
+                  className="text-xs text-white bg-secondary-700 hover:bg-secondary-800 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shadow-[0_2px_6px_rgba(47,69,80,0.30)]"
+                >
+                  Valider
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-warm-400 italic">
+              {form.teaching_mode === 'single'
+                ? 'Un seul professeur principal pour tous les cours.'
+                : form.teaching_mode === 'multi'
+                  ? 'Plusieurs professeurs, chacun affecté à une ou plusieurs matières.'
+                  : 'Choisissez le mode d\'enseignement de cette classe.'}
+            </p>
+          </div>
         </div>
 
         {/* ── Colonne droite — Affectations enseignants ── */}
@@ -526,73 +607,288 @@ export default function ClassForm({
             {isSingle ? 'Enseignant principal' : 'Affectations enseignants / matières'} <span className="text-red-400">*</span>
           </h2>
 
-          {assignments.length > 0 ? (
-            <div className="border border-warm-100 rounded-xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-warm-50 border-b border-warm-100">
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Enseignant</th>
-                    {!isSingle && (
-                      <>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Matière</th>
-                      </>
-                    )}
-                    <th className="px-3 py-2 w-8" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-warm-50">
-                  {assignments.map(a => (
-                    <tr key={`${a.teacher_id}-${a.subject}`} className="hover:bg-warm-50/40">
-                      <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
-                        {a.teacher_name || <span className="text-warm-400 italic">Non affecté</span>}
-                      </td>
-                      {!isSingle && (
-                        <>
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            {a.is_main_teacher ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
-                                <UserCheck size={11} /> Prof. principal
-                              </span>
-                            ) : (
-                              <span className="text-xs text-secondary-500">Par matière</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-secondary-500 text-xs">
-                            {a.subject || <span className="text-warm-300">—</span>}
-                          </td>
-                        </>
-                      )}
-                      <td className="px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() => isSingle
-                            ? handleRemoveAssignment(a.teacher_id)
-                            : setAssignments(prev => prev.filter(x => !(x.teacher_id === a.teacher_id && x.subject === a.subject)))
-                          }
-                          className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className={clsx(
-              'flex items-center gap-2 text-sm rounded-xl px-4 py-3',
-              touched.has('assignments') && vAssignments
-                ? 'text-red-600 bg-red-50 border border-red-200'
-                : 'text-warm-400 bg-warm-50'
-            )}>
+          {(!modeConfirmed || modeChanged) ? (
+            <div className="flex items-center gap-2 text-sm text-warm-400 bg-warm-50 rounded-xl px-4 py-6 text-center justify-center opacity-50">
               <BookOpen size={14} />
-              {touched.has('assignments') && vAssignments
-                ? (isSingle ? 'Un enseignant principal est requis.' : 'Au moins une matière doit être affectée.')
-                : (isSingle ? 'Aucun enseignant affecté.' : 'Aucune affectation.')}
+              Validez le mode d&apos;enseignement pour acceder aux affectations.
             </div>
-          )}
+          ) : (<>
+
+          {(() => {
+            const active  = assignments.filter(a => !a.effective_until)
+            const closed  = assignments.filter(a => !!a.effective_until)
+            const sorted  = [...active].sort((x, y) => (x.is_main_teacher === y.is_main_teacher ? 0 : x.is_main_teacher ? -1 : 1))
+
+            const isExistingAssignment = (a: AssignmentData) =>
+              initialAssignments.some(ia => ia.teacher_id === a.teacher_id && ia.subject === a.subject && !ia.effective_until)
+
+            const requestEdit = (realIdx: number, applyFn: (date: string) => void) => {
+              if (yearActive && cls && isExistingAssignment(assignments[realIdx])) {
+                setPendingAssignAction({ type: 'edit', idx: realIdx, effectiveDate: todayISO(), applyFn, message: 'L\'ancienne affectation sera cloturee et la nouvelle prendra effet a la date choisie.' })
+              } else {
+                applyFn('')
+              }
+            }
+
+            const requestDelete = (realIdx: number) => {
+              const a = assignments[realIdx]
+              if (yearActive && cls && isExistingAssignment(a)) {
+                setPendingAssignAction({
+                  type: 'delete', idx: realIdx, effectiveDate: todayISO(),
+                  applyFn: (date: string) => {
+                    setAssignments(prev => prev.map((x, i) => i === realIdx ? { ...x, effective_until: date } : x))
+                  },
+                  message: `L'affectation "${a.teacher_name || 'Non affecte'}${a.subject ? ` — ${a.subject}` : ''}" sera cloturee a la date choisie.`,
+                })
+              } else {
+                if (isSingle) handleRemoveAssignment(a.teacher_id)
+                else setAssignments(prev => prev.filter((_, i) => i !== realIdx))
+              }
+            }
+
+            return <>
+              {active.length > 0 ? (
+                <div className="border border-warm-100 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-warm-50 border-b border-warm-100">
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Enseignant</th>
+                        {!isSingle && (
+                          <>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
+                            <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Matière</th>
+                          </>
+                        )}
+                        <th className="px-3 py-2 w-8" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-warm-50">
+                      {sorted.map(a => {
+                        const realIdx = assignments.indexOf(a)
+                        const isEditing = !isSingle && editingIdx === realIdx
+                        if (isEditing) {
+                          const hasMainOther = active.some(x => x !== a && x.is_main_teacher)
+                          const isCurrentMain = a.is_main_teacher
+                          const canEditCheckbox = isCurrentMain || !hasMainOther
+                          return (
+                            <tr key={`${a.teacher_id}-${a.subject}-edit`} className="bg-warm-50/60">
+                              <td className="px-3 py-2">
+                                <select
+                                  value={editTeacherId}
+                                  onChange={e => setEditTeacherId(e.target.value)}
+                                  className="w-full text-sm border border-warm-200 rounded-lg px-2 py-1.5 bg-white text-secondary-800"
+                                >
+                                  <option value="" />
+                                  {teachers.filter(t => t.is_active).map(t => (
+                                    <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2">
+                                <label className={clsx(
+                                  'flex items-center gap-1.5 text-xs whitespace-nowrap',
+                                  (canEditCheckbox && editTeacherId) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                                )}>
+                                  <input
+                                    type="checkbox"
+                                    checked={editIsMain}
+                                    disabled={!canEditCheckbox || !editTeacherId}
+                                    onChange={e => setEditIsMain(e.target.checked)}
+                                    className="accent-primary-500 w-3.5 h-3.5"
+                                  />
+                                  <UserCheck size={11} className="text-primary-500" /> Principal
+                                </label>
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  value={editSubject}
+                                  onChange={e => setEditSubject(e.target.value)}
+                                  className="w-full text-sm border border-warm-200 rounded-lg px-2 py-1.5 bg-white text-secondary-800"
+                                >
+                                  <option value="" />
+                                  {ues.map(ue => (
+                                    <option key={ue.id} value={ue.code ? `${ue.code} — ${ue.nom_fr}` : ue.nom_fr}>
+                                      {ue.code ? `${ue.code} — ` : ''}{ue.nom_fr}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const duplicate = assignments.some((x, i) => i !== realIdx && !x.effective_until && x.teacher_id === (editTeacherId || '') && x.subject === editSubject)
+                                      if (duplicate) return
+                                      const doApply = (effectiveDate: string) => {
+                                        const teacher = editTeacherId ? teachers.find(t => t.id === editTeacherId) : null
+                                        if (effectiveDate) {
+                                          // En cours d'annee : cloturer l'ancienne, creer la nouvelle
+                                          setAssignments(prev => {
+                                            const updated = prev.map((x, i) => {
+                                              if (i === realIdx) return { ...x, effective_until: effectiveDate }
+                                              if (editIsMain) return { ...x, is_main_teacher: false }
+                                              return x
+                                            })
+                                            updated.push({
+                                              teacher_id:   editTeacherId || '',
+                                              teacher_name: teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
+                                              is_main_teacher: editIsMain,
+                                              subject:      editSubject,
+                                              effective_from: effectiveDate,
+                                              effective_until: null,
+                                            })
+                                            return updated
+                                          })
+                                        } else {
+                                          // Hors annee : modification directe
+                                          setAssignments(prev => prev.map((x, i) => i === realIdx ? {
+                                            ...x,
+                                            teacher_id:   editTeacherId || '',
+                                            teacher_name: teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
+                                            is_main_teacher: editIsMain,
+                                            subject:      editSubject,
+                                          } : editIsMain ? { ...x, is_main_teacher: false } : x))
+                                        }
+                                        setEditingIdx(null)
+                                      }
+                                      requestEdit(realIdx, doApply)
+                                    }}
+                                    disabled={!editSubject}
+                                    className="text-xs text-white bg-primary-500 hover:bg-primary-600 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    OK
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingIdx(null)}
+                                    className="text-xs text-warm-500 hover:text-secondary-700 px-2 py-1 rounded-lg border border-warm-200 transition-colors"
+                                  >
+                                    Annuler
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        }
+                        return (
+                          <tr key={`${a.teacher_id}-${a.subject}`} className="hover:bg-warm-50/40">
+                            <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
+                              {a.teacher_name || <span className="text-warm-400 italic">Non affecté</span>}
+                              {a.effective_from && (
+                                <span className="ml-1.5 text-[10px] text-warm-400">depuis {fmtDate(a.effective_from)}</span>
+                              )}
+                            </td>
+                            {!isSingle && (
+                              <>
+                                <td className="px-3 py-2 whitespace-nowrap">
+                                  {a.is_main_teacher ? (
+                                    <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
+                                      <UserCheck size={11} /> Prof. principal
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-secondary-500">Par matière</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-secondary-500 text-xs">
+                                  {a.subject || <span className="text-warm-300">—</span>}
+                                </td>
+                              </>
+                            )}
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-1">
+                                {!isSingle && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingIdx(realIdx)
+                                      setEditTeacherId(a.teacher_id)
+                                      setEditSubject(a.subject)
+                                      setEditIsMain(a.is_main_teacher)
+                                    }}
+                                    className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                    title="Modifier"
+                                  >
+                                    <Pencil size={13} />
+                                  </button>
+                                )}
+                                {confirmDeleteIdx === realIdx ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => { requestDelete(realIdx); setConfirmDeleteIdx(null) }}
+                                      className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors"
+                                    >
+                                      Confirmer
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteIdx(null)}
+                                      className="text-xs text-warm-500 hover:text-secondary-700 px-2 py-1 rounded-lg border border-warm-200 transition-colors"
+                                    >
+                                      Annuler
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDeleteIdx(realIdx)}
+                                    className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Supprimer"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className={clsx(
+                  'flex items-center gap-2 text-sm rounded-xl px-4 py-3',
+                  touched.has('assignments') && vAssignments
+                    ? 'text-red-600 bg-red-50 border border-red-200'
+                    : 'text-warm-400 bg-warm-50'
+                )}>
+                  <BookOpen size={14} />
+                  {touched.has('assignments') && vAssignments
+                    ? (isSingle ? 'Un enseignant principal est requis.' : 'Au moins une matière doit être affectée.')
+                    : (isSingle ? 'Aucun enseignant affecté.' : 'Aucune affectation.')}
+                </div>
+              )}
+
+              {/* ── Historique des affectations cloturees ── */}
+              {closed.length > 0 && !isSingle && (
+                <div className="mt-3 space-y-1">
+                  <h3 className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Historique</h3>
+                  <div className="border border-warm-100 rounded-xl overflow-hidden opacity-60">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-warm-50">
+                        {closed.map((a, i) => (
+                          <tr key={`closed-${i}`} className="bg-warm-50/30">
+                            <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">
+                              {a.teacher_name || <span className="italic">Non affecté</span>}
+                            </td>
+                            <td className="px-3 py-1.5 text-xs text-warm-400">
+                              {a.is_main_teacher && <span className="text-primary-400 font-medium">Principal · </span>}
+                              {a.subject || '—'}
+                            </td>
+                            <td className="px-3 py-1.5 text-[10px] text-warm-400 whitespace-nowrap text-right">
+                              {a.effective_from ? fmtDate(a.effective_from) : 'Debut'} — {a.effective_until ? fmtDate(a.effective_until) : ''}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          })()}
 
           {showAddRow ? (
             <div className="bg-warm-50 border border-warm-200 rounded-xl p-3 space-y-3">
@@ -625,28 +921,27 @@ export default function ClassForm({
                   )}
 
                   <FloatSelect label="Enseignant (optionnel)" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
-                    <option value="">— Non affecté —</option>
+                    <option value="" />
                     {teachers.filter(t => t.is_active).map(t => (
                       <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
                     ))}
                   </FloatSelect>
 
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</span>
-                    <div className="flex gap-2">
-                      <FloatRadioCard name="addType" value="subject" checked={!addIsMain} onChange={() => setAddIsMain(false)}>
-                        <span className="flex items-center gap-1.5">
-                          <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Par matière
-                        </span>
-                      </FloatRadioCard>
-                      <FloatRadioCard name="addType" value="main" checked={addIsMain} onChange={() => !hasMain && setAddIsMain(true)}>
-                        <span className={clsx('flex items-center gap-1.5', hasMain && 'opacity-40')}>
-                          <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Prof. principal
-                        </span>
-                      </FloatRadioCard>
-                    </div>
-                    {hasMain && addIsMain && <p className="text-xs text-warm-400 italic">Un prof. principal est déjà affecté.</p>}
-                  </div>
+                  <label className={clsx(
+                    'flex items-center gap-2 text-sm',
+                    (hasMain || !addTeacherId) && 'opacity-40 cursor-not-allowed'
+                  )}>
+                    <input
+                      type="checkbox"
+                      checked={addIsMain}
+                      disabled={hasMain || !addTeacherId}
+                      onChange={e => setAddIsMain(e.target.checked)}
+                      className="accent-primary-500 w-4 h-4"
+                    />
+                    <UserCheck size={13} className="text-primary-500 flex-shrink-0" />
+                    <span className="text-secondary-700 font-medium">Prof. principal</span>
+                  </label>
+                  {hasMain && <p className="text-xs text-warm-400 italic">Un prof. principal est déjà affecté.</p>}
                 </>
               )}
 
@@ -664,6 +959,8 @@ export default function ClassForm({
                         teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
                         is_main_teacher: true,
                         subject:         '',
+                        effective_from:  null,
+                        effective_until: null,
                       }])
                       setShowAddRow(false)
                     } else {
@@ -672,11 +969,14 @@ export default function ClassForm({
                       if (!ue) return
                       const subject = ue.code ? `${ue.code} — ${ue.nom_fr}` : ue.nom_fr
                       const teacher = addTeacherId ? teachers.find(t => t.id === addTeacherId) : null
+                      if (assignments.some(a => !a.effective_until && a.teacher_id === (addTeacherId || '') && a.subject === subject)) return
                       setAssignments(prev => [...prev, {
                         teacher_id:      addTeacherId || '',
                         teacher_name:    teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
                         is_main_teacher: addIsMain,
                         subject,
+                        effective_from:  null,
+                        effective_until: null,
                       }])
                       setShowAddRow(false)
                     }
@@ -697,6 +997,7 @@ export default function ClassForm({
               </button>
             )
           )}
+          </>)}
         </div>
       </div>
 
@@ -834,6 +1135,56 @@ export default function ClassForm({
       </div>
 
     </form>
+
+    {/* Modale confirmation modification/suppression affectation en cours d'annee */}
+    {pendingAssignAction && (
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
+            <h3 className="text-sm font-bold text-secondary-800">
+              {pendingAssignAction.type === 'delete' ? 'Confirmer la cloture' : 'Confirmer la modification'}
+            </h3>
+          </div>
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-sm text-warm-700">{pendingAssignAction.message}</p>
+            <div>
+              <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date d&apos;effet</label>
+              <input
+                type="date"
+                value={pendingAssignAction.effectiveDate}
+                min={todayISO()}
+                max={currentSchoolYear?.end_date ?? undefined}
+                onChange={e => setPendingAssignAction(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
+                className="mt-1 w-full text-sm border border-warm-200 rounded-lg px-3 py-2 bg-white text-secondary-800"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 px-5 py-3 border-t border-warm-100">
+            <button
+              type="button"
+              onClick={() => setPendingAssignAction(null)}
+              className="text-sm text-warm-500 hover:text-secondary-700 px-3 py-1.5 rounded-lg border border-warm-200 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                pendingAssignAction.applyFn(pendingAssignAction.effectiveDate)
+                setPendingAssignAction(null)
+              }}
+              disabled={!pendingAssignAction.effectiveDate}
+              className={clsx(
+                'text-sm text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50',
+                pendingAssignAction.type === 'delete' ? 'bg-red-500 hover:bg-red-600' : 'bg-primary-500 hover:bg-primary-600'
+              )}
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     <ConfirmModal
       open={!!pendingConfirm}

@@ -60,11 +60,22 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
     setDeleteError(null)
     try {
       const supabase = createClient()
+
+      // Vérifier si des élèves sont affectés à la classe
+      const { count } = await supabase
+        .from('enrollments')
+        .select('*', { count: 'exact', head: true })
+        .eq('class_id', id)
+      if (count && count > 0) {
+        setDeleteError(`${count} élève${count > 1 ? 's' : ''} inscrit${count > 1 ? 's' : ''} dans cette classe. Retirez-les avant de supprimer.`)
+        setDeletingId(null)
+        setConfirmId(null)
+        return
+      }
+
       const { error } = await supabase.from('classes').delete().eq('id', id)
       if (error) {
-        setDeleteError(error.code === '23503'
-          ? 'Des élèves sont inscrits dans cette classe. Retirez-les avant de supprimer.'
-          : 'Une erreur est survenue. Veuillez réessayer.')
+        setDeleteError('Une erreur est survenue. Veuillez réessayer.')
         setDeletingId(null)
         setConfirmId(null)
         return

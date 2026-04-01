@@ -26,7 +26,7 @@ export default async function EditClassPage({ params }: Props) {
     supabase.from('classes').select('*').eq('id', id).single(),
     supabase
       .from('class_teachers')
-      .select('teacher_id, is_main_teacher, subject, teachers ( first_name, last_name )')
+      .select('teacher_id, is_main_teacher, subject, effective_from, effective_until, teachers ( first_name, last_name )')
       .eq('class_id', id),
     supabase
       .from('school_years')
@@ -89,6 +89,8 @@ export default async function EditClassPage({ params }: Props) {
       : ct.teacher_id,
     is_main_teacher: ct.is_main_teacher,
     subject:         ct.subject ?? '',
+    effective_from:  (ct as any).effective_from ?? null,
+    effective_until: (ct as any).effective_until ?? null,
   }))
 
   return (
