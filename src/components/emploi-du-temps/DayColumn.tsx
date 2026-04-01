@@ -71,13 +71,29 @@ export default function DayColumn({
         </div>
       )}
 
-      {/* Hour grid lines */}
+      {/* Hour grid lines + 15min subdivisions */}
       {Array.from({ length: endHour - startHour }).map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-full border-t border-warm-50"
-          style={{ top: `${(i / (endHour - startHour)) * 100}%` }}
-        />
+        <div key={`h${i}`}>
+          {/* Hour line */}
+          <div
+            className="absolute w-full border-t border-warm-100"
+            style={{ top: `${(i / (endHour - startHour)) * 100}%` }}
+          />
+          {/* 15min, 30min, 45min lines */}
+          {[1, 2, 3].map(q => (
+            <div
+              key={q}
+              className={clsx(
+                'absolute w-full border-t',
+                q === 2 ? 'border-warm-100/60' : 'border-warm-50/80',
+              )}
+              style={{
+                top: `${((i + q / 4) / (endHour - startHour)) * 100}%`,
+                borderStyle: q === 2 ? 'solid' : 'dotted',
+              }}
+            />
+          ))}
+        </div>
       ))}
 
       {/* Capsules */}

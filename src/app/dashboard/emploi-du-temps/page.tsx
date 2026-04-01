@@ -34,7 +34,7 @@ export default async function EmploiDuTempsPage() {
   // Classes avec prof principal
   const { data: classes } = await supabase
     .from('classes')
-    .select('id, name, level, room_id, day_of_week, start_time, end_time, class_teachers(teacher_id, is_main_teacher, teachers(id, first_name, last_name, civilite)), cotisation_types(label)')
+    .select('id, name, level, room_id, day_of_week, start_time, end_time, teaching_mode, class_teachers(teacher_id, is_main_teacher, subject, teachers(id, first_name, last_name, civilite)), cotisation_types(label)')
     .eq('academic_year', currentYear.label)
     .order('name')
 
@@ -68,13 +68,19 @@ export default async function EmploiDuTempsPage() {
   // Référentiel cours
   const { data: coursList } = await supabase
     .from('cours')
-    .select('id, nom_fr, unite_enseignement_id, unites_enseignement(nom_fr)')
+    .select('id, nom_fr, unite_enseignement_id, unites_enseignement(nom_fr, color)')
     .order('nom_fr')
+
+  // UE avec couleur (pour la palette)
+  const { data: ueList } = await supabase
+    .from('unites_enseignement')
+    .select('id, nom_fr, code, color')
+    .order('order_index')
 
   // Week start day
   const { data: etablissement } = await supabase
     .from('etablissements')
-    .select('week_start_day')
+    .select('week_start_day, working_days')
     .single()
 
   // Validations (toutes les dates pour permettre la validation des jours passés)
@@ -96,8 +102,10 @@ export default async function EmploiDuTempsPage() {
         exceptions={(exceptions ?? []) as any[]}
         rooms={(rooms ?? []) as any[]}
         coursList={(coursList ?? []) as any[]}
+        ueList={(ueList ?? []) as any[]}
         todayValidations={(todayValidations ?? []) as any[]}
         weekStartDay={etablissement?.week_start_day ?? 1}
+        workingDays={etablissement?.working_days ?? 5}
         schoolYearStartDate={currentYear.start_date ?? null}
         schoolYearEndDate={currentYear.end_date ?? null}
         vacations={(currentYear.vacations as any[]) ?? []}

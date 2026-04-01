@@ -9,6 +9,7 @@ import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
+import { Info } from 'lucide-react'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,6 +68,8 @@ interface ClassFormProps {
   weekStartDay?: number
 }
 
+type TeachingMode = 'single' | 'multi'
+
 type FormData = {
   name:               string
   level:              string
@@ -75,6 +78,7 @@ type FormData = {
   max_students:       string
   description:        string
   cotisation_type_id: string
+  teaching_mode:      TeachingMode
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,6 +137,7 @@ export default function ClassForm({
     max_students:       String(cls?.max_students ?? 30),
     description:        cls?.description        ?? '',
     cotisation_type_id: cls?.cotisation_type_id ?? '',
+    teaching_mode:      (cls?.teaching_mode as TeachingMode) ?? 'single',
   })
 
   // ── Slots EDT ─────────────────────────────────────────────────────────────
@@ -241,9 +246,12 @@ export default function ClassForm({
   }
 
   // ── Validation ────────────────────────────────────────────────────────────
+  const isSingle     = form.teaching_mode === 'single'
   const vName        = form.name.trim().length < 2
   const vCotisation  = !form.cotisation_type_id
-  const vAssignments = assignments.length === 0
+  const vAssignments = isSingle
+    ? !assignments.some(a => a.is_main_teacher)
+    : assignments.length === 0
   const selectedRoom = rooms.find(r => r.id === form.room_id)
   const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
   const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity
@@ -286,6 +294,7 @@ export default function ClassForm({
       const payload = {
         name:          form.name.trim(),
         level:         form.level.trim(),
+        teaching_mode: form.teaching_mode,
         academic_year: currentYear?.label ?? null,
         room_number:   form.room_id
           ? (rooms.find(r => r.id === form.room_id)?.name ?? null)
@@ -427,6 +436,35 @@ export default function ClassForm({
             onChange={() => {}}
           />
 
+          <div className="space-y-1">
+            <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Mode d'enseignement</span>
+            <div className="flex gap-2">
+              <FloatRadioCard
+                name="teaching_mode" value="single"
+                checked={form.teaching_mode === 'single'}
+                onChange={() => set('teaching_mode', 'single')}
+              >
+                <span className="flex items-center gap-1.5">
+                  <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Primaire
+                </span>
+              </FloatRadioCard>
+              <FloatRadioCard
+                name="teaching_mode" value="multi"
+                checked={form.teaching_mode === 'multi'}
+                onChange={() => set('teaching_mode', 'multi')}
+              >
+                <span className="flex items-center gap-1.5">
+                  <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Secondaire
+                </span>
+              </FloatRadioCard>
+            </div>
+            <p className="text-[10px] text-warm-400 italic">
+              {form.teaching_mode === 'single'
+                ? 'Un seul professeur principal pour tous les cours.'
+                : 'Plusieurs professeurs, chacun affecté à une ou plusieurs matières.'}
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <FloatSelect
               label="Salle"
@@ -485,7 +523,7 @@ export default function ClassForm({
         {/* ── Colonne droite — Affectations enseignants ── */}
         <div className="card p-4 space-y-3 flex flex-col">
           <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-            Affectations enseignants <span className="text-red-400">*</span>
+            {isSingle ? 'Enseignant principal' : 'Affectations enseignants / matières'} <span className="text-red-400">*</span>
           </h2>
 
           {assignments.length > 0 ? (
@@ -494,31 +532,44 @@ export default function ClassForm({
                 <thead>
                   <tr className="bg-warm-50 border-b border-warm-100">
                     <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Enseignant</th>
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Matière</th>
+                    {!isSingle && (
+                      <>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Matière</th>
+                      </>
+                    )}
                     <th className="px-3 py-2 w-8" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-warm-50">
                   {assignments.map(a => (
-                    <tr key={a.teacher_id} className="hover:bg-warm-50/40">
-                      <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">{a.teacher_name}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {a.is_main_teacher ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
-                            <UserCheck size={11} /> Prof. principal
-                          </span>
-                        ) : (
-                          <span className="text-xs text-secondary-500">Par matière</span>
-                        )}
+                    <tr key={`${a.teacher_id}-${a.subject}`} className="hover:bg-warm-50/40">
+                      <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
+                        {a.teacher_name || <span className="text-warm-400 italic">Non affecté</span>}
                       </td>
-                      <td className="px-3 py-2 text-secondary-500 text-xs">
-                        {a.subject || <span className="text-warm-300">—</span>}
-                      </td>
+                      {!isSingle && (
+                        <>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            {a.is_main_teacher ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
+                                <UserCheck size={11} /> Prof. principal
+                              </span>
+                            ) : (
+                              <span className="text-xs text-secondary-500">Par matière</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-secondary-500 text-xs">
+                            {a.subject || <span className="text-warm-300">—</span>}
+                          </td>
+                        </>
+                      )}
                       <td className="px-3 py-2">
                         <button
                           type="button"
-                          onClick={() => handleRemoveAssignment(a.teacher_id)}
+                          onClick={() => isSingle
+                            ? handleRemoveAssignment(a.teacher_id)
+                            : setAssignments(prev => prev.filter(x => !(x.teacher_id === a.teacher_id && x.subject === a.subject)))
+                          }
                           className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 size={13} />
@@ -538,72 +589,111 @@ export default function ClassForm({
             )}>
               <BookOpen size={14} />
               {touched.has('assignments') && vAssignments
-                ? 'Au moins un enseignant doit être affecté.'
-                : 'Aucun enseignant affecté.'}
+                ? (isSingle ? 'Un enseignant principal est requis.' : 'Au moins une matière doit être affectée.')
+                : (isSingle ? 'Aucun enseignant affecté.' : 'Aucune affectation.')}
             </div>
           )}
 
           {showAddRow ? (
             <div className="bg-warm-50 border border-warm-200 rounded-xl p-3 space-y-3">
-              <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Nouvelle affectation</p>
+              <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
+                {isSingle ? 'Enseignant principal' : 'Nouvelle affectation'}
+              </p>
 
-              <FloatSelect label="Enseignant" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
-                <option value="" />
-                {availableTeachers.map(t => (
-                  <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-                ))}
-              </FloatSelect>
+              {isSingle ? (
+                /* Mode single : juste un select enseignant */
+                <FloatSelect label="Enseignant" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
+                  <option value="" />
+                  {availableTeachers.map(t => (
+                    <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+                  ))}
+                </FloatSelect>
+              ) : (
+                /* Mode multi : matiere obligatoire, enseignant optionnel */
+                <>
+                  {ues.length === 0 ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Aucune UE disponible. Créez d&apos;abord des Unités d&apos;Enseignement dans la section Cours.
+                    </p>
+                  ) : (
+                    <FloatSelect label="Matière (UE)" required value={addSubject} onChange={e => setAddSubject(e.target.value)}>
+                      <option value="" />
+                      {ues.map(ue => (
+                        <option key={ue.id} value={ue.id}>{ue.code ? `${ue.code} — ` : ''}{ue.nom_fr}</option>
+                      ))}
+                    </FloatSelect>
+                  )}
 
-              <div className="space-y-1">
-                <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</span>
-                <div className="flex gap-2">
-                  <FloatRadioCard name="addType" value="main" checked={addIsMain} onChange={() => !hasMain && setAddIsMain(true)}>
-                    <span className={clsx('flex items-center gap-1.5', hasMain && 'opacity-40')}>
-                      <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Prof. principal
-                    </span>
-                  </FloatRadioCard>
-                  <FloatRadioCard name="addType" value="subject" checked={!addIsMain} onChange={() => setAddIsMain(false)}>
-                    <span className="flex items-center gap-1.5">
-                      <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Par matière
-                    </span>
-                  </FloatRadioCard>
-                </div>
-                {hasMain && addIsMain && <p className="text-xs text-warm-400 italic">Un prof. principal est déjà affecté.</p>}
-              </div>
-
-              {!addIsMain && (
-                ues.length === 0 ? (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Aucune UE disponible. Créez d&apos;abord des Unités d&apos;Enseignement dans la section Cours.
-                  </p>
-                ) : (
-                  <FloatSelect label="Unité d'Enseignement" value={addSubject} onChange={e => setAddSubject(e.target.value)}>
-                    <option value="" />
-                    {ues.map(ue => (
-                      <option key={ue.id} value={ue.id}>{ue.code ? `${ue.code} — ` : ''}{ue.nom_fr}</option>
+                  <FloatSelect label="Enseignant (optionnel)" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
+                    <option value="">— Non affecté —</option>
+                    {teachers.filter(t => t.is_active).map(t => (
+                      <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
                     ))}
                   </FloatSelect>
-                )
+
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</span>
+                    <div className="flex gap-2">
+                      <FloatRadioCard name="addType" value="subject" checked={!addIsMain} onChange={() => setAddIsMain(false)}>
+                        <span className="flex items-center gap-1.5">
+                          <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Par matière
+                        </span>
+                      </FloatRadioCard>
+                      <FloatRadioCard name="addType" value="main" checked={addIsMain} onChange={() => !hasMain && setAddIsMain(true)}>
+                        <span className={clsx('flex items-center gap-1.5', hasMain && 'opacity-40')}>
+                          <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Prof. principal
+                        </span>
+                      </FloatRadioCard>
+                    </div>
+                    {hasMain && addIsMain && <p className="text-xs text-warm-400 italic">Un prof. principal est déjà affecté.</p>}
+                  </div>
+                </>
               )}
 
               <div className="flex gap-2 justify-end pt-1">
                 <FloatButton type="button" variant="secondary" onClick={() => setShowAddRow(false)}>Annuler</FloatButton>
                 <FloatButton
                   type="button" variant="submit"
-                  onClick={handleAddAssignment}
-                  disabled={!addTeacherId || (!addIsMain && (!addSubject || ues.length === 0))}
+                  onClick={() => {
+                    if (isSingle) {
+                      // Mode single : ajouter comme prof principal
+                      const teacher = teachers.find(t => t.id === addTeacherId)
+                      if (!teacher) return
+                      setAssignments([{
+                        teacher_id:      addTeacherId,
+                        teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
+                        is_main_teacher: true,
+                        subject:         '',
+                      }])
+                      setShowAddRow(false)
+                    } else {
+                      // Mode multi : matiere obligatoire, prof optionnel
+                      const ue = ues.find(u => u.id === addSubject)
+                      if (!ue) return
+                      const subject = ue.code ? `${ue.code} — ${ue.nom_fr}` : ue.nom_fr
+                      const teacher = addTeacherId ? teachers.find(t => t.id === addTeacherId) : null
+                      setAssignments(prev => [...prev, {
+                        teacher_id:      addTeacherId || '',
+                        teacher_name:    teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
+                        is_main_teacher: addIsMain,
+                        subject,
+                      }])
+                      setShowAddRow(false)
+                    }
+                  }}
+                  disabled={isSingle ? !addTeacherId : (!addSubject || ues.length === 0)}
                 >
                   Valider
                 </FloatButton>
               </div>
             </div>
           ) : (
-            availableTeachers.length > 0 && (
+            (isSingle ? !assignments.some(a => a.is_main_teacher) : true) && (
               <button
                 type="button" onClick={openAddRow}
                 className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 transition-colors self-start"
               >
-                <Plus size={14} /> Ajouter une affectation
+                <Plus size={14} /> {isSingle ? 'Affecter un enseignant' : 'Ajouter une affectation'}
               </button>
             )
           )}
@@ -611,6 +701,18 @@ export default function ClassForm({
       </div>
 
       {/* ── Planning EDT ── */}
+      {!isSingle ? (
+        <div className="card p-4">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={14} className="text-primary-500" />
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Planning EDT</h2>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-warm-500 bg-warm-50 rounded-xl px-4 py-3 mt-3">
+            <Info size={14} className="text-primary-500 flex-shrink-0" />
+            En mode secondaire, l'emploi du temps se gère depuis la page Emploi du temps avec le drag & drop des matières.
+          </div>
+        </div>
+      ) : (
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -712,6 +814,7 @@ export default function ClassForm({
           onCancel={() => { setShowSlotForm(false); setEditingSlotIdx(null); setSlotOverlapErr(null) }}
         />
       </div>
+      )}
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-3 pt-1">

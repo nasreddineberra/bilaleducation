@@ -102,16 +102,26 @@ function InlineForm({
           <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide px-0.5 leading-none">
             {f.label}
           </label>
-          <input
-            type={f.type ?? 'text'}
-            dir={f.dir ?? 'auto'}
-            value={f.value}
-            onChange={e => f.onChange(e.target.value)}
-            placeholder={f.placeholder ?? ''}
-            className="input text-sm py-1 w-full"
-            disabled={submitting}
-            autoFocus={i === 0}
-          />
+          {f.type === 'color' ? (
+            <input
+              type="color"
+              value={f.value || '#3B82F6'}
+              onChange={e => f.onChange(e.target.value)}
+              className="w-full h-8 rounded cursor-pointer border border-warm-200"
+              disabled={submitting}
+            />
+          ) : (
+            <input
+              type={f.type ?? 'text'}
+              dir={f.dir ?? 'auto'}
+              value={f.value}
+              onChange={e => f.onChange(e.target.value)}
+              placeholder={f.placeholder ?? ''}
+              className="input text-sm py-1 w-full"
+              disabled={submitting}
+              autoFocus={i === 0}
+            />
+          )}
         </div>
       ))}
       <button onClick={onSubmit} disabled={submitting} className="btn btn-primary py-1 px-3 text-sm self-end">
@@ -386,6 +396,12 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
           <GripVertical size={14} />
         </button>
 
+        {/* Pastille couleur (avant le chevron) */}
+        <span
+          className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10"
+          style={{ backgroundColor: ue.color ?? '#d1d5db' }}
+        />
+
         {/* Flèche expand/collapse */}
         <button
           onClick={() => toggleUE(ue.id)}
@@ -508,6 +524,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   const [fNomFr, setFNomFr] = useState('')
   const [fNomAr, setFNomAr] = useState('')
   const [fCode,  setFCode]  = useState('')   // ref UE
+  const [fColor, setFColor] = useState('')   // couleur UE
   const [fRef,   setFRef]   = useState('')   // ref module / cours
 
   // Synchroniser si les props changent (après router.refresh())
@@ -583,14 +600,30 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   // ── Helpers formulaire ────────────────────────────────────────────────────
 
   const openAdd = (a: AddingKind) => {
-    setAdding(a); setEditing(null)
+    setAdding(a); setEditing(null); setError(null)
     setFNomFr(''); setFNomAr(''); setFCode(''); setFRef('')
-    setError(null)
+    // Auto-suggest color for new UE
+    if (a.kind === 'ue') {
+      const usedColors = new Set(ues.map(u => u.color).filter(Boolean))
+      const nextColor = UE_COLOR_PALETTE.find(c => !usedColors.has(c)) ?? UE_COLOR_PALETTE[0]
+      setFColor(nextColor)
+    } else {
+      setFColor('')
+    }
   }
 
   const openEdit = (e: EditingKind) => {
     setEditing(e); setAdding(null); setError(null)
-    if (e.kind === 'ue')     { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFCode(e.item.code ?? '') }
+    if (e.kind === 'ue')     {
+      setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFCode(e.item.code ?? '')
+      // Si pas de couleur, en suggerer une non prise
+      if (e.item.color) {
+        setFColor(e.item.color)
+      } else {
+        const usedColors = new Set(ues.filter(u => u.id !== e.item.id).map(u => u.color).filter(Boolean))
+        setFColor(UE_COLOR_PALETTE.find(c => !usedColors.has(c)) ?? UE_COLOR_PALETTE[0])
+      }
+    }
     if (e.kind === 'module') { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFRef(e.item.code ?? '') }
     if (e.kind === 'cours')  { setFNomFr(e.item.nom_fr); setFNomAr(e.item.nom_ar ?? ''); setFRef(e.item.code ?? '') }
   }
@@ -599,10 +632,16 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
   // ── Supabase ──────────────────────────────────────────────────────────────
 
+  const UE_COLOR_PALETTE = [
+    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+    '#EC4899', '#06B6D4', '#F97316', '#6366F1', '#14B8A6',
+    '#84CC16', '#A855F7', '#0EA5E9', '#D946EF', '#78716C',
+  ]
+
   const refreshAndReset = () => {
     router.refresh()
     setAdding(null); setEditing(null)
-    setFNomFr(''); setFNomAr(''); setFCode(''); setFRef('')
+    setFNomFr(''); setFNomAr(''); setFCode(''); setFColor(''); setFRef('')
     setSubmitting(false)
   }
 
@@ -615,6 +654,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
       nom_fr:           fNomFr.trim(),
       nom_ar:           fNomAr.trim() || null,
       code:             fCode.trim() || null,
+      color:            fColor.trim() || null,
     })
     if (error) { setError(error.message); setSubmitting(false); return }
     refreshAndReset()
@@ -657,7 +697,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     setSubmitting(true); setError(null)
     const supabase = createClient()
     const { error } = await supabase.from('unites_enseignement')
-      .update({ nom_fr: fNomFr.trim(), nom_ar: fNomAr.trim() || null, code: fCode.trim() || null })
+      .update({ nom_fr: fNomFr.trim(), nom_ar: fNomAr.trim() || null, code: fCode.trim() || null, color: fColor.trim() || null })
       .eq('id', id)
     if (error) { setError(error.message); setSubmitting(false); return }
     refreshAndReset()
@@ -735,11 +775,12 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
   // ── Définition des champs de formulaire ───────────────────────────────────
 
-  // UE : Réf réduit (80px), Nom FR élastique, Nom AR élastique
+  // UE : Réf réduit (80px), Nom FR élastique, Nom AR élastique, Couleur
   const ueFields: FieldDef[] = [
     { label: 'Réf',      value: fCode,  onChange: setFCode,  maxWidth: '80px' },
     { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
     { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
+    { label: 'Couleur',  value: fColor, onChange: setFColor, type: 'color', maxWidth: '60px' },
   ]
   // Module : Réf réduit, Nom FR, Nom AR
   const moduleFields: FieldDef[] = [

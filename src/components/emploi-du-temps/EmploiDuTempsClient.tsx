@@ -86,12 +86,21 @@ interface ClassData {
   day_of_week?: string | null
   start_time?: string | null
   end_time?: string | null
+  teaching_mode?: 'single' | 'multi'
   cotisation_types?: { label: string } | null
   class_teachers: {
     teacher_id: string
     is_main_teacher: boolean
+    subject?: string | null
     teachers: { id: string; first_name: string; last_name: string; civilite?: string }
   }[]
+}
+
+interface UEData {
+  id: string
+  nom_fr: string
+  code: string | null
+  color: string | null
 }
 
 interface TeacherData {
@@ -161,8 +170,10 @@ interface Props {
   exceptions: ExceptionData[]
   rooms: RoomData[]
   coursList: CoursData[]
+  ueList: UEData[]
   todayValidations: ValidationData[]
   weekStartDay?: number  // 0=Dimanche, 1=Lundi, 6=Samedi
+  workingDays?: number   // 5=Lun-Ven, 7=Lun-Dim
   schoolYearStartDate?: string | null  // YYYY-MM-DD
   schoolYearEndDate?: string | null    // YYYY-MM-DD
   vacations?: { start_date: string; end_date: string; label: string }[]
@@ -223,8 +234,9 @@ function isSlotEffective(slot: SlotData, dateStr: string): boolean {
 export default function EmploiDuTempsClient({
   currentUserId, currentUserName, role, canEdit, schoolYearId,
   classes, teachers, slots: initialSlots, exceptions: initialExceptions,
-  rooms, coursList, todayValidations: initialValidations,
+  rooms, coursList, ueList, todayValidations: initialValidations,
   weekStartDay = 1,
+  workingDays = 5,
   schoolYearStartDate, schoolYearEndDate, vacations = [],
 }: Props) {
   const supabase = createBrowserClient(
@@ -262,7 +274,7 @@ export default function EmploiDuTempsClient({
   }, [teachers])
 
   // View type: week or month
-  const [viewType, setViewType] = useState<'week' | 'month'>('month')
+  const [viewType, setViewType] = useState<'week' | 'month'>('week')
   const [monthOffset, setMonthOffset] = useState(0)
 
   const currentMonth = useMemo(() => {
@@ -305,7 +317,12 @@ export default function EmploiDuTempsClient({
   // ─── Week navigation ──────────────────────────────────────────────────────
 
   const [weekOffset, setWeekOffset] = useState(0)
-  const orderedDays = useMemo(() => buildDayOrder(weekStartDay), [weekStartDay])
+  const allDays = useMemo(() => buildDayOrder(weekStartDay), [weekStartDay])
+  // Filter to working days only (5 = first 5 days from weekStartDay, 7 = all)
+  const orderedDays = useMemo(() => {
+    if (workingDays >= 7) return allDays
+    return allDays.slice(0, workingDays)
+  }, [allDays, workingDays])
 
   const currentWeekStart = useMemo(() => {
     const m = getWeekStartOf(new Date(), weekStartDay)

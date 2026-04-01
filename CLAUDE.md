@@ -76,7 +76,55 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - Pas d'emojis dans l'interface
 - Reponses concises dans les echanges avec Claude
 
+## Plan en cours : Gestion Primaire / Secondaire + EDT Drag & Drop
+
+### Phase 1 — Fondations (TERMINEE)
+- [x] Migration SQL : `teaching_mode` sur classes, `working_days` (5/7) sur etablissements, `color` sur matieres
+- [x] Page Etablissement : selecteur 5/7 jours travailles
+- [x] ClassForm : selecteur mode Primaire (`single`) / Secondaire (`multi`)
+  - Single : 1 prof principal, creneaux recurrents dans le form, pas de matiere
+  - Multi : N profs avec 1+ matieres (prof optionnel), section creneaux masquee (renvoi vers EDT)
+- [x] Couleur par matiere dans le referentiel cours (palette 15 couleurs, suggestion auto)
+- [x] EDT : vue semaine par defaut, grille 15min, filtrage colonnes selon working_days
+
+### Phase 2 — Palette matieres + Drag & Drop creation
+- [x] Nouveau composant `SubjectPalette.tsx` : panneau lateral gauche (vue semaine + filtre classe + mode multi)
+- [ ] Chaque tranche 15min de la grille = zone droppable (dnd-kit)
+- [ ] Drop matiere sur grille → creation auto du slot (prof + matiere + horaire)
+- [ ] DndContext + DragOverlay (meme pattern que AffectationClient)
+
+### Phase 3 — Deplacement de creneaux existants
+- [ ] Capsules EDT draggables (vue semaine + filtre classe uniquement)
+- [ ] Drop sur autre creneau → deplacement (conservation duree, MAJ day_of_week + start_time)
+- [ ] Detection collisions avant validation, blocage drop jours non travailles / vacances
+
+### Phase 4 — Cascade et coherence
+- [ ] Mode single : changement prof principal → MAJ auto tous les slots de la classe
+- [ ] Mode multi : retrait prof → slots passes en "sans prof" avec alerte
+- [ ] Matiere sans prof autorisee : bordure pointillee + badge "Prof non affecte" sur EDT
+- [ ] Suppression classe : double confirmation (liste dependances + saisie nom classe)
+
+### Fichiers impactes
+| Fichier | Phases |
+|---|---|
+| `supabase/migrations/add-teaching-mode-working-days-color.sql` | 1 |
+| `src/components/etablissement/EtablissementForm.tsx` | 1 |
+| `src/components/classes/ClassForm.tsx` | 1, 4 |
+| `src/components/classes/ClassesClient.tsx` | 4 |
+| `src/app/dashboard/classes/new/page.tsx` | 1 |
+| `src/app/dashboard/classes/[id]/page.tsx` | 1 |
+| `src/components/emploi-du-temps/EmploiDuTempsClient.tsx` | 1, 2, 3 |
+| `src/components/emploi-du-temps/DayColumn.tsx` | 1, 2 |
+| `src/components/emploi-du-temps/SlotCapsule.tsx` | 3, 4 |
+| `src/components/emploi-du-temps/SubjectPalette.tsx` | 2 (nouveau) |
+| `src/components/emploi-du-temps/SlotFormModal.tsx` | 2 |
+| `src/app/dashboard/emploi-du-temps/page.tsx` | 1, 2 |
+| Formulaire cours/UE | 1 |
+
+---
+
 ## Actions SQL en attente
 
 - [ ] Executer `supabase/migrations/fix-student-numbers-add-month.sql` dans Supabase SQL Editor
 - [ ] Executer `supabase/seed-teachers-demo.sql` dans Supabase SQL Editor
+- [ ] Executer `supabase/migrations/add-teaching-mode-working-days-color.sql` (apres phase 1)

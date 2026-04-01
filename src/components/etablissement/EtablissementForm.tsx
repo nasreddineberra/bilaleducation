@@ -68,6 +68,10 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   const [weekStartDay, setWeekStartDay] = useState<number>(etablissement.week_start_day ?? -1)
   const initialWeekStartDay = useRef<number>(etablissement.week_start_day ?? -1)
 
+  // Jours travailles (5 ou 7)
+  const [workingDays, setWorkingDays] = useState<number>(etablissement.working_days ?? 5)
+  const initialWorkingDays = useRef<number>(etablissement.working_days ?? 5)
+
   const set = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
   const touch = (field: string) =>
@@ -82,7 +86,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   // Bouton désactivé si aucun changement
   const isUnchanged = (Object.keys(form) as (keyof FormData)[]).every(
     k => form[k] === initialForm.current[k]
-  ) && logoUrl === initialLogoUrl.current && weekStartDay === initialWeekStartDay.current
+  ) && logoUrl === initialLogoUrl.current && weekStartDay === initialWeekStartDay.current && workingDays === initialWorkingDays.current
 
   const inputCls = (field: string, bad: boolean) =>
     bad && touched.has(field) ? 'input input-error' : 'input'
@@ -102,6 +106,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
         contact:        form.contact.trim()   || null,
         logo_url:       logoUrl,
         week_start_day: weekStartDay,
+        working_days:   workingDays,
       }
 
       const supabase = createClient()
@@ -114,6 +119,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       initialForm.current         = { ...form }
       initialLogoUrl.current      = logoUrl
       initialWeekStartDay.current = weekStartDay
+      initialWorkingDays.current  = workingDays
       toast.success('Informations enregistrées avec succès.')
       router.refresh()
     } catch {
@@ -186,22 +192,35 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
                 </Field>
               </div>
 
-              <Field
-                label={<>Premier jour de la semaine <span className="text-red-400">*</span></>}
-                error={touched.has('weekStartDay') && weekStartDay === -1 ? 'Obligatoire.' : undefined}
-              >
-                <select
-                  value={weekStartDay}
-                  onChange={e => setWeekStartDay(Number(e.target.value))}
-                  onBlur={() => touch('weekStartDay')}
-                  className={clsx('input', touched.has('weekStartDay') && weekStartDay === -1 && 'input-error')}
+              <div className="grid grid-cols-2 gap-3">
+                <Field
+                  label={<>Premier jour de la semaine <span className="text-red-400">*</span></>}
+                  error={touched.has('weekStartDay') && weekStartDay === -1 ? 'Obligatoire.' : undefined}
                 >
-                  <option value={-1} disabled>— Sélectionner —</option>
-                  <option value={1}>Lundi</option>
-                  <option value={6}>Samedi</option>
-                  <option value={0}>Dimanche</option>
-                </select>
-              </Field>
+                  <select
+                    value={weekStartDay}
+                    onChange={e => setWeekStartDay(Number(e.target.value))}
+                    onBlur={() => touch('weekStartDay')}
+                    className={clsx('input', touched.has('weekStartDay') && weekStartDay === -1 && 'input-error')}
+                  >
+                    <option value={-1} disabled>— Sélectionner —</option>
+                    <option value={1}>Lundi</option>
+                    <option value={6}>Samedi</option>
+                    <option value={0}>Dimanche</option>
+                  </select>
+                </Field>
+
+                <Field label={<>Jours travaillés <span className="text-red-400">*</span></>}>
+                  <select
+                    value={workingDays}
+                    onChange={e => setWorkingDays(Number(e.target.value))}
+                    className="input"
+                  >
+                    <option value={5}>Semaine de 5 jours</option>
+                    <option value={7}>Semaine de 7 jours</option>
+                  </select>
+                </Field>
+              </div>
             </div>
 
           </div>

@@ -56,6 +56,7 @@ export interface Etablissement {
   max_students?: number | null    // NULL = illimité
   notes?: string | null           // Notes internes super-admin
   week_start_day: number          // 1=Lundi, 6=Samedi, 0=Dimanche
+  working_days: number            // 5=Lun-Ven, 7=Lun-Dim
   created_at: string
   updated_at: string
 }
@@ -203,6 +204,7 @@ export interface Class {
   start_time?: string | null
   end_time?: string | null
   cotisation_type_id?: string | null
+  teaching_mode: 'single' | 'multi'
   created_at: string
   updated_at: string
 }
@@ -422,6 +424,7 @@ export interface UniteEnseignement {
   nom_fr: string
   nom_ar: string | null
   code: string | null
+  color: string | null
   order_index: number
   created_at: string
 }
