@@ -19,21 +19,15 @@ export async function createTenant(data: {
 }): Promise<{ error?: string; id?: string }> {
   const supabase = createAdminClient()
 
-  // Calcul automatique de l'année scolaire courante
-  const now = new Date()
-  const y   = now.getFullYear()
-  const annee_courante = now.getMonth() >= 7 ? `${y}-${y + 1}` : `${y - 1}-${y}`
-
   // 1. Créer l'établissement
   const { data: etablissement, error: etabError } = await supabase
     .from('etablissements')
     .insert({
-      slug:           data.slug.trim().toLowerCase(),
-      nom:            data.nom.trim(),
-      annee_courante,
-      adresse:        data.adresse?.trim()   || null,
-      telephone:      data.telephone?.trim() || null,
-      is_active:      true,
+      slug:      data.slug.trim().toLowerCase(),
+      nom:       data.nom.trim(),
+      adresse:   data.adresse?.trim()   || null,
+      telephone: data.telephone?.trim() || null,
+      is_active: true,
     })
     .select('id')
     .single()

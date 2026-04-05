@@ -17,7 +17,7 @@ export default async function SuperAdminPage() {
 
   const { data: etablissements } = await supabase
     .from('etablissements')
-    .select('id, slug, nom, is_active, subscription_expires_at, annee_courante')
+    .select('id, slug, nom, is_active, subscription_expires_at')
     .order('nom', { ascending: true })
 
   const stats = await Promise.all(

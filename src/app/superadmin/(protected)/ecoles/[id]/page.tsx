@@ -52,7 +52,6 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           { label: 'Utilisateurs', value: profiles?.length ?? 0 },
           { label: 'Élèves',       value: studentsCount ?? 0   },
           { label: 'Classes',      value: classesCount ?? 0    },
-          { label: 'Année',        value: ecole.annee_courante  },
         ].map(stat => (
           <div key={stat.label} className="card p-4 text-center">
             <p className="text-2xl font-bold text-secondary-800">{stat.value}</p>
