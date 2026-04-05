@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, BookOpen, Pencil, Trash2 } from 'lucide-react'
+import { Plus, BookOpen, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { logAudit } from '@/lib/audit'
 import { clsx } from 'clsx'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +46,14 @@ interface ClassesClientProps {
 export default function ClassesClient({ classes }: ClassesClientProps) {
   const router = useRouter()
   const [search,      setSearch]      = useState('')
-  const [deletingId,  setDeletingId]  = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [confirmId,   setConfirmId]   = useState<string | null>(null)
+
+  // Double confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<ClassRow | null>(null)
+  const [deleteDeps, setDeleteDeps] = useState<{ slots: number; students: number; teachers: number } | null>(null)
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1)
+  const [deleteNameInput, setDeleteNameInput] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const filtered = search.trim() === ''
     ? classes
@@ -55,8 +62,31 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
         return c.name.toLowerCase().includes(q) || c.level?.toLowerCase().includes(q)
       })
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id)
+  // Step 1: load dependencies and show first modal
+  const startDelete = async (cls: ClassRow) => {
+    const supabase = createClient()
+    const [{ count: slotsCount }, { count: studentsCount }] = await Promise.all([
+      supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('class_id', cls.id),
+      supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('class_id', cls.id),
+    ])
+    const teachersCount = cls.class_teachers?.length ?? 0
+    setDeleteDeps({ slots: slotsCount ?? 0, students: studentsCount ?? 0, teachers: teachersCount })
+    setDeleteTarget(cls)
+    setDeleteStep(1)
+    setDeleteNameInput('')
+    setDeleteError(null)
+  }
+
+  // Step 2: final confirmation with name input
+  const proceedToStep2 = () => {
+    setDeleteStep(2)
+    setDeleteNameInput('')
+  }
+
+  // Execute deletion with cascade
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
     setDeleteError(null)
     try {
       const supabase = createClient()
@@ -89,6 +119,13 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
     }
   }
 
+  const closeDeleteModal = () => {
+    setDeleteTarget(null)
+    setDeleteDeps(null)
+    setDeleteStep(1)
+    setDeleteNameInput('')
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -106,7 +143,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
       </div>
 
       {/* Erreur suppression */}
-      {deleteError && (
+      {deleteError && !deleteTarget && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
           <span>{deleteError}</span>
           <button onClick={() => setDeleteError(null)} className="text-red-400 hover:text-red-600">
@@ -144,8 +181,6 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
             </thead>
             <tbody className="divide-y divide-warm-50">
               {filtered.map(cls => {
-                const isConfirming = confirmId === cls.id
-                const isDeleting   = deletingId === cls.id
                 const teachers     = cls.class_teachers ?? []
 
                 return (
@@ -204,40 +239,20 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        {isConfirming ? (
-                          <>
-                            <button
-                              onClick={() => handleDelete(cls.id)}
-                              disabled={isDeleting}
-                              className="text-xs text-white bg-red-500 hover:bg-red-600 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                              {isDeleting ? '…' : 'Confirmer'}
-                            </button>
-                            <button
-                              onClick={() => setConfirmId(null)}
-                              className="text-xs text-warm-500 hover:text-secondary-700 px-2.5 py-1 rounded-lg border border-warm-200 transition-colors"
-                            >
-                              Annuler
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
-                              className="p-1.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                              title="Modifier"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              onClick={() => { setConfirmId(cls.id); setDeleteError(null) }}
-                              className="p-1.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
+                          className="p-1.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Modifier"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => startDelete(cls)}
+                          className="p-1.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -246,6 +261,69 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* ── Modal suppression étape 1 : liste des dépendances ── */}
+      {deleteTarget && deleteStep === 1 && deleteDeps && (
+        <ConfirmModal
+          title={`Supprimer la classe "${deleteTarget.name}" ?`}
+          onConfirm={proceedToStep2}
+          onCancel={closeDeleteModal}
+          confirmLabel="Continuer"
+          confirmColor="red"
+        >
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800">
+                Cette action est irréversible. Les éléments suivants seront supprimés :
+              </p>
+            </div>
+            <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
+              {deleteDeps.slots > 0 && (
+                <li><strong>{deleteDeps.slots}</strong> créneau{deleteDeps.slots > 1 ? 'x' : ''} EDT</li>
+              )}
+              {deleteDeps.students > 0 && (
+                <li><strong>{deleteDeps.students}</strong> inscription{deleteDeps.students > 1 ? 's' : ''} élève{deleteDeps.students > 1 ? 's' : ''}</li>
+              )}
+              {deleteDeps.teachers > 0 && (
+                <li><strong>{deleteDeps.teachers}</strong> affectation{deleteDeps.teachers > 1 ? 's' : ''} enseignant{deleteDeps.teachers > 1 ? 's' : ''}</li>
+              )}
+              {deleteDeps.slots === 0 && deleteDeps.students === 0 && deleteDeps.teachers === 0 && (
+                <li>Aucune dépendance trouvée</li>
+              )}
+            </ul>
+          </div>
+        </ConfirmModal>
+      )}
+
+      {/* ── Modal suppression étape 2 : saisie du nom ── */}
+      {deleteTarget && deleteStep === 2 && (
+        <ConfirmModal
+          title="Confirmation finale"
+          onConfirm={handleDelete}
+          onCancel={closeDeleteModal}
+          confirmLabel={isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+          confirmColor="red"
+          confirmDisabled={deleteNameInput.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase() || isDeleting}
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-secondary-700">
+              Saisissez le nom de la classe <strong>{deleteTarget.name}</strong> pour confirmer la suppression :
+            </p>
+            <input
+              type="text"
+              value={deleteNameInput}
+              onChange={e => setDeleteNameInput(e.target.value)}
+              placeholder={deleteTarget.name}
+              className="w-full px-3 py-2 text-sm border border-warm-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+              autoFocus
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600">{deleteError}</p>
+            )}
+          </div>
+        </ConfirmModal>
       )}
 
     </div>

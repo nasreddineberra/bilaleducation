@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, Check, RotateCcw, CalendarDays, LayoutGrid } from 'lucide-react'
+import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -12,6 +13,7 @@ import SlotCapsule from './SlotCapsule'
 import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
+import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -684,6 +686,182 @@ export default function EmploiDuTempsClient({
     if (freshExceptions) setExceptions(freshExceptions as any[])
   }, [supabase, schoolYearId])
 
+  // ─── Drag & Drop ──────────────────────────────────────────────────────────
+
+  const selectedClass = classes.find(c => c.id === selectedClassId)
+  const isDndActive = viewType === 'week' && viewMode === 'class' && !!selectedClassId && selectedClass?.teaching_mode === 'multi' && canEdit
+
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const [draggedSubject, setDraggedSubject] = useState<PaletteSubject | null>(null)
+  const [draggedSlot, setDraggedSlot] = useState<ResolvedSlot | null>(null)
+
+  // Build palette subjects from class_teachers of the selected class
+  const paletteSubjects = useMemo<PaletteSubject[]>(() => {
+    if (!isDndActive || !selectedClass) return []
+    return selectedClass.class_teachers
+      .filter(ct => ct.subject)
+      .map(ct => {
+        // Parse UE info from subject string and ueList
+        const subjectStr = ct.subject ?? ''
+        const codeMatch = subjectStr.match(/^([^ ]+) — /)
+        const ueCode = codeMatch?.[1] ?? null
+        const ue = ueList.find(u => u.code === ueCode) ?? ueList.find(u => subjectStr.includes(u.nom_fr))
+        return {
+          subject: subjectStr,
+          ueName: ue?.nom_fr ?? subjectStr,
+          ueCode: ue?.code ?? ueCode,
+          color: ue?.color ?? null,
+          teacherId: ct.teacher_id ?? '',
+          teacherName: ct.teachers ? `${ct.teachers.last_name} ${ct.teachers.first_name}` : '',
+        }
+      })
+  }, [isDndActive, selectedClass, ueList])
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current
+    if (data?.type === 'new-subject') {
+      setDraggedSubject(data.subject as PaletteSubject)
+      setDraggedSlot(null)
+    } else if (data?.type === 'existing-slot') {
+      setDraggedSlot(data.slot as ResolvedSlot)
+      setDraggedSubject(null)
+    }
+  }, [])
+
+  // Helper: parse drop zone ID → { dayOfWeek, startTime }
+  const parseDropId = useCallback((dropId: string) => {
+    const parts = dropId.split('-')
+    return { dayOfWeek: parseInt(parts[1], 10), startTime: parts[2] }
+  }, [])
+
+  // Helper: format minutes → "HH:MM"
+  const minsToTime = useCallback((mins: number) =>
+    `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`, [])
+
+  // Helper: "HH:MM" → minutes
+  const timeToMins = useCallback((t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }, [])
+
+  // Check collision: same class, same day, overlapping time (excluding the moved slot itself)
+  const hasCollision = useCallback((dayOfWeek: number, startTime: string, endTime: string, excludeSlotId?: string) => {
+    const newStart = timeToMins(startTime)
+    const newEnd = timeToMins(endTime)
+    return filteredSlots.some(s => {
+      if (excludeSlotId && s.sourceSlotId === excludeSlotId) return false
+      if (s.dayOfWeek !== dayOfWeek) return false
+      const sStart = timeToMins(s.start_time)
+      const sEnd = timeToMins(s.end_time)
+      return newStart < sEnd && newEnd > sStart
+    })
+  }, [filteredSlots, timeToMins])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    setDraggedSubject(null)
+    setDraggedSlot(null)
+    const { active, over } = event
+    if (!over || !selectedClassId) return
+
+    const dropId = over.id as string
+    if (!dropId.startsWith('drop-')) return
+
+    const { dayOfWeek, startTime } = parseDropId(dropId)
+    const data = active.data.current
+
+    // ── Check: is this day in vacation? ──
+    const dateStr = weekDayDates[dayOfWeek]
+    if (dateStr && getVacationLabel(dateStr)) {
+      toast.error('Impossible de placer un créneau pendant les vacances.')
+      return
+    }
+
+    // ── Check: is this day a working day? ──
+    if (!orderedDays.includes(dayOfWeek)) {
+      toast.error('Ce jour n\'est pas un jour travaillé.')
+      return
+    }
+
+    if (data?.type === 'new-subject') {
+      // ── CREATE new slot from palette ──
+      const subject = data.subject as PaletteSubject
+      const [sh, sm] = startTime.split(':').map(Number)
+      const endTime = minsToTime(sh * 60 + sm + 60)
+
+      if (hasCollision(dayOfWeek, startTime, endTime)) {
+        toast.error('Un créneau existe déjà sur ce créneau horaire.')
+        return
+      }
+
+      const matchedCours = coursList.find(c => {
+        const ue = (c as any).unites_enseignement
+        return ue?.nom_fr === subject.ueName
+      })
+
+      try {
+        const { error } = await supabase.from('schedule_slots').insert({
+          class_id: selectedClassId,
+          teacher_id: subject.teacherId || null,
+          school_year_id: schoolYearId,
+          is_recurring: true,
+          day_of_week: dayOfWeek,
+          slot_date: null,
+          start_time: startTime,
+          end_time: endTime,
+          slot_type: 'cours',
+          cours_id: matchedCours?.id ?? null,
+          room_id: selectedClass?.room_id ?? null,
+          is_active: true,
+          effective_from: schoolYearStartDate ?? null,
+          effective_until: null,
+          color: subject.color ?? null,
+        })
+        if (error) throw error
+        logAudit(supabase, {
+          action: 'INSERT',
+          entityType: 'schedule_slots',
+          description: `Nouveau créneau ${subject.ueName} le ${DAY_LABELS[dayOfWeek]} à ${startTime} pour ${selectedClass?.name}`,
+        })
+        toast.success(`Créneau ${subject.ueName} créé (${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime})`)
+        await refreshData()
+      } catch {
+        toast.error('Erreur lors de la création du créneau.')
+      }
+
+    } else if (data?.type === 'existing-slot') {
+      // ── MOVE existing slot ──
+      const slot = data.slot as ResolvedSlot
+      const duration = timeToMins(slot.end_time) - timeToMins(slot.start_time)
+      const endTime = minsToTime(timeToMins(startTime) + duration)
+
+      // Skip if dropped on same position
+      if (dayOfWeek === slot.dayOfWeek && startTime === slot.start_time.slice(0, 5)) return
+
+      if (hasCollision(dayOfWeek, startTime, endTime, slot.sourceSlotId)) {
+        toast.error('Un créneau existe déjà sur ce créneau horaire.')
+        return
+      }
+
+      try {
+        const { error } = await supabase
+          .from('schedule_slots')
+          .update({ day_of_week: dayOfWeek, start_time: startTime, end_time: endTime })
+          .eq('id', slot.sourceSlotId)
+        if (error) throw error
+        logAudit(supabase, {
+          action: 'UPDATE',
+          entityType: 'schedule_slots',
+          entityId: slot.sourceSlotId,
+          description: `Créneau déplacé vers ${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime}`,
+        })
+        toast.success(`Créneau déplacé (${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime})`)
+        await refreshData()
+      } catch {
+        toast.error('Erreur lors du déplacement du créneau.')
+      }
+    }
+  }, [selectedClassId, selectedClass, schoolYearId, schoolYearStartDate, coursList, supabase, toast, refreshData, parseDropId, minsToTime, timeToMins, hasCollision, weekDayDates, getVacationLabel, orderedDays, filteredSlots])
+
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
   // Date effective : aujourd'hui si en cours d'année, sinon date de rentrée
@@ -1112,7 +1290,6 @@ export default function EmploiDuTempsClient({
 
   // ─── Selected labels ──────────────────────────────────────────────────────
 
-  const selectedClass = classes.find(c => c.id === selectedClassId)
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId)
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -1317,7 +1494,17 @@ export default function EmploiDuTempsClient({
 
       {/* ── Grid ──────────────────────────────────────────────────────── */}
       {viewType === 'week' ? (
-        <div className="card flex-1 overflow-hidden flex flex-col min-h-0">
+        <DndContext
+          sensors={dndSensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+        <div className="flex-1 overflow-hidden flex min-h-0 gap-0">
+          {/* Palette matières (mode multi + vue classe uniquement) */}
+          {isDndActive && <SubjectPalette subjects={paletteSubjects} />}
+
+          <div className="card flex-1 overflow-hidden flex flex-col min-h-0">
           {/* Day headers */}
           <div
             className="grid border-b border-warm-100 flex-shrink-0"
@@ -1379,6 +1566,7 @@ export default function EmploiDuTempsClient({
                   viewMode={viewMode}
                   isTeacher={role === 'enseignant'}
                   vacationLabel={vacLabel}
+                  droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}
                   onValidate={(resolved) => handleValidate(resolved)}
                   onCancelValidation={(sourceSlotId, slotDate) => handleCancelValidation(sourceSlotId, slotDate)}
@@ -1390,7 +1578,43 @@ export default function EmploiDuTempsClient({
               )
             })}
           </div>
+          </div>
         </div>
+
+        {/* Drag overlay — capsule fantôme pendant le drag */}
+        <DragOverlay>
+          {draggedSubject && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border shadow-lg text-xs font-semibold"
+              style={{
+                backgroundColor: draggedSubject.color ? `${draggedSubject.color}20` : '#f1f5f9',
+                borderColor: draggedSubject.color ?? '#94a3b8',
+                color: draggedSubject.color ?? '#334155',
+              }}
+            >
+              <span
+                className="w-3 h-3 rounded-full border border-black/10"
+                style={{ backgroundColor: draggedSubject.color ?? '#94a3b8' }}
+              />
+              {draggedSubject.ueCode ? `${draggedSubject.ueCode} — ` : ''}{draggedSubject.ueName}
+            </div>
+          )}
+          {draggedSlot && (
+            <div
+              className="flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border shadow-lg text-xs"
+              style={{
+                backgroundColor: draggedSlot.color ? `${draggedSlot.color}20` : '#dbeafe',
+                borderColor: draggedSlot.color ?? '#93c5fd',
+                color: draggedSlot.color ?? '#1e3a5f',
+                minWidth: '100px',
+              }}
+            >
+              <span className="font-bold text-[10px] truncate">{draggedSlot.cours?.nom_fr ?? draggedSlot.slot_type}</span>
+              <span className="text-[9px] opacity-70">{draggedSlot.start_time.slice(0, 5)}–{draggedSlot.end_time.slice(0, 5)}</span>
+            </div>
+          )}
+        </DragOverlay>
+        </DndContext>
       ) : (
         <div className="card flex-1 overflow-hidden flex flex-col min-h-0">
           <MonthGrid

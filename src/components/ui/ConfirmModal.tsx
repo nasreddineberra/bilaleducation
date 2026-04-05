@@ -5,19 +5,22 @@ import { AlertTriangle, X } from 'lucide-react'
 import { FloatButton } from '@/components/ui/FloatFields'
 
 export interface ConfirmModalProps {
-  open:           boolean
-  message:        string
+  open?:           boolean
+  message?:        string
+  children?:       React.ReactNode
   title?:         string
   confirmLabel?:  string
   cancelLabel?:   string
   variant?:       'danger' | 'warning'
+  confirmColor?:  'red' | 'amber'
+  confirmDisabled?: boolean
   onConfirm:      () => void
   onCancel:       () => void
 }
 
 export default function ConfirmModal({
-  open, message, title, confirmLabel = 'Confirmer', cancelLabel = 'Annuler',
-  variant = 'warning', onConfirm, onCancel,
+  open = true, message, children, title, confirmLabel = 'Confirmer', cancelLabel = 'Annuler',
+  variant, confirmColor, confirmDisabled = false, onConfirm, onCancel,
 }: ConfirmModalProps) {
   // Fermer sur Escape
   useEffect(() => {
@@ -29,7 +32,7 @@ export default function ConfirmModal({
 
   if (!open) return null
 
-  const isDanger = variant === 'danger'
+  const isDanger = variant === 'danger' || confirmColor === 'red'
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
@@ -55,7 +58,7 @@ export default function ConfirmModal({
 
         {/* Body */}
         <div className="px-5 py-4">
-          <p className="text-sm text-warm-700 whitespace-pre-line">{message}</p>
+          {children ?? <p className="text-sm text-warm-700 whitespace-pre-line">{message}</p>}
         </div>
 
         {/* Footer */}
@@ -66,7 +69,8 @@ export default function ConfirmModal({
           <FloatButton
             variant={isDanger ? 'danger' : 'edit'}
             type="button"
-            onClick={() => { onConfirm(); onCancel() }}
+            onClick={() => { onConfirm() }}
+            disabled={confirmDisabled}
           >
             {confirmLabel}
           </FloatButton>

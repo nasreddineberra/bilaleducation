@@ -382,6 +382,59 @@ export default function ClassForm({
         }
       }
 
+      // ── Cascade enseignants → slots EDT ──────────────────────────────
+
+      if (isEditing) {
+        if (form.teaching_mode === 'single') {
+          // Mode primaire : si le prof principal a changé, MAJ tous les slots
+          const newMain = assignments.find(a => a.is_main_teacher)
+          const oldMain = initialAssignments.find(a => a.is_main_teacher)
+          if (newMain && newMain.teacher_id !== oldMain?.teacher_id) {
+            await supabase
+              .from('schedule_slots')
+              .update({ teacher_id: newMain.teacher_id })
+              .eq('class_id', classId)
+              .eq('is_active', true)
+            logAudit(supabase, {
+              action: 'UPDATE',
+              entityType: 'schedule_slots',
+              description: `Cascade : tous les créneaux de ${form.name.trim()} affectés à ${newMain.teacher_name}`,
+            })
+          }
+        } else {
+          // Mode multi : profs retirés → slots passés en "sans prof"
+          const oldTeacherIds = new Set(initialAssignments.map(a => a.teacher_id))
+          const newTeacherIds = new Set(assignments.map(a => a.teacher_id))
+          const removedIds = [...oldTeacherIds].filter(id => id && !newTeacherIds.has(id))
+
+          for (const removedId of removedIds) {
+            const { count } = await supabase
+              .from('schedule_slots')
+              .select('id', { count: 'exact', head: true })
+              .eq('class_id', classId)
+              .eq('teacher_id', removedId)
+              .eq('is_active', true)
+
+            if (count && count > 0) {
+              await supabase
+                .from('schedule_slots')
+                .update({ teacher_id: null })
+                .eq('class_id', classId)
+                .eq('teacher_id', removedId)
+                .eq('is_active', true)
+
+              const removedName = initialAssignments.find(a => a.teacher_id === removedId)?.teacher_name ?? removedId
+              logAudit(supabase, {
+                action: 'UPDATE',
+                entityType: 'schedule_slots',
+                description: `Cascade : ${count} créneau(x) de ${form.name.trim()} sans prof (retrait de ${removedName})`,
+              })
+              toast.warning(`${count} créneau(x) EDT de ${removedName} passé(s) sans prof affecté.`)
+            }
+          }
+        }
+      }
+
       // Réconciliation slots EDT
       const mainTeacher = assignments.find(a => a.is_main_teacher)
 

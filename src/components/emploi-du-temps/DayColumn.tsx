@@ -1,5 +1,7 @@
 'use client'
 
+import { useMemo } from 'react'
+import { useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import SlotCapsule from './SlotCapsule'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
@@ -25,6 +27,24 @@ interface Props {
   onClickEmpty: (day: number, time: string) => void
   onDeleteSlot: (sourceSlotId: string) => void
   vacationLabel?: string | null
+  /** Enable drop zones for drag & drop (only in week+class view) */
+  droppable?: boolean
+}
+
+// ─── Drop zone for a 15min slot ─────────────────────────────────────────────
+
+function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heightPct: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={clsx(
+        'absolute w-full z-10 transition-colors',
+        isOver && 'bg-primary-200/30',
+      )}
+      style={{ top: `${topPct}%`, height: `${heightPct}%` }}
+    />
+  )
 }
 
 function timeToMinutes(t: string): number {
@@ -35,12 +55,32 @@ function timeToMinutes(t: string): number {
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
   isTeacher, vacationLabel, isValidated, onValidate, onCancelValidation,
-  onClickSlot, onContextMenuSlot, onClickEmpty, onDeleteSlot,
+  onClickSlot, onContextMenuSlot, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
   const startMinutes = startHour * 60
 
   const groupedSlots = groupOverlapping(slots)
+
+  // Generate 15min drop zones
+  const dropZones = useMemo(() => {
+    if (!droppable || vacationLabel) return []
+    const zones: { id: string; topPct: number; heightPct: number }[] = []
+    const totalSlots = (endHour - startHour) * 4 // 4 x 15min per hour
+    const slotHeight = 100 / totalSlots
+    for (let i = 0; i < totalSlots; i++) {
+      const mins = startHour * 60 + i * 15
+      const h = Math.floor(mins / 60)
+      const m = mins % 60
+      const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      zones.push({
+        id: `drop-${day}-${time}`,
+        topPct: i * slotHeight,
+        heightPct: slotHeight,
+      })
+    }
+    return zones
+  }, [droppable, vacationLabel, day, startHour, endHour])
 
   return (
     <div
@@ -96,6 +136,11 @@ export default function DayColumn({
         </div>
       ))}
 
+      {/* Drop zones (15min intervals) */}
+      {dropZones.map(z => (
+        <DropZone key={z.id} id={z.id} topPct={z.topPct} heightPct={z.heightPct} />
+      ))}
+
       {/* Capsules */}
       {groupedSlots.map(group => (
         group.map((slot, idx) => {
@@ -122,6 +167,7 @@ export default function DayColumn({
               canValidate={canValidate}
               isTeacher={isTeacher}
               validated={isValidated(slot.sourceSlotId, dateStr)}
+              draggable={droppable}
               onValidate={() => onValidate(slot)}
               onCancelValidation={() => onCancelValidation(slot.sourceSlotId, dateStr)}
               onClick={() => onClickSlot(slot)}

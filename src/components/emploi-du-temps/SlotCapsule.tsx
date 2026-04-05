@@ -1,5 +1,6 @@
 'use client'
 
+import { useDraggable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import { Check, Trash2, CalendarDays } from 'lucide-react'
 import type { CSSProperties } from 'react'
@@ -24,6 +25,7 @@ interface Props {
   canValidate: boolean
   isTeacher: boolean
   validated: boolean
+  draggable?: boolean
   onValidate: () => void
   onCancelValidation: () => void
   onClick: () => void
@@ -39,24 +41,36 @@ function teacherShort(p: { first_name: string; last_name: string; civilite?: str
 
 export default function SlotCapsule({
   slot, style, viewMode, canEdit, isToday, canValidate, isTeacher,
-  validated, onValidate, onCancelValidation, onClick, onContextMenu, onDelete,
+  validated, draggable: isDraggableEnabled = false, onValidate, onCancelValidation, onClick, onContextMenu, onDelete,
 }: Props) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `slot-${slot.sourceSlotId}`,
+    data: { type: 'existing-slot', slot },
+    disabled: !isDraggableEnabled,
+  })
+
+  const noTeacher = !slot.teacher_id
   const colorClass = validated ? VALIDATED_COLORS : (SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)
   const showValidation = (isTeacher || canEdit) && canValidate && slot.slot_type !== 'pause'
 
   return (
     <div
+      ref={setNodeRef}
       data-slot
-      style={{ ...style, zIndex: 10 }}
+      style={{ ...style, zIndex: isDragging ? 50 : 10 }}
       className={clsx(
         'rounded-lg border overflow-hidden transition-shadow group',
         colorClass,
-        slot.isModified && MODIFIED_BORDER,
-        canEdit && 'cursor-pointer',
-        !canEdit && 'cursor-default',
+        noTeacher && 'border-dashed border-orange-400',
+        !noTeacher && slot.isModified && MODIFIED_BORDER,
+        isDragging && 'opacity-30 scale-95',
+        isDraggableEnabled && 'cursor-grab active:cursor-grabbing',
+        !isDraggableEnabled && canEdit && 'cursor-pointer',
+        !isDraggableEnabled && !canEdit && 'cursor-default',
       )}
-      onClick={(e) => { e.stopPropagation(); onClick() }}
+      onClick={(e) => { if (isDragging) return; e.stopPropagation(); onClick() }}
       onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e) }}
+      {...(isDraggableEnabled ? { ...listeners, ...attributes } : {})}
     >
       <div className="px-1.5 py-0.5 h-full flex flex-col overflow-hidden">
         {/* Course name or type */}
@@ -72,10 +86,16 @@ export default function SlotCapsule({
         )}
 
         {/* Teacher (in global/class view) */}
-        {viewMode !== 'teacher' && slot.teachers && (
-          <div className="text-[9px] leading-tight truncate opacity-70">
-            {teacherShort(slot.teachers)}
-          </div>
+        {viewMode !== 'teacher' && (
+          noTeacher ? (
+            <div className="text-[9px] leading-tight truncate text-orange-500 font-medium">
+              Prof non affecté
+            </div>
+          ) : slot.teachers ? (
+            <div className="text-[9px] leading-tight truncate opacity-70">
+              {teacherShort(slot.teachers)}
+            </div>
+          ) : null
         )}
 
         {/* Room */}

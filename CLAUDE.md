@@ -93,19 +93,19 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Drop matiere sur grille → creation auto du slot (prof + matiere + horaire)
 - [x] DndContext + DragOverlay (meme pattern que AffectationClient)
 
-### Phase 3 — Deplacement de creneaux existants
+### Phase 3 — Deplacement de creneaux existants (TERMINEE)
 - [x] Capsules EDT draggables (vue semaine + filtre classe uniquement)
 - [x] Drop sur autre creneau → deplacement (conservation duree, MAJ day_of_week + start_time)
 - [x] Detection collisions avant validation, blocage drop jours non travailles / vacances
 
-### Phase 4 — Cascade et coherence
+### Phase 4 — Cascade et coherence (TERMINEE)
 - [x] Mode single : changement prof principal → MAJ auto tous les slots de la classe
 - [x] Mode multi : retrait prof → slots passes en "sans prof" avec alerte
 - [x] Matiere sans prof autorisee : bordure pointillee + badge "Prof non affecte" sur EDT
 - [x] Suppression classe : double confirmation (liste dependances + saisie nom classe)
 - [x] Suppression classe : bloquer si des eleves sont affectes a la classe (verification avant suppression)
 
-### Phase 5 — Historique affectations en cours d'annee
+### Phase 5 — Historique affectations en cours d'annee (TERMINEE)
 - [x] Migration SQL : `effective_from` / `effective_until` sur `class_teachers`
 - [x] Modification affectation en cours d'annee : cloture ancienne + creation nouvelle avec date d'effet
 - [x] Suppression affectation en cours d'annee : cloture avec date d'effet (pas de suppression physique)
