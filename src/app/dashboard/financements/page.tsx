@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import SyntheseClient from '@/components/financements/SyntheseClient'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function SynthesePage() {
   const supabase = await createClient()
@@ -14,6 +15,7 @@ export default async function SynthesePage() {
   if (!currentYear) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
         <p className="text-sm text-warm-500">Aucune annee scolaire en cours.</p>
       </div>
     )

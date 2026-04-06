@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import VueGlobaleClient from '@/components/financements/VueGlobaleClient'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function VueGlobalePage() {
   const supabase = await createClient()
@@ -13,6 +14,7 @@ export default async function VueGlobalePage() {
   if (!currentYear) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
         <p className="text-sm text-warm-500">Aucune annee scolaire en cours.</p>
       </div>
     )

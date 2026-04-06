@@ -81,21 +81,22 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
         <div className="flex-1" />
 
         {/* Recherche */}
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
+        <div className="relative w-64">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Nom, prénom ou email..."
-            className="pl-8 pr-8 py-2 text-sm bg-white border border-warm-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent w-64 text-secondary-800 placeholder:text-warm-400"
+            className="input pl-9 pr-7 text-sm py-2 w-full"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600 transition-colors"
+              title="Effacer"
             >
-              <X size={13} />
+              <X size={14} />
             </button>
           )}
         </div>
@@ -103,10 +104,9 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
         {tab === 'staff' && (
           <Link
             href="/dashboard/utilisateurs/new"
-            className="btn btn-primary flex items-center gap-2 whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap"
           >
-            <Plus size={16} />
-            Ajouter un utilisateur
+            <Plus size={15} /> Ajouter
           </Link>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import CahierTexteClient from '@/components/cahier-texte/CahierTexteClient'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function CahierTextePage() {
   const supabase = await createClient()
@@ -94,6 +95,15 @@ export default async function CahierTextePage() {
         classes = (data ?? []) as any[]
       }
     }
+  }
+
+  if (classes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
+        <p className="text-sm text-warm-500">Aucune classe disponible.</p>
+      </div>
+    )
   }
 
   // Journal entries

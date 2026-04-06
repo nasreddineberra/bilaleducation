@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import FinancementsClient from '@/components/financements/FinancementsClient'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function FinancementsPage({ searchParams }: { searchParams: Promise<{ parent?: string }> }) {
   const { parent: initialParentId } = await searchParams
@@ -15,6 +16,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
   if (!currentYear) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
         <p className="text-sm text-warm-500">Aucune annee scolaire en cours.</p>
       </div>
     )

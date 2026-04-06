@@ -294,6 +294,12 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'comptable'],
       },
       {
+        name:  'Types de présence',
+        href:  '/dashboard/types-presence',
+        icon:  Clock,
+        roles: ['admin', 'direction'],
+      },
+      {
         name:  'Ressources',
         href:  '/dashboard/ressources',
         icon:  Boxes,

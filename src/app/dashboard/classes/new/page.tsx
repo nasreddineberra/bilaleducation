@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, AlertTriangle } from 'lucide-react'
 import ClassForm from '@/components/classes/ClassForm'
 
 export default async function NewClassPage() {
@@ -39,13 +39,20 @@ export default async function NewClassPage() {
       .single(),
   ])
 
-  const { data: cotisationTypes } = currentYearRow
-    ? await supabase
-        .from('cotisation_types')
-        .select('*')
-        .eq('school_year_id', currentYearRow.id)
-        .order('order_index')
-    : { data: [] }
+  if (!currentYearRow) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
+        <p className="text-sm text-warm-500">Aucune annee scolaire en cours.</p>
+      </div>
+    )
+  }
+
+  const { data: cotisationTypes } = await supabase
+    .from('cotisation_types')
+    .select('*')
+    .eq('school_year_id', currentYearRow.id)
+    .order('order_index')
 
   return (
     <div className="space-y-6 animate-fade-in">

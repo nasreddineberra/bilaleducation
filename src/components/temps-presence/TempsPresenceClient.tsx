@@ -376,7 +376,14 @@ export default function TempsPresenceClient({
             <h3 className="text-xs font-bold text-secondary-800 capitalize">{selectedDayLabel}</h3>
             <button
               onClick={() => { setEditingEntry(null); setModalOpen(true) }}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200"
+              disabled={!schoolYearId}
+              title={!schoolYearId ? 'Aucune année scolaire en cours' : undefined}
+              className={clsx(
+                'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
+                schoolYearId
+                  ? 'bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
+                  : 'bg-warm-200 text-warm-400 cursor-not-allowed'
+              )}
             >
               <Plus size={12} /> Ajouter
             </button>

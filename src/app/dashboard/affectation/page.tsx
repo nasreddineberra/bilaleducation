@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import AffectationClient from '@/components/affectation/AffectationClient'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function AffectationPage() {
   const supabase = await createClient()
@@ -60,6 +61,15 @@ export default async function AffectationPage() {
 
   // Exclure les classes de type adulte
   const apprenantClasses = (classes ?? []).filter((c: any) => !c.cotisation_types?.is_adult)
+
+  if (apprenantClasses.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
+        <p className="text-sm text-warm-500">Aucune classe disponible.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full animate-fade-in">

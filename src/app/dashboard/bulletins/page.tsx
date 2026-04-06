@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import BulletinsClient from '@/components/bulletins/BulletinsClient'
+import { AlertTriangle } from 'lucide-react'
 import type { Period, EvalTypeConfig, UniteEnseignement, CoursModule, Cours } from '@/types/database'
 
 type ClassRow = {
@@ -129,6 +130,15 @@ export default async function BulletinsPage() {
         classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
       }
     }
+  }
+
+  if (classes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
+        <p className="text-sm text-warm-500">Aucune classe disponible.</p>
+      </div>
+    )
   }
 
   // 3b. Professeur principal de chaque classe

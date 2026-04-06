@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import ClassesClient from '@/components/classes/ClassesClient'
+import { AlertTriangle } from 'lucide-react'
 
 export default async function ClassesPage() {
   const supabase = await createClient()
@@ -10,7 +11,16 @@ export default async function ClassesPage() {
     .eq('is_current', true)
     .single()
 
-  const query = supabase
+  if (!currentYear) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
+        <AlertTriangle size={36} className="text-warm-400" />
+        <p className="text-sm text-warm-500">Aucune annee scolaire en cours.</p>
+      </div>
+    )
+  }
+
+  const { data: classes } = await supabase
     .from('classes')
     .select(`
       *,
@@ -22,13 +32,8 @@ export default async function ClassesPage() {
         teachers ( first_name, last_name )
       )
     `)
+    .eq('academic_year', currentYear.label)
     .order('name')
-
-  if (currentYear) {
-    query.eq('academic_year', currentYear.label)
-  }
-
-  const { data: classes } = await query
 
   return (
     <div className="space-y-6 animate-fade-in">

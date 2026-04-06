@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { FloatButton } from '@/components/ui/FloatFields'
 import type { UniteEnseignement, CoursModule, Cours } from '@/types/database'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -124,12 +125,12 @@ function InlineForm({
           )}
         </div>
       ))}
-      <button onClick={onSubmit} disabled={submitting} className="btn btn-primary py-1 px-3 text-sm self-end">
-        <Check size={14} />
-      </button>
-      <button onClick={onCancel} className="btn btn-secondary py-1 px-3 text-sm self-end">
-        <X size={14} />
-      </button>
+      <FloatButton type="button" variant="submit" onClick={onSubmit} disabled={submitting} className="self-end">
+        <Check size={13} />
+      </FloatButton>
+      <FloatButton type="button" variant="secondary" onClick={onCancel} disabled={submitting} className="self-end">
+        <X size={13} />
+      </FloatButton>
     </div>
   )
 }
@@ -836,12 +837,9 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
             </button>
           )}
         </div>
-        <button
-          onClick={() => openAdd({ kind: 'ue' })}
-          className="btn btn-primary text-sm py-2 flex items-center gap-1.5 whitespace-nowrap"
-        >
-          <Plus size={15} /> Nouvelle UE
-        </button>
+        <FloatButton type="button" variant="submit" onClick={() => openAdd({ kind: 'ue' })}>
+          <Plus size={15} /> Ajouter
+        </FloatButton>
       </div>
 
       {/* Formulaire ajout UE */}
@@ -861,7 +859,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
             {search ? 'Aucun résultat' : 'Aucune unité d\'enseignement configurée'}
           </p>
           {!search && (
-            <p className="text-xs mt-1">Cliquez sur &ldquo;+ Nouvelle UE&rdquo; pour commencer.</p>
+            <p className="text-xs mt-1">Cliquez sur &ldquo;+ Ajouter&rdquo; pour commencer.</p>
           )}
         </div>
       )}
