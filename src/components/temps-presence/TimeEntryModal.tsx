@@ -2,10 +2,17 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
-import type { EntryType, TimeEntry } from './TempsPresenceClient'
+import type { TimeEntry } from './TempsPresenceClient'
+
+interface PresenceType {
+  id: string
+  label: string
+  code: string
+  color: string
+  is_absence: boolean
+}
 
 interface StaffMember {
   id: string
@@ -20,24 +27,20 @@ interface Props {
   currentUserId: string
   canManageAll: boolean
   staffList: StaffMember[]
+  presenceTypes: PresenceType[]
   existingEntries: TimeEntry[]
   onClose: () => void
   onSaved: () => void
 }
 
-const TYPE_OPTIONS: { value: EntryType; label: string; color: string }[] = [
-  { value: 'cours',    label: 'Cours',    color: 'peer-checked:bg-blue-500 peer-checked:text-white' },
-  { value: 'activite', label: 'Activite', color: 'peer-checked:bg-green-500 peer-checked:text-white' },
-  { value: 'menage',   label: 'Menage',   color: 'peer-checked:bg-purple-500 peer-checked:text-white' },
-  { value: 'absence',  label: 'Absence',  color: 'peer-checked:bg-red-500 peer-checked:text-white' },
-]
-
-export default function TimeEntryModal({ date, entry, currentUserId, canManageAll, staffList, existingEntries, onClose, onSaved }: Props) {
+export default function TimeEntryModal({ date, entry, currentUserId, canManageAll, staffList, presenceTypes, existingEntries, onClose, onSaved }: Props) {
   const supabase = createClient()
   const isEdit = !!entry
 
-  const [profileId, setProfileId] = useState(entry?.profile_id ?? currentUserId)
-  const [entryType, setEntryType] = useState<EntryType>(entry?.entry_type ?? 'cours')
+  const defaultType = entry?.entry_type ?? ''
+
+  const [profileId, setProfileId] = useState(entry?.profile_id ?? (canManageAll ? '' : currentUserId))
+  const [entryType, setEntryType] = useState<string>(defaultType)
   const [startTime, setStartTime] = useState(entry?.start_time?.slice(0, 5) ?? '09:00')
   const [endTime, setEndTime] = useState(entry?.end_time?.slice(0, 5) ?? '12:00')
   const [isReplacement, setIsReplacement] = useState(entry?.is_replacement ?? false)
@@ -47,11 +50,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const isAbsence = entryType === 'absence'
+  const isAbsence = presenceTypes.find(p => p.code.toUpperCase() === entryType.toUpperCase())?.is_absence ?? false
 
   const isDirty = !isEdit || (
     profileId !== (entry?.profile_id ?? currentUserId) ||
-    entryType !== (entry?.entry_type ?? 'cours') ||
+    entryType !== defaultType ||
     startTime !== (entry?.start_time?.slice(0, 5) ?? '09:00') ||
     endTime !== (entry?.end_time?.slice(0, 5) ?? '12:00') ||
     isReplacement !== (entry?.is_replacement ?? false) ||
@@ -59,6 +62,12 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
     absenceReason !== (entry?.absence_reason ?? '') ||
     notes !== (entry?.notes ?? '')
   )
+
+  const canSave = isDirty
+    && (!canManageAll || !!profileId)
+    && !!entryType
+    && (isAbsence || (!!startTime && !!endTime))
+    && (!isReplacement || !!replacedId)
 
   const dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -143,11 +152,12 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {/* Staff select */}
           {canManageAll ? (
             <FloatSelect
-              label="Membre du staff"
+              label="MEMBRE ÉQUIPE"
               required
               value={profileId}
               onChange={e => setProfileId(e.target.value)}
             >
+              <option value=""></option>
               {staffList.map(s => (
                 <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
               ))}
@@ -159,28 +169,30 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           )}
 
           {/* Type */}
-          <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Type <span className="text-red-400">*</span></label>
-            <div className="flex gap-2 mt-1">
-              {TYPE_OPTIONS.map(opt => (
-                <label key={opt.value} className="flex-1">
-                  <input
-                    type="radio"
-                    name="entry_type"
-                    value={opt.value}
-                    checked={entryType === opt.value}
-                    onChange={() => setEntryType(opt.value)}
-                    className="peer sr-only"
-                  />
-                  <span className={clsx(
-                    'block text-center text-xs font-bold py-1.5 rounded-lg border-2 border-warm-200 cursor-pointer transition-all',
-                    'peer-checked:border-transparent',
-                    opt.color,
-                  )}>
-                    {opt.label}
-                  </span>
-                </label>
-              ))}
+          <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
+            <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none select-none">Type<span className="text-red-400 ml-0.5">*</span></span>
+            <div className="flex flex-wrap gap-2">
+              {presenceTypes.map(pt => {
+                const selected = entryType.toUpperCase() === pt.code.toUpperCase()
+                return (
+                  <label key={pt.id} className="flex-1 min-w-[80px]">
+                    <input
+                      type="radio"
+                      name="entry_type"
+                      value={pt.code}
+                      checked={selected}
+                      onChange={() => setEntryType(pt.code)}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`block text-center text-xs font-semibold py-1.5 rounded-md border cursor-pointer transition-all ${!selected ? 'bg-white border-warm-300 text-warm-500 hover:border-warm-400' : ''}`}
+                      style={selected ? { backgroundColor: pt.color, color: '#fff', borderColor: pt.color } : undefined}
+                    >
+                      {pt.label}
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </div>
 
@@ -188,7 +200,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {!isAbsence && (
             <div className="grid grid-cols-2 gap-3">
               <FloatInput
-                label="Début"
+                label="DÉBUT"
                 required
                 type="time"
                 value={startTime}
@@ -198,7 +210,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
                 }}
               />
               <FloatInput
-                label="Fin"
+                label="FIN"
                 required
                 type="time"
                 value={endTime}
@@ -212,15 +224,18 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {/* Remplacement (sauf absence) */}
           {!isAbsence && (
             <div className="space-y-2">
-              <FloatCheckbox
-                variant="compact"
-                label="Remplacement"
-                checked={isReplacement}
-                onChange={val => setIsReplacement(val)}
-              />
+              <div className="flex items-center gap-1">
+                <FloatCheckbox
+                  variant="compact"
+                  label="EN REMPLACEMENT DE"
+                  checked={isReplacement}
+                  onChange={val => { setIsReplacement(val); if (!val) setReplacedId('') }}
+                />
+                {isReplacement && <span className="text-red-400 text-xs">*</span>}
+              </div>
               {isReplacement && (
                 <FloatSelect
-                  label="Staff remplacé"
+                  label=""
                   value={replacedId}
                   onChange={e => setReplacedId(e.target.value)}
                 >
@@ -236,7 +251,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           {/* Motif absence */}
           {isAbsence && (
             <FloatInput
-              label="Motif"
+              label="MOTIF"
               value={absenceReason}
               onChange={e => setAbsenceReason(e.target.value)}
               placeholder="Maladie, conge..."
@@ -245,7 +260,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
 
           {/* Notes */}
           <FloatTextarea
-            label="Notes"
+            label="NOTES"
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={2}
@@ -268,7 +283,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
             type="button"
             onClick={handleSave}
             loading={saving}
-            disabled={!isDirty}
+            disabled={!canSave}
           >
             {isEdit ? 'Modifier' : 'Valider'}
           </FloatButton>

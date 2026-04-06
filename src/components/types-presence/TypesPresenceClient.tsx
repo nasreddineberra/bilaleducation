@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
@@ -14,6 +14,7 @@ export interface PresenceType {
   code:        string
   color:       string
   is_active:   boolean
+  is_absence:  boolean
   order_index: number
 }
 
@@ -35,10 +36,10 @@ const COLOR_PALETTE = [
   { hex: '#8b5cf6', name: 'Violet'   },
   { hex: '#ec4899', name: 'Rose'     },
   { hex: '#6b7280', name: 'Gris'     },
-  { hex: '#1f2937', name: 'Sombre'   },
+  { hex: '#92400e', name: 'Marron'    },
 ]
 
-const EMPTY_ROW = { label: '', code: '', color: COLOR_PALETTE[6].hex, is_active: true }
+const EMPTY_ROW = { label: '', code: '', color: COLOR_PALETTE[6].hex, is_active: true, is_absence: false }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
       code:        editing.code.trim().toUpperCase().replace(/\s+/g, '_'),
       color:       editing.color ?? COLOR_PALETTE[6].hex,
       is_active:   editing.is_active ?? true,
+      is_absence:  editing.is_absence ?? false,
       order_index: editing.order_index ?? rows.length,
     }
 
@@ -172,6 +174,9 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
 
   // ── JSX ligne édition (inline pour éviter la perte de focus) ───────────────
 
+  // Couleurs déjà utilisées par d'autres types (hors ligne en cours d'édition)
+  const takenColors = new Set(rows.filter(r => r.id !== editing?.id).map(r => r.color))
+
   const editingRow = editing && (
     <tr className="bg-primary-50/30">
       <td className="px-4 py-3">
@@ -181,52 +186,61 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
         />
       </td>
       <td className="px-4 py-3">
-        <FloatInput
-          label="Libellé"
-          required
-          compact
-          value={editing.label ?? ''}
-          onChange={e => setEditing({ ...editing, label: e.target.value })}
-        />
+        <div className="w-2/3">
+          <FloatInput
+            label="Libellé"
+            required
+            compact
+            value={editing.label ?? ''}
+            onChange={e => setEditing({ ...editing, label: e.target.value })}
+          />
+        </div>
       </td>
       <td className="px-4 py-3">
-        <FloatInput
-          label="Code (min. 3 car.)"
-          required
-          compact
-          value={editing.code ?? ''}
-          onChange={e => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
-        />
+        <div className="w-2/3">
+          <FloatInput
+            label="Code (min. 3 car.)"
+            required
+            compact
+            value={editing.code ?? ''}
+            onChange={e => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
+          />
+        </div>
       </td>
       <td className="px-4 py-3">
-        <div className="space-y-2">
-          <div className="flex flex-wrap gap-1.5 justify-center">
-            {COLOR_PALETTE.map(c => (
+        <div className="flex flex-wrap gap-1.5">
+          {COLOR_PALETTE.map(c => {
+            const taken = takenColors.has(c.hex) && editing.color !== c.hex
+            const selected = editing.color === c.hex
+            return (
               <button
                 key={c.hex}
                 type="button"
-                title={c.name}
-                onClick={() => setEditing({ ...editing, color: c.hex })}
+                title={taken ? `${c.name} (déjà utilisé)` : c.name}
+                onClick={() => !taken && setEditing({ ...editing, color: c.hex })}
+                disabled={taken}
                 className={clsx(
                   'w-5 h-5 rounded-full transition-all border-2',
-                  editing.color === c.hex
-                    ? 'border-secondary-700 scale-110 shadow'
-                    : 'border-transparent hover:scale-105'
+                  selected && 'border-secondary-700 scale-110 shadow',
+                  !selected && !taken && 'border-transparent hover:scale-105',
+                  taken && 'cursor-not-allowed border-transparent',
                 )}
                 style={{ backgroundColor: c.hex }}
               />
-            ))}
-          </div>
-          <label className="flex items-center justify-center gap-1.5 cursor-pointer select-none text-xs text-secondary-700">
-            <input
-              type="checkbox"
-              checked={editing.is_active ?? true}
-              onChange={e => setEditing({ ...editing, is_active: e.target.checked })}
-              className="h-3.5 w-3.5 rounded border-warm-300 accent-primary-500"
-            />
-            Actif
-          </label>
+            )
+          })}
         </div>
+      </td>
+      <td className="px-4 py-3 text-center">
+        <label className="inline-flex items-center gap-1.5 cursor-pointer select-none text-xs text-secondary-700">
+          <input
+            type="checkbox"
+            checked={editing.is_active ?? true}
+            onChange={e => setEditing({ ...editing, is_active: e.target.checked })}
+            className="h-3.5 w-3.5 rounded border-warm-300 accent-primary-500"
+          />
+          Actif
+        </label>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
@@ -247,6 +261,14 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
     </tr>
   )
 
+  // Absence en tête, puis ordre_index
+  const sortedRows = [...rows].sort((a, b) => {
+    const aAbs = a.is_absence ? 0 : 1
+    const bAbs = b.is_absence ? 0 : 1
+    if (aAbs !== bAbs) return aAbs - bAbs
+    return a.order_index - b.order_index
+  })
+
   return (
     <div className="space-y-4">
 
@@ -266,6 +288,10 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
       )}
 
       <div className="card overflow-hidden">
+        <div className="flex items-start gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-xs text-blue-600">
+          <Info size={13} className="mt-0.5 shrink-0 text-blue-400" />
+          <span>Le type <strong>ABSENCE</strong> est réservé à la gestion des absences. Il ne peut pas être modifié ni supprimé.</span>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-warm-100 bg-warm-50">
@@ -278,7 +304,7 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
           </thead>
           <tbody className="divide-y divide-warm-50">
 
-            {rows.map(row =>
+            {sortedRows.map(row =>
               editing?.id === row.id ? (
                 editingRow
               ) : (
@@ -312,7 +338,9 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {confirmDeleteId === row.id ? (
+                    {row.is_absence ? (
+                      <span className="block text-right text-[10px] text-warm-300 italic pr-1">Réservé</span>
+                    ) : confirmDeleteId === row.id ? (
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => remove(row.id)}
@@ -362,7 +390,7 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
             {/* Nouvelle saisie : ligne en bas */}
             {editing && !editing.id && editingRow}
 
-            {rows.length === 0 && !editing && (
+            {sortedRows.length === 0 && !editing && (
               <tr>
                 <td colSpan={5} className="px-4 py-12 text-center text-sm text-warm-400">
                   Aucun type de présence configuré.

@@ -126,34 +126,43 @@ export default async function SynthesePage() {
     totalCotisationsPaid += feeByParent[parentId] ?? 0
   }
 
-  // ── Cout enseignement : staff_time_entries + hourly_rates ───────────────
-  const { data: timeEntries } = await supabase
-    .from('staff_time_entries')
-    .select('entry_type, duration_minutes, entry_date')
-    .gte('entry_date', `${currentYear.label.split('-')[0]}-08-01`)
-    .lt('entry_date', `${currentYear.label.split('-')[1]}-08-01`)
-    .neq('entry_type', 'absence')
+  // ── Cout enseignement : staff_time_entries + presence_type_rates ──────────
+  const [
+    { data: timeEntries },
+    { data: presenceTypes },
+    { data: presenceTypeRates },
+  ] = await Promise.all([
+    supabase
+      .from('staff_time_entries')
+      .select('entry_type, duration_minutes, entry_date')
+      .gte('entry_date', `${currentYear.label.split('-')[0]}-08-01`)
+      .lt('entry_date', `${currentYear.label.split('-')[1]}-08-01`)
+      .gt('duration_minutes', 0),
 
-  const { data: hourlyRates } = await supabase
-    .from('staff_hourly_rates')
-    .select('rate_cours, rate_activite, rate_menage')
-    .eq('school_year_id', currentYear.id)
-    .maybeSingle()
+    supabase
+      .from('presence_types')
+      .select('id, code')
+      .eq('is_active', true),
 
-  // Calcul cout par mois
-  const rCours = Number(hourlyRates?.rate_cours ?? 0)
-  const rActivite = Number(hourlyRates?.rate_activite ?? 0)
-  const rMenage = Number(hourlyRates?.rate_menage ?? 0)
+    supabase
+      .from('presence_type_rates')
+      .select('presence_type_id, rate')
+      .eq('school_year_id', currentYear.id),
+  ])
+
+  // Map code (uppercase) -> taux horaire
+  const rateByCode: Record<string, number> = {}
+  for (const pt of (presenceTypes ?? []) as any[]) {
+    const rate = (presenceTypeRates ?? [] as any[]).find((r: any) => r.presence_type_id === pt.id)?.rate ?? 0
+    rateByCode[pt.code.toUpperCase()] = Number(rate)
+  }
 
   const costByMonth: Record<string, number> = {}
   let totalTeachingCost = 0
 
   for (const e of (timeEntries ?? []) as any[]) {
     const hours = e.duration_minutes / 60
-    let rate = 0
-    if (e.entry_type === 'cours') rate = rCours
-    else if (e.entry_type === 'activite') rate = rActivite
-    else if (e.entry_type === 'menage') rate = rMenage
+    const rate = rateByCode[e.entry_type.toUpperCase()] ?? 0
     const cost = hours * rate
     totalTeachingCost += cost
     const monthKey = e.entry_date.slice(0, 7) // YYYY-MM

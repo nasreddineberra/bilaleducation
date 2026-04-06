@@ -30,7 +30,7 @@ export default async function CotisationsPage() {
       : Promise.resolve({ count: 0 }),
 
     // Types de présence actifs
-    supabase.from('presence_types').select('id, label, code, color').eq('is_active', true).order('order_index').order('label'),
+    supabase.from('presence_types').select('id, label, code, color, is_absence').eq('is_active', true).order('order_index').order('label'),
 
     // Taux horaires de l'année en cours
     currentYear

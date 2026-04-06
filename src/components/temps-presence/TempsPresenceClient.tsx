@@ -9,13 +9,13 @@ import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type EntryType = 'cours' | 'activite' | 'menage' | 'absence'
+export type EntryType = string
 
 export interface TimeEntry {
   id: string
   profile_id: string
   entry_date: string
-  entry_type: EntryType
+  entry_type: string
   start_time: string | null
   end_time: string | null
   duration_minutes: number
@@ -24,6 +24,19 @@ export interface TimeEntry {
   absence_reason: string | null
   notes: string | null
   recorded_by: string | null
+}
+
+interface PresenceType {
+  id: string
+  label: string
+  code: string
+  color: string
+  is_absence: boolean
+}
+
+interface PresenceTypeRate {
+  presence_type_id: string
+  rate: number
 }
 
 interface StaffMember {
@@ -40,21 +53,31 @@ interface Props {
   canManageAll: boolean
   canSeeRecap: boolean
   staffList: StaffMember[]
-  hourlyRates: { rate_cours: number; rate_activite: number; rate_menage: number } | null
+  presenceTypes: PresenceType[]
+  presenceTypeRates: PresenceTypeRate[]
   schoolYearId: string | null
   initialMonth?: string // format "YYYY-MM"
 }
 
-const ENTRY_COLORS: Record<EntryType, { bg: string; text: string; dot: string }> = {
-  cours:    { bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500' },
-  activite: { bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500' },
-  menage:   { bg: 'bg-purple-100', text: 'text-purple-700', dot: 'bg-purple-500' },
-  absence:  { bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500' },
+function findPresenceType(presenceTypes: PresenceType[], code: string): PresenceType | undefined {
+  return presenceTypes.find(pt => pt.code.toUpperCase() === code.toUpperCase())
 }
 
-const ENTRY_LABELS: Record<EntryType, string> = {
-  cours: 'Cours', activite: 'Activite', menage: 'Menage', absence: 'Absence',
+// Styles inline derives de la couleur hex du type de presence
+function entryStyle(color: string) {
+  return {
+    background: color + '22',
+    color,
+    borderColor: color + '55',
+  }
 }
+
+function dotStyle(color: string) {
+  return { backgroundColor: color }
+}
+
+// Fallback si le type n'est pas trouve dans presence_types
+const FALLBACK_COLOR = '#6b7280'
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const MONTH_NAMES = ['Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre']
@@ -106,7 +129,7 @@ function getWeekDays(refDate: Date): Date[] {
 
 export default function TempsPresenceClient({
   currentUserId, currentUserName, role, canManageAll, canSeeRecap,
-  staffList, hourlyRates, schoolYearId, initialMonth,
+  staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
 }: Props) {
   const supabase = createClient()
   const canSeeCosts = ['admin', 'direction', 'comptable'].includes(role)
@@ -198,31 +221,67 @@ export default function TempsPresenceClient({
     return map
   }, [dayEntries])
 
+  // Map presence_type_id -> rate pour calcul cout
+  const rateByTypeId = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const r of presenceTypeRates) map[r.presence_type_id] = r.rate
+    return map
+  }, [presenceTypeRates])
+
   // ── Monthly recap ───────────────────────────────────────────────────
   const monthlyRecap = useMemo(() => {
-    const recapMap: Record<string, { cours: number; activite: number; menage: number; absenceDays: number }> = {}
+    // recapMap[profileId][typeCode] = minutes (0 si absence = compte en jours)
+    const recapMap: Record<string, Record<string, number>> = {}
+    const absenceDaysMap: Record<string, number> = {}
+
     for (const e of entries) {
-      if (!recapMap[e.profile_id]) recapMap[e.profile_id] = { cours: 0, activite: 0, menage: 0, absenceDays: 0 }
-      const r = recapMap[e.profile_id]
-      if (e.entry_type === 'absence') r.absenceDays++
-      else r[e.entry_type] += e.duration_minutes
+      if (!recapMap[e.profile_id]) recapMap[e.profile_id] = {}
+      if (!absenceDaysMap[e.profile_id]) absenceDaysMap[e.profile_id] = 0
+
+      const pt = findPresenceType(presenceTypes, e.entry_type)
+      if (pt?.is_absence) {
+        // Traitement absence : comptage en jours
+        absenceDaysMap[e.profile_id]++
+      } else {
+        const code = e.entry_type.toUpperCase()
+        recapMap[e.profile_id][code] = (recapMap[e.profile_id][code] ?? 0) + e.duration_minutes
+      }
     }
-    const rows = Object.entries(recapMap).map(([profileId, data]) => {
+
+    const allProfileIds = new Set([...Object.keys(recapMap), ...Object.keys(absenceDaysMap)])
+
+    const rows = Array.from(allProfileIds).map(profileId => {
       const s = staffMap[profileId]
-      const rateCours = hourlyRates?.rate_cours ?? 0
-      const rateActivite = hourlyRates?.rate_activite ?? 0
-      const rateMenage = hourlyRates?.rate_menage ?? 0
-      const cost = (data.cours / 60) * rateCours + (data.activite / 60) * rateActivite + (data.menage / 60) * rateMenage
-      return { profileId, name: s ? `${s.last_name} ${s.first_name}` : '—', ...data, cost }
+      const typeMinutes = recapMap[profileId] ?? {}
+      const absenceDays = absenceDaysMap[profileId] ?? 0
+
+      // Calcul cout : pour chaque presence type non-absence
+      let cost = 0
+      for (const pt of presenceTypes.filter(p => !p.is_absence)) {
+        const mins = typeMinutes[pt.code.toUpperCase()] ?? 0
+        const rate = rateByTypeId[pt.id] ?? 0
+        cost += (mins / 60) * rate
+      }
+
+      return {
+        profileId,
+        name: s ? `${s.last_name} ${s.first_name}` : '—',
+        typeMinutes,
+        absenceDays,
+        cost,
+      }
     }).sort((a, b) => a.name.localeCompare(b.name))
 
-    const totals = rows.reduce((t, r) => ({
-      cours: t.cours + r.cours, activite: t.activite + r.activite,
-      menage: t.menage + r.menage, absenceDays: t.absenceDays + r.absenceDays, cost: t.cost + r.cost,
-    }), { cours: 0, activite: 0, menage: 0, absenceDays: 0, cost: 0 })
+    const totals = rows.reduce((t, r) => {
+      const tm = { ...t.typeMinutes }
+      for (const [code, mins] of Object.entries(r.typeMinutes)) {
+        tm[code] = (tm[code] ?? 0) + mins
+      }
+      return { typeMinutes: tm, absenceDays: t.absenceDays + r.absenceDays, cost: t.cost + r.cost }
+    }, { typeMinutes: {} as Record<string, number>, absenceDays: 0, cost: 0 })
 
     return { rows, totals }
-  }, [entries, staffMap, hourlyRates])
+  }, [entries, staffMap, presenceTypes, rateByTypeId])
 
   // ── Calendar cells ──────────────────────────────────────────────────
   const calDays = viewMode === 'month' ? getMonthDays(year, month) : getWeekDays(currentDate)
@@ -263,20 +322,23 @@ export default function TempsPresenceClient({
           const s = staffMap[data.profileId]
           const initials = s ? getInitials(s.first_name, s.last_name) : '??'
           const fullName = s ? `${s.last_name} ${s.first_name}` : ''
-          const colors = ENTRY_COLORS[data.type]
+          const pt = findPresenceType(presenceTypes, data.type)
+          const color = pt?.color ?? FALLBACK_COLOR
+          const label = pt?.label ?? data.type
           return (
             <Tooltip key={`${data.profileId}-${data.type}`} content={
               <div className="w-40">
                 <span className="block font-bold text-white text-sm">{fullName}</span>
                 <span className="block border-t border-white/10 my-1" />
-                <span className="block text-secondary-300 text-[11px]">{ENTRY_LABELS[data.type]}</span>
+                <span className="block text-secondary-300 text-[11px]">{label}</span>
                 {data.mins > 0 && (
                   <span className="block text-secondary-400 text-[11px] mt-0.5">{fmtDuration(data.mins)}</span>
                 )}
               </div>
             }>
               <span
-                className={clsx('inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none cursor-default', colors.bg, colors.text)}
+                className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none cursor-default"
+                style={entryStyle(color)}
               >
                 {initials} {data.mins > 0 ? fmtDuration(data.mins) : 'ABS'}
               </span>
@@ -407,12 +469,14 @@ export default function TempsPresenceClient({
                       <span className="text-[10px] text-warm-400">{fmtDuration(totalMins)}</span>
                     </div>
                     {pEntries.map(e => {
-                      const col = ENTRY_COLORS[e.entry_type]
+                      const pt = findPresenceType(presenceTypes, e.entry_type)
+                      const color = pt?.color ?? FALLBACK_COLOR
+                      const label = pt?.label ?? e.entry_type
                       const canEdit = canManageAll || e.profile_id === currentUserId
                       return (
-                        <div key={e.id} className={clsx('flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs', col.bg)}>
-                          <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', col.dot)} />
-                          <span className={clsx('font-medium', col.text)}>{ENTRY_LABELS[e.entry_type]}</span>
+                        <div key={e.id} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs" style={entryStyle(color)}>
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(color)} />
+                          <span className="font-medium">{label}</span>
                           {e.entry_type !== 'absence' && e.start_time && (
                             <span className="text-warm-500">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
                           )}
@@ -469,11 +533,13 @@ export default function TempsPresenceClient({
             <h3 className="text-sm font-bold text-secondary-800">
               Recapitulatif — {MONTH_NAMES[month]} {year}
             </h3>
-            {canSeeCosts && hourlyRates && (
-              <div className="flex gap-3 text-[10px] text-warm-400">
-                <span>Cours {fmtEur(hourlyRates.rate_cours)}/h</span>
-                <span>Activite {fmtEur(hourlyRates.rate_activite)}/h</span>
-                <span>Menage {fmtEur(hourlyRates.rate_menage)}/h</span>
+            {canSeeCosts && presenceTypeRates.length > 0 && (
+              <div className="flex flex-wrap gap-3 text-[10px] text-warm-400">
+                {presenceTypes.filter(p => !p.is_absence).map(pt => {
+                  const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
+                  if (!rate) return null
+                  return <span key={pt.id} style={{ color: pt.color }}>{pt.label} {fmtEur(rate)}/h</span>
+                })}
               </div>
             )}
           </div>
@@ -484,10 +550,12 @@ export default function TempsPresenceClient({
               <thead>
                 <tr className="bg-warm-50 border-b border-warm-100">
                   <th className="px-3 py-2 text-left text-xs font-bold text-warm-500 uppercase">Staff</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold text-blue-500 uppercase">Cours</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold text-green-500 uppercase">Activite</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold text-purple-500 uppercase">Menage</th>
-                  <th className="px-3 py-2 text-center text-xs font-bold text-red-500 uppercase">Absence</th>
+                  {presenceTypes.filter(p => !p.is_absence).map(pt => (
+                    <th key={pt.id} className="px-3 py-2 text-center text-xs font-bold uppercase" style={{ color: pt.color }}>
+                      {pt.label}
+                    </th>
+                  ))}
+                  <th className="px-3 py-2 text-center text-xs font-bold text-red-400 uppercase">Absences</th>
                   {canSeeCosts && <th className="px-3 py-2 text-right text-xs font-bold text-warm-500 uppercase">Cout</th>}
                 </tr>
               </thead>
@@ -495,9 +563,14 @@ export default function TempsPresenceClient({
                 {monthlyRecap.rows.map(r => (
                   <tr key={r.profileId} className="hover:bg-warm-50">
                     <td className="px-3 py-2 font-medium text-warm-700">{r.name}</td>
-                    <td className="px-3 py-2 text-center text-warm-600">{r.cours > 0 ? fmtDuration(r.cours) : '—'}</td>
-                    <td className="px-3 py-2 text-center text-warm-600">{r.activite > 0 ? fmtDuration(r.activite) : '—'}</td>
-                    <td className="px-3 py-2 text-center text-warm-600">{r.menage > 0 ? fmtDuration(r.menage) : '—'}</td>
+                    {presenceTypes.filter(p => !p.is_absence).map(pt => {
+                      const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
+                      return (
+                        <td key={pt.id} className="px-3 py-2 text-center text-warm-600">
+                          {mins > 0 ? fmtDuration(mins) : '—'}
+                        </td>
+                      )
+                    })}
                     <td className="px-3 py-2 text-center text-warm-600">{r.absenceDays > 0 ? `${r.absenceDays}j` : '—'}</td>
                     {canSeeCosts && <td className="px-3 py-2 text-right font-bold text-secondary-800">{fmtEur(r.cost)}</td>}
                   </tr>
@@ -506,10 +579,15 @@ export default function TempsPresenceClient({
               <tfoot>
                 <tr className="bg-warm-50 border-t border-warm-200 font-bold">
                   <td className="px-3 py-2 text-warm-700">TOTAL</td>
-                  <td className="px-3 py-2 text-center text-blue-700">{monthlyRecap.totals.cours > 0 ? fmtDuration(monthlyRecap.totals.cours) : '—'}</td>
-                  <td className="px-3 py-2 text-center text-green-700">{monthlyRecap.totals.activite > 0 ? fmtDuration(monthlyRecap.totals.activite) : '—'}</td>
-                  <td className="px-3 py-2 text-center text-purple-700">{monthlyRecap.totals.menage > 0 ? fmtDuration(monthlyRecap.totals.menage) : '—'}</td>
-                  <td className="px-3 py-2 text-center text-red-700">{monthlyRecap.totals.absenceDays > 0 ? `${monthlyRecap.totals.absenceDays}j` : '—'}</td>
+                  {presenceTypes.filter(p => !p.is_absence).map(pt => {
+                    const mins = monthlyRecap.totals.typeMinutes[pt.code.toUpperCase()] ?? 0
+                    return (
+                      <td key={pt.id} className="px-3 py-2 text-center" style={{ color: pt.color }}>
+                        {mins > 0 ? fmtDuration(mins) : '—'}
+                      </td>
+                    )
+                  })}
+                  <td className="px-3 py-2 text-center text-red-600">{monthlyRecap.totals.absenceDays > 0 ? `${monthlyRecap.totals.absenceDays}j` : '—'}</td>
                   {canSeeCosts && <td className="px-3 py-2 text-right text-secondary-800">{fmtEur(monthlyRecap.totals.cost)}</td>}
                 </tr>
               </tfoot>
@@ -526,6 +604,7 @@ export default function TempsPresenceClient({
           currentUserId={currentUserId}
           canManageAll={canManageAll}
           staffList={staffList}
+          presenceTypes={presenceTypes}
           existingEntries={dayEntries}
           onClose={() => { setModalOpen(false); setEditingEntry(null) }}
           onSaved={() => { setModalOpen(false); setEditingEntry(null); fetchEntries() }}

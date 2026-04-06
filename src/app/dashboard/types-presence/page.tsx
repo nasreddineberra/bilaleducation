@@ -21,7 +21,7 @@ export default async function TypesPresencePage() {
 
   const { data: types } = await supabase
     .from('presence_types')
-    .select('id, label, code, color, is_active, order_index')
+    .select('id, label, code, color, is_active, is_absence, order_index')
     .order('order_index')
     .order('label')
 

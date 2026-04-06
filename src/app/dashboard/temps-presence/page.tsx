@@ -34,15 +34,22 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .order('last_name')
     .order('first_name')
 
-  // Taux horaires pour l'annee en cours
-  let hourlyRates = null
+  // Types de presence actifs
+  const { data: presenceTypes } = await supabase
+    .from('presence_types')
+    .select('id, label, code, color, is_absence')
+    .eq('is_active', true)
+    .order('order_index')
+    .order('label')
+
+  // Taux par type de presence pour l'annee en cours
+  let presenceTypeRates: { presence_type_id: string; rate: number }[] = []
   if (currentYear) {
     const { data } = await supabase
-      .from('staff_hourly_rates')
-      .select('rate_cours, rate_activite, rate_menage')
+      .from('presence_type_rates')
+      .select('presence_type_id, rate')
       .eq('school_year_id', currentYear.id)
-      .maybeSingle()
-    hourlyRates = data
+    presenceTypeRates = (data ?? []) as { presence_type_id: string; rate: number }[]
   }
 
   return (
@@ -54,7 +61,8 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         canManageAll={canManageAll}
         canSeeRecap={canSeeRecap}
         staffList={(staffList ?? []) as any[]}
-        hourlyRates={hourlyRates as any}
+        presenceTypes={(presenceTypes ?? []) as any[]}
+        presenceTypeRates={presenceTypeRates}
         schoolYearId={currentYear?.id ?? null}
         initialMonth={initialMonth}
       />
