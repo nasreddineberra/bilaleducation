@@ -155,7 +155,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
               label="MEMBRE ÉQUIPE"
               required
               value={profileId}
-              onChange={e => setProfileId(e.target.value)}
+              onChange={e => {
+                const val = e.target.value
+                setProfileId(val)
+                if (val && val === replacedId) setReplacedId('')
+              }}
             >
               <option value=""></option>
               {staffList.map(s => (
