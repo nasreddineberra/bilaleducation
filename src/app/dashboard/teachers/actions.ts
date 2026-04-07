@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
+import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 
 function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64url').slice(0, 12)
@@ -21,6 +22,9 @@ export async function createTeacherWithAccount(data: {
   specialization:  string | null
   is_active:       boolean
 }): Promise<{ error?: string; tempPassword?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
@@ -104,6 +108,9 @@ export async function updateTeacher(
     is_active:       boolean
   }
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
@@ -138,6 +145,9 @@ export async function createParentAccount(data: {
   last_name:  string
   phone?:     string | null
 }): Promise<{ error?: string; userId?: string; tempPassword?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  if (roleError) return { error: roleError }
+
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }

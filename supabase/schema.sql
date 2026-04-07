@@ -1,700 +1,872 @@
--- ============================================
--- BILAL EDUCATION - Schéma Multi-Tenant
--- ============================================
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- ============================================
--- FONCTION : mise à jour automatique updated_at
--- ============================================
-
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ============================================
--- TABLE: etablissements
--- Un enregistrement par établissement client
--- ============================================
-
-CREATE TABLE etablissements (
-  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  slug                    TEXT UNIQUE NOT NULL,        -- identifiant sous-domaine (ex: al-kindi)
-  nom                     TEXT NOT NULL,
-  adresse                 TEXT,
-  telephone               TEXT,
-  contact                 TEXT,                        -- email de contact
-  annee_courante          TEXT NOT NULL DEFAULT '2025-2026',
-  is_active               BOOLEAN NOT NULL DEFAULT TRUE,
-  subscription_expires_at TIMESTAMPTZ,                -- NULL = pas d'expiration
-  max_students            INTEGER,                     -- NULL = illimité (mode production)
-  notes                   TEXT,                        -- Notes internes super-admin uniquement
-  created_at              TIMESTAMPTZ DEFAULT NOW(),
-  updated_at              TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.absences (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  absence_date date NOT NULL,
+  absence_type text NOT NULL CHECK (absence_type = ANY (ARRAY['absence'::text, 'retard'::text])),
+  comment text,
+  is_justified boolean NOT NULL DEFAULT false,
+  justification_date date,
+  justification_comment text,
+  justification_document_url text,
+  recorded_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT absences_pkey PRIMARY KEY (id),
+  CONSTRAINT absences_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT absences_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT absences_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT absences_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.periods(id),
+  CONSTRAINT absences_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.profiles(id)
 );
-
-CREATE TRIGGER update_etablissements_updated_at
-  BEFORE UPDATE ON etablissements
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================
--- TABLE: profiles
--- Profils utilisateurs (complète auth.users)
--- ============================================
-
-CREATE TABLE profiles (
-  id               UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  etablissement_id UUID REFERENCES etablissements(id) ON DELETE SET NULL,  -- NULL pour super_admin
-  email            TEXT NOT NULL,
-  role             TEXT NOT NULL CHECK (role IN (
-    'super_admin', 'admin', 'direction', 'comptable', 'responsable_pedagogique',
-    'enseignant', 'secretaire', 'parent'
-  )),
-  first_name       TEXT NOT NULL,
-  last_name        TEXT NOT NULL,
-  phone            TEXT,
-  avatar_url       TEXT,
-  is_active        BOOLEAN DEFAULT TRUE,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.announcement_attachments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  announcement_id uuid NOT NULL,
+  file_url text NOT NULL,
+  file_name text NOT NULL,
+  file_size integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT announcement_attachments_pkey PRIMARY KEY (id),
+  CONSTRAINT announcement_attachments_announcement_id_fkey FOREIGN KEY (announcement_id) REFERENCES public.announcements(id)
 );
-
-CREATE INDEX idx_profiles_etablissement ON profiles(etablissement_id);
-CREATE INDEX idx_profiles_role         ON profiles(role);
-CREATE INDEX idx_profiles_is_active    ON profiles(is_active);
-
-CREATE TRIGGER update_profiles_updated_at
-  BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- ============================================
--- FONCTION RLS : retourne l'etablissement_id de l'utilisateur courant
--- SECURITY DEFINER : bypass RLS sur profiles → évite la récursion infinie
--- ============================================
-
-CREATE OR REPLACE FUNCTION current_etablissement_id()
-RETURNS UUID AS $$
-  SELECT etablissement_id FROM profiles WHERE id = auth.uid()
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
--- ============================================
--- FONCTION TRIGGER : auto-remplir etablissement_id à l'INSERT côté client
--- ============================================
-
-CREATE OR REPLACE FUNCTION set_etablissement_id()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.etablissement_id IS NULL THEN
-    NEW.etablissement_id := current_etablissement_id();
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================
--- RLS : profiles et etablissements
--- ============================================
-
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "profiles_select" ON profiles
-  FOR SELECT USING (id = auth.uid() OR etablissement_id = current_etablissement_id());
-CREATE POLICY "profiles_update" ON profiles
-  FOR UPDATE USING (etablissement_id = current_etablissement_id());
-
-ALTER TABLE etablissements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "etablissements_select" ON etablissements
-  FOR SELECT USING (id = current_etablissement_id());
-CREATE POLICY "etablissements_update" ON etablissements
-  FOR UPDATE USING (
-    id = current_etablissement_id() AND
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND role IN ('admin', 'direction')
-    )
-  );
-
--- ============================================
--- TABLE: parents
--- ============================================
-
-CREATE TABLE parents (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-
-  tutor1_last_name     TEXT NOT NULL,
-  tutor1_first_name    TEXT NOT NULL,
-  tutor1_relationship  TEXT CHECK (tutor1_relationship IN ('père', 'mère', 'tuteur', 'autre')) DEFAULT 'père',
-  tutor1_phone         TEXT,
-  tutor1_email         TEXT,
-  tutor1_address       TEXT,
-  tutor1_city          TEXT,
-  tutor1_postal_code   TEXT,
-  tutor1_profession    TEXT,
-
-  tutor2_last_name     TEXT,
-  tutor2_first_name    TEXT,
-  tutor2_relationship  TEXT CHECK (tutor2_relationship IN ('père', 'mère', 'tuteur', 'autre')),
-  tutor2_phone         TEXT,
-  tutor2_email         TEXT,
-  tutor2_address       TEXT,
-  tutor2_city          TEXT,
-  tutor2_postal_code   TEXT,
-  tutor2_profession    TEXT,
-
-  tutor1_adult_courses BOOLEAN NOT NULL DEFAULT FALSE,
-  tutor2_adult_courses BOOLEAN NOT NULL DEFAULT FALSE,
-
-  situation_familiale  TEXT CHECK (situation_familiale IN ('mariés', 'pacsés', 'union_libre', 'séparés', 'divorcés', 'veuf_veuve', 'monoparental')),
-  type_garde           TEXT CHECK (type_garde IN ('alternée', 'exclusive_t1', 'exclusive_t2')),
-  notes                TEXT,
-
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.announcement_recipients (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  announcement_id uuid NOT NULL,
+  parent_id uuid NOT NULL,
+  is_read boolean DEFAULT false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  email text,
+  email_status text DEFAULT 'pending'::text CHECK (email_status = ANY (ARRAY['pending'::text, 'sent'::text, 'delivered'::text, 'failed'::text])),
+  sent_at timestamp with time zone,
+  CONSTRAINT announcement_recipients_pkey PRIMARY KEY (id),
+  CONSTRAINT announcement_recipients_announcement_id_fkey FOREIGN KEY (announcement_id) REFERENCES public.announcements(id),
+  CONSTRAINT announcement_recipients_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.parents(id)
 );
-
-CREATE INDEX idx_parents_etablissement ON parents(etablissement_id);
-CREATE INDEX idx_parents_tutor1_name   ON parents(tutor1_last_name);
-
-CREATE TRIGGER update_parents_updated_at
-  BEFORE UPDATE ON parents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER parents_auto_etablissement
-  BEFORE INSERT ON parents FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE parents ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "parents_tenant" ON parents
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: students
--- ============================================
-
-CREATE TABLE students (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  user_id          UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  parent_id        UUID REFERENCES parents(id) ON DELETE RESTRICT,
-  student_number   TEXT NOT NULL,
-  first_name       TEXT NOT NULL,
-  last_name        TEXT NOT NULL,
-  date_of_birth    DATE NOT NULL,
-  gender           TEXT CHECK (gender IN ('male', 'female')),
-  address          TEXT,
-  city             TEXT,
-  postal_code      TEXT,
-  emergency_contact_name  TEXT,
-  emergency_contact_phone TEXT,
-  medical_notes    TEXT,
-  enrollment_date  DATE DEFAULT CURRENT_DATE,
-  is_active        BOOLEAN DEFAULT TRUE,
-  exit_authorization  BOOLEAN NOT NULL DEFAULT FALSE,
-  media_authorization BOOLEAN NOT NULL DEFAULT FALSE,
-  has_pai          BOOLEAN NOT NULL DEFAULT FALSE,
-  pai_notes        TEXT,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(etablissement_id, student_number)
+CREATE TABLE public.announcement_staff_recipients (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  announcement_id uuid NOT NULL,
+  profile_id uuid NOT NULL,
+  is_read boolean DEFAULT false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  email text,
+  email_status text DEFAULT 'pending'::text CHECK (email_status = ANY (ARRAY['pending'::text, 'sent'::text, 'delivered'::text, 'failed'::text])),
+  sent_at timestamp with time zone,
+  CONSTRAINT announcement_staff_recipients_pkey PRIMARY KEY (id),
+  CONSTRAINT announcement_staff_recipients_announcement_id_fkey FOREIGN KEY (announcement_id) REFERENCES public.announcements(id),
+  CONSTRAINT announcement_staff_recipients_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id)
 );
-
-CREATE INDEX idx_students_etablissement ON students(etablissement_id);
-CREATE INDEX idx_students_number        ON students(student_number);
-CREATE INDEX idx_students_is_active     ON students(is_active);
-CREATE INDEX idx_students_parent        ON students(parent_id);
-
-CREATE TRIGGER update_students_updated_at
-  BEFORE UPDATE ON students FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER students_auto_etablissement
-  BEFORE INSERT ON students FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE students ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "students_tenant" ON students
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: teachers
--- ============================================
-
-CREATE TABLE teachers (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  user_id          UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  first_name       TEXT NOT NULL,
-  last_name        TEXT NOT NULL,
-  employee_number  TEXT NOT NULL,
-  phone            TEXT,
-  email            TEXT NOT NULL,
-  specialization   TEXT,
-  hire_date        DATE DEFAULT CURRENT_DATE,
-  is_active        BOOLEAN DEFAULT TRUE,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(etablissement_id, employee_number),
-  UNIQUE(etablissement_id, email)
+CREATE TABLE public.announcements (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  title text NOT NULL,
+  content text NOT NULL,
+  announcement_type text CHECK (announcement_type = ANY (ARRAY['all_active'::text, 'all_registered'::text, 'class'::text, 'selected'::text, 'staff'::text])),
+  target_class_id uuid,
+  priority text DEFAULT 'normal'::text CHECK (priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])),
+  published_by uuid,
+  is_published boolean DEFAULT false,
+  published_at timestamp with time zone,
+  expires_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  body_html text,
+  channel text DEFAULT 'email'::text CHECK (channel = ANY (ARRAY['email'::text, 'notification'::text, 'both'::text])),
+  sender_email text,
+  recipient_count integer DEFAULT 0,
+  sent_at timestamp with time zone,
+  CONSTRAINT announcements_pkey PRIMARY KEY (id),
+  CONSTRAINT announcements_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT announcements_target_class_id_fkey FOREIGN KEY (target_class_id) REFERENCES public.classes(id),
+  CONSTRAINT announcements_published_by_fkey FOREIGN KEY (published_by) REFERENCES public.profiles(id)
 );
-
-CREATE INDEX idx_teachers_etablissement ON teachers(etablissement_id);
-CREATE INDEX idx_teachers_is_active     ON teachers(is_active);
-
-CREATE TRIGGER update_teachers_updated_at
-  BEFORE UPDATE ON teachers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER teachers_auto_etablissement
-  BEFORE INSERT ON teachers FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE teachers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "teachers_tenant" ON teachers
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: classes
--- ============================================
-
-CREATE TABLE classes (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  name             TEXT NOT NULL,
-  level            TEXT NOT NULL,
-  academic_year    TEXT NOT NULL,
-  description      TEXT,
-  max_students     INTEGER DEFAULT 25,
-  room_number      TEXT,
-  schedule_notes   TEXT,
-  is_active        BOOLEAN DEFAULT TRUE,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  user_id uuid,
+  user_email text,
+  user_name text,
+  entity_type text NOT NULL,
+  entity_id uuid,
+  action text NOT NULL CHECK (action = ANY (ARRAY['INSERT'::text, 'UPDATE'::text, 'DELETE'::text, 'LOGIN'::text, 'LOGOUT'::text])),
+  old_data jsonb,
+  new_data jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_logs_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
-
-CREATE INDEX idx_classes_etablissement ON classes(etablissement_id);
-CREATE INDEX idx_classes_academic_year ON classes(academic_year);
-CREATE INDEX idx_classes_is_active     ON classes(is_active);
-
-CREATE TRIGGER update_classes_updated_at
-  BEFORE UPDATE ON classes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER classes_auto_etablissement
-  BEFORE INSERT ON classes FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "classes_tenant" ON classes
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: class_teachers
--- ============================================
-
-CREATE TABLE class_teachers (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  class_id        UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  teacher_id      UUID NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
-  is_main_teacher BOOLEAN DEFAULT FALSE,
-  subject         TEXT,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(class_id, teacher_id, subject)
+CREATE TABLE public.bulletin_appreciations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  appreciation text NOT NULL DEFAULT ''::text,
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_by uuid,
+  CONSTRAINT bulletin_appreciations_pkey PRIMARY KEY (id),
+  CONSTRAINT bulletin_appreciations_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT bulletin_appreciations_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT bulletin_appreciations_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT bulletin_appreciations_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.periods(id),
+  CONSTRAINT bulletin_appreciations_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.profiles(id)
 );
-
-CREATE INDEX idx_class_teachers_class   ON class_teachers(class_id);
-CREATE INDEX idx_class_teachers_teacher ON class_teachers(teacher_id);
-
-ALTER TABLE class_teachers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "class_teachers_tenant" ON class_teachers
-  USING (class_id IN (
-    SELECT id FROM classes WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- TABLE: enrollments
--- ============================================
-
-CREATE TABLE enrollments (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  student_id      UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  class_id        UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  enrollment_date DATE DEFAULT CURRENT_DATE,
-  status          TEXT DEFAULT 'active' CHECK (status IN ('active', 'withdrawn', 'completed')),
-  notes           TEXT,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(student_id, class_id)
+CREATE TABLE public.bulletin_archives (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  file_path text NOT NULL,
+  file_url text NOT NULL,
+  archived_at timestamp with time zone NOT NULL DEFAULT now(),
+  archived_by uuid,
+  CONSTRAINT bulletin_archives_pkey PRIMARY KEY (id),
+  CONSTRAINT bulletin_archives_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT bulletin_archives_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT bulletin_archives_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT bulletin_archives_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.periods(id),
+  CONSTRAINT bulletin_archives_archived_by_fkey FOREIGN KEY (archived_by) REFERENCES public.profiles(id)
 );
-
-CREATE INDEX idx_enrollments_student ON enrollments(student_id);
-CREATE INDEX idx_enrollments_class   ON enrollments(class_id);
-CREATE INDEX idx_enrollments_status  ON enrollments(status);
-
-CREATE TRIGGER update_enrollments_updated_at
-  BEFORE UPDATE ON enrollments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "enrollments_tenant" ON enrollments
-  USING (student_id IN (
-    SELECT id FROM students WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- TABLE: subjects
--- ============================================
-
-CREATE TABLE subjects (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  name             TEXT NOT NULL,
-  code             TEXT NOT NULL,
-  description      TEXT,
-  order_index      INTEGER DEFAULT 0,
-  is_active        BOOLEAN DEFAULT TRUE,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(etablissement_id, code)
+CREATE TABLE public.class_teachers (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  class_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  is_main_teacher boolean DEFAULT false,
+  subject text,
+  created_at timestamp with time zone DEFAULT now(),
+  effective_from date,
+  effective_until date,
+  CONSTRAINT class_teachers_pkey PRIMARY KEY (id),
+  CONSTRAINT class_teachers_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT class_teachers_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.teachers(id)
 );
-
-CREATE INDEX idx_subjects_etablissement ON subjects(etablissement_id);
-CREATE INDEX idx_subjects_order         ON subjects(order_index);
-
-CREATE TRIGGER update_subjects_updated_at
-  BEFORE UPDATE ON subjects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER subjects_auto_etablissement
-  BEFORE INSERT ON subjects FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "subjects_tenant" ON subjects
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: teaching_units
--- ============================================
-
-CREATE TABLE teaching_units (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  subject_id       UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-  name             TEXT NOT NULL,
-  code             TEXT NOT NULL,
-  description      TEXT,
-  order_index      INTEGER DEFAULT 0,
-  is_active        BOOLEAN DEFAULT TRUE,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(etablissement_id, code)
+CREATE TABLE public.classes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  name text NOT NULL,
+  level text NOT NULL,
+  academic_year text NOT NULL,
+  description text,
+  max_students integer DEFAULT 25,
+  room_number text,
+  schedule_notes text,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  day_of_week text,
+  start_time time without time zone,
+  end_time time without time zone,
+  cotisation_type_id uuid,
+  room_id uuid,
+  teaching_mode text NOT NULL DEFAULT 'single'::text CHECK (teaching_mode = ANY (ARRAY['single'::text, 'multi'::text])),
+  CONSTRAINT classes_pkey PRIMARY KEY (id),
+  CONSTRAINT classes_cotisation_type_id_fkey FOREIGN KEY (cotisation_type_id) REFERENCES public.cotisation_types(id),
+  CONSTRAINT classes_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT classes_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
 );
-
-CREATE INDEX idx_teaching_units_etablissement ON teaching_units(etablissement_id);
-CREATE INDEX idx_teaching_units_subject       ON teaching_units(subject_id);
-CREATE INDEX idx_teaching_units_order         ON teaching_units(order_index);
-
-CREATE TRIGGER update_teaching_units_updated_at
-  BEFORE UPDATE ON teaching_units FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER teaching_units_auto_etablissement
-  BEFORE INSERT ON teaching_units FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE teaching_units ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "teaching_units_tenant" ON teaching_units
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: modules
--- ============================================
-
-CREATE TABLE modules (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  teaching_unit_id UUID NOT NULL REFERENCES teaching_units(id) ON DELETE CASCADE,
-  name             TEXT NOT NULL,
-  code             TEXT NOT NULL,
-  description      TEXT,
-  order_index      INTEGER DEFAULT 0,
-  is_active        BOOLEAN DEFAULT TRUE,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(etablissement_id, code)
+CREATE TABLE public.cotisation_types (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  label text NOT NULL,
+  amount numeric NOT NULL DEFAULT 0,
+  registration_fee numeric NOT NULL DEFAULT 0,
+  sibling_discount numeric NOT NULL DEFAULT 0,
+  max_installments integer NOT NULL DEFAULT 1,
+  order_index integer NOT NULL DEFAULT 0,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  sibling_discount_same_type boolean NOT NULL DEFAULT false,
+  is_adult boolean NOT NULL DEFAULT false,
+  CONSTRAINT cotisation_types_pkey PRIMARY KEY (id),
+  CONSTRAINT cotisation_types_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT cotisation_types_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id)
 );
-
-CREATE INDEX idx_modules_etablissement ON modules(etablissement_id);
-CREATE INDEX idx_modules_teaching_unit ON modules(teaching_unit_id);
-CREATE INDEX idx_modules_order         ON modules(order_index);
-
-CREATE TRIGGER update_modules_updated_at
-  BEFORE UPDATE ON modules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER modules_auto_etablissement
-  BEFORE INSERT ON modules FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "modules_tenant" ON modules
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: evaluations
--- ============================================
-
-CREATE TABLE evaluations (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  class_id         UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  module_id        UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
-  teacher_id       UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  title            TEXT NOT NULL,
-  description      TEXT,
-  evaluation_type  TEXT CHECK (evaluation_type IN ('test', 'exam', 'oral', 'homework', 'participation')),
-  max_score        DECIMAL(5,2) NOT NULL DEFAULT 20.00,
-  coefficient      DECIMAL(3,2) DEFAULT 1.00,
-  evaluation_date  DATE NOT NULL,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.cours (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  unite_enseignement_id uuid NOT NULL,
+  module_id uuid,
+  nom_fr text NOT NULL,
+  nom_ar text,
+  duree_minutes integer,
+  order_index integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  code text,
+  CONSTRAINT cours_pkey PRIMARY KEY (id),
+  CONSTRAINT cours_unite_enseignement_id_fkey FOREIGN KEY (unite_enseignement_id) REFERENCES public.unites_enseignement(id),
+  CONSTRAINT cours_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.cours_modules(id)
 );
-
-CREATE INDEX idx_evaluations_etablissement ON evaluations(etablissement_id);
-CREATE INDEX idx_evaluations_class         ON evaluations(class_id);
-CREATE INDEX idx_evaluations_module        ON evaluations(module_id);
-CREATE INDEX idx_evaluations_date          ON evaluations(evaluation_date);
-
-CREATE TRIGGER update_evaluations_updated_at
-  BEFORE UPDATE ON evaluations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER evaluations_auto_etablissement
-  BEFORE INSERT ON evaluations FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE evaluations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "evaluations_tenant" ON evaluations
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: grades
--- ============================================
-
-CREATE TABLE grades (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  student_id    UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  evaluation_id UUID NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
-  score         DECIMAL(5,2),
-  comment       TEXT,
-  is_absent     BOOLEAN DEFAULT FALSE,
-  graded_by     UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  graded_at     TIMESTAMPTZ,
-  created_at    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(student_id, evaluation_id),
-  CHECK (score IS NULL OR score >= 0)
+CREATE TABLE public.cours_modules (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  unite_enseignement_id uuid NOT NULL,
+  nom_fr text NOT NULL,
+  nom_ar text,
+  order_index integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  code text,
+  CONSTRAINT cours_modules_pkey PRIMARY KEY (id),
+  CONSTRAINT cours_modules_unite_enseignement_id_fkey FOREIGN KEY (unite_enseignement_id) REFERENCES public.unites_enseignement(id)
 );
-
-CREATE INDEX idx_grades_student    ON grades(student_id);
-CREATE INDEX idx_grades_evaluation ON grades(evaluation_id);
-
-CREATE TRIGGER update_grades_updated_at
-  BEFORE UPDATE ON grades FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "grades_tenant" ON grades
-  USING (student_id IN (
-    SELECT id FROM students WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- TABLE: absences
--- ============================================
-
-CREATE TABLE absences (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  student_id    UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  class_id      UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  absence_date  DATE NOT NULL,
-  absence_type  TEXT CHECK (absence_type IN ('absence', 'late', 'authorized_absence')),
-  period        TEXT,
-  reason        TEXT,
-  is_justified  BOOLEAN DEFAULT FALSE,
-  justification_document_url TEXT,
-  recorded_by   UUID REFERENCES teachers(id) ON DELETE SET NULL,
-  created_at    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.document_type_configs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  category text NOT NULL CHECK (category = ANY (ARRAY['identite'::text, 'medical'::text, 'assurance'::text, 'autres'::text])),
+  doc_key text NOT NULL,
+  label text NOT NULL,
+  is_required boolean NOT NULL DEFAULT false,
+  order_index integer NOT NULL DEFAULT 0,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT document_type_configs_pkey PRIMARY KEY (id),
+  CONSTRAINT document_type_configs_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
 );
-
-CREATE INDEX idx_absences_student ON absences(student_id);
-CREATE INDEX idx_absences_date    ON absences(absence_date);
-CREATE INDEX idx_absences_type    ON absences(absence_type);
-
-CREATE TRIGGER update_absences_updated_at
-  BEFORE UPDATE ON absences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-ALTER TABLE absences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "absences_tenant" ON absences
-  USING (student_id IN (
-    SELECT id FROM students WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- TABLE: announcements
--- ============================================
-
-CREATE TABLE announcements (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  title            TEXT NOT NULL,
-  content          TEXT NOT NULL,
-  announcement_type TEXT CHECK (announcement_type IN ('general', 'class', 'parent', 'teacher')),
-  target_class_id  UUID REFERENCES classes(id) ON DELETE CASCADE,
-  priority         TEXT DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
-  published_by     UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  is_published     BOOLEAN DEFAULT FALSE,
-  published_at     TIMESTAMPTZ,
-  expires_at       TIMESTAMPTZ,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
+CREATE TABLE public.enrollments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  student_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  enrollment_date date DEFAULT CURRENT_DATE,
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'withdrawn'::text, 'completed'::text])),
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT enrollments_pkey PRIMARY KEY (id),
+  CONSTRAINT enrollments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT enrollments_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id)
 );
-
-CREATE INDEX idx_announcements_etablissement ON announcements(etablissement_id);
-CREATE INDEX idx_announcements_type          ON announcements(announcement_type);
-CREATE INDEX idx_announcements_class         ON announcements(target_class_id);
-CREATE INDEX idx_announcements_published     ON announcements(is_published);
-
-CREATE TRIGGER update_announcements_updated_at
-  BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER announcements_auto_etablissement
-  BEFORE INSERT ON announcements FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "announcements_tenant" ON announcements
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: announcement_recipients
--- ============================================
-
-CREATE TABLE announcement_recipients (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
-  parent_id       UUID NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
-  is_read         BOOLEAN DEFAULT FALSE,
-  read_at         TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(announcement_id, parent_id)
+CREATE TABLE public.etablissements (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  slug text NOT NULL UNIQUE,
+  nom text NOT NULL,
+  adresse text,
+  telephone text,
+  contact text,
+  is_active boolean NOT NULL DEFAULT true,
+  subscription_expires_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  max_students integer,
+  notes text,
+  logo_url text,
+  week_start_day smallint DEFAULT 1 CHECK (week_start_day = ANY (ARRAY[0, 1, 6])),
+  working_days integer NOT NULL DEFAULT 5 CHECK (working_days = ANY (ARRAY[5, 7])),
+  CONSTRAINT etablissements_pkey PRIMARY KEY (id)
 );
-
-CREATE INDEX idx_ann_recipients_announcement ON announcement_recipients(announcement_id);
-CREATE INDEX idx_ann_recipients_parent       ON announcement_recipients(parent_id);
-CREATE INDEX idx_ann_recipients_is_read      ON announcement_recipients(is_read);
-
-ALTER TABLE announcement_recipients ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "ann_recipients_tenant" ON announcement_recipients
-  USING (announcement_id IN (
-    SELECT id FROM announcements WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- TABLE: announcement_staff_recipients
--- ============================================
-
-CREATE TABLE announcement_staff_recipients (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  announcement_id UUID NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
-  profile_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  is_read         BOOLEAN DEFAULT FALSE,
-  read_at         TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(announcement_id, profile_id)
+CREATE TABLE public.eval_type_configs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  school_year_id uuid NOT NULL,
+  eval_type text NOT NULL CHECK (eval_type = ANY (ARRAY['diagnostic'::text, 'scored'::text, 'stars'::text])),
+  is_active boolean NOT NULL DEFAULT true,
+  max_score integer,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  diagnostic_options jsonb,
+  CONSTRAINT eval_type_configs_pkey PRIMARY KEY (id),
+  CONSTRAINT eval_type_configs_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id)
 );
-
-CREATE INDEX idx_ann_staff_ann     ON announcement_staff_recipients(announcement_id);
-CREATE INDEX idx_ann_staff_profile ON announcement_staff_recipients(profile_id);
-CREATE INDEX idx_ann_staff_read    ON announcement_staff_recipients(is_read);
-
-ALTER TABLE announcement_staff_recipients ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "ann_staff_recipients_tenant" ON announcement_staff_recipients
-  USING (announcement_id IN (
-    SELECT id FROM announcements WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- TABLE: payments
--- ============================================
-
-CREATE TABLE payments (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  etablissement_id UUID NOT NULL REFERENCES etablissements(id) ON DELETE CASCADE,
-  student_id       UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  amount           DECIMAL(10,2) NOT NULL,
-  payment_type     TEXT CHECK (payment_type IN ('enrollment', 'tuition', 'materials', 'other')),
-  payment_method   TEXT CHECK (payment_method IN ('cash', 'check', 'bank_transfer', 'card', 'other')),
-  payment_status   TEXT DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'overdue', 'cancelled')),
-  due_date         DATE,
-  paid_date        DATE,
-  academic_year    TEXT NOT NULL,
-  description      TEXT,
-  receipt_number   TEXT,
-  created_by       UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  updated_at       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(etablissement_id, receipt_number)
+CREATE TABLE public.evaluation_order_config (
+  class_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  ue_order ARRAY DEFAULT '{}'::text[],
+  module_order jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT evaluation_order_config_pkey PRIMARY KEY (class_id, period_id)
 );
-
-CREATE INDEX idx_payments_etablissement ON payments(etablissement_id);
-CREATE INDEX idx_payments_student       ON payments(student_id);
-CREATE INDEX idx_payments_status        ON payments(payment_status);
-CREATE INDEX idx_payments_academic_year ON payments(academic_year);
-
-CREATE TRIGGER update_payments_updated_at
-  BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER payments_auto_etablissement
-  BEFORE INSERT ON payments FOR EACH ROW EXECUTE FUNCTION set_etablissement_id();
-
-ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "payments_tenant" ON payments
-  USING (etablissement_id = current_etablissement_id());
-
--- ============================================
--- TABLE: schedules
--- ============================================
-
-CREATE TABLE schedules (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  class_id    UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
-  teacher_id  UUID NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
-  module_id   UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
-  day_of_week INTEGER CHECK (day_of_week BETWEEN 0 AND 6),
-  start_time  TIME NOT NULL,
-  end_time    TIME NOT NULL,
-  room_number TEXT,
-  is_active   BOOLEAN DEFAULT TRUE,
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW(),
-  CHECK (end_time > start_time)
+CREATE TABLE public.evaluations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  module_id uuid,
+  teacher_id uuid,
+  title text NOT NULL,
+  description text,
+  evaluation_type text CHECK (evaluation_type = ANY (ARRAY['test'::text, 'exam'::text, 'oral'::text, 'homework'::text, 'participation'::text])),
+  max_score numeric DEFAULT 20.00,
+  coefficient numeric DEFAULT 1.00,
+  evaluation_date date,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  cours_id uuid,
+  period_id uuid,
+  eval_kind text CHECK (eval_kind = ANY (ARRAY['diagnostic'::text, 'scored'::text, 'stars'::text])),
+  display_ue_id uuid,
+  display_module_id uuid,
+  sort_order integer DEFAULT 0,
+  CONSTRAINT evaluations_pkey PRIMARY KEY (id),
+  CONSTRAINT evaluations_cours_id_fkey FOREIGN KEY (cours_id) REFERENCES public.cours(id),
+  CONSTRAINT evaluations_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.periods(id),
+  CONSTRAINT evaluations_display_ue_id_fkey FOREIGN KEY (display_ue_id) REFERENCES public.unites_enseignement(id),
+  CONSTRAINT evaluations_display_module_id_fkey FOREIGN KEY (display_module_id) REFERENCES public.cours_modules(id),
+  CONSTRAINT evaluations_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT evaluations_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT evaluations_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id),
+  CONSTRAINT evaluations_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.teachers(id)
 );
-
-CREATE INDEX idx_schedules_class   ON schedules(class_id);
-CREATE INDEX idx_schedules_teacher ON schedules(teacher_id);
-CREATE INDEX idx_schedules_day     ON schedules(day_of_week);
-
-CREATE TRIGGER update_schedules_updated_at
-  BEFORE UPDATE ON schedules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-ALTER TABLE schedules ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "schedules_tenant" ON schedules
-  USING (class_id IN (
-    SELECT id FROM classes WHERE etablissement_id = current_etablissement_id()
-  ));
-
--- ============================================
--- FIN DU SCHÉMA
--- ============================================
--- Initialisation après exécution du schéma :
---
--- 1. Dans Supabase Studio → SQL Editor, exécuter :
---    INSERT INTO etablissements (slug, nom, annee_courante)
---    VALUES ('demo', 'Mon Établissement', '2025-2026');
---
--- 2. Dans Supabase Studio → Authentication → Add user :
---    Créer l'utilisateur admin (email + mot de passe)
---
--- 3. Insérer son profil (remplacer les UUIDs) :
---    INSERT INTO profiles (id, etablissement_id, email, role, first_name, last_name)
---    VALUES (
---      '<user-uuid-from-auth>',
---      '<etablissement-uuid>',
---      'admin@monecole.fr',
---      'admin',
---      'Admin',
---      'Principal'
---    );
---
--- 4. Ajouter dans .env.local :
---    DEFAULT_TENANT_SLUG=demo
--- ============================================
-
-SELECT 'Schéma multi-tenant Bilal Education créé avec succès!' AS status;
+CREATE TABLE public.expenses (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  expense_date date NOT NULL DEFAULT CURRENT_DATE,
+  label text NOT NULL,
+  amount numeric NOT NULL DEFAULT 0,
+  category text,
+  document_url text,
+  notes text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT expenses_pkey PRIMARY KEY (id),
+  CONSTRAINT expenses_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT expenses_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id),
+  CONSTRAINT expenses_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.family_fees (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  parent_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  subtotal numeric NOT NULL DEFAULT 0,
+  adjustments_total numeric NOT NULL DEFAULT 0,
+  total_due numeric NOT NULL DEFAULT 0,
+  num_installments integer NOT NULL DEFAULT 1,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'partial'::text, 'paid'::text, 'overpaid'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT family_fees_pkey PRIMARY KEY (id),
+  CONSTRAINT family_fees_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT family_fees_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.parents(id),
+  CONSTRAINT family_fees_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id)
+);
+CREATE TABLE public.fee_adjustments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  family_fee_id uuid NOT NULL,
+  adjustment_date date NOT NULL DEFAULT CURRENT_DATE,
+  adjustment_type text NOT NULL CHECK (adjustment_type = ANY (ARRAY['reduction'::text, 'avoir'::text, 'remboursement'::text])),
+  label text NOT NULL,
+  amount numeric NOT NULL,
+  recorded_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fee_adjustments_pkey PRIMARY KEY (id),
+  CONSTRAINT fee_adjustments_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT fee_adjustments_family_fee_id_fkey FOREIGN KEY (family_fee_id) REFERENCES public.family_fees(id),
+  CONSTRAINT fee_adjustments_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.fee_installments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  family_fee_id uuid NOT NULL,
+  installment_number integer NOT NULL,
+  due_date date NOT NULL,
+  amount_due numeric NOT NULL,
+  amount_paid numeric NOT NULL DEFAULT 0,
+  paid_date date,
+  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'check'::text, 'card'::text, 'transfer'::text, 'online'::text])),
+  payment_reference jsonb,
+  receipt_number text,
+  status text NOT NULL DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'partial'::text, 'paid'::text, 'overpaid'::text])),
+  notes text,
+  recorded_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fee_installments_pkey PRIMARY KEY (id),
+  CONSTRAINT fee_installments_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT fee_installments_family_fee_id_fkey FOREIGN KEY (family_fee_id) REFERENCES public.family_fees(id),
+  CONSTRAINT fee_installments_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.grades (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  student_id uuid NOT NULL,
+  evaluation_id uuid NOT NULL,
+  score numeric CHECK (score IS NULL OR score >= 0::numeric),
+  comment text,
+  is_absent boolean DEFAULT false,
+  graded_by uuid,
+  graded_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT grades_pkey PRIMARY KEY (id),
+  CONSTRAINT grades_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT grades_evaluation_id_fkey FOREIGN KEY (evaluation_id) REFERENCES public.evaluations(id),
+  CONSTRAINT grades_graded_by_fkey FOREIGN KEY (graded_by) REFERENCES public.teachers(id)
+);
+CREATE TABLE public.materials (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  name text NOT NULL,
+  category text NOT NULL DEFAULT 'autre'::text CHECK (category = ANY (ARRAY['informatique'::text, 'audiovisuel'::text, 'mobilier'::text, 'sport'::text, 'fournitures'::text, 'autre'::text])),
+  quantity integer NOT NULL DEFAULT 1,
+  room_id uuid,
+  condition text NOT NULL DEFAULT 'bon'::text CHECK (condition = ANY (ARRAY['neuf'::text, 'bon'::text, 'use'::text, 'hors_service'::text])),
+  serial_number text,
+  purchase_date date,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT materials_pkey PRIMARY KEY (id),
+  CONSTRAINT materials_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT materials_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
+);
+CREATE TABLE public.modules (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  teaching_unit_id uuid NOT NULL,
+  name text NOT NULL,
+  code text NOT NULL,
+  description text,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT modules_pkey PRIMARY KEY (id),
+  CONSTRAINT modules_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT modules_teaching_unit_id_fkey FOREIGN KEY (teaching_unit_id) REFERENCES public.teaching_units(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['absence'::text, 'retard'::text, 'payment'::text, 'announcement'::text])),
+  parent_id uuid NOT NULL,
+  student_id uuid,
+  title text NOT NULL,
+  body text NOT NULL,
+  metadata jsonb DEFAULT '{}'::jsonb,
+  email_status text DEFAULT 'pending'::text CHECK (email_status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text, 'skipped'::text])),
+  push_status text DEFAULT 'pending'::text CHECK (push_status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text, 'no_sub'::text])),
+  is_read boolean DEFAULT false,
+  read_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT notifications_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.parents(id),
+  CONSTRAINT notifications_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id)
+);
+CREATE TABLE public.other_revenues (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  revenue_date date NOT NULL DEFAULT CURRENT_DATE,
+  label text NOT NULL,
+  amount numeric NOT NULL DEFAULT 0,
+  source_type text,
+  notes text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT other_revenues_pkey PRIMARY KEY (id),
+  CONSTRAINT other_revenues_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT other_revenues_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id),
+  CONSTRAINT other_revenues_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.parent_class_enrollments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  parent_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  tutor_number smallint NOT NULL CHECK (tutor_number = ANY (ARRAY[1, 2])),
+  enrollment_date date NOT NULL DEFAULT CURRENT_DATE,
+  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'withdrawn'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT parent_class_enrollments_pkey PRIMARY KEY (id),
+  CONSTRAINT parent_class_enrollments_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT parent_class_enrollments_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.parents(id),
+  CONSTRAINT parent_class_enrollments_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id)
+);
+CREATE TABLE public.parents (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  tutor1_last_name text NOT NULL,
+  tutor1_first_name text NOT NULL,
+  tutor1_relationship text DEFAULT 'père'::text CHECK (tutor1_relationship = ANY (ARRAY['père'::text, 'mère'::text, 'tuteur'::text, 'autre'::text])),
+  tutor1_phone text,
+  tutor1_email text,
+  tutor1_address text,
+  tutor1_city text,
+  tutor1_postal_code text,
+  tutor1_profession text,
+  tutor2_last_name text,
+  tutor2_first_name text,
+  tutor2_relationship text CHECK (tutor2_relationship = ANY (ARRAY['père'::text, 'mère'::text, 'tuteur'::text, 'autre'::text])),
+  tutor2_phone text,
+  tutor2_email text,
+  tutor2_address text,
+  tutor2_city text,
+  tutor2_postal_code text,
+  tutor2_profession text,
+  tutor1_adult_courses boolean NOT NULL DEFAULT false,
+  tutor2_adult_courses boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  situation_familiale text CHECK (situation_familiale = ANY (ARRAY['mariés'::text, 'pacsés'::text, 'union_libre'::text, 'séparés'::text, 'divorcés'::text, 'veuf_veuve'::text, 'monoparental'::text])),
+  type_garde text CHECK (type_garde = ANY (ARRAY['alternée'::text, 'exclusive_t1'::text, 'exclusive_t2'::text])),
+  notes text,
+  user_id uuid,
+  tutor1_user_id uuid,
+  tutor2_user_id uuid,
+  CONSTRAINT parents_pkey PRIMARY KEY (id),
+  CONSTRAINT parents_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT parents_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT parents_tutor1_user_id_fkey FOREIGN KEY (tutor1_user_id) REFERENCES public.profiles(id),
+  CONSTRAINT parents_tutor2_user_id_fkey FOREIGN KEY (tutor2_user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  amount numeric NOT NULL,
+  payment_type text CHECK (payment_type = ANY (ARRAY['enrollment'::text, 'tuition'::text, 'materials'::text, 'other'::text])),
+  payment_method text CHECK (payment_method = ANY (ARRAY['cash'::text, 'check'::text, 'bank_transfer'::text, 'card'::text, 'other'::text])),
+  payment_status text DEFAULT 'pending'::text CHECK (payment_status = ANY (ARRAY['pending'::text, 'paid'::text, 'overdue'::text, 'cancelled'::text])),
+  due_date date,
+  paid_date date,
+  academic_year text NOT NULL,
+  description text,
+  receipt_number text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT payments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT payments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.periods (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  school_year_id uuid NOT NULL,
+  label text NOT NULL,
+  order_index integer NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT periods_pkey PRIMARY KEY (id),
+  CONSTRAINT periods_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id)
+);
+CREATE TABLE public.presence_type_rates (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  presence_type_id uuid NOT NULL,
+  rate numeric NOT NULL DEFAULT 0,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT presence_type_rates_pkey PRIMARY KEY (id),
+  CONSTRAINT presence_type_rates_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT presence_type_rates_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id),
+  CONSTRAINT presence_type_rates_presence_type_id_fkey FOREIGN KEY (presence_type_id) REFERENCES public.presence_types(id)
+);
+CREATE TABLE public.presence_types (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  label text NOT NULL,
+  code text NOT NULL,
+  color text NOT NULL DEFAULT '#6366f1'::text,
+  is_active boolean NOT NULL DEFAULT true,
+  order_index integer NOT NULL DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  is_absence boolean NOT NULL DEFAULT false,
+  CONSTRAINT presence_types_pkey PRIMARY KEY (id),
+  CONSTRAINT presence_types_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  etablissement_id uuid,
+  email text NOT NULL,
+  role text NOT NULL CHECK (role = ANY (ARRAY['super_admin'::text, 'admin'::text, 'direction'::text, 'comptable'::text, 'responsable_pedagogique'::text, 'enseignant'::text, 'secretaire'::text, 'parent'::text])),
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  phone text,
+  avatar_url text,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  civilite text,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT profiles_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);
+CREATE TABLE public.push_subscriptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  etablissement_id uuid NOT NULL,
+  endpoint text NOT NULL,
+  p256dh text NOT NULL,
+  auth_key text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT push_subscriptions_pkey PRIMARY KEY (id),
+  CONSTRAINT push_subscriptions_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);
+CREATE TABLE public.rooms (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  name text NOT NULL,
+  room_type text NOT NULL DEFAULT 'salle_cours'::text CHECK (room_type = ANY (ARRAY['salle_cours'::text, 'salle_informatique'::text, 'bibliotheque'::text, 'salle_reunion'::text, 'salle_sport'::text, 'administration'::text, 'autre'::text])),
+  capacity integer,
+  floor text,
+  description text,
+  is_available boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT rooms_pkey PRIMARY KEY (id),
+  CONSTRAINT rooms_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);
+CREATE TABLE public.schedule_exceptions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  schedule_slot_id uuid NOT NULL,
+  exception_date date NOT NULL,
+  exception_type text NOT NULL CHECK (exception_type = ANY (ARRAY['cancelled'::text, 'modified'::text])),
+  override_start_time time without time zone,
+  override_end_time time without time zone,
+  override_teacher_id uuid,
+  override_room_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT schedule_exceptions_pkey PRIMARY KEY (id),
+  CONSTRAINT schedule_exceptions_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT schedule_exceptions_schedule_slot_id_fkey FOREIGN KEY (schedule_slot_id) REFERENCES public.schedule_slots(id),
+  CONSTRAINT schedule_exceptions_override_teacher_id_fkey FOREIGN KEY (override_teacher_id) REFERENCES public.teachers(id),
+  CONSTRAINT schedule_exceptions_override_room_id_fkey FOREIGN KEY (override_room_id) REFERENCES public.rooms(id)
+);
+CREATE TABLE public.schedule_slots (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  cours_id uuid,
+  room_id uuid,
+  is_recurring boolean NOT NULL DEFAULT true,
+  day_of_week smallint CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  slot_date date,
+  start_time time without time zone NOT NULL,
+  end_time time without time zone NOT NULL,
+  slot_type text NOT NULL DEFAULT 'cours'::text CHECK (slot_type = ANY (ARRAY['cours'::text, 'activite'::text])),
+  color text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  effective_from date,
+  effective_until date,
+  CONSTRAINT schedule_slots_pkey PRIMARY KEY (id),
+  CONSTRAINT schedule_slots_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT schedule_slots_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id),
+  CONSTRAINT schedule_slots_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT schedule_slots_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.teachers(id),
+  CONSTRAINT schedule_slots_cours_id_fkey FOREIGN KEY (cours_id) REFERENCES public.cours(id),
+  CONSTRAINT schedule_slots_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms(id)
+);
+CREATE TABLE public.schedule_validations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  schedule_slot_id uuid NOT NULL,
+  profile_id uuid NOT NULL,
+  validation_date date NOT NULL,
+  time_entry_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT schedule_validations_pkey PRIMARY KEY (id),
+  CONSTRAINT schedule_validations_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT schedule_validations_schedule_slot_id_fkey FOREIGN KEY (schedule_slot_id) REFERENCES public.schedule_slots(id),
+  CONSTRAINT schedule_validations_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
+  CONSTRAINT schedule_validations_time_entry_id_fkey FOREIGN KEY (time_entry_id) REFERENCES public.staff_time_entries(id)
+);
+CREATE TABLE public.schedules (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  class_id uuid NOT NULL,
+  teacher_id uuid NOT NULL,
+  module_id uuid NOT NULL,
+  day_of_week integer CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  start_time time without time zone NOT NULL,
+  end_time time without time zone NOT NULL,
+  room_number text,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT schedules_pkey PRIMARY KEY (id),
+  CONSTRAINT schedules_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT schedules_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.teachers(id),
+  CONSTRAINT schedules_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.modules(id)
+);
+CREATE TABLE public.school_years (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  label text NOT NULL,
+  is_current boolean NOT NULL DEFAULT false,
+  period_type text NOT NULL DEFAULT 'trimestrial'::text CHECK (period_type = ANY (ARRAY['trimestrial'::text, 'semestrial'::text])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  start_date date,
+  end_date date,
+  vacations jsonb DEFAULT '[]'::jsonb,
+  CONSTRAINT school_years_pkey PRIMARY KEY (id),
+  CONSTRAINT school_years_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);
+CREATE TABLE public.staff_hourly_rates (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  school_year_id uuid NOT NULL,
+  rate_cours numeric NOT NULL DEFAULT 0,
+  rate_activite numeric NOT NULL DEFAULT 0,
+  rate_menage numeric NOT NULL DEFAULT 0,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT staff_hourly_rates_pkey PRIMARY KEY (id),
+  CONSTRAINT staff_hourly_rates_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT staff_hourly_rates_school_year_id_fkey FOREIGN KEY (school_year_id) REFERENCES public.school_years(id),
+  CONSTRAINT staff_hourly_rates_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.staff_time_entries (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  profile_id uuid NOT NULL,
+  entry_date date NOT NULL,
+  entry_type text NOT NULL,
+  start_time time without time zone,
+  end_time time without time zone,
+  duration_minutes integer NOT NULL DEFAULT 0,
+  is_replacement boolean NOT NULL DEFAULT false,
+  replaced_profile_id uuid,
+  absence_reason text,
+  notes text,
+  recorded_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT staff_time_entries_pkey PRIMARY KEY (id),
+  CONSTRAINT staff_time_entries_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT staff_time_entries_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id),
+  CONSTRAINT staff_time_entries_replaced_profile_id_fkey FOREIGN KEY (replaced_profile_id) REFERENCES public.profiles(id),
+  CONSTRAINT staff_time_entries_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.student_documents (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  doc_type_key text NOT NULL,
+  category text NOT NULL CHECK (category = ANY (ARRAY['identite'::text, 'medical'::text, 'assurance'::text, 'autres'::text])),
+  file_url text NOT NULL,
+  file_name text NOT NULL,
+  expires_at date,
+  uploaded_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT student_documents_pkey PRIMARY KEY (id),
+  CONSTRAINT student_documents_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT student_documents_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT student_documents_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.student_warning_attachments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  warning_id uuid NOT NULL,
+  file_url text NOT NULL,
+  file_name text NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT student_warning_attachments_pkey PRIMARY KEY (id),
+  CONSTRAINT student_warning_attachments_warning_id_fkey FOREIGN KEY (warning_id) REFERENCES public.student_warnings(id)
+);
+CREATE TABLE public.student_warnings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  class_id uuid NOT NULL,
+  period_id uuid NOT NULL,
+  warning_date date NOT NULL DEFAULT CURRENT_DATE,
+  severity text NOT NULL CHECK (severity = ANY (ARRAY['punition'::text, 'prevention'::text, 'conservatoire'::text, 'sanction'::text])),
+  motif text NOT NULL DEFAULT ''::text,
+  issued_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT student_warnings_pkey PRIMARY KEY (id),
+  CONSTRAINT student_warnings_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT student_warnings_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.students(id),
+  CONSTRAINT student_warnings_class_id_fkey FOREIGN KEY (class_id) REFERENCES public.classes(id),
+  CONSTRAINT student_warnings_period_id_fkey FOREIGN KEY (period_id) REFERENCES public.periods(id),
+  CONSTRAINT student_warnings_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.students (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  user_id uuid,
+  parent_id uuid,
+  student_number text NOT NULL,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  date_of_birth date NOT NULL,
+  gender text CHECK (gender = ANY (ARRAY['male'::text, 'female'::text, 'non_specified'::text])),
+  address text,
+  city text,
+  postal_code text,
+  emergency_contact_name text,
+  emergency_contact_phone text,
+  medical_notes text,
+  enrollment_date date DEFAULT CURRENT_DATE,
+  is_active boolean DEFAULT true,
+  exit_authorization boolean NOT NULL DEFAULT false,
+  media_authorization boolean NOT NULL DEFAULT false,
+  has_pai boolean NOT NULL DEFAULT false,
+  pai_notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  photo_url text,
+  CONSTRAINT students_pkey PRIMARY KEY (id),
+  CONSTRAINT students_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT students_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT students_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.parents(id)
+);
+CREATE TABLE public.subjects (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  name text NOT NULL,
+  code text NOT NULL,
+  description text,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT subjects_pkey PRIMARY KEY (id),
+  CONSTRAINT subjects_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);
+CREATE TABLE public.teachers (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  user_id uuid,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  employee_number text NOT NULL,
+  phone text,
+  email text NOT NULL,
+  specialization text,
+  hire_date date DEFAULT CURRENT_DATE,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  civilite text,
+  CONSTRAINT teachers_pkey PRIMARY KEY (id),
+  CONSTRAINT teachers_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT teachers_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.teaching_units (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  etablissement_id uuid NOT NULL,
+  subject_id uuid NOT NULL,
+  name text NOT NULL,
+  code text NOT NULL,
+  description text,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT teaching_units_pkey PRIMARY KEY (id),
+  CONSTRAINT teaching_units_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id),
+  CONSTRAINT teaching_units_subject_id_fkey FOREIGN KEY (subject_id) REFERENCES public.subjects(id)
+);
+CREATE TABLE public.unites_enseignement (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  etablissement_id uuid NOT NULL,
+  nom_fr text NOT NULL,
+  nom_ar text,
+  code text,
+  order_index integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  color text,
+  CONSTRAINT unites_enseignement_pkey PRIMARY KEY (id),
+  CONSTRAINT unites_enseignement_etablissement_id_fkey FOREIGN KEY (etablissement_id) REFERENCES public.etablissements(id)
+);

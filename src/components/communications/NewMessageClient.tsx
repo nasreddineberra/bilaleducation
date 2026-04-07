@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, lazy, Suspense } from 'react'
 import { clsx } from 'clsx'
 import { Send, Paperclip, X, Eye, CheckSquare, Square } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
-import RichTextEditor from '@/components/ui/RichTextEditor'
 import type { UserRole } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { sanitize } from '@/lib/security/sanitize'
+
+const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -296,7 +298,7 @@ export default function NewMessageClient({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ announcement_id: announcement.id, etablissement_id: etablissementId }),
-        }).catch(() => {})
+        }).catch((err) => console.error('[NewMessage] Échec notification annonce:', err))
       }
 
       toast.success("Message enregistré avec succès. L'envoi des emails est en cours.")
@@ -460,7 +462,9 @@ export default function NewMessageClient({
       {/* 3. Corps du message */}
       <div className="card p-4 space-y-2">
         <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Message</label>
-        <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
+        <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+          <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
+        </Suspense>
       </div>
 
       {/* 4. Pieces jointes */}
@@ -534,7 +538,7 @@ export default function NewMessageClient({
             <hr className="my-2 border-warm-100" />
             <div
               className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: bodyHtml }}
+              dangerouslySetInnerHTML={{ __html: sanitize(bodyHtml) }}
             />
           </div>
         </div>

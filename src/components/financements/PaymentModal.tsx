@@ -211,7 +211,7 @@ export default function PaymentModal({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ parent_id: parentId, amount: parsedAmount, method: safeMethod, receipt: receipt.trim() || null, paid_date: paidDate }),
-        }).catch(() => {})
+        }).catch((err) => console.error('[PaymentModal] Échec notification paiement:', err))
 
         setSaving(false)
         onSaved(data as FeeInstallment)

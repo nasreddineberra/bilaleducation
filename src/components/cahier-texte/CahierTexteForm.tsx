@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { BookOpenText, ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
-import RichTextEditor from '@/components/ui/RichTextEditor'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+
+const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 interface Props {
   role: string
@@ -147,7 +148,7 @@ export default function CahierTexteForm({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ homework_id: hw.id, etablissement_id: etablissementId }),
-          }).catch(() => {})
+          }).catch((err) => console.error('[CahierTexteForm] Échec notification devoir:', err))
         }
       }
 
@@ -248,11 +249,13 @@ export default function CahierTexteForm({
             Contenu de la seance <span className="text-red-400">*</span>
           </label>
           <div className="mt-1">
-            <RichTextEditor
-              content={contentHtml}
-              onChange={setContentHtml}
-              placeholder="Decrivez ce qui a ete fait en classe..."
-            />
+            <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+              <RichTextEditor
+                content={contentHtml}
+                onChange={setContentHtml}
+                placeholder="Decrivez ce qui a ete fait en classe..."
+              />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -312,11 +315,13 @@ export default function CahierTexteForm({
             <div>
               <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Consignes</label>
               <div className="mt-1">
-                <RichTextEditor
-                  content={hwDescription}
-                  onChange={setHwDescription}
-                  placeholder="Instructions pour le devoir..."
-                />
+                <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+                  <RichTextEditor
+                    content={hwDescription}
+                    onChange={setHwDescription}
+                    placeholder="Instructions pour le devoir..."
+                  />
+                </Suspense>
               </div>
             </div>
           </div>

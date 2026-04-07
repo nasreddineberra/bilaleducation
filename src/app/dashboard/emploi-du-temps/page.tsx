@@ -1,5 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
-import EmploiDuTempsClient from '@/components/emploi-du-temps/EmploiDuTempsClient'
+import dynamic from 'next/dynamic'
+
+const EmploiDuTempsClient = dynamic(
+  () => import('@/components/emploi-du-temps/EmploiDuTempsClient'),
+  { loading: () => <div className="flex items-center justify-center h-96 text-warm-400">Chargement de l'emploi du temps…</div> },
+)
 
 export default async function EmploiDuTempsPage() {
   const supabase = await createClient()

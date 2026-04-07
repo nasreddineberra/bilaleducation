@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { createParentWithAccounts, updateParentRecord, type TutorAccountResult } from '@/app/dashboard/parents/actions'
+import { createParentWithAccounts, updateParentRecord, type TutorAccountResult, type CreateParentPayload, type UpdateParentPayload } from '@/app/dashboard/parents/actions'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
 import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
@@ -244,7 +244,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       }
 
       if (isEditing) {
-        const result = await updateParentRecord(parent!.id, payload)
+        const result = await updateParentRecord(parent!.id, payload as UpdateParentPayload)
         if (result.error) {
           toast.error(result.error)
           setIsSubmitting(false)
@@ -258,7 +258,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
         }
       } else {
         // Création avec comptes utilisateurs automatiques
-        const result = await createParentWithAccounts(payload)
+        const result = await createParentWithAccounts(payload as CreateParentPayload)
         if (result.error) {
           toast.error(result.error)
           setIsSubmitting(false)

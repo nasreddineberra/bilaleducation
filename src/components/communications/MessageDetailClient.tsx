@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { ArrowLeft, Paperclip, Mail, Users, UserCheck, Globe, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { sanitize } from '@/lib/security/sanitize'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ export default function MessageDetailClient({ message, parentRecipients, staffRe
         <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Contenu du message</h2>
         <div
           className="prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: message.body_html ?? message.content }}
+          dangerouslySetInnerHTML={{ __html: sanitize(message.body_html ?? message.content) }}
         />
       </div>
 

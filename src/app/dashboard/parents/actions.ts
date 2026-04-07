@@ -3,6 +3,97 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
+import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+
+// ─── Types strictes pour les payloads ─────────────────────────────────────────
+
+export interface CreateParentPayload {
+  // Tuteur 1
+  tutor1_first_name?: string
+  tutor1_last_name?: string
+  tutor1_email?: string
+  tutor1_phone?: string | null
+  tutor1_relationship?: string | null
+  tutor1_address?: string | null
+  tutor1_city?: string | null
+  tutor1_postal_code?: string | null
+  tutor1_profession?: string | null
+  tutor1_adult_courses?: boolean
+  // Tuteur 2
+  tutor2_first_name?: string | null
+  tutor2_last_name?: string | null
+  tutor2_email?: string | null
+  tutor2_phone?: string | null
+  tutor2_relationship?: string | null
+  tutor2_address?: string | null
+  tutor2_city?: string | null
+  tutor2_postal_code?: string | null
+  tutor2_profession?: string | null
+  tutor2_adult_courses?: boolean
+  // Famille
+  situation_familiale?: string | null
+  type_garde?: string | null
+  // Métadonnées
+  notes?: string | null
+  student_ids?: string[]
+  // Champs gérés automatiquement (NON injectables)
+  // etablissement_id, tutor1_user_id, tutor2_user_id, created_at
+}
+
+export interface UpdateParentPayload {
+  // Mêmes champs que CreateParentPayload, sauf ceux gérés automatiquement
+  tutor1_first_name?: string
+  tutor1_last_name?: string
+  tutor1_email?: string | null
+  tutor1_phone?: string | null
+  tutor1_relationship?: string | null
+  tutor1_address?: string | null
+  tutor1_city?: string | null
+  tutor1_postal_code?: string | null
+  tutor1_profession?: string | null
+  tutor1_adult_courses?: boolean
+  tutor2_first_name?: string | null
+  tutor2_last_name?: string | null
+  tutor2_email?: string | null
+  tutor2_phone?: string | null
+  tutor2_relationship?: string | null
+  tutor2_address?: string | null
+  tutor2_city?: string | null
+  tutor2_postal_code?: string | null
+  tutor2_profession?: string | null
+  tutor2_adult_courses?: boolean
+  situation_familiale?: string | null
+  type_garde?: string | null
+  notes?: string | null
+  // is_active est géré séparément — ne pas autoriser via ce endpoint
+}
+
+// Champs interdits à l'injection
+const FORBIDDEN_FIELDS = [
+  'id', 'etablissement_id', 'tutor1_user_id', 'tutor2_user_id',
+  'created_at', 'updated_at', 'is_active', 'role',
+]
+
+const ALLOWED_FIELDS: (keyof CreateParentPayload)[] = [
+  'tutor1_first_name', 'tutor1_last_name', 'tutor1_email', 'tutor1_phone',
+  'tutor1_relationship', 'tutor1_address', 'tutor1_city', 'tutor1_postal_code',
+  'tutor1_profession', 'tutor1_adult_courses',
+  'tutor2_first_name', 'tutor2_last_name', 'tutor2_email', 'tutor2_phone',
+  'tutor2_relationship', 'tutor2_address', 'tutor2_city', 'tutor2_postal_code',
+  'tutor2_profession', 'tutor2_adult_courses',
+  'situation_familiale', 'type_garde', 'notes', 'student_ids',
+]
+
+function sanitizeParentPayload(payload: Record<string, any>): CreateParentPayload {
+  const clean: CreateParentPayload = {}
+  for (const [key, value] of Object.entries(payload)) {
+    if (FORBIDDEN_FIELDS.includes(key)) continue
+    if ((ALLOWED_FIELDS as string[]).includes(key)) {
+      (clean as any)[key] = value
+    }
+  }
+  return clean
+}
 
 function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64url').slice(0, 12)
@@ -16,25 +107,29 @@ export interface TutorAccountResult {
 
 // ─── Créer une fiche parents avec comptes utilisateurs automatiques ──────────
 
-export async function createParentWithAccounts(payload: Record<string, any>): Promise<{
+export async function createParentWithAccounts(payload: CreateParentPayload): Promise<{
   error?: string
   parentId?: string
   accounts?: TutorAccountResult[]
 }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  if (roleError) return { error: roleError }
+
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
 
   const supabase = createAdminClient()
   const accounts: TutorAccountResult[] = []
-  const parentData = { ...payload, etablissement_id: etablissementId } as any
+  const cleanPayload = sanitizeParentPayload(payload)
+  const parentData: Record<string, any> = { ...cleanPayload, etablissement_id: etablissementId }
 
   // Créer compte tuteur 1 si email présent
   if (payload.tutor1_email) {
     const result = await createTutorAccount(supabase, etablissementId, {
       email: payload.tutor1_email,
-      first_name: payload.tutor1_first_name,
-      last_name: payload.tutor1_last_name,
+      first_name: payload.tutor1_first_name ?? '',
+      last_name: payload.tutor1_last_name ?? '',
       phone: payload.tutor1_phone,
     })
     if (result.error) return { error: `Tuteur 1 : ${result.error}` }
@@ -50,8 +145,8 @@ export async function createParentWithAccounts(payload: Record<string, any>): Pr
   if (payload.tutor2_email) {
     const result = await createTutorAccount(supabase, etablissementId, {
       email: payload.tutor2_email,
-      first_name: payload.tutor2_first_name,
-      last_name: payload.tutor2_last_name,
+      first_name: payload.tutor2_first_name ?? '',
+      last_name: payload.tutor2_last_name ?? '',
       phone: payload.tutor2_phone,
     })
     if (result.error) {
@@ -95,13 +190,23 @@ export async function createParentWithAccounts(payload: Record<string, any>): Pr
 
 export async function updateParentRecord(
   parentId: string,
-  payload: Record<string, any>
+  payload: UpdateParentPayload
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
+
+  const cleanPayload: Record<string, any> = {}
+  for (const [key, value] of Object.entries(payload)) {
+    if (!FORBIDDEN_FIELDS.includes(key)) {
+      cleanPayload[key] = value
+    }
+  }
 
   const { error } = await supabase
     .from('parents')
-    .update(payload)
+    .update(cleanPayload)
     .eq('id', parentId)
 
   if (error) return { error: 'Erreur lors de la mise à jour.' }

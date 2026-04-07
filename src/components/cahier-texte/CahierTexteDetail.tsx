@@ -8,6 +8,7 @@ import {
   ClipboardList, BookOpen, Lightbulb, FileText,
   Eye, CheckCircle2, Circle,
 } from 'lucide-react'
+import { sanitize } from '@/lib/security/sanitize'
 import { createClient } from '@/lib/supabase/client'
 import { FloatButton } from '@/components/ui/FloatFields'
 
@@ -122,7 +123,7 @@ export default function CahierTexteDetail({
         </h2>
         <div
           className="prose prose-sm max-w-none text-warm-700"
-          dangerouslySetInnerHTML={{ __html: journal.content_html }}
+          dangerouslySetInnerHTML={{ __html: sanitize(journal.content_html) }}
         />
       </div>
 
@@ -159,7 +160,7 @@ export default function CahierTexteDetail({
               {hw.description_html && (
                 <div
                   className="prose prose-sm max-w-none text-warm-700"
-                  dangerouslySetInnerHTML={{ __html: hw.description_html }}
+                  dangerouslySetInnerHTML={{ __html: sanitize(hw.description_html) }}
                 />
               )}
             </div>

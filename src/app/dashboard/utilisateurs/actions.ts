@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import type { UserRole } from '@/types/database'
+import { validatePasswordServer } from '@/lib/validation/password'
+import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 
 export type { UserRole }
 
@@ -18,6 +20,9 @@ export async function createUser(data: {
   last_name:  string
   phone?:     string
 }): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   // Lire l'etablissement_id injecté par le middleware
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
@@ -27,6 +32,12 @@ export async function createUser(data: {
   }
 
   const supabase = createAdminClient()
+
+  // Validation du mot de passe côté serveur
+  const pwdError = validatePasswordServer(data.password, data.first_name, data.last_name)
+  if (pwdError) {
+    return { error: `Le mot de passe ne respecte pas la règle : ${pwdError}` }
+  }
 
   // 1. Créer le compte auth (email_confirm: true = pas de mail de confirmation)
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -74,6 +85,9 @@ export async function updateProfile(id: string, data: {
   last_name:  string
   phone?:     string
 }): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase.from('profiles').update({
@@ -93,6 +107,9 @@ export async function updateProfile(id: string, data: {
 // ─── Activer / désactiver ─────────────────────────────────────────────────────
 
 export async function toggleActive(id: string, is_active: boolean): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase.from('profiles').update({ is_active }).eq('id', id)
@@ -106,6 +123,9 @@ export async function toggleActive(id: string, is_active: boolean): Promise<{ er
 // ─── Modifier l'email ────────────────────────────────────────────────────────
 
 export async function updateEmail(id: string, email: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error: authError } = await supabase.auth.admin.updateUserById(id, { email })
@@ -124,6 +144,9 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
 // ─── Réinitialiser le mot de passe ───────────────────────────────────────────
 
 export async function sendPasswordReset(email: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

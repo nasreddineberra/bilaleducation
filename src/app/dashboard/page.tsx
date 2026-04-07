@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { getCachedProfile, getCachedCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
 
 export const metadata: Metadata = {
   title: 'Tableau de bord',
@@ -26,20 +27,13 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
+  // Profil et année courante — données cachées
+  const [profile, currentYear] = await Promise.all([
+    getCachedProfile(userId),
+    getCachedCurrentYear(),
+  ])
 
   const role = profile?.role ?? 'parent'
-
-  // ── Annee scolaire courante ──────────────────────────────────────────
-  const { data: currentYear } = await supabase
-    .from('school_years')
-    .select('id, label')
-    .eq('is_current', true)
-    .maybeSingle()
 
   // ── Periode courante ─────────────────────────────────────────────────
   const { data: currentPeriod } = currentYear
@@ -103,15 +97,11 @@ export default async function DashboardPage() {
   //  ADMIN / DIRECTION
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'admin' || role === 'direction') {
+    // Stats compteurs — données cachées (TTL 5 min)
+    const cachedStats = await getCachedAdminStats(profile?.etablissement_id ?? '')
+
+    // Données détaillées — pas cachées (calcul complexe, données fraîches)
     const [
-      { count: studentsActive },
-      { count: studentsTotal },
-      { count: teachersActive },
-      { count: classesCount },
-      { count: enrollmentsActive },
-      { count: parentsCount },
-      { count: absencesThisMonth },
-      { count: absencesUnjustified },
       { data: classesList },
       { data: familyFees },
       { data: recentAbsences },
@@ -121,14 +111,6 @@ export default async function DashboardPage() {
       { data: parentsWithEnrollments },
       { data: adultEnrollments },
     ] = await Promise.all([
-      supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('students').select('id', { count: 'exact', head: true }),
-      supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('classes').select('id', { count: 'exact', head: true }),
-      supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('parents').select('id', { count: 'exact', head: true }),
-      supabase.from('absences').select('id', { count: 'exact', head: true }).neq('absence_type', 'retard').gte('absence_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
-      supabase.from('absences').select('id', { count: 'exact', head: true }).neq('absence_type', 'retard').eq('is_justified', false).gte('absence_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)),
       supabase.from('classes').select('id, name, max_students, enrollments:enrollments(count)').order('name'),
       supabase.from('family_fees').select('id, status, fee_installments(amount_paid), fee_adjustments(amount)'),
       supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
@@ -206,20 +188,20 @@ export default async function DashboardPage() {
       <DashboardAdmin
         {...common}
         stats={{
-          studentsActive: studentsActive ?? 0,
-          studentsTotal: studentsTotal ?? 0,
-          teachersActive: teachersActive ?? 0,
-          classesCount: classesCount ?? 0,
-          enrollmentsActive: enrollmentsActive ?? 0,
-          parentsCount: parentsCount ?? 0,
-          absencesThisMonth: absencesThisMonth ?? 0,
-          absencesUnjustified: absencesUnjustified ?? 0,
+          studentsActive: cachedStats.studentsActive,
+          studentsTotal: cachedStats.studentsTotal,
+          teachersActive: cachedStats.teachersActive,
+          classesCount: cachedStats.classesCount,
+          enrollmentsActive: cachedStats.enrollmentsActive,
+          parentsCount: cachedStats.parentsCount,
+          absencesThisMonth: cachedStats.absencesMonth,
+          absencesUnjustified: cachedStats.absencesUnjustified,
           totalDue,
           totalPercu,
           feesByStatus,
           classCapacity,
           recentAbsences: (recentAbsences ?? []) as any[],
-          msgSentThisMonth: msgSentThisMonth ?? 0,
+          msgSentThisMonth: cachedStats.announcementsMonth,
           msgReadRate: msgTotalRecipients ? Math.round(((msgReadCount ?? 0) / msgTotalRecipients) * 100) : 0,
         }}
       />

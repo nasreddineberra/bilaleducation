@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, lazy, Suspense } from 'react'
 import { clsx } from 'clsx'
 import { Send, Paperclip, X, Eye, CheckSquare, Square, Bell, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
-import RichTextEditor from '@/components/ui/RichTextEditor'
 import type { UserRole } from '@/types/database'
 import { FloatInput, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { sanitize } from '@/lib/security/sanitize'
+
+const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -365,7 +367,9 @@ export default function StaffMessageClient({
       {/* 4. Corps */}
       <div className="card p-4 space-y-2">
         <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Message</label>
-        <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
+        <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+          <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
+        </Suspense>
       </div>
 
       {/* 5. PJ */}
@@ -429,7 +433,7 @@ export default function StaffMessageClient({
           <div className="border border-warm-100 rounded-lg p-4 bg-white">
             <p className="text-sm font-medium text-warm-700 mb-2">Objet : {subject || '(sans objet)'}</p>
             <hr className="my-2 border-warm-100" />
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitize(bodyHtml) }} />
           </div>
         </div>
       )}

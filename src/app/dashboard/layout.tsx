@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
+import { getCachedProfile, getCachedEtablissement, getCachedCurrentYear } from '@/lib/cache/dashboard'
 
 
 export default async function DashboardLayout({
@@ -23,21 +24,21 @@ export default async function DashboardLayout({
   }
 
   // Récupérer le profil + les infos établissement + année courante en parallèle
-  // RLS filtre automatiquement par etablissement_id du profil
-  const [{ data: profile }, { data: etablissement }, { data: currentYear }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
-    supabase.from('etablissements').select('nom, logo_url').single(),
-    supabase.from('school_years').select('label').eq('is_current', true).maybeSingle(),
+  // Ces requêtes sont cachées (1h pour le profil, 6h pour l'établissement, 24h pour l'année)
+  const [profile, etablissement, currentYear] = await Promise.all([
+    getCachedProfile(user.id),
+    getCachedEtablissement(),
+    getCachedCurrentYear(),
   ])
 
-  // Compteur notifications non lues (staff)
+  // Compteur notifications non lues (staff) — pas caché (change fréquemment)
   const { count: staffUnread } = await supabase
     .from('announcement_staff_recipients')
     .select('id', { count: 'exact', head: true })
     .eq('profile_id', user.id)
     .eq('is_read', false)
 
-  // Compteur notifications non lues (parent)
+  // Compteur notifications non lues (parent) — pas caché
   const { data: parentLink } = await supabase
     .from('parents')
     .select('id')

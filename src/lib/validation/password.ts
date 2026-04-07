@@ -47,3 +47,20 @@ export const isPasswordValid = (
   firstName?: string,
   lastName?: string,
 ): boolean => PASSWORD_RULES.every(r => r.test(pwd, firstName, lastName))
+
+/**
+ * Valide un mot de passe côté serveur et retourne un message d'erreur détaillé
+ * si une règle n'est pas respectée. Retourne `null` si le mot de passe est valide.
+ */
+export function validatePasswordServer(
+  pwd: string,
+  firstName?: string,
+  lastName?: string,
+): string | null {
+  for (const rule of PASSWORD_RULES) {
+    if (!rule.test(pwd, firstName, lastName)) {
+      return rule.label
+    }
+  }
+  return null
+}

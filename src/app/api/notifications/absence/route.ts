@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 import { createNotification, getParentByStudentId } from '@/lib/notifications'
+import { requireRole } from '@/lib/auth/requireRole'
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseAuth = await createClient()
-    const { data: { user } } = await supabaseAuth.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
+    const { user, error } = await requireRole(['admin', 'direction', 'secretaire'])
+    if (error) return error
 
     const { absences, etablissement_id } = await req.json()
     if (!absences?.length || !etablissement_id) {

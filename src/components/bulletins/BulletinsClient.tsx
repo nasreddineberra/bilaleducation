@@ -8,7 +8,6 @@ import { clsx } from 'clsx'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { generateBulletinPDF, generateAllBulletinsPDF, generateBulletinBlob } from './bulletinPdf'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 
@@ -429,6 +428,7 @@ export default function BulletinsClient({
   const handleDownloadOne = useCallback(async (student: StudentRow) => {
     setGenerating(student.student_id)
     try {
+      const { generateBulletinPDF } = await import('./bulletinPdf')
       const data = computeBulletinData(student)
       await generateBulletinPDF(data)
     } finally {
@@ -440,6 +440,7 @@ export default function BulletinsClient({
   const handleDownloadAll = useCallback(async () => {
     setGenerating('all')
     try {
+      const { generateAllBulletinsPDF } = await import('./bulletinPdf')
       const allData = classStudents.map(s => computeBulletinData(s))
       await generateAllBulletinsPDF(allData, selectedClass?.name ?? 'classe')
     } finally {
@@ -454,6 +455,7 @@ export default function BulletinsClient({
     setArchiveError(null)
     try {
       const supabase = createClient()
+      const { generateBulletinBlob } = await import('./bulletinPdf')
       const newArchives: ArchiveRow[] = []
 
       for (const student of classStudents) {

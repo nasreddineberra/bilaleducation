@@ -10,12 +10,12 @@
 
 | Catégorie | CRITIQUE | HAUT | MOYEN | BAS |
 |-----------|----------|------|-------|-----|
-| **Sécurité** | 1 | 5 | 8 | 6 |
-| **Performances** | 2 | 4 | 5 | 2 |
-| **Qualité du code** | 1 | 4 | 5 | 3 |
+| **Sécurité** | ~~1~~ **0** ✅ | ~~5~~ ~~3~~ **2** ✅ | ~~8~~ **7** ✅ | 6 |
+| **Performances** | 2 | ~~4~~ **2** ✅ | 5 | 2 |
+| **Qualité du code** | 1 | ~~4~~ **3** ✅ | 5 | 3 |
 | **Fonctionnalités** | 0 | 1 | 3 | 5 |
 
-**Total : 4 critiques, 14 hauts, 21 moyens, 16 bas**
+**Total : ~~4~~ 1 critique, ~~14~~ ~~11~~ ~~10~~ 9 hauts, ~~21~~ 20 moyens, 16 bas**
 
 ---
 
@@ -23,19 +23,19 @@
 
 ### CRITIQUE
 
-| # | ID | Problème | Fichier(s) | Description |
-|---|-----|----------|------------|-------------|
-| S-01 | `SEC-CRIT-01` | **Notifications non autorisées** | `src/app/api/notifications/*/route.ts` | Tout utilisateur authentifié (y compris un parent) peut déclencher des notifications arbitraires (absence, paiement, annonce) vers n'importe quel parent. Pas de vérification de rôle. |
+| # | ID | Statut | Problème | Fichier(s) | Description |
+|---|-----|--------|----------|------------|-------------|
+| S-01 | `SEC-CRIT-01` | ✅ **Corrigé** | ~~**Notifications non autorisées**~~ | `src/app/api/notifications/*/route.ts`, `src/lib/auth/requireRole.ts` | ~~Tout utilisateur authentifié (y compris un parent) peut déclencher des notifications arbitraires (absence, paiement, annonce) vers n'importe quel parent. Pas de vérification de rôle.~~ |
 
 ### HAUT
 
 | # | ID | Problème | Fichier(s) | Description |
 |---|-----|----------|------------|-------------|
-| S-02 | `SEC-HIGH-01` | **Politique mot de passe contournée** | `src/lib/validation/password.ts`, server actions | La validation côté client est la seule vérification. Un attaquant peut envoyer un mot de passe faible directement aux server actions. |
-| S-03 | `SEC-HIGH-02` | **Injection de champs arbitraires** | `src/app/dashboard/parents/actions.ts` | `Record<string, any>` permet d'injecter n'importe quel champ (`role: 'admin'`, `is_active: true`, etc.) |
-| S-04 | `SEC-HIGH-03` | **XSS stocké via dangerouslySetInnerHTML** | `StaffMessageClient.tsx`, `MessageDetailClient.tsx`, `CahierTexteDetail.tsx`, `NotificationDetailClient.tsx` (6 occurrences) | HTML rendu sans bibliothèque de sanitisation (DOMPurify, sanitize-html non installés) |
+| S-02 | `SEC-HIGH-01` | ✅ **Corrigé** | ~~**Politique mot de passe contournée**~~ | `src/lib/validation/password.ts`, `utilisateurs/actions.ts`, `superadmin/actions.ts` | ~~La validation côté client est la seule vérification. Un attaquant peut envoyer un mot de passe faible directement aux server actions.~~ |
+| S-03 | `SEC-HIGH-02` | ✅ **Corrigé** | ~~**Injection de champs arbitraires**~~ | `src/app/dashboard/parents/actions.ts`, `src/components/parents/ParentForm.tsx` | ~~`Record<string, any>` permet d'injecter n'importe quel champ (`role: 'admin'`, `is_active: true`, etc.)~~ |
+| S-04 | `SEC-HIGH-03` | ✅ **Corrigé** | ~~**XSS stocké via dangerouslySetInnerHTML**~~ | `5 composants`, `src/lib/security/sanitize.ts` | ~~HTML rendu sans bibliothèque de sanitisation (DOMPurify, sanitize-html non installés)~~ |
 | S-05 | `SEC-HIGH-04` | **Pas de RLS sur 20+ tables** | `supabase/policies.sql` | Tables comme `homework`, `cahier_texte`, `audit_logs`, `communications` n'ont aucune politique RLS définie |
-| S-06 | `SEC-HIGH-05` | **Pas d'autorisation par rôle dans les server actions** | Toutes les server actions | `createUser`, `updateProfile`, etc. sont appelables par tout utilisateur authentifié sans vérification de rôle |
+| S-06 | `SEC-HIGH-05` | ✅ **Corrigé** | ~~**Pas d'autorisation par rôle dans les server actions**~~ | `src/lib/auth/requireRoleServer.ts`, toutes les server actions | ~~`createUser`, `updateProfile`, etc. sont appelables par tout utilisateur authentifié sans vérification de rôle~~ |
 
 ### MOYEN
 
@@ -69,8 +69,8 @@
 
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
-| P-01 | `PERF-CRIT-01` | **Zéro mise en cache** | Aucune utilisation de `cache()` ou `revalidate` dans tout le codebase. Chaque requête Supabase est exécutée à chaque navigation. Les données de référence (années, périodes, classes) sont rechargées en permanence. |
-| P-02 | `PERF-CRIT-02` | **Pas de lazy loading** | Zéro `React.lazy()` ou `next/dynamic`. Tous les composants lourds sont chargés eagerly : TipTap (~200KB), jsPDF, dnd-kit, EmploiDuTempsClient, BulletinsClient. |
+| P-01 | `PERF-CRIT-01` | ✅ **Corrigé** | ~~**Zéro mise en cache**~~ | `src/lib/cache.ts`, `src/lib/cache/dashboard.ts`, `dashboard/layout.tsx`, `dashboard/page.tsx` | ~~Aucune utilisation de `cache()` ou `revalidate`. Chaque requête Supabase est exécutée à chaque navigation.~~ |
+| P-02 | `PERF-CRIT-02` | ✅ **Corrigé** | ~~**Pas de lazy loading**~~ | `StaffMessageClient.tsx`, `NewMessageClient.tsx`, `CahierTexteForm.tsx`, `emploi-du-temps/page.tsx`, `BulletinsClient.tsx` | ~~Zéro `React.lazy()` ou `next/dynamic`. Tous les composants lourds sont chargés eagerly : TipTap (~200KB), jsPDF, dnd-kit, EmploiDuTempsClient, BulletinsClient.~~ |
 
 ### HAUT
 
@@ -106,7 +106,7 @@
 
 | # | ID | Problème | Fichier(s) | Description |
 |---|-----|----------|------------|-------------|
-| Q-01 | `CODE-CRIT-01` | **138 utilisations de `as any`** | `dashboard/page.tsx` (~30), `cahier-texte/` (~15), `financements/` (~12), `students/[id]/page.tsx` (~13), `EmploiDuTempsClient.tsx` (~9) | Élimine toute la sécurité TypeScript. Les erreurs de type runtime ne seront pas détectées à la compilation. |
+| Q-01 | `CODE-CRIT-01` | ⚠️ **Dette technique** | ~~**138 utilisations de `as any`**~~ | `dashboard/page.tsx` (~30), `cahier-texte/` (~15), `financements/` (~12), `students/[id]/page.tsx` (~13), `EmploiDuTempsClient.tsx` (~9), autres (~59) | ~~Élimine toute la sécurité TypeScript. Les erreurs de type runtime ne seront pas détectées à la compilation.~~ |
 
 ### HAUT
 
@@ -246,12 +246,88 @@
 ## 📊 MATRICE DES SÉVÉRITÉS
 
 ```
-SÉCURITÉ :     ████░░░░░░  1 critique, 5 hauts, 8 moyens, 6 bas
-PERFORMANCES : ██░░░░░░░░  2 critiques, 4 hauts, 5 moyens, 2 bas
-QUALITÉ CODE : █░░░░░░░░░  1 critique, 4 hauts, 5 moyens, 3 bas
+SÉCURITÉ :     ████░░░░░░  ~~1 critique~~ 0 critique ✅, ~~5~~ 2 hauts ✅, ~~8~~ 7 moyens ✅, 6 bas
+PERFORMANCES : ~~████░░░░░░~~  ~~2 critiques~~ 0 critique ✅, ~~4~~ 2 hauts ✅, 5 moyens, 2 bas
+QUALITÉ CODE : █░░░░░░░░░  1 critique, ~~4~~ 3 hauts ✅, 5 moyens, 3 bas
 FONCTIONNALITÉS: ░░░░░░░░░░  0 critique, 1 haut, 3 moyens, 3 bas
 ```
 
 ---
 
+## 📝 JOURNAL DES CORRECTIONS
+
+| Date | ID | Statut | Correction appliquée |
+|------|-----|--------|---------------------|
+| 7 avr. 2026 | `SEC-CRIT-01` | ✅ **Corrigé** | Création de `src/lib/auth/requireRole.ts` (utilitaire de vérification de rôle). Ajout de la vérification de rôle sur les routes `absence`, `announcement`, `homework`, `payment`. Rôles restreints : `admin`, `direction`, `secretaire` (sauf `homework` qui inclut aussi `enseignant`). |
+| 7 avr. 2026 | `SEC-HIGH-01` | ✅ **Corrigé** | Ajout de `validatePasswordServer()` dans `src/lib/validation/password.ts`. Validation côté serveur ajoutée dans 3 server actions acceptant des mots de passe du client : `createUser` (utilisateurs), `createTenant` et `createTenantUser` (superadmin). Retourne le nom de la règle violée si le mot de passe ne passe pas. Les mots de passe générés automatiquement (enseignants, parents) ne nécessitent pas de validation (déjà forts par construction). |
+| 7 avr. 2026 | `SEC-HIGH-05` | ✅ **Corrigé** | Création de `src/lib/auth/requireRoleServer.ts` (variante pour server actions). Vérification de rôle ajoutée dans **17 server actions** : `utilisateurs` (5 fonctions → `admin`/`direction`), `teachers` (3 fonctions → `admin`/`direction`/`secretaire`), `parents` (2 fonctions → `admin`/`direction`/`secretaire`), `superadmin` (7 fonctions → `super_admin`). Retourne une erreur 403 si le rôle n'est pas autorisé. |
+| 7 avr. 2026 | `PERF-CRIT-01` | ✅ **Corrigé** | Création de `src/lib/cache.ts` (utilitaires `unstable_cache`) et `src/lib/cache/dashboard.ts` (fonctions cachées : profil 1h, établissement 6h, année scolaire 24h, stats admin 5min). Dashboard layout utilise désormais les fonctions cachées. Dashboard page remplace 8 requêtes de compteurs admin par `getCachedAdminStats()`. |
+| 7 avr. 2026 | `PERF-CRIT-02` | ✅ **Corrigé** | Lazy loading appliqué : TipTap (3 composants : `StaffMessageClient`, `NewMessageClient`, `CahierTexteForm` → `React.lazy` + `Suspense`), EmploiDuTempsClient (`next/dynamic`), jsPDF dans `BulletinsClient` (import dynamique dans les handlers PDF). Seuls les composants nécessaires sont chargés à la demande. |
+| 7 avr. 2026 | `CODE-HIGH-01` | ✅ **Corrigé** | 5 catch blocks vides `.catch(() => {})` remplacés par `.catch((err) => console.error('[Composant] ...', err))` dans `PaymentModal.tsx`, `NewMessageClient.tsx`, `CahierTexteForm.tsx`, `AbsencesClient.tsx`, `login/page.tsx`. Les erreurs fire-and-forget sont désormais loggées. |
+| 7 avr. 2026 | `SEC-HIGH-03` | ✅ **Corrigé** | Installation de `dompurify` + `jsdom`. Création de `src/lib/security/sanitize.ts` (utilitaire de sanitisation HTML). Sanitisation appliquée sur les 6 occurrences de `dangerouslySetInnerHTML` dans 5 composants (`StaffMessageClient`, `NewMessageClient`, `MessageDetailClient`, `CahierTexteDetail`, `NotificationDetailClient`). |
+| 7 avr. 2026 | `SEC-HIGH-02` | ✅ **Corrigé** | Remplacement de `Record<string, any>` par des interfaces typées (`CreateParentPayload`, `UpdateParentPayload`) dans `parents/actions.ts`. Ajout d'une liste blanche de champs autorisés (`ALLOWED_FIELDS`) et d'une liste noire (`FORBIDDEN_FIELDS`) pour bloquer l'injection de `role`, `is_active`, `id`, etc. Fonction `sanitizeParentPayload` qui filtre les champs non autorisés. |
+
+---
+
 *Généré automatiquement lors de l'audit du 7 avril 2026.*
+
+---
+
+## 🔲 MATRICE DES DROITS RLS — À REMPLIR (reporté en dernier)
+
+**Légende :** `R` = Lire (SELECT) · `W` = Écrire (INSERT/UPDATE/DELETE) · `—` = Aucun accès
+
+| Module | Table | super_admin | admin | direction | comptable | resp. pédagog. | enseignant | secretaire | parent |
+|--------|-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Établissement** | `etablissements` | | | | | | | | |
+| | `school_years` | | | | | | | | |
+| | `periods` | | | | | | | | |
+| | `profiles` | | | | | | | | |
+| **Élèves** | `students` | | | | | | | | |
+| | `enrollments` | | | | | | | | |
+| | `parent_class_enrollments` | | | | | | | | |
+| | `student_documents` | | | | | | | | |
+| | `student_warnings` | | | | | | | | |
+| | `student_warning_attachments` | | | | | | | | |
+| **Parents** | `parents` | | | | | | | | |
+| **Enseignants** | `teachers` | | | | | | | | |
+| **Classes** | `classes` | | | | | | | | |
+| | `class_teachers` | | | | | | | | |
+| | `subjects` | | | | | | | | |
+| | `unites_enseignement` | | | | | | | | |
+| | `teaching_units` | | | | | | | | |
+| | `modules` | | | | | | | | |
+| | `cours` | | | | | | | | |
+| | `cours_modules` | | | | | | | | |
+| **Emploi du temps** | `schedules` | | | | | | | | |
+| | `schedule_slots` | | | | | | | | |
+| | `schedule_exceptions` | | | | | | | | |
+| | `schedule_validations` | | | | | | | | |
+| | `rooms` | | | | | | | | |
+| **Absences** | `absences` | | | | | | | | |
+| | `presence_types` | | | | | | | | |
+| | `presence_type_rates` | | | | | | | | |
+| **Notes** | `evaluations` | | | | | | | | |
+| | `grades` | | | | | | | | |
+| | `eval_type_configs` | | | | | | | | |
+| | `evaluation_order_config` | | | | | | | | |
+| **Cahier de texte** | `cours_modules` | | | | | | | | |
+| **Bulletins** | `bulletin_archives` | | | | | | | | |
+| | `bulletin_appreciations` | | | | | | | | |
+| **Communications** | `announcements` | | | | | | | | |
+| | `announcement_recipients` | | | | | | | | |
+| | `announcement_staff_recipients` | | | | | | | | |
+| | `announcement_attachments` | | | | | | | | |
+| **Notifications** | `notifications` | | | | | | | | |
+| | `push_subscriptions` | | | | | | | | |
+| **Finances** | `family_fees` | | | | | | | | |
+| | `fee_installments` | | | | | | | | |
+| | `fee_adjustments` | | | | | | | | |
+| | `payments` | | | | | | | | |
+| | `cotisation_types` | | | | | | | | |
+| | `expenses` | | | | | | | | |
+| | `other_revenues` | | | | | | | | |
+| | `staff_hourly_rates` | | | | | | | | |
+| | `staff_time_entries` | | | | | | | | |
+| **Audit** | `audit_logs` | | | | | | | | |
+| **Config docs** | `document_type_configs` | | | | | | | | |

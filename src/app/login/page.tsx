@@ -101,7 +101,7 @@ export default function LoginPage() {
         if (d.nom)      setNomEtab(d.nom)
         if (d.logo_url) setLogoUrl(d.logo_url)
       })
-      .catch(() => {})
+      .catch((err) => console.error('[Login] Échec chargement infos établissement:', err))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

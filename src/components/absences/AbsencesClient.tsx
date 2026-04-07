@@ -852,7 +852,7 @@ function SaisieModal({
             absences: added.map(a => ({ id: a.id, student_id: a.student_id, class_id: a.class_id, absence_type: a.absence_type, absence_date: a.absence_date })),
             etablissement_id: etablissementId,
           }),
-        }).catch(() => {})
+        }).catch((err) => console.error('[Absences] Échec notification absence:', err))
       }
 
       // Mettre à jour localAbsences pour refléter les nouvelles données

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { ArrowLeft, Paperclip, Mail, Users, UserCheck, Globe } from 'lucide-react'
+import { sanitize } from '@/lib/security/sanitize'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export default function NotificationDetailClient({ message, attachments }: Props
       <div className="card p-4 space-y-2">
         <div
           className="prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: message.body_html ?? message.content }}
+          dangerouslySetInnerHTML={{ __html: sanitize(message.body_html ?? message.content) }}
         />
       </div>
 

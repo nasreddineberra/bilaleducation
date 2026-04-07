@@ -2,6 +2,8 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { validatePasswordServer } from '@/lib/validation/password'
+import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 
 // ─── Créer un tenant complet (établissement + directeur initial) ──────────────
 
@@ -17,6 +19,9 @@ export async function createTenant(data: {
     password:   string
   }
 }): Promise<{ error?: string; id?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   // 1. Créer l'établissement
@@ -40,6 +45,12 @@ export async function createTenant(data: {
   }
 
   // 2. Créer le compte auth du directeur
+  const pwdError = validatePasswordServer(data.director.password, data.director.first_name, data.director.last_name)
+  if (pwdError) {
+    await supabase.from('etablissements').delete().eq('id', etablissement.id)
+    return { error: `Le mot de passe du directeur ne respecte pas la règle : ${pwdError}` }
+  }
+
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email:         data.director.email,
     password:      data.director.password,
@@ -86,6 +97,9 @@ export async function updateEtablissement(id: string, data: {
   contact?:  string
   notes?:    string | null
 }): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase.from('etablissements').update({
@@ -108,6 +122,9 @@ export async function toggleEtablissementActive(
   id: string,
   is_active: boolean
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase
@@ -127,6 +144,9 @@ export async function updateMaxStudents(
   id: string,
   max_students: number | null
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase
@@ -145,6 +165,9 @@ export async function updateSubscription(
   id: string,
   expires_at: string | null
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase
@@ -170,7 +193,16 @@ export async function createTenantUser(
     last_name:  string
   }
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
+
+  // Validation du mot de passe côté serveur
+  const pwdError = validatePasswordServer(data.password, data.first_name, data.last_name)
+  if (pwdError) {
+    return { error: `Le mot de passe ne respecte pas la règle : ${pwdError}` }
+  }
 
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email:         data.email,
@@ -211,6 +243,9 @@ export async function updateTenantUser(
   etablissementId: string,
   data: { role?: string; is_active?: boolean }
 ): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['super_admin'])
+  if (roleError) return { error: roleError }
+
   const supabase = createAdminClient()
 
   const { error } = await supabase

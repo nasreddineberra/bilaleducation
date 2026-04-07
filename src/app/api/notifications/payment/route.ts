@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 import { createNotification, getParentWithEmails } from '@/lib/notifications'
+import { requireRole } from '@/lib/auth/requireRole'
 
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
@@ -13,11 +13,8 @@ function fmtEur(n: number) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseAuth = await createClient()
-    const { data: { user } } = await supabaseAuth.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
-    }
+    const { user, error } = await requireRole(['admin', 'direction', 'secretaire'])
+    if (error) return error
 
     const { parent_id, amount, method, receipt, paid_date, etablissement_id } = await req.json()
     if (!parent_id || !amount) {
