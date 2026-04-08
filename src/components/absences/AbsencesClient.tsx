@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
+import Image from 'next/image'
 import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
@@ -693,7 +694,7 @@ function buildEntries(classStudents: StudentRow[], existingAbsences: Absence[], 
 function StudentPhoto({ student, size = 'md' }: { student: StudentRow; size?: 'sm' | 'md' }) {
   const dim = size === 'sm' ? 'w-10 h-[53px]' : 'w-[78px] h-[104px]'
   if (student.photo_url) {
-    return <img src={student.photo_url} alt="" className={clsx(dim, 'object-cover rounded-md')} />
+    return <Image src={student.photo_url} alt="" width={size === 'sm' ? 40 : 78} height={size === 'sm' ? 53 : 104} className={clsx(dim, 'object-cover rounded-md')} unoptimized />
   }
   if (student.gender === 'male') return <MaleAvatar className={clsx(dim, 'rounded-md')} />
   if (student.gender === 'female') return <FemaleAvatar className={clsx(dim, 'rounded-md')} />

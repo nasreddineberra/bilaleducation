@@ -147,7 +147,8 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
         // Afficher le mot de passe temporaire
         setTempPassword(result.tempPassword ?? null)
       }
-    } catch {
+    } catch (err) {
+      console.error('[TeacherForm] Erreur lors de la soumission:', err)
       toast.error('Une erreur est survenue. Veuillez réessayer.')
       setIsSubmitting(false)
     }

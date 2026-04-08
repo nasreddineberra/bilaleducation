@@ -53,23 +53,24 @@ export async function createUser(data: {
     return { error: authError.message }
   }
 
-  // 2. Créer le profil (admin client bypass RLS → etablissement_id obligatoire)
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:               authData.user.id,
-    email:            data.email,
-    role:             data.role,
-    civilite:         data.civilite || null,
-    first_name:       data.first_name,
-    last_name:        data.last_name,
-    phone:            data.phone || null,
-    is_active:        true,
-    etablissement_id: etablissementId,
+  // 2. Insérer le profil dans une transaction atomique via RPC
+  const { error: rpcError } = await supabase.rpc('create_profile_only', {
+    p_profile_id:       authData.user.id,
+    p_email:            data.email,
+    p_role:             data.role,
+    p_first_name:       data.first_name,
+    p_last_name:        data.last_name,
+    p_civilite:         data.civilite || null,
+    p_phone:            data.phone || null,
+    p_is_active:        true,
+    p_etablissement_id: etablissementId,
   })
 
-  if (profileError) {
-    // Nettoyer l'utilisateur auth si l'insertion du profil échoue
-    await supabase.auth.admin.deleteUser(authData.user.id)
-    return { error: 'Erreur lors de la création du profil.' }
+  if (rpcError) {
+    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+      console.error('[createUser] Échec du rollback auth:', e)
+    )
+    return { error: `Erreur lors de la création du profil : ${rpcError.message}` }
   }
 
   revalidatePath('/dashboard/utilisateurs')

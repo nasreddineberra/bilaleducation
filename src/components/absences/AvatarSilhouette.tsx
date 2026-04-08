@@ -1,5 +1,3 @@
-'use client'
-
 // Avatar silhouette moderne — style épuré, profil M/F
 
 export function MaleAvatar({ className }: { className?: string }) {

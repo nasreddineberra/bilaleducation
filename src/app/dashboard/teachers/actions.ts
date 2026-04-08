@@ -46,47 +46,38 @@ export async function createTeacherWithAccount(data: {
     return { error: authError.message }
   }
 
-  // 2. Créer le profil (role enseignant)
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:               authData.user.id,
-    email:            data.email,
-    role:             'enseignant',
-    civilite:         data.civilite,
-    first_name:       data.first_name,
-    last_name:        data.last_name,
-    phone:            data.phone,
-    is_active:        true,
-    etablissement_id: etablissementId,
+  // 2. Insérer profile + teacher dans une seule transaction atomique via RPC
+  const { data: teacherId, error: rpcError } = await supabase.rpc('create_profile_and_teacher', {
+    p_profile_id:         authData.user.id,
+    p_email:              data.email,
+    p_role:               'enseignant',
+    p_first_name:         data.first_name,
+    p_last_name:          data.last_name,
+    p_civilite:           data.civilite,
+    p_phone:              data.phone,
+    p_is_active:          true,
+    p_etablissement_id:   etablissementId,
+    p_employee_number:    data.employee_number,
+    p_specialization:     data.specialization,
+    p_hire_date:          data.hire_date,
   })
 
-  if (profileError) {
-    await supabase.auth.admin.deleteUser(authData.user.id)
-    return { error: 'Erreur lors de la création du profil utilisateur.' }
-  }
-
-  // 3. Créer la fiche enseignant liée
-  const { error: teacherError } = await supabase.from('teachers').insert({
-    employee_number:  data.employee_number,
-    civilite:         data.civilite,
-    last_name:        data.last_name,
-    first_name:       data.first_name,
-    email:            data.email,
-    phone:            data.phone,
-    hire_date:        data.hire_date,
-    specialization:   data.specialization,
-    is_active:        data.is_active,
-    user_id:          authData.user.id,
-    etablissement_id: etablissementId,
-  })
-
-  if (teacherError) {
-    // Nettoyage si la fiche enseignant échoue
-    await supabase.from('profiles').delete().eq('id', authData.user.id)
-    await supabase.auth.admin.deleteUser(authData.user.id)
-    if (teacherError.code === '23505') {
+  if (rpcError) {
+    // Rollback du compte auth — on logge mais on ne bloque pas
+    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+      console.error('[createTeacherWithAccount] Échec du rollback auth:', e)
+    )
+    if (rpcError.code === '23505') {
       return { error: "Ce numéro d'employé ou cet email est déjà utilisé." }
     }
-    return { error: 'Erreur lors de la création de la fiche enseignant.' }
+    return { error: `Erreur lors de la création du profil et de la fiche enseignant : ${rpcError.message}` }
+  }
+
+  if (!teacherId) {
+    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+      console.error('[createTeacherWithAccount] Échec du rollback auth (teacherId null):', e)
+    )
+    return { error: "Erreur inattendue : aucun ID retourné par le RPC." }
   }
 
   return { tempPassword }

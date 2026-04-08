@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
     )
 
     const { data: { user } } = await supabase.auth.getUser()
-    return { user, response }
+    return { user, response, supabase }
   }
 
   // ─── 1. Contexte Super-Admin ──────────────────────────────────────────────
@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
   const isSuperAdminPath = pathname.startsWith('/superadmin')
 
   if (isSuperAdminDomain || isSuperAdminPath) {
-    const { user, response } = await getAuthUser()
+    const { user, response, supabase } = await getAuthUser()
 
     // /superadmin/login : accessible sans authentification
     if (pathname === '/superadmin/login') {
@@ -107,7 +107,7 @@ export async function proxy(request: NextRequest) {
             'apikey':        process.env.SUPABASE_SERVICE_ROLE_KEY!,
             'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
           },
-          cache: 'no-store',
+          next: { revalidate: 3600 }, // Cache 1 heure (données quasi-statiques)
         }
       )
 
@@ -134,16 +134,24 @@ export async function proxy(request: NextRequest) {
             return NextResponse.redirect(new URL('/abonnement-expire', request.url))
           }
         }
+      } else {
+        // Erreur HTTP de Supabase (5xx, 4xx) → fail-secure en production
+        console.error(`[proxy] Erreur HTTP résolution tenant: ${res.status} ${res.statusText}`)
+        if (process.env.NODE_ENV === 'production') {
+          return new NextResponse('Service temporairement indisponible', { status: 503 })
+        }
       }
-      // En cas d'erreur Supabase, on laisse passer (fail-open)
-    } catch {
-      // Erreur réseau → fail-open pour ne pas bloquer les utilisateurs légitimes
+    } catch (err) {
+      console.error('[proxy] Erreur lors de la résolution du tenant:', err)
+      if (process.env.NODE_ENV === 'production') {
+        return new NextResponse('Service temporairement indisponible', { status: 503 })
+      }
     }
   }
 
   // ─── 3. Gestion de la session Auth (contexte école) ──────────────────────
 
-  const { user, response } = await getAuthUser(requestHeaders)
+  const { user, response, supabase } = await getAuthUser(requestHeaders)
 
   // Protéger /dashboard → redirection login si non authentifié
   if (!user && pathname.startsWith('/dashboard')) {
@@ -164,8 +172,8 @@ export async function proxy(request: NextRequest) {
         const parsed = JSON.parse(sessionCookie)
         loginTime = parsed.loginTime ?? now
         lastActivity = parsed.lastActivity ?? now
-      } catch {
-        // Cookie corrompu → on réinitialise
+      } catch (err) {
+        console.error('[proxy] Cookie de session corrompu, réinitialisation:', err)
       }
     }
 
@@ -207,29 +215,48 @@ export async function proxy(request: NextRequest) {
     })
   }
 
-  // ── 2FA désactivée temporairement (à réactiver en fin de projet) ──────────
-  // TODO: pour activer la 2FA obligatoire :
-  //   1. Faire retourner `supabase` par getAuthUser() (en plus de user et response)
-  //   2. Décommenter le bloc suivant :
-  //
-  // if (user && pathname.startsWith('/dashboard')) {
-  //   const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-  //   if (aalData) {
-  //     const { currentLevel, nextLevel } = aalData
-  //     if (nextLevel === 'aal2' && currentLevel !== 'aal2') {
-  //       return NextResponse.redirect(new URL('/auth/mfa-challenge', request.url))
-  //     }
-  //     if (nextLevel === 'aal1' && currentLevel === 'aal1') {
-  //       const { data: factors } = await supabase.auth.mfa.listFactors()
-  //       const hasVerifiedPhone = factors?.all?.some(
-  //         f => f.factor_type === 'phone' && f.status === 'verified'
-  //       )
-  //       if (!hasVerifiedPhone) {
-  //         return NextResponse.redirect(new URL('/auth/enroll-phone', request.url))
-  //       }
-  //     }
-  //   }
-  // }
+  // ── 2FA TOTP pour les rôles non-parent ────────────────────────────────────
+
+  const rolesRequiring2FA = [
+    'super_admin', 'admin', 'direction', 'comptable',
+    'responsable_pedagogique', 'enseignant', 'secretaire',
+  ]
+
+  if (user && pathname.startsWith('/dashboard')) {
+    const role = user.app_metadata?.role ?? 'parent'
+
+    if (rolesRequiring2FA.includes(role)) {
+      try {
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+
+        if (aalData) {
+          const { currentLevel, nextLevel } = aalData
+
+          // AAL2 requis mais pas encore atteint → challenge TOTP
+          if (nextLevel === 'aal2' && currentLevel !== 'aal2') {
+            return NextResponse.redirect(new URL('/auth/totp-challenge', request.url))
+          }
+
+          // Aucun facteur TOTP configuré → enrollment
+          if (nextLevel === 'aal1' && currentLevel === 'aal1') {
+            const { data: factors } = await supabase.auth.mfa.listFactors()
+            const hasTotp = factors?.all?.some(
+              f => f.factor_type === 'totp' && f.status === 'verified'
+            )
+            if (!hasTotp) {
+              return NextResponse.redirect(new URL('/auth/enroll-totp', request.url))
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[proxy] Erreur vérification 2FA:', err)
+        // En cas d'erreur 2FA, on laisse passer en dev, on bloque en prod
+        if (process.env.NODE_ENV === 'production') {
+          return NextResponse.redirect(new URL('/auth/totp-challenge', request.url))
+        }
+      }
+    }
+  }
 
   // Rediriger vers /dashboard (ou /superadmin pour super_admin) si déjà connecté
   if (user && (pathname === '/login' || pathname === '/')) {

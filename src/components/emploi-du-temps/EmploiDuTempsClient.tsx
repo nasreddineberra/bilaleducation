@@ -824,7 +824,8 @@ export default function EmploiDuTempsClient({
         })
         toast.success(`Créneau ${subject.ueName} créé (${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime})`)
         await refreshData()
-      } catch {
+      } catch (err) {
+        console.error('[EmploiDuTemps] Erreur lors de la création du créneau:', err)
         toast.error('Erreur lors de la création du créneau.')
       }
 
@@ -856,7 +857,8 @@ export default function EmploiDuTempsClient({
         })
         toast.success(`Créneau déplacé (${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime})`)
         await refreshData()
-      } catch {
+      } catch (err) {
+        console.error('[EmploiDuTemps] Erreur lors du déplacement du créneau:', err)
         toast.error('Erreur lors du déplacement du créneau.')
       }
     }

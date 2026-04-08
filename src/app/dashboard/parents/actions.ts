@@ -152,8 +152,7 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
     if (result.error) {
       // Nettoyage du compte tuteur 1 si le tuteur 2 échoue
       if (parentData.tutor1_user_id) {
-        await supabase.from('profiles').delete().eq('id', parentData.tutor1_user_id)
-        await supabase.auth.admin.deleteUser(parentData.tutor1_user_id)
+        await cleanupTutorAccount(supabase, parentData.tutor1_user_id)
       }
       return { error: `Tuteur 2 : ${result.error}` }
     }
@@ -173,13 +172,16 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
     .single()
 
   if (parentError) {
-    // Nettoyage des comptes créés
-    for (const key of ['tutor1_user_id', 'tutor2_user_id'] as const) {
-      if (parentData[key]) {
-        await supabase.from('profiles').delete().eq('id', parentData[key])
-        await supabase.auth.admin.deleteUser(parentData[key])
-      }
-    }
+    // Nettoyage des comptes créés avec Promise.allSettled
+    const createdUserIds = ['tutor1_user_id', 'tutor2_user_id']
+      .map(k => parentData[k])
+      .filter(Boolean) as string[]
+
+    const cleanupPromises = createdUserIds.map(userId =>
+      cleanupTutorAccount(supabase, userId)
+    )
+    await Promise.all(cleanupPromises)
+
     return { error: 'Erreur lors de la création de la fiche parents.' }
   }
 
@@ -197,12 +199,9 @@ export async function updateParentRecord(
 
   const supabase = createAdminClient()
 
-  const cleanPayload: Record<string, any> = {}
-  for (const [key, value] of Object.entries(payload)) {
-    if (!FORBIDDEN_FIELDS.includes(key)) {
-      cleanPayload[key] = value
-    }
-  }
+  // Sanitize payload pour empêcher l'injection de champs interdits
+  const rawPayload = payload as Record<string, unknown>
+  const cleanPayload = sanitizeParentPayload(rawPayload) as UpdateParentPayload
 
   const { error } = await supabase
     .from('parents')
@@ -214,6 +213,7 @@ export async function updateParentRecord(
 }
 
 // ─── Helper interne : créer un compte pour un tuteur ─────────────────────────
+// Utilise le RPC create_profile_only pour que le profil soit créé atomiquement
 
 async function createTutorAccount(
   supabase: ReturnType<typeof createAdminClient>,
@@ -235,21 +235,44 @@ async function createTutorAccount(
     return { error: authError.message }
   }
 
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:               authData.user.id,
-    email:            data.email,
-    role:             'parent',
-    first_name:       data.first_name,
-    last_name:        data.last_name,
-    phone:            data.phone || null,
-    is_active:        true,
-    etablissement_id: etablissementId,
+  // 2. Insérer le profil dans une transaction atomique via RPC
+  const { error: rpcError } = await supabase.rpc('create_profile_only', {
+    p_profile_id:       authData.user.id,
+    p_email:            data.email,
+    p_role:             'parent',
+    p_first_name:       data.first_name,
+    p_last_name:        data.last_name,
+    p_civilite:         null,
+    p_phone:            data.phone || null,
+    p_is_active:        true,
+    p_etablissement_id: etablissementId,
   })
 
-  if (profileError) {
-    await supabase.auth.admin.deleteUser(authData.user.id)
-    return { error: 'Erreur lors de la création du profil.' }
+  if (rpcError) {
+    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+      console.error('[createTutorAccount] Échec du rollback auth:', e)
+    )
+    return { error: `Erreur lors de la création du profil parent : ${rpcError.message}` }
   }
 
   return { userId: authData.user.id, tempPassword }
+}
+
+// ─── Helper : nettoyer un compte tuteur + profil ─────────────────────────────
+
+async function cleanupTutorAccount(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string
+): Promise<void> {
+  const results = await Promise.allSettled([
+    supabase.rpc('cleanup_profile_only', { p_profile_id: userId }),
+    supabase.auth.admin.deleteUser(userId),
+  ])
+  for (const [i, result] of results.entries()) {
+    if (result.status === 'rejected') {
+      console.error(`[cleanupTutorAccount] Échec du nettoyage ${i}:`, result.reason)
+    } else if (result.value && 'error' in result.value && result.value.error) {
+      console.error(`[cleanupTutorAccount] Erreur RPC/auth ${i}:`, result.value.error)
+    }
+  }
 }

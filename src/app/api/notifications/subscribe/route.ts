@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/security/rateLimiter'
+import { checkCsrf } from '@/lib/security/csrf'
+import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
+  // Protection CSRF
+  const csrf = checkCsrf(req)
+  if (!csrf.valid) {
+    return NextResponse.json({ error: 'Requête non autorisée.' }, { status: 403 })
+  }
+
+  // Rate limiting : 10 requêtes/minute par IP
+  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown'
+  const limit = checkRateLimit(`subscribe:${ip}`, 10)
+  if (!limit.allowed) {
+    return NextResponse.json({ error: 'Trop de requêtes. Veuillez réessayer dans une minute.' }, { status: 429 })
+  }
+
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -29,9 +45,13 @@ export async function POST(req: NextRequest) {
         auth_key: keys.auth,
       }, { onConflict: 'user_id,endpoint' })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      logger.error('Erreur DB inscription push', error)
+      return NextResponse.json({ error: "Erreur lors de l'inscription." }, { status: 500 })
+    }
     return NextResponse.json({ ok: true })
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    logger.error('Erreur inscription push', e)
+    return NextResponse.json({ error: 'Une erreur est survenue.' }, { status: 500 })
   }
 }

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm ls *)",
-      "Bash(findstr *)"
+      "Bash(findstr *)",
+      "Bash(npm install *)"
     ]
   },
   "$version": 3

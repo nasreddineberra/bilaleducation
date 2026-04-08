@@ -1,5 +1,4 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import type { jsPDF as JsPDFType } from 'jspdf'
 import type { BulletinData } from './BulletinsClient'
 
 // ─── Couleurs ─────────────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 
 // ─── Génération d'un bulletin PDF ────────────────────────────────────────────
 
-async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0): Promise<void> {
+async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number = 0): Promise<void> {
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 15
   const contentWidth = pageWidth - margin * 2
@@ -248,7 +247,7 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
         2: { cellWidth: 30, halign: 'center' },
       }
 
-  autoTable(doc, {
+  doc.autoTable({
     startY: y,
     margin: { left: margin, right: margin },
     head: [tableHead],
@@ -356,6 +355,8 @@ async function renderBulletin(doc: jsPDF, data: BulletinData, startY: number = 0
 // ─── Export : bulletin individuel ────────────────────────────────────────────
 
 export async function generateBulletinPDF(data: BulletinData): Promise<void> {
+  const { default: jsPDF } = await import('jspdf')
+  await import('jspdf-autotable') // Patches jsPDF prototype
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   await renderBulletin(doc, data)
   doc.save(`Bulletin_${data.student.last_name}_${data.student.first_name}_${data.periodLabel.replace(/\s/g, '_')}.pdf`)
@@ -364,6 +365,8 @@ export async function generateBulletinPDF(data: BulletinData): Promise<void> {
 // ─── Export : bulletin individuel en Blob (pour archivage) ───────────────────
 
 export async function generateBulletinBlob(data: BulletinData): Promise<Blob> {
+  const { default: jsPDF } = await import('jspdf')
+  await import('jspdf-autotable') // Patches jsPDF prototype
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   await renderBulletin(doc, data)
   return doc.output('blob')
@@ -373,6 +376,8 @@ export async function generateBulletinBlob(data: BulletinData): Promise<Blob> {
 
 export async function generateAllBulletinsPDF(allData: BulletinData[], className: string): Promise<void> {
   if (allData.length === 0) return
+  const { default: jsPDF } = await import('jspdf')
+  await import('jspdf-autotable') // Patches jsPDF prototype
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   for (let i = 0; i < allData.length; i++) {

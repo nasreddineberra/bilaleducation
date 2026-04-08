@@ -14,7 +14,7 @@ export const studentRepository = {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('students')
-      .select('*')
+      .select('id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, address, city, postal_code, emergency_contact_name, emergency_contact_phone, medical_notes, exit_authorization, media_authorization, has_pai, pai_notes, created_at, updated_at, etablissement_id')
       .eq('is_active', true)
       .order('last_name')
 
@@ -122,7 +122,7 @@ export const studentRepository = {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('students')
-      .select('*')
+      .select('id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, address, city, postal_code, emergency_contact_name, emergency_contact_phone, medical_notes, exit_authorization, media_authorization, has_pai, pai_notes, created_at, updated_at, etablissement_id')
       .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,student_number.ilike.%${query}%`)
       .eq('is_active', true)
       .order('last_name')
@@ -158,7 +158,7 @@ export const studentRepository = {
     const supabase = createClient()
     const query = supabase
       .from('students')
-      .select('*')
+      .select('id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, has_pai, exit_authorization, media_authorization')
       .eq('parent_id', parentId)
       .order('last_name')
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
+import Image from 'next/image'
 import { authRepository } from '@/lib/database/auth'
 
 // ─── Illustration B : Livre ouvert + étoiles ─────────────────────────────────
@@ -111,7 +112,8 @@ export default function LoginPage() {
     try {
       await authRepository.signIn(email, password)
       const now = Math.floor(Date.now() / 1000)
-      document.cookie = `app-session=${JSON.stringify({ loginTime: now, lastActivity: now })};path=/;max-age=${24 * 3600};samesite=lax`
+      const secure = process.env.NODE_ENV === 'production' ? ';secure' : ''
+      document.cookie = `app-session=${JSON.stringify({ loginTime: now, lastActivity: now })};path=/;max-age=${24 * 3600};samesite=lax${secure}`
       window.location.href = '/dashboard'
     } catch (err: any) {
       const msg = err.message ?? ''
@@ -190,10 +192,13 @@ export default function LoginPage() {
           <div className="flex flex-col items-center mb-10">
             <div className="mb-4">
               {logoUrl ? (
-                <img
+                <Image
                   src={logoUrl}
                   alt={nomEtab}
+                  width={128}
+                  height={128}
                   className="h-32 w-auto object-contain"
+                  unoptimized
                 />
               ) : (
                 <div

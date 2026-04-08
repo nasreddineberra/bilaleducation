@@ -6,7 +6,7 @@ export const classRepository = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('classes')
-      .select('*')
+      .select('id, etablissement_id, name, level, academic_year, description, max_students, room_number, schedule_notes, is_active, created_at, updated_at, day_of_week, start_time, end_time, cotisation_type_id, room_id, teaching_mode')
       .order('name')
 
     if (error) throw error

@@ -102,7 +102,7 @@ export const authRepository = {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, etablissement_id, email, role, first_name, last_name, phone, civilite, is_active, created_at, updated_at')
       .eq('id', user.id)
       .single()
 

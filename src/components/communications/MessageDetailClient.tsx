@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { ArrowLeft, Paperclip, Mail, Users, UserCheck, Globe, CheckCircle, XCircle, Clock } from 'lucide-react'

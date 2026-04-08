@@ -6,7 +6,7 @@ export const parentRepository = {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('parents')
-      .select('*')
+      .select('id, etablissement_id, tutor1_last_name, tutor1_first_name, tutor1_relationship, tutor1_phone, tutor1_email, tutor1_address, tutor1_city, tutor1_postal_code, tutor1_profession, tutor1_adult_courses, tutor2_last_name, tutor2_first_name, tutor2_relationship, tutor2_phone, tutor2_email, tutor2_address, tutor2_city, tutor2_postal_code, tutor2_profession, tutor2_adult_courses, situation_familiale, type_garde, notes, tutor1_user_id, tutor2_user_id, created_at, updated_at')
       .order('tutor1_last_name')
       .order('tutor1_first_name')
       .order('tutor2_last_name',  { nullsFirst: false })
@@ -70,7 +70,7 @@ export const parentRepository = {
     const supabase = createClient()
     const { data, error } = await supabase
       .from('parents')
-      .select('*')
+      .select('id, etablissement_id, tutor1_last_name, tutor1_first_name, tutor1_relationship, tutor1_phone, tutor1_email, tutor1_address, tutor1_city, tutor1_postal_code, tutor1_profession, tutor1_adult_courses, tutor2_last_name, tutor2_first_name, tutor2_relationship, tutor2_phone, tutor2_email, tutor2_address, tutor2_city, tutor2_postal_code, tutor2_profession, tutor2_adult_courses, situation_familiale, type_garde, notes, tutor1_user_id, tutor2_user_id, created_at, updated_at')
       .or(
         `tutor1_last_name.ilike.%${query}%,` +
         `tutor1_first_name.ilike.%${query}%,` +

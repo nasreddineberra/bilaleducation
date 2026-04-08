@@ -67,21 +67,25 @@ export async function createTenant(data: {
     return { error: authError.message }
   }
 
-  // 3. Créer le profil du directeur
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:               authData.user.id,
-    email:            data.director.email,
-    role:             'direction',
-    first_name:       data.director.first_name.trim(),
-    last_name:        data.director.last_name.trim(),
-    is_active:        true,
-    etablissement_id: etablissement.id,
+  // 3. Insérer le profil du directeur dans une transaction atomique via RPC
+  const { error: rpcError } = await supabase.rpc('create_profile_only', {
+    p_profile_id:       authData.user.id,
+    p_email:            data.director.email,
+    p_role:             'direction',
+    p_first_name:       data.director.first_name.trim(),
+    p_last_name:        data.director.last_name.trim(),
+    p_civilite:         null,
+    p_phone:            null,
+    p_is_active:        true,
+    p_etablissement_id: etablissement.id,
   })
 
-  if (profileError) {
-    await supabase.auth.admin.deleteUser(authData.user.id)
+  if (rpcError) {
+    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+      console.error('[createTenant] Échec du rollback auth:', e)
+    )
     await supabase.from('etablissements').delete().eq('id', etablissement.id)
-    return { error: 'Erreur lors de la création du profil directeur.' }
+    return { error: `Erreur lors de la création du profil directeur : ${rpcError.message}` }
   }
 
   revalidatePath('/superadmin')
@@ -217,19 +221,23 @@ export async function createTenantUser(
     return { error: authError.message }
   }
 
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:               authData.user.id,
-    email:            data.email,
-    role:             data.role,
-    first_name:       data.first_name.trim(),
-    last_name:        data.last_name.trim(),
-    is_active:        true,
-    etablissement_id: etablissementId,
+  const { error: rpcError } = await supabase.rpc('create_profile_only', {
+    p_profile_id:       authData.user.id,
+    p_email:            data.email,
+    p_role:             data.role,
+    p_first_name:       data.first_name.trim(),
+    p_last_name:        data.last_name.trim(),
+    p_civilite:         null,
+    p_phone:            null,
+    p_is_active:        true,
+    p_etablissement_id: etablissementId,
   })
 
-  if (profileError) {
-    await supabase.auth.admin.deleteUser(authData.user.id)
-    return { error: 'Erreur lors de la création du profil.' }
+  if (rpcError) {
+    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+      console.error('[createTenantUser] Échec du rollback auth:', e)
+    )
+    return { error: `Erreur lors de la création du profil : ${rpcError.message}` }
   }
 
   revalidatePath(`/superadmin/ecoles/${etablissementId}`)

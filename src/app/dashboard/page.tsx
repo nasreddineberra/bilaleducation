@@ -1,16 +1,17 @@
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCachedCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
-
-export const metadata: Metadata = {
-  title: 'Tableau de bord',
-}
 import DashboardAdmin from '@/components/dashboard/DashboardAdmin'
 import DashboardComptable from '@/components/dashboard/DashboardComptable'
 import DashboardPedago from '@/components/dashboard/DashboardPedago'
 import DashboardEnseignant from '@/components/dashboard/DashboardEnseignant'
 import DashboardSecretaire from '@/components/dashboard/DashboardSecretaire'
 import DashboardParent from '@/components/dashboard/DashboardParent'
+
+export const metadata: Metadata = {
+  title: 'Tableau de bord',
+}
 
 const roleLabel: Record<string, string> = {
   admin: 'Administrateur',
@@ -25,7 +26,8 @@ const roleLabel: Record<string, string> = {
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const userId = user!.id
+  if (!user) return redirect('/login')
+  const userId = user.id
 
   // Profil et année courante — données cachées
   const [profile, currentYear] = await Promise.all([
@@ -105,21 +107,22 @@ export default async function DashboardPage() {
       { data: classesList },
       { data: familyFees },
       { data: recentAbsences },
-      { count: msgSentThisMonth },
-      { count: msgReadCount },
-      { count: msgTotalRecipients },
+      { data: announcementStats },
       { data: parentsWithEnrollments },
       { data: adultEnrollments },
     ] = await Promise.all([
       supabase.from('classes').select('id, name, max_students, enrollments:enrollments(count)').order('name'),
       supabase.from('family_fees').select('id, status, fee_installments(amount_paid), fee_adjustments(amount)'),
       supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
-      supabase.from('announcements').select('id', { count: 'exact', head: true }).eq('is_published', true).gte('published_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
-      supabase.from('announcement_recipients').select('id', { count: 'exact', head: true }).eq('is_read', true),
-      supabase.from('announcement_recipients').select('id', { count: 'exact', head: true }),
+      // 3 compteurs en une seule requête (au lieu de 3 séparées)
+      supabase.from('announcement_recipients').select('id, is_read'),
       supabase.from('parents').select(`id, students!inner ( id, is_active, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type ) ) ) )`).eq('students.is_active', true).eq('students.enrollments.status', 'active').eq('students.enrollments.classes.academic_year', currentYear?.label ?? ''),
       supabase.from('parent_class_enrollments').select(`parent_id, classes ( cotisation_types ( id, amount, registration_fee ) )`).eq('status', 'active'),
     ])
+
+    // Calculer les stats d'annonces côté client (au lieu de 3 requêtes séparées)
+    const msgReadCount = (announcementStats ?? []).filter((r: any) => r.is_read).length
+    const msgTotalRecipients = (announcementStats ?? []).length
 
     // Calcul total du reel a partir des inscriptions
     const adultByParent: Record<string, any[]> = {}
@@ -434,8 +437,10 @@ export default async function DashboardPage() {
       { data: fee },
     ] = await Promise.all([
       supabase.from('students').select('id, first_name, last_name, gender, photo_url, enrollments:enrollments(class_id, classes:class_id(name))').eq('parent_id', parentLink.id).eq('is_active', true),
-      supabase.from('grades').select('id, score, evaluations:evaluation_id(title, max_score, evaluation_date), students:student_id(first_name, last_name)').in('student_id', (await supabase.from('students').select('id').eq('parent_id', parentLink.id)).data?.map((s: any) => s.id) ?? []).order('created_at', { ascending: false }).limit(5),
-      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name)').neq('absence_type', 'retard').in('student_id', (await supabase.from('students').select('id').eq('parent_id', parentLink.id)).data?.map((s: any) => s.id) ?? []).order('absence_date', { ascending: false }).limit(5),
+      // Jointure directe : grades → students → parent_id (plus besoin de requête séparée pour les IDs)
+      supabase.from('grades').select('id, score, evaluations:evaluation_id(title, max_score, evaluation_date), students:student_id(first_name, last_name)').eq('students.parent_id', parentLink.id).order('created_at', { ascending: false }).limit(5),
+      // Idem pour les absences
+      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name)').neq('absence_type', 'retard').eq('students.parent_id', parentLink.id).order('absence_date', { ascending: false }).limit(5),
       supabase.from('family_fees').select('id, total_due, status').eq('parent_id', parentLink.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
 

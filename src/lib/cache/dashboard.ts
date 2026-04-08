@@ -1,16 +1,19 @@
 import { unstable_cache } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
  * Cached dashboard data for the dashboard layout.
- * These queries run on every navigation into /dashboard so benefit greatly from caching.
+ * Ces fonctions utilisent `createAdminClient()` (service role key)
+ * au lieu de `createClient()` car `unstable_cache` ne peut pas
+ * appeler `cookies()` à l'intérieur d'une fonction cachée.
+ * Voir : https://nextjs.org/docs/app/api-reference/functions/unstable_cache
  */
 
 // ─── Profile (per user, cache 1h) ─────────────────────────────────────────────
 
 export const getCachedProfile = unstable_cache(
   async (userId: string) => {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data: profile } = await supabase
       .from('profiles')
       .select('*')
@@ -26,7 +29,7 @@ export const getCachedProfile = unstable_cache(
 
 export const getCachedEtablissement = unstable_cache(
   async () => {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data } = await supabase
       .from('etablissements')
       .select('nom, logo_url')
@@ -41,7 +44,7 @@ export const getCachedEtablissement = unstable_cache(
 
 export const getCachedCurrentYear = unstable_cache(
   async () => {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const { data } = await supabase
       .from('school_years')
       .select('id, label')
@@ -57,7 +60,7 @@ export const getCachedCurrentYear = unstable_cache(
 
 export const getCachedAdminStats = unstable_cache(
   async (etablissementId: string) => {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const [
       studentsActive,

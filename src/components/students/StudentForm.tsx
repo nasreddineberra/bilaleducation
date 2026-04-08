@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User, Users } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Cropper from 'react-easy-crop'
@@ -775,7 +776,8 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
       streamRef.current = stream
       setShowWebcam(true)
-    } catch {
+    } catch (err) {
+      console.error('[StudentForm] Impossible d\'accéder à la caméra:', err)
       setUploadError("Impossible d'accéder à la caméra.")
     }
   }
@@ -836,7 +838,8 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
       const path = `${etablissementId}/${photoId.current}.jpg`
       await supabase.storage.from('student-photos').remove([path])
       onChange(null)
-    } catch {
+    } catch (err) {
+      console.error('[StudentForm] Erreur lors de la suppression de la photo:', err)
       setUploadError('Erreur lors de la suppression.')
     } finally {
       setIsUploading(false)
@@ -849,7 +852,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
         {/* Vignette 3:4 */}
         <div className="w-[78px] h-[104px] rounded-lg overflow-hidden border border-warm-200 bg-warm-100 flex items-center justify-center flex-shrink-0">
           {photoUrl ? (
-            <img src={photoUrl} alt="Photo élève" className="w-full h-full object-cover" />
+            <Image src={photoUrl} alt="Photo élève" width={78} height={104} className="w-full h-full object-cover" unoptimized />
           ) : (
             <User size={32} className="text-warm-300" />
           )}

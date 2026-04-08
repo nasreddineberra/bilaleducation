@@ -37,6 +37,7 @@ import {
   Boxes,
   ScrollText,
 } from 'lucide-react'
+import Image from 'next/image'
 import type { UserRole } from '@/types/database'
 import { clsx } from 'clsx'
 
@@ -440,7 +441,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
               boxShadow: '0 4px 10px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
             }}
           >
-            <img src={etablissementLogo} alt={etablissementNom ?? ''} className="w-full h-full object-contain bg-white" />
+            <Image src={etablissementLogo} alt={etablissementNom ?? ''} width={36} height={36} className="w-full h-full object-contain bg-white" unoptimized />
           </div>
         ) : (
           <div

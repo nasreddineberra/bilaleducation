@@ -1,31 +1,107 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
 import TeachersTable from './TeachersTable'
 import type { Teacher } from '@/types/database'
 
+const PAGE_SIZE = 20
+
 interface TeachersClientProps {
   teachers: Teacher[]
+  filteredCount: number
+  page: number
+  q: string
+  totalCount: number
 }
 
-export default function TeachersClient({ teachers }: TeachersClientProps) {
-  const [search, setSearch] = useState('')
+// ─── Pagination ───────────────────────────────────────────────────────────────
 
-  const filtered = search.trim() === ''
-    ? teachers
-    : teachers.filter(t => {
-        const q = search.toLowerCase()
-        return (
-          t.last_name?.toLowerCase().includes(q)      ||
-          t.first_name?.toLowerCase().includes(q)     ||
-          t.email?.toLowerCase().includes(q)          ||
-          t.specialization?.toLowerCase().includes(q) ||
-          t.employee_number?.toLowerCase().includes(q)
+function PaginationBar({ page, totalPages, onNavigate }: {
+  page: number
+  totalPages: number
+  onNavigate: (p: number) => void
+}) {
+  if (totalPages <= 1) return null
+
+  const getPages = (): (number | '...')[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const pages: (number | '...')[] = [1]
+    if (page > 3) pages.push('...')
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+      pages.push(i)
+    }
+    if (page < totalPages - 2) pages.push('...')
+    pages.push(totalPages)
+    return pages
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onNavigate(page - 1)}
+        disabled={page === 1}
+        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronLeft size={15} />
+      </button>
+
+      {getPages().map((p, i) =>
+        p === '...' ? (
+          <span key={`e${i}`} className="px-1 text-warm-400 text-sm select-none">…</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onNavigate(p)}
+            className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors ${
+              p === page
+                ? 'bg-primary-500 text-white shadow-sm'
+                : 'text-secondary-600 hover:bg-warm-100'
+            }`}
+          >
+            {p}
+          </button>
         )
-      })
+      )}
+
+      <button
+        onClick={() => onNavigate(page + 1)}
+        disabled={page === totalPages}
+        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      >
+        <ChevronRight size={15} />
+      </button>
+    </div>
+  )
+}
+
+// ─── Composant principal ──────────────────────────────────────────────────────
+
+export default function TeachersClient({ teachers, filteredCount, page, q, totalCount }: TeachersClientProps) {
+  const router = useRouter()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [inputValue, setInputValue] = useState(q)
+
+  const totalPages = Math.ceil(filteredCount / PAGE_SIZE)
+
+  useEffect(() => { setInputValue(q) }, [q])
+
+  const navigate = (newPage: number, newQ: string) => {
+    const params = new URLSearchParams()
+    if (newQ.trim()) params.set('q', newQ.trim())
+    if (newPage > 1) params.set('page', String(newPage))
+    const qs = params.toString()
+    router.push(`/dashboard/teachers${qs ? `?${qs}` : ''}`)
+  }
+
+  const handleSearch = (value: string) => {
+    setInputValue(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => navigate(1, value), 300)
+  }
 
   const activeCount = teachers.filter(t => t.is_active).length
 
@@ -37,7 +113,7 @@ export default function TeachersClient({ teachers }: TeachersClientProps) {
 
         {/* Statistiques */}
         <div className="card px-4 py-2 flex items-center gap-3">
-          <span className="text-2xl font-bold text-secondary-800">{teachers.length}</span>
+          <span className="text-2xl font-bold text-secondary-800">{totalCount}</span>
           <span className="text-xs text-warm-500 leading-tight">au total</span>
         </div>
         <div className="card px-4 py-2 flex items-center gap-3">
@@ -49,8 +125,8 @@ export default function TeachersClient({ teachers }: TeachersClientProps) {
 
         {/* Recherche */}
         <SearchField
-          value={search}
-          onChange={setSearch}
+          value={inputValue}
+          onChange={handleSearch}
           placeholder="Nom, prénom ou n° employé…"
         />
 
@@ -65,14 +141,19 @@ export default function TeachersClient({ teachers }: TeachersClientProps) {
       </div>
 
       {/* Tableau */}
-      <TeachersTable teachers={filtered} />
+      <TeachersTable teachers={teachers} />
 
-      {/* Résumé */}
-      <div className="px-1">
+      {/* Pied de page : résumé + pagination */}
+      <div className="flex items-center justify-between px-1">
         <span className="text-xs text-warm-400">
-          {filtered.length} enseignant{filtered.length > 1 ? 's' : ''}
-          {search.trim() ? ` trouvé${filtered.length > 1 ? 's' : ''} pour « ${search} »` : ''}
+          {filteredCount} enseignant{filteredCount > 1 ? 's' : ''}
+          {q.trim() ? ` trouvé${filteredCount > 1 ? 's' : ''} pour « ${q} »` : ''}
         </span>
+        <PaginationBar
+          page={page}
+          totalPages={totalPages}
+          onNavigate={p => navigate(p, q)}
+        />
       </div>
 
     </div>

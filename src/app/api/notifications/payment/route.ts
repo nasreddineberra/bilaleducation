@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createNotification, getParentWithEmails } from '@/lib/notifications'
 import { requireRole } from '@/lib/auth/requireRole'
+import { checkRateLimit } from '@/lib/security/rateLimiter'
+import { checkCsrf } from '@/lib/security/csrf'
+import { logger } from '@/lib/logger'
 
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
@@ -12,6 +15,19 @@ function fmtEur(n: number) {
 }
 
 export async function POST(req: NextRequest) {
+  // Protection CSRF
+  const csrf = checkCsrf(req)
+  if (!csrf.valid) {
+    return NextResponse.json({ error: 'Requête non autorisée.' }, { status: 403 })
+  }
+
+  // Rate limiting : 10 requêtes/minute par IP
+  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown'
+  const limit = checkRateLimit(`payment:${ip}`, 10)
+  if (!limit.allowed) {
+    return NextResponse.json({ error: 'Trop de requêtes. Veuillez réessayer dans une minute.' }, { status: 429 })
+  }
+
   try {
     const { user, error } = await requireRole(['admin', 'direction', 'secretaire'])
     if (error) return error
@@ -69,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {
-    console.error('[notif:payment]', e)
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    logger.error('Erreur notification paiement', e)
+    return NextResponse.json({ error: 'Une erreur est survenue.' }, { status: 500 })
   }
 }

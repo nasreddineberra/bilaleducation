@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, Trash2, X } from 'lucide-react'
+import Image from 'next/image'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import { clsx } from 'clsx'
@@ -321,7 +322,7 @@ function LogoField({
       {/* Aperçu 160×160 */}
       <div className="w-40 h-40 rounded-xl border border-warm-200 bg-white flex items-center justify-center overflow-hidden">
         {logoUrl
-          ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+          ? <Image src={logoUrl} alt="Logo" width={160} height={160} className="w-full h-full object-contain p-2" unoptimized />
           : <span className="text-xs text-warm-300 text-center px-2">Aucun logo</span>
         }
       </div>

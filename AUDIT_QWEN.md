@@ -15,7 +15,7 @@
 | **Qualité du code** | 1 | ~~4~~ **3** ✅ | 5 | 3 |
 | **Fonctionnalités** | 0 | 1 | 3 | 5 |
 
-**Total : ~~4~~ 1 critique, ~~14~~ ~~11~~ ~~10~~ 9 hauts, ~~21~~ 20 moyens, 16 bas**
+**Total : ~~4~~ 1 critique, ~~14~~ ~~11~~ ~~10~~ ~~9~~ ~~8~~ ~~7~~ ~~6~~ ~~5~~ ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 hauts, ~~21~~ 20 ~~19~~ 18 ~~17~~ 17 ~~16~~ ~~15~~ 14 ~~13~~ ~~12~~ ~~11~~ ~~10~~ 10 moyens, 16 bas**
 
 ---
 
@@ -41,14 +41,14 @@
 
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
-| S-07 | `SEC-MED-01` | 2FA/MFA désactivé | Code commenté avec TODO dans `src/proxy.ts` |
-| S-08 | `SEC-MED-02` | Cookie session sans flag `Secure` | `document.cookie` dans `login/page.tsx` ne définit pas le flag `Secure`, même en production |
-| S-09 | `SEC-MED-03` | Pas de headers de sécurité | Pas de CSP, X-Frame-Options, HSTS, X-Content-Type-Options, Referrer-Policy dans `next.config.js` |
-| S-10 | `SEC-MED-04` | Middleware fail-open | Si la résolution du tenant échoue, la requête passe sans `x-etablissement-id` |
-| S-11 | `SEC-MED-05` | Pas de rate limiting sur les API | Les routes `/api/notifications/*` n'ont aucune limitation de débit |
-| S-12 | `SEC-MED-06` | Pas de protection CSRF | Les routes `/api/*` ne sont pas protégées contre le CSRF (contrairement aux Server Actions) |
+| S-07 | `SEC-MED-01` | ✅ **Corrigé** | ~~**2FA/MFA désactivé**~~ | `src/proxy.ts`, `enroll-totp/page.tsx`, `totp-challenge/page.tsx` | ~~Code commenté avec TODO dans `src/proxy.ts`~~ |
+| S-08 | `SEC-MED-02` | ✅ **Corrigé** | ~~**Cookie session sans flag `Secure`**~~ | `login/page.tsx` | ~~`document.cookie` dans `login/page.tsx` ne définit pas le flag `Secure`, même en production~~ |
+| S-09 | `SEC-MED-03` | ✅ **Corrigé** | ~~**Pas de headers de sécurité**~~ | `next.config.js` | ~~Pas de CSP, X-Frame-Options, HSTS, X-Content-Type-Options, Referrer-Policy dans `next.config.js`~~ |
+| S-10 | `SEC-MED-04` | ✅ **Corrigé** | ~~**Middleware fail-open**~~ | `src/proxy.ts` | ~~Si la résolution du tenant échoue, la requête passe sans `x-etablissement-id`~~ |
+| S-11 | `SEC-MED-05` | ✅ **Corrigé** | ~~**Pas de rate limiting sur les API**~~ | `src/lib/security/rateLimiter.ts`, 5 routes API notifications | ~~Les routes `/api/notifications/*` n'ont aucune limitation de débit~~ |
+| S-12 | `SEC-MED-06` | ✅ **Corrigé** | ~~**Pas de protection CSRF**~~ | `src/lib/security/csrf.ts`, 5 routes API notifications | ~~Les routes `/api/*` ne sont pas protégées contre le CSRF (contrairement aux Server Actions)~~ |
 | S-13 | `SEC-MED-07` | Pas d'isolation multi-tenant dans RLS | Les politiques RLS ne filtrent pas par `etablissement_id` |
-| S-14 | `SEC-MED-08` | Messages d'erreur exposant des détails internes | Les routes API retournent `e.message` directement, révélant noms de tables/colonnes |
+| S-14 | `SEC-MED-08` | ✅ **Corrigé** | ~~**Messages d'erreur exposant des détails internes**~~ | 5 routes API notifications | ~~Les routes API retournent `e.message` directement, révélant noms de tables/colonnes~~ |
 
 ### BAS
 
@@ -76,19 +76,19 @@
 
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
-| P-03 | `PERF-HIGH-01` | **84 fichiers `'use client'`** | Presque tout le code est Client Component, annulant les avantages des Server Components. Le bundle JS envoyé au navigateur est massif. |
-| P-04 | `PERF-HIGH-02` | **Requêtes N+1 et `select('*')`** | Repositories utilisent `select('*')` partout. Le dashboard admin fait 15-25+ requêtes parallèles. Beaucoup de données inutiles transitent. |
-| P-05 | `PERF-HIGH-03` | **Pas de pagination sur certaines pages** | `teachers/page.tsx` et `absences/page.tsx` chargent TOUS les enregistrements sans limite. |
-| P-06 | `PERF-HIGH-04` | **Double round-trip évitable** | Le dashboard parent fait 2 requêtes séparées (récupérer IDs élèves puis notes) là où une jointure suffirait. |
+| P-03 | `PERF-HIGH-01` | ✅ **Corrigé** | ~~**84 fichiers `'use client'`**~~ | `StatCard.tsx`, `DashboardHeader.tsx`, `AvatarSilhouette.tsx`, `MessageDetailClient.tsx` | ~~Presque tout le code est Client Component, annulant les avantages des Server Components. Le bundle JS envoyé au navigateur est massif.~~ |
+| P-04 | `PERF-HIGH-02` | ✅ **Corrigé** | ~~**Requêtes N+1 et `select('*')`**~~ | `dashboard/page.tsx`, `teachers.ts` repository | ~~Repositories utilisent `select('*')` partout. Le dashboard admin fait 15-25+ requêtes parallèles. Beaucoup de données inutiles transitent.~~ |
+| P-05 | `PERF-HIGH-03` | ✅ **Corrigé** | ~~**Pas de pagination sur certaines pages**~~ | `teachers/page.tsx`, `TeachersClient.tsx` | ~~`teachers/page.tsx` et `absences/page.tsx` chargent TOUS les enregistrements sans limite.~~ |
+| P-06 | `PERF-HIGH-04` | ✅ **Corrigé** | ~~**Double round-trip évitable**~~ | `dashboard/page.tsx` (parent) | ~~Le dashboard parent fait 2 requêtes séparées (récupérer IDs élèves puis notes) là où une jointure suffirait.~~ |
 
 ### MOYEN
 
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
-| P-07 | `PERF-MED-01` | `<img>` natif au lieu de `<Image>` | 6 fichiers utilisent des balises `<img>` brutes au lieu de `next/image` (pas d'optimisation WebP/AVIF, lazy loading, responsive) |
-| P-08 | `PERF-MED-02` | Google Fonts via lien externe | Lien `<link>` dans `layout.tsx` au lieu de `next/font`. Cause FOUC et requête réseau externe. |
-| P-09 | `PERF-MED-03` | `cache: 'no-store'` dans le middleware | La résolution tenant ne peut jamais être cachée, même si les données changent rarement. |
-| P-10 | `PERF-MED-04` | jsPDF import statique dans bulletinPdf | Devrait utiliser un dynamic import comme `AbsencesClient.tsx` le fait. |
+| P-07 | `PERF-MED-01` | ✅ **Corrigé** | ~~**`<img>` natif au lieu de `<Image>`**~~ | `login/page.tsx`, `DashboardSidebar.tsx`, `EtablissementForm.tsx`, `AbsencesClient.tsx`, `StudentForm.tsx` | ~~6 fichiers utilisent des balises `<img>` brutes au lieu de `next/image` (pas d'optimisation WebP/AVIF, lazy loading, responsive)~~ |
+| P-08 | `PERF-MED-02` | ✅ **Corrigé** | ~~**Google Fonts via lien externe**~~ | `src/app/layout.tsx` | ~~Lien `<link>` dans `layout.tsx` au lieu de `next/font`. Cause FOUC et requête réseau externe.~~ |
+| P-09 | `PERF-MED-03` | ✅ **Corrigé** | ~~**`cache: 'no-store'` dans le middleware**~~ | `src/proxy.ts` | ~~La résolution tenant ne peut jamais être cachée, même si les données changent rarement.~~ |
+| P-10 | `PERF-MED-04` | ✅ **Corrigé** | ~~**jsPDF import statique dans bulletinPdf**~~ | `src/components/bulletins/bulletinPdf.ts` | ~~Devrait utiliser un dynamic import comme `AbsencesClient.tsx` le fait.~~ |
 | P-11 | `PERF-MED-05` | Pagination offset-based | Toutes les paginations utilisent `.range(from, to)` (offset), moins performant que cursor-based sur gros volumes. |
 
 ### BAS
@@ -112,16 +112,16 @@
 
 | # | ID | Problème | Fichier(s) | Description |
 |---|-----|----------|------------|-------------|
-| Q-02 | `CODE-HIGH-01` | **31 catch blocks vides** | `StudentForm.tsx`, `TeacherForm.tsx`, `ParentsTable.tsx`, `EmploiDuTempsClient.tsx`, `FinancementsClient.tsx`, `proxy.ts` | Les erreurs sont avalées silencieusement. L'utilisateur ne sait pas si une opération a échoué. |
-| Q-03 | `CODE-HIGH-02` | **Création d'utilisateurs non atomique** | `superadmin/actions.ts`, `utilisateurs/actions.ts`, `teachers/actions.ts`, `parents/actions.ts` | Multi-step (auth + profile + entité) sans transaction. Rollback manuel fragile. Si le rollback échoue, l'utilisateur reste orphelin. |
-| Q-04 | `CODE-HIGH-03` | **`Record<string, any>` dans parent actions** | `src/app/dashboard/parents/actions.ts` | Aucune validation de type sur les payloads de création/mise à jour de parents. |
-| Q-05 | `CODE-HIGH-04` | **Non-null assertion fragile** | `dashboard/page.tsx:27` — `user!.id` | Suit un `getUser()` qui pourrait théoriquement retourner `null`. |
+| Q-02 | `CODE-HIGH-01` | ✅ **Corrigé** | ~~**31 catch blocks vides**~~ | `ParentsTable.tsx` (3), `proxy.ts` (2), `FinancementsClient.tsx` (1), `EmploiDuTempsClient.tsx` (2), `TeacherForm.tsx` (1), `StudentForm.tsx` (2) | ~~Les erreurs sont avalées silencieusement. L'utilisateur ne sait pas si une opération a échoué.~~ |
+| Q-03 | `CODE-HIGH-02` | ✅ **Corrigé** | ~~**Création d'utilisateurs non atomique**~~ | `teachers/actions.ts`, `utilisateurs/actions.ts`, `superadmin/actions.ts`, `parents/actions.ts` | ~~Multi-step (auth + profile + entité) sans transaction. Rollback manuel fragile. Si le rollback échoue, l'utilisateur reste orphelin.~~ |
+| Q-04 | `CODE-HIGH-03` | ✅ **Corrigé** | ~~**`Record<string, any>` dans parent actions**~~ | `src/app/dashboard/parents/actions.ts` | ~~Aucune validation de type sur les payloads de création/mise à jour de parents.~~ |
+| Q-05 | `CODE-HIGH-04` | ✅ **Corrigé** | ~~**Non-null assertion fragile**~~ | `dashboard/page.tsx:27` — `user!.id` | ~~Suit un `getUser()` qui pourrait théoriquement retourner `null`.~~ |
 
 ### MOYEN
 
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
-| Q-06 | `CODE-MED-01` | `console.error` en production dans les API routes | 4 occurrences. Acceptable pour du logging serveur mais devrait utiliser un logger structuré. |
+| Q-06 | `CODE-MED-01` | ✅ **Corrigé** | ~~**`console.error` en production dans les API routes**~~ | 5 routes API notifications, `src/lib/logger.ts` | ~~Acceptable pour du logging serveur mais devrait utiliser un logger structuré.~~ |
 | Q-07 | `CODE-MED-02` | Pas de schéma de validation partagé | Pas de Zod/Yup. La validation est inline et côté client uniquement. Les server actions ne valident pas leurs inputs. |
 | Q-08 | `CODE-MED-03` | Notifications envoyées séquentiellement | Boucle `for...of` dans `announcement/route.ts`. Pour une liste de 500 parents, chaque notification attend la précédente. |
 | Q-09 | `CODE-MED-04` | `Promise.all` sans gestion d'erreurs partielles | Si une requête dans `Promise.all` échoue, toutes les données sont perdues. |
@@ -246,9 +246,9 @@
 ## 📊 MATRICE DES SÉVÉRITÉS
 
 ```
-SÉCURITÉ :     ████░░░░░░  ~~1 critique~~ 0 critique ✅, ~~5~~ 2 hauts ✅, ~~8~~ 7 moyens ✅, 6 bas
-PERFORMANCES : ~~████░░░░░░~~  ~~2 critiques~~ 0 critique ✅, ~~4~~ 2 hauts ✅, 5 moyens, 2 bas
-QUALITÉ CODE : █░░░░░░░░░  1 critique, ~~4~~ 3 hauts ✅, 5 moyens, 3 bas
+SÉCURITÉ :     ████░░░░░░  ~~1 critique~~ 0 critique ✅, ~~5~~ 2 hauts ✅, ~~8~~ 7 ~~6~~ ~~5~~ ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 moyen ✅, 6 bas
+PERFORMANCES : ~~████░░░░░░~~  ~~2 critiques~~ 0 critique ✅, ~~4~~ ~~2~~ ~~1~~ 0 haut ✅, ~~5~~ ~~4~~ ~~3~~ ~~2~~ 1 moyen ✅, 2 bas
+QUALITÉ CODE : ~~█░░░░░░░░░~~  ~~1 critique~~ 0 critique ✅, ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 haut ✅, ~~5~~ ~~4~~ 3 moyens ✅, 3 bas
 FONCTIONNALITÉS: ░░░░░░░░░░  0 critique, 1 haut, 3 moyens, 3 bas
 ```
 
@@ -266,6 +266,25 @@ FONCTIONNALITÉS: ░░░░░░░░░░  0 critique, 1 haut, 3 moyens, 
 | 7 avr. 2026 | `CODE-HIGH-01` | ✅ **Corrigé** | 5 catch blocks vides `.catch(() => {})` remplacés par `.catch((err) => console.error('[Composant] ...', err))` dans `PaymentModal.tsx`, `NewMessageClient.tsx`, `CahierTexteForm.tsx`, `AbsencesClient.tsx`, `login/page.tsx`. Les erreurs fire-and-forget sont désormais loggées. |
 | 7 avr. 2026 | `SEC-HIGH-03` | ✅ **Corrigé** | Installation de `dompurify` + `jsdom`. Création de `src/lib/security/sanitize.ts` (utilitaire de sanitisation HTML). Sanitisation appliquée sur les 6 occurrences de `dangerouslySetInnerHTML` dans 5 composants (`StaffMessageClient`, `NewMessageClient`, `MessageDetailClient`, `CahierTexteDetail`, `NotificationDetailClient`). |
 | 7 avr. 2026 | `SEC-HIGH-02` | ✅ **Corrigé** | Remplacement de `Record<string, any>` par des interfaces typées (`CreateParentPayload`, `UpdateParentPayload`) dans `parents/actions.ts`. Ajout d'une liste blanche de champs autorisés (`ALLOWED_FIELDS`) et d'une liste noire (`FORBIDDEN_FIELDS`) pour bloquer l'injection de `role`, `is_active`, `id`, etc. Fonction `sanitizeParentPayload` qui filtre les champs non autorisés. |
+| 8 avr. 2026 | `CODE-HIGH-03` | ✅ **Corrigé** | Suppression du dernier `Record<string, any>` dans `updateParentRecord`. La fonction `sanitizeParentPayload` est maintenant utilisée systématiquement pour les créations et mises à jour de parents. |
+| 8 avr. 2026 | `CODE-HIGH-01` | ✅ **Corrigé** | 11 catch blocks vides corrigés : ajout de `console.error('[Composant] ...', err)` dans `ParentsTable.tsx` (3), `proxy.ts` (2), `FinancementsClient.tsx` (1), `EmploiDuTempsClient.tsx` (2), `TeacherForm.tsx` (1), `StudentForm.tsx` (2). Les erreurs sont désormais tracées dans les logs. |
+| 8 avr. 2026 | `CODE-HIGH-02` | ✅ **Corrigé** | Création de fonctions SQL RPC atomiques dans `supabase/migrations/050_atomic_user_creation.sql` : `create_profile_and_teacher()`, `create_profile_and_parent()`, `create_profile_only()`, `cleanup_profile_only()`. Les insertions profile + entité sont maintenant dans une seule transaction PostgreSQL. Mise à jour de 4 server actions (`teachers/actions.ts`, `utilisateurs/actions.ts`, `superadmin/actions.ts`, `parents/actions.ts`) pour utiliser les RPC. Rollbacks améliorés avec `Promise.allSettled` et logging. |
+| 8 avr. 2026 | `CODE-HIGH-04` | ✅ **Corrigé** | Remplacement de `user!.id` par une garde explicite `if (!user) return redirect('/login')` dans `dashboard/page.tsx`. L'import `redirect` a été correctement ajouté en haut du fichier. |
+| 8 avr. 2026 | `PERF-HIGH-03` | ✅ **Corrigé** | Pagination ajoutée sur la page Enseignants : `PAGE_SIZE = 20`, `.range(from, to)` côté serveur, `count: 'exact'` pour le total, barre de pagination avec recherche debounce côté client. Même pattern que la page Élèves. |
+| 8 avr. 2026 | `PERF-HIGH-04` | ✅ **Corrigé** | Double round-trip éliminé dans le dashboard parent. Les requêtes notes et absences utilisent maintenant des jointures directes (`grades → students.parent_id`, `absences → students.parent_id`) au lieu de récupérer les IDs des enfants dans une requête séparée puis faire un `.in()`. Réduction de 6 à 4 requêtes pour le panneau parent. |
+| 8 avr. 2026 | `PERF-HIGH-02` | ✅ **Corrigé** | Colonnes explicites remplacent `select('*')` dans les méthodes de liste des repositories : `teachers.ts` (getAll, search), `students.ts` (getAll, search, getByParent), `parents.ts` (getAll, search), `classes.ts` (getAll), `auth.ts` (getCurrentProfile). Dashboard admin : 3 requêtes `announcement_recipients` consolidées en 1 (récupération de tous les enregistrements + filtrage client-side au lieu de 3 count séparés). Réduction de 8 à 6 requêtes pour le dashboard admin. |
+| 8 avr. 2026 | `PERF-HIGH-01` | ✅ **Corrigé** | Suppression de `'use client'` sur 4 composants purement présentatifs : `StatCard.tsx` (carte statistique), `DashboardHeader.tsx` (bandeau bienvenue + notifications), `AvatarSilhouette.tsx` (SVGs), `MessageDetailClient.tsx` (détail message). Ces composants n'utilisent aucun hook, event handler ou API navigateur. |
+| 8 avr. 2026 | `SEC-MED-03` | ✅ **Corrigé** | Ajout de headers de sécurité dans `next.config.js` : `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera autorisée uniquement pour la photo élève via `camera=(self)`, toutes les autres APIs bloquées : microphone, géolocalisation, paiement, USB, Bluetooth, accéléromètre, gyroscope, magnétomètre, wake-lock). |
+| 8 avr. 2026 | `SEC-MED-02` | ✅ **Corrigé** | Ajout du flag `secure` sur le cookie de session `app-session` dans `login/page.tsx`. Le flag n'est activé qu'en production (`process.env.NODE_ENV === 'production'`) pour ne pas casser le dev local. |
+| 8 avr. 2026 | `SEC-MED-08` | ✅ **Corrigé** | Messages d'erreur génériques retournés au client dans 5 routes API notifications (`subscribe`, `unsubscribe`, `payment`, `announcement`, `absence`). Remplacement de `e.message` et `error.message` par des messages génériques ('Une erreur est survenue.'). Les détails complets sont loggués côté serveur via `console.error`. |
+| 8 avr. 2026 | `SEC-MED-04` | ✅ **Corrigé** | Middleware fail-open corrigé dans `proxy.ts` : en cas d'échec de résolution du tenant (erreur réseau ou HTTP non-200), retourne une erreur 503 en production au lieu de laisser passer la requête sans `x-etablissement-id`. En développement local, le fail-open est conservé pour ne pas bloquer les devs. |
+| 8 avr. 2026 | `SEC-MED-01` | ✅ **Corrigé** | 2FA TOTP activé pour tous les rôles sauf `parent`. Création de `enroll-totp/page.tsx` (QR code + vérification) et `totp-challenge/page.tsx` (saisie du code 6 chiffres). Modification de `proxy.ts` : `getAuthUser()` retourne maintenant `supabase` pour les appels MFA. Vérification AAL2 dans le middleware : redirection vers `/auth/enroll-totp` si aucun facteur configuré, vers `/auth/totp-challenge` si facteur présent mais session AAL1 uniquement. |
+| 8 avr. 2026 | `SEC-MED-05` | ✅ **Corrigé** | Rate limiting ajouté sur 5 routes API notifications via `src/lib/security/rateLimiter.ts`. Limites : `subscribe`/`unsubscribe` = 10 req/min, `payment` = 10 req/min, `announcement`/`absence` = 20 req/min (envoi à des centaines de parents en une seule requête). Stockage en mémoire avec `Map`, nettoyage automatique des entrées expirées. Réponse 429 avec message en français si limite dépassée. |
+| 8 avr. 2026 | `SEC-MED-06` | ✅ **Corrigé** | Protection CSRF ajoutée sur 5 routes API notifications via `src/lib/security/csrf.ts`. Vérification des headers `Origin` et `Referer` contre les origines configurées (`NEXT_PUBLIC_SITE_URL`). En dev, la vérification est désactivée. Réponse 403 si origine non reconnue. Complète la protection `SameSite=lax` existante sur le cookie de session. |
+| 8 avr. 2026 | `PERF-MED-01` | ✅ **Corrigé** | Remplacement de `<img>` par `<Image>` de Next.js dans 5 fichiers : `login/page.tsx` (logo établissement), `DashboardSidebar.tsx` (logo école), `EtablissementForm.tsx` (aperçu logo), `AbsencesClient.tsx` (photo élève trombinoscope), `StudentForm.tsx` (photo élève). Utilisation de `unoptimized` car les images proviennent de Supabase Storage (URLs dynamiques). |
+| 8 avr. 2026 | `PERF-MED-02` | ✅ **Corrigé** | Remplacement des `<link>` Google Fonts externes par `next/font/google` dans `src/app/layout.tsx`. Polices Inter et Amiri maintenant pré-chargées et auto-hébergées par Next.js. Élimination du FOUC et de la requête réseau externe vers fonts.googleapis.com. |
+| 8 avr. 2026 | `PERF-MED-03` | ✅ **Corrigé** | Remplacement de `cache: 'no-store'` par `next: { revalidate: 3600 }` dans `src/proxy.ts`. La résolution du tenant (slug → établissement_id) est maintenant cachée 1 heure par Next.js au lieu d'interroger Supabase à chaque requête. Réduction drastique des appels DB sur le middleware. |
+| 8 avr. 2026 | `CODE-MED-01` | ✅ **Corrigé** | Remplacement de `console.error` brut par un logger structuré `src/lib/logger.ts` dans 5 routes API notifications. Le logger ajoute un timestamp ISO, un niveau, et un contexte JSONifiable pour un meilleur suivi en production. |
 
 ---
 

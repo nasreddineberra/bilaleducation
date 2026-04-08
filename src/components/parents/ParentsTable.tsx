@@ -73,7 +73,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
           enrollment_teacher: enrollmentMap[c.id]?.teacherLabel ?? null,
         }))
         setChildrenMap(prev => ({ ...prev, [parentId]: enriched }))
-      } catch {
+      } catch (err) {
+        console.error('[ParentsTable] Erreur lors du chargement des enfants:', err)
         setChildrenMap(prev => ({ ...prev, [parentId]: [] }))
       } finally {
         setLoadingChildrenId(null)
@@ -100,7 +101,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
 
       setConfirmDeleteId(null)
       router.refresh()
-    } catch {
+    } catch (err) {
+      console.error('[ParentsTable] Erreur lors de la suppression du parent:', err)
       setDeleteError('Une erreur est survenue lors de la suppression.')
     } finally {
       setIsDeleting(false)
@@ -118,8 +120,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
         ...prev,
         [parentId]: prev[parentId].map(s => s.id === student.id ? { ...s, is_active: newActive } : s),
       }))
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error('[ParentsTable] Erreur lors du toggle actif de l\'élève:', err)
     } finally {
       setTogglingStudentId(null)
     }

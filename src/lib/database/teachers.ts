@@ -6,7 +6,7 @@ export const teacherRepository = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('teachers')
-      .select('*')
+      .select('id, employee_number, civilite, last_name, first_name, email, phone, hire_date, specialization, is_active, created_at, updated_at, user_id, etablissement_id')
       .eq('is_active', true)
       .order('last_name')
 
@@ -110,7 +110,7 @@ export const teacherRepository = {
     const supabase = await createClient()
     const { data, error } = await supabase
       .from('teachers')
-      .select('*')
+      .select('id, employee_number, civilite, last_name, first_name, email, phone, hire_date, specialization, is_active, created_at, updated_at, user_id, etablissement_id')
       .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,employee_number.ilike.%${query}%`)
       .eq('is_active', true)
       .order('last_name')

@@ -451,8 +451,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     // Mettre à jour le statut en DB
     try {
       await supabase.from('family_fees').update({ status }).eq('id', feeId)
-    } catch {
-      // ignoré — le statut sera corrigé au prochain chargement
+    } catch (err) {
+      console.error('[FinancementsClient] Erreur mise à jour statut DB:', err)
     }
   }
 
