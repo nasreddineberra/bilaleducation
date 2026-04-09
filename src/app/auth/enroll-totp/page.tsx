@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, ShieldCheck, ScanLine, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import { createClient } from '@/lib/supabase/client'
 import QRCode from 'qrcode'
 
@@ -214,19 +215,15 @@ export default function EnrollTotpPage() {
               </div>
 
               <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleEnroll}
+                <FloatButton
+                  variant="primary"
+                  className="w-full justify-center"
                   disabled={isSubmitting}
-                  className="btn btn-primary py-3 text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                  loading={isSubmitting}
+                  onClick={handleEnroll}
                 >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 size={16} className="animate-spin" />
-                      Génération du QR code…
-                    </span>
-                  ) : 'Générer le QR code'}
-                </button>
+                  Générer le QR code
+                </FloatButton>
               </div>
             </>
           )}
@@ -274,38 +271,30 @@ export default function EnrollTotpPage() {
 
                 {/* Formulaire OTP */}
                 <form onSubmit={handleVerify} noValidate className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary-700 mb-1.5">
-                      Code à 6 chiffres
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otp}
-                      onChange={e => {
-                        const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                        setOtp(v)
-                      }}
-                      className="input text-center text-xl tracking-widest font-mono"
-                      placeholder="• • • • • •"
-                      autoFocus
-                      disabled={isSubmitting}
-                    />
-                  </div>
+                  <FloatInput
+                    label="Code à 6 chiffres"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={otp}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                      setOtp(v)
+                    }}
+                    className="text-center text-xl tracking-widest font-mono"
+                    placeholder="• • • • • •"
+                    autoFocus
+                    disabled={isSubmitting}
+                  />
 
-                  <button
-                    type="submit"
+                  <FloatButton
+                    variant="submit"
+                    className="w-full justify-center"
                     disabled={isSubmitting || otp.length !== 6}
-                    className="w-full btn btn-primary py-3 text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                    loading={isSubmitting}
                   >
-                    {isSubmitting ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 size={16} className="animate-spin" />
-                        Vérification…
-                      </span>
-                    ) : 'Confirmer le code'}
-                  </button>
+                    Confirmer le code
+                  </FloatButton>
                 </form>
               </div>
             </>
@@ -322,12 +311,13 @@ export default function EnrollTotpPage() {
                 Votre application d'authentification est maintenant configurée.
                 Un code à 6 chiffres vous sera demandé à chaque connexion.
               </p>
-              <button
+              <FloatButton
+                variant="primary"
+                className="w-full justify-center"
                 onClick={() => router.push('/dashboard')}
-                className="w-full btn btn-primary py-3 text-base"
               >
                 Accéder au tableau de bord
-              </button>
+              </FloatButton>
             </div>
           )}
 

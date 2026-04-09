@@ -222,6 +222,7 @@ export async function proxy(request: NextRequest) {
     'responsable_pedagogique', 'enseignant', 'secretaire',
   ]
 
+  // Ne pas vérifier la 2FA si on va vers /login (permettre la déconnexion)
   if (user && pathname.startsWith('/dashboard')) {
     const role = user.app_metadata?.role ?? 'parent'
 
@@ -259,7 +260,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // Rediriger vers /dashboard (ou /superadmin pour super_admin) si déjà connecté
-  if (user && (pathname === '/login' || pathname === '/')) {
+  // SAUF si on va vers /login ou /auth/* (permettre l'accès aux pages d'auth)
+  const isAuthPath = pathname.startsWith('/auth/')
+  if (user && !isAuthPath && pathname === '/login') {
+    // Laisser l'utilisateur accéder à /login (pour changer de compte ou réessayer)
+  } else if (user && !isAuthPath && pathname === '/') {
     const isSuperAdmin = user.app_metadata?.role === 'super_admin'
     return NextResponse.redirect(new URL(isSuperAdmin ? '/superadmin' : '/dashboard', request.url))
   }

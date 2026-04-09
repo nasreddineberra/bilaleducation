@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { CreateParentSchema, UpdateParentSchema, validateInput } from '@/lib/validation/schemas'
 
 // ─── Types strictes pour les payloads ─────────────────────────────────────────
 
@@ -115,6 +116,10 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
   const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
   if (roleError) return { error: roleError }
 
+  // Validation côté serveur
+  const validation = validateInput(CreateParentSchema, payload)
+  if ('error' in validation) return { error: `Validation : ${validation.error}` }
+
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
@@ -196,6 +201,10 @@ export async function updateParentRecord(
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
   if (roleError) return { error: roleError }
+
+  // Validation côté serveur
+  const validation = validateInput(UpdateParentSchema, payload)
+  if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
   const supabase = createAdminClient()
 

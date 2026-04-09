@@ -48,35 +48,48 @@ export async function POST(req: NextRequest) {
 
     if (!recipients?.length) return NextResponse.json({ ok: true })
 
-    // Pour chaque parent, créer une notification + envoyer email + push
-    for (const r of recipients) {
-      const emailHtml = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a1a1a;">${announcement.title}</h2>
-          <div style="color: #444; line-height: 1.6;">
-            ${announcement.body_html || announcement.content || ''}
-          </div>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="color: #999; font-size: 12px;">Bilal Education — Message de l'établissement</p>
+    // Préparer le contenu HTML commun (calculé une seule fois)
+    const emailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a1a1a;">${announcement.title}</h2>
+        <div style="color: #444; line-height: 1.6;">
+          ${announcement.body_html || announcement.content || ''}
         </div>
-      `
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="color: #999; font-size: 12px;">Bilal Education — Message de l'établissement</p>
+      </div>
+    `
 
-      await createNotification({
-        etablissement_id,
-        type: 'announcement',
-        parent_id: r.parent_id,
-        title: announcement.title,
-        body: announcement.content?.substring(0, 200) || announcement.title,
-        metadata: { announcement_id },
-        emailSubject: announcement.title,
-        emailHtml,
-      })
+    // Traitement par batches de 50 pour équilibrer vitesse et charge
+    const BATCH_SIZE = 50
+    const batches: typeof recipients[][] = []
+    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+      batches.push(recipients.slice(i, i + BATCH_SIZE))
+    }
 
-      // Mettre à jour le statut email dans announcement_recipients
+    for (const batch of batches) {
+      // Envoyer les notifications d'un batch en parallèle
+      await Promise.all(
+        batch.map(r =>
+          createNotification({
+            etablissement_id,
+            type: 'announcement',
+            parent_id: r.parent_id,
+            title: announcement.title,
+            body: announcement.content?.substring(0, 200) || announcement.title,
+            metadata: { announcement_id },
+            emailSubject: announcement.title,
+            emailHtml,
+          })
+        )
+      )
+
+      // Mettre à jour le statut email du batch en une seule requête
+      const batchIds = batch.map(r => r.id)
       await supabase
         .from('announcement_recipients')
         .update({ email_status: 'sent' })
-        .eq('id', r.id)
+        .in('id', batchIds)
     }
 
     return NextResponse.json({ ok: true })

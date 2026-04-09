@@ -30,10 +30,20 @@ export default async function DashboardPage() {
   const userId = user.id
 
   // Profil et année courante — données cachées
-  const [profile, currentYear] = await Promise.all([
+  const profileResults = await Promise.allSettled([
     getCachedProfile(userId),
     getCachedCurrentYear(),
   ])
+
+  const profile = profileResults[0].status === 'fulfilled' ? profileResults[0].value : null
+  const currentYear = profileResults[1].status === 'fulfilled' ? profileResults[1].value : null
+
+  if (profileResults[0].status === 'rejected') {
+    console.error('[dashboard/page] Échec profil:', profileResults[0].reason)
+  }
+  if (profileResults[1].status === 'rejected') {
+    console.error('[dashboard/page] Échec année scolaire:', profileResults[1].reason)
+  }
 
   const role = profile?.role ?? 'parent'
 
@@ -103,14 +113,7 @@ export default async function DashboardPage() {
     const cachedStats = await getCachedAdminStats(profile?.etablissement_id ?? '')
 
     // Données détaillées — pas cachées (calcul complexe, données fraîches)
-    const [
-      { data: classesList },
-      { data: familyFees },
-      { data: recentAbsences },
-      { data: announcementStats },
-      { data: parentsWithEnrollments },
-      { data: adultEnrollments },
-    ] = await Promise.all([
+    const results = await Promise.allSettled([
       supabase.from('classes').select('id, name, max_students, enrollments:enrollments(count)').order('name'),
       supabase.from('family_fees').select('id, status, fee_installments(amount_paid), fee_adjustments(amount)'),
       supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
@@ -119,6 +122,21 @@ export default async function DashboardPage() {
       supabase.from('parents').select(`id, students!inner ( id, is_active, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type ) ) ) )`).eq('students.is_active', true).eq('students.enrollments.status', 'active').eq('students.enrollments.classes.academic_year', currentYear?.label ?? ''),
       supabase.from('parent_class_enrollments').select(`parent_id, classes ( cotisation_types ( id, amount, registration_fee ) )`).eq('status', 'active'),
     ])
+
+    // Extraire les données avec gestion d'erreurs partielles
+    const classesList = results[0].status === 'fulfilled' ? results[0].value.data : []
+    const familyFees = results[1].status === 'fulfilled' ? results[1].value.data : []
+    const recentAbsences = results[2].status === 'fulfilled' ? results[2].value.data : []
+    const announcementStats = results[3].status === 'fulfilled' ? results[3].value.data : []
+    const parentsWithEnrollments = results[4].status === 'fulfilled' ? results[4].value.data : []
+    const adultEnrollments = results[5].status === 'fulfilled' ? results[5].value.data : []
+
+    // Log des échecs partiels (ne pas bloquer le rendu)
+    for (const [i, result] of results.entries()) {
+      if (result.status === 'rejected') {
+        console.error(`[dashboard/page admin] Échec requête ${i}:`, result.reason)
+      }
+    }
 
     // Calculer les stats d'annonces côté client (au lieu de 3 requêtes séparées)
     const msgReadCount = (announcementStats ?? []).filter((r: any) => r.is_read).length

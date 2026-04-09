@@ -1,45 +1,34 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
-import { authRepository } from '@/lib/database/auth'
+import { createClient } from '@/lib/supabase/client'
 
-// ─── Illustration B : Livre ouvert + étoiles ─────────────────────────────────
+// ─── Illustration (même que login) ─────────────────────────────────────────
 
 function IllustrationB() {
   return (
     <svg viewBox="0 0 280 220" className="w-full max-w-sm" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="140" cy="130" rx="90" ry="55" fill="white" fillOpacity="0.06" />
-
-      {/* Livre ouvert */}
       <path d="M60 90 Q60 80 70 78 L128 72 L128 158 L70 164 Q60 166 60 156 Z"
         fill="white" fillOpacity="0.18" stroke="white" strokeOpacity="0.4" strokeWidth="1.5" />
       <path d="M220 90 Q220 80 210 78 L152 72 L152 158 L210 164 Q220 166 220 156 Z"
         fill="white" fillOpacity="0.22" stroke="white" strokeOpacity="0.4" strokeWidth="1.5" />
       <path d="M128 72 Q140 68 152 72 L152 158 Q140 162 128 158 Z"
         fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.5" strokeWidth="1" />
-
-      {/* Lignes page gauche */}
       {[96,104,112,120,128,136,144].map((y, i) => (
         <line key={i} x1="78" y1={y} x2={i % 2 === 0 ? 120 : 115} y2={y - 2}
           stroke="white" strokeOpacity={i % 2 === 0 ? 0.35 : 0.25} strokeWidth="1.5" strokeLinecap="round" />
       ))}
-      {/* Lignes page droite */}
       {[96,104,112,120,128,136,144].map((y, i) => (
         <line key={i} x1="160" y1={y} x2={i % 2 === 0 ? 202 : 196} y2={y - 2}
           stroke="white" strokeOpacity={i % 2 === 0 ? 0.35 : 0.25} strokeWidth="1.5" strokeLinecap="round" />
       ))}
-
-      {/* Marque-page ambre */}
       <path d="M148 68 L148 48 L154 52 L154 68 Z" fill="#ffa200" fillOpacity="0.9" />
-
-      {/* Ombre */}
       <ellipse cx="140" cy="168" rx="62" ry="7" fill="black" fillOpacity="0.12" />
-
-      {/* Étoiles */}
       <g transform="translate(42,42)">
         <path d="M0 -10 L2.4 -3.1 L9.5 -3.1 L3.8 1.2 L6.2 8.1 L0 4 L-6.2 8.1 L-3.8 1.2 L-9.5 -3.1 L-2.4 -3.1 Z" fill="#ffa200" fillOpacity="0.9" />
       </g>
@@ -50,32 +39,20 @@ function IllustrationB() {
         <path d="M0 -6 L1.4 -1.9 L5.7 -1.9 L2.3 0.7 L3.7 4.9 L0 2.4 L-3.7 4.9 L-2.3 0.7 L-5.7 -1.9 L-1.4 -1.9 Z" fill="#ffa200" fillOpacity="0.7" />
       </g>
       <g transform="translate(34,160)">
-        <path d="M0 -5 L1.2 -1.5 L4.7 -1.5 L1.9 0.6 L3 4 L0 2 L-3 4 L-1.9 0.6 L-4.7 -1.5 L-1.2 -1.5 Z" fill="white" fillOpacity="0.6" />
+        <path d="M0 -6 L1.4 -1.9 L5.7 -1.9 L2.3 0.7 L3.7 4.9 L0 2.4 L-3.7 4.9 L-2.3 0.7 L-5.7 -1.9 L-1.4 -1.9 Z" fill="white" fillOpacity="0.7" />
       </g>
-      <g transform="translate(140,28)">
-        <path d="M0 -5 L1.2 -1.5 L4.7 -1.5 L1.9 0.6 L3 4 L0 2 L-3 4 L-1.9 0.6 L-4.7 -1.5 L-1.2 -1.5 Z" fill="#ffa200" fillOpacity="0.6" />
-      </g>
-      <g transform="translate(28,100)">
-        <path d="M0 -4 L1 -1.2 L3.8 -1.2 L1.5 0.5 L2.4 3.2 L0 1.6 L-2.4 3.2 L-1.5 0.5 L-3.8 -1.2 L-1 -1.2 Z" fill="white" fillOpacity="0.5" />
-      </g>
-
-      {/* Particules */}
       <circle cx="58" cy="65" r="4" fill="white" fillOpacity="0.15" />
       <circle cx="222" cy="70" r="3" fill="white" fillOpacity="0.15" />
       <circle cx="48" cy="140" r="5" fill="white" fillOpacity="0.1" />
       <circle cx="240" cy="148" r="4" fill="white" fillOpacity="0.12" />
       <circle cx="200" cy="32" r="3" fill="#ffa200" fillOpacity="0.3" />
       <circle cx="80" cy="30" r="2.5" fill="white" fillOpacity="0.3" />
-
-      {/* Chapeau diplôme */}
       <g transform="translate(205,170)">
         <path d="M0 -8 L18 -2 L0 4 L-18 -2 Z" fill="white" fillOpacity="0.25" />
         <path d="M-10 -1 L-10 8 Q-5 12 0 12 Q5 12 10 8 L10 -1" stroke="white" strokeOpacity="0.3" strokeWidth="1.5" fill="none" />
         <line x1="18" y1="-2" x2="18" y2="6" stroke="white" strokeOpacity="0.3" strokeWidth="1.5" />
         <circle cx="18" cy="7" r="1.5" fill="white" fillOpacity="0.4" />
       </g>
-
-      {/* Crayon */}
       <g transform="translate(52,185) rotate(-35)">
         <rect x="-3" y="-14" width="6" height="22" rx="1" fill="white" fillOpacity="0.25" />
         <path d="M-3 8 L3 8 L0 14 Z" fill="#ffa200" fillOpacity="0.5" />
@@ -87,55 +64,51 @@ function IllustrationB() {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function LoginPage() {
-  const [email,        setEmail]        = useState('')
-  const [password,     setPassword]     = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error,        setError]        = useState('')
-  const [loading,      setLoading]      = useState(false)
-  const [nomEtab,      setNomEtab]      = useState('Bilal Education')
-  const [logoUrl,      setLogoUrl]      = useState<string | null>(null)
+export default function ForgotPasswordPage() {
+  const router = useRouter()
+  const [email,   setEmail]   = useState('')
+  const [error,   setError]   = useState('')
+  const [success, setSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [nomEtab, setNomEtab] = useState('Bilal Education')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
-  // Charger le nom et logo de l'établissement
   useEffect(() => {
     fetch('/api/public/etablissement')
       .then(r => r.json())
       .then(d => {
-        if (d.nom)      setNomEtab(d.nom)
+        if (d.nom) setNomEtab(d.nom)
         if (d.logo_url) setLogoUrl(d.logo_url)
       })
-      .catch((err) => console.error('[Login] Échec chargement infos établissement:', err))
+      .catch((err) => console.error('[ForgotPassword] Échec chargement infos:', err))
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+
     try {
-      await authRepository.signIn(email, password)
-      const now = Math.floor(Date.now() / 1000)
-      const secure = process.env.NODE_ENV === 'production' ? ';secure' : ''
-      document.cookie = `app-session=${JSON.stringify({ loginTime: now, lastActivity: now })};path=/;max-age=${24 * 3600};samesite=lax${secure}`
-      window.location.href = '/dashboard'
-    } catch (err: any) {
-      const msg = err.message ?? ''
-      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
-        setError('Email ou mot de passe incorrect.')
-      } else if (msg.includes('Email not confirmed')) {
-        setError('Votre adresse email n\'est pas confirmée.')
-      } else if (msg.includes('Too many requests')) {
-        setError('Trop de tentatives. Veuillez patienter quelques minutes.')
-      } else if (msg.includes('User not found')) {
-        setError('Aucun compte associé à cet email.')
-      } else {
-        setError('Erreur de connexion. Vérifiez vos identifiants.')
+      const supabase = createClient()
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+      })
+
+      if (resetError) {
+        // Ne pas révéler si l'email existe ou non (sécurité)
+        setSuccess(true)
+        return
       }
+
+      setSuccess(true)
+    } catch {
+      // Ne jamais révéler si l'email existe ou non
+      setSuccess(true)
     } finally {
       setLoading(false)
     }
   }
 
-  // Initiales de l'établissement pour le fallback logo
   const initiales = nomEtab
     .split(' ')
     .filter(w => w.length > 1)
@@ -151,22 +124,17 @@ export default function LoginPage() {
         className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col items-center justify-center p-12 relative overflow-hidden"
         style={{ background: 'linear-gradient(145deg, #507583 0%, #18aa99 100%)' }}
       >
-        {/* Motif de fond subtil */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white opacity-[0.04]" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full bg-white opacity-[0.04]" />
           <div className="absolute top-1/3 right-1/4 w-40 h-40 rounded-full bg-amber-400 opacity-[0.05]" />
         </div>
 
-        {/* Contenu centré */}
         <div className="relative z-10 flex flex-col items-center gap-10 max-w-md">
-
-          {/* Illustration */}
           <div className="w-full animate-fade-in">
             <IllustrationB />
           </div>
 
-          {/* Citation */}
           <div className="text-center space-y-3">
             <p className="text-white text-xl font-semibold leading-snug">
               L'éducation est la lumière<br />qui guide chaque pas
@@ -176,10 +144,9 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Points de pagination décoratifs */}
           <div className="flex gap-2">
-            <span className="w-6 h-1.5 rounded-full bg-amber-400 opacity-90" />
             <span className="w-2 h-1.5 rounded-full bg-white opacity-30" />
+            <span className="w-6 h-1.5 rounded-full bg-amber-400 opacity-90" />
             <span className="w-2 h-1.5 rounded-full bg-white opacity-30" />
           </div>
         </div>
@@ -218,72 +185,83 @@ export default function LoginPage() {
           {/* Carte formulaire */}
           <div className="bg-white rounded-2xl p-8 shadow-card border border-warm-100">
 
-            <h2 className="text-lg font-bold text-secondary-800 mb-1">Connexion</h2>
-            <p className="text-sm text-warm-400 mb-6">Connectez-vous à votre compte</p>
-
-            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-              {/* Erreur */}
-              {error && (
-                <div className="flex items-start gap-2.5 bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
-                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                  <span>{error}</span>
+            {/* ── Succès ──────────────────────────────────────────────────── */}
+            {success ? (
+              <div className="text-center space-y-5 animate-fade-in">
+                <div className="flex justify-center">
+                  <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
+                    <CheckCircle size={32} className="text-green-500" />
+                  </div>
                 </div>
-              )}
-
-              {/* Email */}
-              <FloatInput
-                label="Adresse email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="votre@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                disabled={loading}
-              />
-
-              {/* Mot de passe */}
-              <div className="relative">
-                <FloatInput
-                  label="Mot de passe"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  disabled={loading}
-                  className="pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-secondary-600 transition-colors z-10"
-                  tabIndex={-1}
+                <div>
+                  <h2 className="text-lg font-bold text-secondary-800 mb-2">Email envoyé</h2>
+                  <p className="text-sm text-warm-500 leading-relaxed">
+                    Si un compte est associé à <span className="font-semibold text-secondary-700">{email}</span>,
+                    vous recevrez un lien de réinitialisation par email.
+                  </p>
+                </div>
+                <FloatButton
+                  variant="primary"
+                  className="w-full justify-center"
+                  onClick={() => router.push('/login')}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                  Retour à la connexion
+                </FloatButton>
               </div>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold text-secondary-800 mb-1">Mot de passe oublié ?</h2>
+                <p className="text-sm text-warm-400 mb-6">
+                  Entrez votre email pour recevoir un lien de réinitialisation.
+                </p>
 
-              {/* Mot de passe oublié */}
-              <div className="flex justify-end">
-                <Link href="/auth/forgot-password" className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors">
-                  Mot de passe oublié ?
-                </Link>
-              </div>
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
-              {/* Bouton */}
-              <FloatButton
-                variant="submit"
-                className="w-full justify-center"
-                disabled={loading || !email || !password}
-                loading={loading}
+                  {/* Erreur */}
+                  {error && (
+                    <div className="flex items-start gap-2.5 bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
+                      <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  <FloatInput
+                    label="Adresse email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="votre@email.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    disabled={loading}
+                  />
+
+                  {/* Bouton */}
+                  <FloatButton
+                    variant="submit"
+                    className="w-full justify-center"
+                    disabled={loading || !email}
+                    loading={loading}
+                  >
+                    Envoyer le lien
+                  </FloatButton>
+
+                </form>
+              </>
+            )}
+
+            {/* Retour au login */}
+            <div className="mt-5 pt-4 border-t border-warm-100 text-center">
+              <button
+                onClick={() => router.push('/login')}
+                className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer"
               >
-                Se connecter
-              </FloatButton>
+                <ArrowLeft size={13} />
+                Retour à la connexion
+              </button>
+            </div>
 
-            </form>
           </div>
 
           {/* Version mobile : texte discret */}

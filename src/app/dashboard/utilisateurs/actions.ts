@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import type { UserRole } from '@/types/database'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
 
 export type { UserRole }
 
@@ -22,6 +23,10 @@ export async function createUser(data: {
 }): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
+
+  // Validation côté serveur
+  const validation = validateInput(CreateUserSchema, data)
+  if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
   // Lire l'etablissement_id injecté par le middleware
   const headersList = await headers()
@@ -88,6 +93,10 @@ export async function updateProfile(id: string, data: {
 }): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
+
+  // Validation côté serveur
+  const validation = validateInput(UpdateProfileSchema, data)
+  if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
   const supabase = createAdminClient()
 

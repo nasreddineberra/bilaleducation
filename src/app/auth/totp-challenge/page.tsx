@@ -2,18 +2,32 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
+import Image from 'next/image'
+import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import { createClient } from '@/lib/supabase/client'
 
 export default function TotpChallengePage() {
   const router = useRouter()
-
   const [otp,          setOtp]          = useState('')
   const [factorId,     setFactorId]     = useState<string | null>(null)
   const [challengeId,  setChallengeId]  = useState<string | null>(null)
   const [isReady,      setIsReady]      = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
+  const [nomEtab,      setNomEtab]      = useState('Bilal Education')
+  const [logoUrl,      setLogoUrl]      = useState<string | null>(null)
+
+  // Charger le nom et logo de l'établissement
+  useEffect(() => {
+    fetch('/api/public/etablissement')
+      .then(r => r.json())
+      .then(d => {
+        if (d.nom) setNomEtab(d.nom)
+        if (d.logo_url) setLogoUrl(d.logo_url)
+      })
+      .catch((err) => console.error('[TOTP] Échec chargement infos établissement:', err))
+  }, [])
 
   // Au chargement : trouver le facteur TOTP
   useEffect(() => {
@@ -75,6 +89,14 @@ export default function TotpChallengePage() {
     }
   }
 
+  // Initiales de l'établissement pour le fallback logo
+  const initiales = nomEtab
+    .split(' ')
+    .filter(w => w.length > 1)
+    .slice(0, 2)
+    .map(w => w[0].toUpperCase())
+    .join('')
+
   return (
     <div
       className="min-h-screen flex items-center justify-center py-12 px-4"
@@ -89,15 +111,29 @@ export default function TotpChallengePage() {
 
       <div className="relative w-full max-w-md">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4">
-            <span className="text-white font-bold text-3xl leading-none">B</span>
+        {/* Logo + nom établissement */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="mb-4">
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={nomEtab}
+                width={128}
+                height={128}
+                className="h-32 w-auto object-contain"
+                unoptimized
+              />
+            ) : (
+              <div
+                className="w-32 h-32 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg select-none"
+                style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
+              >
+                {initiales || 'BE'}
+              </div>
+            )}
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Bilal <span className="text-amber-400">Education</span>
-          </h1>
-          <p className="text-white/75 mt-1 text-sm">Gestion Administrative &amp; Pédagogique</p>
+          <h1 className="text-xl font-bold text-white tracking-tight">{nomEtab}</h1>
+          <p className="text-white/75 mt-0.5 text-sm">Espace de gestion</p>
         </div>
 
         {/* Carte */}
@@ -119,10 +155,7 @@ export default function TotpChallengePage() {
 
           {!isReady ? (
             <div className="text-center py-8">
-              <svg className="w-8 h-8 animate-spin text-primary-500 mx-auto" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
+              <Loader2 size={32} className="animate-spin text-primary-500 mx-auto" />
               <p className="text-sm text-warm-400 mt-3">Chargement…</p>
             </div>
           ) : (
@@ -133,43 +166,45 @@ export default function TotpChallengePage() {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-secondary-700 mb-1.5">
-                  Code à 6 chiffres
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                    setOtp(v)
-                  }}
-                  className="input text-center text-xl tracking-widest font-mono"
-                  placeholder="• • • • • •"
-                  autoFocus
-                  disabled={isSubmitting}
-                />
-              </div>
+              <FloatInput
+                label="Code à 6 chiffres"
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                  setOtp(v)
+                }}
+                className="text-center text-xl tracking-widest font-mono"
+                placeholder="• • • • • •"
+                autoFocus
+                disabled={isSubmitting}
+              />
 
-              <button
-                type="submit"
+              <FloatButton
+                variant="submit"
+                className="w-full justify-center"
                 disabled={isSubmitting || otp.length !== 6}
-                className="w-full btn btn-primary py-3 text-base disabled:opacity-60 disabled:cursor-not-allowed"
+                loading={isSubmitting}
               >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Vérification…
-                  </span>
-                ) : 'Valider'}
-              </button>
+                Valider
+              </FloatButton>
             </form>
           )}
+
+          {/* Retour au login */}
+          <div className="mt-5 pt-4 border-t border-warm-100 text-center">
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/login' }}
+              className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors inline-flex items-center gap-1.5 bg-transparent border-none cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              Retour à la connexion
+            </button>
+          </div>
+
         </div>
       </div>
     </div>

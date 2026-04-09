@@ -25,11 +25,22 @@ export default async function DashboardLayout({
 
   // Récupérer le profil + les infos établissement + année courante en parallèle
   // Ces requêtes sont cachées (1h pour le profil, 6h pour l'établissement, 24h pour l'année)
-  const [profile, etablissement, currentYear] = await Promise.all([
+  const results = await Promise.allSettled([
     getCachedProfile(user.id),
     getCachedEtablissement(),
     getCachedCurrentYear(),
   ])
+
+  const profile = results[0].status === 'fulfilled' ? results[0].value : null
+  const etablissement = results[1].status === 'fulfilled' ? results[1].value : null
+  const currentYear = results[2].status === 'fulfilled' ? results[2].value : null
+
+  // Log des échecs partiels (ne pas bloquer le rendu)
+  for (const [i, result] of results.entries()) {
+    if (result.status === 'rejected') {
+      console.error(`[dashboard/layout] Échec requête ${i}:`, result.reason)
+    }
+  }
 
   // Compteur notifications non lues (staff) — pas caché (change fréquemment)
   const { count: staffUnread } = await supabase

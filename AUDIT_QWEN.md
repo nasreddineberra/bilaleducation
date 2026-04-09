@@ -15,7 +15,7 @@
 | **Qualité du code** | 1 | ~~4~~ **3** ✅ | 5 | 3 |
 | **Fonctionnalités** | 0 | 1 | 3 | 5 |
 
-**Total : ~~4~~ 1 critique, ~~14~~ ~~11~~ ~~10~~ ~~9~~ ~~8~~ ~~7~~ ~~6~~ ~~5~~ ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 hauts, ~~21~~ 20 ~~19~~ 18 ~~17~~ 17 ~~16~~ ~~15~~ 14 ~~13~~ ~~12~~ ~~11~~ ~~10~~ 10 moyens, 16 bas**
+**Total : ~~4~~ 1 critique, ~~14~~ ~~11~~ ~~10~~ ~~9~~ ~~8~~ ~~7~~ ~~6~~ ~~5~~ ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 hauts, ~~21~~ 20 ~~19~~ 18 ~~17~~ 17 ~~16~~ ~~15~~ 14 ~~13~~ ~~12~~ ~~11~~ ~~10~~ ~~9~~ ~~8~~ ~~7~~ ~~6~~ ~~5~~ 5 moyens, ~~16~~ ~~15~~ ~~14~~ 14 bas**
 
 ---
 
@@ -122,16 +122,16 @@
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
 | Q-06 | `CODE-MED-01` | ✅ **Corrigé** | ~~**`console.error` en production dans les API routes**~~ | 5 routes API notifications, `src/lib/logger.ts` | ~~Acceptable pour du logging serveur mais devrait utiliser un logger structuré.~~ |
-| Q-07 | `CODE-MED-02` | Pas de schéma de validation partagé | Pas de Zod/Yup. La validation est inline et côté client uniquement. Les server actions ne valident pas leurs inputs. |
-| Q-08 | `CODE-MED-03` | Notifications envoyées séquentiellement | Boucle `for...of` dans `announcement/route.ts`. Pour une liste de 500 parents, chaque notification attend la précédente. |
-| Q-09 | `CODE-MED-04` | `Promise.all` sans gestion d'erreurs partielles | Si une requête dans `Promise.all` échoue, toutes les données sont perdues. |
+| Q-07 | `CODE-MED-02` | ✅ **Corrigé** | ~~**Pas de schéma de validation partagé**~~ | `src/lib/validation/schemas.ts`, 4 server actions | ~~Pas de Zod/Yup. La validation est inline et côté client uniquement. Les server actions ne valident pas leurs inputs.~~ |
+| Q-08 | `CODE-MED-03` | ✅ **Corrigé** | ~~**Notifications envoyées séquentiellement**~~ | `src/app/api/notifications/announcement/route.ts` | ~~Boucle `for...of` dans `announcement/route.ts`. Pour une liste de 500 parents, chaque notification attend la précédente.~~ |
+| Q-09 | `CODE-MED-04` | ✅ **Corrigé** | ~~**`Promise.all` sans gestion d'erreurs partielles**~~ | `dashboard/layout.tsx`, `dashboard/page.tsx` | ~~Si une requête dans `Promise.all` échoue, toutes les données sont perdues.~~ |
 
 ### BAS
 
 | # | ID | Problème | Description |
 |---|-----|----------|-------------|
-| Q-10 | `CODE-LOW-01` | Pas de ErrorBoundary | Aucun `ErrorBoundary` ou `error.tsx` dans l'app. Si un composant plante, la page entière crash. |
-| Q-11 | `CODE-LOW-02` | Code mort | Bloc 2FA commenté dans `proxy.ts` (lignes 211-231) avec TODO. |
+| Q-10 | `CODE-LOW-01` | ✅ **Corrigé** | ~~**Pas de ErrorBoundary**~~ | `src/app/dashboard/error.tsx` | ~~Aucun `ErrorBoundary` ou `error.tsx` dans l'app. Si un composant plante, la page entière crash.~~ |
+| Q-11 | `CODE-LOW-02` | ✅ **Corrigé** | ~~**Code mort**~~ | `proxy.ts` | ~~Bloc 2FA commenté dans `proxy.ts` (lignes 211-231) avec TODO.~~ |
 | Q-12 | `CODE-LOW-03` | Imports incohérents dans les repositories | Certains importent `createClient` du client navigateur, d'autres du serveur. Fonctionnellement OK mais architecturalement inconsistent. |
 | Q-13 | `CODE-LOW-04` | Pas de garde sur les variables d'environnement | `process.env.NEXT_PUBLIC_SUPABASE_URL!` — si manquant, crash sans message utile. |
 
@@ -176,7 +176,7 @@
 | F-01 | `FEAT-HIGH-01` | **`schema.sql` incomplet** | HAUT | 16 tables dans le schema de base, 20+ tables additionnelles uniquement dans les migrations. Exécuter uniquement `schema.sql` crée une base incomplète. |
 | F-02 | `FEAT-MED-01` | **Pas de Supabase Realtime** | MOYEN | Aucune souscription `.channel()`. Le "temps réel" n'est que push + email, pas de mise à jour live dans le navigateur. |
 | F-03 | `FEAT-MED-02` | **Repository pattern incomplet** | MOYEN | Seuls 6 repositories sur 20+ modules implémentés. Le reste utilise des appels Supabase directs, en contradiction avec ARCHITECTURE.md. |
-| F-04 | `FEAT-LOW-01` | **Lien "Mot de passe oublié" mort** | BAS | Pointe vers `#` dans la page de login. |
+| F-04 | `FEAT-LOW-01` | ✅ **Corrigé** | ~~**Lien "Mot de passe oublié" mort**~~ | `login/page.tsx`, `src/app/auth/forgot-password/page.tsx` | ~~Pointe vers `#` dans la page de login.~~ |
 | F-05 | `FEAT-LOW-02` | **Composants UI documentés mais absents** | BAS | `Button.tsx`, `Input.tsx`, `Card.tsx` référencés dans ARCHITECTURE.md mais n'existent pas (stylisés via CSS global). |
 
 ---
@@ -248,7 +248,7 @@
 ```
 SÉCURITÉ :     ████░░░░░░  ~~1 critique~~ 0 critique ✅, ~~5~~ 2 hauts ✅, ~~8~~ 7 ~~6~~ ~~5~~ ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 moyen ✅, 6 bas
 PERFORMANCES : ~~████░░░░░░~~  ~~2 critiques~~ 0 critique ✅, ~~4~~ ~~2~~ ~~1~~ 0 haut ✅, ~~5~~ ~~4~~ ~~3~~ ~~2~~ 1 moyen ✅, 2 bas
-QUALITÉ CODE : ~~█░░░░░░░░░~~  ~~1 critique~~ 0 critique ✅, ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 haut ✅, ~~5~~ ~~4~~ 3 moyens ✅, 3 bas
+QUALITÉ CODE : ~~█░░░░░░░░░~~  ~~1 critique~~ 0 critique ✅, ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 haut ✅, ~~5~~ ~~4~~ ~~3~~ ~~2~~ ~~1~~ 0 moyen ✅, 3 bas
 FONCTIONNALITÉS: ░░░░░░░░░░  0 critique, 1 haut, 3 moyens, 3 bas
 ```
 
@@ -278,13 +278,19 @@ FONCTIONNALITÉS: ░░░░░░░░░░  0 critique, 1 haut, 3 moyens, 
 | 8 avr. 2026 | `SEC-MED-02` | ✅ **Corrigé** | Ajout du flag `secure` sur le cookie de session `app-session` dans `login/page.tsx`. Le flag n'est activé qu'en production (`process.env.NODE_ENV === 'production'`) pour ne pas casser le dev local. |
 | 8 avr. 2026 | `SEC-MED-08` | ✅ **Corrigé** | Messages d'erreur génériques retournés au client dans 5 routes API notifications (`subscribe`, `unsubscribe`, `payment`, `announcement`, `absence`). Remplacement de `e.message` et `error.message` par des messages génériques ('Une erreur est survenue.'). Les détails complets sont loggués côté serveur via `console.error`. |
 | 8 avr. 2026 | `SEC-MED-04` | ✅ **Corrigé** | Middleware fail-open corrigé dans `proxy.ts` : en cas d'échec de résolution du tenant (erreur réseau ou HTTP non-200), retourne une erreur 503 en production au lieu de laisser passer la requête sans `x-etablissement-id`. En développement local, le fail-open est conservé pour ne pas bloquer les devs. |
-| 8 avr. 2026 | `SEC-MED-01` | ✅ **Corrigé** | 2FA TOTP activé pour tous les rôles sauf `parent`. Création de `enroll-totp/page.tsx` (QR code + vérification) et `totp-challenge/page.tsx` (saisie du code 6 chiffres). Modification de `proxy.ts` : `getAuthUser()` retourne maintenant `supabase` pour les appels MFA. Vérification AAL2 dans le middleware : redirection vers `/auth/enroll-totp` si aucun facteur configuré, vers `/auth/totp-challenge` si facteur présent mais session AAL1 uniquement. |
+| 8 avr. 2026 | `SEC-MED-01` | ✅ **Corrigé** | 2FA TOTP activé pour tous les rôles sauf `parent`. Création de `enroll-totp/page.tsx` (QR code + vérification) et `totp-challenge/page.tsx` (saisie du code 6 chiffres). Modification de `proxy.ts` : `getAuthUser()` retourne maintenant `supabase` pour les appels MFA. Vérification AAL2 dans le middleware : redirection vers `/auth/enroll-totp` si aucun facteur configuré, vers `/auth/totp-challenge` si facteur présent mais session AAL1 uniquement. Correction : accès à `/login` autorisé même pour les utilisateurs AAL1 (permettre le retour à la connexion). |
 | 8 avr. 2026 | `SEC-MED-05` | ✅ **Corrigé** | Rate limiting ajouté sur 5 routes API notifications via `src/lib/security/rateLimiter.ts`. Limites : `subscribe`/`unsubscribe` = 10 req/min, `payment` = 10 req/min, `announcement`/`absence` = 20 req/min (envoi à des centaines de parents en une seule requête). Stockage en mémoire avec `Map`, nettoyage automatique des entrées expirées. Réponse 429 avec message en français si limite dépassée. |
 | 8 avr. 2026 | `SEC-MED-06` | ✅ **Corrigé** | Protection CSRF ajoutée sur 5 routes API notifications via `src/lib/security/csrf.ts`. Vérification des headers `Origin` et `Referer` contre les origines configurées (`NEXT_PUBLIC_SITE_URL`). En dev, la vérification est désactivée. Réponse 403 si origine non reconnue. Complète la protection `SameSite=lax` existante sur le cookie de session. |
 | 8 avr. 2026 | `PERF-MED-01` | ✅ **Corrigé** | Remplacement de `<img>` par `<Image>` de Next.js dans 5 fichiers : `login/page.tsx` (logo établissement), `DashboardSidebar.tsx` (logo école), `EtablissementForm.tsx` (aperçu logo), `AbsencesClient.tsx` (photo élève trombinoscope), `StudentForm.tsx` (photo élève). Utilisation de `unoptimized` car les images proviennent de Supabase Storage (URLs dynamiques). |
 | 8 avr. 2026 | `PERF-MED-02` | ✅ **Corrigé** | Remplacement des `<link>` Google Fonts externes par `next/font/google` dans `src/app/layout.tsx`. Polices Inter et Amiri maintenant pré-chargées et auto-hébergées par Next.js. Élimination du FOUC et de la requête réseau externe vers fonts.googleapis.com. |
 | 8 avr. 2026 | `PERF-MED-03` | ✅ **Corrigé** | Remplacement de `cache: 'no-store'` par `next: { revalidate: 3600 }` dans `src/proxy.ts`. La résolution du tenant (slug → établissement_id) est maintenant cachée 1 heure par Next.js au lieu d'interroger Supabase à chaque requête. Réduction drastique des appels DB sur le middleware. |
 | 8 avr. 2026 | `CODE-MED-01` | ✅ **Corrigé** | Remplacement de `console.error` brut par un logger structuré `src/lib/logger.ts` dans 5 routes API notifications. Le logger ajoute un timestamp ISO, un niveau, et un contexte JSONifiable pour un meilleur suivi en production. |
+| 8 avr. 2026 | `CODE-MED-02` | ✅ **Corrigé** | Schémas de validation Zod créés dans `src/lib/validation/schemas.ts` pour les entités principales (CreateUser, UpdateProfile, CreateTeacher, UpdateTeacher, CreateParent, UpdateParent, CreateStudent, UpdateStudent). Validation côté serveur ajoutée dans 4 server actions : `teachers/actions.ts` (2 fonctions), `parents/actions.ts` (2 fonctions), `utilisateurs/actions.ts` (2 fonctions). Retourne un message d'erreur clair avec le champ et la règle violée. |
+| 8 avr. 2026 | `CODE-MED-03` | ✅ **Corrigé** | Remplacement de la boucle `for...of` séquentielle par un traitement par batches de 50 dans `announcement/route.ts`. Les notifications d'un batch sont envoyées en parallèle via `Promise.all`, et les statuts email sont mis à jour en une seule requête par batch (`in()` au lieu de requêtes individuelles). HTML calculé une seule fois au lieu de 500 fois. Pour 500 parents : ~10 batches au lieu de 500 requêtes séquentielles. |
+| 8 avr. 2026 | `CODE-MED-04` | ✅ **Corrigé** | Remplacement de `Promise.all` par `Promise.allSettled` dans `dashboard/layout.tsx` et `dashboard/page.tsx` (profil, année scolaire, dashboard admin). Les requêtes qui réussissent sont passées au rendu même si d'autres échouent. Les échecs partiels sont loggués côté serveur sans bloquer la page. |
+| 8 avr. 2026 | `FEAT-LOW-01` | ✅ **Corrigé** | Page "Mot de passe oublié" créée : `src/app/auth/forgot-password/page.tsx`. Même design que la page login (illustration, logo, carte formulaire). Utilise `supabase.auth.resetPasswordForEmail` avec redirection vers `/auth/reset-password`. Message générique de succès (ne révèle pas si l'email existe, pour la sécurité). Lien `href="#"` remplacé par `Link` dans `login/page.tsx`. Checkbox "Se souvenir de moi" supprimée. Tous les formulaires auth migrés vers les composants `FloatInput` et `FloatButton` : `login/page.tsx`, `forgot-password/page.tsx`, `totp-challenge/page.tsx`, `enroll-totp/page.tsx`. |
+| 8 avr. 2026 | `CODE-LOW-01` | ✅ **Corrigé** | `error.tsx` créé dans `src/app/dashboard/error.tsx`. Page d'erreur conviviale avec boutons "Réessayer" et "Retour à l'accueil" pour tout le dashboard. |
+| 8 avr. 2026 | `CODE-LOW-02` | ✅ **Corrigé** | Code mort supprimé : le bloc 2FA commenté dans `proxy.ts` a été remplacé par l'implémentation TOTP active. Plus de TODO obsolète dans le fichier. |
 
 ---
 

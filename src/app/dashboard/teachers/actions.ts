@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { CreateTeacherSchema, UpdateTeacherSchema, validateInput } from '@/lib/validation/schemas'
 
 function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64url').slice(0, 12)
@@ -24,6 +25,10 @@ export async function createTeacherWithAccount(data: {
 }): Promise<{ error?: string; tempPassword?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
+
+  // Validation côté serveur
+  const validation = validateInput(CreateTeacherSchema, data)
+  if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
@@ -101,6 +106,10 @@ export async function updateTeacher(
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
+
+  // Validation côté serveur
+  const validation = validateInput(UpdateTeacherSchema, data)
+  if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
   const headersList = await headers()
   const etablissementId = headersList.get('x-etablissement-id')
