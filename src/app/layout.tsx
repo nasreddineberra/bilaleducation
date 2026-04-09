@@ -3,6 +3,10 @@ import { Inter, Amiri } from 'next/font/google'
 import './globals.css'
 import { ToastProvider } from '@/lib/toast-context'
 import { ToastContainer } from '@/components/ui/Toast'
+import { validateEnv } from '@/lib/env'
+
+// Valider les variables d'environnement au démarrage
+validateEnv()
 
 // ─── Google Fonts (self-hosted via Next.js) ──────────────────────────────────
 

@@ -1,3 +1,5 @@
+// Ce repository utilise le client serveur car il est appelé
+// exclusivement depuis des Server Components (pages du dashboard).
 import { createClient } from '@/lib/supabase/server'
 import type { Class, Student, Teacher } from '@/types/database'
 

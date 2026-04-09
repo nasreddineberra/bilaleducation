@@ -1,3 +1,5 @@
+// Ce repository utilise le client navigateur car il est appelé
+// exclusivement depuis des Client Components.
 import { createClient } from '@/lib/supabase/client'
 import type { Parent } from '@/types/database'
 

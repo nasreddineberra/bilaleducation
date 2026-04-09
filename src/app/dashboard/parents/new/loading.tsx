@@ -1,2 +1,2 @@
-import { SkeletonFormPage } from '@/components/ui/SkeletonTable'
-export default function Loading() { return <SkeletonFormPage sections={3} /> }
+import { SkeletonListPage } from '@/components/ui/SkeletonTable'
+export default function Loading() { return <SkeletonListPage rows={3} cols={4} /> }

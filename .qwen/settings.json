@@ -5,7 +5,9 @@
       "Bash(findstr *)",
       "Bash(npm install *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npx *)",
+      "Bash(git push)"
     ]
   },
   "$version": 3

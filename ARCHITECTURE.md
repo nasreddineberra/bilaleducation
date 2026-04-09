@@ -50,9 +50,14 @@ bilaleducation/
 │   │
 │   ├── components/              # Composants réutilisables
 │   │   ├── ui/                  # Composants UI de base
-│   │   │   ├── Button.tsx
-│   │   │   ├── Input.tsx
-│   │   │   └── Card.tsx
+│   │   │   ├── FloatFields.tsx  # FloatInput, FloatButton, FloatSelect, etc.
+│   │   │   ├── FloatPhoneInput.tsx # Champ téléphone avec indicatif
+│   │   │   ├── RichTextEditor.tsx # Éditeur TipTap
+│   │   │   ├── ConfirmModal.tsx # Modale de confirmation
+│   │   │   ├── SkeletonTable.tsx # Skeletons de chargement
+│   │   │   ├── Toast.tsx        # Système de notifications toast
+│   │   │   ├── Tooltip.tsx      # Infobulles
+│   │   │   └── LoadingSpinner.tsx
 │   │   ├── forms/               # Formulaires
 │   │   │   ├── StudentForm.tsx
 │   │   │   └── GradeForm.tsx
