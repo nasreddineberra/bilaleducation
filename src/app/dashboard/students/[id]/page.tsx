@@ -48,10 +48,9 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   if (student.parent_id) {
     const { data } = await supabase
       .from('students')
-      .select('id, last_name, first_name, gender, date_of_birth, enrollments(class_id, classes(id, name, day_of_week, start_time, end_time))')
+      .select('id, last_name, first_name, gender, date_of_birth, is_active, enrollments(class_id, classes(id, name, day_of_week, start_time, end_time))')
       .eq('parent_id', student.parent_id)
       .neq('id', id)
-      .eq('is_active', true)
       .order('date_of_birth')
     siblings = (data ?? []) as any[]
   }

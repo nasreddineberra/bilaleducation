@@ -22,7 +22,7 @@ export default async function StudentsPage({
 
   let studentsQuery = supabase
     .from('students')
-    .select('*', { count: 'exact' })
+    .select('*, enrollments(status, classes(name))', { count: 'exact' })
     .order('last_name')
     .order('first_name')
     .range(from, to)
@@ -50,9 +50,20 @@ export default async function StudentsPage({
     supabase.from('students').select('*', { count: 'exact', head: true }).is('parent_id', null),
   ])
 
+  // Rattacher le nom de la classe active à chaque élève (sinon null)
+  const studentsWithClass = (students ?? []).map((s) => {
+    const { enrollments, ...rest } = s as typeof s & {
+      enrollments?: { status: string; classes?: { name: string } | null }[]
+    }
+    const active = Array.isArray(enrollments)
+      ? enrollments.find((e) => e.status === 'active')
+      : null
+    return { ...rest, class_name: active?.classes?.name ?? null }
+  })
+
   return (
     <StudentsClient
-      students={students ?? []}
+      students={studentsWithClass}
       filteredCount={filteredCount ?? 0}
       page={page}
       q={q}

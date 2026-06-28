@@ -50,6 +50,7 @@ type SiblingRow = {
   first_name: string
   gender: string | null
   date_of_birth: string
+  is_active: boolean
   enrollments: { class_id: string; classes: { id: string; name: string; day_of_week: string | null; start_time: string | null; end_time: string | null } | null }[]
 }
 
@@ -535,15 +536,18 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                         ? [cls.day_of_week, cls.start_time && cls.end_time ? `${cls.start_time.slice(0,5)}–${cls.end_time.slice(0,5)}` : null].filter(Boolean).join(' ')
                         : null
                       return (
-                        <div key={sib.id} className="bg-warm-50 border border-warm-100 rounded-lg px-3 py-2">
+                        <div key={sib.id} className={`border rounded-lg px-3 py-2 ${sib.is_active ? 'bg-warm-50 border-warm-100' : 'bg-warm-50/60 border-warm-100'}`}>
                           <div className="flex items-center gap-2">
                             <Link
                               href={`/dashboard/students/${sib.id}`}
-                              className="text-xs font-medium text-primary-600 hover:text-primary-800 hover:underline transition-colors"
+                              className={`text-xs font-medium hover:underline transition-colors ${sib.is_active ? 'text-primary-600 hover:text-primary-800' : 'text-warm-400 hover:text-warm-500'}`}
                             >
                               {sib.last_name} {sib.first_name}
                             </Link>
                             <span className="text-[11px] text-warm-400">{age} ans</span>
+                            {!sib.is_active && (
+                              <span className="text-[10px] bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium leading-none">inactif</span>
+                            )}
                             {sib.gender === 'male' ? (
                               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold leading-none">M</span>
                             ) : sib.gender === 'female' ? (

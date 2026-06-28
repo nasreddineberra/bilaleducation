@@ -6,38 +6,38 @@ import { Pencil, Trash2, Link2Off, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
-import type { Student } from '@/types/database'
+import type { StudentWithClass } from './StudentsClient'
 
 interface StudentsTableProps {
-  students: Student[]
+  students: StudentWithClass[]
 }
 
 function GenderIcon({ gender }: { gender: string | null | undefined }) {
-  if (gender === 'male')         return <span className="text-sm text-secondary-700">Masculin</span>
-  if (gender === 'female')       return <span className="text-sm text-secondary-700">Féminin</span>
-  if (gender === 'non_specified') return <span className="text-sm text-warm-400">Non spécifié</span>
-  return <span className="text-sm text-warm-300">—</span>
+  if (gender === 'male')         return <span className="text-xs text-secondary-700">Masculin</span>
+  if (gender === 'female')       return <span className="text-xs text-secondary-700">Féminin</span>
+  if (gender === 'non_specified') return <span className="text-xs text-warm-400">Non spécifié</span>
+  return <span className="text-xs text-warm-300">—</span>
 }
 
 function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firstName: string; gender: string | null | undefined }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
   if (gender === 'male') {
     return (
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-blue-600 text-white">
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-blue-600 text-white">
         {initiales}
       </div>
     )
   }
   if (gender === 'female') {
     return (
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-pink-500 text-white">
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-pink-500 text-white">
         {initiales}
       </div>
     )
   }
   // non_specified ou null
   return (
-    <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 select-none border border-warm-300 text-warm-400">
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none border border-warm-300 text-warm-400">
       {initiales}
     </div>
   )
@@ -109,19 +109,22 @@ export default function StudentsTable({ students }: StudentsTableProps) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-4/12">
+              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-4/12">
                 Élève
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-2/12">
+              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-2/12">
                 N° élève
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-3/12">
+              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-2/12">
+                Classe
+              </th>
+              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-2/12">
                 Naissance
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-1/12">
+              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-1/12">
                 Genre
               </th>
-              <th className="px-4 py-2 w-2/12" />
+              <th className="px-4 py-1.5 w-1/12" />
             </tr>
           </thead>
 
@@ -129,8 +132,9 @@ export default function StudentsTable({ students }: StudentsTableProps) {
             {students.map((student) => (
               <tr
                 key={student.id}
+                onClick={() => router.push(`/dashboard/students/${student.id}`)}
                 className={clsx(
-                  'transition-colors',
+                  'transition-colors cursor-pointer',
                   student.has_pai
                     ? 'bg-red-50/70 hover:bg-red-100/60'
                     : student.is_active
@@ -140,12 +144,12 @@ export default function StudentsTable({ students }: StudentsTableProps) {
               >
 
                 {/* Élève */}
-                <td className="px-4 py-[3px]">
+                <td className="px-4 py-[2px]">
                   <div className="flex items-center gap-2.5">
                     <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} />
                     <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={clsx(
-                      'text-sm font-medium',
+                      'text-[13px] font-medium',
                       student.is_active ? 'text-secondary-800' : 'text-warm-400'
                     )}>
                       {student.last_name} {student.first_name}
@@ -178,29 +182,41 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* N° élève */}
-                <td className="px-4 py-[3px]">
+                <td className="px-4 py-[2px]">
                   <span className={clsx(
                     'font-mono text-xs',
                     student.is_active ? 'text-warm-500' : 'text-warm-300'
                   )}>{student.student_number}</span>
                 </td>
 
+                {/* Classe */}
+                <td className="px-4 py-[2px]">
+                  {student.class_name ? (
+                    <span className={clsx(
+                      'text-xs font-medium',
+                      student.is_active ? 'text-secondary-700' : 'text-warm-400'
+                    )}>{student.class_name}</span>
+                  ) : (
+                    <span className="text-xs text-warm-300 italic">Non affecté</span>
+                  )}
+                </td>
+
                 {/* Date de naissance */}
-                <td className="px-4 py-[3px]">
+                <td className="px-4 py-[2px]">
                   <span className={clsx(
-                    'text-sm',
+                    'text-xs',
                     student.is_active ? 'text-secondary-700' : 'text-warm-400'
                   )}>{formatDate(student.date_of_birth)}</span>
                   <span className="text-xs text-warm-400 ml-1.5">({calcAge(student.date_of_birth)})</span>
                 </td>
 
                 {/* Genre */}
-                <td className="px-4 py-[3px]">
+                <td className="px-4 py-[2px]">
                   <GenderIcon gender={student.gender} />
                 </td>
 
                 {/* Actions */}
-                <td className="px-4 py-[3px]">
+                <td className="px-4 py-[2px]" onClick={(e) => e.stopPropagation()}>
                   {confirmDeleteId === student.id ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-xs text-warm-500">Supprimer ?</span>
@@ -223,7 +239,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       <Tooltip content="Modifier">
                         <button
                           onClick={() => router.push(`/dashboard/students/${student.id}`)}
-                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                          className="p-1 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
                         >
                           <Pencil size={14} />
                         </button>
@@ -231,7 +247,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       <Tooltip content="Supprimer">
                         <button
                           onClick={() => { setConfirmDeleteId(student.id); setDeleteError(null) }}
-                          className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
