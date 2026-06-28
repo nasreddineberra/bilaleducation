@@ -2,6 +2,26 @@
 
 Application de gestion scolaire complete.
 
+## Reprise v1.0 (en cours — juin 2026)
+
+Le projet compte ~26 modules / 45 pages, trop pour une premiere mise en ligne.
+Objectif : reduire le perimetre a une **v1.0 deployable** et ameliorer chaque
+fonctionnalite gardee (technique + graphique), module par module.
+
+- **Approche retenue** : garder la base technique existante (Next.js + Supabase + auth +
+  layout), elaguer / mettre en suspens les modules hors v1.0, refondre ceux qu'on garde.
+- **Methode** : revue module par module avec l'utilisateur. Ne rien modifier sans son
+  accord : presenter le plan, attendre le « go ».
+- **Perimetre v1.0** : non fige, decide module par module.
+
+### Travaux v1.0 realises
+- **Apprenants (liste)** : densite reduite pour supprimer le scroll ; colonne « Classe »
+  (jointure `enrollments` → `classes`, badge « Non affecte » si aucune inscription active) ;
+  ligne entiere cliquable vers la fiche.
+- **Apprenants (fiche)** : les freres/soeurs inactifs s'affichent (badge « inactif », grises)
+  au lieu d'etre masques.
+- Seed `supabase/seed-parents-students-bulk.sql` : 30 parents + 45 eleves (numeros dynamiques).
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
