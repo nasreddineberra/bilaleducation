@@ -1,4 +1,5 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import type { BulletinData } from './BulletinsClient'
 
 // ─── Couleurs ─────────────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
         2: { cellWidth: 30, halign: 'center' },
       }
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
     head: [tableHead],

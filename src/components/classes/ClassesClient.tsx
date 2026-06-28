@@ -95,27 +95,23 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
       const { count } = await supabase
         .from('enrollments')
         .select('*', { count: 'exact', head: true })
-        .eq('class_id', id)
+        .eq('class_id', deleteTarget.id)
       if (count && count > 0) {
         setDeleteError(`${count} élève${count > 1 ? 's' : ''} inscrit${count > 1 ? 's' : ''} dans cette classe. Retirez-les avant de supprimer.`)
-        setDeletingId(null)
-        setConfirmId(null)
         return
       }
 
-      const { error } = await supabase.from('classes').delete().eq('id', id)
+      const { error } = await supabase.from('classes').delete().eq('id', deleteTarget.id)
       if (error) {
         setDeleteError('Une erreur est survenue. Veuillez réessayer.')
-        setDeletingId(null)
-        setConfirmId(null)
         return
       }
       router.refresh()
+      closeDeleteModal()
     } catch {
       setDeleteError('Une erreur est survenue.')
     } finally {
-      setDeletingId(null)
-      setConfirmId(null)
+      setIsDeleting(false)
     }
   }
 

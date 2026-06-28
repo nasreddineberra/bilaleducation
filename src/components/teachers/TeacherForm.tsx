@@ -225,7 +225,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
             <FloatInput
               label="N° employé"
               value={form.employee_number}
-              onChange={v => set('employee_number', v)}
+              onChange={e => set('employee_number', e.target.value)}
               onBlur={() => touch('employee_number')}
               locked={isEditing || !numberEditable}
               error={touched.has('employee_number') && v.employeeNumber ? 'Champ requis' : undefined}
@@ -238,7 +238,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               required
               type="date"
               value={form.hire_date}
-              onChange={v => set('hire_date', v)}
+              onChange={e => set('hire_date', e.target.value)}
               onBlur={() => touch('hire_date')}
               error={touched.has('hire_date') && v.hireDate ? 'Champ requis' : undefined}
             />
@@ -250,7 +250,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               label="Civilité"
               required
               value={form.civilite}
-              onChange={v => { set('civilite', v); touch('civilite') }}
+              onChange={e => { set('civilite', e.target.value); touch('civilite') }}
               onBlur={() => touch('civilite')}
               error={touched.has('civilite') && v.civilite ? 'Requis' : undefined}
             >
@@ -265,7 +265,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               label="Nom"
               required
               value={form.last_name}
-              onChange={v => set('last_name', toUpperCase(v))}
+              onChange={e => set('last_name', toUpperCase(e.target.value))}
               onBlur={() => touch('last_name')}
               error={touched.has('last_name') && v.lastName ? 'Minimum 2 caractères' : undefined}
             />
@@ -275,7 +275,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               label="Prénom"
               required
               value={form.first_name}
-              onChange={v => set('first_name', toTitleCase(v))}
+              onChange={e => set('first_name', toTitleCase(e.target.value))}
               onBlur={() => touch('first_name')}
               error={touched.has('first_name') && v.firstName ? 'Minimum 2 caractères' : undefined}
             />
@@ -293,7 +293,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
             required
             type="email"
             value={form.email}
-            onChange={v => set('email', v)}
+            onChange={e => set('email', e.target.value)}
             onBlur={() => touch('email')}
             error={touched.has('email') && v.email ? 'Email invalide' : undefined}
           />
@@ -303,12 +303,12 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               label="Téléphone"
               type="tel"
               value={form.phone}
-              onChange={v => set('phone', v)}
+              onChange={e => set('phone', e.target.value)}
             />
             <FloatInput
               label="Spécialisation"
               value={form.specialization}
-              onChange={v => set('specialization', v)}
+              onChange={e => set('specialization', e.target.value)}
             />
           </div>
 

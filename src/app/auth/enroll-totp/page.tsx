@@ -58,7 +58,7 @@ export default function EnrollTotpPage() {
 
       // 0. Nettoyer les anciens facteurs non vérifiés
       const { data: existingFactors } = await supabase.auth.mfa.listFactors()
-      const unverifiedTotp = existingFactors?.totp?.filter(f => f.status === 'unverified')
+      const unverifiedTotp = existingFactors?.totp?.filter(f => (f.status as string) === 'unverified')
       if (unverifiedTotp?.length) {
         console.log('[enroll-totp] Cleaning up', unverifiedTotp.length, 'unverified factors')
         for (const factor of unverifiedTotp) {
@@ -216,7 +216,7 @@ export default function EnrollTotpPage() {
 
               <div className="text-center">
                 <FloatButton
-                  variant="primary"
+                  variant="submit"
                   className="w-full justify-center"
                   disabled={isSubmitting}
                   loading={isSubmitting}
@@ -312,7 +312,7 @@ export default function EnrollTotpPage() {
                 Un code à 6 chiffres vous sera demandé à chaque connexion.
               </p>
               <FloatButton
-                variant="primary"
+                variant="submit"
                 className="w-full justify-center"
                 onClick={() => router.push('/dashboard')}
               >

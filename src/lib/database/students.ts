@@ -160,7 +160,7 @@ export const studentRepository = {
     const supabase = createClient()
     const query = supabase
       .from('students')
-      .select('id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, has_pai, exit_authorization, media_authorization')
+      .select('id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, has_pai, exit_authorization, media_authorization, etablissement_id, created_at, updated_at')
       .eq('parent_id', parentId)
       .order('last_name')
 

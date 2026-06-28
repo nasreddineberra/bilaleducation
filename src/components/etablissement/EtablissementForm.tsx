@@ -26,7 +26,7 @@ const toUpperCase  = (v: string) => v.toUpperCase()
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  const image = new Image()
+  const image = new window.Image()
   image.crossOrigin = 'anonymous'
   await new Promise<void>((resolve, reject) => {
     image.onload  = () => resolve()

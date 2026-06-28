@@ -18,7 +18,7 @@ function isSameOrigin(requestOrigin: string | null, referer: string | null): boo
     // Vérifier aussi sans le path
     try {
       const url = new URL(requestOrigin)
-      if (origins.some(o => o.includes(url.host))) return true
+      if (ALLOWED_ORIGINS.some(o => o.includes(url.host))) return true
     } catch {
       // Ignorer les URLs malformées
     }
@@ -28,7 +28,7 @@ function isSameOrigin(requestOrigin: string | null, referer: string | null): boo
   if (referer) {
     try {
       const url = new URL(referer)
-      if (origins.some(o => o.includes(url.host))) return true
+      if (ALLOWED_ORIGINS.some(o => o.includes(url.host))) return true
     } catch {
       // Ignorer
     }

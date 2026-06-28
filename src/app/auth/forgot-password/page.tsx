@@ -201,7 +201,7 @@ export default function ForgotPasswordPage() {
                   </p>
                 </div>
                 <FloatButton
-                  variant="primary"
+                  variant="submit"
                   className="w-full justify-center"
                   onClick={() => router.push('/login')}
                 >

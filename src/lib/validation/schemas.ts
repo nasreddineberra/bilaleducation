@@ -109,7 +109,7 @@ export function validateInput<T extends z.ZodType>(
   const result = schema.safeParse(data)
   if (!result.success) {
     // Premier message d'erreur
-    const firstError = result.error.errors[0]
+    const firstError = result.error.issues[0]
     return { error: `${firstError.path.join('.')}: ${firstError.message}` }
   }
   return { data: result.data }

@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Traitement par batches de 50 pour équilibrer vitesse et charge
     const BATCH_SIZE = 50
-    const batches: typeof recipients[][] = []
+    const batches: typeof recipients[] = []
     for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
       batches.push(recipients.slice(i, i + BATCH_SIZE))
     }

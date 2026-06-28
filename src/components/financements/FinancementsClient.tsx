@@ -6,7 +6,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
-import { FloatInput, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
