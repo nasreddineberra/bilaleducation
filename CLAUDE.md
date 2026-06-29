@@ -22,6 +22,30 @@ fonctionnalite gardee (technique + graphique), module par module.
   au lieu d'etre masques.
 - Seed `supabase/seed-parents-students-bulk.sql` : 30 parents + 45 eleves (numeros dynamiques).
 
+#### 29 juin 2026
+- **Coherence des listes** : meme densite (police, espacement des lignes) et memes cartes
+  statistiques sur les 4 listes principales (Apprenants, Parents, Enseignants, Classes).
+- **Apprenants (liste)** : colonne « Discipline » (absences / retards / avertissements de
+  l'annee scolaire en cours, couleurs de l'onglet discipline, actifs uniquement) ; avatar
+  genre neutre (gris beige) avec lisere bleu/rose ; carte « actifs » et icones d'autorisation
+  passees au turquoise (`primary-600`).
+- **Parents (liste)** : densite alignee ; ligne cliquable vers la fiche ; colonne « Situation
+  familiale » (centree) ; carte « Inscrits aux cours » avec lisere assorti aux chiffres.
+- **Enseignants (liste)** : densite + cartes identiques (filtres cliquables, compteur
+  « actifs » corrige en global) ; ligne cliquable vers la fiche ; style « inactif » aligne
+  sur les apprenants.
+- **Classes (liste)** : densite/typo et carte alignees sur le style commun.
+- **Centralisation UI** : classes `.list-th` / `.list-td` / `.list-name` (globals.css) +
+  composant `src/components/ui/ListStatCard.tsx` ; les 4 listes refactorisees (sans
+  changement visuel). Point d'extension pour les autres listes globales.
+- **Fix etablissement** : le changement de nom/logo se reflete desormais immediatement dans
+  la sidebar (invalidation du cache via `updateTag`, server action
+  `src/app/dashboard/etablissement/actions.ts`). Next 16 : `revalidateTag` a 1 argument est
+  deprecie, utiliser `updateTag`.
+- Seed `supabase/seed-teachers-bulk.sql` cree (10 enseignants) puis abandonne : la creation
+  passe par le formulaire (compte auth + profil + fiche via RPC `create_profile_and_teacher`),
+  ce qu'un seed SQL ne fait pas.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
