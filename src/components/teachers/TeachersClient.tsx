@@ -5,17 +5,22 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
+import ListStatCard from '@/components/ui/ListStatCard'
 import TeachersTable from './TeachersTable'
 import type { Teacher } from '@/types/database'
 
 const PAGE_SIZE = 20
+
+type StatFilter = '' | 'active'
 
 interface TeachersClientProps {
   teachers: Teacher[]
   filteredCount: number
   page: number
   q: string
+  filter: string
   totalCount: number
+  totalActive: number
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -80,21 +85,28 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function TeachersClient({ teachers, filteredCount, page, q, totalCount }: TeachersClientProps) {
+export default function TeachersClient({ teachers, filteredCount, page, q, filter, totalCount, totalActive }: TeachersClientProps) {
   const router = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [inputValue, setInputValue] = useState(q)
+  const activeFilter = (filter || '') as StatFilter
 
   const totalPages = Math.ceil(filteredCount / PAGE_SIZE)
 
   useEffect(() => { setInputValue(q) }, [q])
 
-  const navigate = (newPage: number, newQ: string) => {
+  const navigate = (newPage: number, newQ: string, newFilter?: StatFilter) => {
     const params = new URLSearchParams()
     if (newQ.trim()) params.set('q', newQ.trim())
     if (newPage > 1) params.set('page', String(newPage))
+    const f = newFilter ?? activeFilter
+    if (f) params.set('filter', f)
     const qs = params.toString()
     router.push(`/dashboard/teachers${qs ? `?${qs}` : ''}`)
+  }
+
+  const toggleFilter = (f: StatFilter) => {
+    navigate(1, inputValue, activeFilter === f ? '' : f)
   }
 
   const handleSearch = (value: string) => {
@@ -103,23 +115,27 @@ export default function TeachersClient({ teachers, filteredCount, page, q, total
     debounceRef.current = setTimeout(() => navigate(1, value), 300)
   }
 
-  const activeCount = teachers.filter(t => t.is_active).length
-
   return (
     <div className="space-y-2 animate-fade-in">
 
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
 
-        {/* Statistiques */}
-        <div className="card px-4 py-2 flex items-center gap-3">
-          <span className="text-2xl font-bold text-secondary-800">{totalCount}</span>
-          <span className="text-xs text-warm-500 leading-tight">au total</span>
-        </div>
-        <div className="card px-4 py-2 flex items-center gap-3">
-          <span className="text-2xl font-bold text-green-600">{activeCount}</span>
-          <span className="text-xs text-warm-500 leading-tight">actif{activeCount > 1 ? 's' : ''}</span>
-        </div>
+        {/* Statistiques (cliquables = filtres) */}
+        <ListStatCard
+          value={totalCount}
+          label="au total"
+          active={activeFilter === ''}
+          onClick={() => toggleFilter('')}
+        />
+        <ListStatCard
+          value={totalActive}
+          label={`actif${totalActive > 1 ? 's' : ''}`}
+          valueColor="text-primary-600"
+          activeRing="ring-primary-600"
+          active={activeFilter === 'active'}
+          onClick={() => toggleFilter('active')}
+        />
 
         <div className="flex-1" />
 

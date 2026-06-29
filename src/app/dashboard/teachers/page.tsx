@@ -11,9 +11,9 @@ const PAGE_SIZE = 20
 export default async function TeachersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>
+  searchParams: Promise<{ page?: string; q?: string; filter?: string }>
 }) {
-  const { page: pageParam, q = '' } = await searchParams
+  const { page: pageParam, q = '', filter = '' } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? '1', 10))
   const from = (page - 1) * PAGE_SIZE
   const to   = from + PAGE_SIZE - 1
@@ -33,12 +33,16 @@ export default async function TeachersPage({
     )
   }
 
+  if (filter === 'active') teachersQuery = teachersQuery.eq('is_active', true)
+
   const [
     { data: teachers, count: filteredCount },
     { count: totalCount },
+    { count: totalActive },
   ] = await Promise.all([
     teachersQuery,
     supabase.from('teachers').select('*', { count: 'exact', head: true }),
+    supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true),
   ])
 
   return (
@@ -47,7 +51,9 @@ export default async function TeachersPage({
       filteredCount={filteredCount ?? 0}
       page={page}
       q={q}
+      filter={filter}
       totalCount={totalCount ?? 0}
+      totalActive={totalActive ?? 0}
     />
   )
 }

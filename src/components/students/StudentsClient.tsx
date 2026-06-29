@@ -5,13 +5,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
-import { clsx } from 'clsx'
+import ListStatCard from '@/components/ui/ListStatCard'
 import StudentsTable from './StudentsTable'
 import type { Student } from '@/types/database'
 
 const PAGE_SIZE = 20
 
-export type StudentWithClass = Student & { class_name: string | null }
+export type Discipline = { absences: number; retards: number; avertissements: number }
+export type StudentWithClass = Student & { class_name: string | null; discipline: Discipline | null }
 
 type StatFilter = '' | 'active' | 'no_parent'
 
@@ -130,45 +131,37 @@ export default function StudentsClient({
       <div className="flex items-center gap-3 flex-wrap">
 
         {/* Statistiques (cliquables = filtres) */}
-        <button
+        <ListStatCard
+          value={totalAll}
+          label="au total"
+          active={activeFilter === ''}
           onClick={() => toggleFilter('')}
-          className={clsx(
-            'card px-4 py-1.5 flex items-center gap-3 cursor-pointer transition-all',
-            activeFilter === '' ? 'ring-2 ring-[#2e4550]' : 'hover:shadow-md'
-          )}
-        >
-          <span className="text-xl font-bold text-secondary-800">{totalAll}</span>
-          <span className="text-xs text-warm-500 leading-tight">au total</span>
-        </button>
-        <button
+        />
+        <ListStatCard
+          value={totalActive}
+          label={`actif${totalActive > 1 ? 's' : ''}`}
+          valueColor="text-primary-600"
+          activeRing="ring-primary-600"
+          active={activeFilter === 'active'}
           onClick={() => toggleFilter('active')}
-          className={clsx(
-            'card px-4 py-1.5 flex items-center gap-3 cursor-pointer transition-all',
-            activeFilter === 'active' ? 'ring-2 ring-[#2e4550]' : 'hover:shadow-md'
-          )}
-        >
-          <span className="text-xl font-bold text-green-600">{totalActive}</span>
-          <span className="text-xs text-warm-500 leading-tight">actif{totalActive > 1 ? 's' : ''}</span>
-        </button>
+        />
         {totalNoParent > 0 && (
-          <button
+          <ListStatCard
+            value={totalNoParent}
+            label={<span className="text-red-400">sans<br/>rattachement</span>}
+            valueColor="text-red-500"
+            active={activeFilter === 'no_parent'}
             onClick={() => toggleFilter('no_parent')}
-            className={clsx(
-              'card px-4 py-1.5 flex items-center gap-3 cursor-pointer transition-all bg-red-100/60 border-red-200 hover:shadow-md',
-              activeFilter === 'no_parent' && 'ring-2 ring-[#2e4550]'
-            )}
-          >
-            <span className="text-xl font-bold text-red-500">{totalNoParent}</span>
-            <span className="text-xs leading-tight text-red-400">sans<br/>rattachement</span>
-          </button>
+            className="bg-red-100/60 border-red-200"
+          />
         )}
         {maxStudents != null && (
-          <div className={`card px-4 py-1.5 flex items-center gap-3 ${limitReached ? 'border-orange-300 bg-orange-50' : ''}`}>
-            <span className={`text-xl font-bold ${limitReached ? 'text-orange-500' : 'text-secondary-800'}`}>
-              {totalActive}/{maxStudents}
-            </span>
-            <span className="text-xs text-warm-500 leading-tight">quota<br/>essai</span>
-          </div>
+          <ListStatCard
+            value={`${totalActive}/${maxStudents}`}
+            label={<>quota<br/>essai</>}
+            valueColor={limitReached ? 'text-orange-500' : 'text-secondary-800'}
+            className={limitReached ? 'border-orange-300 bg-orange-50' : undefined}
+          />
         )}
 
         <div className="flex-1" />

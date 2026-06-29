@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/audit'
 import { clsx } from 'clsx'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
+import ListStatCard from '@/components/ui/ListStatCard'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -123,14 +124,11 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-2 animate-fade-in">
 
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="card px-4 py-3 flex items-center gap-3">
-          <span className="text-2xl font-bold text-secondary-800">{classes.length}</span>
-          <span className="text-xs text-warm-500 leading-tight">au total</span>
-        </div>
+        <ListStatCard value={classes.length} label="au total" />
         <div className="flex-1" />
         <SearchField value={search} onChange={setSearch} placeholder="Nom, niveau..." />
         <FloatButton type="button" variant="submit" onClick={() => router.push('/dashboard/classes/new')}>
@@ -163,16 +161,16 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-warm-100 bg-warm-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Nom</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Niveau</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Salle</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Planning</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Capacité</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wider">Enseignants</th>
-                <th className="px-4 py-3" />
+              <tr className="border-b border-warm-100">
+                <th className="text-left list-th">Nom</th>
+                <th className="text-left list-th">Niveau</th>
+                <th className="text-left list-th">Salle</th>
+                <th className="text-left list-th">Planning</th>
+                <th className="text-center list-th">Capacité</th>
+                <th className="text-left list-th">Enseignants</th>
+                <th className="px-4 py-1.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-50">
@@ -181,8 +179,8 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
 
                 return (
                   <tr key={cls.id} className="hover:bg-warm-50/50 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="font-semibold text-secondary-800">{cls.name}</span>
+                    <td className="list-td whitespace-nowrap">
+                      <span className="list-name font-semibold text-secondary-800">{cls.name}</span>
                       {cls.cotisation_types && (
                         <span className={clsx(
                           'ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
@@ -194,13 +192,13 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-secondary-600">
+                    <td className="list-td text-secondary-600">
                       {cls.level || <span className="text-warm-300">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-secondary-600">
+                    <td className="list-td text-secondary-600">
                       {cls.room_number || <span className="text-warm-300">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-secondary-600 whitespace-nowrap">
+                    <td className="list-td text-secondary-600 whitespace-nowrap">
                       {cls.day_of_week ? (
                         <span>
                           {cls.day_of_week}
@@ -212,8 +210,8 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         <span className="text-warm-300">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center text-secondary-600">{cls.max_students}</td>
-                    <td className="px-4 py-3">
+                    <td className="list-td text-center text-secondary-600">{cls.max_students}</td>
+                    <td className="list-td">
                       {teachers.length === 0 ? (
                         <span className="text-warm-300 text-xs italic">Non affecté</span>
                       ) : (
@@ -233,7 +231,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="list-td">
                       <div className="flex items-center gap-1 justify-end">
                         <button
                           onClick={() => router.push(`/dashboard/classes/${cls.id}`)}

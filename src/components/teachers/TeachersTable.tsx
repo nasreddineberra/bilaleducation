@@ -64,67 +64,73 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">
+              <th className="text-left list-th">
                 Nom
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-40">
+              <th className="text-left list-th w-40">
                 N° emp.
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider hidden md:table-cell">
+              <th className="text-left list-th hidden md:table-cell">
                 Email
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider hidden lg:table-cell">
+              <th className="text-left list-th hidden lg:table-cell">
                 Spécialisation
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider hidden lg:table-cell">
+              <th className="text-left list-th hidden lg:table-cell">
                 Embauche
               </th>
-              <th className="px-4 py-2 w-32" />
+              <th className="px-4 py-1.5 w-32" />
             </tr>
           </thead>
 
           <tbody className="divide-y divide-warm-50">
             {teachers.map((teacher) => (
-              <tr key={teacher.id} className="hover:bg-warm-50 transition-colors">
+              <tr
+                key={teacher.id}
+                onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
+                className={`transition-colors cursor-pointer ${
+                  teacher.is_active ? 'hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
+                }`}
+              >
 
                 {/* Nom */}
-                <td className="px-4 py-1.5">
+                <td className="list-td">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-secondary-800">
+                    <span className={`list-name ${teacher.is_active ? 'text-secondary-800' : 'text-warm-400'}`}>
                       {teacher.last_name} {teacher.first_name}
                     </span>
                     {!teacher.is_active && (
-                      <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded">inactif</span>
+                      <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">inactif</span>
                     )}
                   </div>
                 </td>
 
                 {/* N° employé */}
-                <td className="px-4 py-1.5">
+                <td className="list-td">
                   <span className="font-mono text-xs text-warm-500 whitespace-nowrap">{teacher.employee_number}</span>
                 </td>
 
                 {/* Email */}
-                <td className="px-4 py-1.5 hidden md:table-cell">
-                  <span className="text-sm text-warm-500">{teacher.email}</span>
+                <td className="list-td hidden md:table-cell">
+                  <span className="text-xs text-warm-500">{teacher.email}</span>
                 </td>
 
                 {/* Spécialisation */}
-                <td className="px-4 py-1.5 hidden lg:table-cell">
-                  <span className="text-sm text-warm-500">
+                <td className="list-td hidden lg:table-cell">
+                  <span className="text-xs text-warm-500">
                     {teacher.specialization || <span className="text-warm-300">—</span>}
                   </span>
                 </td>
 
                 {/* Date d'embauche */}
-                <td className="px-4 py-1.5 hidden lg:table-cell">
-                  <span className="text-sm text-warm-500">
+                <td className="list-td hidden lg:table-cell">
+                  <span className="text-xs text-warm-500">
                     {new Date(teacher.hire_date).toLocaleDateString('fr-FR')}
                   </span>
                 </td>
 
                 {/* Actions */}
-                <td className="px-4 py-1.5">
+                <td className="list-td" onClick={(e) => e.stopPropagation()}>
                   {confirmDeleteId === teacher.id ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-xs text-warm-500">Supprimer ?</span>

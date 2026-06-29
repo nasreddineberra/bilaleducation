@@ -1,43 +1,51 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Pencil, Trash2, Link2Off, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
-import type { StudentWithClass } from './StudentsClient'
+import type { StudentWithClass, Discipline } from './StudentsClient'
 
 interface StudentsTableProps {
   students: StudentWithClass[]
 }
 
-function GenderIcon({ gender }: { gender: string | null | undefined }) {
-  if (gender === 'male')         return <span className="text-xs text-secondary-700">Masculin</span>
-  if (gender === 'female')       return <span className="text-xs text-secondary-700">Féminin</span>
-  if (gender === 'non_specified') return <span className="text-xs text-warm-400">Non spécifié</span>
-  return <span className="text-xs text-warm-300">—</span>
+// Affiche absences / retards / avertissements (année en cours), non-nuls uniquement.
+// Couleurs alignées sur l'onglet Discipline de la fiche. Rien si élève inactif (discipline null).
+function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
+  if (!discipline) return null
+  const parts: ReactElement[] = []
+  if (discipline.absences > 0)
+    parts.push(<span key="a" className="text-red-600 whitespace-nowrap">{discipline.absences} abs.</span>)
+  if (discipline.retards > 0)
+    parts.push(<span key="r" className="text-amber-600 whitespace-nowrap">{discipline.retards} {discipline.retards > 1 ? 'retards' : 'retard'}</span>)
+  if (discipline.avertissements > 0)
+    parts.push(<span key="w" className="text-purple-600 whitespace-nowrap">{discipline.avertissements} avert.</span>)
+  if (parts.length === 0) return <span className="text-xs text-warm-300">—</span>
+  return (
+    <span className="text-xs">
+      {parts.map((node, i) => (
+        <span key={i}>{i > 0 ? <span className="text-warm-300">, </span> : null}{node}</span>
+      ))}
+    </span>
+  )
 }
 
 function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firstName: string; gender: string | null | undefined }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
-  if (gender === 'male') {
-    return (
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-blue-600 text-white">
-        {initiales}
-      </div>
-    )
-  }
-  if (gender === 'female') {
-    return (
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-pink-500 text-white">
-        {initiales}
-      </div>
-    )
-  }
-  // non_specified ou null
+  // Avatar neutre (gris beige) ; le genre est indiqué par un liseré coloré
+  const ring = gender === 'male'
+    ? 'ring-2 ring-blue-500'
+    : gender === 'female'
+      ? 'ring-2 ring-pink-500'
+      : 'ring-1 ring-warm-200'
   return (
-    <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none border border-warm-300 text-warm-400">
+    <div className={clsx(
+      'w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-warm-100 text-warm-600',
+      ring
+    )}>
       {initiales}
     </div>
   )
@@ -109,20 +117,20 @@ export default function StudentsTable({ students }: StudentsTableProps) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-4/12">
+              <th className="text-left list-th w-3/12">
                 Élève
               </th>
-              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-2/12">
+              <th className="text-left list-th w-2/12">
                 N° élève
               </th>
-              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-2/12">
+              <th className="text-left list-th w-2/12">
                 Classe
               </th>
-              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-2/12">
+              <th className="text-left list-th w-2/12">
                 Naissance
               </th>
-              <th className="text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider w-1/12">
-                Genre
+              <th className="text-left list-th w-2/12">
+                Discipline
               </th>
               <th className="px-4 py-1.5 w-1/12" />
             </tr>
@@ -144,12 +152,12 @@ export default function StudentsTable({ students }: StudentsTableProps) {
               >
 
                 {/* Élève */}
-                <td className="px-4 py-[2px]">
+                <td className="list-td">
                   <div className="flex items-center gap-2.5">
                     <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} />
                     <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={clsx(
-                      'text-[13px] font-medium',
+                      'list-name',
                       student.is_active ? 'text-secondary-800' : 'text-warm-400'
                     )}>
                       {student.last_name} {student.first_name}
@@ -164,12 +172,12 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                     )}
                     {student.exit_authorization && (
                       <Tooltip content="Autorisation de sortie accordée">
-                        <LogOut size={13} className="text-green-500 flex-shrink-0" />
+                        <LogOut size={13} className="text-primary-600 flex-shrink-0" />
                       </Tooltip>
                     )}
                     {student.media_authorization && (
                       <Tooltip content="Autorisation média accordée">
-                        <Camera size={13} className="text-green-500 flex-shrink-0" />
+                        <Camera size={13} className="text-primary-600 flex-shrink-0" />
                       </Tooltip>
                     )}
                     {!student.parent_id && (
@@ -182,7 +190,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* N° élève */}
-                <td className="px-4 py-[2px]">
+                <td className="list-td">
                   <span className={clsx(
                     'font-mono text-xs',
                     student.is_active ? 'text-warm-500' : 'text-warm-300'
@@ -190,7 +198,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* Classe */}
-                <td className="px-4 py-[2px]">
+                <td className="list-td">
                   {student.class_name ? (
                     <span className={clsx(
                       'text-xs font-medium',
@@ -202,7 +210,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 </td>
 
                 {/* Date de naissance */}
-                <td className="px-4 py-[2px]">
+                <td className="list-td">
                   <span className={clsx(
                     'text-xs',
                     student.is_active ? 'text-secondary-700' : 'text-warm-400'
@@ -210,13 +218,13 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                   <span className="text-xs text-warm-400 ml-1.5">({calcAge(student.date_of_birth)})</span>
                 </td>
 
-                {/* Genre */}
-                <td className="px-4 py-[2px]">
-                  <GenderIcon gender={student.gender} />
+                {/* Discipline (actifs uniquement) */}
+                <td className="list-td">
+                  <DisciplineInfo discipline={student.discipline} />
                 </td>
 
                 {/* Actions */}
-                <td className="px-4 py-[2px]" onClick={(e) => e.stopPropagation()}>
+                <td className="list-td" onClick={(e) => e.stopPropagation()}>
                   {confirmDeleteId === student.id ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-xs text-warm-500">Supprimer ?</span>

@@ -22,6 +22,16 @@ const RELATION_LABEL: Record<string, string> = {
   'autre': 'Autre',
 }
 
+const SITUATION_LABEL: Record<string, string> = {
+  'mariés': 'Mariés',
+  'pacsés': 'Pacsés',
+  'union_libre': 'Union libre',
+  'séparés': 'Séparés',
+  'divorcés': 'Divorcés',
+  'veuf_veuve': 'Veuf/Veuve',
+  'monoparental': 'Monoparental',
+}
+
 export default function ParentsTable({ parents, parentsWithChildren, parentsWithPAI }: ParentsTableProps) {
   const router = useRouter()
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -149,13 +159,16 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
         <table className="w-full">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-5/12">
+              <th className="text-left list-th w-4/12">
                 Tuteur 1
               </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-5/12">
+              <th className="text-left list-th w-4/12">
                 Tuteur 2
               </th>
-              <th className="px-4 py-2 w-2/12" />
+              <th className="text-center list-th w-2/12">
+                Situation familiale
+              </th>
+              <th className="px-4 py-1.5 w-2/12" />
             </tr>
           </thead>
 
@@ -164,12 +177,15 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
               <Fragment key={parent.id}>
 
                 {/* Ligne principale */}
-                <tr className="hover:bg-warm-50 transition-colors">
+                <tr
+                  onClick={() => router.push(`/dashboard/parents/${parent.id}`)}
+                  className="hover:bg-warm-50 transition-colors cursor-pointer"
+                >
 
                   {/* Tuteur 1 */}
-                  <td className="px-4 py-[3px]">
+                  <td className="list-td">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-secondary-800">
+                      <span className="list-name text-secondary-800">
                         {parent.tutor1_last_name} {parent.tutor1_first_name}
                       </span>
                       {parent.tutor1_relationship && (
@@ -184,10 +200,10 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   </td>
 
                   {/* Tuteur 2 */}
-                  <td className="px-4 py-[3px]">
+                  <td className="list-td">
                     {parent.tutor2_last_name ? (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-secondary-800">
+                        <span className="list-name text-secondary-800">
                           {parent.tutor2_last_name} {parent.tutor2_first_name}
                         </span>
                         {parent.tutor2_relationship && (
@@ -200,12 +216,21 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         )}
                       </div>
                     ) : (
-                      <span className="text-warm-300 text-sm">—</span>
+                      <span className="text-warm-300 text-xs">—</span>
                     )}
                   </td>
 
+                  {/* Situation familiale */}
+                  <td className="list-td text-center">
+                    <span className="text-xs text-warm-500">
+                      {parent.situation_familiale
+                        ? (SITUATION_LABEL[parent.situation_familiale] ?? parent.situation_familiale)
+                        : '—'}
+                    </span>
+                  </td>
+
                   {/* Actions */}
-                  <td className="px-4 py-[3px]">
+                  <td className="list-td" onClick={(e) => e.stopPropagation()}>
                     {confirmDeleteId === parent.id ? (
                       <div className="flex items-center justify-end gap-2">
                         <span className="text-xs text-warm-500">Supprimer ?</span>
@@ -268,7 +293,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                 {/* Ligne enfants (expandable) */}
                 {expandedId === parent.id && (
                   <tr className="bg-warm-50">
-                    <td colSpan={3} className="px-6 py-2">
+                    <td colSpan={4} className="px-6 py-2">
                       {loadingChildrenId === parent.id ? (
                         <p className="text-sm text-warm-400">Chargement...</p>
                       ) : childrenMap[parent.id]?.length === 0 ? (

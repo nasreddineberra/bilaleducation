@@ -97,6 +97,20 @@
            shadow-[0_2px_8px_rgba(47,69,80,0.08),0_1px_3px_rgba(47,69,80,0.04)];
   }
 
+  /* ── Listes globales : densité/typo partagées (tables paginées) ── */
+  /* En-tête de colonne. Ajouter `text-center` en plus pour centrer. */
+  .list-th {
+    @apply text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider;
+  }
+  /* Cellule de ligne (espacement vertical compact). */
+  .list-td {
+    @apply px-4 py-[2px];
+  }
+  /* Libellé principal d'une ligne (nom). */
+  .list-name {
+    @apply text-[13px] font-medium;
+  }
+
   /* Card sans padding interne (pour les composants qui gèrent leur propre layout) */
   .card-flush {
     @apply bg-white rounded-lg

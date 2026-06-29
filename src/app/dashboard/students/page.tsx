@@ -42,15 +42,44 @@ export default async function StudentsPage({
     { count: totalAll },
     { count: totalActive },
     { count: totalNoParent },
+    { data: currentPeriods },
   ] = await Promise.all([
     studentsQuery,
     supabase.from('etablissements').select('max_students').single(),
     supabase.from('students').select('*', { count: 'exact', head: true }),
     supabase.from('students').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('students').select('*', { count: 'exact', head: true }).is('parent_id', null),
+    supabase.from('periods').select('id, school_years!inner(is_current)').eq('school_years.is_current', true),
   ])
 
-  // Rattacher le nom de la classe active à chaque élève (sinon null)
+  // Discipline (annee en cours) : uniquement pour les eleves actifs de la page
+  const periodIds = (currentPeriods ?? []).map((p) => p.id)
+  const activeIds = (students ?? []).filter((s) => s.is_active).map((s) => s.id)
+  const disciplineMap = new Map<string, { absences: number; retards: number; avertissements: number }>()
+
+  if (activeIds.length) {
+    let absQ = supabase.from('absences').select('student_id, absence_type').in('student_id', activeIds)
+    let warnQ = supabase.from('student_warnings').select('student_id').in('student_id', activeIds)
+    if (periodIds.length) {
+      absQ = absQ.in('period_id', periodIds)
+      warnQ = warnQ.in('period_id', periodIds)
+    }
+    const [{ data: absData }, { data: warnData }] = await Promise.all([absQ, warnQ])
+
+    for (const id of activeIds) disciplineMap.set(id, { absences: 0, retards: 0, avertissements: 0 })
+    for (const a of (absData ?? []) as { student_id: string; absence_type: string }[]) {
+      const d = disciplineMap.get(a.student_id)
+      if (!d) continue
+      if (a.absence_type === 'retard') d.retards++
+      else d.absences++
+    }
+    for (const w of (warnData ?? []) as { student_id: string }[]) {
+      const d = disciplineMap.get(w.student_id)
+      if (d) d.avertissements++
+    }
+  }
+
+  // Rattacher la classe active + la discipline (actifs uniquement) à chaque élève
   const studentsWithClass = (students ?? []).map((s) => {
     const { enrollments, ...rest } = s as typeof s & {
       enrollments?: { status: string; classes?: { name: string } | null }[]
@@ -58,7 +87,11 @@ export default async function StudentsPage({
     const active = Array.isArray(enrollments)
       ? enrollments.find((e) => e.status === 'active')
       : null
-    return { ...rest, class_name: active?.classes?.name ?? null }
+    return {
+      ...rest,
+      class_name: active?.classes?.name ?? null,
+      discipline: rest.is_active ? (disciplineMap.get(rest.id) ?? { absences: 0, retards: 0, avertissements: 0 }) : null,
+    }
   })
 
   return (
