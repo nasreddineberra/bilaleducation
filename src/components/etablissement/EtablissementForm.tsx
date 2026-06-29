@@ -9,6 +9,7 @@ import type { Area } from 'react-easy-crop'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
+import { revalidateEtablissement } from '@/app/dashboard/etablissement/actions'
 import type { Etablissement } from '@/types/database'
 
 interface EtablissementFormProps {
@@ -121,6 +122,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       initialLogoUrl.current      = logoUrl
       initialWeekStartDay.current = weekStartDay
       initialWorkingDays.current  = workingDays
+      await revalidateEtablissement()
       toast.success('Informations enregistrées avec succès.')
       router.refresh()
     } catch {
