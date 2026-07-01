@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2, X, Check, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
@@ -17,6 +17,7 @@ interface PresenceType {
   label: string
   code: string
   color: string
+  is_absence: boolean
 }
 
 interface PresenceTypeRate {
@@ -53,12 +54,19 @@ type EditingRow = {
 }
 
 const EMPTY_ROW: EditingRow = {
-  id: null, label: '', amount: '', registration_fee: '0', sibling_discount: '0',
+  id: null, label: '', amount: '', registration_fee: '', sibling_discount: '',
   sibling_discount_same_type: false, max_installments: '1', is_adult: false,
 }
 
 function fmtEur(n: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+}
+
+// Formate une saisie numérique à 2 décimales (vide autorisé pour la saisie en cours)
+function to2(v: string) {
+  if (v.trim() === '') return ''
+  const n = parseFloat(v)
+  return isNaN(n) ? v : n.toFixed(2)
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -78,10 +86,18 @@ export default function CotisationsClient({
   const [saving, setSaving]                   = useState(false)
 
   const [rates, setRates]             = useState<Record<string, string>>(() =>
-    Object.fromEntries(initialRates.map(r => [r.presence_type_id, r.rate.toString()]))
+    Object.fromEntries(initialRates.map(r => [r.presence_type_id, Number(r.rate).toFixed(2)]))
   )
   const [rateSaving, setRateSaving]   = useState(false)
   const [rateSuccess, setRateSuccess] = useState<string | null>(null)
+
+  // Détection de modification des taux (bouton désactivé si rien n'a changé vs BDD)
+  const initialRateMap = Object.fromEntries(initialRates.map(r => [r.presence_type_id, Number(r.rate)]))
+  const isRatesDirty = presenceTypes.some(pt => {
+    if (pt.is_absence) return false
+    const current = parseFloat(rates[pt.id] ?? '') || 0
+    return current !== (initialRateMap[pt.id] ?? 0)
+  })
 
   // ── Pas d'année en cours ──────────────────────────────────────────────────
 
@@ -99,8 +115,8 @@ export default function CotisationsClient({
   const startAdd  = () => { setEditing({ ...EMPTY_ROW }); setConfirmDeleteId(null) }
   const startEdit = (row: CotisationType) => {
     setEditing({
-      id: row.id, label: row.label, amount: String(row.amount),
-      registration_fee: String(row.registration_fee), sibling_discount: String(row.sibling_discount),
+      id: row.id, label: row.label, amount: Number(row.amount).toFixed(2),
+      registration_fee: Number(row.registration_fee).toFixed(2), sibling_discount: Number(row.sibling_discount).toFixed(2),
       sibling_discount_same_type: row.sibling_discount_same_type ?? false,
       max_installments: String(row.max_installments), is_adult: row.is_adult ?? false,
     })
@@ -161,6 +177,16 @@ export default function CotisationsClient({
     }
   }
 
+  // ── Validité du formulaire (champs obligatoires) ──────────────────────────
+
+  const isFormValid = !!editing
+    && editing.label.trim() !== ''
+    && editing.amount.trim() !== '' && Number(editing.amount) >= 0
+    && editing.max_installments.trim() !== '' && Number(editing.max_installments) >= 1
+
+  // Types de présence : absences en tête de liste
+  const sortedPresenceTypes = [...presenceTypes].sort((a, b) => Number(b.is_absence) - Number(a.is_absence))
+
   // ── Historique ────────────────────────────────────────────────────────────
 
   const pastYears = allYears.filter(y => y.id !== currentYear.id)
@@ -168,10 +194,7 @@ export default function CotisationsClient({
   // ── Rendu ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex gap-4 h-full min-h-0">
-
-      {/* ── Colonne gauche : saisie année en cours ── */}
-      <div className="flex flex-col gap-4 flex-1 min-w-0 overflow-y-auto pr-1">
+    <div className="flex flex-col gap-4 lg:h-full min-h-0 lg:overflow-y-auto lg:pr-1">
 
         {/* ── Encadré 1 : Types de cotisations ── */}
         <div className="card overflow-hidden">
@@ -187,37 +210,39 @@ export default function CotisationsClient({
             )}
           </div>
 
+          <div className="flex flex-row">
+          <div className="flex-[2] min-w-0 overflow-x-auto">
           {/* Formulaire d'édition */}
           {editing && (
             <div className="p-4 border-b border-warm-100 bg-primary-50/20 space-y-3">
-              <div className="grid grid-cols-5 gap-2">
-                <div className="col-span-1">
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Type de scolarité</label>
-                  <input autoFocus className="input text-sm" placeholder="Ex: Maternelle" value={editing.label} onChange={e => setEditing({ ...editing, label: e.target.value })} />
+              <div className="flex flex-wrap items-start gap-2">
+                <div className="w-48">
+                  <label className="block text-xs font-medium text-warm-500 mb-1">Type de scolarité<span className="text-red-400 ml-0.5">*</span></label>
+                  <input autoFocus className="input text-sm" placeholder="Ex: MATERNELLE" value={editing.label} onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })} />
                   <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none">
                     <input type="checkbox" checked={editing.is_adult} onChange={e => setEditing({ ...editing, is_adult: e.target.checked })} className="accent-primary-600 w-3.5 h-3.5" />
                     <span className="text-xs text-secondary-600">Cours adultes</span>
                     <span title="Les classes de ce type seront réservées aux adultes."><Info size={11} className="text-warm-300" /></span>
                   </label>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Cotisation annuelle</label>
+                <div className="w-32">
+                  <label className="block text-xs font-medium text-warm-500 mb-1">Cotisation annuelle<span className="text-red-400 ml-0.5">*</span></label>
                   <div className="relative">
-                    <input type="number" min="0" step="0.01" className="input text-sm pr-10" placeholder="0" value={editing.amount} onChange={e => setEditing({ ...editing, amount: e.target.value })} />
+                    <input type="number" min="0" step="10" className="input text-sm pr-10" placeholder="0" value={editing.amount} onChange={e => setEditing({ ...editing, amount: e.target.value })} onBlur={e => setEditing(ed => ed ? { ...ed, amount: to2(e.target.value) } : ed)} />
                     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
                   </div>
                 </div>
-                <div>
+                <div className="w-32">
                   <label className="block text-xs font-medium text-warm-500 mb-1">Frais de dossier</label>
                   <div className="relative">
-                    <input type="number" min="0" step="0.01" className="input text-sm pr-10" placeholder="0" value={editing.registration_fee} onChange={e => setEditing({ ...editing, registration_fee: e.target.value })} />
+                    <input type="number" min="0" step="10" className="input text-sm pr-10" placeholder="0" value={editing.registration_fee} onChange={e => setEditing({ ...editing, registration_fee: e.target.value })} onBlur={e => setEditing(ed => ed ? { ...ed, registration_fee: to2(e.target.value) } : ed)} />
                     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
                   </div>
                 </div>
-                <div>
+                <div className="w-32">
                   <label className="block text-xs font-medium text-warm-500 mb-1">Réduction fratrie</label>
                   <div className="relative">
-                    <input type="number" min="0" step="0.01" className="input text-sm pr-10" placeholder="0" value={editing.sibling_discount} onChange={e => setEditing({ ...editing, sibling_discount: e.target.value })} />
+                    <input type="number" min="0" step="10" className="input text-sm pr-10" placeholder="0" value={editing.sibling_discount} onChange={e => setEditing({ ...editing, sibling_discount: e.target.value })} onBlur={e => setEditing(ed => ed ? { ...ed, sibling_discount: to2(e.target.value) } : ed)} />
                     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
                   </div>
                   <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none">
@@ -226,43 +251,44 @@ export default function CotisationsClient({
                     <span title="Réduction entre enfants du même type uniquement."><Info size={11} className="text-warm-300" /></span>
                   </label>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Max échéances</label>
+                <div className="w-32">
+                  <label className="block text-xs font-medium text-warm-500 mb-1">Max échéances<span className="text-red-400 ml-0.5">*</span></label>
                   <input type="number" min="1" max="12" className="input text-sm" value={editing.max_installments} onChange={e => setEditing({ ...editing, max_installments: e.target.value })} />
                 </div>
+                <div className="flex items-center gap-2 pt-[1.35rem]">
+                  <FloatButton type="button" variant="submit" onClick={save} disabled={saving || !isFormValid}>
+                    <Check size={13} /> {saving ? 'Enregistrement...' : editing.id ? 'Enregistrer' : 'Ajouter'}
+                  </FloatButton>
+                  <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>Annuler</FloatButton>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <FloatButton type="button" variant="submit" onClick={save} disabled={saving}>
-                  <Check size={13} /> {saving ? 'Enregistrement...' : editing.id ? 'Enregistrer' : 'Ajouter'}
-                </FloatButton>
-                <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>Annuler</FloatButton>
-              </div>
+              <span className="block text-xs text-warm-400"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
             </div>
           )}
 
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-warm-100 bg-warm-50/60">
-                <th className="px-3 py-2 font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                <th className="px-3 py-2 font-semibold text-warm-500 uppercase tracking-wider text-right">Cotisation</th>
-                <th className="px-3 py-2 font-semibold text-warm-500 uppercase tracking-wider text-right">Dossier</th>
-                <th className="px-3 py-2 font-semibold text-warm-500 uppercase tracking-wider text-right">Fratrie</th>
-                <th className="px-3 py-2 font-semibold text-warm-500 uppercase tracking-wider text-center">Échéances</th>
-                <th className="px-3 py-2 w-20"></th>
+              <tr className="border-b border-warm-100">
+                <th className="list-th">Type</th>
+                <th className="list-th text-right">Cotisation</th>
+                <th className="list-th text-right">Dossier</th>
+                <th className="list-th text-right">Fratrie</th>
+                <th className="list-th text-center">Échéances</th>
+                <th className="list-th w-20"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-warm-50">
               {rows.map(row => (
-                <tr key={row.id} className={clsx('border-b border-warm-100 transition-colors', editing?.id === row.id ? 'bg-primary-50/40' : 'hover:bg-warm-50/40')}>
-                  <td className="px-3 py-2 font-medium text-secondary-800">
+                <tr key={row.id} className={clsx('transition-colors', editing?.id === row.id ? 'bg-primary-50/40' : 'hover:bg-warm-50/50')}>
+                  <td className="list-td">
                     <span className="inline-flex items-center gap-1.5">
-                      {row.label}
+                      <span className="list-name text-secondary-800">{row.label}</span>
                       {row.is_adult && <span className="text-[10px] font-semibold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Adultes</span>}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-secondary-700 text-right tabular-nums">{fmtEur(row.amount)}</td>
-                  <td className="px-3 py-2 text-secondary-700 text-right tabular-nums">{row.registration_fee > 0 ? fmtEur(row.registration_fee) : <span className="text-warm-300">—</span>}</td>
-                  <td className="px-3 py-2 text-secondary-700 text-right tabular-nums">
+                  <td className="list-td text-right text-secondary-700 tabular-nums">{fmtEur(row.amount)}</td>
+                  <td className="list-td text-right text-secondary-700 tabular-nums">{row.registration_fee > 0 ? fmtEur(row.registration_fee) : <span className="text-warm-300">—</span>}</td>
+                  <td className="list-td text-right text-secondary-700 tabular-nums">
                     {row.sibling_discount > 0 ? (
                       <span className="inline-flex items-center gap-1 justify-end">
                         -{fmtEur(row.sibling_discount)}
@@ -272,8 +298,8 @@ export default function CotisationsClient({
                       </span>
                     ) : <span className="text-warm-300">—</span>}
                   </td>
-                  <td className="px-3 py-2 text-warm-500 text-center">{row.max_installments === 1 ? 'Comptant' : `${row.max_installments}x`}</td>
-                  <td className="px-3 py-2">
+                  <td className="list-td text-center text-warm-500">{row.max_installments === 1 ? 'Comptant' : `${row.max_installments}x`}</td>
+                  <td className="list-td">
                     {confirmDeleteId === row.id ? (
                       <div className="flex items-center justify-end gap-1.5">
                         <button onClick={() => remove(row.id)} disabled={saving} className="text-[11px] text-red-600 hover:text-red-700 font-medium">Confirmer</button>
@@ -293,6 +319,53 @@ export default function CotisationsClient({
               )}
             </tbody>
           </table>
+          </div>
+
+          {/* Historique des cotisations */}
+          <div className="flex-1 min-w-0 border-l border-warm-100 bg-warm-50/30 overflow-x-auto">
+            <div className="px-4 py-1.5 border-b border-warm-100">
+              <h3 className="text-[11px] leading-4 font-semibold text-warm-500 uppercase tracking-wider">Historique</h3>
+            </div>
+            {pastYears.length === 0 ? (
+              <p className="px-4 py-8 text-xs text-warm-400 text-center italic">Aucun historique disponible.</p>
+            ) : (
+              <table className="w-full text-left text-[11px]">
+                <thead>
+                  <tr className="border-b border-warm-100 text-[10px] uppercase tracking-wide text-warm-400">
+                    <th className="px-2 py-1 font-semibold">Type</th>
+                    <th className="px-2 py-1 font-semibold text-right">Cotis.</th>
+                    <th className="px-2 py-1 font-semibold text-right">Dossier</th>
+                    <th className="px-2 py-1 font-semibold text-right">Fratrie</th>
+                    <th className="px-2 py-1 font-semibold text-center">Éch.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-warm-50">
+                  {pastYears.map(year => {
+                    const yearCotisations = allCotisationTypes.filter((c: any) => c.school_year_id === year.id)
+                    return (
+                      <Fragment key={year.id}>
+                        <tr className="bg-warm-100/50">
+                          <td colSpan={5} className="px-2 py-1 text-[11px] font-bold text-secondary-700">{year.label}</td>
+                        </tr>
+                        {yearCotisations.length > 0 ? yearCotisations.map((c: any) => (
+                          <tr key={c.id}>
+                            <td className="px-2 py-1 text-secondary-800 whitespace-nowrap">{c.label}{c.is_adult ? <span className="ml-1 text-violet-600 font-semibold">·A</span> : null}</td>
+                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{fmtEur(c.amount)}</td>
+                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.registration_fee > 0 ? fmtEur(c.registration_fee) : <span className="text-warm-300">—</span>}</td>
+                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.sibling_discount > 0 ? `-${fmtEur(c.sibling_discount)}` : <span className="text-warm-300">—</span>}</td>
+                            <td className="px-2 py-1 text-center text-warm-500 whitespace-nowrap">{c.max_installments === 1 ? 'Comptant' : `${c.max_installments}x`}</td>
+                          </tr>
+                        )) : (
+                          <tr><td colSpan={5} className="px-2 py-2 text-center text-[11px] text-warm-300 italic">Aucune donnée</td></tr>
+                        )}
+                      </Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+          </div>
 
           {classesWithoutCount > 0 && (
             <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border-t border-amber-200 px-3 py-2">
@@ -309,7 +382,8 @@ export default function CotisationsClient({
             <h2 className="text-sm font-bold text-secondary-800">Taux horaires — {currentYear.label}</h2>
             <p className="text-xs text-warm-400 mt-0.5">Utilisés pour le calcul du coût dans le temps de présence</p>
           </div>
-          <div className="p-3">
+          <div className="flex flex-row">
+          <div className="p-3 flex-[2] min-w-0">
             {presenceTypes.length === 0 ? (
               <p className="text-sm text-warm-400 italic">
                 Aucun type de présence configuré.{' '}
@@ -317,101 +391,83 @@ export default function CotisationsClient({
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-8 gap-2">
-                  {presenceTypes.map(pt => (
-                    <div key={pt.id}>
-                      <label className="flex items-center gap-1 text-[10px] font-bold text-warm-500 uppercase tracking-wide truncate">
+                <div className="flex flex-wrap items-start gap-2">
+                  {sortedPresenceTypes.map(pt => (
+                    <div key={pt.id} className="w-32">
+                      <label className="flex items-center gap-1 text-xs font-medium text-warm-500 mb-1 truncate">
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pt.color }} />
                         <span className="truncate">{pt.label}</span>
                       </label>
-                      <div className="relative mt-1">
+                      <div className="relative">
                         <input
-                          type="number" step="0.01" min="0"
-                          value={rates[pt.id] ?? ''}
+                          type="number" step="0.10" min="0"
+                          value={pt.is_absence ? '0.00' : (rates[pt.id] ?? '')}
                           onChange={e => setRates(prev => ({ ...prev, [pt.id]: e.target.value }))}
-                          className="input text-xs py-1 pr-6 w-full"
+                          onBlur={e => setRates(prev => ({ ...prev, [pt.id]: to2(e.target.value) }))}
+                          disabled={pt.is_absence}
+                          title={pt.is_absence ? 'Une absence n\'est jamais facturée' : undefined}
+                          className="input text-sm pr-8 w-full disabled:bg-warm-100 disabled:text-warm-400 disabled:cursor-not-allowed"
                           placeholder="0"
                         />
-                        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-warm-400">/h</span>
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">/h</span>
                       </div>
                     </div>
                   ))}
-                </div>
-                <div className="flex items-center gap-3 mt-3">
-                  <FloatButton type="button" variant="submit" disabled={rateSaving} onClick={async () => {
-                    setRateSaving(true); setRateSuccess(null)
-                    const upserts = presenceTypes.map(pt => ({ school_year_id: currentYear.id, presence_type_id: pt.id, rate: parseFloat(rates[pt.id] ?? '0') || 0 }))
-                    const { error: err } = await supabase.from('presence_type_rates').upsert(upserts, { onConflict: 'etablissement_id,school_year_id,presence_type_id' })
-                    setRateSaving(false)
-                    if (err) { toast.error(err.message); return }
-                    setRateSuccess('Taux enregistrés')
-                    router.refresh()
-                    setTimeout(() => setRateSuccess(null), 3000)
-                  }}>
-                    {rateSaving ? 'Enregistrement...' : 'Enregistrer les taux'}
-                  </FloatButton>
-                  {rateSuccess && <span className="flex items-center gap-1 text-xs text-success-600"><CheckCircle2 size={13} /> {rateSuccess}</span>}
+                  <div className="flex items-center gap-2 pt-[1.35rem]">
+                      <FloatButton type="button" variant="submit" disabled={rateSaving || !isRatesDirty} onClick={async () => {
+                        setRateSaving(true); setRateSuccess(null)
+                        const upserts = presenceTypes.map(pt => ({ school_year_id: currentYear.id, presence_type_id: pt.id, rate: pt.is_absence ? 0 : (parseFloat(rates[pt.id] ?? '0') || 0) }))
+                        const { error: err } = await supabase.from('presence_type_rates').upsert(upserts, { onConflict: 'etablissement_id,school_year_id,presence_type_id' })
+                        setRateSaving(false)
+                        if (err) { toast.error(err.message); return }
+                        setRateSuccess('Taux enregistrés')
+                        router.refresh()
+                        setTimeout(() => setRateSuccess(null), 3000)
+                      }}>
+                        {rateSaving ? 'Enregistrement...' : 'Enregistrer'}
+                      </FloatButton>
+                      {rateSuccess && <span className="flex items-center gap-1 text-xs text-success-600"><CheckCircle2 size={13} /> {rateSuccess}</span>}
+                  </div>
                 </div>
               </>
             )}
           </div>
-        </div>
 
-      </div>
-
-      {/* ── Colonne droite : historique ── */}
-      <div className="w-72 flex-shrink-0 card overflow-hidden flex flex-col min-h-0">
-        <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex-shrink-0">
-          <h2 className="text-sm font-bold text-secondary-800">Historique</h2>
-          <p className="text-xs text-warm-400 mt-0.5">Toutes les années scolaires</p>
-        </div>
-        <div className="overflow-y-auto flex-1 divide-y divide-warm-100">
-          {pastYears.length === 0 ? (
-            <p className="px-4 py-8 text-xs text-warm-400 text-center italic">Aucun historique disponible.</p>
-          ) : pastYears.map(year => {
-            const yearCotisations = allCotisationTypes.filter((c: any) => c.school_year_id === year.id)
-            const yearRates: any[] = allPresenceTypeRates.filter((r: any) => r.school_year_id === year.id)
-            return (
-              <div key={year.id} className="px-4 py-3 space-y-2">
-                <p className="text-xs font-bold text-secondary-700">{year.label}</p>
-
-                {/* Cotisations */}
-                {yearCotisations.length > 0 && (
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Cotisations</p>
-                    {yearCotisations.map((c: any) => (
-                      <div key={c.id} className="flex items-center justify-between gap-2 text-xs">
-                        <span className="text-secondary-700 truncate">{c.label}{c.is_adult ? ' ·A' : ''}</span>
-                        <span className="text-warm-500 tabular-nums flex-shrink-0">{fmtEur(c.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Taux */}
-                {yearRates.length > 0 && (
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide">Taux horaires</p>
-                    {yearRates.map((r: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between gap-2 text-xs">
-                        <span className="flex items-center gap-1 text-secondary-700 truncate">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.presence_types?.color }} />
-                          {r.presence_types?.label}
-                        </span>
-                        <span className="text-warm-500 tabular-nums flex-shrink-0">{fmtEur(r.rate)}/h</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {yearCotisations.length === 0 && yearRates.length === 0 && (
-                  <p className="text-[11px] text-warm-300 italic">Aucune donnée</p>
-                )}
+          {/* Historique des taux horaires */}
+          <div className="flex-1 min-w-0 border-l border-warm-100 bg-warm-50/30 overflow-x-auto">
+            <div className="px-4 py-1.5 border-b border-warm-100">
+              <h3 className="text-[11px] leading-4 font-semibold text-warm-500 uppercase tracking-wider">Historique</h3>
+            </div>
+            {pastYears.length === 0 ? (
+              <p className="px-4 py-8 text-xs text-warm-400 text-center italic">Aucun historique disponible.</p>
+            ) : (
+              <div className="divide-y divide-warm-100">
+                {pastYears.map(year => {
+                  const yearRates: any[] = allPresenceTypeRates.filter((r: any) => r.school_year_id === year.id)
+                  return (
+                    <div key={year.id} className="px-3 py-2">
+                      <p className="text-[11px] font-bold text-secondary-700 mb-1">{year.label}</p>
+                      {yearRates.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                          {yearRates.map((r: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between gap-1.5 text-[11px] min-w-0">
+                              <span className="flex items-center gap-1 text-secondary-800 min-w-0">
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: r.presence_types?.color }} />
+                                <span className="truncate">{r.presence_types?.label}</span>
+                              </span>
+                              <span className="text-warm-500 tabular-nums flex-shrink-0">{fmtEur(r.rate)}/h</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-[11px] text-warm-300 italic">Aucune donnée</p>}
+                    </div>
+                  )
+                })}
               </div>
-            )
-          })}
+            )}
+          </div>
+          </div>
         </div>
-      </div>
 
     </div>
   )
