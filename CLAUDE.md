@@ -46,6 +46,26 @@ fonctionnalite gardee (technique + graphique), module par module.
   passe par le formulaire (compte auth + profil + fiche via RPC `create_profile_and_teacher`),
   ce qu'un seed SQL ne fait pas.
 
+#### 1er juillet 2026 — Parametres Financiers (`/dashboard/cotisations`)
+Refonte de la page (`src/components/cotisations/CotisationsClient.tsx`).
+- **Harmonisation** : tableau des cotisations passe aux classes centralisees `.list-th` /
+  `.list-td` / `.list-name` ; en-tetes de meme hauteur que le tableau (`py-1.5`, `leading-4`).
+- **Grille taux** : `grid-cols-8` fixe remplace par `grid-cols-[repeat(auto-fill,minmax(130px,1fr))]`.
+- **Formulaire d'ajout/edition** : champs en flex (largeurs reduites, `Type de scolarite` en
+  MAJUSCULES a la volee), boutons sur la meme ligne, champs obligatoires marques `*` +
+  mention « champs obligatoires », bouton valider grise tant que les champs requis sont vides.
+  `Frais de dossier` / `Reduction fratrie` non pre-remplis a l'ajout.
+- **Saisie numerique** : fleches +/-10 sur les champs tarifaires, +/-0.10 sur les taux ;
+  affichage force a 2 decimales partout (formatage `onBlur` + `fmtEur` a `minimumFractionDigits: 2`).
+- **Taux horaires** : le(s) type(s) `is_absence` en tete de liste, champ force a 0 et desactive ;
+  bouton « Enregistrer » grise si aucun taux modifie (comparaison avec les valeurs BDD).
+- **Historique** : l'ancienne colonne globale a droite est eclatee en une sous-colonne
+  « Historique » (1/3) dans chaque encadre (tableau/champs = 2/3), toujours cote a cote
+  (`flex-row`) pour que le formulaire ne pousse que le tableau et non l'historique.
+  Cotisations : memes colonnes que le tableau ; taux : grille 2 colonnes type + taux.
+- **Seed** `supabase/seed-cotisations-history.sql` : simulation d'historique (annees 2024-2025
+  et 2025-2026) pour les 2 encadres — idempotent, ne touche pas l'annee en cours.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
