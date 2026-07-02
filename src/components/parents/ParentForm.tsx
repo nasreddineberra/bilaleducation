@@ -9,6 +9,16 @@ import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton, Flo
 import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
 import type { Parent, TutorRelationship } from '@/types/database'
 
+const SITUATION_LABELS: Record<string, string> = {
+  'mariés': 'Mariés',
+  'pacsés': 'Pacsés',
+  'union_libre': 'Union libre',
+  'séparés': 'Séparés',
+  'divorcés': 'Divorcés',
+  'veuf_veuve': 'Veuf/Veuve',
+  'monoparental': 'Monoparental',
+}
+
 
 const RELATIONSHIP_OPTIONS: { value: TutorRelationship; label: string }[] = [
   { value: 'père',   label: 'Père'        },
@@ -325,6 +335,31 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
+
+      {/* En-tête de fiche (édition) : qui édite-t-on */}
+      {isEditing && parent && (
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none bg-warm-100 text-warm-600 ring-1 ring-warm-200">
+            {`${(parent.tutor1_last_name?.[0] ?? '').toUpperCase()}${(parent.tutor1_first_name?.[0] ?? '').toUpperCase()}`}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-secondary-800 leading-tight truncate">
+              {parent.tutor1_last_name} {parent.tutor1_first_name}
+              {parent.tutor2_last_name && (
+                <span className="text-warm-400 font-medium"> &amp; {parent.tutor2_last_name} {parent.tutor2_first_name}</span>
+              )}
+            </h1>
+            <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5 flex-wrap">
+              {parent.situation_familiale
+                ? <span>{SITUATION_LABELS[parent.situation_familiale] ?? parent.situation_familiale}</span>
+                : <span className="text-warm-300 italic">Situation non renseignée</span>}
+              {(parent.tutor1_adult_courses || parent.tutor2_adult_courses) && (
+                <span className="font-medium text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">Cours adultes</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Grille tuteurs : 1 col → 2 cols (xl) ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 items-start">

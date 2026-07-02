@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { ChevronDown, ChevronRight, Pencil, Trash2, Users, LogOut, Camera, GraduationCap } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -185,16 +186,20 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   {/* Tuteur 1 */}
                   <td className="list-td">
                     <div className="flex items-center gap-2">
-                      <span className="list-name text-secondary-800">
+                      <Link
+                        href={`/dashboard/parents/${parent.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="list-name text-secondary-800 rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                      >
                         {parent.tutor1_last_name} {parent.tutor1_first_name}
-                      </span>
+                      </Link>
                       {parent.tutor1_relationship && (
                         <span className="text-xs text-warm-400">
                           {RELATION_LABEL[parent.tutor1_relationship] ?? parent.tutor1_relationship}
                         </span>
                       )}
                       {parent.tutor1_adult_courses && (
-                        <span title="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-500 flex-shrink-0" /></span>
+                        <Tooltip content="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-700 flex-shrink-0" /></Tooltip>
                       )}
                     </div>
                   </td>
@@ -212,7 +217,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                           </span>
                         )}
                         {parent.tutor2_adult_courses && (
-                          <span title="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-500 flex-shrink-0" /></span>
+                          <Tooltip content="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-700 flex-shrink-0" /></Tooltip>
                         )}
                       </div>
                     ) : (
@@ -253,7 +258,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         {parentsWithChildren.has(parent.id) && (
                           <button
                             onClick={() => handleToggleChildren(parent.id)}
-                            className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 px-2.5 py-1.5 rounded-lg hover:bg-primary-50 transition-colors"
+                            aria-expanded={expandedId === parent.id}
+                            className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 px-2.5 py-1.5 rounded-lg hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Users size={13} />
                             Enfants
@@ -263,13 +269,15 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                             }
                           </button>
                         )}
-                        <button
-                          onClick={() => router.push(`/dashboard/parents/${parent.id}`)}
-                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <Pencil size={14} />
-                        </button>
+                        <Tooltip content="Modifier">
+                          <button
+                            onClick={() => router.push(`/dashboard/parents/${parent.id}`)}
+                            aria-label="Modifier la fiche"
+                            className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
                         {parentsWithChildren.has(parent.id) ? (
                           <Tooltip content="des enfants sont rattachés à cette fiche" position="top-right" maxWidth="w-40">
                             <span className="p-1.5 text-warm-200 cursor-not-allowed rounded-lg">
@@ -277,13 +285,15 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                             </span>
                           </Tooltip>
                         ) : (
-                          <button
-                            onClick={() => { setConfirmDeleteId(parent.id); setDeleteError(null) }}
-                            className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <Tooltip content="Supprimer la fiche">
+                            <button
+                              onClick={() => { setConfirmDeleteId(parent.id); setDeleteError(null) }}
+                              aria-label="Supprimer la fiche"
+                              className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </Tooltip>
                         )}
                       </div>
                     )}
@@ -323,20 +333,30 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleToggleActive(student, parent.id) }}
                                     disabled={isEnrolled || togglingStudentId === student.id}
-                                    className={clsx(
-                                      'w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all ring-2 ring-offset-1',
+                                    aria-label={
                                       isEnrolled
-                                        ? 'bg-green-400 ring-green-200 cursor-not-allowed'
+                                        ? `${student.first_name} ${student.last_name} — inscrit en classe`
                                         : student.is_active
-                                          ? 'bg-green-500 ring-green-200 hover:bg-red-400 hover:ring-red-200 hover:scale-110 cursor-pointer'
-                                          : 'bg-warm-300 ring-warm-200 hover:bg-green-400 hover:ring-green-200 hover:scale-110 cursor-pointer'
-                                    )}
-                                  />
+                                          ? `${student.first_name} ${student.last_name} — actif, cliquer pour rendre inactif`
+                                          : `${student.first_name} ${student.last_name} — inactif, cliquer pour rendre actif`
+                                    }
+                                    className="flex-shrink-0 p-1.5 -m-1.5 rounded-full cursor-pointer disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 group/dot"
+                                  >
+                                    <span className={clsx(
+                                      'block w-2.5 h-2.5 rounded-full transition-all ring-2 ring-offset-1',
+                                      isEnrolled
+                                        ? 'bg-green-400 ring-green-200'
+                                        : student.is_active
+                                          ? 'bg-green-500 ring-green-200 group-hover/dot:bg-red-400 group-hover/dot:ring-red-200 group-hover/dot:scale-110'
+                                          : 'bg-warm-300 ring-warm-200 group-hover/dot:bg-green-400 group-hover/dot:ring-green-200 group-hover/dot:scale-110'
+                                    )} />
+                                  </button>
                                 </Tooltip>
 
                                 <button
                                   onClick={() => router.push(`/dashboard/students/${student.id}?from=parents`)}
-                                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                  aria-label={`Ouvrir la fiche de ${student.first_name} ${student.last_name}`}
+                                  className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                                 >
                                   <span className="font-mono text-xs text-warm-400">{student.student_number}</span>
                                   <span className={clsx('font-medium', student.is_active ? 'text-secondary-700' : 'text-warm-500')}>
