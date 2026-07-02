@@ -83,7 +83,7 @@ function SidebarTooltip({ children, label }: { children: React.ReactNode; label:
   const hide = useCallback(() => setPos(null), [])
 
   return (
-    <div ref={ref} className="w-full" onMouseEnter={show} onMouseLeave={hide}>
+    <div ref={ref} className="w-full" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div
@@ -91,7 +91,7 @@ function SidebarTooltip({ children, label }: { children: React.ReactNode; label:
           style={{ top: pos.top, left: pos.left, transform: 'translateY(-50%)' }}
         >
           <span className="border-[5px] border-transparent border-r-secondary-800 -mr-px" />
-          <div className="bg-secondary-800 text-white rounded-xl shadow-xl px-3 py-1.5 text-xs font-medium whitespace-nowrap">
+          <div className="bg-secondary-800 text-white rounded-xl shadow-xl px-3 py-2 text-xs whitespace-nowrap">
             {label}
           </div>
         </div>,
@@ -419,7 +419,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
     <aside
       className={clsx(
         'h-full flex flex-col shadow-sidebar flex-shrink-0 overflow-x-hidden',
-        'transition-all duration-200 ease-in-out',
+        'transition-[width] duration-200 ease-in-out motion-reduce:transition-none',
         collapsed ? 'w-16' : 'w-64'
       )}
       style={{ background: 'linear-gradient(180deg, #2e4550 0%, #1f2e35 100%)' }}
@@ -433,6 +433,14 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           : 'items-start gap-3 px-4 py-4'
       )}>
 
+        <Link
+          href="/dashboard"
+          title="Tableau de bord"
+          className={clsx(
+            'flex min-w-0 rounded-lg outline-none transition-opacity hover:opacity-90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/70',
+            collapsed ? 'justify-center' : 'items-start gap-3 flex-1'
+          )}
+        >
         {/* Avatar / Logo établissement */}
         {etablissementLogo ? (
           <div
@@ -469,6 +477,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
             )}
           </div>
         )}
+        </Link>
 
         {/* Bouton toggle */}
         <button
@@ -476,7 +485,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           title={collapsed ? 'Développer' : 'Réduire'}
           aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
           className={clsx(
-            'flex-shrink-0 rounded-lg p-1 text-secondary-400 hover:text-white hover:bg-white/10 transition-colors',
+            'flex-shrink-0 rounded-lg flex items-center justify-center min-w-[32px] min-h-[32px] text-secondary-400 hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/70',
             collapsed ? 'mt-0' : 'mt-0.5'
           )}
         >
@@ -485,7 +494,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
       </div>
 
       {/* ── Navigation ───────────────────────────────────────────────────────── */}
-      <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden scrollbar-hide">
+      <nav aria-label="Navigation principale" className="flex-1 py-2 overflow-y-auto overflow-x-hidden sidebar-scroll">
         <div className="space-y-0.5">
           {filteredItems.map((item) => {
             const Icon = item.icon
@@ -513,14 +522,14 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                     collapsed && 'justify-center'
                   )}
                 >
-                  <Icon size={18} className={clsx('flex-shrink-0', isGroupActive && collapsed ? 'text-primary-400' : 'text-secondary-300')} />
+                  <Icon size={18} className={clsx('flex-shrink-0', isGroupActive && collapsed ? 'text-amber-400' : 'text-secondary-300')} />
                   {!collapsed && (
                     <>
                       <span className="flex-1 text-left">{item.name}</span>
                       <ChevronDown
                         size={14}
                         className={clsx(
-                          'transition-transform duration-200 flex-shrink-0 text-secondary-400',
+                          'transition-transform duration-200 motion-reduce:transition-none flex-shrink-0 text-secondary-400',
                           isOpen && 'rotate-180'
                         )}
                       />
@@ -536,7 +545,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                     : btn
                   }
 
-                  {isOpen && (
+                  <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+                    <div className="overflow-hidden" inert={!isOpen}>
                     <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 space-y-0.5">
                       {visibleChildren.map(child => {
                         const ChildIcon = child.icon
@@ -560,13 +570,14 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                 <ChevronDown
                                   size={12}
                                   className={clsx(
-                                    'transition-transform duration-200 flex-shrink-0 text-secondary-400',
+                                    'transition-transform duration-200 motion-reduce:transition-none flex-shrink-0 text-secondary-400',
                                     isSubOpen && 'rotate-180'
                                   )}
                                 />
                               </button>
 
-                              {isSubOpen && (
+                              <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', isSubOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+                                <div className="overflow-hidden" inert={!isSubOpen}>
                                 <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 space-y-0.5">
                                   {visibleLeaves.map(leaf => {
                                     const LeafIcon = leaf.icon
@@ -579,13 +590,14 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                         aria-current={isActive ? 'page' : undefined}
                                         className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
                                       >
-                                        <LeafIcon size={14} className={clsx('flex-shrink-0', isActive ? 'text-primary-400' : 'text-secondary-300')} />
+                                        <LeafIcon size={14} className={clsx('flex-shrink-0', isActive ? 'text-amber-400' : 'text-secondary-300')} />
                                         <span className="text-sm">{leaf.name}</span>
                                       </Link>
                                     )
                                   })}
                                 </div>
-                              )}
+                                </div>
+                              </div>
                             </div>
                           )
                         }
@@ -600,13 +612,14 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                             aria-current={isActive ? 'page' : undefined}
                             className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
                           >
-                            <ChildIcon size={16} className={clsx('flex-shrink-0', isActive ? 'text-primary-400' : 'text-secondary-300')} />
+                            <ChildIcon size={16} className={clsx('flex-shrink-0', isActive ? 'text-amber-400' : 'text-secondary-300')} />
                             <span className="text-sm">{child.name}</span>
                           </Link>
                         )
                       })}
                     </div>
-                  )}
+                    </div>
+                  </div>
                 </div>
               )
             }
@@ -624,7 +637,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                   collapsed && 'justify-center'
                 )}
               >
-                <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-primary-400' : 'text-secondary-300')} />
+                <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-amber-400' : 'text-secondary-300')} />
                 {!collapsed && <span>{item.name}</span>}
               </Link>
             )
@@ -649,16 +662,16 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         {collapsed ? (
           <SidebarTooltip label="© 2026 Bilal Education — v1.0">
             <div className="flex justify-center cursor-default">
-              <span className="text-secondary-500 text-sm font-medium leading-none">©</span>
+              <span className="text-secondary-400 text-sm font-medium leading-none">©</span>
             </div>
           </SidebarTooltip>
         ) : (
           <div className="space-y-0.5">
             <div className="flex items-center justify-between">
-              <p className="text-secondary-500 text-xs">© 2026 Bilal Education</p>
-              <span className="text-[10px] text-secondary-600 font-mono bg-white/5 px-1.5 py-0.5 rounded">v1.0</span>
+              <p className="text-secondary-400 text-xs">© 2026 Bilal Education</p>
+              <span className="text-[11px] text-secondary-300 font-mono bg-white/10 px-1.5 py-0.5 rounded">v1.0</span>
             </div>
-            <p className="text-secondary-600 text-[10px]">Tous droits réservés</p>
+            <p className="text-secondary-500 text-[11px]">Tous droits réservés</p>
           </div>
         )}
       </div>

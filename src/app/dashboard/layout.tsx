@@ -70,6 +70,12 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:z-[200] focus:top-3 focus:left-3 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-secondary-800 focus:text-white focus:text-sm focus:font-medium focus:shadow-lg"
+      >
+        Aller au contenu
+      </a>
       <div className="h-screen overflow-hidden bg-warm-50 flex">
         {/* Sidebar fixe à gauche */}
         <DashboardSidebar
@@ -82,7 +88,7 @@ export default async function DashboardLayout({
         {/* Zone droite : navbar + contenu */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} />
-          <main className="flex-1 px-8 pt-5 pb-4 overflow-y-auto">
+          <main id="main-content" tabIndex={-1} className="flex-1 px-8 pt-5 pb-4 overflow-y-auto outline-none">
             {children}
           </main>
         </div>
