@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Plus, Trash2, Download, Eye, X, FileText, AlertCircle, CheckCircle2 } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -364,34 +365,40 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                     {/* Actions */}
                     {doc && (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handlePreview(doc.file_url)}
-                          disabled={loadingPreview}
-                          className="text-warm-400 hover:text-primary transition-colors"
-                          title="Aperçu"
-                        >
-                          <Eye size={12} />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(doc.file_url, doc.file_name)}
-                          className="text-warm-400 hover:text-primary transition-colors"
-                          title="Télécharger"
-                        >
-                          <Download size={12} />
-                        </button>
+                        <Tooltip content="Aperçu">
+                          <button
+                            onClick={() => handlePreview(doc.file_url)}
+                            disabled={loadingPreview}
+                            aria-label="Aperçu du document"
+                            className="text-warm-400 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          >
+                            <Eye size={12} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Télécharger">
+                          <button
+                            onClick={() => handleDownload(doc.file_url, doc.file_name)}
+                            aria-label="Télécharger le document"
+                            className="text-warm-400 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          >
+                            <Download size={12} />
+                          </button>
+                        </Tooltip>
                         {confirmDelete === doc.id ? (
                           <div className="flex items-center gap-1 text-[11px]">
                             <button onClick={() => handleDelete(doc.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
                             <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline">Non</button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setConfirmDelete(doc.id)}
-                            className="text-warm-400 hover:text-red-500 transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          <Tooltip content="Supprimer">
+                            <button
+                              onClick={() => setConfirmDelete(doc.id)}
+                              aria-label="Supprimer le document"
+                              className="text-warm-400 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </Tooltip>
                         )}
                       </div>
                     )}

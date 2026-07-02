@@ -2,6 +2,7 @@
 
 import { useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Pencil, Trash2, Link2Off, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -20,7 +21,7 @@ function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
   if (discipline.absences > 0)
     parts.push(<span key="a" className="text-red-600 whitespace-nowrap">{discipline.absences} abs.</span>)
   if (discipline.retards > 0)
-    parts.push(<span key="r" className="text-amber-600 whitespace-nowrap">{discipline.retards} {discipline.retards > 1 ? 'retards' : 'retard'}</span>)
+    parts.push(<span key="r" className="text-amber-700 whitespace-nowrap">{discipline.retards} {discipline.retards > 1 ? 'retards' : 'retard'}</span>)
   if (discipline.avertissements > 0)
     parts.push(<span key="w" className="text-purple-600 whitespace-nowrap">{discipline.avertissements} avert.</span>)
   if (parts.length === 0) return <span className="text-xs text-warm-300">—</span>
@@ -156,12 +157,16 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                   <div className="flex items-center gap-2.5">
                     <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} />
                     <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={clsx(
-                      'list-name',
-                      student.is_active ? 'text-secondary-800' : 'text-warm-400'
-                    )}>
+                    <Link
+                      href={`/dashboard/students/${student.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className={clsx(
+                        'list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                        student.is_active ? 'text-secondary-800' : 'text-warm-400'
+                      )}
+                    >
                       {student.last_name} {student.first_name}
-                    </span>
+                    </Link>
                     {!student.is_active && (
                       <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">inactif</span>
                     )}
@@ -247,7 +252,8 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       <Tooltip content="Modifier">
                         <button
                           onClick={() => router.push(`/dashboard/students/${student.id}`)}
-                          className="p-1 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                          aria-label="Modifier l'élève"
+                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                         >
                           <Pencil size={14} />
                         </button>
@@ -255,7 +261,8 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       <Tooltip content="Supprimer">
                         <button
                           onClick={() => { setConfirmDeleteId(student.id); setDeleteError(null) }}
-                          className="p-1 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label="Supprimer l'élève"
+                          className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={14} />
                         </button>

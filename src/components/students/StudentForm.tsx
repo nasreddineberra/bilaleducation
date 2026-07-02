@@ -311,7 +311,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                 disabled={hasActiveEnrollment}
               />
               {hasActiveEnrollment && (
-                <span className="pointer-events-none absolute top-full right-0 mt-1.5 px-2 py-1 text-xs font-medium bg-secondary-800 text-white rounded-lg whitespace-nowrap opacity-0 group-hover/active:opacity-100 transition-opacity z-20 shadow-md">
+                <span className="pointer-events-none absolute top-full right-0 mt-1.5 px-3 py-2 text-xs bg-secondary-800 text-white rounded-xl whitespace-nowrap opacity-0 group-hover/active:opacity-100 transition-opacity z-20 shadow-xl">
                   <span className="absolute bottom-full right-4 border-4 border-transparent border-b-secondary-800" />
                   Inscrit dans une classe
                 </span>
@@ -453,7 +453,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                     type="button"
                     onClick={handleOpenParentModal}
                     className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors"
-                    title="Ouvrir la fiche parent"
                   >
                     <ExternalLink size={12} />
                     Voir / Modifier
@@ -658,8 +657,8 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               </h2>
               <button
                 onClick={handleCloseParentModal}
-                className="flex-shrink-0 p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
-                title="Fermer"
+                aria-label="Fermer"
+                className="flex-shrink-0 p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
               >
                 <X size={18} />
               </button>

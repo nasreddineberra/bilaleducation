@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle, Clock, Plus, Trash2, Paperclip, X, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WarningSeverity } from '@/types/database'
 import { FloatSelect, FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -576,13 +577,15 @@ export default function StudentDiscipline({
                         <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline">Non</button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setConfirmDelete(w.id)}
-                        className="text-warm-300 hover:text-red-500 transition-colors"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tooltip content="Supprimer">
+                        <button
+                          onClick={() => setConfirmDelete(w.id)}
+                          aria-label="Supprimer l'avertissement"
+                          className="text-warm-300 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
                 </div>
