@@ -31,7 +31,7 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
   const hide = useCallback(() => setPos(null), [])
 
   return (
-    <span ref={triggerRef} className="inline-flex" onMouseEnter={show} onMouseLeave={hide}>
+    <span ref={triggerRef} className="inline-flex" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div
