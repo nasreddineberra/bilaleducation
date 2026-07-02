@@ -66,6 +66,31 @@ Refonte de la page (`src/components/cotisations/CotisationsClient.tsx`).
 - **Seed** `supabase/seed-cotisations-history.sql` : simulation d'historique (annees 2024-2025
   et 2025-2026) pour les 2 encadres — idempotent, ne touche pas l'annee en cours.
 
+#### 3 juillet 2026 — Audits accessibilite / UX (skills `ui-ux-pro-max` + `make-interfaces-feel-better`)
+Methode : audit lecture seule d'un module, puis corrections par lots apres accord.
+- **Sidebar + logo** (`DashboardSidebar.tsx`, `globals.css`, `dashboard/layout.tsx`) :
+  focus clavier visible (`.sidebar-item` + toggle), skip-link « Aller au contenu » +
+  `<main id="main-content">`, `aria-label` sur `<nav>`, hit-area du toggle (32px),
+  accordeons animes (`grid-rows 0fr→1fr` + `inert` quand fermes), scrollbar fine
+  (`.sidebar-scroll`) au lieu de `scrollbar-hide`, `prefers-reduced-motion`, contraste du
+  footer, tooltip au focus, transitions scopees, logo cliquable vers `/dashboard`, accent
+  actif unifie (`amber-400`).
+- **Apprenants (liste + fiche)** (`StudentsTable.tsx`, `StudentDetail.tsx`) :
+  nom = vrai `<Link>` (clavier), `aria-label` + focus sur les boutons d'action, `amber-700`
+  pour « retards ». Fiche : **bandeau d'en-tete** (avatar + NOM + N° + classe + badges),
+  onglets **ARIA** (`role=tab/tablist/tabpanel`, roving tabindex, fleches ← →) + **deep-link
+  `?tab=`** (via `history.replaceState`, sans refetch), contraste onglet actif (`primary-700`).
+- **Parents (liste + fiche)** (`ParentsTable.tsx`, `ParentForm.tsx`) : nom Tuteur 1 = `<Link>`,
+  **pastille de statut** enfant accessible (hit-area elargie, `aria-label`, focus), focus sur
+  tous les boutons, `aria-expanded` sur « Enfants », icone cours adultes `primary-700`.
+  Fiche : bandeau d'en-tete (`h1` NOM + situation + badge cours adultes).
+- **Tooltips homogeneises** (Apprenants + Parents + Sidebar) : tout passe par le composant
+  `ui/Tooltip.tsx` (+ **declenchement au focus clavier**) ; `SidebarTooltip` aligne ;
+  suppression des `title=` natifs et bulles inline sur ces modules.
+- **Skills installes** (`~/.claude/skills/`) : `ui-ux-pro-max` (scripts Python — `python3.exe`
+  cree dans l'install Python 3.14) et `make-interfaces-feel-better`. `npx skillsadd` est casse,
+  installation manuelle depuis les repos GitHub.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
