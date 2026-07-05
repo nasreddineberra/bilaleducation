@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import TeacherForm from '@/components/teachers/TeacherForm'
+import TeacherDetail from '@/components/teachers/TeacherDetail'
+import type { TeacherDocument } from '@/types/database'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -20,6 +21,13 @@ export default async function EditTeacherPage({ params }: Props) {
 
   if (!teacher) notFound()
 
+  // Documents lies (peut etre vide / null si la migration n'est pas encore passee)
+  const { data: documents } = await supabase
+    .from('teacher_documents')
+    .select('id, etablissement_id, teacher_id, category, label, file_url, file_name, expires_at, created_at')
+    .eq('teacher_id', id)
+    .order('created_at', { ascending: false })
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -31,7 +39,7 @@ export default async function EditTeacherPage({ params }: Props) {
         Retour à la liste
       </Link>
 
-      <TeacherForm teacher={teacher} />
+      <TeacherDetail teacher={teacher} documents={(documents ?? []) as TeacherDocument[]} />
 
     </div>
   )
