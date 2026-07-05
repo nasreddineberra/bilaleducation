@@ -101,7 +101,8 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Documents lies a la fiche** : la fiche passe en **onglets Identite / Documents**
   (`TeacherDetail.tsx`, memes onglets ARIA + deep-link `?tab=` que la fiche eleve ; le bandeau
   d'en-tete est deplace de TeacherForm vers TeacherDetail). Nouveau composant
-  `TeacherDocuments.tsx` : upload (bucket prive `teacher-documents`, URL signees, 5 Mo),
+  `TeacherDocuments.tsx` : upload (bucket prive `teacher-documents`, URL signees, **1 Mo max**
+  cote client ET cote Storage via `storage.buckets.file_size_limit`),
   **tableau** trie par categorie (colonnes Categorie / Document / Fichier / Expiration / actions),
   compteur en direct dans le libelle de l'onglet « Documents (N) » (etat remonte dans TeacherDetail).
   - Categories en dur : Contrat / Diplome / Identite / Autre. Champ **« Document »** (colonne

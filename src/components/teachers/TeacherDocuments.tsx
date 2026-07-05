@@ -18,7 +18,7 @@ const CATEGORIES = [
 
 type Category = typeof CATEGORIES[number]['key']
 
-const MAX_SIZE = 5 * 1024 * 1024 // 5 Mo
+const MAX_SIZE = 1 * 1024 * 1024 // 1 Mo
 const BUCKET = 'teacher-documents'
 
 interface Props {
@@ -97,7 +97,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
     if (!category) { setError('Veuillez choisir une catégorie.'); return }
     if (!customLabel.trim()) { setError('Veuillez renseigner le libellé du document.'); return }
     if (!file)     { setError('Veuillez choisir un fichier.'); return }
-    if (file.size > MAX_SIZE) { setError('Le fichier dépasse 5 Mo.'); return }
+    if (file.size > MAX_SIZE) { setError('Le fichier dépasse 1 Mo.'); return }
 
     uploadingRef.current = true
     setSaving(true); setError(null)
@@ -194,7 +194,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}
-        <p className="text-[11px] text-warm-400">Formats acceptés : PDF, image… — 5 Mo maximum.</p>
+        <p className="text-[11px] text-warm-400">Formats acceptés : PDF, image… — 1 Mo maximum.</p>
         <p className="text-xs text-warm-400"><span className="font-semibold text-red-400">*</span> champs obligatoires</p>
       </div>
 

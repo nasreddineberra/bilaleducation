@@ -36,10 +36,13 @@ CREATE POLICY "teacher_documents_update" ON teacher_documents FOR UPDATE
 CREATE POLICY "teacher_documents_delete" ON teacher_documents FOR DELETE
   USING (etablissement_id = (SELECT etablissement_id FROM profiles WHERE id = auth.uid()));
 
--- Bucket Storage prive
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('teacher-documents', 'teacher-documents', false)
+-- Bucket Storage prive (limite 1 Mo)
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('teacher-documents', 'teacher-documents', false, 1048576)
 ON CONFLICT (id) DO NOTHING;
+
+-- Idempotent : impose la limite 1 Mo meme si le bucket existait deja
+UPDATE storage.buckets SET file_size_limit = 1048576 WHERE id = 'teacher-documents';
 
 CREATE POLICY "Teacher documents lisibles par etablissement"
   ON storage.objects FOR SELECT
