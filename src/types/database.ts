@@ -185,8 +185,22 @@ export interface Teacher {
   specialization?: string
   hire_date: string
   is_active: boolean
+  notes?: string | null
   created_at: string
   updated_at: string
+}
+
+export interface TeacherDocument {
+  id: string
+  etablissement_id: string
+  teacher_id: string
+  category: 'contrat' | 'diplome' | 'identite' | 'autre'
+  label?: string | null
+  file_url: string
+  file_name: string
+  expires_at?: string | null
+  uploaded_by?: string | null
+  created_at: string
 }
 
 export interface Class {

@@ -22,6 +22,7 @@ export async function createTeacherWithAccount(data: {
   hire_date:       string
   specialization:  string | null
   is_active:       boolean
+  notes:           string | null
 }): Promise<{ error?: string; tempPassword?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
@@ -85,6 +86,12 @@ export async function createTeacherWithAccount(data: {
     return { error: "Erreur inattendue : aucun ID retourné par le RPC." }
   }
 
+  // Notes internes (non gérées par le RPC de création)
+  if (data.notes) {
+    const { error: notesError } = await supabase.from('teachers').update({ notes: data.notes }).eq('id', teacherId)
+    if (notesError) console.error('[createTeacherWithAccount] Échec enregistrement des notes:', notesError)
+  }
+
   return { tempPassword }
 }
 
@@ -102,6 +109,7 @@ export async function updateTeacher(
     hire_date:       string
     specialization:  string | null
     is_active:       boolean
+    notes:           string | null
   }
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
@@ -127,6 +135,7 @@ export async function updateTeacher(
     hire_date:        data.hire_date,
     specialization:   data.specialization,
     is_active:        data.is_active,
+    notes:            data.notes,
   }).eq('id', teacherId)
 
   if (error) {

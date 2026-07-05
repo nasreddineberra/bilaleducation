@@ -37,6 +37,7 @@ export const CreateTeacherSchema = z.object({
   hire_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide'),
   specialization: z.string().nullable(),
   is_active: z.boolean(),
+  notes: z.string().nullable().optional(),
 })
 
 export const UpdateTeacherSchema = CreateTeacherSchema

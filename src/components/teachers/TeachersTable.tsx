@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Teacher } from '@/types/database'
 
 interface TeachersTableProps {
@@ -96,9 +98,13 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                 {/* Nom */}
                 <td className="list-td">
                   <div className="flex items-center gap-2">
-                    <span className={`list-name ${teacher.is_active ? 'text-secondary-800' : 'text-warm-400'}`}>
+                    <Link
+                      href={`/dashboard/teachers/${teacher.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50 ${teacher.is_active ? 'text-secondary-800' : 'text-warm-400'}`}
+                    >
                       {teacher.last_name} {teacher.first_name}
-                    </span>
+                    </Link>
                     {!teacher.is_active && (
                       <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">inactif</span>
                     )}
@@ -150,20 +156,24 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
-                        className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
-                        title="Modifier"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => { setConfirmDeleteId(teacher.id); setDeleteError(null) }}
-                        className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tooltip content="Modifier">
+                        <button
+                          onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
+                          aria-label="Modifier l'enseignant"
+                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Supprimer">
+                        <button
+                          onClick={() => { setConfirmDeleteId(teacher.id); setDeleteError(null) }}
+                          aria-label="Supprimer l'enseignant"
+                          className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </td>

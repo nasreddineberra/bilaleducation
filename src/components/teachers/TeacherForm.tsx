@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createTeacherWithAccount, updateTeacher } from '@/app/dashboard/teachers/actions'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatSelect, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import type { Teacher } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +26,7 @@ type FormData = {
   hire_date:       string
   specialization:  string
   is_active:       boolean
+  notes:           string
 }
 
 const CIVILITE_OPTIONS = ['M.', 'Mme']
@@ -59,6 +60,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
     hire_date:       teacher?.hire_date       ?? today,
     specialization:  teacher?.specialization  ?? '',
     is_active:       teacher?.is_active       ?? true,
+    notes:           teacher?.notes           ?? '',
   })
 
   const originalNumber = useRef(teacher?.employee_number ?? defaultEmployeeNumber ?? '')
@@ -125,6 +127,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
         hire_date:       form.hire_date,
         specialization:  clean(form.specialization),
         is_active:       form.is_active,
+        notes:           clean(form.notes),
       }
 
       if (isEditing) {
@@ -319,6 +322,19 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               </p>
             </div>
           )}
+        </div>
+
+        {/* ── Remarques ── */}
+        <div className="card p-3 space-y-4">
+          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            Remarques
+          </h2>
+          <FloatTextarea
+            label="Notes internes"
+            value={form.notes}
+            onChange={e => set('notes', e.target.value)}
+            rows={4}
+          />
         </div>
 
       </div>
