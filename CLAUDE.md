@@ -91,6 +91,30 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   cree dans l'install Python 3.14) et `make-interfaces-feel-better`. `npx skillsadd` est casse,
   installation manuelle depuis les repos GitHub.
 
+#### 5 juillet 2026 — Enseignants (audit + Notes + Documents)
+- **Audit accessibilite liste + fiche** (`TeachersTable.tsx`, `TeacherForm.tsx`) : nom = `<Link>`
+  clavier, Modifier/Supprimer en `<Tooltip>` + `aria-label` + focus, bandeau d'en-tete de fiche
+  (avatar + `h1` NOM + N° emp + specialisation + badge inactif).
+- **Champ Notes** (remarques internes) sur la fiche enseignant : colonne `teachers.notes`
+  (migration `add-teacher-notes.sql`), encadre « Remarques » (FloatTextarea), cable dans
+  `updateTeacher` + `createTeacherWithAccount` (update apres le RPC) + `CreateTeacherSchema`.
+- **Documents lies a la fiche** : la fiche passe en **onglets Identite / Documents**
+  (`TeacherDetail.tsx`, memes onglets ARIA + deep-link `?tab=` que la fiche eleve ; le bandeau
+  d'en-tete est deplace de TeacherForm vers TeacherDetail). Nouveau composant
+  `TeacherDocuments.tsx` : upload (bucket prive `teacher-documents`, URL signees, 5 Mo),
+  **tableau** trie par categorie (colonnes Categorie / Document / Fichier / Expiration / actions),
+  compteur en direct dans le libelle de l'onglet « Documents (N) » (etat remonte dans TeacherDetail).
+  - Categories en dur : Contrat / Diplome / Identite / Autre. Champ **« Document »** (colonne
+    `label`) **toujours visible + obligatoire** (precise le diplome / type de contrat / type de
+    piece), 1ere lettre en majuscule auto.
+  - Migration `add-teacher-documents.sql` : table `teacher_documents` + RLS (tenant, calquee sur
+    `student_documents`) + bucket + policies storage + colonne `label` (ajout idempotent).
+  - Garde anti-double-clic (`uploadingRef`) + `router.refresh()` apres ajout/suppression.
+- **Regle UI (memoire)** : les selects demarrent **vides** (`value=''` + option placeholder
+  `disabled hidden`, jamais de quadratin `—`), obligatoires si pertinent.
+- **Debug** : requetes directes en base via script service-role (`.env.local`) pour lever un
+  doute (lignes reelles vs cache) ; ne jamais confondre suppression Storage et suppression table.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
@@ -229,3 +253,5 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/seed-teachers-demo.sql` dans Supabase SQL Editor
 - [x] Executer `supabase/migrations/add-teaching-mode-working-days-color.sql` (apres phase 1)
 - [x] Executer `supabase/migrations/add-class-teachers-effective-dates.sql` (phase 5)
+- [x] Executer `supabase/migrations/add-teacher-notes.sql` (colonne `teachers.notes`)
+- [x] Executer `supabase/migrations/add-teacher-documents.sql` (table + bucket + RLS ; colonne `label` ajoutee)
