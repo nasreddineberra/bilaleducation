@@ -360,9 +360,10 @@ export interface SearchFieldProps {
   placeholder?: string
   className?:   string
   onFocus?:     () => void
+  ariaLabel?:   string
 }
 
-export function SearchField({ value, onChange, placeholder = 'Rechercher…', className, onFocus }: SearchFieldProps) {
+export function SearchField({ value, onChange, placeholder = 'Rechercher…', className, onFocus, ariaLabel }: SearchFieldProps) {
   return (
     <div className={['relative flex items-center', className ?? 'w-64'].join(' ')}>
       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
@@ -372,6 +373,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
         onChange={e => onChange(e.target.value)}
         onFocus={onFocus}
         placeholder={placeholder}
+        aria-label={ariaLabel ?? placeholder}
         className={[
           'pl-8 py-2 text-sm rounded-lg border w-full',
           'bg-white text-secondary-800 placeholder:text-warm-400',

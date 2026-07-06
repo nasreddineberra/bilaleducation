@@ -3,7 +3,9 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Pencil, Trash2, Check, X, Search } from 'lucide-react'
+import { Pencil, Trash2, Check } from 'lucide-react'
+import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Room, Material, RoomType, MaterialCategory, MaterialCondition } from '@/types/database'
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
@@ -159,7 +161,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   const startAddMat = () => {
     setAddingMat(true)
     setEditingMat(null)
-    setMatForm({ name: '', category: undefined as any, quantity: 1, condition: 'bon', room_id: undefined, serial_number: '', purchase_date: '', notes: '' })
+    setMatForm({ name: '', category: undefined as any, quantity: 1, condition: undefined as any, room_id: undefined, serial_number: '', purchase_date: '', notes: '' })
     setMatError('')
   }
 
@@ -173,7 +175,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   const cancelMat = () => { setAddingMat(false); setEditingMat(null); setMatForm({}); setMatError('') }
 
   const saveMat = useCallback(async () => {
-    if (!matForm.name?.trim() || !matForm.category) { setMatError('Le nom et la catégorie sont requis'); return }
+    if (!matForm.name?.trim() || !matForm.category || !matForm.condition) { setMatError('Le nom, la catégorie et l\'état sont requis'); return }
     setMatSaving(true); setMatError('')
     try {
       const payload = {
@@ -216,10 +218,12 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   // ═══════════════════════════════════════════════════════════════════════════
 
   const roomFormValid = !!(roomForm.name?.trim() && roomForm.room_type)
-  const matFormValid = !!(matForm.name?.trim() && matForm.category)
+  const matFormValid = !!(matForm.name?.trim() && matForm.category && matForm.condition)
 
   return (
     <div className="h-full overflow-y-auto animate-fade-in">
+      <h1 className="text-lg font-bold text-secondary-800 mb-4">Ressources</h1>
+
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] gap-0">
 
         {/* ════════════════════ SALLES (gauche) ════════════════════ */}
@@ -228,80 +232,82 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           {/* Header + bouton ajouter */}
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Salles</h2>
-            <button onClick={startAddRoom} className="flex items-center gap-1 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-xl px-3 py-1.5 transition-colors">
-              <Plus size={14} /> Ajouter
-            </button>
+            <FloatButton type="button" variant="submit" onClick={startAddRoom}>
+              Ajouter
+            </FloatButton>
           </div>
 
           {/* Search */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-300" />
-            <input value={roomSearch} onChange={e => setRoomSearch(e.target.value)} placeholder="Rechercher une salle..." className="input pl-9 !py-2 text-sm" />
-          </div>
+          <SearchField value={roomSearch} onChange={setRoomSearch} placeholder="Rechercher une salle..." ariaLabel="Rechercher une salle" className="w-full" />
 
-          {roomError && <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{roomError}</p>}
+          {roomError && <p role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{roomError}</p>}
 
           {/* Add / Edit form */}
           {(addingRoom || editingRoom) && (
-            <div className="card p-3 space-y-2">
+            <div className="card p-3 space-y-2.5">
               <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
                 {editingRoom ? 'Modifier la salle' : 'Nouvelle salle'}
               </h3>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Nom <span className="text-red-400">*</span></label>
-                  <input value={roomForm.name ?? ''} onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))} className="input mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type <span className="text-red-400">*</span></label>
-                  <select value={roomForm.room_type ?? ''} onChange={e => setRoomForm(p => ({ ...p, room_type: e.target.value as RoomType }))} className="input mt-1">
-                    <option value="" disabled>— Sélectionner un type —</option>
-                    {Object.entries(ROOM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
+                <FloatInput
+                  label="Nom" required aria-required="true" compact
+                  value={roomForm.name ?? ''}
+                  onChange={e => setRoomForm(p => ({ ...p, name: e.target.value }))}
+                />
+                <FloatSelect
+                  label="Type" required aria-required="true" compact
+                  value={roomForm.room_type ?? ''}
+                  onChange={e => setRoomForm(p => ({ ...p, room_type: e.target.value as RoomType }))}
+                >
+                  <option value="" disabled hidden></option>
+                  {Object.entries(ROOM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </FloatSelect>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Capacité</label>
-                  <input type="number" min={0} value={roomForm.capacity ?? ''} onChange={e => setRoomForm(p => ({ ...p, capacity: e.target.value ? Number(e.target.value) : undefined }))} className="input mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Étage</label>
-                  <input value={roomForm.floor ?? ''} onChange={e => setRoomForm(p => ({ ...p, floor: e.target.value }))} className="input mt-1" />
-                </div>
-                <div className="flex items-end pb-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={roomForm.is_available ?? true} onChange={e => setRoomForm(p => ({ ...p, is_available: e.target.checked }))} className="w-4 h-4 rounded accent-amber-500" />
-                    <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Disponible</span>
-                  </label>
-                </div>
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <FloatInput
+                  label="Capacité" compact type="number" min={0}
+                  value={roomForm.capacity ?? ''}
+                  onChange={e => setRoomForm(p => ({ ...p, capacity: e.target.value ? Number(e.target.value) : undefined }))}
+                />
+                <FloatInput
+                  label="Étage" compact
+                  value={roomForm.floor ?? ''}
+                  onChange={e => setRoomForm(p => ({ ...p, floor: e.target.value }))}
+                />
+                <FloatCheckbox
+                  variant="compact"
+                  label="Disponible"
+                  checked={roomForm.is_available ?? true}
+                  onChange={v => setRoomForm(p => ({ ...p, is_available: v }))}
+                />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Description</label>
-                <textarea value={roomForm.description ?? ''} onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))} rows={2} className="input mt-1 resize-none" />
-              </div>
+              <FloatTextarea
+                label="Description" rows={2}
+                value={roomForm.description ?? ''}
+                onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))}
+              />
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+                <span className="text-xs text-warm-500"><span className="font-semibold text-red-400">*</span> obligatoire</span>
                 <div className="flex-1" />
-                <button onClick={cancelRoom} className="px-4 py-2 text-sm text-warm-600 hover:text-warm-800 rounded-xl transition-colors">Annuler</button>
-                <button onClick={saveRoom} disabled={roomSaving || !roomFormValid} className={clsx('flex items-center gap-1.5 text-sm font-medium rounded-xl px-4 py-2 transition-colors', roomFormValid ? 'text-white bg-amber-500 hover:bg-amber-600' : 'text-warm-400 bg-warm-100 cursor-not-allowed')}>
+                <FloatButton type="button" variant="secondary" onClick={cancelRoom} disabled={roomSaving}>Annuler</FloatButton>
+                <FloatButton type="button" variant="submit" onClick={saveRoom} disabled={roomSaving || !roomFormValid}>
                   <Check size={15} /> {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
-                </button>
+                </FloatButton>
               </div>
             </div>
           )}
 
           {/* List */}
-          <div className="space-y-2">
-            {filteredRooms.length === 0 && <p className="text-sm text-warm-400 text-center py-6">Aucune salle</p>}
+          <ul className="space-y-2">
+            {filteredRooms.length === 0 && <li className="text-sm text-warm-400 text-center py-6 list-none">Aucune salle</li>}
             {filteredRooms.map(r => (
-              <div key={r.id} className={clsx('flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 transition-colors', r.is_available ? 'bg-white border-warm-100 hover:border-primary-300' : 'bg-warm-50 border-warm-200')}>
+              <li key={r.id} className={clsx('flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 transition-colors list-none', r.is_available ? 'bg-white border-warm-100 hover:border-primary-300' : 'bg-warm-50 border-warm-200')}>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-secondary-800 truncate">{r.name}</span>
                     {!r.is_available && <span className="text-[10px] bg-red-100 text-red-600 rounded-lg px-1.5 py-0.5 font-medium">Indisponible</span>}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-warm-400 mt-0.5">
+                  <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5">
                     <span>{ROOM_TYPE_LABELS[r.room_type]}</span>
                     {r.capacity != null && <><span>·</span><span>{r.capacity} places</span></>}
                     {r.floor && <><span>·</span><span>{r.floor}</span></>}
@@ -310,19 +316,23 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {confirmDeleteRoom === r.id ? (
                     <>
-                      <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2">Confirmer</button>
-                      <button onClick={() => setConfirmDeleteRoom(null)} className="text-xs text-warm-400 hover:text-warm-600 px-2">Annuler</button>
+                      <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                      <button onClick={() => setConfirmDeleteRoom(null)} className="text-xs text-warm-500 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => startEditRoom(r)} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => { setConfirmDeleteRoom(r.id); setRoomError('') }} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                      <Tooltip content="Modifier">
+                        <button onClick={() => startEditRoom(r)} aria-label={`Modifier ${r.name}`} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
+                      </Tooltip>
+                      <Tooltip content="Supprimer">
+                        <button onClick={() => { setConfirmDeleteRoom(r.id); setRoomError('') }} aria-label={`Supprimer ${r.name}`} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
+                      </Tooltip>
                     </>
                   )}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
         {/* ════════════════════ DIVIDER ════════════════════ */}
@@ -334,93 +344,99 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           {/* Header + bouton ajouter */}
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Matériels</h2>
-            <button onClick={startAddMat} className="flex items-center gap-1 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-xl px-3 py-1.5 transition-colors">
-              <Plus size={14} /> Ajouter
-            </button>
+            <FloatButton type="button" variant="submit" onClick={startAddMat}>
+              Ajouter
+            </FloatButton>
           </div>
 
           {/* Search */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-300" />
-            <input value={matSearch} onChange={e => setMatSearch(e.target.value)} placeholder="Rechercher un matériel..." className="input pl-9 !py-2 text-sm" />
-          </div>
+          <SearchField value={matSearch} onChange={setMatSearch} placeholder="Rechercher un matériel..." ariaLabel="Rechercher un matériel" className="w-full" />
 
-          {matError && <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{matError}</p>}
+          {matError && <p role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{matError}</p>}
 
           {/* Add / Edit form */}
           {(addingMat || editingMat) && (
-            <div className="card p-3 space-y-2">
+            <div className="card p-3 space-y-2.5">
               <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
                 {editingMat ? 'Modifier le matériel' : 'Nouveau matériel'}
               </h3>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Nom <span className="text-red-400">*</span></label>
-                  <input value={matForm.name ?? ''} onChange={e => setMatForm(p => ({ ...p, name: e.target.value }))} className="input mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Catégorie <span className="text-red-400">*</span></label>
-                  <select value={matForm.category ?? ''} onChange={e => setMatForm(p => ({ ...p, category: e.target.value as MaterialCategory }))} className="input mt-1">
-                    <option value="" disabled>— Sélectionner —</option>
-                    {Object.entries(MATERIAL_CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
+                <FloatInput
+                  label="Nom" required aria-required="true" compact
+                  value={matForm.name ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, name: e.target.value }))}
+                />
+                <FloatSelect
+                  label="Catégorie" required aria-required="true" compact
+                  value={matForm.category ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, category: e.target.value as MaterialCategory }))}
+                >
+                  <option value="" disabled hidden></option>
+                  {Object.entries(MATERIAL_CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </FloatSelect>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Quantité</label>
-                  <input type="number" min={0} value={matForm.quantity ?? ''} onChange={e => setMatForm(p => ({ ...p, quantity: e.target.value ? Number(e.target.value) : 1 }))} className="input mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date d'achat</label>
-                  <input type="date" value={matForm.purchase_date ?? ''} onChange={e => setMatForm(p => ({ ...p, purchase_date: e.target.value }))} className="input mt-1" />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">État</label>
-                  <select value={matForm.condition ?? 'bon'} onChange={e => setMatForm(p => ({ ...p, condition: e.target.value as MaterialCondition }))} className="input mt-1">
-                    {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
+                <FloatInput
+                  label="Quantité" compact type="number" min={0}
+                  value={matForm.quantity ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, quantity: e.target.value ? Number(e.target.value) : 1 }))}
+                />
+                <FloatInput
+                  label="Date d'achat" compact type="date"
+                  value={matForm.purchase_date ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, purchase_date: e.target.value }))}
+                />
+                <FloatSelect
+                  label="État" required aria-required="true" compact
+                  value={matForm.condition ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, condition: e.target.value as MaterialCondition }))}
+                >
+                  <option value="" disabled hidden></option>
+                  {Object.entries(CONDITION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </FloatSelect>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Salle</label>
-                  <select value={matForm.room_id ?? ''} onChange={e => setMatForm(p => ({ ...p, room_id: e.target.value || undefined }))} className="input mt-1">
-                    <option value="">— Aucune —</option>
-                    {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">N° série</label>
-                  <input value={matForm.serial_number ?? ''} onChange={e => setMatForm(p => ({ ...p, serial_number: e.target.value }))} className="input mt-1" />
-                </div>
+                <FloatSelect
+                  label="Salle" compact
+                  value={matForm.room_id ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, room_id: e.target.value || undefined }))}
+                >
+                  <option value="">Aucune</option>
+                  {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </FloatSelect>
+                <FloatInput
+                  label="N° série" compact
+                  value={matForm.serial_number ?? ''}
+                  onChange={e => setMatForm(p => ({ ...p, serial_number: e.target.value }))}
+                />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Notes</label>
-                <textarea value={matForm.notes ?? ''} onChange={e => setMatForm(p => ({ ...p, notes: e.target.value }))} rows={2} className="input mt-1 resize-none" />
-              </div>
+              <FloatTextarea
+                label="Notes" rows={2}
+                value={matForm.notes ?? ''}
+                onChange={e => setMatForm(p => ({ ...p, notes: e.target.value }))}
+              />
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+                <span className="text-xs text-warm-500"><span className="font-semibold text-red-400">*</span> obligatoire</span>
                 <div className="flex-1" />
-                <button onClick={cancelMat} className="px-4 py-2 text-sm text-warm-600 hover:text-warm-800 rounded-xl transition-colors">Annuler</button>
-                <button onClick={saveMat} disabled={matSaving || !matFormValid} className={clsx('flex items-center gap-1.5 text-sm font-medium rounded-xl px-4 py-2 transition-colors', matFormValid ? 'text-white bg-amber-500 hover:bg-amber-600' : 'text-warm-400 bg-warm-100 cursor-not-allowed')}>
+                <FloatButton type="button" variant="secondary" onClick={cancelMat} disabled={matSaving}>Annuler</FloatButton>
+                <FloatButton type="button" variant="submit" onClick={saveMat} disabled={matSaving || !matFormValid}>
                   <Check size={15} /> {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}
-                </button>
+                </FloatButton>
               </div>
             </div>
           )}
 
           {/* List */}
-          <div className="space-y-2">
-            {filteredMats.length === 0 && <p className="text-sm text-warm-400 text-center py-6">Aucun matériel</p>}
+          <ul className="space-y-2">
+            {filteredMats.length === 0 && <li className="text-sm text-warm-400 text-center py-6 list-none">Aucun matériel</li>}
             {filteredMats.map(m => (
-              <div key={m.id} className={clsx('flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 transition-colors', m.condition === 'hors_service' ? 'bg-warm-50 border-warm-200' : 'bg-white border-warm-100 hover:border-primary-300')}>
+              <li key={m.id} className={clsx('flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 transition-colors list-none', m.condition === 'hors_service' ? 'bg-warm-50 border-warm-200' : 'bg-white border-warm-100 hover:border-primary-300')}>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-secondary-800 truncate">{m.name}</span>
                     <span className={clsx('text-[10px] rounded-lg px-1.5 py-0.5 font-medium', CONDITION_COLORS[m.condition])}>{CONDITION_LABELS[m.condition]}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-warm-400 mt-0.5">
+                  <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5">
                     <span>{MATERIAL_CATEGORY_LABELS[m.category]}</span>
                     <span>·</span>
                     <span>Qté : {m.quantity}</span>
@@ -431,19 +447,23 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {confirmDeleteMat === m.id ? (
                     <>
-                      <button onClick={() => deleteMat(m.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2">Confirmer</button>
-                      <button onClick={() => setConfirmDeleteMat(null)} className="text-xs text-warm-400 hover:text-warm-600 px-2">Annuler</button>
+                      <button onClick={() => deleteMat(m.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                      <button onClick={() => setConfirmDeleteMat(null)} className="text-xs text-warm-500 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => startEditMat(m)} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => { setConfirmDeleteMat(m.id); setMatError('') }} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                      <Tooltip content="Modifier">
+                        <button onClick={() => startEditMat(m)} aria-label={`Modifier ${m.name}`} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
+                      </Tooltip>
+                      <Tooltip content="Supprimer">
+                        <button onClick={() => { setConfirmDeleteMat(m.id); setMatError('') }} aria-label={`Supprimer ${m.name}`} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
+                      </Tooltip>
                     </>
                   )}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </div>
     </div>

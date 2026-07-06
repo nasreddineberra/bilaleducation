@@ -142,7 +142,8 @@ export default async function SynthesePage() {
     supabase
       .from('presence_types')
       .select('id, code')
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .eq('school_year_id', currentYear.id),
 
     supabase
       .from('presence_type_rates')

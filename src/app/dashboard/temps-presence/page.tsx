@@ -34,13 +34,18 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .order('last_name')
     .order('first_name')
 
-  // Types de presence actifs
-  const { data: presenceTypes } = await supabase
-    .from('presence_types')
-    .select('id, label, code, color, is_absence')
-    .eq('is_active', true)
-    .order('order_index')
-    .order('label')
+  // Types de presence actifs de l'annee en cours (etablissement via RLS)
+  let presenceTypes: { id: string; label: string; code: string; color: string; is_absence: boolean }[] = []
+  if (currentYear) {
+    const { data } = await supabase
+      .from('presence_types')
+      .select('id, label, code, color, is_absence')
+      .eq('is_active', true)
+      .eq('school_year_id', currentYear.id)
+      .order('order_index')
+      .order('label')
+    presenceTypes = (data ?? []) as typeof presenceTypes
+  }
 
   // Taux par type de presence pour l'annee en cours
   let presenceTypeRates: { presence_type_id: string; rate: number }[] = []

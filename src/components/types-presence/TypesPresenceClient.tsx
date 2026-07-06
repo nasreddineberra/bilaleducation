@@ -1,25 +1,31 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Check, Info } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Info, Copy } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PresenceType {
-  id:          string
-  label:       string
-  code:        string
-  color:       string
-  is_active:   boolean
-  is_absence:  boolean
-  order_index: number
+  id:             string
+  label:          string
+  code:           string
+  color:          string
+  is_active:      boolean
+  is_absence:     boolean
+  order_index:    number
+  school_year_id: string
 }
+
+interface YearRef { id: string; label: string }
 
 interface Props {
   initialTypes: PresenceType[]
+  currentYear:  { id: string; label: string; start_date: string | null; end_date: string | null }
+  previousYear: YearRef | null
 }
 
 // ─── Palette couleurs ─────────────────────────────────────────────────────────
@@ -39,17 +45,18 @@ const COLOR_PALETTE = [
   { hex: '#92400e', name: 'Marron'    },
 ]
 
-const EMPTY_ROW = { label: '', code: '', color: COLOR_PALETTE[6].hex, is_active: true, is_absence: false }
+const EMPTY_ROW = { label: '', code: '', color: '', is_active: true, is_absence: false }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export default function TypesPresenceClient({ initialTypes }: Props) {
+export default function TypesPresenceClient({ initialTypes, currentYear, previousYear }: Props) {
   const supabase = createClient()
 
   const [rows,            setRows]            = useState<PresenceType[]>(initialTypes)
   const [editing,         setEditing]         = useState<Partial<PresenceType> | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [saving,          setSaving]          = useState(false)
+  const [copying,         setCopying]         = useState(false)
   const [error,           setError]           = useState<string | null>(null)
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -82,6 +89,10 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
       setError('Le code doit contenir au moins 3 caractères.')
       return
     }
+    if (!editing?.color) {
+      setError('Veuillez choisir une couleur.')
+      return
+    }
 
     setSaving(true)
     setError(null)
@@ -110,7 +121,7 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
     } else {
       const { data, error: err } = await supabase
         .from('presence_types')
-        .insert(payload)
+        .insert({ ...payload, school_year_id: currentYear.id })
         .select()
         .single()
 
@@ -131,29 +142,22 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
   const remove = async (id: string) => {
     setSaving(true)
 
-    // Vérifier si le type est utilisé dans les saisies de temps de l'année en cours
+    // Contrôle : type utilisé dans une saisie de temps de l'année en cours ?
+    // Portée = établissement (RLS) + année en cours (bornes de dates ci-dessous).
     const row = rows.find(r => r.id === id)
-    if (row) {
-      const { data: currentYear } = await supabase
-        .from('school_years')
-        .select('start_date, end_date')
-        .eq('is_current', true)
-        .maybeSingle()
+    if (row && currentYear.start_date && currentYear.end_date) {
+      const { count } = await supabase
+        .from('staff_time_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('entry_type', row.code)
+        .gte('entry_date', currentYear.start_date)
+        .lte('entry_date', currentYear.end_date)
 
-      if (currentYear?.start_date && currentYear?.end_date) {
-        const { count } = await supabase
-          .from('staff_time_entries')
-          .select('id', { count: 'exact', head: true })
-          .eq('entry_type', row.code)
-          .gte('entry_date', currentYear.start_date)
-          .lte('entry_date', currentYear.end_date)
-
-        if (count && count > 0) {
-          setError(`Ce type est utilisé dans ${count} saisie(s) de l'année en cours et ne peut pas être supprimé.`)
-          setConfirmDeleteId(null)
-          setSaving(false)
-          return
-        }
+      if (count && count > 0) {
+        setError(`Ce type est utilisé dans ${count} saisie(s) de l'année en cours et ne peut pas être supprimé.`)
+        setConfirmDeleteId(null)
+        setSaving(false)
+        return
       }
     }
 
@@ -172,6 +176,43 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
     setSaving(false)
   }
 
+  // ── Copie depuis l'année précédente ────────────────────────────────────────
+
+  const copyFromPreviousYear = async () => {
+    if (!previousYear || copying) return
+    setCopying(true)
+    setError(null)
+
+    const { data: prevTypes, error: e1 } = await supabase
+      .from('presence_types')
+      .select('label, code, color, is_active, is_absence, order_index')
+      .eq('school_year_id', previousYear.id)
+      .order('order_index')
+
+    if (e1) { setError(e1.message); setCopying(false); return }
+
+    const existingCodes = new Set(rows.map(r => r.code))
+    const toInsert = (prevTypes ?? [])
+      .filter((t: any) => !existingCodes.has(t.code))
+      .map((t: any) => ({ ...t, school_year_id: currentYear.id }))
+
+    if (toInsert.length === 0) {
+      setError(`Rien à copier : tous les types de ${previousYear.label} sont déjà présents.`)
+      setCopying(false)
+      return
+    }
+
+    const { data: inserted, error: e2 } = await supabase
+      .from('presence_types')
+      .insert(toInsert)
+      .select()
+
+    if (e2) { setError(e2.message); setCopying(false); return }
+
+    setRows([...rows, ...((inserted ?? []) as PresenceType[])])
+    setCopying(false)
+  }
+
   // ── JSX ligne édition (inline pour éviter la perte de focus) ───────────────
 
   // Couleurs déjà utilisées par d'autres types (hors ligne en cours d'édition)
@@ -180,10 +221,17 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
   const editingRow = editing && (
     <tr className="bg-primary-50/30">
       <td className="px-4 py-3">
-        <span
-          className="inline-block w-5 h-5 rounded-full border-2 border-white shadow-sm"
-          style={{ backgroundColor: editing.color ?? COLOR_PALETTE[6].hex }}
-        />
+        {editing.color ? (
+          <span
+            className="inline-block w-5 h-5 rounded-full border-2 border-white shadow-sm"
+            style={{ backgroundColor: editing.color }}
+          />
+        ) : (
+          <span
+            className="inline-block w-5 h-5 rounded-full border-2 border-dashed border-warm-300"
+            aria-label="Aucune couleur sélectionnée"
+          />
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="w-2/3">
@@ -192,7 +240,7 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
             required
             compact
             value={editing.label ?? ''}
-            onChange={e => setEditing({ ...editing, label: e.target.value })}
+            onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
           />
         </div>
       </td>
@@ -208,25 +256,29 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Couleur du type">
           {COLOR_PALETTE.map(c => {
             const taken = takenColors.has(c.hex) && editing.color !== c.hex
             const selected = editing.color === c.hex
+            const name = taken ? `${c.name} (déjà utilisé)` : c.name
             return (
-              <button
-                key={c.hex}
-                type="button"
-                title={taken ? `${c.name} (déjà utilisé)` : c.name}
-                onClick={() => !taken && setEditing({ ...editing, color: c.hex })}
-                disabled={taken}
-                className={clsx(
-                  'w-5 h-5 rounded-full transition-all border-2',
-                  selected && 'border-secondary-700 scale-110 shadow',
-                  !selected && !taken && 'border-transparent hover:scale-105',
-                  taken && 'cursor-not-allowed border-transparent',
-                )}
-                style={{ backgroundColor: c.hex }}
-              />
+              <Tooltip key={c.hex} content={name}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={name}
+                  onClick={() => !taken && setEditing({ ...editing, color: c.hex })}
+                  disabled={taken}
+                  className={clsx(
+                    'w-5 h-5 rounded-full transition-all border-2 outline-none focus-visible:ring-2 focus-visible:ring-secondary-500/60 focus-visible:ring-offset-1',
+                    selected && 'border-secondary-700 scale-110 shadow',
+                    !selected && !taken && 'border-transparent hover:scale-105',
+                    taken && 'cursor-not-allowed border-transparent',
+                  )}
+                  style={{ backgroundColor: c.hex }}
+                />
+              </Tooltip>
             )
           })}
         </div>
@@ -244,18 +296,22 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
-          <FloatButton
-            type="button"
-            variant="submit"
-            onClick={save}
-            disabled={saving || !editing.label?.trim() || (editing.code?.trim().length ?? 0) < 3}
-            title="Valider"
-          >
-            <Check size={13} />
-          </FloatButton>
-          <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>
-            <X size={13} />
-          </FloatButton>
+          <Tooltip content="Valider">
+            <FloatButton
+              type="button"
+              variant="submit"
+              onClick={save}
+              disabled={saving || !editing.label?.trim() || (editing.code?.trim().length ?? 0) < 3 || !editing.color}
+              aria-label="Valider"
+            >
+              <Check size={13} />
+            </FloatButton>
+          </Tooltip>
+          <Tooltip content="Annuler">
+            <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving} aria-label="Annuler">
+              <X size={13} />
+            </FloatButton>
+          </Tooltip>
         </div>
       </td>
     </tr>
@@ -272,16 +328,24 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
   return (
     <div className="space-y-4">
 
-      {!editing && (
-        <div className="flex justify-end">
-          <FloatButton type="button" variant="submit" onClick={startAdd}>
-            <Plus size={15} /> Ajouter
-          </FloatButton>
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h1 className="text-lg font-bold text-secondary-800">Types de présence — {currentYear.label}</h1>
+        {!editing && (
+          <div className="flex items-center gap-2">
+            {previousYear && (
+              <FloatButton type="button" variant="secondary" onClick={copyFromPreviousYear} disabled={copying}>
+                <Copy size={14} /> {copying ? 'Copie…' : `Copier depuis ${previousYear.label}`}
+              </FloatButton>
+            )}
+            <FloatButton type="button" variant="submit" onClick={startAdd}>
+              Ajouter
+            </FloatButton>
+          </div>
+        )}
+      </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-sm text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-4 py-2.5">
+        <div role="alert" aria-live="assertive" className="flex items-center gap-2 text-sm text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-4 py-2.5">
           <X size={14} className="shrink-0" />
           {error}
         </div>
@@ -292,14 +356,14 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
           <Info size={13} className="mt-0.5 shrink-0 text-blue-400" />
           <span>Le type <strong>ABSENCE</strong> est réservé à la gestion des absences. Il ne peut pas être modifié ni supprimé.</span>
         </div>
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" aria-label="Types de présence">
           <thead>
             <tr className="border-b border-warm-100 bg-warm-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-warm-500 uppercase tracking-wide w-10"></th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-warm-500 uppercase tracking-wide">Libellé</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-warm-500 uppercase tracking-wide">Code</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-warm-500 uppercase tracking-wide">Statut</th>
-              <th className="px-4 py-3 w-24"></th>
+              <th className="list-th w-10"></th>
+              <th className="list-th">Libellé</th>
+              <th className="list-th">Code</th>
+              <th className="list-th text-center">Statut</th>
+              <th className="list-th w-24"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-warm-50">
@@ -339,47 +403,51 @@ export default function TypesPresenceClient({ initialTypes }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     {row.is_absence ? (
-                      <span className="block text-right text-[10px] text-warm-300 italic pr-1">Réservé</span>
+                      <span className="block text-right text-[10px] text-warm-500 italic pr-1">Réservé</span>
                     ) : confirmDeleteId === row.id ? (
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => remove(row.id)}
                           disabled={saving}
-                          className="text-xs text-danger-600 hover:text-danger-700 font-medium"
+                          className="text-xs text-danger-600 hover:text-danger-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
                         >
                           Confirmer
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs text-warm-400 hover:text-warm-600"
+                          className="text-xs text-warm-500 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
                         >
                           Annuler
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => startEdit(row)}
-                          disabled={!!editing}
-                          className={clsx(
-                            'p-1.5 rounded-lg transition-colors',
-                            editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100'
-                          )}
-                          title="Modifier"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(row.id)}
-                          disabled={!!editing}
-                          className={clsx(
-                            'p-1.5 rounded-lg transition-colors',
-                            editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-danger-600 hover:bg-danger-50'
-                          )}
-                          title="Supprimer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <Tooltip content="Modifier">
+                          <button
+                            onClick={() => startEdit(row)}
+                            disabled={!!editing}
+                            aria-label={`Modifier ${row.label}`}
+                            className={clsx(
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                              editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100'
+                            )}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Supprimer">
+                          <button
+                            onClick={() => setConfirmDeleteId(row.id)}
+                            disabled={!!editing}
+                            aria-label={`Supprimer ${row.label}`}
+                            className={clsx(
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger-400/60',
+                              editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-danger-600 hover:bg-danger-50'
+                            )}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </Tooltip>
                       </div>
                     )}
                   </td>

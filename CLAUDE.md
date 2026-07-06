@@ -116,6 +116,41 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Debug** : requetes directes en base via script service-role (`.env.local`) pour lever un
   doute (lignes reelles vs cache) ; ne jamais confondre suppression Storage et suppression table.
 
+#### 6 juillet 2026 — Cotisations, Types de presence (par annee), Ressources
+- **Parametres Financiers (audit a11y + FloatFields)** (`CotisationsClient.tsx`) : boutons
+  Modifier/Supprimer en `<Tooltip>` + `aria-label` + focus ; helper `InfoHint` (bouton focusable
+  au lieu de `title=` natif) ; `aria-label` sur les tableaux ; `aria-live` sur « Taux enregistres ».
+  Formulaire de cotisation converti en `FloatInput` (label flottant + `*` auto), suffixe **€**
+  (au lieu de « EUR ») centre via wrapper relatif, labels courts (« Cotis. annuelle »,
+  « Reduc. fratrie ») pour eviter le chevauchement label/symbole ; « Max echeances » **vide par
+  defaut** (meme police au repos que les autres champs).
+- **Encadre « Taux horaires generalises — {annee} »** (renomme) : **bandeau de statut**
+  (`role=status`) 3 etats — vert « Tous les taux sont enregistres » / ambre « N type(s) sans taux
+  enregistre » / bleu « Modifications non enregistrees » ; **indice ambre par champ** pour le type
+  sans taux en base ; bouton Enregistrer debloque quand il manque un taux (cas taux = 0).
+- **Types de presence (audit a11y)** (`TypesPresenceClient.tsx`) : Valider/Annuler + Modifier/
+  Supprimer en `<Tooltip>` + `aria-label` + focus ; **selecteur de couleur** en `role=radiogroup`
+  (par pastille `role=radio` + `aria-checked` + `aria-label` + focus, **`<Tooltip>` et non `title=`**) ;
+  `role=alert` sur les erreurs ; en-tetes en `.list-th` ; « Reserve » en `warm-500`. **Pas de
+  couleur pre-selectionnee** a la creation (pastille pointillee, couleur obligatoire).
+- **Types de presence rattaches a l'annee scolaire** (modele par annee) : migration
+  `add-school-year-to-presence-types.sql` (colonne `school_year_id` + backfill vers l'annee en
+  cours de chaque etablissement + unicite **`(etablissement, annee, code)`** + `NOT NULL` + index).
+  Page filtree sur l'annee en cours (message si aucune) ; en-tete « Types de presence — {annee} » ;
+  bouton **« Copier depuis {annee precedente} »** (copie les types absents) ; controle de suppression
+  = **etablissement (RLS) + annee en cours** ; libelle en MAJUSCULES.
+  - **Consommateurs filtres par annee** (`.eq('school_year_id', currentYear.id)`) : cotisations
+    (encadre Taux, historique intact), temps-presence, financements. Evite l'ambiguite code→taux
+    quand un code se repete d'une annee a l'autre. EDT non impacte (n'utilise pas la table de config).
+- **Ressources (audit + refonte design-system)** (`ResourcesClient.tsx`) : conversion complete en
+  `FloatInput`/`FloatSelect`/`FloatTextarea`/`FloatCheckbox`/`FloatButton` ; Modifier/Supprimer en
+  `<Tooltip>` + `aria-label` + focus ; `role=alert` sur erreurs ; recherche via `SearchField`
+  (nouveau prop `ariaLabel`) ; selects sans quadratin `—` (placeholder `disabled hidden`, « Aucune »
+  pour la salle) ; **Etat** vide + obligatoire ; boutons « Ajouter/Creer » passes de amber → `submit` ;
+  `<h1>` « Ressources » ajoute ; listes en `<ul>/<li>`.
+- **Regle UI (memoire)** : **ne jamais mettre d'icone « + » (Plus) sur les boutons** (libelle seul).
+  Applique sur Cotisations/Types de presence/Ressources ; reste ~22 fichiers a nettoyer au fil des audits.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
@@ -256,3 +291,6 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-class-teachers-effective-dates.sql` (phase 5)
 - [x] Executer `supabase/migrations/add-teacher-notes.sql` (colonne `teachers.notes`)
 - [x] Executer `supabase/migrations/add-teacher-documents.sql` (table + bucket + RLS ; colonne `label` ajoutee)
+- [ ] **Executer `supabase/migrations/add-school-year-to-presence-types.sql`** (colonne `school_year_id`
+  + backfill + unicite `(etablissement, annee, code)` + NOT NULL). **Prerequis** : sans elle, les pages
+  Types de presence / Cotisations / Temps de presence / Financements plantent.

@@ -29,8 +29,10 @@ export default async function CotisationsPage() {
       ? supabase.from('classes').select('id', { count: 'exact', head: true }).eq('academic_year', currentYear.label).is('cotisation_type_id', null)
       : Promise.resolve({ count: 0 }),
 
-    // Types de présence actifs
-    supabase.from('presence_types').select('id, label, code, color, is_absence').eq('is_active', true).order('order_index').order('label'),
+    // Types de présence actifs de l'année en cours (établissement via RLS)
+    currentYear
+      ? supabase.from('presence_types').select('id, label, code, color, is_absence').eq('is_active', true).eq('school_year_id', currentYear.id).order('order_index').order('label')
+      : Promise.resolve({ data: [] }),
 
     // Taux horaires de l'année en cours
     currentYear

@@ -3,11 +3,12 @@
 import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, X, Check, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
+import { Pencil, Trash2, Check, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
-import { FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { CotisationType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ type EditingRow = {
 
 const EMPTY_ROW: EditingRow = {
   id: null, label: '', amount: '', registration_fee: '', sibling_discount: '',
-  sibling_discount_same_type: false, max_installments: '1', is_adult: false,
+  sibling_discount_same_type: false, max_installments: '', is_adult: false,
 }
 
 function fmtEur(n: number) {
@@ -67,6 +68,21 @@ function to2(v: string) {
   if (v.trim() === '') return ''
   const n = parseFloat(v)
   return isNaN(n) ? v : n.toFixed(2)
+}
+
+// Bulle d'aide accessible (clavier + lecteur d'écran) — remplace les title= natifs
+function InfoHint({ text }: { text: string }) {
+  return (
+    <Tooltip content={text}>
+      <button
+        type="button"
+        aria-label={text}
+        className="inline-flex text-warm-400 hover:text-secondary-600 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+      >
+        <Info size={12} />
+      </button>
+    </Tooltip>
+  )
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -98,6 +114,11 @@ export default function CotisationsClient({
     const current = parseFloat(rates[pt.id] ?? '') || 0
     return current !== (initialRateMap[pt.id] ?? 0)
   })
+
+  // Statut d'enregistrement : un type (hors absence) est « enregistré » s'il a
+  // une ligne en base pour l'année. Un type ajouté après coup n'en a pas → manquant.
+  const missingRateTypes = presenceTypes.filter(pt => !pt.is_absence && !(pt.id in initialRateMap))
+  const allRatesSaved = missingRateTypes.length === 0
 
   // ── Pas d'année en cours ──────────────────────────────────────────────────
 
@@ -201,11 +222,11 @@ export default function CotisationsClient({
           <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-secondary-800">Types de cotisations — {currentYear.label}</h2>
-              <p className="text-xs text-warm-400 mt-0.5">Utilisés pour le calcul du coût dans le financement des cotisations</p>
+              <p className="text-xs text-warm-500 mt-0.5">Utilisés pour le calcul du coût dans le financement des cotisations</p>
             </div>
             {!editing && (
               <FloatButton type="button" variant="submit" onClick={startAdd}>
-                <Plus size={15} /> Ajouter
+                Ajouter
               </FloatButton>
             )}
           </div>
@@ -217,45 +238,86 @@ export default function CotisationsClient({
             <div className="p-4 border-b border-warm-100 bg-primary-50/20 space-y-3">
               <div className="flex flex-wrap items-start gap-2">
                 <div className="w-48">
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Type de scolarité<span className="text-red-400 ml-0.5">*</span></label>
-                  <input autoFocus className="input text-sm" placeholder="Ex: MATERNELLE" value={editing.label} onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })} />
-                  <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none">
-                    <input type="checkbox" checked={editing.is_adult} onChange={e => setEditing({ ...editing, is_adult: e.target.checked })} className="accent-primary-600 w-3.5 h-3.5" />
-                    <span className="text-xs text-secondary-600">Cours adultes</span>
-                    <span title="Les classes de ce type seront réservées aux adultes."><Info size={11} className="text-warm-300" /></span>
-                  </label>
-                </div>
-                <div className="w-32">
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Cotisation annuelle<span className="text-red-400 ml-0.5">*</span></label>
-                  <div className="relative">
-                    <input type="number" min="0" step="10" className="input text-sm pr-10" placeholder="0" value={editing.amount} onChange={e => setEditing({ ...editing, amount: e.target.value })} onBlur={e => setEditing(ed => ed ? { ...ed, amount: to2(e.target.value) } : ed)} />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
+                  <FloatInput
+                    label="Type de scolarité"
+                    required
+                    aria-required="true"
+                    compact
+                    autoFocus
+                    value={editing.label}
+                    onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" checked={editing.is_adult} onChange={e => setEditing({ ...editing, is_adult: e.target.checked })} className="accent-primary-600 w-3.5 h-3.5" />
+                      <span className="text-xs text-secondary-600">Cours adultes</span>
+                    </label>
+                    <InfoHint text="Les classes de ce type seront réservées aux adultes." />
                   </div>
                 </div>
                 <div className="w-32">
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Frais de dossier</label>
                   <div className="relative">
-                    <input type="number" min="0" step="10" className="input text-sm pr-10" placeholder="0" value={editing.registration_fee} onChange={e => setEditing({ ...editing, registration_fee: e.target.value })} onBlur={e => setEditing(ed => ed ? { ...ed, registration_fee: to2(e.target.value) } : ed)} />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
+                    <FloatInput
+                      label="Côtis. annuelle"
+                      required
+                      aria-required="true"
+                      compact
+                      type="number" min="0" step="10"
+                      className="pr-7"
+                      value={editing.amount}
+                      onChange={e => setEditing({ ...editing, amount: e.target.value })}
+                      onBlur={e => setEditing(ed => ed ? { ...ed, amount: to2(e.target.value) } : ed)}
+                    />
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">€</span>
                   </div>
                 </div>
                 <div className="w-32">
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Réduction fratrie</label>
                   <div className="relative">
-                    <input type="number" min="0" step="10" className="input text-sm pr-10" placeholder="0" value={editing.sibling_discount} onChange={e => setEditing({ ...editing, sibling_discount: e.target.value })} onBlur={e => setEditing(ed => ed ? { ...ed, sibling_discount: to2(e.target.value) } : ed)} />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">EUR</span>
+                    <FloatInput
+                      label="Frais de dossier"
+                      compact
+                      type="number" min="0" step="10"
+                      className="pr-7"
+                      value={editing.registration_fee}
+                      onChange={e => setEditing({ ...editing, registration_fee: e.target.value })}
+                      onBlur={e => setEditing(ed => ed ? { ...ed, registration_fee: to2(e.target.value) } : ed)}
+                    />
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">€</span>
                   </div>
-                  <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none">
-                    <input type="checkbox" checked={editing.sibling_discount_same_type} onChange={e => setEditing({ ...editing, sibling_discount_same_type: e.target.checked })} className="accent-amber-500 w-3.5 h-3.5" />
-                    <span className="text-xs text-secondary-600">Même type</span>
-                    <span title="Réduction entre enfants du même type uniquement."><Info size={11} className="text-warm-300" /></span>
-                  </label>
                 </div>
                 <div className="w-32">
-                  <label className="block text-xs font-medium text-warm-500 mb-1">Max échéances<span className="text-red-400 ml-0.5">*</span></label>
-                  <input type="number" min="1" max="12" className="input text-sm" value={editing.max_installments} onChange={e => setEditing({ ...editing, max_installments: e.target.value })} />
+                  <div className="relative">
+                    <FloatInput
+                      label="Réduc. fratrie"
+                      compact
+                      type="number" min="0" step="10"
+                      className="pr-7"
+                      value={editing.sibling_discount}
+                      onChange={e => setEditing({ ...editing, sibling_discount: e.target.value })}
+                      onBlur={e => setEditing(ed => ed ? { ...ed, sibling_discount: to2(e.target.value) } : ed)}
+                    />
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">€</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" checked={editing.sibling_discount_same_type} onChange={e => setEditing({ ...editing, sibling_discount_same_type: e.target.checked })} className="accent-amber-500 w-3.5 h-3.5" />
+                      <span className="text-xs text-secondary-600">Même type</span>
+                    </label>
+                    <InfoHint text="Réduction entre enfants du même type uniquement." />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 pt-[1.35rem]">
+                <div className="w-32">
+                  <FloatInput
+                    label="Max échéances"
+                    required
+                    aria-required="true"
+                    compact
+                    type="number" min="1" max="12"
+                    value={editing.max_installments}
+                    onChange={e => setEditing({ ...editing, max_installments: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-0.5">
                   <FloatButton type="button" variant="submit" onClick={save} disabled={saving || !isFormValid}>
                     <Check size={13} /> {saving ? 'Enregistrement...' : editing.id ? 'Enregistrer' : 'Ajouter'}
                   </FloatButton>
@@ -266,7 +328,7 @@ export default function CotisationsClient({
             </div>
           )}
 
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs" aria-label={`Types de cotisations — ${currentYear.label}`}>
             <thead>
               <tr className="border-b border-warm-100">
                 <th className="list-th">Type</th>
@@ -302,13 +364,17 @@ export default function CotisationsClient({
                   <td className="list-td">
                     {confirmDeleteId === row.id ? (
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => remove(row.id)} disabled={saving} className="text-[11px] text-red-600 hover:text-red-700 font-medium">Confirmer</button>
-                        <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] text-warm-400 hover:text-warm-600">Annuler</button>
+                        <button onClick={() => remove(row.id)} disabled={saving} className="text-[11px] text-red-600 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                        <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] text-warm-500 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-0.5">
-                        <button onClick={() => startEdit(row)} disabled={!!editing} className={clsx('p-1.5 rounded-lg transition-colors', editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100')} title="Modifier"><Pencil size={13} /></button>
-                        <button onClick={() => setConfirmDeleteId(row.id)} disabled={!!editing} className={clsx('p-1.5 rounded-lg transition-colors', editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-red-600 hover:bg-red-50')} title="Supprimer"><Trash2 size={13} /></button>
+                        <Tooltip content="Modifier">
+                          <button onClick={() => startEdit(row)} disabled={!!editing} aria-label={`Modifier ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50', editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100')}><Pencil size={13} /></button>
+                        </Tooltip>
+                        <Tooltip content="Supprimer">
+                          <button onClick={() => setConfirmDeleteId(row.id)} disabled={!!editing} aria-label={`Supprimer ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50', editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-red-600 hover:bg-red-50')}><Trash2 size={13} /></button>
+                        </Tooltip>
                       </div>
                     )}
                   </td>
@@ -329,7 +395,7 @@ export default function CotisationsClient({
             {pastYears.length === 0 ? (
               <p className="px-4 py-8 text-xs text-warm-400 text-center italic">Aucun historique disponible.</p>
             ) : (
-              <table className="w-full text-left text-[11px]">
+              <table className="w-full text-left text-[11px]" aria-label="Historique des types de cotisations">
                 <thead>
                   <tr className="border-b border-warm-100 text-[10px] uppercase tracking-wide text-warm-400">
                     <th className="px-2 py-1 font-semibold">Type</th>
@@ -379,9 +445,45 @@ export default function CotisationsClient({
         {/* ── Encadré 2 : Taux horaires ── */}
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-warm-100 bg-warm-50">
-            <h2 className="text-sm font-bold text-secondary-800">Taux horaires — {currentYear.label}</h2>
-            <p className="text-xs text-warm-400 mt-0.5">Utilisés pour le calcul du coût dans le temps de présence</p>
+            <h2 className="text-sm font-bold text-secondary-800">Taux horaires généralisés — {currentYear.label}</h2>
+            <p className="text-xs text-warm-500 mt-0.5">Utilisés pour le calcul du coût dans le temps de présence</p>
           </div>
+
+          {/* Bandeau de statut : tous les taux enregistrés / manquants / modifiés */}
+          {presenceTypes.length > 0 && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={clsx(
+                'flex items-center gap-2 text-xs px-4 py-2 border-b',
+                !allRatesSaved
+                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                  : isRatesDirty
+                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                    : 'bg-success-50 border-success-100 text-success-600'
+              )}
+            >
+              {!allRatesSaved ? (
+                <>
+                  <AlertTriangle size={13} className="flex-shrink-0" />
+                  <span>
+                    <strong>{missingRateTypes.length}</strong> type{missingRateTypes.length > 1 ? 's' : ''} de présence sans taux enregistré{missingRateTypes.length > 1 ? 's' : ''} : {missingRateTypes.map(t => t.label).join(', ')}.
+                  </span>
+                </>
+              ) : isRatesDirty ? (
+                <>
+                  <Info size={13} className="flex-shrink-0" />
+                  <span>Modifications non enregistrées.</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={13} className="flex-shrink-0" />
+                  <span>Tous les taux sont enregistrés.</span>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-row">
           <div className="p-3 flex-[2] min-w-0">
             {presenceTypes.length === 0 ? (
@@ -392,29 +494,35 @@ export default function CotisationsClient({
             ) : (
               <>
                 <div className="flex flex-wrap items-start gap-2">
-                  {sortedPresenceTypes.map(pt => (
+                  {sortedPresenceTypes.map(pt => {
+                    const isMissing = !pt.is_absence && !(pt.id in initialRateMap)
+                    return (
                     <div key={pt.id} className="w-32">
-                      <label className="flex items-center gap-1 text-xs font-medium text-warm-500 mb-1 truncate">
+                      <label htmlFor={`rate-${pt.id}`} className={clsx('flex items-center gap-1 text-xs font-medium mb-1 truncate', isMissing ? 'text-amber-600' : 'text-warm-500')}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pt.color }} />
                         <span className="truncate">{pt.label}</span>
+                        {isMissing && <AlertTriangle size={11} className="text-amber-500 flex-shrink-0 ml-auto" />}
                       </label>
                       <div className="relative">
                         <input
+                          id={`rate-${pt.id}`}
+                          aria-label={pt.is_absence ? `Taux horaire ${pt.label} (non facturé)` : `Taux horaire ${pt.label}${isMissing ? ' (non enregistré)' : ''}`}
                           type="number" step="0.10" min="0"
                           value={pt.is_absence ? '0.00' : (rates[pt.id] ?? '')}
                           onChange={e => setRates(prev => ({ ...prev, [pt.id]: e.target.value }))}
                           onBlur={e => setRates(prev => ({ ...prev, [pt.id]: to2(e.target.value) }))}
                           disabled={pt.is_absence}
                           title={pt.is_absence ? 'Une absence n\'est jamais facturée' : undefined}
-                          className="input text-sm pr-8 w-full disabled:bg-warm-100 disabled:text-warm-400 disabled:cursor-not-allowed"
+                          className={clsx('input text-sm pr-8 w-full disabled:bg-warm-100 disabled:text-warm-400 disabled:cursor-not-allowed', isMissing && 'border-amber-400 bg-amber-50/40')}
                           placeholder="0"
                         />
                         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-400">/h</span>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                   <div className="flex items-center gap-2 pt-[1.35rem]">
-                      <FloatButton type="button" variant="submit" disabled={rateSaving || !isRatesDirty} onClick={async () => {
+                      <FloatButton type="button" variant="submit" disabled={rateSaving || (!isRatesDirty && allRatesSaved)} onClick={async () => {
                         setRateSaving(true); setRateSuccess(null)
                         const upserts = presenceTypes.map(pt => ({ school_year_id: currentYear.id, presence_type_id: pt.id, rate: pt.is_absence ? 0 : (parseFloat(rates[pt.id] ?? '0') || 0) }))
                         const { error: err } = await supabase.from('presence_type_rates').upsert(upserts, { onConflict: 'etablissement_id,school_year_id,presence_type_id' })
@@ -426,7 +534,9 @@ export default function CotisationsClient({
                       }}>
                         {rateSaving ? 'Enregistrement...' : 'Enregistrer'}
                       </FloatButton>
-                      {rateSuccess && <span className="flex items-center gap-1 text-xs text-success-600"><CheckCircle2 size={13} /> {rateSuccess}</span>}
+                      <span role="status" aria-live="polite" className="flex items-center gap-1 text-xs text-success-600">
+                        {rateSuccess && <><CheckCircle2 size={13} /> {rateSuccess}</>}
+                      </span>
                   </div>
                 </div>
               </>
