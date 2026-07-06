@@ -291,6 +291,5 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-class-teachers-effective-dates.sql` (phase 5)
 - [x] Executer `supabase/migrations/add-teacher-notes.sql` (colonne `teachers.notes`)
 - [x] Executer `supabase/migrations/add-teacher-documents.sql` (table + bucket + RLS ; colonne `label` ajoutee)
-- [ ] **Executer `supabase/migrations/add-school-year-to-presence-types.sql`** (colonne `school_year_id`
-  + backfill + unicite `(etablissement, annee, code)` + NOT NULL). **Prerequis** : sans elle, les pages
-  Types de presence / Cotisations / Temps de presence / Financements plantent.
+- [x] Executer `supabase/migrations/add-school-year-to-presence-types.sql` (colonne `school_year_id`
+  + backfill + unicite `(etablissement, annee, code)` + NOT NULL).
