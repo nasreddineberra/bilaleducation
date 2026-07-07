@@ -20,15 +20,21 @@ export const authRepository = {
 
     if (error) throw error
 
-    // Audit log connexion (non-bloquant)
     if (data.user) {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('first_name, last_name, etablissement_id')
-          .eq('id', data.user.id)
-          .single()
+      // Contrôle du statut du compte : un compte désactivé ne peut pas se connecter
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, etablissement_id, is_active')
+        .eq('id', data.user.id)
+        .single()
 
+      if (profile && profile.is_active === false) {
+        await supabase.auth.signOut()
+        throw new Error('ACCOUNT_DISABLED')
+      }
+
+      // Audit log connexion (non-bloquant)
+      try {
         if (profile?.etablissement_id) {
           supabase.from('audit_logs').insert({
             etablissement_id: profile.etablissement_id,

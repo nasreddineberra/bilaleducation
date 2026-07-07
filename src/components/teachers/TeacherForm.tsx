@@ -2,10 +2,12 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Copy, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { createTeacherWithAccount, updateTeacher } from '@/app/dashboard/teachers/actions'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Teacher } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -70,6 +72,18 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,   setIsSubmitting]   = useState(false)
   const [tempPassword,   setTempPassword]   = useState<string | null>(null)
+  const [copied,         setCopied]         = useState(false)
+
+  const copyPassword = async () => {
+    if (!tempPassword) return
+    try {
+      await navigator.clipboard.writeText(tempPassword)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Copie impossible. Sélectionnez le mot de passe manuellement.')
+    }
+  }
 
   const set   = (field: keyof FormData, value: string | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -170,7 +184,19 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           </p>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Mot de passe temporaire</p>
-            <p className="text-lg font-mono font-bold text-secondary-800 select-all">{tempPassword}</p>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-lg font-mono font-bold text-secondary-800 select-all">{tempPassword}</p>
+              <Tooltip content={copied ? 'Copié' : 'Copier'}>
+                <button
+                  type="button"
+                  onClick={copyPassword}
+                  aria-label={copied ? 'Mot de passe copié' : 'Copier le mot de passe'}
+                  className="flex-shrink-0 p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                >
+                  {copied ? <Check size={16} className="text-primary-600" /> : <Copy size={16} />}
+                </button>
+              </Tooltip>
+            </div>
             <p className="text-xs text-amber-600">
               Notez-le maintenant. Il ne sera plus affiché. L'administrateur pourra envoyer un email de réinitialisation depuis la page Utilisateurs.
             </p>
@@ -222,6 +248,14 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
               />
             </div>
           </div>
+
+          {isEditing && (
+            <p className={`text-[11px] ${form.is_active ? 'text-warm-400' : 'text-amber-600'}`}>
+              {form.is_active
+                ? 'Statut actif : le compte de connexion de l’enseignant est activé.'
+                : 'Statut inactif : le compte de connexion sera désactivé, l’enseignant ne pourra plus se connecter.'}
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             {/* N° employé */}

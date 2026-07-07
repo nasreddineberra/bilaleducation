@@ -181,6 +181,35 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   `<h1>` de titre de page (DashboardNav le rend deja) ; **lignes de liste cliquables** vers la fiche ; **retour a
   la liste** apres create/modif (+ message distinct) ; **couleur du bouton** `variant={isEditing ? 'edit' : 'submit'}`.
 
+#### 7 juillet 2026 (suite) — Classes (audit + refonte mono-mode), copie mdp, cycle de vie enseignant/compte
+- **Classes — audit a11y liste + fiche** (`ClassesClient.tsx`, `ClassForm.tsx`) : lignes cliquables + nom `<Link>`,
+  actions Tooltip+`aria-label`+focus, `role=alert`/vrai `X` sur erreurs, `aria-label` tables, retrait des icones
+  `Plus`, modales accessibles (`role=dialog`/`aria-modal`/Escape/fond/focus) pour la clôture d'affectation et
+  `SlotFormModal`, **retour a la liste apres modif** (messages distincts).
+- **Abandon du Secondaire (mode `multi`) en V1** — decision utilisateur. **Aucune consequence BDD** (colonnes
+  conservees, `teaching_mode` deja `DEFAULT 'single'`). Refonte **mono-mode Primaire** de la fiche classe :
+  suppression du selecteur de mode (force `single`), colonne **Enseignant principal** unique (clôture datée +
+  historique conservés via `class_teachers.effective_from/until`), Planning EDT toujours affiche, cascade
+  submit ciblant le **principal actif**, nettoyage (`ues`/`UEOption`/`weekStartDay`/`DAY_NAMES` retires, pages
+  `new`/`[id]` allegees). Page EDT : `isDndActive = false` (palette `SubjectPalette` neutralisee, composant
+  conserve dans le repo, recuperable si le Secondaire revient).
+- **Bouton copie du mot de passe temporaire** (`TeacherForm.tsx`) : sur l'ecran « Enseignant et compte cree »,
+  icone `Copy`→`Check` (« Copié » 2 s) via `navigator.clipboard`, Tooltip + `aria-label` + focus, fallback toast.
+- **Cycle de vie enseignant ↔ compte de connexion** :
+  - **Suppression** (`TeachersTable.tsx` + server action `deleteTeacher`) : comptage des dependances (classes /
+    EDT = slots+exceptions+schedules / evaluations / notes) dans une `ConfirmModal`. Si dependances → pas de
+    suppression, **« Rendre inactif »** (ambre) ; sinon **« Supprimer definitivement »** (rouge) qui supprime
+    fichiers Storage + fiche (client session, tracé) + **compte auth** (profil en cascade).
+  - **Sync actif/inactif** : basculer la fiche bascule le compte (RPC `set_teacher_profile_active` + `setTeacherActive`
+    + sync dans `updateTeacher`). Message explicatif sous le switch ACTIF/INACTIF.
+  - **Login** (`auth.ts` + `login/page.tsx`) : si `profiles.is_active = false` → `signOut` + message « compte desactive ».
+- **Securite RPC** : la garde `IF get_user_role() NOT IN (...)` ne bloque PAS un role NULL (anonyme), car
+  `NULL NOT IN (...)` vaut NULL. Correctif **`coalesce(get_user_role(), '')`** applique sur `set_teacher_profile_active`,
+  `create_profile_and_teacher`, `create_parent_login_profile`. **Regle** : toujours `coalesce` dans les gardes
+  de RPC SECURITY DEFINER.
+- **Debug BDD** : scripts service-role jetables (`.env.local`) dans le dossier projet (resolution `node_modules`),
+  supprimes apres usage — utilises pour verifier l'absence de classes `multi` et le comportement des gardes RPC.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
@@ -327,3 +356,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   `create_parent_login_profile` ; tracabilite utilisateur du journal).
 - [x] Executer `supabase/migrations/add-audit-triggers-documents.sql` (triggers audit sur
   `teacher_documents` + `student_documents`).
+- [x] Executer `supabase/migrations/add-teacher-account-cascade.sql` (`profiles.id`→auth CASCADE,
+  `audit_logs.user_id`→profiles SET NULL ; suppression complete d'un compte enseignant).
+- [x] Executer `supabase/migrations/add-set-teacher-profile-active-rpc.sql` (RPC `set_teacher_profile_active`
+  SECURITY DEFINER, garde `coalesce`).
+- [x] Executer `supabase/migrations/fix-rpc-guard-null-role.sql` (durcissement garde NULL sur
+  `create_profile_and_teacher` + `create_parent_login_profile`).

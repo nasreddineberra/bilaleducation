@@ -689,7 +689,9 @@ export default function EmploiDuTempsClient({
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
 
   const selectedClass = classes.find(c => c.id === selectedClassId)
-  const isDndActive = viewType === 'week' && viewMode === 'class' && !!selectedClassId && selectedClass?.teaching_mode === 'multi' && canEdit
+  // V1 : le mode Secondaire (multi) n'est pas géré → palette de matières et création
+  // par glisser-déposer désactivées. À réactiver si le Secondaire revient.
+  const isDndActive = false
 
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const [draggedSubject, setDraggedSubject] = useState<PaletteSubject | null>(null)

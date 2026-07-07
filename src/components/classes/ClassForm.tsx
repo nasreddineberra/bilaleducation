@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { Plus, Trash2, UserCheck, BookOpen, Pencil, CalendarDays } from 'lucide-react'
+import { X, Trash2, BookOpen, Pencil, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { FloatInput, FloatSelect, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
-import { Info } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
+import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -21,13 +21,6 @@ export interface AssignmentData {
   subject: string
   effective_from: string | null
   effective_until: string | null
-}
-
-interface UEOption {
-  id: string
-  nom_fr: string
-  nom_ar: string | null
-  code: string | null
 }
 
 type TeacherOption = Pick<Teacher, 'id' | 'first_name' | 'last_name' | 'employee_number' | 'is_active'>
@@ -61,13 +54,11 @@ interface ClassFormProps {
   initialAssignments?: AssignmentData[]
   schoolYears: SchoolYear[]
   teachers: TeacherOption[]
-  ues: UEOption[]
   cotisationTypes?: CotisationType[]
   rooms?: RoomOption[]
   backHref?: string
   currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] } | null
   existingSlots?: SlotRow[]
-  weekStartDay?: number
 }
 
 type TeachingMode = 'single' | 'multi' | ''
@@ -85,7 +76,6 @@ type FormData = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const DAY_NAMES = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] as const
 const DAY_NAME_TO_JS: Record<string, number> = {
   Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 0,
 }
@@ -125,13 +115,11 @@ export default function ClassForm({
   initialAssignments = [],
   schoolYears,
   teachers,
-  ues,
   cotisationTypes = [],
   rooms = [],
   backHref = '/dashboard/classes',
   currentSchoolYear,
   existingSlots = [],
-  weekStartDay = 1,
 }: ClassFormProps) {
   const router    = useRouter()
   const toast     = useToast()
@@ -147,7 +135,7 @@ export default function ClassForm({
     max_students:       String(cls?.max_students ?? 30),
     description:        cls?.description        ?? '',
     cotisation_type_id: cls?.cotisation_type_id ?? '',
-    teaching_mode:      (cls?.teaching_mode as TeachingMode) ?? '',
+    teaching_mode:      'single', // V1 : mode Secondaire non géré, toutes les classes sont en Primaire
   })
 
   // ── Slots EDT ─────────────────────────────────────────────────────────────
@@ -173,22 +161,13 @@ export default function ClassForm({
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,   setIsSubmitting]   = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; onConfirm: () => void } | null>(null)
-  const [modeConfirmed,  setModeConfirmed]  = useState(!!cls) // en edition = deja confirmé ; en creation = pas encore
-  const [confirmedMode,  setConfirmedMode]  = useState<TeachingMode | null>(cls ? (cls.teaching_mode as TeachingMode) : null)
-  const modeChanged = modeConfirmed && form.teaching_mode !== confirmedMode
 
   const [assignments,  setAssignments]  = useState<AssignmentData[]>(initialAssignments)
   const [showAddRow,   setShowAddRow]   = useState(false)
   const [addTeacherId, setAddTeacherId] = useState('')
-  const [addIsMain,    setAddIsMain]    = useState(false)
-  const [addSubject,   setAddSubject]   = useState('')
-  const [editingIdx,      setEditingIdx]      = useState<number | null>(null)
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
-  const [editTeacherId, setEditTeacherId] = useState('')
-  const [editSubject,   setEditSubject]   = useState('')
-  const [editIsMain,    setEditIsMain]    = useState(false)
   const [pendingAssignAction, setPendingAssignAction] = useState<{
-    type: 'edit' | 'delete'
+    type: 'delete'
     idx: number
     effectiveDate: string
     applyFn: (date: string) => void
@@ -196,35 +175,43 @@ export default function ClassForm({
   } | null>(null)
 
   const yearActive        = isYearActive(currentSchoolYear)
-  const hasMain           = assignments.filter(a => !a.effective_until).some(a => a.is_main_teacher)
+  const hasActiveMain     = assignments.some(a => !a.effective_until && a.is_main_teacher)
   const assignedIds       = new Set(assignments.map(a => a.teacher_id))
   const availableTeachers = teachers.filter(t => !assignedIds.has(t.id))
 
+  // Accessibilité modale « clôture/modification d'affectation »
+  const assignModalRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!pendingAssignAction) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setPendingAssignAction(null) }
+    document.addEventListener('keydown', handler)
+    assignModalRef.current?.focus()
+    return () => document.removeEventListener('keydown', handler)
+  }, [pendingAssignAction])
+
   const openAddRow = () => {
-    setAddIsMain(false)
     setAddTeacherId('')
-    setAddSubject('')
     setShowAddRow(true)
   }
 
-  const handleAddAssignment = () => {
-    if (!addTeacherId) return
+  // Affecter l'enseignant principal : conserve l'historique clôturé,
+  // date d'effet du nouveau = date de la dernière clôture (sinon depuis le début).
+  const addMainTeacher = () => {
     const teacher = teachers.find(t => t.id === addTeacherId)
     if (!teacher) return
-    let subject = ''
-    if (!addIsMain) {
-      const ue = ues.find(u => u.id === addSubject)
-      if (!ue) return
-      subject = ue.code ? `${ue.code} — ${ue.nom_fr}` : ue.nom_fr
-    }
-    setAssignments(prev => [...prev, {
-      teacher_id:      addTeacherId,
-      teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
-      is_main_teacher: addIsMain,
-      subject,
-      effective_from:  null,
-      effective_until: null,
-    }])
+    const closed = assignments.filter(a => a.effective_until)
+    const lastClose = closed.reduce((m, a) => (a.effective_until! > m ? a.effective_until! : m), '')
+    setAssignments([
+      ...closed,
+      {
+        teacher_id:      addTeacherId,
+        teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
+        is_main_teacher: true,
+        subject:         '',
+        effective_from:  lastClose || null,
+        effective_until: null,
+      },
+    ])
     setShowAddRow(false)
   }
 
@@ -274,15 +261,12 @@ export default function ClassForm({
   }
 
   // ── Validation ────────────────────────────────────────────────────────────
-  const isSingle     = form.teaching_mode === 'single'
   const vName        = form.name.trim().length < 2
   const vCotisation  = !form.cotisation_type_id
-  const vAssignments = isSingle
-    ? !assignments.some(a => a.is_main_teacher)
-    : assignments.length === 0
+  const vAssignments = !hasActiveMain
   const selectedRoom = rooms.find(r => r.id === form.room_id)
   const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
-  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity && modeConfirmed && !modeChanged
+  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const touch = (field: string) => setTouched(prev => new Set([...prev, field]))
   const set = (field: keyof FormData, value: string) =>
@@ -382,61 +366,27 @@ export default function ClassForm({
         }
       }
 
-      // ── Cascade enseignants → slots EDT ──────────────────────────────
-
+      // ── Cascade enseignant principal → slots EDT ─────────────────────
+      // Si le prof principal actif a changé, on réaffecte tous les créneaux.
       if (isEditing) {
-        if (form.teaching_mode === 'single') {
-          // Mode primaire : si le prof principal a changé, MAJ tous les slots
-          const newMain = assignments.find(a => a.is_main_teacher)
-          const oldMain = initialAssignments.find(a => a.is_main_teacher)
-          if (newMain && newMain.teacher_id !== oldMain?.teacher_id) {
-            await supabase
-              .from('schedule_slots')
-              .update({ teacher_id: newMain.teacher_id })
-              .eq('class_id', classId)
-              .eq('is_active', true)
-            logAudit(supabase, {
-              action: 'UPDATE',
-              entityType: 'schedule_slots',
-              description: `Cascade : tous les créneaux de ${form.name.trim()} affectés à ${newMain.teacher_name}`,
-            })
-          }
-        } else {
-          // Mode multi : profs retirés → slots passés en "sans prof"
-          const oldTeacherIds = new Set(initialAssignments.map(a => a.teacher_id))
-          const newTeacherIds = new Set(assignments.map(a => a.teacher_id))
-          const removedIds = [...oldTeacherIds].filter(id => id && !newTeacherIds.has(id))
-
-          for (const removedId of removedIds) {
-            const { count } = await supabase
-              .from('schedule_slots')
-              .select('id', { count: 'exact', head: true })
-              .eq('class_id', classId)
-              .eq('teacher_id', removedId)
-              .eq('is_active', true)
-
-            if (count && count > 0) {
-              await supabase
-                .from('schedule_slots')
-                .update({ teacher_id: null })
-                .eq('class_id', classId)
-                .eq('teacher_id', removedId)
-                .eq('is_active', true)
-
-              const removedName = initialAssignments.find(a => a.teacher_id === removedId)?.teacher_name ?? removedId
-              logAudit(supabase, {
-                action: 'UPDATE',
-                entityType: 'schedule_slots',
-                description: `Cascade : ${count} créneau(x) de ${form.name.trim()} sans prof (retrait de ${removedName})`,
-              })
-              toast.warning(`${count} créneau(x) EDT de ${removedName} passé(s) sans prof affecté.`)
-            }
-          }
+        const newMain = assignments.find(a => !a.effective_until && a.is_main_teacher)
+        const oldMain = initialAssignments.find(a => !a.effective_until && a.is_main_teacher)
+        if (newMain && newMain.teacher_id !== oldMain?.teacher_id) {
+          await supabase
+            .from('schedule_slots')
+            .update({ teacher_id: newMain.teacher_id })
+            .eq('class_id', classId)
+            .eq('is_active', true)
+          logAudit(supabase, {
+            action: 'UPDATE',
+            entityType: 'schedule_slots',
+            description: `Cascade : tous les créneaux de ${form.name.trim()} affectés à ${newMain.teacher_name}`,
+          })
         }
       }
 
       // Réconciliation slots EDT
-      const mainTeacher = assignments.find(a => a.is_main_teacher)
+      const mainTeacher = assignments.find(a => !a.effective_until && a.is_main_teacher)
 
       // 1. Supprimer les slots retirés
       for (const slotId of deletedSlotIds) {
@@ -489,17 +439,9 @@ export default function ClassForm({
         }
       }
 
-      if (isEditing) {
-        initialForm.current      = { ...form }
-        initialAssignStr.current = JSON.stringify(assignments)
-        initialSlotsStr.current  = JSON.stringify(slots)
-        setDeletedSlotIds([])
-        toast.success('Classe enregistrée avec succès.')
-        router.refresh()
-      } else {
-        router.push(backHref)
-        router.refresh()
-      }
+      toast.success(isEditing ? 'Classe modifiée avec succès.' : 'Classe créée avec succès.')
+      router.push(backHref)
+      router.refresh()
     } catch {
       toast.error('Une erreur est survenue. Veuillez réessayer.')
     } finally {
@@ -591,97 +533,20 @@ export default function ClassForm({
             placeholder="Remarques, spécificités de la classe..."
           />
 
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Mode d&apos;enseignement <span className="text-red-400">*</span></span>
-            <div className="flex items-center gap-2">
-              <FloatRadioCard
-                name="teaching_mode" value="single"
-                checked={form.teaching_mode === 'single'}
-                onChange={() => set('teaching_mode', 'single')}
-              >
-                <span className="flex items-center gap-1.5">
-                  <UserCheck size={13} className="text-primary-500 flex-shrink-0" /> Primaire
-                </span>
-              </FloatRadioCard>
-              <FloatRadioCard
-                name="teaching_mode" value="multi"
-                checked={form.teaching_mode === 'multi'}
-                onChange={() => set('teaching_mode', 'multi')}
-              >
-                <span className="flex items-center gap-1.5">
-                  <BookOpen size={13} className="text-secondary-400 flex-shrink-0" /> Secondaire
-                </span>
-              </FloatRadioCard>
-              {(!modeConfirmed || modeChanged) && form.teaching_mode !== '' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (modeChanged) {
-                      const hasDeps = assignments.filter(a => !a.effective_until).length > 0 || slots.length > 0
-                      if (hasDeps) {
-                        const label = form.teaching_mode === 'single' ? 'Primaire' : 'Secondaire'
-                        setPendingConfirm({
-                          title: 'Changement de mode',
-                          message: `Passer en ${label} supprimera les affectations et l'emploi du temps actuels. Continuer ?`,
-                          variant: 'danger',
-                          onConfirm: () => {
-                            setAssignments([])
-                            setSlots([])
-                            setDeletedSlotIds(prev => [...prev, ...slots.filter(s => s.id).map(s => s.id!)])
-                            setModeConfirmed(true)
-                            setConfirmedMode(form.teaching_mode)
-                          },
-                        })
-                        return
-                      }
-                    }
-                    setModeConfirmed(true)
-                    setConfirmedMode(form.teaching_mode)
-                  }}
-                  className="text-xs text-white bg-secondary-700 hover:bg-secondary-800 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shadow-[0_2px_6px_rgba(47,69,80,0.30)]"
-                >
-                  Valider
-                </button>
-              )}
-            </div>
-            <p className="text-[10px] text-warm-400 italic">
-              {form.teaching_mode === 'single'
-                ? 'Un seul professeur principal pour tous les cours.'
-                : form.teaching_mode === 'multi'
-                  ? 'Plusieurs professeurs, chacun affecté à une ou plusieurs matières.'
-                  : 'Choisissez le mode d\'enseignement de cette classe.'}
-            </p>
-          </div>
         </div>
 
-        {/* ── Colonne droite — Affectations enseignants ── */}
+        {/* ── Colonne droite — Enseignant principal ── */}
         <div className="card p-4 space-y-3 flex flex-col">
           <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-            {isSingle ? 'Enseignant principal' : 'Affectations enseignants / matières'} <span className="text-red-400">*</span>
+            Enseignant principal <span className="text-red-400">*</span>
           </h2>
-
-          {(!modeConfirmed || modeChanged) ? (
-            <div className="flex items-center gap-2 text-sm text-warm-400 bg-warm-50 rounded-xl px-4 py-6 text-center justify-center opacity-50">
-              <BookOpen size={14} />
-              Validez le mode d&apos;enseignement pour acceder aux affectations.
-            </div>
-          ) : (<>
 
           {(() => {
             const active  = assignments.filter(a => !a.effective_until)
             const closed  = assignments.filter(a => !!a.effective_until)
-            const sorted  = [...active].sort((x, y) => (x.is_main_teacher === y.is_main_teacher ? 0 : x.is_main_teacher ? -1 : 1))
 
             const isExistingAssignment = (a: AssignmentData) =>
-              initialAssignments.some(ia => ia.teacher_id === a.teacher_id && ia.subject === a.subject && !ia.effective_until)
-
-            const requestEdit = (realIdx: number, applyFn: (date: string) => void) => {
-              if (yearActive && cls && isExistingAssignment(assignments[realIdx])) {
-                setPendingAssignAction({ type: 'edit', idx: realIdx, effectiveDate: todayISO(), applyFn, message: 'L\'ancienne affectation sera cloturee et la nouvelle prendra effet a la date choisie.' })
-              } else {
-                applyFn('')
-              }
-            }
+              initialAssignments.some(ia => ia.teacher_id === a.teacher_id && !ia.effective_until)
 
             const requestDelete = (realIdx: number) => {
               const a = assignments[realIdx]
@@ -691,206 +556,64 @@ export default function ClassForm({
                   applyFn: (date: string) => {
                     setAssignments(prev => prev.map((x, i) => i === realIdx ? { ...x, effective_until: date } : x))
                   },
-                  message: `L'affectation "${a.teacher_name || 'Non affecte'}${a.subject ? ` — ${a.subject}` : ''}" sera cloturee a la date choisie.`,
+                  message: `L'affectation de "${a.teacher_name || 'Non affecté'}" sera clôturée à la date choisie.`,
                 })
               } else {
-                if (isSingle) handleRemoveAssignment(a.teacher_id)
-                else setAssignments(prev => prev.filter((_, i) => i !== realIdx))
+                handleRemoveAssignment(a.teacher_id)
               }
             }
 
             return <>
               {active.length > 0 ? (
                 <div className="border border-warm-100 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm" aria-label="Enseignant principal">
                     <thead>
                       <tr className="bg-warm-50 border-b border-warm-100">
                         <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Enseignant</th>
-                        {!isSingle && (
-                          <>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                            <th className="text-left px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Matière</th>
-                          </>
-                        )}
                         <th className="px-3 py-2 w-8" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-warm-50">
-                      {sorted.map(a => {
+                      {active.map(a => {
                         const realIdx = assignments.indexOf(a)
-                        const isEditing = !isSingle && editingIdx === realIdx
-                        if (isEditing) {
-                          const hasMainOther = active.some(x => x !== a && x.is_main_teacher)
-                          const isCurrentMain = a.is_main_teacher
-                          const canEditCheckbox = isCurrentMain || !hasMainOther
-                          return (
-                            <tr key={`${a.teacher_id}-${a.subject}-edit`} className="bg-warm-50/60">
-                              <td className="px-3 py-2">
-                                <select
-                                  value={editTeacherId}
-                                  onChange={e => setEditTeacherId(e.target.value)}
-                                  className="w-full text-sm border border-warm-200 rounded-lg px-2 py-1.5 bg-white text-secondary-800"
-                                >
-                                  <option value="" />
-                                  {teachers.filter(t => t.is_active).map(t => (
-                                    <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-3 py-2">
-                                <label className={clsx(
-                                  'flex items-center gap-1.5 text-xs whitespace-nowrap',
-                                  (canEditCheckbox && editTeacherId) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'
-                                )}>
-                                  <input
-                                    type="checkbox"
-                                    checked={editIsMain}
-                                    disabled={!canEditCheckbox || !editTeacherId}
-                                    onChange={e => setEditIsMain(e.target.checked)}
-                                    className="accent-primary-500 w-3.5 h-3.5"
-                                  />
-                                  <UserCheck size={11} className="text-primary-500" /> Principal
-                                </label>
-                              </td>
-                              <td className="px-3 py-2">
-                                <select
-                                  value={editSubject}
-                                  onChange={e => setEditSubject(e.target.value)}
-                                  className="w-full text-sm border border-warm-200 rounded-lg px-2 py-1.5 bg-white text-secondary-800"
-                                >
-                                  <option value="" />
-                                  {ues.map(ue => (
-                                    <option key={ue.id} value={ue.code ? `${ue.code} — ${ue.nom_fr}` : ue.nom_fr}>
-                                      {ue.code ? `${ue.code} — ` : ''}{ue.nom_fr}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-3 py-2">
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const duplicate = assignments.some((x, i) => i !== realIdx && !x.effective_until && x.teacher_id === (editTeacherId || '') && x.subject === editSubject)
-                                      if (duplicate) return
-                                      const doApply = (effectiveDate: string) => {
-                                        const teacher = editTeacherId ? teachers.find(t => t.id === editTeacherId) : null
-                                        if (effectiveDate) {
-                                          // En cours d'annee : cloturer l'ancienne, creer la nouvelle
-                                          setAssignments(prev => {
-                                            const updated = prev.map((x, i) => {
-                                              if (i === realIdx) return { ...x, effective_until: effectiveDate }
-                                              if (editIsMain) return { ...x, is_main_teacher: false }
-                                              return x
-                                            })
-                                            updated.push({
-                                              teacher_id:   editTeacherId || '',
-                                              teacher_name: teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
-                                              is_main_teacher: editIsMain,
-                                              subject:      editSubject,
-                                              effective_from: effectiveDate,
-                                              effective_until: null,
-                                            })
-                                            return updated
-                                          })
-                                        } else {
-                                          // Hors annee : modification directe
-                                          setAssignments(prev => prev.map((x, i) => i === realIdx ? {
-                                            ...x,
-                                            teacher_id:   editTeacherId || '',
-                                            teacher_name: teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
-                                            is_main_teacher: editIsMain,
-                                            subject:      editSubject,
-                                          } : editIsMain ? { ...x, is_main_teacher: false } : x))
-                                        }
-                                        setEditingIdx(null)
-                                      }
-                                      requestEdit(realIdx, doApply)
-                                    }}
-                                    disabled={!editSubject}
-                                    className="text-xs text-white bg-primary-500 hover:bg-primary-600 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-                                  >
-                                    OK
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingIdx(null)}
-                                    className="text-xs text-warm-500 hover:text-secondary-700 px-2 py-1 rounded-lg border border-warm-200 transition-colors"
-                                  >
-                                    Annuler
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        }
                         return (
-                          <tr key={`${a.teacher_id}-${a.subject}`} className="hover:bg-warm-50/40">
+                          <tr key={a.teacher_id} className="hover:bg-warm-50/40">
                             <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
                               {a.teacher_name || <span className="text-warm-400 italic">Non affecté</span>}
                               {a.effective_from && (
                                 <span className="ml-1.5 text-[10px] text-warm-400">depuis {fmtDate(a.effective_from)}</span>
                               )}
                             </td>
-                            {!isSingle && (
-                              <>
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                  {a.is_main_teacher ? (
-                                    <span className="inline-flex items-center gap-1 text-xs text-primary-600 font-medium">
-                                      <UserCheck size={11} /> Prof. principal
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-secondary-500">Par matière</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-secondary-500 text-xs">
-                                  {a.subject || <span className="text-warm-300">—</span>}
-                                </td>
-                              </>
-                            )}
                             <td className="px-3 py-2">
-                              <div className="flex items-center gap-1">
-                                {!isSingle && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingIdx(realIdx)
-                                      setEditTeacherId(a.teacher_id)
-                                      setEditSubject(a.subject)
-                                      setEditIsMain(a.is_main_teacher)
-                                    }}
-                                    className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                    title="Modifier"
-                                  >
-                                    <Pencil size={13} />
-                                  </button>
-                                )}
+                              <div className="flex items-center gap-1 justify-end">
                                 {confirmDeleteIdx === realIdx ? (
                                   <>
                                     <button
                                       type="button"
                                       onClick={() => { requestDelete(realIdx); setConfirmDeleteIdx(null) }}
-                                      className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors"
+                                      className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                                     >
                                       Confirmer
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => setConfirmDeleteIdx(null)}
-                                      className="text-xs text-warm-500 hover:text-secondary-700 px-2 py-1 rounded-lg border border-warm-200 transition-colors"
+                                      className="text-xs text-warm-500 hover:text-secondary-700 px-2 py-1 rounded-lg border border-warm-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
                                     >
                                       Annuler
                                     </button>
                                   </>
                                 ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteIdx(realIdx)}
-                                    className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Supprimer"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
+                                  <Tooltip content="Retirer">
+                                    <button
+                                      type="button"
+                                      onClick={() => setConfirmDeleteIdx(realIdx)}
+                                      aria-label={`Retirer ${a.teacher_name}`}
+                                      className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </Tooltip>
                                 )}
                               </div>
                             </td>
@@ -909,13 +632,13 @@ export default function ClassForm({
                 )}>
                   <BookOpen size={14} />
                   {touched.has('assignments') && vAssignments
-                    ? (isSingle ? 'Un enseignant principal est requis.' : 'Au moins une matière doit être affectée.')
-                    : (isSingle ? 'Aucun enseignant affecté.' : 'Aucune affectation.')}
+                    ? 'Un enseignant principal est requis.'
+                    : 'Aucun enseignant affecté.'}
                 </div>
               )}
 
-              {/* ── Historique des affectations cloturees ── */}
-              {closed.length > 0 && !isSingle && (
+              {/* ── Historique des enseignants clôturés ── */}
+              {closed.length > 0 && (
                 <div className="mt-3 space-y-1">
                   <h3 className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Historique</h3>
                   <div className="border border-warm-100 rounded-xl overflow-hidden opacity-60">
@@ -926,12 +649,8 @@ export default function ClassForm({
                             <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">
                               {a.teacher_name || <span className="italic">Non affecté</span>}
                             </td>
-                            <td className="px-3 py-1.5 text-xs text-warm-400">
-                              {a.is_main_teacher && <span className="text-primary-400 font-medium">Principal · </span>}
-                              {a.subject || '—'}
-                            </td>
                             <td className="px-3 py-1.5 text-[10px] text-warm-400 whitespace-nowrap text-right">
-                              {a.effective_from ? fmtDate(a.effective_from) : 'Debut'} — {a.effective_until ? fmtDate(a.effective_until) : ''}
+                              {a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : ''}
                             </td>
                           </tr>
                         ))}
@@ -945,128 +664,34 @@ export default function ClassForm({
 
           {showAddRow ? (
             <div className="bg-warm-50 border border-warm-200 rounded-xl p-3 space-y-3">
-              <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-                {isSingle ? 'Enseignant principal' : 'Nouvelle affectation'}
-              </p>
-
-              {isSingle ? (
-                /* Mode single : juste un select enseignant */
-                <FloatSelect label="Enseignant" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
-                  <option value="" />
-                  {availableTeachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-                  ))}
-                </FloatSelect>
-              ) : (
-                /* Mode multi : matiere obligatoire, enseignant optionnel */
-                <>
-                  {ues.length === 0 ? (
-                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      Aucune UE disponible. Créez d&apos;abord des Unités d&apos;Enseignement dans la section Cours.
-                    </p>
-                  ) : (
-                    <FloatSelect label="Matière (UE)" required value={addSubject} onChange={e => setAddSubject(e.target.value)}>
-                      <option value="" />
-                      {ues.map(ue => (
-                        <option key={ue.id} value={ue.id}>{ue.code ? `${ue.code} — ` : ''}{ue.nom_fr}</option>
-                      ))}
-                    </FloatSelect>
-                  )}
-
-                  <FloatSelect label="Enseignant (optionnel)" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
-                    <option value="" />
-                    {teachers.filter(t => t.is_active).map(t => (
-                      <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-                    ))}
-                  </FloatSelect>
-
-                  <label className={clsx(
-                    'flex items-center gap-2 text-sm',
-                    (hasMain || !addTeacherId) && 'opacity-40 cursor-not-allowed'
-                  )}>
-                    <input
-                      type="checkbox"
-                      checked={addIsMain}
-                      disabled={hasMain || !addTeacherId}
-                      onChange={e => setAddIsMain(e.target.checked)}
-                      className="accent-primary-500 w-4 h-4"
-                    />
-                    <UserCheck size={13} className="text-primary-500 flex-shrink-0" />
-                    <span className="text-secondary-700 font-medium">Prof. principal</span>
-                  </label>
-                  {hasMain && <p className="text-xs text-warm-400 italic">Un prof. principal est déjà affecté.</p>}
-                </>
-              )}
-
+              <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Enseignant principal</p>
+              <FloatSelect label="Enseignant" value={addTeacherId} onChange={e => setAddTeacherId(e.target.value)}>
+                <option value="" />
+                {availableTeachers.map(t => (
+                  <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+                ))}
+              </FloatSelect>
               <div className="flex gap-2 justify-end pt-1">
                 <FloatButton type="button" variant="secondary" onClick={() => setShowAddRow(false)}>Annuler</FloatButton>
-                <FloatButton
-                  type="button" variant="submit"
-                  onClick={() => {
-                    if (isSingle) {
-                      // Mode single : ajouter comme prof principal
-                      const teacher = teachers.find(t => t.id === addTeacherId)
-                      if (!teacher) return
-                      setAssignments([{
-                        teacher_id:      addTeacherId,
-                        teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
-                        is_main_teacher: true,
-                        subject:         '',
-                        effective_from:  null,
-                        effective_until: null,
-                      }])
-                      setShowAddRow(false)
-                    } else {
-                      // Mode multi : matiere obligatoire, prof optionnel
-                      const ue = ues.find(u => u.id === addSubject)
-                      if (!ue) return
-                      const subject = ue.code ? `${ue.code} — ${ue.nom_fr}` : ue.nom_fr
-                      const teacher = addTeacherId ? teachers.find(t => t.id === addTeacherId) : null
-                      if (assignments.some(a => !a.effective_until && a.teacher_id === (addTeacherId || '') && a.subject === subject)) return
-                      setAssignments(prev => [...prev, {
-                        teacher_id:      addTeacherId || '',
-                        teacher_name:    teacher ? `${teacher.last_name} ${teacher.first_name}` : '',
-                        is_main_teacher: addIsMain,
-                        subject,
-                        effective_from:  null,
-                        effective_until: null,
-                      }])
-                      setShowAddRow(false)
-                    }
-                  }}
-                  disabled={isSingle ? !addTeacherId : (!addSubject || ues.length === 0)}
-                >
+                <FloatButton type="button" variant="submit" onClick={addMainTeacher} disabled={!addTeacherId}>
                   Valider
                 </FloatButton>
               </div>
             </div>
           ) : (
-            (isSingle ? !assignments.some(a => a.is_main_teacher) : true) && (
+            !hasActiveMain && (
               <button
                 type="button" onClick={openAddRow}
-                className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 transition-colors self-start"
+                className="text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors self-start rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
-                <Plus size={14} /> {isSingle ? 'Affecter un enseignant' : 'Ajouter une affectation'}
+                Affecter un enseignant
               </button>
             )
           )}
-          </>)}
         </div>
       </div>
 
       {/* ── Planning EDT ── */}
-      {!isSingle ? (
-        <div className="card p-4">
-          <div className="flex items-center gap-2">
-            <CalendarDays size={14} className="text-primary-500" />
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Planning EDT</h2>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-warm-500 bg-warm-50 rounded-xl px-4 py-3 mt-3">
-            <Info size={14} className="text-primary-500 flex-shrink-0" />
-            En mode secondaire, l'emploi du temps se gère depuis la page Emploi du temps avec le drag & drop des matières.
-          </div>
-        </div>
-      ) : (
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1083,7 +708,7 @@ export default function ClassForm({
               className="!px-2.5 !py-1 !text-xs !rounded"
               onClick={() => { setEditingSlotIdx(null); setSlotOverlapErr(null); setShowSlotForm(true) }}
             >
-              <Plus size={12} /> Ajouter
+              Ajouter
             </FloatButton>
           )}
         </div>
@@ -1122,20 +747,24 @@ export default function ClassForm({
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1 justify-end">
-                          <button
-                            type="button" onClick={() => handleEditSlot(idx)}
-                            className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
-                            title="Modifier"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                          <button
-                            type="button" onClick={() => handleDeleteSlot(idx)}
-                            className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          <Tooltip content="Modifier">
+                            <button
+                              type="button" onClick={() => handleEditSlot(idx)}
+                              aria-label={`Modifier le créneau ${slot.day_of_week} ${slot.start_time.slice(0, 5)}`}
+                              className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Supprimer">
+                            <button
+                              type="button" onClick={() => handleDeleteSlot(idx)}
+                              aria-label={`Supprimer le créneau ${slot.day_of_week} ${slot.start_time.slice(0, 5)}`}
+                              className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
@@ -1168,7 +797,6 @@ export default function ClassForm({
           onCancel={() => { setShowSlotForm(false); setEditingSlotIdx(null); setSlotOverlapErr(null) }}
         />
       </div>
-      )}
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-3 pt-1">
@@ -1191,24 +819,36 @@ export default function ClassForm({
 
     {/* Modale confirmation modification/suppression affectation en cours d'annee */}
     {pendingAssignAction && (
-      <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-fade-in" onClick={e => e.stopPropagation()}>
+      <div
+        className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
+        onClick={() => setPendingAssignAction(null)}
+      >
+        <div
+          ref={assignModalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="assign-modal-title"
+          tabIndex={-1}
+          className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-fade-in outline-none"
+          onClick={e => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-            <h3 className="text-sm font-bold text-secondary-800">
+            <h3 id="assign-modal-title" className="text-sm font-bold text-secondary-800">
               {pendingAssignAction.type === 'delete' ? 'Confirmer la cloture' : 'Confirmer la modification'}
             </h3>
           </div>
           <div className="px-5 py-4 space-y-3">
             <p className="text-sm text-warm-700">{pendingAssignAction.message}</p>
             <div>
-              <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date d&apos;effet</label>
+              <label htmlFor="assign-effective-date" className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date d&apos;effet</label>
               <input
+                id="assign-effective-date"
                 type="date"
                 value={pendingAssignAction.effectiveDate}
                 min={todayISO()}
                 max={currentSchoolYear?.end_date ?? undefined}
                 onChange={e => setPendingAssignAction(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
-                className="mt-1 w-full text-sm border border-warm-200 rounded-lg px-3 py-2 bg-white text-secondary-800"
+                className="mt-1 w-full text-sm border border-warm-200 rounded-lg px-3 py-2 bg-white text-secondary-800 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               />
             </div>
           </div>
@@ -1272,12 +912,14 @@ function SlotFormModal({
   const [effectiveFrom,  setEffectiveFrom]  = useState(initial?.effective_from  ?? '')
   const [effectiveUntil, setEffectiveUntil] = useState(initial?.effective_until ?? '')
   const [err,            setErr]            = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
-  // Fermer sur Escape
+  // Fermer sur Escape + focus initial
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
     document.addEventListener('keydown', handler)
+    panelRef.current?.focus()
     return () => document.removeEventListener('keydown', handler)
   }, [open, onCancel])
 
@@ -1310,19 +952,28 @@ function SlotFormModal({
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30" onClick={onCancel}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-fade-in"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="slot-modal-title"
+        tabIndex={-1}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-fade-in outline-none"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
           <div className="flex items-center gap-2">
             <CalendarDays size={15} className="text-primary-500" />
-            <h3 className="text-sm font-bold text-secondary-800">
+            <h3 id="slot-modal-title" className="text-sm font-bold text-secondary-800">
               {initial ? 'Modifier le créneau' : 'Nouveau créneau'}
             </h3>
           </div>
-          <button type="button" onClick={onCancel} className="p-1 rounded-lg hover:bg-warm-100 text-warm-400">
-            <Plus size={16} className="rotate-45" />
+          <button
+            type="button" onClick={onCancel}
+            aria-label="Fermer"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          >
+            <X size={16} />
           </button>
         </div>
 

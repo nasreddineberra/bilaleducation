@@ -119,7 +119,9 @@ export default function LoginPage() {
       window.location.href = '/dashboard'
     } catch (err: any) {
       const msg = err.message ?? ''
-      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+      if (msg.includes('ACCOUNT_DISABLED')) {
+        setError('Votre compte est désactivé. Contactez l\'administration de l\'établissement.')
+      } else if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
         setError('Email ou mot de passe incorrect.')
       } else if (msg.includes('Email not confirmed')) {
         setError('Votre adresse email n\'est pas confirmée.')

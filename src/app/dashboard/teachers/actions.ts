@@ -147,6 +147,102 @@ export async function updateTeacher(
     return { error: 'Erreur lors de la mise à jour.' }
   }
 
+  // Synchroniser l'état du compte de connexion avec la fiche (actif ↔ actif)
+  const { error: syncError } = await supabase.rpc('set_teacher_profile_active', {
+    p_teacher_id: teacherId,
+    p_active:     data.is_active,
+  })
+  if (syncError) console.error('[updateTeacher] Échec sync compte de connexion:', syncError)
+
+  return {}
+}
+
+// ─── Activer / désactiver un enseignant + son compte de connexion ─────────────
+
+export async function setTeacherActive(
+  teacherId: string,
+  active: boolean,
+): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient() // client SESSION → audit tracé
+
+  const { error } = await supabase.from('teachers').update({ is_active: active }).eq('id', teacherId)
+  if (error) return { error: 'Erreur lors de la mise à jour du statut.' }
+
+  const { error: syncError } = await supabase.rpc('set_teacher_profile_active', {
+    p_teacher_id: teacherId,
+    p_active:     active,
+  })
+  if (syncError) console.error('[setTeacherActive] Échec sync compte de connexion:', syncError)
+
+  return {}
+}
+
+// ─── Supprimer définitivement un enseignant (fiche + compte) ──────────────────
+// Uniquement si aucune donnée liée ne le référence.
+
+export async function deleteTeacher(teacherId: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient() // client SESSION → audit tracé
+  const admin = createAdminClient()     // suppression Storage + compte auth
+
+  // 1. Re-contrôle serveur des dépendances bloquantes
+  const [
+    { count: classesCount },
+    { count: slotsCount },
+    { count: exceptionsCount },
+    { count: schedulesCount },
+    { count: evaluationsCount },
+    { count: gradesCount },
+  ] = await Promise.all([
+    supabase.from('class_teachers').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+    supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+    supabase.from('schedule_exceptions').select('id', { count: 'exact', head: true }).eq('override_teacher_id', teacherId),
+    supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+    supabase.from('evaluations').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+    supabase.from('grades').select('id', { count: 'exact', head: true }).eq('graded_by', teacherId),
+  ])
+
+  const total = (classesCount ?? 0) + (slotsCount ?? 0) + (exceptionsCount ?? 0)
+    + (schedulesCount ?? 0) + (evaluationsCount ?? 0) + (gradesCount ?? 0)
+  if (total > 0) {
+    return { error: 'Des données sont rattachées à cet enseignant. Rendez-le inactif plutôt que de le supprimer.' }
+  }
+
+  // 2. Récupérer le compte lié et les fichiers Storage
+  const { data: teacher } = await supabase.from('teachers').select('user_id').eq('id', teacherId).single()
+  const { data: docs } = await supabase.from('teacher_documents').select('file_url').eq('teacher_id', teacherId)
+
+  // 3. Supprimer les fichiers du bucket (les lignes teacher_documents partent en cascade)
+  if (docs && docs.length > 0) {
+    const paths = docs.map(d => (d as { file_url: string }).file_url).filter(Boolean)
+    if (paths.length > 0) {
+      await admin.storage.from('teacher-documents').remove(paths).catch((e) =>
+        console.error('[deleteTeacher] Échec suppression Storage:', e)
+      )
+    }
+  }
+
+  // 4. Supprimer la fiche (client session → audit ; cascade teacher_documents)
+  const { error: delError } = await supabase.from('teachers').delete().eq('id', teacherId)
+  if (delError) {
+    if (delError.code === '23503') {
+      return { error: 'Des données sont rattachées à cet enseignant. Rendez-le inactif plutôt que de le supprimer.' }
+    }
+    return { error: 'Erreur lors de la suppression.' }
+  }
+
+  // 5. Supprimer le compte auth (le profil part en cascade via la migration)
+  if (teacher?.user_id) {
+    await admin.auth.admin.deleteUser(teacher.user_id).catch((e) =>
+      console.error('[deleteTeacher] Échec suppression compte auth:', e)
+    )
+  }
+
   return {}
 }
 

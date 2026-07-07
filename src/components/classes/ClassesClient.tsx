@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, BookOpen, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
+import { X, BookOpen, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { logAudit } from '@/lib/audit'
 import { clsx } from 'clsx'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,18 +131,22 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
       <div className="flex items-center gap-3 flex-wrap">
         <ListStatCard value={classes.length} label="au total" />
         <div className="flex-1" />
-        <SearchField value={search} onChange={setSearch} placeholder="Nom, niveau..." />
+        <SearchField value={search} onChange={setSearch} placeholder="Nom, niveau..." ariaLabel="Rechercher une classe" />
         <FloatButton type="button" variant="submit" onClick={() => router.push('/dashboard/classes/new')}>
-          <Plus size={14} /> Ajouter
+          Ajouter
         </FloatButton>
       </div>
 
       {/* Erreur suppression */}
       {deleteError && !deleteTarget && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
+        <div role="alert" aria-live="assertive" className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-center justify-between gap-3">
           <span>{deleteError}</span>
-          <button onClick={() => setDeleteError(null)} className="text-red-400 hover:text-red-600">
-            <Plus size={14} className="rotate-45" />
+          <button
+            onClick={() => setDeleteError(null)}
+            aria-label="Fermer le message d'erreur"
+            className="text-red-400 hover:text-red-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+          >
+            <X size={14} />
           </button>
         </div>
       )}
@@ -161,7 +166,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs" aria-label="Classes">
             <thead>
               <tr className="border-b border-warm-100">
                 <th className="text-left list-th">Nom</th>
@@ -178,9 +183,19 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                 const teachers     = cls.class_teachers ?? []
 
                 return (
-                  <tr key={cls.id} className="hover:bg-warm-50/50 transition-colors">
+                  <tr
+                    key={cls.id}
+                    onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
+                    className="cursor-pointer hover:bg-warm-50/50 transition-colors"
+                  >
                     <td className="list-td whitespace-nowrap">
-                      <span className="list-name font-semibold text-secondary-800">{cls.name}</span>
+                      <Link
+                        href={`/dashboard/classes/${cls.id}`}
+                        onClick={e => e.stopPropagation()}
+                        className="list-name font-semibold text-secondary-800 hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                      >
+                        {cls.name}
+                      </Link>
                       {cls.cotisation_types && (
                         <span className={clsx(
                           'ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
@@ -231,22 +246,26 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         </div>
                       )}
                     </td>
-                    <td className="list-td">
+                    <td className="list-td" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
-                        <button
-                          onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
-                          className="p-1.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          onClick={() => startDelete(cls)}
-                          className="p-1.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <Tooltip content="Modifier">
+                          <button
+                            onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
+                            aria-label={`Modifier ${cls.name}`}
+                            className="p-1.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Supprimer">
+                          <button
+                            onClick={() => startDelete(cls)}
+                            aria-label={`Supprimer ${cls.name}`}
+                            className="p-1.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>
