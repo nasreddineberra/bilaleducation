@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { Plus, X, Pencil } from 'lucide-react'
+import { X, Pencil } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 
@@ -189,6 +190,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   const [editingVacLabel, setEditingVacLabel] = useState<string | null>(null)
   const [vacLabelDraft, setVacLabelDraft]     = useState('')
   const [showVacModal, setShowVacModal]       = useState(false)
+
+  // Modale vacances : fermeture Échap (sauf pendant l'édition d'un libellé)
+  useEffect(() => {
+    if (!showVacModal) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !editingVacLabel) setShowVacModal(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showVacModal, editingVacLabel])
 
   // Semaines entre rentrée et fin
   const weeks = useMemo(() => getWeeksBetween(form.start_date, form.end_date, wsd), [form.start_date, form.end_date, wsd])
@@ -476,7 +485,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         if (errEval) throw errEval
       }
 
-      toast.success('Année scolaire enregistrée avec succès.')
+      toast.success(isEditing ? 'Année scolaire modifiée avec succès.' : 'Année scolaire créée avec succès.')
       router.push('/dashboard/annee-scolaire')
       router.refresh()
     } catch (err: unknown) {
@@ -693,6 +702,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                           value={opt.acronym}
                           onChange={e => updateDiagnosticOption(i, 'acronym', e.target.value)}
                           placeholder="AC"
+                          aria-label={`Acronyme option ${i + 1}`}
                           className="input text-sm py-0.5 w-20"
                         />
                         <input
@@ -700,26 +710,29 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                           value={opt.comment}
                           onChange={e => updateDiagnosticOption(i, 'comment', e.target.value)}
                           placeholder="ex. Acquis Consolidé"
+                          aria-label={`Commentaire option ${i + 1}`}
                           className="input text-sm py-0.5 flex-1"
                         />
                         {form.diagnostic_options.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeDiagnosticOption(i)}
-                            className="p-1 text-warm-300 hover:text-danger-500 rounded transition-colors"
-                            title="Supprimer"
-                          >
-                            <X size={13} />
-                          </button>
+                          <Tooltip content="Supprimer">
+                            <button
+                              type="button"
+                              onClick={() => removeDiagnosticOption(i)}
+                              aria-label={`Supprimer l'option ${opt.acronym || i + 1}`}
+                              className="p-1 text-warm-300 hover:text-danger-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+                            >
+                              <X size={13} />
+                            </button>
+                          </Tooltip>
                         )}
                       </div>
                     ))}
                     <button
                       type="button"
                       onClick={addDiagnosticOption}
-                      className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-0.5"
+                      className="text-xs text-primary-700 hover:underline rounded px-1 mt-0.5 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                     >
-                      <Plus size={12} /> Ajouter une option
+                      Ajouter une option
                     </button>
                     {vDiagOptions && hasSubmitted && (
                       <p className="text-xs text-red-500 mt-1">Au moins une option avec un acronyme est requise.</p>
@@ -816,13 +829,22 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
       {/* ── Modale Vacances scolaires ──────────────────────────────────────── */}
       {showVacModal && weeks.length > 0 && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl animate-fade-in flex flex-col max-h-[90vh]">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowVacModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vac-modal-title"
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl animate-fade-in flex flex-col max-h-[90vh]"
+          >
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
               <div>
-                <h2 className="text-base font-bold text-secondary-800">Vacances scolaires</h2>
+                <h2 id="vac-modal-title" className="text-base font-bold text-secondary-800">Vacances scolaires</h2>
                 <p className="text-xs text-warm-500 mt-0.5">
                   {vacationMondaySet.size > 0
                     ? `${vacationMondaySet.size} semaine${vacationMondaySet.size > 1 ? 's' : ''} sélectionnée${vacationMondaySet.size > 1 ? 's' : ''}`
@@ -832,7 +854,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <button
                 type="button"
                 onClick={() => setShowVacModal(false)}
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                aria-label="Fermer"
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
                 <X size={18} />
               </button>
@@ -929,14 +952,16 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                           {v.label || <span className="text-warm-400 italic">Sans nom</span>}
                         </span>
                         <span className="text-[11px] text-warm-500">{fmtShort(start)}–{fmtShort(end)}</span>
-                        <button
-                          type="button"
-                          onClick={() => { setEditingVacLabel(groupKey); setVacLabelDraft(v.label) }}
-                          className="p-0.5 text-warm-400 hover:text-secondary-700 rounded transition-colors"
-                          title="Renommer"
-                        >
-                          <Pencil size={11} />
-                        </button>
+                        <Tooltip content="Renommer">
+                          <button
+                            type="button"
+                            onClick={() => { setEditingVacLabel(groupKey); setVacLabelDraft(v.label) }}
+                            aria-label={`Renommer la période ${v.label || 'sans nom'}`}
+                            className="p-0.5 text-warm-400 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                        </Tooltip>
                       </div>
                     )
                   })}

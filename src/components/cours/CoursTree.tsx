@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ChevronRight, ChevronDown, BookOpen,
-  Plus, Pencil, Trash2, Check, X, Search, GripVertical,
+  Pencil, Trash2, Check, X, GripVertical,
 } from 'lucide-react'
-import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton, SearchField } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { UniteEnseignement, CoursModule, Cours } from '@/types/database'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -108,6 +108,7 @@ function InlineForm({
               type="color"
               value={f.value || '#3B82F6'}
               onChange={e => f.onChange(e.target.value)}
+              aria-label={f.label}
               className="w-full h-8 rounded cursor-pointer border border-warm-200"
               disabled={submitting}
             />
@@ -118,6 +119,7 @@ function InlineForm({
               value={f.value}
               onChange={e => f.onChange(e.target.value)}
               placeholder={f.placeholder ?? ''}
+              aria-label={f.label}
               className="input text-sm py-1 w-full"
               disabled={submitting}
               autoFocus={i === 0}
@@ -125,12 +127,16 @@ function InlineForm({
           )}
         </div>
       ))}
-      <FloatButton type="button" variant="submit" onClick={onSubmit} disabled={submitting} className="self-end">
-        <Check size={13} />
-      </FloatButton>
-      <FloatButton type="button" variant="secondary" onClick={onCancel} disabled={submitting} className="self-end">
-        <X size={13} />
-      </FloatButton>
+      <Tooltip content="Valider">
+        <FloatButton type="button" variant="submit" onClick={onSubmit} disabled={submitting} aria-label="Valider" className="self-end">
+          <Check size={13} />
+        </FloatButton>
+      </Tooltip>
+      <Tooltip content="Annuler">
+        <FloatButton type="button" variant="secondary" onClick={onCancel} disabled={submitting} aria-label="Annuler" className="self-end">
+          <X size={13} />
+        </FloatButton>
+      </Tooltip>
     </div>
   )
 }
@@ -139,22 +145,39 @@ function InlineForm({
 
 const arStyle: React.CSSProperties = { fontFamily: "'Amiri Typewriter', serif" }
 
+// Réf en MAJUSCULES ; Nom (FR) : 1re lettre en majuscule
+const toRef    = (v: string) => v.toUpperCase()
+const capFirst = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v)
+
+// Normalisation pour la recherche : minuscules + suppression des accents
+// (« écr » = « ecr » = « ECR »). Conserve la longueur (accents = 1 diacritique) → aligné 1:1.
+const norm = (s: string | null | undefined) =>
+  (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+
 // ─── Surlignage du texte recherché ───────────────────────────────────────────
 
 function Highlight({ text, query }: { text: string; query: string }) {
-  if (!query.trim()) return <>{text}</>
-  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
-  const q = query.trim().toLowerCase()
-  return (
-    <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === q
-          ? <mark key={i} className="bg-amber-200 text-amber-900 rounded-sm not-italic px-px">{part}</mark>
-          : part ? <span key={i}>{part}</span> : null
-      )}
-    </>
-  )
+  const nq = norm(query.trim())
+  if (!nq) return <>{text}</>
+  // norm() conserve la longueur (accents = 1 diacritique) → indices alignés sur `text`.
+  const nt = norm(text)
+  const out: React.ReactNode[] = []
+  let i = 0, key = 0
+  while (i <= text.length) {
+    const idx = nt.indexOf(nq, i)
+    if (idx === -1) {
+      if (i < text.length) out.push(<span key={key++}>{text.slice(i)}</span>)
+      break
+    }
+    if (idx > i) out.push(<span key={key++}>{text.slice(i, idx)}</span>)
+    out.push(
+      <mark key={key++} className="bg-amber-200 text-amber-900 rounded-sm not-italic px-px">
+        {text.slice(idx, idx + nq.length)}
+      </mark>
+    )
+    i = idx + nq.length
+  }
+  return <>{out}</>
 }
 
 // ─── Ligne de cours ────────────────────────────────────────────────────────────
@@ -209,20 +232,24 @@ function CourseRow({
           <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
         )}
       </div>
-      <button
-        onClick={() => openEdit({ kind: 'cours', item: c })}
-        className="p-1 text-warm-300 hover:text-primary-600 hover:bg-primary-50 rounded opacity-0 group-hover:opacity-100 transition-all"
-        title="Modifier"
-      >
-        <Pencil size={12} />
-      </button>
-      <button
-        onClick={() => { setConfirmDelete({ kind: 'cours', id: c.id, nom: c.nom_fr }); setDeleteError(null) }}
-        className="p-1 text-warm-300 hover:text-danger-500 hover:bg-danger-50 rounded opacity-0 group-hover:opacity-100 transition-all"
-        title="Supprimer"
-      >
-        <Trash2 size={12} />
-      </button>
+      <Tooltip content="Modifier">
+        <button
+          onClick={() => openEdit({ kind: 'cours', item: c })}
+          aria-label={`Modifier ${c.nom_fr}`}
+          className="p-1 text-warm-300 hover:text-primary-600 hover:bg-primary-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        >
+          <Pencil size={12} />
+        </button>
+      </Tooltip>
+      <Tooltip content="Supprimer">
+        <button
+          onClick={() => { setConfirmDelete({ kind: 'cours', id: c.id, nom: c.nom_fr }); setDeleteError(null) }}
+          aria-label={`Supprimer ${c.nom_fr}`}
+          className="p-1 text-warm-300 hover:text-danger-500 hover:bg-danger-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+        >
+          <Trash2 size={12} />
+        </button>
+      </Tooltip>
     </div>
   )
 }
@@ -256,12 +283,17 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
           {...listeners}
           className="text-warm-300 hover:text-warm-500 cursor-grab active:cursor-grabbing flex-shrink-0"
           tabIndex={-1}
-          title="Réordonner"
+          aria-label="Réordonner le module"
         >
           <GripVertical size={12} />
         </button>
         {/* Flèche expand/collapse */}
-        <button onClick={() => toggleModule(mod.id)} className="text-warm-400 hover:text-secondary-600 transition-colors flex-shrink-0">
+        <button
+          onClick={() => toggleModule(mod.id)}
+          aria-label={modExpanded ? `Replier ${mod.nom_fr}` : `Déplier ${mod.nom_fr}`}
+          aria-expanded={modExpanded}
+          className="text-warm-400 hover:text-secondary-600 transition-colors flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        >
           {modExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
 
@@ -284,12 +316,16 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
                 <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={mod.nom_ar} query={search} /></span>
               )}
             </div>
-            <button onClick={() => openEdit({ kind: 'module', item: mod })} className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0" title="Modifier">
-              <Pencil size={12} />
-            </button>
-            <button onClick={() => { setConfirmDelete({ kind: 'module', id: mod.id, nom: mod.nom_fr }); setDeleteError(null) }} className="p-1 text-warm-400 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0" title="Supprimer">
-              <Trash2 size={12} />
-            </button>
+            <Tooltip content="Modifier">
+              <button onClick={() => openEdit({ kind: 'module', item: mod })} aria-label={`Modifier ${mod.nom_fr}`} className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+                <Pencil size={12} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Supprimer">
+              <button onClick={() => { setConfirmDelete({ kind: 'module', id: mod.id, nom: mod.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${mod.nom_fr}`} className="p-1 text-warm-400 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
+                <Trash2 size={12} />
+              </button>
+            </Tooltip>
           </>
         )}
       </div>
@@ -319,8 +355,8 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
               <InlineForm fields={coursFields} onSubmit={() => handleAddCours(ue.id, mod.id)} onCancel={cancel} submitting={submitting} />
             </div>
           ) : (
-            <button onClick={() => openAdd({ kind: 'cours', ueId: ue.id, moduleId: mod.id })} className="text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 mt-px py-px">
-              <Plus size={11} /> Ajouter un cours
+            <button onClick={() => openAdd({ kind: 'cours', ueId: ue.id, moduleId: mod.id })} className="text-xs text-primary-700 hover:underline mt-px py-px rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+              Ajouter un cours
             </button>
           )}
         </div>
@@ -392,7 +428,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
           {...listeners}
           className="text-warm-300 hover:text-warm-500 cursor-grab active:cursor-grabbing flex-shrink-0"
           tabIndex={-1}
-          title="Réordonner"
+          aria-label="Réordonner l'unité d'enseignement"
         >
           <GripVertical size={14} />
         </button>
@@ -406,7 +442,9 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
         {/* Flèche expand/collapse */}
         <button
           onClick={() => toggleUE(ue.id)}
-          className="text-warm-500 hover:text-secondary-700 transition-colors flex-shrink-0"
+          aria-label={ueExpanded ? `Replier ${ue.nom_fr}` : `Déplier ${ue.nom_fr}`}
+          aria-expanded={ueExpanded}
+          className="text-warm-500 hover:text-secondary-700 transition-colors flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
         >
           {ueExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
@@ -429,12 +467,16 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
                 <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={ue.nom_ar} query={search} /></span>
               )}
             </div>
-            <button onClick={() => openEdit({ kind: 'ue', item: ue })} className="p-0.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0" title="Modifier">
-              <Pencil size={12} />
-            </button>
-            <button onClick={() => { setConfirmDelete({ kind: 'ue', id: ue.id, nom: ue.nom_fr }); setDeleteError(null) }} className="p-0.5 text-warm-400 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0" title="Supprimer">
-              <Trash2 size={12} />
-            </button>
+            <Tooltip content="Modifier">
+              <button onClick={() => openEdit({ kind: 'ue', item: ue })} aria-label={`Modifier ${ue.nom_fr}`} className="p-0.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+                <Pencil size={12} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Supprimer">
+              <button onClick={() => { setConfirmDelete({ kind: 'ue', id: ue.id, nom: ue.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${ue.nom_fr}`} className="p-0.5 text-warm-400 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
+                <Trash2 size={12} />
+              </button>
+            </Tooltip>
           </>
         )}
       </div>
@@ -459,8 +501,8 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
               <InlineForm fields={moduleFields} onSubmit={() => handleAddModule(ue.id)} onCancel={cancel} submitting={submitting} />
             </div>
           ) : (
-            <button onClick={() => openAdd({ kind: 'module', ueId: ue.id })} className="ml-5 text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1 py-px mt-px">
-              <Plus size={11} /> Ajouter un module
+            <button onClick={() => openAdd({ kind: 'module', ueId: ue.id })} className="ml-5 text-xs text-primary-700 hover:underline py-px mt-px rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+              Ajouter un module
             </button>
           )}
 
@@ -495,8 +537,8 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
 
           {/* Bouton cours direct */}
           {directCours.length === 0 && !(adding?.kind === 'cours' && adding.moduleId === null && adding.ueId === ue.id) && (
-            <button onClick={() => openAdd({ kind: 'cours', ueId: ue.id, moduleId: null })} className="ml-5 text-xs text-warm-400 hover:text-primary-500 flex items-center gap-1 py-px mt-px">
-              <Plus size={11} /> Ajouter un cours direct
+            <button onClick={() => openAdd({ kind: 'cours', ueId: ue.id, moduleId: null })} className="ml-5 text-xs text-primary-700 hover:underline py-px mt-px rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+              Ajouter un cours direct
             </button>
           )}
 
@@ -527,34 +569,47 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   const [fCode,  setFCode]  = useState('')   // ref UE
   const [fColor, setFColor] = useState('')   // couleur UE
   const [fRef,   setFRef]   = useState('')   // ref module / cours
+  const prevSearchRef = useRef(search)       // pour ne réagir qu'aux changements de recherche
 
   // Synchroniser si les props changent (après router.refresh())
   useEffect(() => { setOrderedUEs(ues) }, [ues])
 
-  // Auto-expand/collapse selon la recherche
+  // Modale de suppression : fermeture Échap
   useEffect(() => {
+    if (!confirmDelete) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setConfirmDelete(null); setDeleteError(null) } }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [confirmDelete])
+
+  // Auto-expand/collapse selon la recherche.
+  // On ne réagit qu'aux VRAIS changements de recherche : un rafraîchissement de
+  // données (après création/modification) ne doit pas replier l'arbre déroulé.
+  useEffect(() => {
+    if (prevSearchRef.current === search) return
+    prevSearchRef.current = search
     if (!search.trim()) {
       setExpandedUEs(new Set())
       setExpandedModules(new Set())
       return
     }
-    const q = search.toLowerCase()
+    const q = norm(search)
     const matchingUEIds = new Set(
       ues.filter(ue => {
-        if (ue.nom_fr.toLowerCase().includes(q)) return true
-        if (ue.nom_ar?.toLowerCase().includes(q)) return true
-        if (ue.code?.toLowerCase().includes(q)) return true
+        if (norm(ue.nom_fr).includes(q)) return true
+        if (norm(ue.nom_ar).includes(q)) return true
+        if (norm(ue.code).includes(q)) return true
         const ueMods = modules.filter(m => m.unite_enseignement_id === ue.id)
-        if (ueMods.some(m => m.nom_fr.toLowerCase().includes(q) || m.nom_ar?.toLowerCase().includes(q))) return true
+        if (ueMods.some(m => norm(m.nom_fr).includes(q) || norm(m.nom_ar).includes(q) || norm(m.code).includes(q))) return true
         const ueCours = cours.filter(c => c.unite_enseignement_id === ue.id)
-        if (ueCours.some(c => c.nom_fr.toLowerCase().includes(q) || c.nom_ar?.toLowerCase().includes(q))) return true
+        if (ueCours.some(c => norm(c.nom_fr).includes(q) || norm(c.nom_ar).includes(q) || norm(c.code).includes(q))) return true
         return false
       }).map(ue => ue.id)
     )
     const matchingModuleIds = new Set(
       modules.filter(mod =>
         cours.some(c => c.module_id === mod.id &&
-          (c.nom_fr.toLowerCase().includes(q) || c.nom_ar?.toLowerCase().includes(q)))
+          (norm(c.nom_fr).includes(q) || norm(c.nom_ar).includes(q) || norm(c.code).includes(q)))
       ).map(mod => mod.id)
     )
     setExpandedUEs(matchingUEIds)
@@ -760,17 +815,17 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
   // ── Filtrage ──────────────────────────────────────────────────────────────
 
-  const q = search.toLowerCase()
+  const q = norm(search)
 
   const filteredUEs = orderedUEs.filter(ue => {
     if (!q) return true
-    if (ue.nom_fr.toLowerCase().includes(q)) return true
-    if (ue.nom_ar?.toLowerCase().includes(q)) return true
-    if (ue.code?.toLowerCase().includes(q)) return true
+    if (norm(ue.nom_fr).includes(q)) return true
+    if (norm(ue.nom_ar).includes(q)) return true
+    if (norm(ue.code).includes(q)) return true
     const ueModules = modules.filter(m => m.unite_enseignement_id === ue.id)
-    if (ueModules.some(m => m.nom_fr.toLowerCase().includes(q) || m.nom_ar?.toLowerCase().includes(q))) return true
+    if (ueModules.some(m => norm(m.nom_fr).includes(q) || norm(m.nom_ar).includes(q) || norm(m.code).includes(q))) return true
     const ueCours = cours.filter(c => c.unite_enseignement_id === ue.id)
-    if (ueCours.some(c => c.nom_fr.toLowerCase().includes(q) || c.nom_ar?.toLowerCase().includes(q))) return true
+    if (ueCours.some(c => norm(c.nom_fr).includes(q) || norm(c.nom_ar).includes(q) || norm(c.code).includes(q))) return true
     return false
   })
 
@@ -778,21 +833,21 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
   // UE : Réf réduit (80px), Nom FR élastique, Nom AR élastique, Couleur
   const ueFields: FieldDef[] = [
-    { label: 'Réf',      value: fCode,  onChange: setFCode,  maxWidth: '80px' },
-    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
+    { label: 'Réf',      value: fCode,  onChange: v => setFCode(toRef(v)),    maxWidth: '80px' },
+    { label: 'Nom (FR)', value: fNomFr, onChange: v => setFNomFr(capFirst(v)) },
     { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
     { label: 'Couleur',  value: fColor, onChange: setFColor, type: 'color', maxWidth: '60px' },
   ]
   // Module : Réf réduit, Nom FR, Nom AR
   const moduleFields: FieldDef[] = [
-    { label: 'Réf',      value: fRef,   onChange: setFRef,   maxWidth: '80px' },
-    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
+    { label: 'Réf',      value: fRef,   onChange: v => setFRef(toRef(v)),     maxWidth: '80px' },
+    { label: 'Nom (FR)', value: fNomFr, onChange: v => setFNomFr(capFirst(v)) },
     { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
   ]
   // Cours : Réf réduit, Nom FR, Nom AR
   const coursFields: FieldDef[] = [
-    { label: 'Réf',      value: fRef,   onChange: setFRef,   maxWidth: '80px' },
-    { label: 'Nom (FR)', value: fNomFr, onChange: setFNomFr },
+    { label: 'Réf',      value: fRef,   onChange: v => setFRef(toRef(v)),     maxWidth: '80px' },
+    { label: 'Nom (FR)', value: fNomFr, onChange: v => setFNomFr(capFirst(v)) },
     { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
   ]
 
@@ -817,28 +872,15 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
       {/* Barre de recherche + bouton nouvelle UE */}
       <div className="flex items-center justify-end gap-3">
-        <div className="relative w-56">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
-          <input
-            type="text"
-            dir="auto"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher…"
-            className="input pl-9 pr-7 text-sm py-2 w-full"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600 transition-colors"
-              title="Effacer"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher…"
+          ariaLabel="Rechercher un cours, module ou unité"
+          className="w-56"
+        />
         <FloatButton type="button" variant="submit" onClick={() => openAdd({ kind: 'ue' })}>
-          <Plus size={15} /> Ajouter
+          Ajouter
         </FloatButton>
       </div>
 
@@ -877,14 +919,24 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
       {/* Modal confirmation suppression */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden">
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          onClick={() => { if (!submitting) { setConfirmDelete(null); setDeleteError(null) } }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-cours-title"
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden"
+          >
             <div className="px-6 pt-5 pb-0 flex items-center justify-between">
-              <h3 className="font-bold text-secondary-800">Confirmer la suppression</h3>
+              <h3 id="delete-cours-title" className="font-bold text-secondary-800">Confirmer la suppression</h3>
               <button
                 type="button"
                 onClick={() => { setConfirmDelete(null); setDeleteError(null) }}
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                aria-label="Fermer"
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
                 <X size={16} />
               </button>
@@ -899,19 +951,15 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
               </p>
             )}
             {deleteError && (
-              <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-3">{deleteError}</p>
+              <p role="alert" className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-3">{deleteError}</p>
             )}
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => { setConfirmDelete(null); setDeleteError(null) }} className="btn btn-secondary text-sm" disabled={submitting}>
+              <FloatButton type="button" variant="secondary" onClick={() => { setConfirmDelete(null); setDeleteError(null) }} disabled={submitting}>
                 Annuler
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={submitting}
-                className={clsx('btn text-sm bg-danger-500 text-white hover:bg-danger-600', submitting && 'opacity-50 cursor-not-allowed')}
-              >
+              </FloatButton>
+              <FloatButton type="button" variant="danger" onClick={handleDelete} disabled={submitting}>
                 {submitting ? 'Suppression…' : 'Supprimer'}
-              </button>
+              </FloatButton>
             </div>
             </div>
           </div>

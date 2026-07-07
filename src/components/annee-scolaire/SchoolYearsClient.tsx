@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2, Star, Hash, Activity, CalendarDays, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { Pencil, Trash2, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { SchoolYear, EvalTypeConfig, Period } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,13 +86,13 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
       {/* Barre supérieure */}
       <div className="flex justify-end">
         <FloatButton type="button" variant="submit" onClick={() => router.push('/dashboard/annee-scolaire/new')}>
-          <Plus size={14} /> Nouvelle année
+          Nouvelle année
         </FloatButton>
       </div>
 
       {/* Erreur suppression */}
       {deleteError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div role="alert" aria-live="assertive" className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {deleteError}
         </div>
       )}
@@ -109,15 +111,15 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
       {/* Tableau années */}
       {schoolYears.length > 0 && (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" aria-label="Années scolaires">
             <thead>
               <tr className="border-b border-warm-100 bg-warm-50">
-                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Année</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Rentrée</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Fin</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Répartition</th>
-                <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wide">Évaluation</th>
-                <th className="px-4 py-2" />
+                <th className="list-th">Année</th>
+                <th className="list-th">Rentrée</th>
+                <th className="list-th">Fin</th>
+                <th className="list-th">Répartition</th>
+                <th className="list-th">Évaluation</th>
+                <th className="list-th" />
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
@@ -126,12 +128,19 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                 return (
                   <tr
                     key={year.id}
-                    className={year.is_current ? 'bg-primary-50/40' : 'hover:bg-warm-50/60'}
+                    onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
+                    className={`cursor-pointer transition-colors ${year.is_current ? 'bg-primary-50/40' : 'hover:bg-warm-50/60'}`}
                   >
                     {/* Année */}
-                    <td className="px-4 py-2.5 whitespace-nowrap">
+                    <td className="list-td whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-secondary-800">{year.label}</span>
+                        <Link
+                          href={`/dashboard/annee-scolaire/${year.id}`}
+                          onClick={e => e.stopPropagation()}
+                          className="list-name text-secondary-800 hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                        >
+                          {year.label}
+                        </Link>
                         {year.is_current && (
                           <span className="text-xs font-semibold bg-primary-500 text-white px-1.5 py-0.5 rounded-full leading-none">
                             En cours
@@ -141,17 +150,17 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                     </td>
 
                     {/* Rentrée */}
-                    <td className="px-4 py-2.5 text-xs text-warm-600 whitespace-nowrap">
+                    <td className="list-td text-xs text-warm-600 whitespace-nowrap">
                       {year.start_date ? fmtDate(year.start_date) : '—'}
                     </td>
 
                     {/* Fin */}
-                    <td className="px-4 py-2.5 text-xs text-warm-600 whitespace-nowrap">
+                    <td className="list-td text-xs text-warm-600 whitespace-nowrap">
                       {year.end_date ? fmtDate(year.end_date) : '—'}
                     </td>
 
                     {/* Répartition + Périodes */}
-                    <td className="px-4 py-2.5">
+                    <td className="list-td">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-warm-600">{PERIOD_LABELS[year.period_type]}</span>
                         {year.periods
@@ -165,48 +174,52 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                     </td>
 
                     {/* Évaluation */}
-                    <td className="px-4 py-2.5">
+                    <td className="list-td">
                       <div className="flex items-center gap-1">
                         {activeEvals.map(c => <EvalBadge key={c.id} config={c} />)}
                       </div>
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                    <td className="list-td text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       {confirmDeleteId === year.id ? (
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-xs text-warm-500 mr-1">Supprimer ?</span>
                           <button
                             onClick={() => handleDelete(year.id)}
                             disabled={isDeleting}
-                            className="text-xs font-medium px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                            className="text-xs font-medium px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                           >
                             {isDeleting ? '...' : 'Confirmer'}
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
-                            className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors"
+                            className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
                           >
                             Annuler
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
-                            className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded transition-colors"
-                            title="Modifier"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          {!year.is_current && (
+                          <Tooltip content="Modifier">
                             <button
-                              onClick={() => { setConfirmDeleteId(year.id); setDeleteError(null) }}
-                              className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="Supprimer"
+                              onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
+                              aria-label={`Modifier ${year.label}`}
+                              className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                             >
-                              <Trash2 size={13} />
+                              <Pencil size={13} />
                             </button>
+                          </Tooltip>
+                          {!year.is_current && (
+                            <Tooltip content="Supprimer">
+                              <button
+                                onClick={() => { setConfirmDeleteId(year.id); setDeleteError(null) }}
+                                aria-label={`Supprimer ${year.label}`}
+                                className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       )}

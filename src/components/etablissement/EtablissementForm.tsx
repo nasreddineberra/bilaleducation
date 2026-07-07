@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, Trash2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import Image from 'next/image'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
-import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { revalidateEtablissement } from '@/app/dashboard/etablissement/actions'
+import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import type { Etablissement } from '@/types/database'
 
 interface EtablissementFormProps {
@@ -90,9 +90,6 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
     k => form[k] === initialForm.current[k]
   ) && logoUrl === initialLogoUrl.current && weekStartDay === initialWeekStartDay.current && workingDays === initialWorkingDays.current
 
-  const inputCls = (field: string, bad: boolean) =>
-    bad && touched.has(field) ? 'input input-error' : 'input'
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(new Set([...Object.keys(form), 'weekStartDay']))
@@ -149,80 +146,66 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
 
             {/* Droite : Champs */}
             <div className="flex-1 space-y-3 min-w-0">
-              <Field
-                label={<>Nom de l'établissement <span className="text-red-400">*</span></>}
+              <FloatInput
+                label="Nom de l'établissement"
+                required
+                aria-required="true"
+                value={form.nom}
+                onChange={e => set('nom', toUpperCase(e.target.value))}
+                onBlur={() => touch('nom')}
                 error={touched.has('nom') && vNom ? 'Le nom est obligatoire (2 caractères minimum).' : undefined}
-              >
-                <input
-                  type="text"
-                  value={form.nom}
-                  onChange={e => set('nom', toUpperCase(e.target.value))}
-                  onBlur={() => touch('nom')}
-                  className={inputCls('nom', vNom)}
-                />
-              </Field>
+              />
 
-              <Field label="Adresse">
-                <input
-                  type="text"
-                  value={form.adresse}
-                  onChange={e => set('adresse', e.target.value)}
-                  className="input"
-                />
-              </Field>
+              <FloatInput
+                label="Adresse"
+                value={form.adresse}
+                onChange={e => set('adresse', e.target.value)}
+              />
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Téléphone">
-                  <input
-                    type="tel"
-                    value={form.telephone}
-                    onChange={e => set('telephone', e.target.value)}
-                    className="input"
-                  />
-                </Field>
+                <FloatInput
+                  label="Téléphone"
+                  type="tel"
+                  value={form.telephone}
+                  onChange={e => set('telephone', e.target.value)}
+                />
 
-                <Field
+                <FloatInput
                   label="Email de contact"
+                  type="email"
+                  value={form.contact}
+                  onChange={e => set('contact', e.target.value)}
+                  onBlur={() => touch('contact')}
                   error={touched.has('contact') && vContact ? 'Adresse email invalide.' : undefined}
-                >
-                  <input
-                    type="email"
-                    value={form.contact}
-                    onChange={e => set('contact', e.target.value)}
-                    onBlur={() => touch('contact')}
-                    className={inputCls('contact', vContact)}
-                  />
-                </Field>
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field
-                  label={<>Premier jour de la semaine <span className="text-red-400">*</span></>}
+                <FloatSelect
+                  label="Premier jour de la semaine"
+                  required
+                  aria-required="true"
+                  value={weekStartDay === -1 ? '' : String(weekStartDay)}
+                  onChange={e => setWeekStartDay(e.target.value === '' ? -1 : Number(e.target.value))}
+                  onBlur={() => touch('weekStartDay')}
                   error={touched.has('weekStartDay') && weekStartDay === -1 ? 'Obligatoire.' : undefined}
                 >
-                  <select
-                    value={weekStartDay}
-                    onChange={e => setWeekStartDay(Number(e.target.value))}
-                    onBlur={() => touch('weekStartDay')}
-                    className={clsx('input', touched.has('weekStartDay') && weekStartDay === -1 && 'input-error')}
-                  >
-                    <option value={-1} disabled>— Sélectionner —</option>
-                    <option value={1}>Lundi</option>
-                    <option value={6}>Samedi</option>
-                    <option value={0}>Dimanche</option>
-                  </select>
-                </Field>
+                  <option value="" disabled hidden></option>
+                  <option value="1">Lundi</option>
+                  <option value="6">Samedi</option>
+                  <option value="0">Dimanche</option>
+                </FloatSelect>
 
-                <Field label={<>Jours travaillés <span className="text-red-400">*</span></>}>
-                  <select
-                    value={workingDays}
-                    onChange={e => setWorkingDays(Number(e.target.value))}
-                    className="input"
-                  >
-                    <option value={5}>Semaine de 5 jours</option>
-                    <option value={7}>Semaine de 7 jours</option>
-                  </select>
-                </Field>
+                <FloatSelect
+                  label="Jours travaillés"
+                  required
+                  aria-required="true"
+                  value={String(workingDays)}
+                  onChange={e => setWorkingDays(Number(e.target.value))}
+                >
+                  <option value="5">Semaine de 5 jours</option>
+                  <option value="7">Semaine de 7 jours</option>
+                </FloatSelect>
               </div>
             </div>
 
@@ -231,18 +214,15 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <span className="text-xs text-warm-500"><span className="font-semibold text-red-400">*</span> obligatoire</span>
           <div className="flex-1" />
-          <button
+          <FloatButton
             type="submit"
+            variant="submit"
             disabled={isSubmitting || !isValid || isUnchanged}
-            className={clsx(
-              'btn btn-primary',
-              (isSubmitting || !isValid || isUnchanged) && 'opacity-50 cursor-not-allowed'
-            )}
           >
             {isSubmitting ? 'Enregistrement...' : 'Valider'}
-          </button>
+          </FloatButton>
         </div>
 
       </form>
@@ -261,6 +241,7 @@ function LogoField({
   onChange: (url: string | null) => void
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dialogRef    = useRef<HTMLDivElement>(null)
 
   const [cropSrc,           setCropSrc]           = useState<string | null>(null)
   const [crop,              setCrop]              = useState({ x: 0, y: 0 })
@@ -269,6 +250,21 @@ function LogoField({
   const [isUploading,       setIsUploading]       = useState(false)
   const [uploadError,       setUploadError]       = useState<string | null>(null)
   const [confirmDelete,     setConfirmDelete]     = useState(false)
+
+  const closeCrop = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+  }
+
+  // Modale recadrage : focus + fermeture Échap
+  useEffect(() => {
+    if (!cropSrc) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !isUploading) closeCrop() }
+    document.addEventListener('keydown', onKey)
+    dialogRef.current?.focus()
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropSrc, isUploading])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -297,7 +293,7 @@ function LogoField({
       if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from('etablissement-logos').getPublicUrl(path)
       onChange(`${publicUrl}?t=${Date.now()}`)
-      setCropSrc(null)
+      closeCrop()
     } catch (err: any) {
       setUploadError(err?.message ?? "Erreur lors de l'upload. Veuillez réessayer.")
     } finally {
@@ -319,13 +315,15 @@ function LogoField({
     }
   }
 
+  const linkCls = 'text-xs font-medium rounded px-1 transition-colors disabled:opacity-40 outline-none focus-visible:ring-2'
+
   return (
     <div className="flex flex-col items-center gap-2 flex-shrink-0">
       {/* Aperçu 160×160 */}
       <div className="w-40 h-40 rounded-xl border border-warm-200 bg-white flex items-center justify-center overflow-hidden">
         {logoUrl
-          ? <Image src={logoUrl} alt="Logo" width={160} height={160} className="w-full h-full object-contain p-2" unoptimized />
-          : <span className="text-xs text-warm-300 text-center px-2">Aucun logo</span>
+          ? <Image src={logoUrl} alt="Logo de l'établissement" width={160} height={160} className="w-full h-full object-contain p-2" unoptimized />
+          : <span className="text-xs text-warm-400 text-center px-2">Aucun logo</span>
         }
       </div>
 
@@ -335,9 +333,8 @@ function LogoField({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors disabled:opacity-40"
+          className={`${linkCls} text-primary-700 hover:text-primary-800 focus-visible:ring-primary-500/50`}
         >
-          <Upload size={11} />
           {logoUrl ? 'Changer' : 'Importer'}
         </button>
         {logoUrl && !confirmDelete && (
@@ -345,9 +342,8 @@ function LogoField({
             type="button"
             onClick={() => setConfirmDelete(true)}
             disabled={isUploading}
-            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
+            className={`${linkCls} text-red-500 hover:text-red-700 focus-visible:ring-red-500/50`}
           >
-            <Trash2 size={11} />
             Supprimer
           </button>
         )}
@@ -357,35 +353,47 @@ function LogoField({
               type="button"
               onClick={() => { setConfirmDelete(false); handleDelete() }}
               disabled={isUploading}
-              className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors disabled:opacity-40"
+              className={`${linkCls} font-semibold text-red-600 hover:text-red-800 focus-visible:ring-red-500/50`}
             >
               Confirmer ?
             </button>
             <button
               type="button"
               onClick={() => setConfirmDelete(false)}
-              className="text-xs text-warm-400 hover:text-warm-600 transition-colors"
+              className={`${linkCls} text-warm-500 hover:text-warm-700 focus-visible:ring-warm-400/50`}
             >
               Annuler
             </button>
           </div>
         )}
-        {uploadError && <p className="text-[10px] text-red-500 text-center">{uploadError}</p>}
+        {uploadError && <p role="alert" className="text-[10px] text-red-500 text-center">{uploadError}</p>}
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
       {/* Modale recadrage */}
       {cropSrc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => !isUploading && closeCrop()}
+        >
           <div className="absolute inset-0 bg-black/60" />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="crop-title"
+            tabIndex={-1}
+            onClick={e => e.stopPropagation()}
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden outline-none"
+          >
             <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-secondary-800">Recadrer le logo</h3>
+              <h3 id="crop-title" className="text-sm font-bold text-secondary-800">Recadrer le logo</h3>
               <button
                 type="button"
-                onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                onClick={closeCrop}
+                aria-label="Fermer"
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
                 <X size={16} />
               </button>
@@ -402,56 +410,29 @@ function LogoField({
               />
             </div>
             <div className="px-4 py-3 flex flex-col gap-3">
-              <input
-                type="range"
-                min={1} max={3} step={0.05}
-                value={zoom}
-                onChange={e => setZoom(Number(e.target.value))}
-                className="w-full accent-amber-500"
-              />
+              <label className="flex items-center gap-2 text-xs text-warm-500">
+                <span className="whitespace-nowrap">Zoom</span>
+                <input
+                  type="range"
+                  min={1} max={3} step={0.05}
+                  value={zoom}
+                  onChange={e => setZoom(Number(e.target.value))}
+                  aria-label="Zoom du logo"
+                  className="w-full accent-amber-500"
+                />
+              </label>
               <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
-                  className="btn btn-secondary text-sm py-1.5 px-3"
-                >
+                <FloatButton type="button" variant="secondary" onClick={closeCrop} className="!py-1.5 !px-3">
                   Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCropConfirm}
-                  disabled={isUploading}
-                  className="btn btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
-                >
+                </FloatButton>
+                <FloatButton type="button" variant="submit" onClick={handleCropConfirm} disabled={isUploading} className="!py-1.5 !px-3">
                   {isUploading ? 'Envoi…' : 'Valider'}
-                </button>
+                </FloatButton>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── Sous-composant ───────────────────────────────────────────────────────────
-
-function Field({
-  label,
-  error,
-  children,
-}: {
-  label: React.ReactNode
-  error?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
-        {label}
-      </label>
-      {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   )
 }

@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { Pencil, Trash2, Check } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { Room, Material, RoomType, MaterialCategory, MaterialCondition } from '@/types/database'
@@ -222,8 +222,6 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
 
   return (
     <div className="h-full overflow-y-auto animate-fade-in">
-      <h1 className="text-lg font-bold text-secondary-800 mb-4">Ressources</h1>
-
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] gap-0">
 
         {/* ════════════════════ SALLES (gauche) ════════════════════ */}
@@ -291,7 +289,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <div className="flex-1" />
                 <FloatButton type="button" variant="secondary" onClick={cancelRoom} disabled={roomSaving}>Annuler</FloatButton>
                 <FloatButton type="button" variant="submit" onClick={saveRoom} disabled={roomSaving || !roomFormValid}>
-                  <Check size={15} /> {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
+                  {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
                 </FloatButton>
               </div>
             </div>
@@ -420,7 +418,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <div className="flex-1" />
                 <FloatButton type="button" variant="secondary" onClick={cancelMat} disabled={matSaving}>Annuler</FloatButton>
                 <FloatButton type="button" variant="submit" onClick={saveMat} disabled={matSaving || !matFormValid}>
-                  <Check size={15} /> {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}
+                  {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}
                 </FloatButton>
               </div>
             </div>

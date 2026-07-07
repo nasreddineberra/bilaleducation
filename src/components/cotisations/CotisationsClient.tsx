@@ -3,7 +3,7 @@
 import { useState, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Pencil, Trash2, Check, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
+import { Pencil, Trash2, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
@@ -319,7 +319,7 @@ export default function CotisationsClient({
                 </div>
                 <div className="flex items-center gap-2 pt-0.5">
                   <FloatButton type="button" variant="submit" onClick={save} disabled={saving || !isFormValid}>
-                    <Check size={13} /> {saving ? 'Enregistrement...' : editing.id ? 'Enregistrer' : 'Ajouter'}
+                    {saving ? 'Enregistrement...' : editing.id ? 'Enregistrer' : 'Ajouter'}
                   </FloatButton>
                   <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>Annuler</FloatButton>
                 </div>

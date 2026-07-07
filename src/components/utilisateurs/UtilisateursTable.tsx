@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Pencil, ToggleLeft, ToggleRight, KeyRound } from 'lucide-react'
 import { clsx } from 'clsx'
+import Tooltip from '@/components/ui/Tooltip'
 import { toggleActive, sendPasswordReset } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
 
@@ -68,28 +70,20 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
   return (
     <div className="space-y-3">
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div role="alert" aria-live="assertive" className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {error}
         </div>
       )}
 
       <div className="card p-0 overflow-hidden">
-        <table className="w-full">
+        <table className="w-full" aria-label="Utilisateurs">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-4/12">
-                Utilisateur
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-3/12">
-                Email
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-2/12">
-                Rôle
-              </th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider w-1/12">
-                Statut
-              </th>
-              <th className="px-4 py-2 w-2/12" />
+              <th className="list-th w-4/12">Utilisateur</th>
+              <th className="list-th w-3/12">Email</th>
+              <th className="list-th w-2/12">Rôle</th>
+              <th className="list-th w-1/12">Statut</th>
+              <th className="list-th w-2/12" />
             </tr>
           </thead>
 
@@ -97,32 +91,42 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
             {profiles.map(profile => {
               const isLoading = loadingId === profile.id
               const resetSent = resetSentId === profile.id
+              const fullName = `${profile.last_name} ${profile.first_name}`
+              const toggleLabel = profile.role === 'admin'
+                ? 'Le compte administrateur ne peut pas être désactivé'
+                : profile.is_active ? 'Désactiver' : 'Activer'
+              const resetLabel = resetSent ? 'Email envoyé' : 'Réinitialiser le mot de passe'
 
               return (
                 <tr
                   key={profile.id}
+                  onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
                   className={clsx(
-                    'transition-colors',
+                    'transition-colors cursor-pointer',
                     profile.is_active ? 'hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
                   )}
                 >
                   {/* Nom */}
-                  <td className="px-4 py-1.5">
-                    <span className={clsx(
-                      'text-sm font-medium',
-                      profile.is_active ? 'text-secondary-800' : 'text-warm-400'
-                    )}>
-                      {profile.last_name} {profile.first_name}
-                    </span>
+                  <td className="list-td">
+                    <Link
+                      href={`/dashboard/utilisateurs/${profile.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className={clsx(
+                        'list-name hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                        profile.is_active ? 'text-secondary-800' : 'text-warm-500'
+                      )}
+                    >
+                      {fullName}
+                    </Link>
                   </td>
 
                   {/* Email */}
-                  <td className="px-4 py-1.5">
-                    <span className="text-sm text-warm-500 font-mono">{profile.email}</span>
+                  <td className="list-td">
+                    <span className="text-sm text-warm-600 font-mono">{profile.email}</span>
                   </td>
 
                   {/* Rôle */}
-                  <td className="px-4 py-1.5">
+                  <td className="list-td">
                     <span className={clsx(
                       'text-xs font-semibold px-2 py-0.5 rounded-full',
                       ROLE_COLORS[profile.role]
@@ -132,7 +136,7 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
                   </td>
 
                   {/* Statut */}
-                  <td className="px-4 py-1.5">
+                  <td className="list-td">
                     <span className={clsx(
                       'text-xs font-medium px-2 py-0.5 rounded-full',
                       profile.is_active
@@ -144,54 +148,60 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
                   </td>
 
                   {/* Actions */}
-                  <td className="px-4 py-1.5">
+                  <td className="list-td" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {/* Modifier */}
-                      <button
-                        onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
-                        className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
-                        title="Modifier"
-                        disabled={isLoading}
-                      >
-                        <Pencil size={14} />
-                      </button>
+                      <Tooltip content="Modifier">
+                        <button
+                          onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
+                          aria-label={`Modifier ${fullName}`}
+                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          disabled={isLoading}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </Tooltip>
 
                       {/* Activer / Désactiver (admin non modifiable) */}
-                      <button
-                        onClick={() => handleToggle(profile)}
-                        disabled={isLoading || profile.role === 'admin'}
-                        className={clsx(
-                          'p-1.5 rounded-lg transition-colors',
-                          profile.role === 'admin'
-                            ? 'text-warm-200 cursor-not-allowed'
-                            : profile.is_active
-                              ? 'text-warm-400 hover:text-amber-600 hover:bg-amber-50'
-                              : 'text-warm-400 hover:text-green-600 hover:bg-green-50',
-                          isLoading && 'opacity-40 cursor-wait'
-                        )}
-                        title={profile.role === 'admin' ? 'Le compte administrateur ne peut pas être désactivé' : profile.is_active ? 'Désactiver' : 'Activer'}
-                      >
-                        {profile.is_active
-                          ? <ToggleRight size={16} />
-                          : <ToggleLeft size={16} />
-                        }
-                      </button>
+                      <Tooltip content={toggleLabel}>
+                        <button
+                          onClick={() => handleToggle(profile)}
+                          disabled={isLoading || profile.role === 'admin'}
+                          aria-label={toggleLabel}
+                          className={clsx(
+                            'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                            profile.role === 'admin'
+                              ? 'text-warm-200 cursor-not-allowed'
+                              : profile.is_active
+                                ? 'text-warm-400 hover:text-amber-600 hover:bg-amber-50'
+                                : 'text-warm-400 hover:text-green-600 hover:bg-green-50',
+                            isLoading && 'opacity-40 cursor-wait'
+                          )}
+                        >
+                          {profile.is_active
+                            ? <ToggleRight size={16} />
+                            : <ToggleLeft size={16} />
+                          }
+                        </button>
+                      </Tooltip>
 
                       {/* Réinitialiser mot de passe */}
-                      <button
-                        onClick={() => handleResetPassword(profile)}
-                        disabled={isLoading || resetSent}
-                        className={clsx(
-                          'p-1.5 rounded-lg transition-colors',
-                          resetSent
-                            ? 'text-green-500 bg-green-50 cursor-default'
-                            : 'text-warm-400 hover:text-primary-600 hover:bg-primary-50',
-                          isLoading && 'opacity-40 cursor-wait'
-                        )}
-                        title={resetSent ? 'Email envoyé' : 'Réinitialiser le mot de passe'}
-                      >
-                        <KeyRound size={14} />
-                      </button>
+                      <Tooltip content={resetLabel}>
+                        <button
+                          onClick={() => handleResetPassword(profile)}
+                          disabled={isLoading || resetSent}
+                          aria-label={resetLabel}
+                          className={clsx(
+                            'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                            resetSent
+                              ? 'text-green-500 bg-green-50 cursor-default'
+                              : 'text-warm-400 hover:text-primary-600 hover:bg-primary-50',
+                            isLoading && 'opacity-40 cursor-wait'
+                          )}
+                        >
+                          <KeyRound size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>

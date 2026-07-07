@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
+import { FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { AuditLog, AuditAction } from '@/types/database'
 
 const PAGE_SIZE = 20
@@ -23,6 +25,8 @@ const ENTITY_LABELS: Record<string, string> = {
   auth:                 'Authentification',
   schedule_slots:       'Emploi du temps',
   schedule_exceptions:  'Exception EDT',
+  teacher_documents:    'Document enseignant',
+  student_documents:    'Document apprenant',
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -53,6 +57,7 @@ interface AuditLogsClientProps {
   users:        { user_id: string; user_name: string; user_email: string }[]
   entityTypes:  string[]
   userRoles:    Record<string, string>
+  docOwners:    Record<string, string>
   filters: {
     user:        string
     entity_type: string
@@ -88,7 +93,8 @@ function PaginationBar({ page, totalPages, onNavigate }: {
       <button
         onClick={() => onNavigate(page - 1)}
         disabled={page === 1}
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        aria-label="Page précédente"
+        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
       >
         <ChevronLeft size={15} />
       </button>
@@ -99,7 +105,9 @@ function PaginationBar({ page, totalPages, onNavigate }: {
           <button
             key={p}
             onClick={() => onNavigate(p)}
-            className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors ${
+            aria-label={`Page ${p}`}
+            aria-current={p === page ? 'page' : undefined}
+            className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${
               p === page
                 ? 'bg-primary-500 text-white shadow-sm'
                 : 'text-secondary-600 hover:bg-warm-100'
@@ -112,7 +120,8 @@ function PaginationBar({ page, totalPages, onNavigate }: {
       <button
         onClick={() => onNavigate(page + 1)}
         disabled={page === totalPages}
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        aria-label="Page suivante"
+        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
       >
         <ChevronRight size={15} />
       </button>
@@ -156,13 +165,23 @@ function fmtDate(iso: string): string {
 // ─── Composant principal ─────────────────────────────────────────────────────
 
 export default function AuditLogsClient({
-  logs, totalCount, page, users, entityTypes, userRoles, filters,
+  logs, totalCount, page, users, entityTypes, userRoles, docOwners, filters,
 }: AuditLogsClientProps) {
   const router = useRouter()
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
   const [showPurge, setShowPurge] = useState(false)
   const [purging, setPurging] = useState(false)
   const [purgeResult, setPurgeResult] = useState<string | null>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Modale : focus a l'ouverture + fermeture par Echap
+  useEffect(() => {
+    if (!showPurge) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !purging) setShowPurge(false) }
+    document.addEventListener('keydown', onKey)
+    dialogRef.current?.focus()
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showPurge, purging])
 
   const handlePurge = async () => {
     setPurging(true)
@@ -198,11 +217,12 @@ export default function AuditLogsClient({
     <div className="flex flex-col h-full animate-fade-in">
 
       {/* Onglets utilisateurs */}
-      <div className="flex items-center gap-1 border-b border-warm-200 mb-3 overflow-x-auto">
+      <div className="flex items-center gap-1 border-b border-warm-200 mb-3 overflow-x-auto" aria-label="Filtrer par utilisateur">
         <button
           onClick={() => navigate({ user: '', page: 1 })}
+          aria-current={!filters.user ? 'page' : undefined}
           className={clsx(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+            'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px rounded-t outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40',
             !filters.user
               ? 'border-primary-500 text-primary-700'
               : 'border-transparent text-warm-500 hover:text-secondary-700'
@@ -214,8 +234,9 @@ export default function AuditLogsClient({
           <button
             key={u.user_id}
             onClick={() => navigate({ user: u.user_id, page: 1 })}
+            aria-current={filters.user === u.user_id ? 'page' : undefined}
             className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px rounded-t outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40',
               filters.user === u.user_id
                 ? 'border-primary-500 text-primary-700'
                 : 'border-transparent text-warm-500 hover:text-secondary-700'
@@ -229,27 +250,30 @@ export default function AuditLogsClient({
       {/* Filtres */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-warm-500">Du</label>
+          <label htmlFor="log-date-from" className="text-xs text-warm-500">Du</label>
           <input
+            id="log-date-from"
             type="date"
             value={filters.date_from}
             onChange={e => navigate({ date_from: e.target.value, page: 1 })}
-            className="input-field text-sm py-1.5 px-2 w-36"
+            className="input text-sm py-1.5 px-2 w-36"
           />
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-xs text-warm-500">Au</label>
+          <label htmlFor="log-date-to" className="text-xs text-warm-500">Au</label>
           <input
+            id="log-date-to"
             type="date"
             value={filters.date_to}
             onChange={e => navigate({ date_to: e.target.value, page: 1 })}
-            className="input-field text-sm py-1.5 px-2 w-36"
+            className="input text-sm py-1.5 px-2 w-36"
           />
         </div>
         <select
+          aria-label="Filtrer par entité"
           value={filters.entity_type}
           onChange={e => navigate({ entity_type: e.target.value, page: 1 })}
-          className="input-field text-sm py-1.5 px-2"
+          className="input text-sm py-1.5 px-2 w-auto"
         >
           <option value="">Toutes entites</option>
           {entityTypes.map(t => (
@@ -257,9 +281,10 @@ export default function AuditLogsClient({
           ))}
         </select>
         <select
+          aria-label="Filtrer par action"
           value={filters.action}
           onChange={e => navigate({ action: e.target.value, page: 1 })}
-          className="input-field text-sm py-1.5 px-2"
+          className="input text-sm py-1.5 px-2 w-auto"
         >
           <option value="">Toutes actions</option>
           <option value="INSERT">Creation</option>
@@ -271,54 +296,53 @@ export default function AuditLogsClient({
         {(filters.date_from || filters.date_to || filters.entity_type || filters.action) && (
           <button
             onClick={() => navigate({ date_from: '', date_to: '', entity_type: '', action: '', page: 1 })}
-            className="text-xs text-red-500 hover:text-red-700 underline"
+            className="text-xs text-red-500 hover:text-red-700 underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
           >
             Reinitialiser
           </button>
         )}
         <div className="ml-auto">
-          <button
-            onClick={() => setShowPurge(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-          >
-            <Trash2 size={14} />
-            Purger (+1 mois)
-          </button>
+          <FloatButton type="button" variant="danger" onClick={() => setShowPurge(true)}>
+            Purger (&gt; 1 mois)
+          </FloatButton>
         </div>
       </div>
 
       {/* Resultat purge */}
       {purgeResult && (
-        <div className="mb-2 px-3 py-2 rounded-lg bg-warm-100 text-sm text-secondary-700 flex items-center justify-between">
+        <div role="status" aria-live="polite" className="mb-2 px-3 py-2 rounded-lg bg-warm-100 text-sm text-secondary-700 flex items-center justify-between">
           <span>{purgeResult}</span>
-          <button onClick={() => setPurgeResult(null)} className="text-warm-400 hover:text-secondary-600 text-xs">Fermer</button>
+          <button onClick={() => setPurgeResult(null)} className="text-warm-500 hover:text-secondary-700 text-xs rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Fermer</button>
         </div>
       )}
 
       {/* Modale confirmation purge */}
       {showPurge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold text-secondary-800 mb-2">Confirmer la purge</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => !purging && setShowPurge(false)}
+        >
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="purge-title"
+            tabIndex={-1}
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md outline-none"
+          >
+            <h3 id="purge-title" className="text-lg font-bold text-secondary-800 mb-2">Confirmer la purge</h3>
             <p className="text-sm text-warm-600 mb-4">
               Cette action supprimera tous les logs datant de plus d&apos;un mois.
               Seuls les logs du dernier mois seront conserves. Cette action est irreversible.
             </p>
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowPurge(false)}
-                disabled={purging}
-                className="px-4 py-2 text-sm font-medium text-secondary-600 hover:bg-warm-100 rounded-lg transition-colors"
-              >
+              <FloatButton type="button" variant="secondary" onClick={() => setShowPurge(false)} disabled={purging}>
                 Annuler
-              </button>
-              <button
-                onClick={handlePurge}
-                disabled={purging}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
-              >
+              </FloatButton>
+              <FloatButton type="button" variant="danger" onClick={handlePurge} disabled={purging}>
                 {purging ? 'Suppression...' : 'Confirmer la purge'}
-              </button>
+              </FloatButton>
             </div>
           </div>
         </div>
@@ -326,7 +350,7 @@ export default function AuditLogsClient({
 
       {/* Tableau */}
       <div className="card flex-1 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" aria-label="Journal d'activité">
           <thead>
             <tr className="border-b border-warm-200 text-left text-xs text-warm-500 uppercase tracking-wider">
               <th className="py-2 px-3 whitespace-nowrap">Date</th>
@@ -346,10 +370,28 @@ export default function AuditLogsClient({
             ) : (
               logs.map(log => {
                 const ac = ACTION_CONFIG[log.action]
-                const entityLabel = getEntityLabel(log)
+                const isDoc = log.entity_type === 'teacher_documents' || log.entity_type === 'student_documents'
+                const docData = (log.new_data ?? log.old_data) as Record<string, unknown> | null
+                const ownerId = isDoc ? ((docData?.teacher_id ?? docData?.student_id) as string | undefined) : undefined
+                // Pour un document : l'entité affiche l'enseignant/apprenant concerné
+                const entityLabel = isDoc
+                  ? (ownerId ? (docOwners[ownerId] ?? '') : '')
+                  : getEntityLabel(log)
                 const changedFields = log.action === 'UPDATE'
                   ? getChangedFields(log.old_data, log.new_data)
                   : ''
+                // Pour un document : le détail affiche le libellé/nom du document
+                const detailText = isDoc
+                  ? ((docData?.label as string) || (docData?.file_name as string) || '')
+                  : log.description
+                    ? log.description
+                    : log.action === 'UPDATE' && changedFields
+                      ? changedFields
+                      : log.action === 'INSERT'
+                        ? 'Nouvel enregistrement'
+                        : log.action === 'DELETE'
+                          ? 'Suppression'
+                          : ''
 
                 return (
                   <tr key={log.id} className="border-b border-warm-100 hover:bg-warm-50 transition-colors">
@@ -373,16 +415,12 @@ export default function AuditLogsClient({
                         <span className="ml-1.5 text-warm-500 text-xs">{entityLabel}</span>
                       )}
                     </td>
-                    <td className="py-1.5 px-3 text-xs text-warm-500 max-w-xs truncate" title={log.description || changedFields}>
-                      {log.description
-                        ? log.description
-                        : log.action === 'UPDATE' && changedFields
-                          ? changedFields
-                          : log.action === 'INSERT'
-                            ? 'Nouvel enregistrement'
-                            : log.action === 'DELETE'
-                              ? 'Suppression'
-                              : ''}
+                    <td className="py-1.5 px-3 text-xs text-warm-500">
+                      {detailText && (
+                        <Tooltip content={detailText}>
+                          <span className="block truncate max-w-[16rem]">{detailText}</span>
+                        </Tooltip>
+                      )}
                     </td>
                   </tr>
                 )

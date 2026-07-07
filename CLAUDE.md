@@ -151,6 +151,36 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Regle UI (memoire)** : **ne jamais mettre d'icone « + » (Plus) sur les boutons** (libelle seul).
   Applique sur Cotisations/Types de presence/Ressources ; reste ~22 fichiers a nettoyer au fil des audits.
 
+#### 7 juillet 2026 — Audits Journal / Etablissement / Utilisateurs / Annee scolaire / Cours + tracabilite
+- **Journal d'activite** (`AuditLogsClient.tsx`, `logs/page.tsx`) : audit a11y (modale de purge accessible
+  `role=dialog`+Echap+fond, filtres avec `aria-label`, pagination `aria-label`+`aria-current`, onglets
+  `aria-current`, table `aria-label`, erreur `role=alert`, detail `title=`→`<Tooltip>`). **Bug corrige** :
+  classe inexistante `input-field`→`.input` (filtres non styles). Libelle bouton « Purger (> 1 mois) ».
+  Les logs de **documents** affichent l'enseignant/apprenant concerne (resolution `teacher_id`/`student_id`→nom
+  cote page) + libelle du doc en detail.
+- **Tracabilite utilisateur du journal** : `updateTeacher` / `createTeacherWithAccount` / `createParentAccount`
+  ecrivaient via le **client admin** (service-role) → trigger `fn_audit_log()` sans `auth.uid()` → logs **sans
+  utilisateur**. Correctif : ecritures de tables via le **client session** ; RPC de creation passees en
+  **`SECURITY DEFINER`** + garde de role (migration `fix-audit-user-tracking.sql`, nouveau `create_parent_login_profile`).
+  Migration `add-audit-triggers-documents.sql` : triggers d'audit sur `teacher_documents` + `student_documents`.
+- **Etablissement** (`EtablissementForm.tsx`, `DocumentTypesConfig.tsx`) : refonte design-system (FloatFields/
+  FloatButton/Tooltip), modale de recadrage logo accessible (Echap/fond/focus, slider labellise), poignee
+  `GripVertical` trompeuse retiree (pas de DnD), inputs diag `aria-label`, selects sans quadratin.
+- **Utilisateurs** (liste + fiche) : a11y + design-system (FloatFields, `SearchField`, `.list-th/td`), **ligne
+  cliquable**, actions Tooltip+`aria-label`. **Bug corrige** : `export type { UserRole }` dans un fichier
+  `'use server'` → 500 sur toute modif (Next 16). Retour a la liste + message distinct apres save.
+- **Annee scolaire** (`SchoolYearsClient.tsx`, `SchoolYearForm.tsx`) : liste ligne cliquable + actions
+  accessibles + `.list-th/td` ; modale vacances accessible (Echap/fond/focus). Fiche deja conforme.
+- **Referentiel des cours** (`CoursTree.tsx`) : a11y complet (Tooltip+`aria-label`+focus sur toutes les
+  actions et poignees DnD, InlineForm `aria-label`, modale suppression accessible, `SearchField`), plus d'icones
+  sur les boutons. **REF en MAJUSCULES**, **Nom (FR) 1re lettre majuscule**. Recherche etendue aux **REF** et
+  rendue **insensible aux accents ET a la casse** (helper `norm()` = NFD + `\p{Diacritic}`, filtre + surlignage).
+  **L'arbre reste deroule** apres creation/modification (effet recherche via `prevSearchRef`, ne reagit qu'aux
+  vrais changements de recherche).
+- **Regles UI (memoire)** ajoutees : aucune icone sur les boutons a libelle (exception icone-seule) ; pas de
+  `<h1>` de titre de page (DashboardNav le rend deja) ; **lignes de liste cliquables** vers la fiche ; **retour a
+  la liste** apres create/modif (+ message distinct) ; **couleur du bouton** `variant={isEditing ? 'edit' : 'submit'}`.
+
 ## Stack technique
 
 - **Framework** : Next.js 15 (App Router, Server + Client Components)
@@ -293,3 +323,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-teacher-documents.sql` (table + bucket + RLS ; colonne `label` ajoutee)
 - [x] Executer `supabase/migrations/add-school-year-to-presence-types.sql` (colonne `school_year_id`
   + backfill + unicite `(etablissement, annee, code)` + NOT NULL).
+- [x] Executer `supabase/migrations/fix-audit-user-tracking.sql` (RPC creation en SECURITY DEFINER +
+  `create_parent_login_profile` ; tracabilite utilisateur du journal).
+- [x] Executer `supabase/migrations/add-audit-triggers-documents.sql` (triggers audit sur
+  `teacher_documents` + `student_documents`).

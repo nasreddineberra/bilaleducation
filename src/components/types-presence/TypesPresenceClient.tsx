@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil, Trash2, X, Check, Info, Copy } from 'lucide-react'
+import { Pencil, Trash2, X, Check, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
@@ -329,12 +329,12 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
     <div className="space-y-4">
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h1 className="text-lg font-bold text-secondary-800">Types de présence — {currentYear.label}</h1>
+        <p className="text-sm text-warm-500">Année <span className="font-semibold text-secondary-700">{currentYear.label}</span></p>
         {!editing && (
           <div className="flex items-center gap-2">
             {previousYear && (
               <FloatButton type="button" variant="secondary" onClick={copyFromPreviousYear} disabled={copying}>
-                <Copy size={14} /> {copying ? 'Copie…' : `Copier depuis ${previousYear.label}`}
+                {copying ? 'Copie…' : `Copier depuis ${previousYear.label}`}
               </FloatButton>
             )}
             <FloatButton type="button" variant="submit" onClick={startAdd}>

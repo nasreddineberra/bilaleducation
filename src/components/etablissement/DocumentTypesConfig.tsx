@@ -3,7 +3,8 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2, GripVertical, Check, X } from 'lucide-react'
+import { Trash2, Check, X } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 import type { DocumentCategory } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -161,7 +162,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
     <div className="space-y-3">
       <div>
         <h2 className="text-sm font-bold text-warm-700">Documents requis par dossier</h2>
-        <p className="text-xs text-warm-400 mt-0.5">
+        <p className="text-xs text-warm-500 mt-0.5">
           Configurez les types de documents attendus pour chaque élève.
         </p>
       </div>
@@ -175,21 +176,21 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                 <h3 className="text-[11px] font-semibold text-warm-600 uppercase tracking-wide">{cat.label}</h3>
                 <button
                   onClick={() => { setAdding(cat.key); setNewLabel(''); setNewRequired(false) }}
-                  className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                  className="text-[11px] text-primary-700 hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-40"
                   disabled={adding === cat.key}
                 >
-                  <Plus size={11} /> Ajouter
+                  Ajouter
                 </button>
               </div>
 
               {items.length === 0 && adding !== cat.key && (
                 <div className="px-3 py-2 flex items-center justify-between">
-                  <p className="text-[11px] text-warm-300 italic">Aucun document réclamé.</p>
+                  <p className="text-[11px] text-warm-500 italic">Aucun document réclamé.</p>
                   {DEFAULT_TYPES.some(d => d.category === cat.key) && (
                     <button
                       onClick={() => handleInitCategory(cat.key)}
                       disabled={initializingCat === cat.key}
-                      className="text-[11px] text-primary hover:underline"
+                      className="text-[11px] text-primary-700 hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-40"
                     >
                       {initializingCat === cat.key ? 'Initialisation...' : 'Types par défaut'}
                     </button>
@@ -200,17 +201,18 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
               <div className="divide-y divide-warm-50">
                 {items.map(d => (
                   <div key={d.id} className="px-3 py-1.5 flex items-center gap-2 hover:bg-warm-50/50 group">
-                    <GripVertical size={11} className="text-warm-200 flex-shrink-0" />
                     <span className="text-xs text-warm-700 flex-1 truncate">{d.label}</span>
 
                     {/* Badge requis cliquable */}
                     <button
                       onClick={() => toggleRequired(d.id, d.is_required)}
+                      aria-pressed={d.is_required}
+                      aria-label={`${d.label} : ${d.is_required ? 'requis' : 'optionnel'} — cliquer pour basculer`}
                       className={clsx(
-                        'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap',
+                        'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                         d.is_required
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-warm-100 text-warm-400 hover:bg-warm-200'
+                          : 'bg-warm-100 text-warm-500 hover:bg-warm-200'
                       )}
                     >
                       {d.is_required ? 'Requis' : 'Optionnel'}
@@ -219,17 +221,19 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                     {/* Suppression */}
                     {confirmDelete === d.id ? (
                       <div className="flex items-center gap-1 text-[11px]">
-                        <button onClick={() => handleDelete(d.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline">Non</button>
+                        <button onClick={() => handleDelete(d.id)} className="text-red-600 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Oui</button>
+                        <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Non</button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setConfirmDelete(d.id)}
-                        className="text-warm-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <Tooltip content="Supprimer">
+                        <button
+                          onClick={() => setConfirmDelete(d.id)}
+                          aria-label={`Supprimer ${d.label}`}
+                          className="text-warm-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
                 ))}
@@ -240,6 +244,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                     <input
                       type="text"
                       placeholder="Nom du type..."
+                      aria-label="Nom du type de document"
                       className="input text-xs flex-1 min-w-0"
                       value={newLabel}
                       onChange={e => setNewLabel(e.target.value)}
@@ -255,19 +260,25 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                       />
                       Requis
                     </label>
-                    <button
-                      onClick={() => handleAdd(cat.key)}
-                      disabled={saving || !newLabel.trim()}
-                      className="text-green-600 hover:text-green-800 disabled:opacity-40"
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      onClick={() => setAdding(null)}
-                      className="text-warm-400 hover:text-warm-600"
-                    >
-                      <X size={14} />
-                    </button>
+                    <Tooltip content="Valider">
+                      <button
+                        onClick={() => handleAdd(cat.key)}
+                        disabled={saving || !newLabel.trim()}
+                        aria-label="Valider"
+                        className="text-green-600 hover:text-green-800 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-green-500/50"
+                      >
+                        <Check size={14} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip content="Annuler">
+                      <button
+                        onClick={() => setAdding(null)}
+                        aria-label="Annuler"
+                        className="text-warm-500 hover:text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
+                      >
+                        <X size={14} />
+                      </button>
+                    </Tooltip>
                   </div>
                 )}
               </div>

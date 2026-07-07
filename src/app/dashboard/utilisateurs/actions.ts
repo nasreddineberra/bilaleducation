@@ -8,8 +8,6 @@ import { validatePasswordServer } from '@/lib/validation/password'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
 
-export type { UserRole }
-
 // ─── Créer un utilisateur ────────────────────────────────────────────────────
 
 export async function createUser(data: {

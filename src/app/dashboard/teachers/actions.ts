@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
@@ -35,11 +36,12 @@ export async function createTeacherWithAccount(data: {
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
 
-  const supabase = createAdminClient()
+  const admin = createAdminClient()          // création du compte auth (service-role obligatoire)
+  const supabase = await createClient()      // écritures de tables : client SESSION → audit utilisateur tracé
   const tempPassword = generateTempPassword()
 
-  // 1. Créer le compte auth
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  // 1. Créer le compte auth (client admin obligatoire)
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: data.email,
     password: tempPassword,
     email_confirm: true,
@@ -52,7 +54,7 @@ export async function createTeacherWithAccount(data: {
     return { error: authError.message }
   }
 
-  // 2. Insérer profile + teacher dans une seule transaction atomique via RPC
+  // 2. Insérer profile + teacher via RPC (client SESSION → le trigger d'audit capte l'utilisateur)
   const { data: teacherId, error: rpcError } = await supabase.rpc('create_profile_and_teacher', {
     p_profile_id:         authData.user.id,
     p_email:              data.email,
@@ -70,7 +72,7 @@ export async function createTeacherWithAccount(data: {
 
   if (rpcError) {
     // Rollback du compte auth — on logge mais on ne bloque pas
-    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+    await admin.auth.admin.deleteUser(authData.user.id).catch((e) =>
       console.error('[createTeacherWithAccount] Échec du rollback auth:', e)
     )
     if (rpcError.code === '23505') {
@@ -80,7 +82,7 @@ export async function createTeacherWithAccount(data: {
   }
 
   if (!teacherId) {
-    await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
+    await admin.auth.admin.deleteUser(authData.user.id).catch((e) =>
       console.error('[createTeacherWithAccount] Échec du rollback auth (teacherId null):', e)
     )
     return { error: "Erreur inattendue : aucun ID retourné par le RPC." }
@@ -123,7 +125,9 @@ export async function updateTeacher(
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
 
-  const supabase = createAdminClient()
+  // Client SESSION (et non admin) : le trigger d'audit capte auth.uid() → utilisateur tracé.
+  // La RLS autorise deja admin/direction a modifier les enseignants.
+  const supabase = await createClient()
 
   const { error } = await supabase.from('teachers').update({
     employee_number:  data.employee_number,
@@ -161,11 +165,12 @@ export async function createParentAccount(data: {
   const etablissementId = headersList.get('x-etablissement-id')
   if (!etablissementId) return { error: 'Établissement non identifié.' }
 
-  const supabase = createAdminClient()
+  const admin = createAdminClient()          // création du compte auth (service-role obligatoire)
+  const supabase = await createClient()      // écriture du profil : client SESSION → audit utilisateur tracé
   const tempPassword = generateTempPassword()
 
-  // 1. Créer le compte auth
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  // 1. Créer le compte auth (client admin obligatoire)
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: data.email,
     password: tempPassword,
     email_confirm: true,
@@ -178,20 +183,19 @@ export async function createParentAccount(data: {
     return { error: authError.message }
   }
 
-  // 2. Créer le profil (role parent)
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:               authData.user.id,
-    email:            data.email,
-    role:             'parent',
-    first_name:       data.first_name,
-    last_name:        data.last_name,
-    phone:            data.phone || null,
-    is_active:        true,
-    etablissement_id: etablissementId,
+  // 2. Créer le profil (role 'parent' verrouillé) via RPC SECURITY DEFINER
+  //    appelé avec le client SESSION → le trigger d'audit capte l'utilisateur.
+  const { error: profileError } = await supabase.rpc('create_parent_login_profile', {
+    p_profile_id:       authData.user.id,
+    p_email:            data.email,
+    p_first_name:       data.first_name,
+    p_last_name:        data.last_name,
+    p_phone:            data.phone || null,
+    p_etablissement_id: etablissementId,
   })
 
   if (profileError) {
-    await supabase.auth.admin.deleteUser(authData.user.id)
+    await admin.auth.admin.deleteUser(authData.user.id)
     return { error: 'Erreur lors de la création du profil parent.' }
   }
 

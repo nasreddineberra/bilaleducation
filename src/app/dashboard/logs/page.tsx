@@ -99,6 +99,25 @@ export default async function LogsPage({
     }
   }
 
+  // Noms des enseignants / apprenants concernes par les logs de documents
+  const teacherDocIds = new Set<string>()
+  const studentDocIds = new Set<string>()
+  for (const l of logs ?? []) {
+    const d = (l.new_data ?? l.old_data) as Record<string, unknown> | null
+    if (!d) continue
+    if (l.entity_type === 'teacher_documents' && typeof d.teacher_id === 'string') teacherDocIds.add(d.teacher_id)
+    if (l.entity_type === 'student_documents' && typeof d.student_id === 'string') studentDocIds.add(d.student_id)
+  }
+  const docOwners: Record<string, string> = {}
+  if (teacherDocIds.size > 0) {
+    const { data } = await supabase.from('teachers').select('id, last_name, first_name').in('id', [...teacherDocIds])
+    for (const t of data ?? []) docOwners[t.id] = `${t.last_name ?? ''} ${t.first_name ?? ''}`.trim()
+  }
+  if (studentDocIds.size > 0) {
+    const { data } = await supabase.from('students').select('id, last_name, first_name').in('id', [...studentDocIds])
+    for (const s of data ?? []) docOwners[s.id] = `${s.last_name ?? ''} ${s.first_name ?? ''}`.trim()
+  }
+
   return (
     <AuditLogsClient
       logs={logs ?? []}
@@ -107,6 +126,7 @@ export default async function LogsPage({
       users={users}
       entityTypes={uniqueEntityTypes}
       userRoles={userRoles}
+      docOwners={docOwners}
       filters={{
         user: userFilter ?? '',
         entity_type: entityFilter ?? '',
