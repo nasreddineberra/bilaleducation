@@ -220,6 +220,28 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   const roomFormValid = !!(roomForm.name?.trim() && roomForm.room_type)
   const matFormValid = !!(matForm.name?.trim() && matForm.category && matForm.condition)
 
+  // Détection « aucune modification » en édition → bouton grisé (charte edit)
+  const roomKey = (r: Partial<Room>) => JSON.stringify({
+    name: (r.name ?? '').trim(),
+    room_type: r.room_type ?? '',
+    capacity: r.capacity ?? null,
+    floor: (r.floor ?? '').trim(),
+    description: (r.description ?? '').trim(),
+    is_available: r.is_available ?? true,
+  })
+  const matKey = (m: Partial<Material>) => JSON.stringify({
+    name: (m.name ?? '').trim(),
+    category: m.category ?? '',
+    quantity: m.quantity ?? 1,
+    room_id: m.room_id ?? null,
+    condition: m.condition ?? '',
+    serial_number: (m.serial_number ?? '').trim(),
+    purchase_date: m.purchase_date ?? '',
+    notes: (m.notes ?? '').trim(),
+  })
+  const roomUnchanged = !!editingRoom && roomKey(roomForm) === roomKey(editingRoom)
+  const matUnchanged  = !!editingMat  && matKey(matForm)  === matKey(editingMat)
+
   return (
     <div className="h-full overflow-y-auto animate-fade-in">
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] gap-0">
@@ -227,16 +249,15 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
         {/* ════════════════════ SALLES (gauche) ════════════════════ */}
         <div className="flex flex-col gap-2 pr-6">
 
-          {/* Header + bouton ajouter */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Salles</h2>
+          {/* Header : titre + recherche + bouton ajouter (une seule ligne) */}
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest whitespace-nowrap">Salles</h2>
+            <div className="flex-1" />
+            <SearchField value={roomSearch} onChange={setRoomSearch} placeholder="Rechercher une salle..." ariaLabel="Rechercher une salle" className="w-48 min-w-0" />
             <FloatButton type="button" variant="submit" onClick={startAddRoom}>
               Ajouter
             </FloatButton>
           </div>
-
-          {/* Search */}
-          <SearchField value={roomSearch} onChange={setRoomSearch} placeholder="Rechercher une salle..." ariaLabel="Rechercher une salle" className="w-full" />
 
           {roomError && <p role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{roomError}</p>}
 
@@ -288,7 +309,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <span className="text-xs text-warm-500"><span className="font-semibold text-red-400">*</span> obligatoire</span>
                 <div className="flex-1" />
                 <FloatButton type="button" variant="secondary" onClick={cancelRoom} disabled={roomSaving}>Annuler</FloatButton>
-                <FloatButton type="button" variant="submit" onClick={saveRoom} disabled={roomSaving || !roomFormValid}>
+                <FloatButton type="button" variant={editingRoom ? 'edit' : 'submit'} onClick={saveRoom} disabled={roomSaving || !roomFormValid || roomUnchanged}>
                   {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
                 </FloatButton>
               </div>
@@ -296,41 +317,61 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           )}
 
           {/* List */}
-          <ul className="space-y-2">
-            {filteredRooms.length === 0 && <li className="text-sm text-warm-400 text-center py-6 list-none">Aucune salle</li>}
-            {filteredRooms.map(r => (
-              <li key={r.id} className={clsx('flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 transition-colors list-none', r.is_available ? 'bg-white border-warm-100 hover:border-primary-300' : 'bg-warm-50 border-warm-200')}>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-secondary-800 truncate">{r.name}</span>
-                    {!r.is_available && <span className="text-[10px] bg-red-100 text-red-600 rounded-lg px-1.5 py-0.5 font-medium">Indisponible</span>}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5">
-                    <span>{ROOM_TYPE_LABELS[r.room_type]}</span>
-                    {r.capacity != null && <><span>·</span><span>{r.capacity} places</span></>}
-                    {r.floor && <><span>·</span><span>{r.floor}</span></>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {confirmDeleteRoom === r.id ? (
-                    <>
-                      <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
-                      <button onClick={() => setConfirmDeleteRoom(null)} className="text-xs text-warm-500 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
-                    </>
-                  ) : (
-                    <>
-                      <Tooltip content="Modifier">
-                        <button onClick={() => startEditRoom(r)} aria-label={`Modifier ${r.name}`} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
-                      </Tooltip>
-                      <Tooltip content="Supprimer">
-                        <button onClick={() => { setConfirmDeleteRoom(r.id); setRoomError('') }} aria-label={`Supprimer ${r.name}`} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
-                      </Tooltip>
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="card p-0 overflow-hidden">
+            <table className="w-full text-xs" aria-label="Salles">
+              <thead>
+                <tr className="border-b border-warm-100 bg-warm-50">
+                  <th className="list-th">Nom</th>
+                  <th className="list-th">Type</th>
+                  <th className="list-th text-center">Cap.</th>
+                  <th className="list-th">Étage</th>
+                  <th className="list-th" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-50">
+                {filteredRooms.length === 0 && (
+                  <tr><td colSpan={5} className="text-sm text-warm-400 text-center py-6">Aucune salle</td></tr>
+                )}
+                {filteredRooms.map(r => (
+                  <tr key={r.id} onClick={() => startEditRoom(r)} className={clsx('cursor-pointer transition-colors', r.is_available ? 'hover:bg-warm-50/60' : 'bg-warm-50/60')}>
+                    <td className="list-td whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="list-name text-secondary-800">{r.name}</span>
+                        {!r.is_available && <span className="text-[10px] bg-red-100 text-red-600 rounded px-1.5 py-0.5 font-medium">Indispo</span>}
+                      </div>
+                    </td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">
+                      {ROOM_TYPE_LABELS[r.room_type]}
+                      {r.room_type === 'autre' && r.description && (
+                        <span className="text-warm-400 font-normal"> — {r.description.length > 40 ? r.description.slice(0, 40) + '…' : r.description}</span>
+                      )}
+                    </td>
+                    <td className="list-td text-center text-secondary-600">{r.capacity ?? <span className="text-warm-300">—</span>}</td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">{r.floor || <span className="text-warm-300">—</span>}</td>
+                    <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 justify-end">
+                        {confirmDeleteRoom === r.id ? (
+                          <>
+                            <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                            <button onClick={() => setConfirmDeleteRoom(null)} className="text-xs text-warm-500 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
+                          </>
+                        ) : (
+                          <>
+                            <Tooltip content="Modifier">
+                              <button onClick={() => startEditRoom(r)} aria-label={`Modifier ${r.name}`} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
+                            </Tooltip>
+                            <Tooltip content="Supprimer">
+                              <button onClick={() => { setConfirmDeleteRoom(r.id); setRoomError('') }} aria-label={`Supprimer ${r.name}`} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
+                            </Tooltip>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* ════════════════════ DIVIDER ════════════════════ */}
@@ -339,16 +380,15 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
         {/* ════════════════════ MATÉRIELS (droite) ════════════════════ */}
         <div className="flex flex-col gap-2 pl-6 xl:pl-6 mt-6 xl:mt-0">
 
-          {/* Header + bouton ajouter */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Matériels</h2>
+          {/* Header : titre + recherche + bouton ajouter (une seule ligne) */}
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest whitespace-nowrap">Matériels</h2>
+            <div className="flex-1" />
+            <SearchField value={matSearch} onChange={setMatSearch} placeholder="Rechercher un matériel..." ariaLabel="Rechercher un matériel" className="w-48 min-w-0" />
             <FloatButton type="button" variant="submit" onClick={startAddMat}>
               Ajouter
             </FloatButton>
           </div>
-
-          {/* Search */}
-          <SearchField value={matSearch} onChange={setMatSearch} placeholder="Rechercher un matériel..." ariaLabel="Rechercher un matériel" className="w-full" />
 
           {matError && <p role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{matError}</p>}
 
@@ -417,7 +457,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 <span className="text-xs text-warm-500"><span className="font-semibold text-red-400">*</span> obligatoire</span>
                 <div className="flex-1" />
                 <FloatButton type="button" variant="secondary" onClick={cancelMat} disabled={matSaving}>Annuler</FloatButton>
-                <FloatButton type="button" variant="submit" onClick={saveMat} disabled={matSaving || !matFormValid}>
+                <FloatButton type="button" variant={editingMat ? 'edit' : 'submit'} onClick={saveMat} disabled={matSaving || !matFormValid || matUnchanged}>
                   {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}
                 </FloatButton>
               </div>
@@ -425,43 +465,57 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           )}
 
           {/* List */}
-          <ul className="space-y-2">
-            {filteredMats.length === 0 && <li className="text-sm text-warm-400 text-center py-6 list-none">Aucun matériel</li>}
-            {filteredMats.map(m => (
-              <li key={m.id} className={clsx('flex items-center justify-between gap-3 rounded-xl border px-3 py-1.5 transition-colors list-none', m.condition === 'hors_service' ? 'bg-warm-50 border-warm-200' : 'bg-white border-warm-100 hover:border-primary-300')}>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-secondary-800 truncate">{m.name}</span>
-                    <span className={clsx('text-[10px] rounded-lg px-1.5 py-0.5 font-medium', CONDITION_COLORS[m.condition])}>{CONDITION_LABELS[m.condition]}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5">
-                    <span>{MATERIAL_CATEGORY_LABELS[m.category]}</span>
-                    <span>·</span>
-                    <span>Qté : {m.quantity}</span>
-                    {m.rooms?.name && <><span>·</span><span>{m.rooms.name}</span></>}
-                    {m.serial_number && <><span>·</span><span>S/N {m.serial_number}</span></>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {confirmDeleteMat === m.id ? (
-                    <>
-                      <button onClick={() => deleteMat(m.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
-                      <button onClick={() => setConfirmDeleteMat(null)} className="text-xs text-warm-500 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
-                    </>
-                  ) : (
-                    <>
-                      <Tooltip content="Modifier">
-                        <button onClick={() => startEditMat(m)} aria-label={`Modifier ${m.name}`} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
-                      </Tooltip>
-                      <Tooltip content="Supprimer">
-                        <button onClick={() => { setConfirmDeleteMat(m.id); setMatError('') }} aria-label={`Supprimer ${m.name}`} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
-                      </Tooltip>
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="card p-0 overflow-hidden">
+            <table className="w-full text-xs" aria-label="Matériels">
+              <thead>
+                <tr className="border-b border-warm-100 bg-warm-50">
+                  <th className="list-th">Nom</th>
+                  <th className="list-th">Catégorie</th>
+                  <th className="list-th text-center">Qté</th>
+                  <th className="list-th">État</th>
+                  <th className="list-th">Salle</th>
+                  <th className="list-th" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-50">
+                {filteredMats.length === 0 && (
+                  <tr><td colSpan={6} className="text-sm text-warm-400 text-center py-6">Aucun matériel</td></tr>
+                )}
+                {filteredMats.map(m => (
+                  <tr key={m.id} onClick={() => startEditMat(m)} className={clsx('cursor-pointer transition-colors', m.condition === 'hors_service' ? 'bg-warm-50/60' : 'hover:bg-warm-50/60')}>
+                    <td className="list-td whitespace-nowrap">
+                      <span className="list-name text-secondary-800">{m.name}</span>
+                    </td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">{MATERIAL_CATEGORY_LABELS[m.category]}</td>
+                    <td className="list-td text-center text-secondary-600">{m.quantity}</td>
+                    <td className="list-td whitespace-nowrap">
+                      <span className={clsx('text-[10px] rounded px-1.5 py-0.5 font-medium', CONDITION_COLORS[m.condition])}>{CONDITION_LABELS[m.condition]}</span>
+                    </td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">{m.rooms?.name || <span className="text-warm-300">—</span>}</td>
+                    <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 justify-end">
+                        {confirmDeleteMat === m.id ? (
+                          <>
+                            <button onClick={() => deleteMat(m.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                            <button onClick={() => setConfirmDeleteMat(null)} className="text-xs text-warm-500 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
+                          </>
+                        ) : (
+                          <>
+                            <Tooltip content="Modifier">
+                              <button onClick={() => startEditMat(m)} aria-label={`Modifier ${m.name}`} className="p-1.5 text-warm-400 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
+                            </Tooltip>
+                            <Tooltip content="Supprimer">
+                              <button onClick={() => { setConfirmDeleteMat(m.id); setMatError('') }} aria-label={`Supprimer ${m.name}`} className="p-1.5 text-warm-400 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
+                            </Tooltip>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

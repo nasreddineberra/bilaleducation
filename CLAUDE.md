@@ -209,6 +209,23 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   de RPC SECURITY DEFINER.
 - **Debug BDD** : scripts service-role jetables (`.env.local`) dans le dossier projet (resolution `node_modules`),
   supprimes apres usage — utilises pour verifier l'absence de classes `multi` et le comportement des gardes RPC.
+- **Classes (liste)** : `card p-0` (tableau a ras des bords, standard des autres listes ; corrige un tableau en retrait).
+- **Ressources (`page.tsx` + `ResourcesClient.tsx`)** :
+  - **Bug corrige** : `profile!.etablissement_id` plantait quand la requete RLS `profiles` renvoyait `null` →
+    la page lit desormais l'etablissement depuis le **header `x-etablissement-id`** (pose par le middleware,
+    fiable). **Regle** : preferer ce header a une requete `profiles` fragile pour l'etablissement courant.
+  - **Refonte densite** : listes Salles/Materiels converties de cartes 2 lignes en **tableaux compacts**
+    (`.list-th/.list-td/.list-name`, `card p-0`) → une dizaine d'items sans scroll. Type de salle **« Autre »**
+    affiche le debut de la description. **Lignes cliquables** → ouvrent le formulaire d'edition (pas de fiche
+    separee ici). Bouton **`edit`** (ambre) + **grise si aucune modification** (comparaison au formulaire d'origine).
+    En-tete condense : titre + recherche (largeur fixe, collee a gauche du bouton) + « Ajouter » sur une seule ligne.
+- **Fiche classe — modale « Nouveau creneau »** : le select **Jour** respecte le parametrage etablissement
+  (`week_start_day` + `working_days`) via `buildWorkingDayNames` (memes regles que l'EDT : N jours consecutifs a
+  partir du 1er jour ; Lun+5 → Lun-Ven, Mar+5 → Mar-Sam). `weekStartDay`/`workingDays` recharges dans les pages
+  `new`/`[id]` et transmis a `ClassForm` → `SlotFormModal`.
+
+## Prochaine etape (8 juillet 2026)
+- **Fonctionnalites utilisateurs** : chantier a demarrer (le parametrage etant bien avance).
 
 ## Stack technique
 

@@ -165,7 +165,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           </div>
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card p-0 overflow-hidden">
           <table className="w-full text-xs" aria-label="Classes">
             <thead>
               <tr className="border-b border-warm-100">

@@ -59,6 +59,8 @@ interface ClassFormProps {
   backHref?: string
   currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] } | null
   existingSlots?: SlotRow[]
+  weekStartDay?: number   // 0=Dimanche, 1=Lundi, 6=Samedi
+  workingDays?: number    // 5 ou 7
 }
 
 type TeachingMode = 'single' | 'multi' | ''
@@ -83,6 +85,15 @@ const DAY_NUM_TO_NAME: Record<number, string> = {
   0: 'Dimanche', 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi',
 }
 function dayNameToNum(name: string): number { return DAY_NAME_TO_JS[name] ?? -1 }
+
+// Liste ordonnée des jours selon le paramétrage établissement
+// (1er jour de la semaine + nombre de jours travaillés). Même logique que l'EDT.
+function buildWorkingDayNames(weekStartDay: number, workingDays: number): string[] {
+  const order: number[] = []
+  for (let i = 0; i < 7; i++) order.push((weekStartDay + i) % 7)
+  const days = workingDays >= 7 ? order : order.slice(0, workingDays)
+  return days.map(n => DAY_NUM_TO_NAME[n])
+}
 
 function todayISO() { return new Date().toISOString().slice(0, 10) }
 
@@ -120,7 +131,10 @@ export default function ClassForm({
   backHref = '/dashboard/classes',
   currentSchoolYear,
   existingSlots = [],
+  weekStartDay = 1,
+  workingDays = 5,
 }: ClassFormProps) {
+  const workingDayNames = buildWorkingDayNames(weekStartDay, workingDays)
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!cls
@@ -793,6 +807,7 @@ export default function ClassForm({
           open={showSlotForm}
           initial={editingSlotIdx !== null ? slots[editingSlotIdx] : undefined}
           currentSchoolYear={currentSchoolYear}
+          days={workingDayNames}
           onSave={handleSaveSlot}
           onCancel={() => { setShowSlotForm(false); setEditingSlotIdx(null); setSlotOverlapErr(null) }}
         />
@@ -897,15 +912,21 @@ function SlotFormModal({
   open,
   initial,
   currentSchoolYear,
+  days,
   onSave,
   onCancel,
 }: {
   open: boolean
   initial?: SlotDraft
   currentSchoolYear?: { start_date: string | null; end_date: string | null } | null
+  days: string[]
   onSave: (slot: SlotDraft) => void
   onCancel: () => void
 }) {
+  // Inclure le jour du créneau existant même s'il est hors jours travaillés (édition)
+  const dayOptions = initial?.day_of_week && !days.includes(initial.day_of_week)
+    ? [initial.day_of_week, ...days]
+    : days
   const [dayOfWeek,      setDayOfWeek]      = useState(initial?.day_of_week     ?? '')
   const [startTime,      setStartTime]      = useState(initial?.start_time      ?? '')
   const [endTime,        setEndTime]        = useState(initial?.end_time        ?? '')
@@ -984,7 +1005,7 @@ function SlotFormModal({
           <div className="grid grid-cols-3 gap-3">
             <FloatSelect label="Jour" required value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)}>
               <option value="" />
-              {['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'].map(d => (
+              {dayOptions.map(d => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </FloatSelect>

@@ -20,6 +20,7 @@ export default async function EditClassPage({ params }: Props) {
     { data: teachers },
     { data: currentYearRow },
     { data: rooms },
+    { data: etablissement },
   ] = await Promise.all([
     supabase.from('classes').select('*').eq('id', id).single(),
     supabase
@@ -47,6 +48,10 @@ export default async function EditClassPage({ params }: Props) {
       .eq('is_available', true)
       .in('room_type', ['salle_cours', 'salle_informatique', 'salle_sport', 'autre'])
       .order('name'),
+    supabase
+      .from('etablissements')
+      .select('week_start_day, working_days')
+      .single(),
   ])
 
   const { data: cotisationTypes } = currentYearRow
@@ -102,6 +107,8 @@ export default async function EditClassPage({ params }: Props) {
         rooms={(rooms ?? []) as any[]}
         currentSchoolYear={currentYearRow as any}
         existingSlots={(existingSlots ?? []) as any[]}
+        weekStartDay={etablissement?.week_start_day ?? 1}
+        workingDays={etablissement?.working_days ?? 5}
       />
 
     </div>
