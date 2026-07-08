@@ -259,6 +259,31 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   Types de presence. **Regle** : tableau de liste = `card p-0` (jamais `card` seul → sinon retrait de 24px).
 - **Sidebar** (`DashboardSidebar.tsx`) : ordre revu — Affectations puis Evaluations places sous Parents.
 
+#### 9 juillet 2026 — Statuts apprenants en lot + refonte des affectations (apprenants & adultes)
+- **Mise a jour des statuts apprenants en lot** (`students/actions.ts` + `StudentsStatusSyncModal.tsx`,
+  bouton dans la liste) : modale listant TOUS les apprenants avec **classe (si affecte cette annee)** +
+  **interrupteur actif/inactif** par ligne ; **verrouille actif** si l'apprenant est inscrit dans une classe
+  de l'annee (garde aussi cote serveur). Boutons **Tout actif / Tout inactif** (icones, excluent les affectes)
+  + **Recharger depuis la base** ; recherche ; compteur. Server actions `getStudentsForStatusModal` +
+  `saveStudentsActive` (garde admin/direction, tracees). Regle « inscrit ⟹ non desactivable » appliquee aussi
+  sur la fiche eleve (`StudentDetail` : `hasActiveEnrollment` restreint a l'annee en cours).
+- **Tooltip classe standardise** (liste apprenants + modale) : `Prof (NOM Prenom) · Cotisation · Niveau · Jour HH:MM–HH:MM`,
+  **une seule ligne** (`maxWidth="max-w-none"` + `whitespace-nowrap`), construit cote serveur.
+- **Affectation apprenants** (`AffectationClient.tsx` + `affectation/actions.ts`) :
+  - **Clic pour affecter** (dnd-kit **retire**) : carte du vivier = `<button>` (clavier + `aria-label`), croix pour retirer.
+  - Densite : vivier `py-0.5` (20 sans scroll), lignes classe compactes, **liseret retire** quand la classe est peuplee.
+  - **Bouton recharger** en haut a droite de l'encadre classe (= reclic de la selection).
+  - Filtre **« Non affectes »** + en-tete **« Eleves (N actifs · X non affectes) »**.
+  - **Tracabilite** : sauvegarde via server action `saveStudentEnrollments` (garde admin/direction/resp. pedagogique,
+    `logAudit`), plus d'ecriture client directe.
+  - Nettoyage : `page.tsx` ne requete plus les classes 2 fois.
+- **Affectation adultes** (`AffectationAdultesClient.tsx`) : **memes** changements repliques (clic, densite, recharger,
+  filtre, compteur « Participants (N inscrits · X non affectes) », tracabilite `saveParentEnrollments` sur
+  `parent_class_enrollments`, tooltip une ligne). **Pas d'avatar** (contrairement aux apprenants) : hauteur de ligne
+  compensee par `py-1` ; badge sexe M/F conserve.
+- **Regle UI (memoire)** : **jamais de tiret quadratin `—`** dans l'UI (utiliser `·` / `-` / parentheses) ; plages
+  horaires en demi-cadratin `–` tolerees. **Passe globale de nettoyage prevue en FIN DE V1** (ne pas la faire avant).
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 

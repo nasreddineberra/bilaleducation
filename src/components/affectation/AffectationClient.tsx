@@ -3,24 +3,14 @@
 import { useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  pointerWithin,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { X, Users, GripVertical, Info, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Users, Info, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { saveStudentEnrollments } from '@/app/dashboard/affectation/actions'
 
 const POOL_PAGE_SIZE = 20
 
@@ -104,42 +94,6 @@ function StudentAvatar({ lastName, firstName, gender, size = 'sm' }: {
   return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 border border-warm-300 text-warm-400 ${dim}`}>{initiales}</span>
 }
 
-// ─── Tooltip classe (contenu riche) ──────────────────────────────────────────
-
-function ClassInfoTooltip({ name, teacher, schedule, level, cotisation }: {
-  name: string; teacher?: string; schedule?: string; level?: string; cotisation?: string
-}) {
-  return (
-    <div className="w-44">
-      <span className="block font-bold text-white text-sm mb-1">{name}</span>
-      {(teacher || cotisation || level) && (
-        <>
-          <span className="block border-t border-white/10 mb-1.5" />
-          {teacher && (
-            <span className="block text-secondary-300 text-[11px]">{teacher}</span>
-          )}
-          {cotisation && (
-            <span className="inline-block mt-1 text-[10px] font-bold text-amber-300 bg-amber-900/40 px-1.5 py-0.5 rounded">
-              {cotisation}
-            </span>
-          )}
-          {level && (
-            <span className="inline-block mt-1 ml-1 text-[10px] font-bold text-blue-300 bg-blue-900/40 px-1.5 py-0.5 rounded">
-              Niveau {level}
-            </span>
-          )}
-        </>
-      )}
-      {schedule && (
-        <>
-          <span className="block border-t border-white/10 mt-1.5 mb-1.5" />
-          <span className="block text-secondary-400 text-[11px]">{schedule}</span>
-        </>
-      )}
-    </div>
-  )
-}
-
 // ─── Tooltip identité (fixed, hors du conteneur scrollable) ──────────────────
 
 function StudentTooltip({ student, top, left }: { student: StudentRow; top: number; left: number }) {
@@ -185,37 +139,32 @@ function StudentTooltip({ student, top, left }: { student: StudentRow; top: numb
 
 // ─── Carte élève draggable ────────────────────────────────────────────────────
 
-function DraggableCard({
-  student, disabled, assignedClassName, assignedClassInfo, onInfoEnter, onInfoLeave,
+function StudentCard({
+  student, disabled, onAdd, assignedClassName, assignedClassInfo, onInfoEnter, onInfoLeave,
 }: {
   student:               StudentRow
   disabled:              boolean
+  onAdd:                 (id: string) => void
   assignedClassName?:    string
   assignedClassInfo?:    { teacher?: string; schedule?: string; level?: string; cotisation?: string } | null
   onInfoEnter?:          (student: StudentRow, e: React.MouseEvent<HTMLSpanElement>) => void
   onInfoLeave?:          () => void
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id:       student.id,
-    disabled,
-  })
-
   return (
-    <div
-      ref={setNodeRef}
-      {...(!disabled ? { ...listeners, ...attributes } : {})}
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onAdd(student.id)}
+      aria-label={disabled
+        ? `${student.last_name} ${student.first_name} (non disponible)`
+        : `Affecter ${student.last_name} ${student.first_name} à la classe`}
       className={clsx(
-        'flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors select-none',
-        isDragging && 'opacity-30',
+        'w-full flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs transition-colors select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
         disabled
           ? 'bg-warm-50 border-warm-100 text-warm-400 cursor-not-allowed'
-          : 'bg-white border-warm-200 text-secondary-800 cursor-grab active:cursor-grabbing hover:border-primary-300 hover:bg-primary-50/30',
+          : 'bg-white border-warm-200 text-secondary-800 cursor-pointer hover:border-primary-300 hover:bg-primary-50/30',
       )}
     >
-      <span className={clsx('flex-shrink-0', disabled ? 'text-warm-300' : 'text-warm-400')}>
-        <GripVertical size={12} />
-      </span>
-
       {/* Avatar + Nom + icône info */}
       <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} size="sm" />
       <span className="flex items-center gap-1 flex-1 min-w-0">
@@ -247,69 +196,52 @@ function DraggableCard({
       <span className="text-[10px] text-warm-400 flex-shrink-0">{calcAge(student.date_of_birth)} ans</span>
 
       {/* Classe assignée */}
-      {assignedClassName && (
-        assignedClassInfo ? (
-          <Tooltip content={
-            <ClassInfoTooltip name={assignedClassName} {...assignedClassInfo} />
-          }>
-            <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
-              {assignedClassName}
-            </span>
-          </Tooltip>
-        ) : (
+      {assignedClassName && (() => {
+        const line = assignedClassInfo
+          ? [assignedClassInfo.teacher, assignedClassInfo.cotisation, assignedClassInfo.level, assignedClassInfo.schedule].filter(Boolean).join(' · ')
+          : ''
+        const badge = (
           <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
             {assignedClassName}
           </span>
         )
-      )}
-    </div>
+        return line
+          ? <Tooltip content={<span className="whitespace-nowrap">{line}</span>} maxWidth="max-w-none">{badge}</Tooltip>
+          : badge
+      })()}
+    </button>
   )
 }
 
-// ─── Zone de dépôt (panel droit) ──────────────────────────────────────────────
+// ─── Liste des élèves de la classe (panel droit) ─────────────────────────────
 
 function DropZone({
   rosterStudents,
-  maxStudents,
   onRemove,
   onInfoEnter,
   onInfoLeave,
 }: {
   rosterStudents: StudentRow[]
-  maxStudents:    number
   onRemove:       (id: string) => void
   onInfoEnter?:   (student: StudentRow, e: React.MouseEvent<HTMLSpanElement>) => void
   onInfoLeave?:   () => void
 }) {
-  const isFull = rosterStudents.length >= maxStudents
-  const { setNodeRef, isOver } = useDroppable({ id: 'class-zone' })
-
   return (
-    <div
-      ref={setNodeRef}
-      className={clsx(
-        'flex-1 min-h-0 rounded-xl border-2 border-dashed transition-colors flex flex-col overflow-hidden',
-        isFull
-          ? 'border-red-200 bg-red-50/30'
-          : isOver
-            ? 'border-primary-400 bg-primary-50/40'
-            : 'border-warm-200 bg-warm-50/30',
-      )}
-    >
+    <div className="flex-1 min-h-0 rounded-xl flex flex-col overflow-hidden">
       {rosterStudents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-warm-400">
           <Users size={28} className="text-warm-300" />
-          <p className="text-sm">Glisser des élèves ici</p>
+          <p className="text-sm">Cliquez un élève à gauche pour l&apos;affecter</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {rosterStudents.map(s => (
             <div
               key={s.id}
-              className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-warm-100 text-sm"
+              className="flex items-center gap-1.5 px-2 py-0.5 bg-white rounded-md border border-warm-100 text-xs"
             >
               {/* Avatar + Nom + icône info */}
-              <StudentAvatar lastName={s.last_name} firstName={s.first_name} gender={s.gender} size="md" />
+              <StudentAvatar lastName={s.last_name} firstName={s.first_name} gender={s.gender} size="sm" />
               <span className="flex items-center gap-1 flex-1 min-w-0">
                 <span className="truncate font-medium text-secondary-800">
                   {s.last_name} {s.first_name}
@@ -319,7 +251,7 @@ function DropZone({
                   onMouseEnter={e => onInfoEnter?.(s, e)}
                   onMouseLeave={onInfoLeave}
                 >
-                  <Info size={13} className="text-warm-300 hover:text-primary-400 transition-colors" />
+                  <Info size={11} className="text-warm-300 hover:text-primary-400 transition-colors" />
                 </span>
               </span>
 
@@ -329,14 +261,14 @@ function DropZone({
               {/* Badge PAI */}
               {s.has_pai && (
                 <Tooltip content="Projet d'Accueil Individualisé">
-                  <span className="text-[10px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                  <span className="text-[9px] font-bold text-red-500 bg-red-100 px-1 py-px rounded flex-shrink-0">
                     PAI
                   </span>
                 </Tooltip>
               )}
 
               {/* Âge */}
-              <span className="text-xs text-warm-400 flex-shrink-0">{calcAge(s.date_of_birth)} ans</span>
+              <span className="text-[10px] text-warm-400 flex-shrink-0">{calcAge(s.date_of_birth)} ans</span>
 
               {/* Retirer */}
               <Tooltip content="Retirer de la classe">
@@ -360,7 +292,6 @@ function DropZone({
 export default function AffectationClient({ classes, students, enrollments, currentYearId }: Props) {
   const router  = useRouter()
   const toast   = useToast()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Carte rapide : student_id → class_id (état serveur)
   const serverMap = Object.fromEntries(enrollments.map(e => [e.student_id, e.class_id]))
@@ -380,7 +311,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
   const [search,   setSearch]   = useState('')
   const [poolPage, setPoolPage] = useState(1)
   const [saving,   setSaving]   = useState(false)
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const [onlyUnassigned, setOnlyUnassigned] = useState(false)
 
   // Tooltip fixe hors du conteneur scrollable
   const [tooltip, setTooltip] = useState<{ student: StudentRow; top: number; left: number } | null>(null)
@@ -410,24 +341,17 @@ export default function AffectationClient({ classes, students, enrollments, curr
     }
   }, [hasChanges, enrollments])
 
-  // ── DnD ───────────────────────────────────────────────────────────────────
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(event.active.id as string)
-    setTooltip(null)
+  // ── Ajout par clic ────────────────────────────────────────────────────────
+  const addToRoster = (studentId: string) => {
+    if (!selectedClass) return
+    if (roster.includes(studentId)) return
+    if (roster.length >= selectedClass.max_students) return
+    setRoster(prev => [...prev, studentId])
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null)
-    const { active, over } = event
-    if (!over || !selectedClass) return
-
-    const studentId = active.id as string
-    if (over.id === 'class-zone') {
-      if (roster.includes(studentId)) return
-      if (roster.length >= selectedClass.max_students) return
-      setRoster(prev => [...prev, studentId])
-    }
-  }
+  // ── Recharger la classe depuis la base = re-sélectionner la même classe ─────
+  //    (re-dérive le roster des inscriptions, avec confirmation si modifs non enregistrées).
+  const reloadClass = () => selectClass(selectedClassId)
 
   // ── Retrait depuis le panel droit ─────────────────────────────────────────
   const removeFromRoster = async (studentId: string) => {
@@ -477,58 +401,35 @@ export default function AffectationClient({ classes, students, enrollments, curr
     setRoster(prev => prev.filter(id => id !== studentId))
   }
 
-  // ── Sauvegarde ────────────────────────────────────────────────────────────
+  // ── Sauvegarde (server action + traçabilité journal) ───────────────────────
   const save = async () => {
     if (!selectedClassId) return
     setSaving(true)
 
-    try {
-      const supabase = createClient()
-      const today    = new Date().toISOString().slice(0, 10)
+    const toAdd    = roster.filter(id => !originalRoster.includes(id))
+    const toRemove = originalRoster.filter(id => !roster.includes(id))
 
-      const toAdd    = roster.filter(id => !originalRoster.includes(id))
-      const toRemove = originalRoster.filter(id => !roster.includes(id))
+    const { error } = await saveStudentEnrollments(selectedClassId, toAdd, toRemove)
+    setSaving(false)
+    if (error) { toast.error(error); return }
 
-      if (toAdd.length > 0) {
-        const rows = toAdd.map(student_id => ({
-          student_id,
-          class_id:        selectedClassId,
-          status:          'active' as const,
-          enrollment_date: today,
-        }))
-        const { error: errAdd } = await supabase
-          .from('enrollments')
-          .upsert(rows, { onConflict: 'student_id,class_id' })
-        if (errAdd) throw errAdd
-      }
-
-      if (toRemove.length > 0) {
-        const { error: errRm } = await supabase
-          .from('enrollments')
-          .delete()
-          .eq('class_id', selectedClassId)
-          .in('student_id', toRemove)
-        if (errRm) throw errRm
-      }
-
-      setOriginalRoster([...roster])
-      toast.success('Affectations enregistrées avec succès.')
-      router.refresh()
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message
-      toast.error(msg || 'Une erreur est survenue. Veuillez réessayer.')
-    } finally {
-      setSaving(false)
-    }
+    setOriginalRoster([...roster])
+    toast.success('Affectations enregistrées avec succès.')
+    router.refresh()
   }
 
   // ── Données dérivées ──────────────────────────────────────────────────────
+  // Non affectés = aucun élève inscrit dans une classe de l'année (état serveur)
+  const unassignedCount = students.filter(s => !serverMap[s.id]).length
+
   const rosterStudents = students
     .filter(s => roster.includes(s.id))
     .sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name))
 
   const q = search.trim().toLowerCase()
   const poolStudents = students.filter(s => {
+    // Filtre « non affectés » : masquer les élèves déjà inscrits dans une classe de l'année
+    if (onlyUnassigned && serverMap[s.id]) return false
     if (q) {
       return s.last_name.toLowerCase().includes(q) || s.first_name.toLowerCase().includes(q)
     }
@@ -539,14 +440,12 @@ export default function AffectationClient({ classes, students, enrollments, curr
   const poolCurPage    = Math.min(poolPage, poolTotalPages || 1)
   const pagedStudents  = poolStudents.slice((poolCurPage - 1) * POOL_PAGE_SIZE, poolCurPage * POOL_PAGE_SIZE)
 
-  const activeStudent = activeId ? students.find(s => s.id === activeId) : null
-
   // ── Infos classe ──────────────────────────────────────────────────────────
   function ClassInfo() {
     if (!selectedClass) return null
     const mainTeacher = selectedClass.class_teachers.find(t => t.is_main_teacher)
     const teacherName = mainTeacher?.teachers
-      ? [mainTeacher.teachers.civilite, mainTeacher.teachers.first_name, mainTeacher.teachers.last_name].filter(Boolean).join(' ')
+      ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
       : null
     const cotisationLabel = selectedClass.cotisation_types?.label ?? null
     const day   = selectedClass.day_of_week ? (DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week) : null
@@ -592,11 +491,11 @@ export default function AffectationClient({ classes, students, enrollments, curr
           {classes.map(c => {
             const main = c.class_teachers.find(t => t.is_main_teacher)
             const teacher = main?.teachers
-              ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ')
+              ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
               : null
             return (
               <option key={c.id} value={c.id}>
-                {[c.name, teacher].filter(Boolean).join(' — ')}
+                {[c.name, teacher].filter(Boolean).join(' · ')}
               </option>
             )
           })}
@@ -612,26 +511,37 @@ export default function AffectationClient({ classes, students, enrollments, curr
         )}
       </div>
 
-      {/* Panels DnD */}
+      {/* Panels */}
       {!selectedClassId ? (
         <div className="flex-1 min-h-0 card flex flex-col items-center justify-center">
           <Users size={32} className="text-warm-300 mb-3" />
           <p className="text-warm-400 text-sm">Sélectionnez une classe pour commencer l'affectation</p>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
 
             {/* ── Panel gauche : élèves disponibles ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-wide">
-                  Élèves ({students.length} actifs)
+                  Élèves ({students.length} actifs · {unassignedCount} non affecté{unassignedCount > 1 ? 's' : ''})
                 </h3>
-                <SearchField
-                  value={search}
-                  onChange={v => { setSearch(v); setPoolPage(1) }}
-                />
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-[11px] text-warm-600 cursor-pointer select-none whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={onlyUnassigned}
+                      onChange={e => { setOnlyUnassigned(e.target.checked); setPoolPage(1) }}
+                      className="accent-primary-500 w-3.5 h-3.5"
+                    />
+                    Non affectés
+                  </label>
+                  <SearchField
+                    value={search}
+                    onChange={v => { setSearch(v); setPoolPage(1) }}
+                  />
+                </div>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
@@ -667,10 +577,11 @@ export default function AffectationClient({ classes, students, enrollments, curr
                     cotisation: badgeClass.cotisation_types?.label || undefined,
                   } : null
                   return (
-                    <DraggableCard
+                    <StudentCard
                       key={s.id}
                       student={s}
                       disabled={isDisabled}
+                      onAdd={addToRoster}
                       assignedClassName={badgeName}
                       assignedClassInfo={badgeInfo}
                       onInfoEnter={showTooltip}
@@ -733,22 +644,33 @@ export default function AffectationClient({ classes, students, enrollments, curr
             {/* ── Panel droit : élèves dans la classe ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
               <div className="flex-shrink-0 space-y-1">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-secondary-800">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-base font-bold text-secondary-800 truncate">
                     {selectedClass?.name}
                   </h3>
-                  {isFull && (
-                    <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-                      Complet
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {isFull && (
+                      <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+                        Complet
+                      </span>
+                    )}
+                    <Tooltip content="Recharger depuis la base">
+                      <button
+                        type="button"
+                        onClick={reloadClass}
+                        aria-label="Recharger la classe depuis la base"
+                        className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                      >
+                        <RotateCcw size={15} />
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
                 <ClassInfo />
               </div>
 
               <DropZone
                 rosterStudents={rosterStudents}
-                maxStudents={selectedClass?.max_students ?? 0}
                 onRemove={removeFromRoster}
                 onInfoEnter={showTooltip}
                 onInfoLeave={hideTooltip}
@@ -756,17 +678,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
             </div>
 
           </div>
-
-          {/* DragOverlay : carte fantôme sous le curseur */}
-          <DragOverlay>
-            {activeStudent && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-white border border-primary-300 rounded-lg shadow-lg text-sm font-medium text-secondary-800 cursor-grabbing opacity-90">
-                <GripVertical size={14} className="text-primary-400" />
-                {activeStudent.last_name} {activeStudent.first_name}
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
+        </div>
       )}
 
       {/* Bouton enregistrer */}

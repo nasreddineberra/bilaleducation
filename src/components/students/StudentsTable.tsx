@@ -205,10 +205,19 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 {/* Classe */}
                 <td className="list-td">
                   {student.class_name ? (
-                    <span className={clsx(
-                      'text-xs font-medium',
-                      student.is_active ? 'text-secondary-700' : 'text-warm-400'
-                    )}>{student.class_name}</span>
+                    student.class_tooltip ? (
+                      <Tooltip content={<span className="whitespace-nowrap">{student.class_tooltip}</span>} maxWidth="max-w-none">
+                        <span className={clsx(
+                          'text-xs font-medium cursor-default',
+                          student.is_active ? 'text-secondary-700' : 'text-warm-400'
+                        )}>{student.class_name}</span>
+                      </Tooltip>
+                    ) : (
+                      <span className={clsx(
+                        'text-xs font-medium',
+                        student.is_active ? 'text-secondary-700' : 'text-warm-400'
+                      )}>{student.class_name}</span>
+                    )
                   ) : (
                     <span className="text-xs text-warm-300 italic">Non affecté</span>
                   )}

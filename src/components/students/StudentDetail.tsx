@@ -169,7 +169,7 @@ export default function StudentDetail({
             etablissementId={etablissementId}
             siblings={siblings}
             mainTeachers={mainTeachers}
-            hasActiveEnrollment={enrollments.some((e: any) => e.status === 'active')}
+            hasActiveEnrollment={enrollments.some((e: any) => e.status === 'active' && e.classes?.academic_year === currentYearLabel)}
           />
         </div>
       )}

@@ -22,7 +22,7 @@ export default async function StudentsPage({
 
   let studentsQuery = supabase
     .from('students')
-    .select('*, enrollments(status, classes(name))', { count: 'exact' })
+    .select('*, enrollments(status, classes(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_until, teachers(civilite, first_name, last_name))))', { count: 'exact' })
     .order('last_name')
     .order('first_name')
     .range(from, to)
@@ -79,17 +79,36 @@ export default async function StudentsPage({
     }
   }
 
+  // Tooltip classe : « Prof principal · Cotisation · Niveau · Jour HH:MM–HH:MM » (parties présentes)
+  const buildClassTooltip = (c: any): string => {
+    const parts: string[] = []
+    const ct = Array.isArray(c?.class_teachers)
+      ? c.class_teachers.find((x: any) => x.is_main_teacher && !x.effective_until)
+      : null
+    const t = ct?.teachers
+    if (t) parts.push(`${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`.trim())
+    if (c?.cotisation_types?.label) parts.push(c.cotisation_types.label)
+    if (c?.level) parts.push(c.level)
+    if (c?.day_of_week && c?.start_time && c?.end_time) {
+      parts.push(`${c.day_of_week} ${String(c.start_time).slice(0, 5)}–${String(c.end_time).slice(0, 5)}`)
+    } else if (c?.day_of_week) {
+      parts.push(c.day_of_week)
+    }
+    return parts.join(' · ')
+  }
+
   // Rattacher la classe active + la discipline (actifs uniquement) à chaque élève
   const studentsWithClass = (students ?? []).map((s) => {
     const { enrollments, ...rest } = s as typeof s & {
-      enrollments?: { status: string; classes?: { name: string } | null }[]
+      enrollments?: { status: string; classes?: any | null }[]
     }
     const active = Array.isArray(enrollments)
       ? enrollments.find((e) => e.status === 'active')
       : null
     return {
       ...rest,
-      class_name: active?.classes?.name ?? null,
+      class_name:    active?.classes?.name ?? null,
+      class_tooltip: active?.classes ? (buildClassTooltip(active.classes) || null) : null,
       discipline: rest.is_active ? (disciplineMap.get(rest.id) ?? { absences: 0, retards: 0, avertissements: 0 }) : null,
     }
   })

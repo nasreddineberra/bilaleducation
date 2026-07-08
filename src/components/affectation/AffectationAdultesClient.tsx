@@ -2,23 +2,13 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { X, Users, GripVertical, ChevronLeft, ChevronRight } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { X, Users, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
+import { saveParentEnrollments } from '@/app/dashboard/affectation/actions'
 
 const POOL_PAGE_SIZE = 20
 
@@ -58,7 +48,6 @@ interface EnrollmentRow {
   tutor_number: number
 }
 
-// Item dans le pool : un tuteur (T1 ou T2) d'une famille
 interface TutorItem {
   id:           string  // `${parent_id}-${tutor_number}`
   parent_id:    string
@@ -89,8 +78,6 @@ const DAYS: Record<string, string> = {
 
 function fmtTime(t: string | null) { return t ? t.slice(0, 5) : null }
 
-// ─── Badge genre ──────────────────────────────────────────────────────────────
-
 function GenderBadge({ gender }: { gender: 'male' | 'female' | null }) {
   if (gender === 'male') return (
     <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[9px] font-bold flex-shrink-0">M</span>
@@ -101,9 +88,8 @@ function GenderBadge({ gender }: { gender: 'male' | 'female' | null }) {
   return null
 }
 
-// ─── Carte tuteur draggable ───────────────────────────────────────────────────
-
-function buildClassInfo(cls: ClassRow): { teacher?: string; schedule?: string; level?: string; cotisation?: string } {
+// Libellé classe une ligne : « Prof · Cotisation · Niveau · Jour HH:MM–HH:MM »
+function classInfoLine(cls: ClassRow): string {
   const main = cls.class_teachers.find(t => t.is_main_teacher)
   const teacher = main?.teachers
     ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
@@ -111,80 +97,36 @@ function buildClassInfo(cls: ClassRow): { teacher?: string; schedule?: string; l
   const day   = cls.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
   const start = fmtTime(cls.start_time)
   const end   = fmtTime(cls.end_time)
-  const schedule = day
-    ? `${day}${start ? ` ${start}${end ? `–${end}` : ''}` : ''}`
-    : undefined
-  return {
-    teacher,
-    schedule,
-    level: cls.level || undefined,
-    cotisation: cls.cotisation_types?.label || undefined,
-  }
+  const schedule = day ? `${day}${start ? ` ${start}${end ? `–${end}` : ''}` : ''}` : undefined
+  return [teacher, cls.cotisation_types?.label, cls.level || undefined, schedule].filter(Boolean).join(' · ')
 }
 
-function ClassInfoTooltip({ name, teacher, schedule, level, cotisation }: {
-  name: string; teacher?: string; schedule?: string; level?: string; cotisation?: string
-}) {
-  return (
-    <div className="w-44">
-      <span className="block font-bold text-white text-sm mb-1">{name}</span>
-      {(teacher || cotisation || level) && (
-        <>
-          <span className="block border-t border-white/10 mb-1.5" />
-          {teacher && (
-            <span className="block text-secondary-300 text-[11px]">{teacher}</span>
-          )}
-          {cotisation && (
-            <span className="inline-block mt-1 text-[10px] font-bold text-amber-300 bg-amber-900/40 px-1.5 py-0.5 rounded">
-              {cotisation}
-            </span>
-          )}
-          {level && (
-            <span className="inline-block mt-1 ml-1 text-[10px] font-bold text-blue-300 bg-blue-900/40 px-1.5 py-0.5 rounded">
-              Niveau {level}
-            </span>
-          )}
-        </>
-      )}
-      {schedule && (
-        <>
-          <span className="block border-t border-white/10 mt-1.5 mb-1.5" />
-          <span className="block text-secondary-400 text-[11px]">{schedule}</span>
-        </>
-      )}
-    </div>
-  )
-}
+// ─── Carte tuteur (bouton cliquable) ──────────────────────────────────────────
 
-function DraggableTutorCard({
-  tutor, disabled, assignedClassName, assignedClassInfo,
+function TutorCard({
+  tutor, disabled, onAdd, assignedClassName, assignedClassLine,
 }: {
-  tutor:                TutorItem
-  disabled:             boolean
-  assignedClassName?:   string
-  assignedClassInfo?: { teacher?: string; schedule?: string; level?: string; cotisation?: string } | null
+  tutor:              TutorItem
+  disabled:           boolean
+  onAdd:              (id: string) => void
+  assignedClassName?: string
+  assignedClassLine?: string
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id:       tutor.id,
-    disabled,
-  })
-
   return (
-    <div
-      ref={setNodeRef}
-      {...(!disabled ? { ...listeners, ...attributes } : {})}
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onAdd(tutor.id)}
+      aria-label={disabled
+        ? `${tutor.last_name} ${tutor.first_name} (non disponible)`
+        : `Affecter ${tutor.last_name} ${tutor.first_name} au cours`}
       className={clsx(
-        'flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors select-none',
-        isDragging && 'opacity-30',
+        'w-full flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
         disabled
           ? 'bg-warm-50 border-warm-100 text-warm-400 cursor-not-allowed'
-          : 'bg-white border-warm-200 text-secondary-800 cursor-grab active:cursor-grabbing hover:border-primary-300 hover:bg-primary-50/30',
+          : 'bg-white border-warm-200 text-secondary-800 cursor-pointer hover:border-primary-300 hover:bg-primary-50/30',
       )}
     >
-      <span className={clsx('flex-shrink-0', disabled ? 'text-warm-300' : 'text-warm-400')}>
-        <GripVertical size={12} />
-      </span>
-
       <span className="truncate font-medium flex-1 min-w-0">
         {tutor.last_name} {tutor.first_name}
       </span>
@@ -192,71 +134,58 @@ function DraggableTutorCard({
       <GenderBadge gender={genderFromRelationship(tutor.relationship)} />
 
       {assignedClassName && (
-        assignedClassInfo ? (
-          <Tooltip content={<ClassInfoTooltip name={assignedClassName} {...assignedClassInfo} />}>
+        assignedClassLine
+          ? (
+            <Tooltip content={<span className="whitespace-nowrap">{assignedClassLine}</span>} maxWidth="max-w-none">
+              <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+                {assignedClassName}
+              </span>
+            </Tooltip>
+          ) : (
             <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
               {assignedClassName}
             </span>
-          </Tooltip>
-        ) : (
-          <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
-            {assignedClassName}
-          </span>
-        )
+          )
       )}
-    </div>
+    </button>
   )
 }
 
-// ─── Zone de dépôt ────────────────────────────────────────────────────────────
+// ─── Liste des participants du cours (panel droit) ───────────────────────────
 
-function DropZone({
+function ClassRoster({
   rosterTutors,
-  maxStudents,
   onRemove,
 }: {
   rosterTutors: TutorItem[]
-  maxStudents:  number
   onRemove:     (id: string) => void
 }) {
-  const isFull = rosterTutors.length >= maxStudents
-  const { setNodeRef, isOver } = useDroppable({ id: 'class-zone' })
-
   return (
-    <div
-      ref={setNodeRef}
-      className={clsx(
-        'flex-1 min-h-0 rounded-xl border-2 border-dashed transition-colors flex flex-col overflow-hidden',
-        isFull
-          ? 'border-red-200 bg-red-50/30'
-          : isOver
-            ? 'border-primary-400 bg-primary-50/40'
-            : 'border-warm-200 bg-warm-50/30',
-      )}
-    >
+    <div className="flex-1 min-h-0 rounded-xl flex flex-col overflow-hidden">
       {rosterTutors.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-warm-400">
           <Users size={28} className="text-warm-300" />
-          <p className="text-sm">Glisser des participants ici</p>
+          <p className="text-sm">Cliquez un participant à gauche pour l&apos;affecter</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {rosterTutors.map(t => (
             <div
               key={t.id}
-              className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-warm-100 text-sm"
+              className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-md border border-warm-100 text-xs"
             >
               <span className="truncate font-medium text-secondary-800 flex-1 min-w-0">
                 {t.last_name} {t.first_name}
               </span>
               <GenderBadge gender={genderFromRelationship(t.relationship)} />
-              <Tooltip content="Retirer de la classe">
+              <Tooltip content="Retirer du cours">
                 <button
                   onClick={() => onRemove(t.id)}
+                  aria-label={`Retirer ${t.last_name} ${t.first_name}`}
                   className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                 >
-                <X size={13} />
-              </button>
+                  <X size={13} />
+                </button>
               </Tooltip>
             </div>
           ))}
@@ -269,49 +198,30 @@ function DropZone({
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function AffectationAdultesClient({ classes, parents, enrollments }: Props) {
-  const router  = useRouter()
-  const toast   = useToast()
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const router = useRouter()
+  const toast  = useToast()
 
-  // Construire la liste des tuteurs inscrits aux cours adultes uniquement
+  // Liste des tuteurs inscrits aux cours adultes
   const tutors: TutorItem[] = parents.flatMap(p => {
     const items: TutorItem[] = []
     if (p.tutor1_adult_courses) {
-      items.push({
-        id:           `${p.id}-1`,
-        parent_id:    p.id,
-        tutor_number: 1,
-        last_name:    p.tutor1_last_name,
-        first_name:   p.tutor1_first_name,
-        relationship: p.tutor1_relationship,
-      })
+      items.push({ id: `${p.id}-1`, parent_id: p.id, tutor_number: 1, last_name: p.tutor1_last_name, first_name: p.tutor1_first_name, relationship: p.tutor1_relationship })
     }
     if (p.tutor2_adult_courses && p.tutor2_last_name && p.tutor2_first_name) {
-      items.push({
-        id:           `${p.id}-2`,
-        parent_id:    p.id,
-        tutor_number: 2,
-        last_name:    p.tutor2_last_name,
-        first_name:   p.tutor2_first_name,
-        relationship: p.tutor2_relationship ?? null,
-      })
+      items.push({ id: `${p.id}-2`, parent_id: p.id, tutor_number: 2, last_name: p.tutor2_last_name, first_name: p.tutor2_first_name, relationship: p.tutor2_relationship ?? null })
     }
     return items
   })
 
-  // serverMap : `${parent_id}-${tutor_number}` → class_id
-  const serverMap = Object.fromEntries(
-    enrollments.map(e => [`${e.parent_id}-${e.tutor_number}`, e.class_id])
-  )
+  const serverMap = Object.fromEntries(enrollments.map(e => [`${e.parent_id}-${e.tutor_number}`, e.class_id]))
 
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
-
   const [roster,         setRoster]         = useState<string[]>([])
   const [originalRoster, setOriginalRoster] = useState<string[]>([])
   const [search,   setSearch]   = useState('')
   const [poolPage, setPoolPage] = useState(1)
   const [saving,   setSaving]   = useState(false)
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const [onlyUnassigned, setOnlyUnassigned] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
@@ -333,18 +243,13 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     }
   }, [hasChanges, enrollments])
 
-  function handleDragStart(event: DragStartEvent) { setActiveId(event.active.id as string) }
+  const reloadClass = () => selectClass(selectedClassId)
 
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null)
-    const { active, over } = event
-    if (!over || !selectedClass) return
-    const tutorId = active.id as string
-    if (over.id === 'class-zone') {
-      if (roster.includes(tutorId)) return
-      if (roster.length >= selectedClass.max_students) return
-      setRoster(prev => [...prev, tutorId])
-    }
+  const addToRoster = (tutorId: string) => {
+    if (!selectedClass) return
+    if (roster.includes(tutorId)) return
+    if (roster.length >= selectedClass.max_students) return
+    setRoster(prev => [...prev, tutorId])
   }
 
   const removeFromRoster = (tutorId: string) =>
@@ -353,69 +258,26 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const save = async () => {
     if (!selectedClassId) return
     setSaving(true)
-
-    try {
-      const supabase = createClient()
-      const today    = new Date().toISOString().slice(0, 10)
-
-      const toAdd    = roster.filter(id => !originalRoster.includes(id))
-      const toRemove = originalRoster.filter(id => !roster.includes(id))
-
-      // Supprimer les inscriptions retirées
-      if (toRemove.length > 0) {
-        for (const tutorId of toRemove) {
-          const sep          = tutorId.lastIndexOf('-')
-          const parent_id    = tutorId.slice(0, sep)
-          const tutor_number = parseInt(tutorId.slice(sep + 1), 10)
-          const { error: errRm } = await supabase
-            .from('parent_class_enrollments')
-            .delete()
-            .eq('class_id', selectedClassId)
-            .eq('parent_id', parent_id)
-            .eq('tutor_number', tutor_number)
-          if (errRm) throw errRm
-        }
-      }
-
-      // Insérer les nouvelles inscriptions
-      if (toAdd.length > 0) {
-        const rows = toAdd.map(tutorId => {
-          const sep = tutorId.lastIndexOf('-')
-          const parent_id    = tutorId.slice(0, sep)
-          const tutor_number = parseInt(tutorId.slice(sep + 1), 10)
-          return {
-            parent_id,
-            class_id:        selectedClassId,
-            tutor_number,
-            status:          'active' as const,
-            enrollment_date: today,
-          }
-        })
-        const { error: errAdd } = await supabase
-          .from('parent_class_enrollments')
-          .insert(rows)
-        if (errAdd) throw errAdd
-      }
-
-      setOriginalRoster([...roster])
-      toast.success('Affectations enregistrées avec succès.')
-      router.refresh()
-    } catch (err: unknown) {
-      const e = err as Record<string, unknown>
-      const msg = (e?.message as string) || (e?.details as string) || (e?.hint as string) || 'Une erreur est survenue. Veuillez réessayer.'
-      toast.error(msg)
-    } finally {
-      setSaving(false)
-    }
+    const toAdd    = roster.filter(id => !originalRoster.includes(id))
+    const toRemove = originalRoster.filter(id => !roster.includes(id))
+    const { error } = await saveParentEnrollments(selectedClassId, toAdd, toRemove)
+    setSaving(false)
+    if (error) { toast.error(error); return }
+    setOriginalRoster([...roster])
+    toast.success('Affectations enregistrées avec succès.')
+    router.refresh()
   }
 
   // ── Données dérivées ──────────────────────────────────────────────────────
+  const unassignedCount = tutors.filter(t => !serverMap[t.id]).length
+
   const rosterTutors = tutors
     .filter(t => roster.includes(t.id))
     .sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name))
 
   const q = search.trim().toLowerCase()
   const poolTutors = tutors.filter(t => {
+    if (onlyUnassigned && serverMap[t.id]) return false
     if (q) return t.last_name.toLowerCase().includes(q) || t.first_name.toLowerCase().includes(q)
     return true
   })
@@ -424,35 +286,13 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const poolCurPage    = Math.min(poolPage, poolTotalPages || 1)
   const pagedTutors    = poolTutors.slice((poolCurPage - 1) * POOL_PAGE_SIZE, poolCurPage * POOL_PAGE_SIZE)
 
-  const activeTutor = activeId ? tutors.find(t => t.id === activeId) : null
-  const isFull      = selectedClass ? roster.length >= selectedClass.max_students : false
+  const isFull = selectedClass ? roster.length >= selectedClass.max_students : false
 
   function ClassInfo() {
     if (!selectedClass) return null
-    const mainTeacher = selectedClass.class_teachers.find(t => t.is_main_teacher)
-    const teacherName = mainTeacher?.teachers
-      ? [mainTeacher.teachers.civilite, mainTeacher.teachers.last_name, mainTeacher.teachers.first_name].filter(Boolean).join(' ')
-      : null
-    const day   = selectedClass.day_of_week ? (DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week) : null
-    const start = fmtTime(selectedClass.start_time)
-    const end   = fmtTime(selectedClass.end_time)
-    const parts = [
-      teacherName,
-      selectedClass.cotisation_types?.label,
-      selectedClass.level ? `Niveau ${selectedClass.level}` : null,
-      day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
-    ].filter(Boolean)
-    if (parts.length === 0) return null
-    return (
-      <div className="flex items-center gap-2 text-xs text-warm-500 flex-wrap">
-        {parts.map((p, i) => (
-          <span key={i} className="flex items-center gap-2">
-            {i > 0 && <span className="text-warm-300">·</span>}
-            {p}
-          </span>
-        ))}
-      </div>
-    )
+    const line = classInfoLine(selectedClass)
+    if (!line) return null
+    return <div className="text-xs text-warm-500">{line}</div>
   }
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
@@ -475,7 +315,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
               : null
             return (
               <option key={c.id} value={c.id}>
-                {[c.name, teacher].filter(Boolean).join(' — ')}
+                {[c.name, teacher].filter(Boolean).join(' · ')}
               </option>
             )
           })}
@@ -491,26 +331,34 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
         )}
       </div>
 
-      {/* Panels DnD */}
+      {/* Panels */}
       {!selectedClassId ? (
         <div className="flex-1 min-h-0 card flex flex-col items-center justify-center">
           <Users size={32} className="text-warm-300 mb-3" />
           <p className="text-warm-400 text-sm">Sélectionnez un cours adulte pour commencer l'affectation</p>
         </div>
       ) : (
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
 
             {/* ── Panel gauche : participants disponibles ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-wide">
-                  Participants ({tutors.length})
+                  Participants ({tutors.length} inscrit{tutors.length > 1 ? 's' : ''} · {unassignedCount} non affecté{unassignedCount > 1 ? 's' : ''})
                 </h3>
-                <SearchField
-                  value={search}
-                  onChange={v => { setSearch(v); setPoolPage(1) }}
-                />
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-[11px] text-warm-600 cursor-pointer select-none whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={onlyUnassigned}
+                      onChange={e => { setOnlyUnassigned(e.target.checked); setPoolPage(1) }}
+                      className="accent-primary-500 w-3.5 h-3.5"
+                    />
+                    Non affectés
+                  </label>
+                  <SearchField value={search} onChange={v => { setSearch(v); setPoolPage(1) }} />
+                </div>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
@@ -525,15 +373,14 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                   const isInOtherClass        = !!assignedClass
                   const isDisabled            = isInCurrentClass || isInOtherClass || (!isInCurrentClass && !isInOtherClass && isFull)
                   const badgeClass            = isInOtherClass ? assignedClass : (isSavedInCurrentClass ? selectedClass : null)
-                  const badgeName             = badgeClass?.name
-                  const badgeInfo             = badgeClass ? buildClassInfo(badgeClass) : null
                   return (
-                    <DraggableTutorCard
+                    <TutorCard
                       key={t.id}
                       tutor={t}
                       disabled={isDisabled}
-                      assignedClassName={badgeName}
-                      assignedClassInfo={badgeInfo}
+                      onAdd={addToRoster}
+                      assignedClassName={badgeClass?.name}
+                      assignedClassLine={badgeClass ? classInfoLine(badgeClass) : undefined}
                     />
                   )
                 })}
@@ -569,9 +416,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                             onClick={() => setPoolPage(p as number)}
                             className={clsx(
                               'w-6 h-6 rounded text-[11px] font-medium transition-colors',
-                              p === poolCurPage
-                                ? 'bg-primary-600 text-white'
-                                : 'text-warm-500 hover:bg-warm-100 hover:text-secondary-700'
+                              p === poolCurPage ? 'bg-primary-600 text-white' : 'text-warm-500 hover:bg-warm-100 hover:text-secondary-700'
                             )}
                           >
                             {p}
@@ -593,34 +438,32 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
             {/* ── Panel droit : participants dans le cours ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
               <div className="flex-shrink-0 space-y-1">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-secondary-800">{selectedClass?.name}</h3>
-                  {isFull && (
-                    <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Complet</span>
-                  )}
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-base font-bold text-secondary-800 truncate">{selectedClass?.name}</h3>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {isFull && (
+                      <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">Complet</span>
+                    )}
+                    <Tooltip content="Recharger depuis la base">
+                      <button
+                        type="button"
+                        onClick={reloadClass}
+                        aria-label="Recharger le cours depuis la base"
+                        className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                      >
+                        <RotateCcw size={15} />
+                      </button>
+                    </Tooltip>
+                  </div>
                 </div>
                 <ClassInfo />
               </div>
 
-              <DropZone
-                rosterTutors={rosterTutors}
-                maxStudents={selectedClass?.max_students ?? 0}
-                onRemove={removeFromRoster}
-              />
+              <ClassRoster rosterTutors={rosterTutors} onRemove={removeFromRoster} />
             </div>
 
           </div>
-
-          {/* DragOverlay */}
-          <DragOverlay>
-            {activeTutor && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-white border border-primary-300 rounded-lg shadow-lg text-sm font-medium text-secondary-800 cursor-grabbing opacity-90">
-                <GripVertical size={14} className="text-primary-400" />
-                {activeTutor.last_name} {activeTutor.first_name}
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
+        </div>
       )}
 
       {/* Bouton enregistrer */}

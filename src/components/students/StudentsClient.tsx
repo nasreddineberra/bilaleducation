@@ -7,12 +7,13 @@ import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import StudentsTable from './StudentsTable'
+import StudentsStatusSyncModal from './StudentsStatusSyncModal'
 import type { Student } from '@/types/database'
 
 const PAGE_SIZE = 20
 
 export type Discipline = { absences: number; retards: number; avertissements: number }
-export type StudentWithClass = Student & { class_name: string | null; discipline: Discipline | null }
+export type StudentWithClass = Student & { class_name: string | null; class_tooltip: string | null; discipline: Discipline | null }
 
 type StatFilter = '' | 'active' | 'no_parent'
 
@@ -97,6 +98,7 @@ export default function StudentsClient({
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [inputValue, setInputValue] = useState(q)
+  const [showSync,   setShowSync]   = useState(false)
   const activeFilter = (filter || '') as StatFilter
 
   const totalPages   = Math.ceil(filteredCount / PAGE_SIZE)
@@ -173,6 +175,15 @@ export default function StudentsClient({
           placeholder="Nom, prénom ou n° élève…"
         />
 
+        {/* Mise à jour des statuts selon les inscriptions */}
+        <button
+          type="button"
+          onClick={() => setShowSync(true)}
+          className="inline-flex items-center px-4 py-2 rounded-lg font-semibold text-sm tracking-wide border border-warm-200 text-secondary-700 bg-white hover:bg-warm-50 transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        >
+          Mettre à jour les statuts
+        </button>
+
         {/* Ajouter */}
         {limitReached ? (
           <span
@@ -204,6 +215,8 @@ export default function StudentsClient({
         </span>
         <PaginationBar page={page} totalPages={totalPages} onNavigate={p => navigate(p, q, activeFilter)} />
       </div>
+
+      {showSync && <StudentsStatusSyncModal onClose={() => setShowSync(false)} />}
 
     </div>
   )
