@@ -2,16 +2,18 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Eye, EyeOff, Check, X } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Check, X, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { clsx } from 'clsx'
-import { createUser, updateProfile, updateEmail, sendPasswordReset } from '@/app/dashboard/utilisateurs/actions'
+import { createUser, updateProfile, updateEmail, sendPasswordReset, resetUserTwoFactor } from '@/app/dashboard/utilisateurs/actions'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Profile, UserRole } from '@/types/database'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
 
 interface UtilisateurFormProps {
   profile?: Profile
+  has2fa?:  boolean
 }
 
 type FormData = {
@@ -38,10 +40,24 @@ const toUpperCase  = (v: string) => v.toUpperCase()
 const toTitleCase  = (v: string) =>
   v.split(' ').map(w => w.length > 0 ? w[0].toUpperCase() + w.slice(1) : '').join(' ')
 
-export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
+export default function UtilisateurForm({ profile, has2fa = false }: UtilisateurFormProps) {
   const router     = useRouter()
   const toast      = useToast()
   const isEditing  = !!profile
+
+  const [confirm2fa,   setConfirm2fa]   = useState(false)
+  const [resetting2fa, setResetting2fa] = useState(false)
+
+  const handleReset2fa = async () => {
+    if (!profile) return
+    setResetting2fa(true)
+    const { error } = await resetUserTwoFactor(profile.id)
+    setResetting2fa(false)
+    setConfirm2fa(false)
+    if (error) { toast.error(error); return }
+    toast.success('Double authentification réinitialisée.')
+    router.refresh()
+  }
 
   const [form, setForm] = useState<FormData>({
     email:      profile?.email      ?? '',
@@ -72,8 +88,9 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
   const vLastName  = form.last_name.trim().length  < 2
   const isValid    = !vCivilite && !vEmail && !vPassword && !vFirstName && !vLastName
 
-  // Email modifiable uniquement pour admin et direction
-  const emailEditable = !isEditing || profile?.role === 'admin' || profile?.role === 'direction'
+  // La fiche est réservée à admin/direction (garde route) : l'email de n'importe
+  // quel utilisateur y est modifiable (cas « l'utilisateur demande un changement d'email »).
+  const emailEditable = true
 
   const isUnchanged = isEditing && (Object.keys(form) as (keyof FormData)[])
     .filter(k => {
@@ -246,6 +263,28 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
           </div>
         )}
 
+        {/* Double authentification (édition, hors parent) */}
+        {isEditing && profile?.role !== 'parent' && (
+          <div className="flex items-center justify-between gap-4 bg-warm-50 border border-warm-200 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2">
+              {has2fa
+                ? <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
+                : <ShieldAlert size={16} className="text-amber-500 flex-shrink-0" />}
+              <div>
+                <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Double authentification (2FA)</p>
+                <p className="text-xs text-warm-500 mt-0.5">
+                  {has2fa ? 'Activée sur ce compte.' : 'Non configurée sur ce compte.'}
+                </p>
+              </div>
+            </div>
+            {has2fa && (
+              <FloatButton type="button" variant="secondary" onClick={() => setConfirm2fa(true)} className="flex-shrink-0">
+                Réinitialiser
+              </FloatButton>
+            )}
+          </div>
+        )}
+
         {/* Mot de passe (création uniquement) */}
         {!isEditing && (
           <div>
@@ -303,6 +342,18 @@ export default function UtilisateurForm({ profile }: UtilisateurFormProps) {
             : isEditing ? 'Modifier' : 'Valider'}
         </FloatButton>
       </div>
+
+      {confirm2fa && profile && (
+        <ConfirmModal
+          title="Réinitialiser la double authentification ?"
+          message={`L'authentificateur 2FA de ${profile.last_name} ${profile.first_name} sera supprimé. La personne devra en configurer un nouveau à sa prochaine connexion.`}
+          confirmLabel={resetting2fa ? 'Réinitialisation…' : 'Réinitialiser'}
+          confirmColor="red"
+          confirmDisabled={resetting2fa}
+          onConfirm={handleReset2fa}
+          onCancel={() => setConfirm2fa(false)}
+        />
+      )}
 
     </form>
   )

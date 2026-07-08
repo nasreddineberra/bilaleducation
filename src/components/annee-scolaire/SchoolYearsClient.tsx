@@ -81,7 +81,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-2 animate-fade-in">
 
       {/* Barre supérieure */}
       <div className="flex justify-end">
@@ -110,8 +110,8 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
 
       {/* Tableau années */}
       {schoolYears.length > 0 && (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm" aria-label="Années scolaires">
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-xs" aria-label="Années scolaires">
             <thead>
               <tr className="border-b border-warm-100 bg-warm-50">
                 <th className="list-th">Année</th>
@@ -122,7 +122,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                 <th className="list-th" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-warm-100">
+            <tbody className="divide-y divide-warm-50">
               {schoolYears.map(year => {
                 const activeEvals = year.eval_type_configs.filter(c => c.is_active)
                 return (

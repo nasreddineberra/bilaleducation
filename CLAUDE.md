@@ -224,8 +224,43 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   partir du 1er jour ; Lun+5 → Lun-Ven, Mar+5 → Mar-Sam). `weekStartDay`/`workingDays` recharges dans les pages
   `new`/`[id]` et transmis a `ClassForm` → `SlotFormModal`.
 
-## Prochaine etape (8 juillet 2026)
-- **Fonctionnalites utilisateurs** : chantier a demarrer (le parametrage etant bien avance).
+#### 8 juillet 2026 — Profil / compte utilisateur connecte + securite + divers parametrage
+- **Page « Mon compte »** (`/dashboard/mon-compte`, tous roles ; `MonCompteClient.tsx` + `actions.ts`) :
+  ordre Mes informations → **Compte** → Mot de passe → 2FA. Edition civilite/prenom/nom/telephone
+  (`updateOwnProfile`, client session, colonnes non sensibles) ; **mot de passe** self-service
+  (`auth.updateUser`, checklist `PASSWORD_RULES`, pas de re-auth pour ne pas casser le 2FA) ;
+  **2FA** self-service (`TwoFactorCard`, statut + reinitialisation, masque pour parent) ;
+  **email** editable **uniquement admin/direction** (`updateOwnEmail`, changement direct auth+profil
+  + modale de confirmation). Rible/etablissement en lecture seule. L'avatar du top-nav pointe desormais ici.
+- **Securite — anti auto-escalade** (migration `add-profile-sensitive-columns-guard.sql`) : trigger
+  `BEFORE UPDATE` sur `profiles` interdisant la modif de `role`/`is_active`/`etablissement_id` sauf
+  service-role (`auth.jwt()->>'role'='service_role'`) ou admin/direction. **Regle** : la policy RLS
+  « update own profile » n'a pas de restriction de colonnes → sans ce trigger, un non-admin pouvait
+  s'auto-promouvoir admin (`get_user_role()` pilote la RLS).
+- **Gardes de route** (`utilisateurs` liste + `[id]` + `new`) : reservees admin/direction ; l'edition
+  de **son propre** compte redirige vers Mon compte (empeche le changement de son propre role).
+- **Email d'un utilisateur** (`UtilisateurForm.tsx`) : champ Email **toujours editable** sur la fiche
+  (etait verrouille a tort pour les non-admin/direction) → l'admin peut changer l'email de n'importe qui.
+- **Statut 2FA cote admin** (migration `add-get-verified-totp-user-ids-rpc.sql` — RPC SECURITY DEFINER,
+  garde admin/direction, lit `auth.mfa_factors`) : **colonne 2FA** dans la liste Utilisateurs
+  (Activee/Non/— parent) + **reinitialisation admin** (`resetUserTwoFactor` via `admin.auth.admin.mfa.deleteFactor`,
+  tracee) en **liste** (bouton `ShieldX`) et **fiche** (sous-bloc dans la carte « Informations du compte »).
+- **Login / session** (`login/page.tsx`, `proxy.ts`, `useInactivityLogout.ts`, `lib/session-config.ts`) :
+  `role="alert"` sur l'erreur, message **« session expiree »** (`?reason=session` pose par le middleware),
+  a11y du bouton oeil (aria-label/aria-pressed/focus), constante **30 min centralisee**.
+- **Liste Utilisateurs triee** par **role** (ordre hierarchique) puis nom puis prenom.
+- **Comptes parents suspendus (V1)** (`parents/actions.ts`) : flag `CREATE_PARENT_ACCOUNTS = false` →
+  la creation d'une fiche parents ne cree plus de comptes de connexion (note du formulaire retiree).
+  Reversible. Les comptes deja crees restent fonctionnels.
+- **Suppression d'un type de presence** (`TypesPresenceClient.tsx`) : un **taux horaire** parametre mais
+  non utilise ne bloque plus (on supprime d'abord `presence_type_rates` puis le type) ; la vraie barriere
+  reste l'usage dans `staff_time_entries` de l'annee. Message convivial en repli sur FK (`23503`).
+- **Standardisation listes** (`card p-0` + `.list-th/.list-td/.list-name`, `text-xs`) : Annee scolaire,
+  Types de presence. **Regle** : tableau de liste = `card p-0` (jamais `card` seul → sinon retrait de 24px).
+- **Sidebar** (`DashboardSidebar.tsx`) : ordre revu — Affectations puis Evaluations places sous Parents.
+
+## Prochaine etape
+- Poursuite des **fonctionnalites utilisateurs**.
 
 ## Stack technique
 
@@ -379,3 +414,6 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   SECURITY DEFINER, garde `coalesce`).
 - [x] Executer `supabase/migrations/fix-rpc-guard-null-role.sql` (durcissement garde NULL sur
   `create_profile_and_teacher` + `create_parent_login_profile`).
+- [x] Executer `supabase/migrations/add-profile-sensitive-columns-guard.sql` (trigger anti auto-escalade
+  sur `profiles` : role/is_active/etablissement_id).
+- [x] Executer `supabase/migrations/add-get-verified-totp-user-ids-rpc.sql` (RPC statut 2FA visible admin).

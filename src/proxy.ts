@@ -2,8 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ── Délais de session (en secondes) ──────────────────────────────────────────
-const INACTIVITY_TIMEOUT = 30 * 60       // 30 minutes d'inactivité
-const MAX_SESSION_DURATION = 24 * 3600   // 24 heures max depuis la connexion
+import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION } from '@/lib/session-config'
 const SESSION_COOKIE = 'app-session'
 
 export async function proxy(request: NextRequest) {
@@ -181,7 +180,7 @@ export async function proxy(request: NextRequest) {
     const expired = now - loginTime > MAX_SESSION_DURATION
 
     if (inactive || expired) {
-      const redirect = NextResponse.redirect(new URL('/login', request.url))
+      const redirect = NextResponse.redirect(new URL('/login?reason=session', request.url))
 
       // Déconnecter côté Supabase et propager la suppression des cookies auth
       const supabaseForSignOut = createServerClient(

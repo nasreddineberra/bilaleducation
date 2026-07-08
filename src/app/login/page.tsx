@@ -92,9 +92,16 @@ export default function LoginPage() {
   const [password,     setPassword]     = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error,        setError]        = useState('')
+  const [notice,       setNotice]       = useState('')
   const [loading,      setLoading]      = useState(false)
   const [nomEtab,      setNomEtab]      = useState('Bilal Education')
   const [logoUrl,      setLogoUrl]      = useState<string | null>(null)
+
+  // Message après déconnexion automatique (inactivité / durée max)
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get('reason')
+    if (reason === 'session') setNotice('Votre session a expiré. Veuillez vous reconnecter.')
+  }, [])
 
   // Charger le nom et logo de l'établissement
   useEffect(() => {
@@ -225,9 +232,17 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
+              {/* Notice session expirée */}
+              {notice && !error && (
+                <div role="status" className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm animate-fade-in">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <span>{notice}</span>
+                </div>
+              )}
+
               {/* Erreur */}
               {error && (
-                <div className="flex items-start gap-2.5 bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
+                <div role="alert" className="flex items-start gap-2.5 bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
                   <AlertCircle size={16} className="mt-0.5 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -261,8 +276,9 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-secondary-600 transition-colors z-10"
-                  tabIndex={-1}
+                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  aria-pressed={showPassword}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 z-10"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>

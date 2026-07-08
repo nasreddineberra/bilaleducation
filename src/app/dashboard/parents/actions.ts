@@ -106,6 +106,10 @@ export interface TutorAccountResult {
   tempPassword: string
 }
 
+// V1 : création automatique des comptes de connexion parents SUSPENDUE.
+// Mettre à true pour réactiver (un compte parent est alors créé par tuteur ayant un email).
+const CREATE_PARENT_ACCOUNTS = false
+
 // ─── Créer une fiche parents avec comptes utilisateurs automatiques ──────────
 
 export async function createParentWithAccounts(payload: CreateParentPayload): Promise<{
@@ -130,7 +134,7 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
   const parentData: Record<string, any> = { ...cleanPayload, etablissement_id: etablissementId }
 
   // Créer compte tuteur 1 si email présent
-  if (payload.tutor1_email) {
+  if (CREATE_PARENT_ACCOUNTS && payload.tutor1_email) {
     const result = await createTutorAccount(supabase, etablissementId, {
       email: payload.tutor1_email,
       first_name: payload.tutor1_first_name ?? '',
@@ -147,7 +151,7 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
   }
 
   // Créer compte tuteur 2 si email présent
-  if (payload.tutor2_email) {
+  if (CREATE_PARENT_ACCOUNTS && payload.tutor2_email) {
     const result = await createTutorAccount(supabase, etablissementId, {
       email: payload.tutor2_email,
       first_name: payload.tutor2_first_name ?? '',

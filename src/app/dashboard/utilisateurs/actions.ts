@@ -1,11 +1,13 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import type { UserRole } from '@/types/database'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { logAudit } from '@/lib/audit'
 import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
 
 // ─── Créer un utilisateur ────────────────────────────────────────────────────
@@ -144,6 +146,43 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
 
   const { error: profileError } = await supabase.from('profiles').update({ email }).eq('id', id)
   if (profileError) return { error: "Erreur lors de la mise à jour de l'email." }
+
+  revalidatePath('/dashboard/utilisateurs')
+  return {}
+}
+
+// ─── Réinitialiser la 2FA d'un utilisateur (déblocage admin) ─────────────────
+
+export async function resetUserTwoFactor(userId: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const admin = createAdminClient()
+
+  const { data, error: listErr } = await admin.auth.admin.mfa.listFactors({ userId })
+  if (listErr) return { error: 'Erreur lors de la lecture des facteurs 2FA.' }
+
+  const totp = (data?.factors ?? []).filter(f => f.factor_type === 'totp')
+  if (totp.length === 0) return { error: 'Ce compte n\'a pas de 2FA à réinitialiser.' }
+
+  for (const f of totp) {
+    const { error: delErr } = await admin.auth.admin.mfa.deleteFactor({ userId, id: f.id })
+    if (delErr) return { error: 'Erreur lors de la réinitialisation de la 2FA.' }
+  }
+
+  // Traçabilité : client SESSION → l'acteur (admin connecté) est capté
+  try {
+    const session = await createClient()
+    const { data: target } = await session.from('profiles').select('email').eq('id', userId).single()
+    await logAudit(session, {
+      action: 'UPDATE',
+      entityType: 'auth',
+      entityId: userId,
+      description: `Réinitialisation de la 2FA du compte ${target?.email ?? userId}`,
+    })
+  } catch {
+    // non bloquant
+  }
 
   revalidatePath('/dashboard/utilisateurs')
   return {}

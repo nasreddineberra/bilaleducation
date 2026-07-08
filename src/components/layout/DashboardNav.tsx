@@ -48,6 +48,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/emploi-du-temps':   'Emploi du temps',
   '/dashboard/cahier-texte':      'Cahier de texte',
   '/dashboard/cahier-texte/new':  'Nouvelle séance',
+  '/dashboard/mon-compte':        'Mon compte',
 }
 
 // Couleur dérivée du nom (stable pour une même personne)
@@ -274,10 +275,11 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
           {/* Séparateur */}
           <div className="w-px h-6 bg-warm-200" />
 
-          {/* Profil utilisateur */}
+          {/* Profil utilisateur → Mon compte */}
           <Link
-            href={profile?.id ? `/dashboard/utilisateurs/${profile.id}` : '#'}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            href="/dashboard/mon-compte"
+            aria-label="Mon compte"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <div className="hidden md:block text-right">
               <p className="text-sm font-semibold text-secondary-800 leading-tight">

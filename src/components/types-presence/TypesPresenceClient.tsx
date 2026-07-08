@@ -141,9 +141,11 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
 
   const remove = async (id: string) => {
     setSaving(true)
+    setError(null)
 
-    // Contrôle : type utilisé dans une saisie de temps de l'année en cours ?
+    // Contrôle : type réellement utilisé dans une saisie de temps de l'année en cours ?
     // Portée = établissement (RLS) + année en cours (bornes de dates ci-dessous).
+    // Un taux horaire simplement paramétré (mais non utilisé) ne bloque PAS la suppression.
     const row = rows.find(r => r.id === id)
     if (row && currentYear.start_date && currentYear.end_date) {
       const { count } = await supabase
@@ -161,13 +163,28 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
       }
     }
 
+    // Supprimer d'abord le taux horaire éventuel (paramétré mais non utilisé),
+    // sinon la contrainte FK presence_type_rates bloquerait la suppression du type.
+    const { error: rateErr } = await supabase
+      .from('presence_type_rates')
+      .delete()
+      .eq('presence_type_id', id)
+
+    if (rateErr) {
+      setError('Erreur lors de la suppression du taux horaire associé.')
+      setSaving(false)
+      return
+    }
+
     const { error: err } = await supabase
       .from('presence_types')
       .delete()
       .eq('id', id)
 
     if (err) {
-      setError(err.message)
+      setError(err.code === '23503'
+        ? 'Ce type est référencé ailleurs et ne peut pas être supprimé.'
+        : err.message)
       setSaving(false)
       return
     }
@@ -351,12 +368,12 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
         </div>
       )}
 
-      <div className="card overflow-hidden">
+      <div className="card p-0 overflow-hidden">
         <div className="flex items-start gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-xs text-blue-600">
           <Info size={13} className="mt-0.5 shrink-0 text-blue-400" />
           <span>Le type <strong>ABSENCE</strong> est réservé à la gestion des absences. Il ne peut pas être modifié ni supprimé.</span>
         </div>
-        <table className="w-full text-sm" aria-label="Types de présence">
+        <table className="w-full text-xs" aria-label="Types de présence">
           <thead>
             <tr className="border-b border-warm-100 bg-warm-50">
               <th className="list-th w-10"></th>
@@ -379,19 +396,19 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                     !row.is_active && 'opacity-50'
                   )}
                 >
-                  <td className="px-4 py-3">
+                  <td className="list-td">
                     <span
                       className="inline-block w-5 h-5 rounded-full border-2 border-white shadow-sm"
                       style={{ backgroundColor: row.color }}
                     />
                   </td>
-                  <td className="px-4 py-3 font-medium text-secondary-800">{row.label}</td>
-                  <td className="px-4 py-3">
+                  <td className="list-td"><span className="list-name text-secondary-800">{row.label}</span></td>
+                  <td className="list-td">
                     <code className="text-xs bg-warm-100 text-warm-700 px-2 py-0.5 rounded-md font-mono">
                       {row.code}
                     </code>
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="list-td text-center">
                     <span className={clsx(
                       'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
                       row.is_active
@@ -401,7 +418,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                       {row.is_active ? 'Actif' : 'Inactif'}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="list-td">
                     {row.is_absence ? (
                       <span className="block text-right text-[10px] text-warm-500 italic pr-1">Réservé</span>
                     ) : confirmDeleteId === row.id ? (

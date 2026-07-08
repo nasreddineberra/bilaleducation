@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Pencil, ToggleLeft, ToggleRight, KeyRound } from 'lucide-react'
+import { Pencil, ToggleLeft, ToggleRight, KeyRound, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react'
 import { clsx } from 'clsx'
 import Tooltip from '@/components/ui/Tooltip'
-import { toggleActive, sendPasswordReset } from '@/app/dashboard/utilisateurs/actions'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { toggleActive, sendPasswordReset, resetUserTwoFactor } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -33,13 +34,28 @@ const ROLE_COLORS: Record<UserRole, string> = {
 
 interface UtilisateursTableProps {
   profiles: Profile[]
+  twoFactorUserIds?: string[]
 }
 
-export default function UtilisateursTable({ profiles }: UtilisateursTableProps) {
+export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: UtilisateursTableProps) {
   const router = useRouter()
+  const twoFactorSet = new Set(twoFactorUserIds)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [resetSentId, setResetSentId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reset2faTarget, setReset2faTarget] = useState<Profile | null>(null)
+  const [resetting2fa, setResetting2fa] = useState(false)
+
+  const handleReset2fa = async () => {
+    if (!reset2faTarget) return
+    setResetting2fa(true)
+    setError(null)
+    const result = await resetUserTwoFactor(reset2faTarget.id)
+    setResetting2fa(false)
+    if (result.error) { setError(result.error); setReset2faTarget(null); return }
+    setReset2faTarget(null)
+    router.refresh()
+  }
 
   const handleToggle = async (profile: Profile) => {
     setLoadingId(profile.id)
@@ -79,10 +95,11 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
         <table className="w-full" aria-label="Utilisateurs">
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="list-th w-4/12">Utilisateur</th>
+              <th className="list-th w-3/12">Utilisateur</th>
               <th className="list-th w-3/12">Email</th>
               <th className="list-th w-2/12">Rôle</th>
               <th className="list-th w-1/12">Statut</th>
+              <th className="list-th w-1/12">2FA</th>
               <th className="list-th w-2/12" />
             </tr>
           </thead>
@@ -147,6 +164,23 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
                     </span>
                   </td>
 
+                  {/* 2FA */}
+                  <td className="list-td whitespace-nowrap">
+                    {profile.role === 'parent' ? (
+                      <Tooltip content="La 2FA n'est pas requise pour les parents">
+                        <span className="text-warm-300 text-xs">—</span>
+                      </Tooltip>
+                    ) : twoFactorSet.has(profile.id) ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                        <ShieldCheck size={13} className="flex-shrink-0" /> Activée
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                        <ShieldAlert size={13} className="flex-shrink-0" /> Non
+                      </span>
+                    )}
+                  </td>
+
                   {/* Actions */}
                   <td className="list-td" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
@@ -202,6 +236,24 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
                           <KeyRound size={14} />
                         </button>
                       </Tooltip>
+
+                      {/* Réinitialiser la 2FA (déblocage admin) — si activée */}
+                      {profile.role !== 'parent' && twoFactorSet.has(profile.id) && (
+                        <Tooltip content="Réinitialiser la 2FA">
+                          <button
+                            onClick={() => { setReset2faTarget(profile); setError(null) }}
+                            disabled={isLoading}
+                            aria-label={`Réinitialiser la 2FA de ${fullName}`}
+                            className={clsx(
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50',
+                              'text-warm-400 hover:text-red-600 hover:bg-red-50',
+                              isLoading && 'opacity-40 cursor-wait'
+                            )}
+                          >
+                            <ShieldX size={14} />
+                          </button>
+                        </Tooltip>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -210,6 +262,18 @@ export default function UtilisateursTable({ profiles }: UtilisateursTableProps) 
           </tbody>
         </table>
       </div>
+
+      {reset2faTarget && (
+        <ConfirmModal
+          title="Réinitialiser la double authentification ?"
+          message={`L'authentificateur 2FA de ${reset2faTarget.last_name} ${reset2faTarget.first_name} sera supprimé. La personne devra en configurer un nouveau à sa prochaine connexion.`}
+          confirmLabel={resetting2fa ? 'Réinitialisation…' : 'Réinitialiser'}
+          confirmColor="red"
+          confirmDisabled={resetting2fa}
+          onConfirm={handleReset2fa}
+          onCancel={() => setReset2faTarget(null)}
+        />
+      )}
     </div>
   )
 }

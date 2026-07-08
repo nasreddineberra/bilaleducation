@@ -642,13 +642,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
         />
       </div>
 
-      {!isEditing && (
-        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700">
-            Un compte utilisateur (role parent) sera créé automatiquement pour chaque tuteur ayant un email renseigné, avec un mot de passe temporaire.
-          </p>
-        </div>
-      )}
+      {/* Note « comptes parents créés automatiquement » retirée : création suspendue en V1. */}
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-3 pt-1">

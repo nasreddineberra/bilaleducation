@@ -135,24 +135,6 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'secretaire'],
   },
   {
-    name:  'Emploi du temps',
-    href:  '/dashboard/emploi-du-temps',
-    icon:  CalendarClock,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
-  },
-  {
-    name:  'Feuille d\'appel',
-    href:  '/dashboard/absences',
-    icon:  Calendar,
-    roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
-  },
-  {
-    name:  'Cahier de texte',
-    href:  '/dashboard/cahier-texte',
-    icon:  BookOpenText,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
-  },
-  {
     name:  'Affectations',
     icon:  UserCheck,
     roles: ['admin', 'direction', 'responsable_pedagogique'],
@@ -195,6 +177,24 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
       },
     ],
+  },
+  {
+    name:  'Emploi du temps',
+    href:  '/dashboard/emploi-du-temps',
+    icon:  CalendarClock,
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+  },
+  {
+    name:  'Feuille d\'appel',
+    href:  '/dashboard/absences',
+    icon:  Calendar,
+    roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+  },
+  {
+    name:  'Cahier de texte',
+    href:  '/dashboard/cahier-texte',
+    icon:  BookOpenText,
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
   },
   {
     name:  'Communications',

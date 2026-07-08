@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-
-const INACTIVITY_DELAY = 30 * 60 * 1000 // 30 minutes
+import { INACTIVITY_MS as INACTIVITY_DELAY } from '@/lib/session-config'
 
 const ACTIVITY_EVENTS = [
   'mousemove',

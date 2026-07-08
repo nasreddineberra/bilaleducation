@@ -9,13 +9,35 @@ import type { Profile, UserRole } from '@/types/database'
 
 interface UtilisateursClientProps {
   profiles: Profile[]
+  twoFactorUserIds?: string[]
 }
 
 const STAFF_ROLES: UserRole[] = ['super_admin', 'admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
 
+// Ordre hiérarchique des rôles pour le tri
+const ROLE_ORDER: Record<UserRole, number> = {
+  super_admin:             0,
+  admin:                   1,
+  direction:               2,
+  comptable:               3,
+  responsable_pedagogique: 4,
+  enseignant:              5,
+  secretaire:              6,
+  parent:                  7,
+}
+
+// Tri : rôle (hiérarchie) puis nom puis prénom (insensible casse/accents)
+function byRoleThenName(a: Profile, b: Profile): number {
+  const r = (ROLE_ORDER[a.role] ?? 99) - (ROLE_ORDER[b.role] ?? 99)
+  if (r !== 0) return r
+  const ln = (a.last_name ?? '').localeCompare(b.last_name ?? '', 'fr', { sensitivity: 'base' })
+  if (ln !== 0) return ln
+  return (a.first_name ?? '').localeCompare(b.first_name ?? '', 'fr', { sensitivity: 'base' })
+}
+
 type Tab = 'staff' | 'parents'
 
-export default function UtilisateursClient({ profiles }: UtilisateursClientProps) {
+export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: UtilisateursClientProps) {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<Tab>('staff')
 
@@ -24,7 +46,7 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
 
   const currentProfiles = tab === 'staff' ? staffProfiles : parentProfiles
 
-  const filtered = search.trim() === ''
+  const filtered = (search.trim() === ''
     ? currentProfiles
     : currentProfiles.filter(p => {
         const q = search.toLowerCase()
@@ -34,6 +56,7 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
           p.email?.toLowerCase().includes(q)
         )
       })
+  ).slice().sort(byRoleThenName)
 
   const totalActifs = currentProfiles.filter(p => p.is_active).length
 
@@ -102,7 +125,7 @@ export default function UtilisateursClient({ profiles }: UtilisateursClientProps
       </div>
 
       {/* Tableau */}
-      <UtilisateursTable profiles={filtered} />
+      <UtilisateursTable profiles={filtered} twoFactorUserIds={twoFactorUserIds} />
 
     </div>
   )
