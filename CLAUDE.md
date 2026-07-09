@@ -330,6 +330,36 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   (tuteurs), notes/bulletins dans les tables `adult_*`. Ne jamais ecrire une note d'adulte dans `grades`
   (FK `students`).
 
+#### 10 juillet 2026 (suite) — Audit Emploi du temps (module jamais audite : 0 aria a l'origine)
+- **a11y (6 fichiers)** : capsules (`SlotCapsule`, `MonthGrid`/`MonthSlotCapsule`) rendues focusables/activables
+  au clavier (`role="button"` **si `canEdit`**, `aria-label` descriptif, Entree/Espace) ; boutons Valider/Annuler/
+  Supprimer en `Tooltip` + `aria-label` contextualise (fin des `title=` natifs) ; toolbar : `aria-pressed` sur les
+  toggles (Globale/Classe/Enseignant, Semaine/Mois, filtre jour), `aria-label` sur nav/outils, dropdowns
+  classe/enseignant en `role="listbox"/option` + `aria-expanded` + Echap ; `SlotFormModal` en `role="dialog"` +
+  `aria-modal` + Echap + fond cliquable + X `aria-label`, toggles Type/Frequence `aria-pressed`+`role="group"`,
+  conflits/vacances en `role="alert"`.
+- **Regles UI** : icones retirees des boutons a libelle (Ajouter sans Plus, Semaine/Mois, `error.tsx`) ;
+  quadratins `—` nettoyes (placeholders, libelle semaine, option classe) ; format de donnees `CODE — Nom`
+  (`class_teachers.subject`) laisse (lie aux donnees + UI DnD inerte).
+- **Menu d'actions du creneau recurrent** (remplace le clic droit seul) : bouton **« ⋯ » visible** sur la
+  capsule (survol/focus) ouvrant un menu **accessible** (`role="menu"/menuitem`, Echap, focus auto, fleches).
+  **Parite clavier** : Entree sur une capsule recurrente ouvre ce menu (clic gauche souris = edition directe
+  inchangee) ; clic droit conserve comme accelerateur. Menu **redesign** (variante « groupe + contexte ») :
+  en-tete date + sections « Ce creneau » / « Toute la serie », icones Pencil/Trash2, danger rouge, hover doux.
+  **Calque de fermeture** plein ecran (`z-[99]`) : un clic hors du menu **ferme juste le menu** sans atteindre
+  le creneau en dessous (plus d'ouverture de fiche parasite). **Surbrillance** de la capsule dont le menu est
+  ouvert (anneau turquoise + elevation), utile quand des creneaux se chevauchent (scindes cote a cote).
+- **Fix positionnement Tooltip** : boutons en `position:absolute` → porter l'absolu sur le **wrapper** du
+  `Tooltip` (prop `className`), sinon le wrapper mesure une zone nulle et la bulle est mal placee.
+- **Bug corrige — faux conflit horaire** (`SlotFormModal`) : la detection ne regardait que jour + horaire et
+  **ignorait les dates d'effet** (`effective_from`/`effective_until`). Deux creneaux recurrents qui se succedent
+  (ex. clotures au 11/09 vs a partir du 12/09) etaient signales en conflit a tort. Correctif : pour deux
+  recurrents, ignorer si les periodes **Du → Au** sont **disjointes** (`A.from > B.until` ou `B.from > A.until`,
+  null = borne ouverte). Nouveau creneau = periode ouverte (alertes conservees). Type `SlotData` du modal enrichi
+  des colonnes d'effet (deja presentes au runtime).
+- **Dette** : `schedule_exceptions` desormais filtrees sur les creneaux de l'annee (`in schedule_slot_id`),
+  fin du `select('*')` non filtre. DnD reste monte mais inerte (`isDndActive = false`, futur Secondaire).
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 

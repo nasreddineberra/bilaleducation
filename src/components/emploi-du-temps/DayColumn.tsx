@@ -24,6 +24,8 @@ interface Props {
   onCancelValidation: (sourceSlotId: string, slotDate: string) => void
   onClickSlot: (slot: ResolvedSlot) => void
   onContextMenuSlot: (e: React.MouseEvent, slot: ResolvedSlot) => void
+  onKeyMenuSlot?: (slot: ResolvedSlot, rect: DOMRect) => void
+  activeMenuSlotId?: string | null
   onClickEmpty: (day: number, time: string) => void
   onDeleteSlot: (sourceSlotId: string) => void
   vacationLabel?: string | null
@@ -55,7 +57,7 @@ function timeToMinutes(t: string): number {
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
   isTeacher, vacationLabel, isValidated, onValidate, onCancelValidation,
-  onClickSlot, onContextMenuSlot, onClickEmpty, onDeleteSlot, droppable = false,
+  onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
   const startMinutes = startHour * 60
@@ -172,6 +174,8 @@ export default function DayColumn({
               onCancelValidation={() => onCancelValidation(slot.sourceSlotId, dateStr)}
               onClick={() => onClickSlot(slot)}
               onContextMenu={(e) => onContextMenuSlot(e, slot)}
+              onKeyMenu={(rect) => onKeyMenuSlot?.(slot, rect)}
+              menuActive={slot.id === activeMenuSlotId}
               onDelete={() => onDeleteSlot(slot.sourceSlotId)}
             />
           )

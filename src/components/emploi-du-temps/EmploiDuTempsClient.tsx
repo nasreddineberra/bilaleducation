@@ -4,11 +4,12 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Check, RotateCcw, CalendarDays, LayoutGrid } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } from 'lucide-react'
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
 import SlotCapsule from './SlotCapsule'
 import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
@@ -1274,6 +1275,19 @@ export default function EmploiDuTempsClient({
     setContextMenu({ x, y, slot: resolved, isLastCol })
   }
 
+  // Ouverture clavier du menu d'actions (Entrée sur une capsule récurrente), positionné sur la capsule
+  const handleSlotKeyMenu = (resolved: ResolvedSlot, rect: DOMRect) => {
+    if (!canEdit || !resolved.isRecurring) return
+    const dayIndex = activeDays.indexOf(resolved.dayOfWeek)
+    const isLastCol = dayIndex === activeDays.length - 1
+    setContextMenu({
+      x: isLastCol ? rect.right : rect.left,
+      y: rect.bottom,
+      slot: resolved,
+      isLastCol,
+    })
+  }
+
   const handleSlotClick = (resolved: ResolvedSlot) => {
     if (!canEdit) return
     if (resolved.isRecurring) {
@@ -1298,12 +1312,15 @@ export default function EmploiDuTempsClient({
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
+  // Créneau dont le menu d'actions est ouvert (mis en surbrillance)
+  const activeMenuSlotId = contextMenu?.slot.id ?? null
+
   return (
     <div className="flex flex-col h-full gap-2 p-2">
       {/* ── Toolbar ────────────────────────────────────────────────────── */}
       <div className="card flex items-center gap-3 px-4 py-2 flex-shrink-0">
         {/* View tabs */}
-        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200">
+        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200" role="group" aria-label="Type de vue">
           {(['global', 'class', 'teacher'] as ViewMode[]).map(v => (
             <button
               key={v}
@@ -1313,6 +1330,7 @@ export default function EmploiDuTempsClient({
                 if (v === 'class') { setSelectedClassId(''); setSelectedTeacherId(''); setSelectedDay(null) }
                 if (v === 'teacher') { setSelectedClassId(''); setSelectedTeacherId(role === 'enseignant' ? currentUserId : ''); setSelectedDay(null) }
               }}
+              aria-pressed={viewMode === v}
               className={clsx(
                 'px-3 py-1.5 transition-colors',
                 viewMode === v
@@ -1328,15 +1346,18 @@ export default function EmploiDuTempsClient({
 
         {/* Class select */}
         {viewMode === 'class' && (
-          <div ref={classDropRef} className="relative">
+          <div ref={classDropRef} className="relative" onKeyDown={e => { if (e.key === 'Escape') setClassDropOpen(false) }}>
             <button
               type="button"
               onClick={() => setClassDropOpen(o => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={classDropOpen}
+              aria-label="Sélectionner une classe"
               className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
             >
               {selectedClassId ? (() => {
                 const cls = classes.find(c => c.id === selectedClassId)
-                if (!cls) return <span className="text-warm-400">— Sélectionner une classe —</span>
+                if (!cls) return <span className="text-warm-400">Sélectionner une classe</span>
                 const mainT = cls.class_teachers?.find(ct => ct.is_main_teacher)
                 const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
                 return (
@@ -1346,12 +1367,12 @@ export default function EmploiDuTempsClient({
                   </span>
                 )
               })() : (
-                <span className="text-warm-400">— Sélectionner une classe —</span>
+                <span className="text-warm-400">Sélectionner une classe</span>
               )}
               <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
             </button>
             {classDropOpen && (
-              <div className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
+              <div role="listbox" aria-label="Classes" className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
                 {classes.map(c => {
                   const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
                   const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
@@ -1360,6 +1381,8 @@ export default function EmploiDuTempsClient({
                     <button
                       key={c.id}
                       type="button"
+                      role="option"
+                      aria-selected={selectedClassId === c.id}
                       onClick={() => { setSelectedClassId(c.id); setClassDropOpen(false) }}
                       className={clsx(
                         'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
@@ -1378,10 +1401,13 @@ export default function EmploiDuTempsClient({
 
         {/* Teacher select */}
         {viewMode === 'teacher' && (
-          <div ref={teacherDropRef} className="relative">
+          <div ref={teacherDropRef} className="relative" onKeyDown={e => { if (e.key === 'Escape') setTeacherDropOpen(false) }}>
             <button
               type="button"
               onClick={() => setTeacherDropOpen(o => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={teacherDropOpen}
+              aria-label="Sélectionner un enseignant"
               className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
             >
               {selectedTeacher ? (
@@ -1389,16 +1415,18 @@ export default function EmploiDuTempsClient({
                   {selectedTeacher.last_name} {selectedTeacher.first_name}
                 </span>
               ) : (
-                <span className="text-warm-400">— Sélectionner un enseignant —</span>
+                <span className="text-warm-400">Sélectionner un enseignant</span>
               )}
               <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', teacherDropOpen && 'rotate-180')} />
             </button>
             {teacherDropOpen && (
-              <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
+              <div role="listbox" aria-label="Enseignants" className="absolute top-full left-0 mt-1 w-64 bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
                 {teachers.map(t => (
                   <button
                     key={t.id}
                     type="button"
+                    role="option"
+                    aria-selected={t.id === selectedTeacherId}
                     onClick={() => { setSelectedTeacherId(t.id); setTeacherDropOpen(false) }}
                     className={clsx(
                       'w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors',
@@ -1424,58 +1452,64 @@ export default function EmploiDuTempsClient({
         <div className="flex-1" />
 
         {/* View type toggle: Semaine / Mois */}
-        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200">
+        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200" role="group" aria-label="Affichage semaine ou mois">
           <button
             onClick={() => setViewType('week')}
+            aria-pressed={viewType === 'week'}
             className={clsx(
-              'flex items-center gap-1 px-2.5 py-1.5 transition-colors',
+              'px-2.5 py-1.5 transition-colors',
               viewType === 'week' ? 'bg-warm-700 text-white' : 'bg-white text-warm-500 hover:bg-warm-50',
             )}
           >
-            <LayoutGrid size={12} />
             Semaine
           </button>
           <button
             onClick={() => setViewType('month')}
+            aria-pressed={viewType === 'month'}
             className={clsx(
-              'flex items-center gap-1 px-2.5 py-1.5 transition-colors',
+              'px-2.5 py-1.5 transition-colors',
               viewType === 'month' ? 'bg-warm-700 text-white' : 'bg-white text-warm-500 hover:bg-warm-50',
             )}
           >
-            <CalendarDays size={12} />
             Mois
           </button>
         </div>
+
+        {/* Revenir à la période courante */}
+        {((viewType === 'week' && !isCurrentWeek) || (viewType === 'month' && !isCurrentMonth)) && (
+          <Tooltip content={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}>
+            <button
+              onClick={() => viewType === 'week' ? setWeekOffset(0) : setMonthOffset(0)}
+              aria-label={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}
+              className="p-1 rounded-lg hover:bg-warm-100 text-amber-600 transition-colors"
+            >
+              <RotateCcw size={14} />
+            </button>
+          </Tooltip>
+        )}
 
         {/* Navigation */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => viewType === 'week' ? setWeekOffset(o => o - 1) : setMonthOffset(o => o - 1)}
+            aria-label={viewType === 'week' ? 'Semaine précédente' : 'Mois précédent'}
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
           <span className="text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-500 select-none capitalize">
             {viewType === 'week'
-              ? `S${weekNum} — ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`
+              ? `S${weekNum} · ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`
               : `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`
             }
           </span>
           <button
             onClick={() => viewType === 'week' ? setWeekOffset(o => o + 1) : setMonthOffset(o => o + 1)}
+            aria-label={viewType === 'week' ? 'Semaine suivante' : 'Mois suivant'}
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"
           >
             <ChevronRight size={16} />
           </button>
-          {((viewType === 'week' && !isCurrentWeek) || (viewType === 'month' && !isCurrentMonth)) && (
-            <button
-              onClick={() => viewType === 'week' ? setWeekOffset(0) : setMonthOffset(0)}
-              className="p-1 rounded-lg hover:bg-warm-100 text-amber-600 transition-colors"
-              title={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}
-            >
-              <RotateCcw size={14} />
-            </button>
-          )}
         </div>
 
         {/* Add slot button */}
@@ -1490,7 +1524,6 @@ export default function EmploiDuTempsClient({
                 : 'bg-secondary-700 hover:bg-secondary-800 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
             )}
           >
-            <Plus size={14} />
             Ajouter
           </button>
         )}
@@ -1519,6 +1552,8 @@ export default function EmploiDuTempsClient({
               <button
                 key={d}
                 onClick={() => setSelectedDay(selectedDay === d ? null : d)}
+                aria-pressed={selectedDay === d}
+                aria-label={`Filtrer sur ${DAY_LABELS[d]}`}
                 className={clsx(
                   'p-2 text-center text-xs font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
                   selectedDay === d
@@ -1576,6 +1611,8 @@ export default function EmploiDuTempsClient({
                   onCancelValidation={(sourceSlotId, slotDate) => handleCancelValidation(sourceSlotId, slotDate)}
                   onClickSlot={handleSlotClick}
                   onContextMenuSlot={handleSlotContextMenu}
+                  onKeyMenuSlot={handleSlotKeyMenu}
+                  activeMenuSlotId={activeMenuSlotId}
                   onClickEmpty={(day, time) => canEdit && openNewSlot(day, time)}
                   onDeleteSlot={(sourceSlotId) => handleDeleteSlot(sourceSlotId)}
                 />
@@ -1632,6 +1669,8 @@ export default function EmploiDuTempsClient({
             getVacationLabel={getVacationLabel}
             onClickSlot={handleSlotClick}
             onContextMenuSlot={handleSlotContextMenu}
+            onKeyMenuSlot={handleSlotKeyMenu}
+            activeMenuSlotId={activeMenuSlotId}
             onClickEmpty={(day, time, date) => canEdit && openNewSlot(day, time, date)}
           />
         </div>
@@ -1640,47 +1679,91 @@ export default function EmploiDuTempsClient({
 
       {/* ── Context menu (portal pour éviter le containing block de animate-fade-in) ── */}
       {contextMenu && createPortal(
+        <>
+        {/* Calque de fermeture : capte le clic au dehors (ferme le menu) sans atteindre le créneau en dessous */}
+        <div
+          className="fixed inset-0 z-[99]"
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu(null) }}
+        />
         <div
           ref={contextRef}
-          className="fixed bg-white rounded-xl shadow-xl border border-warm-200 z-[100] py-1 w-56"
+          role="menu"
+          aria-label="Actions du créneau"
+          className="fixed bg-white rounded-xl shadow-xl border border-warm-200 z-[100] p-1.5 w-60"
           style={{
             top: Math.min(contextMenu.y, window.innerHeight - 200),
             ...(contextMenu.isLastCol
               ? { right: window.innerWidth - contextMenu.x }
               : { left: contextMenu.x }),
           }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setContextMenu(null); return }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              const items = Array.from(contextRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
+              if (items.length === 0) return
+              const idx = items.indexOf(document.activeElement as HTMLButtonElement)
+              const next = e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx - 1 + items.length) % items.length
+              items[next]?.focus()
+            }
+          }}
         >
+          {/* En-tête : contexte (date du créneau) */}
+          <div className="px-2.5 py-1.5 mb-1 border-b border-warm-100 text-xs text-warm-400">
+            Créneau · <span className="font-medium text-warm-500 capitalize">
+              {new Date(contextMenu.slot.date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}
+            </span>
+          </div>
+
+          {/* Cette occurrence */}
+          <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Ce créneau</p>
           <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-warm-700"
+            role="menuitem"
+            autoFocus
+            aria-label="Modifier ce créneau"
+            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
             onClick={() => openEditThisOnly(contextMenu.slot)}
           >
-            Modifier ce créneau
+            <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+            Modifier
           </button>
           <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-warm-700"
-            onClick={() => {
-              handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
-            }}
+            role="menuitem"
+            aria-label="Supprimer ce créneau"
+            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+            onClick={() => { handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date) }}
           >
-            Supprimer ce créneau
+            <Trash2 size={14} className="flex-shrink-0" />
+            Supprimer
           </button>
+
           <div className="border-t border-warm-100 my-1" />
+
+          {/* Toute la série récurrente */}
+          <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Toute la série</p>
           <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-warm-700"
+            role="menuitem"
+            aria-label="Modifier toute la série"
+            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
             onClick={() => openEditAll(contextMenu.slot)}
           >
-            Modifier tous les créneaux
+            <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+            Modifier
           </button>
           <button
-            className="w-full text-left px-4 py-2 text-sm hover:bg-warm-50 text-red-600"
+            role="menuitem"
+            aria-label="Supprimer toute la série"
+            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
             onClick={() => {
               handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
               setContextMenu(null)
             }}
           >
-            Supprimer tous les créneaux
+            <Trash2 size={14} className="flex-shrink-0" />
+            Supprimer
           </button>
-        </div>,
+        </div>
+        </>,
         document.body
       )}
 

@@ -58,10 +58,11 @@ export default async function EmploiDuTempsPage() {
     .eq('is_active', true)
     .order('start_time')
 
-  // Exceptions
-  const { data: exceptions } = await supabase
-    .from('schedule_exceptions')
-    .select('*')
+  // Exceptions — limitées aux créneaux de l'année en cours (évite le sur-fetch)
+  const slotIds = (slots ?? []).map((s: { id: string }) => s.id)
+  const { data: exceptions } = slotIds.length > 0
+    ? await supabase.from('schedule_exceptions').select('*').in('schedule_slot_id', slotIds)
+    : { data: [] as unknown[] }
 
   // Salles disponibles
   const { data: rooms } = await supabase

@@ -2,8 +2,9 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Check, Trash2, CalendarDays } from 'lucide-react'
+import { Check, Trash2, CalendarDays, MoreVertical } from 'lucide-react'
 import type { CSSProperties } from 'react'
+import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 
 const SLOT_COLORS: Record<string, string> = {
@@ -26,10 +27,12 @@ interface Props {
   isTeacher: boolean
   validated: boolean
   draggable?: boolean
+  menuActive?: boolean
   onValidate: () => void
   onCancelValidation: () => void
   onClick: () => void
   onContextMenu: (e: React.MouseEvent) => void
+  onKeyMenu?: (rect: DOMRect) => void
   onDelete: () => void
 }
 
@@ -41,7 +44,7 @@ function teacherShort(p: { first_name: string; last_name: string; civilite?: str
 
 export default function SlotCapsule({
   slot, style, viewMode, canEdit, isToday, canValidate, isTeacher,
-  validated, draggable: isDraggableEnabled = false, onValidate, onCancelValidation, onClick, onContextMenu, onDelete,
+  validated, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onClick, onContextMenu, onKeyMenu, onDelete,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `slot-${slot.sourceSlotId}`,
@@ -53,13 +56,24 @@ export default function SlotCapsule({
   const colorClass = validated ? VALIDATED_COLORS : (SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)
   const showValidation = (isTeacher || canEdit) && canValidate && slot.slot_type !== 'pause'
 
+  // Libellé accessible du créneau (cours, classe/prof selon la vue, salle, horaire, statut)
+  const ariaParts = [slot.cours?.nom_fr ?? slot.slot_type]
+  if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
+  if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : teacherShort(slot.teachers))
+  if (slot.rooms) ariaParts.push(slot.rooms.name)
+  ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
+  if (validated) ariaParts.push('présence validée')
+  const ariaLabel = ariaParts.filter(Boolean).join(', ')
+
   return (
     <div
       ref={setNodeRef}
       data-slot
-      style={{ ...style, zIndex: isDragging ? 50 : 10 }}
+      style={{ ...style, zIndex: isDragging ? 50 : menuActive ? 30 : 10 }}
       className={clsx(
         'rounded-lg border overflow-hidden transition-shadow group',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1',
+        menuActive && 'ring-2 ring-secondary-600 ring-offset-1 shadow-lg',
         colorClass,
         noTeacher && 'border-dashed border-orange-400',
         !noTeacher && slot.isModified && MODIFIED_BORDER,
@@ -70,7 +84,23 @@ export default function SlotCapsule({
       )}
       onClick={(e) => { if (isDragging) return; e.stopPropagation(); onClick() }}
       onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e) }}
-      {...(isDraggableEnabled ? { ...listeners, ...attributes } : {})}
+      {...(isDraggableEnabled
+        ? { ...listeners, ...attributes }
+        : canEdit
+        ? {
+            role: 'button' as const,
+            tabIndex: 0,
+            'aria-label': ariaLabel,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault(); e.stopPropagation()
+                // Créneau récurrent : ouvrir le menu d'actions (parité clavier du clic droit)
+                if (slot.isRecurring && onKeyMenu) onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect())
+                else onClick()
+              }
+            },
+          }
+        : {})}
     >
       <div className="px-1.5 py-0.5 h-full flex flex-col overflow-hidden">
         {/* Course name or type */}
@@ -119,34 +149,57 @@ export default function SlotCapsule({
           onClick={e => e.stopPropagation()}
         >
           {validated ? (
-            <button
-              onClick={onCancelValidation}
-              className="p-0.5 rounded bg-green-500 text-white hover:bg-red-500 transition-colors"
-              title="Annuler la validation"
-            >
-              <Check size={10} />
-            </button>
+            <Tooltip content="Annuler la validation">
+              <button
+                onClick={onCancelValidation}
+                aria-label={`Annuler la validation de présence : ${ariaLabel}`}
+                className="p-0.5 rounded bg-green-500 text-white hover:bg-red-500 transition-colors"
+              >
+                <Check size={10} />
+              </button>
+            </Tooltip>
           ) : (
-            <button
-              onClick={onValidate}
-              className="p-0.5 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-              title="Valider ma présence"
-            >
-              <Check size={10} />
-            </button>
+            <Tooltip content="Valider ma présence">
+              <button
+                onClick={onValidate}
+                aria-label={`Valider ma présence : ${ariaLabel}`}
+                className="p-0.5 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+              >
+                <Check size={10} />
+              </button>
+            </Tooltip>
           )}
         </div>
       )}
 
+      {/* Menu d'actions (créneaux récurrents) — bouton visible au survol/focus, ouvre le menu accessible */}
+      {canEdit && slot.isRecurring && onKeyMenu && (
+        <Tooltip content="Actions du créneau" className="absolute top-0.5 right-0.5">
+          <button
+            className={clsx(
+              'p-0.5 rounded bg-secondary-700 text-white group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity',
+              menuActive ? 'opacity-100' : 'opacity-0',
+            )}
+            onClick={(e) => { e.stopPropagation(); onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect()) }}
+            aria-label={`Actions du créneau : ${ariaLabel}`}
+            aria-haspopup="menu"
+          >
+            <MoreVertical size={10} />
+          </button>
+        </Tooltip>
+      )}
+
       {/* Delete button (hover, edit mode, non-recurring only) */}
       {canEdit && !slot.isRecurring && (
-        <button
-          className="absolute top-0.5 right-0.5 p-0.5 rounded bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => { e.stopPropagation(); onDelete() }}
-          title="Supprimer"
-        >
-          <Trash2 size={10} />
-        </button>
+        <Tooltip content="Supprimer" className="absolute top-0.5 right-0.5">
+          <button
+            className="p-0.5 rounded bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            aria-label={`Supprimer le créneau : ${ariaLabel}`}
+          >
+            <Trash2 size={10} />
+          </button>
+        </Tooltip>
       )}
     </div>
   )

@@ -31,6 +31,8 @@ interface Props {
   getVacationLabel: (dateStr: string) => string | null
   onClickSlot: (slot: ResolvedSlot) => void
   onContextMenuSlot: (e: React.MouseEvent, slot: ResolvedSlot) => void
+  onKeyMenuSlot?: (slot: ResolvedSlot, rect: DOMRect) => void
+  activeMenuSlotId?: string | null
   onClickEmpty: (day: number, time: string, date: string) => void
 }
 
@@ -39,7 +41,7 @@ const MAX_VISIBLE = 3
 export default function MonthGrid({
   month, year, orderedDays, slots, viewMode, canEdit,
   isSchoolDay, getVacationLabel,
-  onClickSlot, onContextMenuSlot, onClickEmpty,
+  onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty,
 }: Props) {
   // Build calendar weeks
   const weeks = buildCalendarWeeks(year, month, orderedDays[0])
@@ -140,8 +142,11 @@ export default function MonthGrid({
                           key={slot.id}
                           slot={slot}
                           viewMode={viewMode}
+                          canEdit={canEdit}
                           onClick={() => onClickSlot(slot)}
                           onContextMenu={(e) => onContextMenuSlot(e, slot)}
+                          onKeyMenu={(rect) => onKeyMenuSlot?.(slot, rect)}
+                          menuActive={slot.id === activeMenuSlotId}
                         />
                       ))}
                       {hasMore && (
@@ -169,24 +174,46 @@ const SLOT_COLORS: Record<string, string> = {
 }
 
 function MonthSlotCapsule({
-  slot, viewMode, onClick, onContextMenu,
+  slot, viewMode, canEdit, menuActive = false, onClick, onContextMenu, onKeyMenu,
 }: {
   slot: ResolvedSlot
   viewMode: ViewMode
+  canEdit: boolean
+  menuActive?: boolean
   onClick: () => void
   onContextMenu: (e: React.MouseEvent) => void
+  onKeyMenu?: (rect: DOMRect) => void
 }) {
   const colorClass = SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours
+
+  const ariaParts = [slot.start_time.slice(0, 5), slot.cours?.nom_fr ?? slot.slot_type]
+  if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
+  if (viewMode !== 'teacher' && slot.teachers) ariaParts.push(teacherShort(slot.teachers))
+  const ariaLabel = ariaParts.filter(Boolean).join(', ')
 
   return (
     <div
       data-month-slot
       className={clsx(
         'rounded px-1 py-px truncate cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+        menuActive && 'ring-2 ring-secondary-600 relative z-10',
         colorClass,
       )}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e) }}
+      {...(canEdit ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        'aria-label': ariaLabel,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault(); e.stopPropagation()
+            if (slot.isRecurring && onKeyMenu) onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect())
+            else onClick()
+          }
+        },
+      } : {})}
     >
       <span className="text-[9px] font-semibold leading-tight">
         {slot.start_time.slice(0, 5)}

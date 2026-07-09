@@ -18,6 +18,8 @@ interface SlotData {
   start_time: string
   end_time: string
   slot_type: string
+  effective_from?: string | null
+  effective_until?: string | null
 }
 
 interface ClassData {
@@ -127,6 +129,13 @@ export default function SlotFormModal({
   const [saving, setSaving] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
+  // Fermeture sur Échap (sauf si la sous-confirmation est ouverte : elle gère son propre Échap)
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !pendingConfirm) onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose, pendingConfirm])
+
   // Recurring vs Ponctuel (null = pas encore choisi)
   const isEditingAll = editMode === 'all' && !!slot
   const isEditMode = !!slot
@@ -219,6 +228,20 @@ export default function SlotFormModal({
       }
       if (!sameDay) continue
 
+      // Créneaux récurrents : ignorer si les périodes d'effet (Du → Au) ne se chevauchent pas.
+      // Chevauchement si (myFrom ≤ sUntil) ET (sFrom ≤ myUntil) — null = borne ouverte.
+      // Nouveau créneau (pas de `slot`) : période ouverte → alertes conservées.
+      if (isRecurring && s.is_recurring) {
+        const myFrom  = slot?.effective_from ?? null
+        const myUntil = slot?.effective_until ?? null
+        const sFrom   = s.effective_from ?? null
+        const sUntil  = s.effective_until ?? null
+        const disjoint =
+          (!!myFrom && !!sUntil && myFrom > sUntil) ||
+          (!!sFrom && !!myUntil && sFrom > myUntil)
+        if (disjoint) continue
+      }
+
       const overlaps = s.start_time < endTime && s.end_time > startTime
 
       if (overlaps && s.class_id === classId) {
@@ -294,12 +317,18 @@ export default function SlotFormModal({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="slot-form-title"
+        className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <h3 className="text-sm font-bold text-warm-800">{modalTitle}</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-warm-100 text-warm-400">
+          <h3 id="slot-form-title" className="text-sm font-bold text-warm-800">{modalTitle}</h3>
+          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-400">
             <X size={16} />
           </button>
         </div>
@@ -312,12 +341,13 @@ export default function SlotFormModal({
               <div className="flex justify-between">
                 <div>
                   <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</label>
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex gap-2 mt-1" role="group" aria-label="Type de créneau">
                     {SLOT_TYPES.map(st => (
                       <button
                         key={st.value}
                         onClick={() => !isEditMode && setSlotType(st.value)}
                         disabled={isEditMode}
+                        aria-pressed={slotType === st.value}
                         className={clsx(
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           slotType === st.value
@@ -334,7 +364,7 @@ export default function SlotFormModal({
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Fréquence <span className="text-red-400">*</span></label>
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex gap-2 mt-1" role="group" aria-label="Fréquence">
                     {[
                       { value: false, label: 'Ponctuel' },
                       { value: true, label: 'Récurrent' },
@@ -343,6 +373,7 @@ export default function SlotFormModal({
                         key={String(opt.value)}
                         onClick={() => !isEditMode && setIsRecurring(opt.value)}
                         disabled={isEditMode}
+                        aria-pressed={isRecurring === opt.value}
                         className={clsx(
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           isRecurring === opt.value
@@ -373,7 +404,7 @@ export default function SlotFormModal({
                   const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
                   return (
                     <option key={c.id} value={c.id}>
-                      {c.name}{infoParts.length > 0 ? ` — ${infoParts.join(' · ')}` : ''}
+                      {c.name}{infoParts.length > 0 ? ` · ${infoParts.join(' · ')}` : ''}
                     </option>
                   )
                 })}
@@ -434,7 +465,7 @@ export default function SlotFormModal({
                       onChange={e => setSlotDate(e.target.value)}
                     />
                     {dateInVacation && (
-                      <p className="text-xs text-red-500 mt-1">Cette date tombe pendant les vacances scolaires</p>
+                      <p role="alert" className="text-xs text-red-500 mt-1">Cette date tombe pendant les vacances scolaires</p>
                     )}
                   </div>
                 ) : (
@@ -522,7 +553,7 @@ export default function SlotFormModal({
 
           {/* Conflicts */}
           {conflicts.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+            <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
               {conflicts.map((c, i) => (
                 <div key={i}>{c}</div>
               ))}
