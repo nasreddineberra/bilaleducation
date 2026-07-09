@@ -8,6 +8,7 @@ import {
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { FloatSelect, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
@@ -54,6 +55,13 @@ type BulletinArchiveRow = {
   class_id: string
   period_id: string
 }
+
+// Intention de navigation (classe / période / évaluation) — soumise au garde-fou
+// anti-perte de saisie quand des notes ne sont pas enregistrées.
+type NavIntent =
+  | { type: 'class';  value: string | null }
+  | { type: 'period'; value: string }
+  | { type: 'eval';   value: string | null }
 
 interface Props {
   classes:         ClassRow[]
@@ -110,6 +118,7 @@ export default function GradesClient({
   const [saving,        setSaving]        = useState(false)
   const [error,         setError]         = useState<string | null>(null)
   const [confirmReset,  setConfirmReset]  = useState(false)
+  const [pendingNav,    setPendingNav]    = useState<NavIntent | null>(null)
 
   // ── Évaluations de la classe × période sélectionnée ─────────────────────────
   const currentEvals = useMemo(() =>
@@ -129,16 +138,19 @@ export default function GradesClient({
     [evalOrderConfigs, selectedClassId, selectedPeriodId]
   )
 
+  // Lookup rapide cours par id (évite les cours.find en boucle de rendu)
+  const coursById = useMemo(() => new Map(cours.map(c => [c.id, c])), [cours])
+
   // ── Helpers UE/Module effectifs (display override > naturel) ─────────────────
   const getEffUeId = useCallback((e: EvaluationRow) =>
-    e.display_ue_id ?? cours.find(c => c.id === e.cours_id)?.unite_enseignement_id ?? '',
-    [cours]
+    e.display_ue_id ?? coursById.get(e.cours_id ?? '')?.unite_enseignement_id ?? '',
+    [coursById]
   )
   const getEffModId = useCallback((e: EvaluationRow): string | null =>
     e.display_ue_id !== null
       ? e.display_module_id
-      : cours.find(c => c.id === e.cours_id)?.module_id ?? null,
-    [cours]
+      : coursById.get(e.cours_id ?? '')?.module_id ?? null,
+    [coursById]
   )
 
   // ── UEs du panneau gauche, dans l'ordre sauvegardé ───────────────────────────
@@ -180,7 +192,7 @@ export default function GradesClient({
 
   // ── Évaluation sélectionnée ──────────────────────────────────────────────────
   const selectedEval  = evaluations.find(e => e.id === selectedEvalId) ?? null
-  const selectedCours = cours.find(c => c.id === selectedEval?.cours_id) ?? null
+  const selectedCours = coursById.get(selectedEval?.cours_id ?? '') ?? null
 
   const currentIdx = orderedEvals.findIndex(e => e.id === selectedEvalId)
   const prevEval   = currentIdx > 0 ? orderedEvals[currentIdx - 1] : null
@@ -221,6 +233,19 @@ export default function GradesClient({
   // ── Dirty flag global ────────────────────────────────────────────────────────
   const hasDirty    = Object.values(pending).some(e => e.dirty)
   const isEditMode  = selectedEvalId ? gradesList.some(g => g.evaluation_id === selectedEvalId) : false
+
+  // ── Garde anti-perte de saisie ───────────────────────────────────────────────
+  // Toute navigation (classe / période / évaluation) passe par navigate() : si des
+  // notes ne sont pas enregistrées, on demande confirmation avant de changer.
+  const applyNav = (intent: NavIntent) => {
+    if (intent.type === 'class')       setSelectedClassId(intent.value)
+    else if (intent.type === 'period') setSelectedPeriodId(intent.value)
+    else                               setSelectedEvalId(intent.value)
+  }
+  const navigate = (intent: NavIntent) => {
+    if (hasDirty) setPendingNav(intent)
+    else          applyNav(intent)
+  }
 
   // ── Complétion par évaluation ────────────────────────────────────────────────
   const getCompletion = useCallback((evalId: string) => {
@@ -323,7 +348,7 @@ export default function GradesClient({
         <FloatSelect
           label="Classe"
           value={selectedClassId ?? ''}
-          onChange={e => setSelectedClassId(e.target.value || null)}
+          onChange={e => navigate({ type: 'class', value: e.target.value || null })}
           wrapperClassName="w-fit"
         >
           <option value=""></option>
@@ -334,7 +359,7 @@ export default function GradesClient({
             const infoParts = [teacher, c.cotisation_label].filter(Boolean)
             return (
               <option key={c.id} value={c.id}>
-                {[c.name, ...infoParts].join(' — ')}
+                {[c.name, ...infoParts].join(' · ')}
               </option>
             )
           })}
@@ -346,7 +371,8 @@ export default function GradesClient({
             {periods.map(p => (
               <button
                 key={p.id}
-                onClick={() => setSelectedPeriodId(p.id)}
+                onClick={() => navigate({ type: 'period', value: p.id })}
+                aria-pressed={selectedPeriodId === p.id}
                 className={clsx(
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
@@ -389,7 +415,7 @@ export default function GradesClient({
       {isArchived && (
         <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex-shrink-0">
           <Lock size={13} className="flex-shrink-0" />
-          Bulletins archivés pour cette période — modification des notes impossible.
+          Bulletins archivés pour cette période. Modification des notes impossible.
         </div>
       )}
 
@@ -453,10 +479,10 @@ export default function GradesClient({
                           <div className="px-2">
                             {directEvals.map(ev => (
                               <EvalRow
-                                key={ev.id} ev={ev} cours={cours}
+                                key={ev.id} coursItem={coursById.get(ev.cours_id ?? '')}
                                 selected={selectedEvalId === ev.id}
                                 completion={getCompletion(ev.id)}
-                                onClick={() => setSelectedEvalId(ev.id)}
+                                onClick={() => navigate({ type: 'eval', value: ev.id })}
                               />
                             ))}
                           </div>
@@ -473,10 +499,10 @@ export default function GradesClient({
                                 <div className="pl-2">
                                   {modEvals.map(ev => (
                                     <EvalRow
-                                      key={ev.id} ev={ev} cours={cours}
+                                      key={ev.id} coursItem={coursById.get(ev.cours_id ?? '')}
                                       selected={selectedEvalId === ev.id}
                                       completion={getCompletion(ev.id)}
-                                      onClick={() => setSelectedEvalId(ev.id)}
+                                      onClick={() => navigate({ type: 'eval', value: ev.id })}
                                     />
                                   ))}
                                 </div>
@@ -510,7 +536,7 @@ export default function GradesClient({
                 <div className="flex items-start gap-3 mb-3 pb-2 border-b border-warm-100 flex-shrink-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-secondary-800">
-                      {selectedCours?.nom_fr ?? '—'}
+                      {selectedCours?.nom_fr ?? 'Cours introuvable'}
                       {selectedCours?.nom_ar && (
                         <span className="text-warm-400 font-normal ml-2">{selectedCours.nom_ar}</span>
                       )}
@@ -573,7 +599,7 @@ export default function GradesClient({
 
                 {/* Erreur */}
                 {error && (
-                  <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
+                  <div role="alert" className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
                     <AlertCircle size={13} className="flex-shrink-0" />
                     {error}
                   </div>
@@ -584,7 +610,7 @@ export default function GradesClient({
                   {classStudents.length === 0 ? (
                     <p className="text-sm text-warm-400 text-center py-8">Aucun élève inscrit dans cette classe.</p>
                   ) : (
-                    <table className="w-full text-sm border-collapse">
+                    <table aria-label="Saisie des notes des élèves" className="w-full text-sm border-collapse">
                       <thead className="sticky top-0 bg-white z-10">
                         <tr className="border-b-2 border-warm-100">
                           <th className="text-left text-xs font-semibold text-warm-500 py-2 pr-3 pl-1">#</th>
@@ -650,7 +676,7 @@ export default function GradesClient({
                                     data-row-idx={idx}
                                     className="input text-sm py-0.5 w-28 disabled:opacity-30 disabled:cursor-not-allowed"
                                   >
-                                    <option value="">—</option>
+                                    <option value="">(aucune)</option>
                                     {diagnosticOptions.map(opt => (
                                       <option key={opt.acronym} value={opt.acronym}>{opt.acronym}</option>
                                     ))}
@@ -712,15 +738,15 @@ export default function GradesClient({
                   {/* Boutons */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {!isArchived && (confirmReset ? (
-                      <>
+                      <div role="group" aria-label="Confirmer la réinitialisation des notes" className="flex items-center gap-1.5">
                         <span className="text-xs text-warm-500">Réinitialiser toutes les notes ?</span>
-                        <FloatButton variant="danger" type="button" onClick={handleReset} disabled={saving} loading={saving}>
+                        <FloatButton variant="danger" type="button" onClick={handleReset} disabled={saving} loading={saving} aria-label="Confirmer la réinitialisation">
                           Oui
                         </FloatButton>
-                        <FloatButton variant="secondary" type="button" onClick={() => setConfirmReset(false)}>
+                        <FloatButton variant="secondary" type="button" onClick={() => setConfirmReset(false)} autoFocus aria-label="Annuler la réinitialisation">
                           Non
                         </FloatButton>
-                      </>
+                      </div>
                     ) : (
                       <Tooltip content="Réinitialiser toutes les notes">
                         <FloatButton
@@ -728,6 +754,7 @@ export default function GradesClient({
                           type="button"
                           onClick={() => setConfirmReset(true)}
                           disabled={saving || !gradesList.some(g => g.evaluation_id === selectedEvalId)}
+                          aria-label="Réinitialiser toutes les notes"
                           className="!px-2"
                         >
                           <RotateCcw size={13} />
@@ -747,8 +774,9 @@ export default function GradesClient({
                       <FloatButton
                         variant="secondary"
                         type="button"
-                        onClick={() => prevEval && setSelectedEvalId(prevEval.id)}
+                        onClick={() => prevEval && navigate({ type: 'eval', value: prevEval.id })}
                         disabled={!prevEval}
+                        aria-label="Évaluation précédente"
                         className="!px-2"
                       >
                         <ChevronLeft size={14} />
@@ -758,8 +786,9 @@ export default function GradesClient({
                       <FloatButton
                         variant="secondary"
                         type="button"
-                        onClick={() => nextEval && setSelectedEvalId(nextEval.id)}
+                        onClick={() => nextEval && navigate({ type: 'eval', value: nextEval.id })}
                         disabled={!nextEval}
+                        aria-label="Évaluation suivante"
                         className="!px-2"
                       >
                         <ChevronRight size={14} />
@@ -772,6 +801,20 @@ export default function GradesClient({
           </div>
         </div>
       </div>
+
+      {pendingNav && (
+        <ConfirmModal
+          open
+          variant="warning"
+          confirmColor="amber"
+          title="Modifications non enregistrées"
+          message="Des notes saisies ne sont pas enregistrées. Quitter sans les enregistrer ?"
+          confirmLabel="Quitter sans enregistrer"
+          cancelLabel="Rester"
+          onConfirm={() => { const nav = pendingNav; setPendingNav(null); applyNav(nav) }}
+          onCancel={() => setPendingNav(null)}
+        />
+      )}
     </div>
   )
 }
@@ -779,15 +822,13 @@ export default function GradesClient({
 // ─── Ligne d'évaluation dans le gabarit gauche ───────────────────────────────
 
 function EvalRow({
-  ev, cours, selected, completion, onClick,
+  coursItem, selected, completion, onClick,
 }: {
-  ev:         EvaluationRow
-  cours:      Cours[]
+  coursItem:  Cours | undefined
   selected:   boolean
   completion: { total: number; graded: number }
   onClick:    () => void
 }) {
-  const coursItem  = cours.find(c => c.id === ev.cours_id)
   const { graded, total } = completion
   const isComplete = total > 0 && graded >= total
   const isPartial  = graded > 0 && graded < total
@@ -813,7 +854,7 @@ function EvalRow({
         {coursItem?.code && (
           <span className="font-mono text-[10px] text-warm-400 mr-1">{coursItem.code}</span>
         )}
-        {coursItem?.nom_fr ?? '—'}
+        {coursItem?.nom_fr ?? 'Cours introuvable'}
       </span>
 
       {/* Compteur */}
@@ -836,18 +877,24 @@ function StarInput({
   onChange: (v: number | null) => void
   disabled: boolean
 }) {
+  const starLabel = (v: number) => `${String(v).replace('.', ',')} étoile${v >= 2 ? 's' : ''}`
   return (
-    <div className={clsx('flex items-center justify-center gap-2', disabled && 'opacity-30 pointer-events-none')}>
+    <div
+      role="group"
+      aria-label="Note en étoiles sur 5"
+      className={clsx('flex items-center justify-center gap-2', disabled && 'opacity-30 pointer-events-none')}
+    >
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map(n => {
           const isFull = value !== null && value >= n
           const isHalf = value !== null && value >= n - 0.5 && value < n
           return (
             <span key={n} className="relative inline-block leading-none select-none text-2xl">
-              {/* Fond gris */}
-              <span className="text-warm-200">★</span>
-              {/* Remplissage ambré — clippé à gauche */}
+              {/* Fond gris (décoratif) */}
+              <span className="text-warm-200" aria-hidden="true">★</span>
+              {/* Remplissage ambré, clippé à gauche (décoratif) */}
               <span
+                aria-hidden="true"
                 className="absolute top-0 left-0 h-full overflow-hidden text-amber-400 leading-none"
                 style={{ width: isFull ? '100%' : isHalf ? '50%' : '0%' }}
               >
@@ -856,12 +903,16 @@ function StarInput({
               {/* Zone cliquable gauche → n - 0.5 */}
               <button
                 type="button"
+                aria-label={starLabel(n - 0.5)}
+                aria-pressed={value === n - 0.5}
                 className="absolute left-0 top-0 w-1/2 h-full cursor-pointer"
                 onClick={() => onChange(value === n - 0.5 ? 0 : n - 0.5)}
               />
               {/* Zone cliquable droite → n */}
               <button
                 type="button"
+                aria-label={starLabel(n)}
+                aria-pressed={value === n}
                 className="absolute right-0 top-0 w-1/2 h-full cursor-pointer"
                 onClick={() => onChange(value === n ? 0 : n)}
               />
@@ -869,8 +920,8 @@ function StarInput({
           )
         })}
       </div>
-      <span className="text-xs font-semibold text-secondary-700 w-8 text-left tabular-nums">
-        {value !== null ? value : '—'}
+      <span className="text-xs font-semibold text-secondary-700 w-8 text-left tabular-nums" aria-hidden="true">
+        {value !== null ? value : ''}
       </span>
     </div>
   )

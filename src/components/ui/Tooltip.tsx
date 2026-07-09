@@ -11,9 +11,11 @@ interface TooltipProps {
   position?: 'top' | 'top-right'
   /** Largeur max du tooltip (défaut : 'max-w-xs') */
   maxWidth?: string
+  /** Classes ajoutées au wrapper déclencheur (ex. flex-1 min-w-0 pour un libellé tronqué) */
+  className?: string
 }
 
-export default function Tooltip({ children, content, position = 'top', maxWidth = 'max-w-xs' }: TooltipProps) {
+export default function Tooltip({ children, content, position = 'top', maxWidth = 'max-w-xs', className }: TooltipProps) {
   const triggerRef = useRef<HTMLSpanElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
@@ -31,7 +33,7 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
   const hide = useCallback(() => setPos(null), [])
 
   return (
-    <span ref={triggerRef} className="inline-flex" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+    <span ref={triggerRef} className={['inline-flex', className].filter(Boolean).join(' ')} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div

@@ -157,29 +157,12 @@ export default async function EvaluationsPage() {
     : { data: [] as EvalOrderConfig[] }
 
   // 5. Évaluations existantes (nouveau système : avec cours_id)
-  // On tente d'abord avec les champs display (après migration add-display-grouping)
-  // puis on bascule sur un select minimal si la migration n'est pas encore jouée
-  let evaluations: EvaluationRow[] | null = null
-  {
-    const { data, error } = await supabase
-      .from('evaluations')
-      .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
-      .eq('etablissement_id', etablissementId)
-      .not('cours_id', 'is', null)
-      .order('sort_order')
-    if (!error) {
-      evaluations = data as EvaluationRow[]
-    } else {
-      // Migration non encore exécutée — chargement sans les champs display/sort_order
-      const { data: data2 } = await supabase
-        .from('evaluations')
-        .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date')
-        .eq('etablissement_id', etablissementId)
-        .not('cours_id', 'is', null)
-      evaluations = ((data2 ?? []) as Omit<EvaluationRow, 'display_module_id' | 'display_ue_id' | 'sort_order'>[])
-        .map(e => ({ ...e, display_module_id: null, display_ue_id: null, sort_order: null }))
-    }
-  }
+  const { data: evaluations } = await supabase
+    .from('evaluations')
+    .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
+    .eq('etablissement_id', etablissementId)
+    .not('cours_id', 'is', null)
+    .order('sort_order')
 
   return (
     <div className="h-full animate-fade-in">

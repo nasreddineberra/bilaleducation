@@ -79,7 +79,7 @@ export function FloatSelect({ label, required, error, children, className, wrapp
       <select
         {...props}
         className={[
-          'peer w-full px-3 rounded-lg border text-sm text-gray-800',
+          'peer w-full pl-3 pr-8 rounded-lg border text-sm text-gray-800',
           compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
           'bg-white transition-all duration-200 appearance-none',
           'focus:outline-none focus:ring-2',

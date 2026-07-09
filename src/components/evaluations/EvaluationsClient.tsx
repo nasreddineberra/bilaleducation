@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
-  Plus, Check, X, Pencil, Trash2,
+  Plus, Check, Pencil, Trash2,
   ChevronUp, ChevronRight, ChevronDown, BookOpen,
 } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -102,35 +101,15 @@ function CoursRefRow({
 }: {
   c: Cours; isMarked: boolean; disabled: boolean; onAdd: () => void
 }) {
-  const spanRef = useRef<HTMLSpanElement>(null)
-  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null)
-
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    const el = spanRef.current
-    if (el && el.scrollWidth > el.clientWidth) {
-      setTooltip({ x: e.clientX, y: e.clientY })
-    }
-  }
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (tooltip) setTooltip({ x: e.clientX, y: e.clientY })
-  }
-  const handleMouseLeave = () => setTooltip(null)
-
   return (
     <div className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-primary-50 transition-colors">
       <span className="w-1 h-1 rounded-full bg-warm-300 flex-shrink-0" />
       {c.code && (
         <span className="text-[10px] font-mono text-warm-400 bg-warm-100 px-1 rounded flex-shrink-0">{c.code}</span>
       )}
-      <span
-        ref={spanRef}
-        className="flex-1 text-xs text-secondary-700 truncate"
-        onMouseEnter={handleMouseEnter}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
-        {c.nom_fr}
-      </span>
+      <Tooltip content={c.nom_fr} className="flex-1 min-w-0">
+        <span className="block w-full text-xs text-secondary-700 truncate text-left">{c.nom_fr}</span>
+      </Tooltip>
       {isMarked ? (
         <Check size={12} className="text-primary-500 flex-shrink-0" />
       ) : (
@@ -138,20 +117,12 @@ function CoursRefRow({
           <button
             onClick={onAdd}
             disabled={disabled}
+            aria-label={`Ajouter une évaluation : ${c.nom_fr}`}
             className="p-0.5 text-warm-300 hover:text-primary-600 rounded transition-colors disabled:opacity-30"
           >
             <Plus size={13} />
           </button>
         </Tooltip>
-      )}
-      {tooltip && createPortal(
-        <div
-          className="fixed z-50 px-2 py-1 text-xs text-white bg-secondary-800 rounded shadow-lg pointer-events-none whitespace-nowrap"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 28 }}
-        >
-          {c.nom_fr}
-        </div>,
-        document.body
       )}
     </div>
   )
@@ -302,6 +273,9 @@ export default function EvaluationsClient({
     [evalTypeConfigs]
   )
 
+  // Lookup rapide cours par id (évite les cours.find en boucle de rendu)
+  const coursById = useMemo(() => new Map(cours.map(c => [c.id, c])), [cours])
+
   // ── Évaluations de la classe+période sélectionnée ───────────────────────────
   const currentEvals = useMemo(() =>
     evalsList.filter(e =>
@@ -341,15 +315,15 @@ export default function EvaluationsClient({
   const rightUEIds = useMemo(() => {
     const ids = new Set<string>()
     currentEvals.forEach(e => {
-      const ueId = e.display_ue_id ?? cours.find(c => c.id === e.cours_id)?.unite_enseignement_id
+      const ueId = e.display_ue_id ?? coursById.get(e.cours_id ?? '')?.unite_enseignement_id
       if (ueId) ids.add(ueId)
     })
     if (adding) {
-      const c = cours.find(c => c.id === adding)
+      const c = coursById.get(adding)
       if (c) ids.add(c.unite_enseignement_id)
     }
     return ids
-  }, [currentEvals, cours, adding])
+  }, [currentEvals, coursById, adding])
 
   const rightUEs = useMemo(() => {
     const natural = ues.filter(ue => rightUEIds.has(ue.id))
@@ -398,7 +372,7 @@ export default function EvaluationsClient({
   const handleAdd = async () => {
     if (!adding || !selectedClassId || !selectedPeriodId || !formConfigId) return
     const option    = getOption(); if (!option) return
-    const coursItem = cours.find(c => c.id === adding); if (!coursItem) return
+    const coursItem = coursById.get(adding); if (!coursItem) return
 
     setSubmitting(true); setError(null)
     const supabase = createClient()
@@ -566,7 +540,7 @@ export default function EvaluationsClient({
             const infoParts = [teacher, c.cotisation_label].filter(Boolean)
             return (
               <option key={c.id} value={c.id}>
-                {[c.name, ...infoParts].join(' — ')}
+                {[c.name, ...infoParts].join(' · ')}
               </option>
             )
           })}
@@ -579,6 +553,7 @@ export default function EvaluationsClient({
               <button
                 key={p.id}
                 onClick={() => { setSelectedPeriodId(p.id); cancelForm() }}
+                aria-pressed={selectedPeriodId === p.id}
                 className={clsx(
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
@@ -642,6 +617,7 @@ export default function EvaluationsClient({
                 value={search}
                 onChange={v => setSearch(v)}
                 className="w-full"
+                ariaLabel="Rechercher un cours dans le référentiel"
               />
             </div>
 
@@ -738,7 +714,7 @@ export default function EvaluationsClient({
                 {selectedClassId && selectedPeriodId && (() => {
                   const cls = classes.find(c => c.id === selectedClassId)
                   const per = periods.find(p => p.id === selectedPeriodId)
-                  return <span className="normal-case font-normal ml-1 text-warm-400">— {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
+                  return <span className="normal-case font-normal ml-1 text-warm-400">· {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
                 })()}
               </p>
               {currentEvals.length > 0 && (
@@ -749,14 +725,14 @@ export default function EvaluationsClient({
                   disabled={!orderDirty}
                   loading={savingOrder}
                 >
-                  Valider
+                  Enregistrer le gabarit
                 </FloatButton>
               )}
             </div>
 
             {/* Erreur globale */}
             {error && (
-              <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
+              <p role="alert" className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
                 {error}
               </p>
             )}
@@ -778,15 +754,15 @@ export default function EvaluationsClient({
                 {rightUEs.map((ue, ueIdx) => {
                   // Effective UE/module pour chaque eval (display override > naturel)
                   const getEffUeId  = (e: EvaluationRow) =>
-                    e.display_ue_id ?? cours.find(c => c.id === e.cours_id)?.unite_enseignement_id ?? ''
+                    e.display_ue_id ?? coursById.get(e.cours_id ?? '')?.unite_enseignement_id ?? ''
                   const getEffModId = (e: EvaluationRow): string | null =>
                     e.display_ue_id !== null
                       ? e.display_module_id
-                      : cours.find(c => c.id === e.cours_id)?.module_id ?? null
+                      : coursById.get(e.cours_id ?? '')?.module_id ?? null
 
                   const ueEvals     = currentEvals.filter(e => getEffUeId(e) === ue.id)
-                  const addingHere  = adding ? cours.find(c => c.id === adding)?.unite_enseignement_id === ue.id : false
-                  const addingCours = adding ? cours.find(c => c.id === adding) : null
+                  const addingHere  = adding ? coursById.get(adding)?.unite_enseignement_id === ue.id : false
+                  const addingCours = adding ? coursById.get(adding) ?? null : null
                   const directEvals = ueEvals.filter(e => getEffModId(e) === null)
 
                   // Modules effectifs présents dans cette UE
@@ -804,7 +780,7 @@ export default function EvaluationsClient({
                     .filter((m): m is CoursModule => Boolean(m))
 
                   const renderEval = (ev: EvaluationRow, siblings: EvaluationRow[]) => {
-                    const coursItem  = cours.find(c => c.id === ev.cours_id)
+                    const coursItem  = coursById.get(ev.cours_id ?? '')
                     const badge      = EVAL_BADGE[ev.eval_kind ?? ''] ?? EVAL_BADGE.diagnostic
                     const isEditing  = editing === ev.id
                     const isDeleting = confirmDelete === ev.id
@@ -849,6 +825,7 @@ export default function EvaluationsClient({
                             <Tooltip content="Monter">
                               <button
                                 onClick={() => moveEval(ev.id, 'up', siblings)}
+                aria-label="Monter l'évaluation"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
                                 <ChevronUp size={15} />
@@ -859,6 +836,7 @@ export default function EvaluationsClient({
                             <Tooltip content="Descendre">
                               <button
                                 onClick={() => moveEval(ev.id, 'down', siblings)}
+                aria-label="Descendre l'évaluation"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
                                 <ChevronDown size={15} />
@@ -872,7 +850,7 @@ export default function EvaluationsClient({
                               {coursItem.code}
                             </span>
                           )}
-                          <span className="text-xs text-secondary-700">{coursItem?.nom_fr ?? '—'}</span>
+                          <span className="text-xs text-secondary-700">{coursItem?.nom_fr ?? 'Cours introuvable'}</span>
                           {coursItem?.nom_ar && (
                             <span className="text-xs text-warm-400 ml-2">{coursItem.nom_ar}</span>
                           )}
@@ -893,27 +871,31 @@ export default function EvaluationsClient({
                           </span>
                         )}
                         {isDeleting ? (
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                          <div role="group" aria-label="Confirmer la suppression de l'évaluation" className="flex items-center gap-1 flex-shrink-0">
                             <span className="text-xs text-warm-500">Supprimer ?</span>
                             <button
                               onClick={() => handleDelete(ev.id)}
                               disabled={submitting}
+                              aria-label="Confirmer la suppression"
                               className="text-xs font-medium px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
                             >
                               Oui
                             </button>
                             <button
                               onClick={() => setConfirmDelete(null)}
+                              autoFocus
+                              aria-label="Annuler la suppression"
                               className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors"
                             >
                               Non
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
                             <Tooltip content="Modifier">
                               <button
                                 onClick={() => openEdit(ev)}
+                aria-label="Modifier l'évaluation"
                                 className="p-1 text-warm-400 hover:text-primary-600 rounded transition-colors"
                               >
                                 <Pencil size={12} />
@@ -922,6 +904,7 @@ export default function EvaluationsClient({
                             <Tooltip content="Supprimer">
                               <button
                                 onClick={() => { setConfirmDelete(ev.id); setAdding(null); setEditing(null) }}
+                aria-label="Supprimer l'évaluation"
                                 className="p-1 text-warm-400 hover:text-danger-500 rounded transition-colors"
                               >
                                 <Trash2 size={12} />
@@ -963,6 +946,7 @@ export default function EvaluationsClient({
                             <Tooltip content="Monter l'UE">
                               <button
                                 onClick={() => moveUE(ue.id, 'up', rightUEs.map(u => u.id))}
+                aria-label="Monter l'UE"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
                                 <ChevronUp size={14} />
@@ -973,6 +957,7 @@ export default function EvaluationsClient({
                             <Tooltip content="Descendre l'UE">
                               <button
                                 onClick={() => moveUE(ue.id, 'down', rightUEs.map(u => u.id))}
+                aria-label="Descendre l'UE"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
                                 <ChevronDown size={14} />
@@ -1012,6 +997,7 @@ export default function EvaluationsClient({
                                     <Tooltip content="Monter le module">
                                       <button
                                         onClick={() => moveModule(ue.id, mod.id, 'up', modIds)}
+                                        aria-label="Monter le module"
                                         className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                                       >
                                         <ChevronUp size={14} />
@@ -1022,6 +1008,7 @@ export default function EvaluationsClient({
                                     <Tooltip content="Descendre le module">
                                       <button
                                         onClick={() => moveModule(ue.id, mod.id, 'down', modIds)}
+                                        aria-label="Descendre le module"
                                         className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                                       >
                                         <ChevronDown size={14} />
