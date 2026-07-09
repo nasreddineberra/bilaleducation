@@ -176,25 +176,13 @@ export default async function BulletinsPage() {
   // 5. Évaluations pour toutes les classes
   let evaluations: EvaluationRow[] = []
   if (classIds.length > 0) {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('evaluations')
       .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
       .eq('etablissement_id', etablissementId)
       .in('class_id', classIds)
       .not('cours_id', 'is', null)
-    if (!error) {
-      evaluations = data as EvaluationRow[]
-    } else {
-      const { data: data2 } = await supabase
-        .from('evaluations')
-        .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date')
-        .eq('etablissement_id', etablissementId)
-        .in('class_id', classIds)
-        .not('cours_id', 'is', null)
-      evaluations = ((data2 ?? []) as any[]).map(e => ({
-        ...e, display_module_id: null, display_ue_id: null, sort_order: null,
-      }))
-    }
+    evaluations = (data ?? []) as EvaluationRow[]
   }
 
   // 6. Élèves inscrits (actifs)

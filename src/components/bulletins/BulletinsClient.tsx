@@ -10,6 +10,7 @@ import { parseDiagnosticOption } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,7 @@ export default function BulletinsClient({
   const [archiveError, setArchiveError] = useState<string | null>(null)
   const [appreciations, setAppreciations] = useState<AppreciationRow[]>(initialAppreciations)
   const [savingAppreciation, setSavingAppreciation] = useState<string | null>(null)
+  const [appreciationError, setAppreciationError] = useState<string | null>(null)
   const [confirmUnarchive, setConfirmUnarchive] = useState(false)
 
   const selectedClass = classes.find(c => c.id === selectedClassId)
@@ -237,6 +239,9 @@ export default function BulletinsClient({
     return map
   }, [appreciations, selectedClassId, selectedPeriodId])
 
+  // Lookup rapide cours par id (évite les cours.find en boucle de calcul)
+  const coursById = useMemo(() => new Map(cours.map(c => [c.id, c])), [cours])
+
   // Calcul des données de bulletin pour un élève
   const computeBulletinData = useCallback((student: StudentRow): BulletinData => {
     const evals = currentEvals
@@ -250,10 +255,13 @@ export default function BulletinsClient({
 
     // Grouper les évaluations par UE (et éventuellement module)
     const ueBlocksMap = new Map<string, BulletinUEBlock>()
+    // Évaluations rattachées à chaque bloc (par clé) — pour un calcul de stats
+    // robuste basé sur ev.id (et non sur un matching fragile par nom de cours).
+    const blockEvals = new Map<string, EvaluationRow[]>()
 
     for (const ev of sortedEvals) {
       if (!ev.cours_id) continue
-      const c = cours.find(cr => cr.id === ev.cours_id)
+      const c = coursById.get(ev.cours_id)
       if (!c) continue
 
       // Déterminer l'UE (priorité au display_ue_id)
@@ -279,6 +287,8 @@ export default function BulletinsClient({
       }
 
       const block = ueBlocksMap.get(blockKey)!
+      if (!blockEvals.has(blockKey)) blockEvals.set(blockKey, [])
+      blockEvals.get(blockKey)!.push(ev)
       const g = gradeMap.get(`${ev.id}:${student.student_id}`)
 
       let diagnosticLabel: string | null = null
@@ -303,39 +313,33 @@ export default function BulletinsClient({
     // (la Map préserve l'ordre d'insertion)
     const ueBlocks = Array.from(ueBlocksMap.values())
 
-    for (const block of ueBlocks) {
-      // Moyenne de l'élève pour ce bloc (scored uniquement)
-      const scoredLines = block.lines.filter(l => l.evalKind === 'scored' && l.score != null && l.maxScore)
-      if (scoredLines.length > 0) {
-        const totalCoeff = scoredLines.reduce((s, l) => s + l.coefficient, 0)
-        if (totalCoeff > 0) {
-          const weightedSum = scoredLines.reduce((s, l) => s + ((l.score! / l.maxScore!) * 20) * l.coefficient, 0)
-          block.studentAvg = Math.round((weightedSum / totalCoeff) * 100) / 100
-        }
-      }
+    // Moyenne pondérée (sur 20) d'un élève pour un ensemble d'évaluations notées.
+    const weightedAvg = (studentId: string, scoredEvals: EvaluationRow[]): number | null => {
+      const graded = scoredEvals.map(ev => {
+        const g = gradeMap.get(`${ev.id}:${studentId}`)
+        if (!g || g.score == null || !ev.max_score) return null
+        return { score: g.score, maxScore: ev.max_score, coefficient: ev.coefficient }
+      }).filter(Boolean) as { score: number; maxScore: number; coefficient: number }[]
+      if (graded.length === 0) return null
+      const tc = graded.reduce((s, l) => s + l.coefficient, 0)
+      if (tc <= 0) return null
+      const ws = graded.reduce((s, l) => s + ((l.score / l.maxScore) * 20) * l.coefficient, 0)
+      return ws / tc
+    }
 
-      // Moyenne, min, max de la classe pour ce bloc
+    for (const [blockKey, block] of ueBlocksMap) {
+      const scoredEvals = (blockEvals.get(blockKey) ?? []).filter(e => e.eval_kind === 'scored')
+      if (scoredEvals.length === 0) continue
+
+      // Moyenne de l'élève pour ce bloc
+      const studentBlockAvg = weightedAvg(student.student_id, scoredEvals)
+      if (studentBlockAvg !== null) block.studentAvg = Math.round(studentBlockAvg * 100) / 100
+
+      // Moyenne, min, max de la classe pour ce bloc (rattachement par ev.id)
       const classAvgs: number[] = []
       for (const st of classStudents) {
-        const stScored = block.lines.map(l => {
-          // Retrouver l'évaluation pour cette ligne
-          const ev = evals.find(e => {
-            const c2 = cours.find(cr => cr.id === e.cours_id)
-            return c2?.nom_fr === l.coursName && e.eval_kind === l.evalKind && e.max_score === l.maxScore && e.coefficient === l.coefficient
-          })
-          if (!ev || ev.eval_kind !== 'scored') return null
-          const g = gradeMap.get(`${ev.id}:${st.student_id}`)
-          if (!g || g.score == null || !ev.max_score) return null
-          return { score: g.score, maxScore: ev.max_score, coefficient: ev.coefficient }
-        }).filter(Boolean) as { score: number; maxScore: number; coefficient: number }[]
-
-        if (stScored.length > 0) {
-          const tc = stScored.reduce((s, l) => s + l.coefficient, 0)
-          if (tc > 0) {
-            const ws = stScored.reduce((s, l) => s + ((l.score / l.maxScore) * 20) * l.coefficient, 0)
-            classAvgs.push(ws / tc)
-          }
-        }
+        const a = weightedAvg(st.student_id, scoredEvals)
+        if (a !== null) classAvgs.push(a)
       }
       if (classAvgs.length > 0) {
         block.classAvg = Math.round((classAvgs.reduce((a, b) => a + b, 0) / classAvgs.length) * 100) / 100
@@ -346,39 +350,14 @@ export default function BulletinsClient({
 
     // Moyenne générale de l'élève (pondérée par coefficients)
     const allScoredEvals = evals.filter(e => e.eval_kind === 'scored')
-    let generalAvg: number | null = null
-    {
-      const validGrades = allScoredEvals.map(ev => {
-        const g = gradeMap.get(`${ev.id}:${student.student_id}`)
-        if (!g || g.score == null || !ev.max_score) return null
-        return { score: g.score, maxScore: ev.max_score, coefficient: ev.coefficient }
-      }).filter(Boolean) as { score: number; maxScore: number; coefficient: number }[]
-
-      if (validGrades.length > 0) {
-        const tc = validGrades.reduce((s, l) => s + l.coefficient, 0)
-        if (tc > 0) {
-          const ws = validGrades.reduce((s, l) => s + ((l.score / l.maxScore) * 20) * l.coefficient, 0)
-          generalAvg = Math.round((ws / tc) * 100) / 100
-        }
-      }
-    }
+    const studentGeneral = weightedAvg(student.student_id, allScoredEvals)
+    const generalAvg = studentGeneral !== null ? Math.round(studentGeneral * 100) / 100 : null
 
     // Moyennes générales de la classe (pour min/max/avg de classe)
     const classGeneralAvgs: number[] = []
     for (const st of classStudents) {
-      const vg = allScoredEvals.map(ev => {
-        const g = gradeMap.get(`${ev.id}:${st.student_id}`)
-        if (!g || g.score == null || !ev.max_score) return null
-        return { score: g.score, maxScore: ev.max_score, coefficient: ev.coefficient }
-      }).filter(Boolean) as { score: number; maxScore: number; coefficient: number }[]
-
-      if (vg.length > 0) {
-        const tc = vg.reduce((s, l) => s + l.coefficient, 0)
-        if (tc > 0) {
-          const ws = vg.reduce((s, l) => s + ((l.score / l.maxScore) * 20) * l.coefficient, 0)
-          classGeneralAvgs.push(ws / tc)
-        }
-      }
+      const a = weightedAvg(st.student_id, allScoredEvals)
+      if (a !== null) classGeneralAvgs.push(a)
     }
 
     // Légende diagnostique (si au moins une évaluation diagnostique)
@@ -422,7 +401,7 @@ export default function BulletinsClient({
       cotisationLabel: selectedClass?.cotisation_label ?? null,
       appreciation: appreciationMap.get(student.student_id) || null,
     }
-  }, [currentEvals, selectedPeriod, selectedClass, cours, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
+  }, [currentEvals, selectedPeriod, selectedClass, coursById, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
 
   // Télécharger un bulletin individuel
   const handleDownloadOne = useCallback(async (student: StudentRow) => {
@@ -534,6 +513,7 @@ export default function BulletinsClient({
   const handleSaveAppreciation = useCallback(async (studentId: string, text: string) => {
     if (!selectedClassId || !selectedPeriodId) return
     setSavingAppreciation(studentId)
+    setAppreciationError(null)
     try {
       const supabase = createClient()
       const { data, error } = await supabase
@@ -556,6 +536,7 @@ export default function BulletinsClient({
       }
     } catch (err: any) {
       console.error('Erreur sauvegarde appréciation:', err?.message)
+      setAppreciationError("Erreur lors de l'enregistrement de l'appréciation.")
     } finally {
       setSavingAppreciation(null)
     }
@@ -590,7 +571,7 @@ export default function BulletinsClient({
               const infoParts = [teacher, c.cotisation_label].filter(Boolean)
               return (
                 <option key={c.id} value={c.id}>
-                  {[c.name, ...infoParts].join(' — ')}
+                  {[c.name, ...infoParts].join(' · ')}
                 </option>
               )
             })}
@@ -603,6 +584,7 @@ export default function BulletinsClient({
                 <button
                   key={p.id}
                   onClick={() => { setSelectedPeriodId(p.id); setConfirmUnarchive(false) }}
+                  aria-pressed={selectedPeriodId === p.id}
                   className={clsx(
                     'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                     selectedPeriodId === p.id
@@ -618,18 +600,25 @@ export default function BulletinsClient({
 
           {/* Bouton télécharger tout */}
           <div className="ml-auto">
-            <Tooltip content={isArchived ? 'Bulletins déjà archivés' : !allComplete ? 'Toutes les notes doivent être saisies' : ''}>
-              <FloatButton
-                variant="print"
-                type="button"
-                onClick={handleDownloadAll}
-                disabled={generating !== null || !allComplete || isArchived}
-                loading={generating === 'all'}
-              >
-                <Download className="w-4 h-4" />
-                Télécharger tous les bulletins
-              </FloatButton>
-            </Tooltip>
+            {(() => {
+              const hint = isArchived
+                ? 'Bulletins déjà archivés'
+                : !allComplete
+                ? 'Toutes les notes doivent être saisies'
+                : ''
+              const btn = (
+                <FloatButton
+                  variant="print"
+                  type="button"
+                  onClick={handleDownloadAll}
+                  disabled={generating !== null || !allComplete || isArchived}
+                  loading={generating === 'all'}
+                >
+                  Télécharger tous les bulletins
+                </FloatButton>
+              )
+              return hint ? <Tooltip content={hint}>{btn}</Tooltip> : btn
+            })()}
           </div>
         </div>
 
@@ -670,23 +659,11 @@ export default function BulletinsClient({
 
             <div className="flex items-center gap-2">
               {isArchived ? (
-                confirmUnarchive ? (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-warm-500">Supprimer les bulletins archivés ?</span>
-                    <FloatButton variant="danger" type="button" onClick={async () => { await handleUnarchive(); setConfirmUnarchive(false) }} disabled={archiving} loading={archiving}>
-                      Oui
-                    </FloatButton>
-                    <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(false)}>
-                      Non
-                    </FloatButton>
-                  </div>
-                ) : (
-                  <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(true)}>
-                    Désarchiver
-                  </FloatButton>
-                )
-              ) : (
-                <Tooltip content={!allComplete ? 'Toutes les notes doivent être saisies' : ''}>
+                <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(true)} disabled={archiving} loading={archiving}>
+                  Désarchiver
+                </FloatButton>
+              ) : (() => {
+                const btn = (
                   <FloatButton
                     variant="submit"
                     type="button"
@@ -696,15 +673,22 @@ export default function BulletinsClient({
                   >
                     Archiver
                   </FloatButton>
-                </Tooltip>
-              )}
+                )
+                return allComplete ? btn : <Tooltip content="Toutes les notes doivent être saisies">{btn}</Tooltip>
+              })()}
             </div>
           </div>
         )}
 
         {archiveError && (
-          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+          <div role="alert" className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
             {archiveError}
+          </div>
+        )}
+
+        {appreciationError && (
+          <div role="alert" className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+            {appreciationError}
           </div>
         )}
 
@@ -725,7 +709,7 @@ export default function BulletinsClient({
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-          <table className="w-full text-sm">
+          <table aria-label="Bulletins des élèves" className="w-full text-sm">
             <thead>
               <tr className="bg-warm-50 border-b border-warm-200">
                 <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">#</th>
@@ -824,32 +808,35 @@ export default function BulletinsClient({
                     <td className="py-2 px-4 text-center">
                       {isArchived ? (
                         archiveUrlMap.has(s.student_id) ? (
-                          <a
-                            href={archiveUrlMap.get(s.student_id)!}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            Voir
-                          </a>
+                          <Tooltip content="Voir le bulletin archivé">
+                            <a
+                              href={archiveUrlMap.get(s.student_id)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Voir le bulletin archivé de ${s.last_name} ${s.first_name}`}
+                              className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </a>
+                          </Tooltip>
                         ) : (
                           <span className="text-xs text-warm-300">–</span>
                         )
                       ) : (
-                        <button
-                          onClick={() => handleDownloadOne(s)}
-                          disabled={generating !== null || !isComplete}
-                          className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : ''}
-                        >
-                          {generating === s.student_id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Download className="w-3.5 h-3.5" />
-                          )}
-                          PDF
-                        </button>
+                        <Tooltip content={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : 'Télécharger le PDF'}>
+                          <button
+                            onClick={() => handleDownloadOne(s)}
+                            disabled={generating !== null || !isComplete}
+                            aria-label={`Télécharger le bulletin de ${s.last_name} ${s.first_name}`}
+                            className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {generating === s.student_id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </Tooltip>
                       )}
                     </td>
                   </tr>
@@ -858,6 +845,21 @@ export default function BulletinsClient({
             </tbody>
           </table>
         </div>
+      )}
+
+      {confirmUnarchive && (
+        <ConfirmModal
+          open
+          variant="danger"
+          confirmColor="red"
+          title="Désarchiver les bulletins"
+          message="Cette action supprime définitivement les PDF archivés et leurs enregistrements. Les notes redeviennent modifiables. Continuer ?"
+          confirmLabel="Désarchiver"
+          cancelLabel="Annuler"
+          confirmDisabled={archiving}
+          onConfirm={async () => { await handleUnarchive(); setConfirmUnarchive(false) }}
+          onCancel={() => setConfirmUnarchive(false)}
+        />
       )}
     </div>
   )
@@ -899,7 +901,7 @@ function AppreciationCell({
       <button
         onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 50) }}
         className="flex items-center gap-1 text-xs text-warm-500 hover:text-primary-600 transition-colors w-full text-left"
-        title="Modifier l'appréciation"
+        aria-label={value ? 'Modifier l\'appréciation' : 'Ajouter une appréciation'}
       >
         {value ? (
           <span className="line-clamp-1">{value}</span>
@@ -921,19 +923,22 @@ function AppreciationCell({
         onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } if (e.key === 'Escape') { setText(value); setEditing(false) } }}
         rows={2}
+        aria-label="Appréciation de l'élève"
         className="input text-xs py-1 px-1.5 resize-none w-full min-w-[140px]"
         placeholder="Appréciation…"
       />
-      <div className="flex items-center gap-1">
+      <div role="group" aria-label="Enregistrer ou annuler l'appréciation" className="flex items-center gap-1">
         <button
           onClick={handleSave}
           disabled={saving}
+          aria-label="Enregistrer l'appréciation"
           className="text-[10px] font-medium px-1.5 py-0.5 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
         >
           {saving ? '…' : 'OK'}
         </button>
         <button
           onClick={() => { setText(value); setEditing(false) }}
+          aria-label="Annuler la modification de l'appréciation"
           className="text-[10px] font-medium px-1.5 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors"
         >
           Annuler
