@@ -1264,7 +1264,7 @@ export default function EmploiDuTempsClient({
 
   // Context menu for right-click on recurring slot
   const handleSlotContextMenu = (e: React.MouseEvent, resolved: ResolvedSlot) => {
-    if (!canEdit || !resolved.isRecurring) return
+    if (!canEdit) return
     e.preventDefault()
     e.stopPropagation()
     const dayIndex = activeDays.indexOf(resolved.dayOfWeek)
@@ -1277,7 +1277,7 @@ export default function EmploiDuTempsClient({
 
   // Ouverture clavier du menu d'actions (Entrée sur une capsule récurrente), positionné sur la capsule
   const handleSlotKeyMenu = (resolved: ResolvedSlot, rect: DOMRect) => {
-    if (!canEdit || !resolved.isRecurring) return
+    if (!canEdit) return
     const dayIndex = activeDays.indexOf(resolved.dayOfWeek)
     const isLastCol = dayIndex === activeDays.length - 1
     setContextMenu({
@@ -1715,53 +1715,83 @@ export default function EmploiDuTempsClient({
             </span>
           </div>
 
-          {/* Cette occurrence */}
-          <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Ce créneau</p>
-          <button
-            role="menuitem"
-            autoFocus
-            aria-label="Modifier ce créneau"
-            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
-            onClick={() => openEditThisOnly(contextMenu.slot)}
-          >
-            <Pencil size={14} className="text-warm-400 flex-shrink-0" />
-            Modifier
-          </button>
-          <button
-            role="menuitem"
-            aria-label="Supprimer ce créneau"
-            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
-            onClick={() => { handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date) }}
-          >
-            <Trash2 size={14} className="flex-shrink-0" />
-            Supprimer
-          </button>
+          {contextMenu.slot.isRecurring ? (
+            <>
+              {/* Cette occurrence */}
+              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Ce créneau</p>
+              <button
+                role="menuitem"
+                autoFocus
+                aria-label="Modifier ce créneau"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
+                onClick={() => openEditThisOnly(contextMenu.slot)}
+              >
+                <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+                Modifier
+              </button>
+              <button
+                role="menuitem"
+                aria-label="Supprimer ce créneau"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                onClick={() => { handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date) }}
+              >
+                <Trash2 size={14} className="flex-shrink-0" />
+                Supprimer
+              </button>
 
-          <div className="border-t border-warm-100 my-1" />
+              <div className="border-t border-warm-100 my-1" />
 
-          {/* Toute la série récurrente */}
-          <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Toute la série</p>
-          <button
-            role="menuitem"
-            aria-label="Modifier toute la série"
-            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
-            onClick={() => openEditAll(contextMenu.slot)}
-          >
-            <Pencil size={14} className="text-warm-400 flex-shrink-0" />
-            Modifier
-          </button>
-          <button
-            role="menuitem"
-            aria-label="Supprimer toute la série"
-            className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
-            onClick={() => {
-              handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
-              setContextMenu(null)
-            }}
-          >
-            <Trash2 size={14} className="flex-shrink-0" />
-            Supprimer
-          </button>
+              {/* Toute la série récurrente */}
+              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Toute la série</p>
+              <button
+                role="menuitem"
+                aria-label="Modifier toute la série"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
+                onClick={() => openEditAll(contextMenu.slot)}
+              >
+                <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+                Modifier
+              </button>
+              <button
+                role="menuitem"
+                aria-label="Supprimer toute la série"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                onClick={() => {
+                  handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
+                  setContextMenu(null)
+                }}
+              >
+                <Trash2 size={14} className="flex-shrink-0" />
+                Supprimer
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Créneau ponctuel : édition / suppression directes */}
+              <button
+                role="menuitem"
+                autoFocus
+                aria-label="Modifier le créneau"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
+                onClick={() => openEditAll(contextMenu.slot)}
+              >
+                <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+                Modifier
+              </button>
+              <button
+                role="menuitem"
+                aria-label="Supprimer le créneau"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                onClick={() => {
+                  handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
+                  setContextMenu(null)
+                }}
+              >
+                <Trash2 size={14} className="flex-shrink-0" />
+                Supprimer
+              </button>
+            </>
+          )}
         </div>
         </>,
         document.body

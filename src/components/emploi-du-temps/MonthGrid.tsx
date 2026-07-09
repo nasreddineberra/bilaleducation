@@ -200,16 +200,22 @@ function MonthSlotCapsule({
         menuActive && 'ring-2 ring-secondary-600 relative z-10',
         colorClass,
       )}
-      onClick={(e) => { e.stopPropagation(); onClick() }}
+      onClick={(e) => {
+        e.stopPropagation()
+        // Vue mois (pas de bouton « ⋯ ») : le clic ouvre le menu d'actions, pas la fiche.
+        if (canEdit && onKeyMenu) onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect())
+        else onClick()
+      }}
       onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e) }}
       {...(canEdit ? {
         role: 'button' as const,
         tabIndex: 0,
-        'aria-label': ariaLabel,
+        'aria-label': `Actions du créneau : ${ariaLabel}`,
+        'aria-haspopup': 'menu' as const,
         onKeyDown: (e: React.KeyboardEvent) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault(); e.stopPropagation()
-            if (slot.isRecurring && onKeyMenu) onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect())
+            if (onKeyMenu) onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect())
             else onClick()
           }
         },

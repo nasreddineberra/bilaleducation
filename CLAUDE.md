@@ -341,14 +341,17 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Regles UI** : icones retirees des boutons a libelle (Ajouter sans Plus, Semaine/Mois, `error.tsx`) ;
   quadratins `—` nettoyes (placeholders, libelle semaine, option classe) ; format de donnees `CODE — Nom`
   (`class_teachers.subject`) laisse (lie aux donnees + UI DnD inerte).
-- **Menu d'actions du creneau recurrent** (remplace le clic droit seul) : bouton **« ⋯ » visible** sur la
-  capsule (survol/focus) ouvrant un menu **accessible** (`role="menu"/menuitem`, Echap, focus auto, fleches).
-  **Parite clavier** : Entree sur une capsule recurrente ouvre ce menu (clic gauche souris = edition directe
-  inchangee) ; clic droit conserve comme accelerateur. Menu **redesign** (variante « groupe + contexte ») :
-  en-tete date + sections « Ce creneau » / « Toute la serie », icones Pencil/Trash2, danger rouge, hover doux.
-  **Calque de fermeture** plein ecran (`z-[99]`) : un clic hors du menu **ferme juste le menu** sans atteindre
-  le creneau en dessous (plus d'ouverture de fiche parasite). **Surbrillance** de la capsule dont le menu est
-  ouvert (anneau turquoise + elevation), utile quand des creneaux se chevauchent (scindes cote a cote).
+- **Menu d'actions du creneau** (remplace l'ouverture de fiche au clic) : **le clic sur le corps d'un creneau
+  existant ne fait plus rien** (ni fiche, ni menu) ; on agit **uniquement via le bouton « ⋯ »** (visible au
+  survol/focus, en haut a droite de la capsule), present sur **tous** les creneaux existants (recurrents ET
+  ponctuels). Le menu est **accessible** (`role="menu"/menuitem`, Echap, focus auto, fleches). Contenu adapte :
+  recurrent → sections « Ce creneau » / « Toute la serie » ; **ponctuel → Modifier / Supprimer**. La suppression
+  au survol (ancien bouton corbeille des ponctuels) est retiree → elle passe par le menu.
+  **Vue mois** : pas de place pour un « ⋯ » lisible → le **clic ouvre le menu** (et non la fiche). Clic droit
+  conserve comme accelerateur (meme menu). Menu **redesign** (variante « groupe + contexte ») : en-tete date +
+  sections, icones Pencil/Trash2, danger rouge, hover doux. **Calque de fermeture** plein ecran (`z-[99]`) : un
+  clic hors du menu **ferme juste le menu** sans atteindre le creneau en dessous. **Surbrillance** de la capsule
+  dont le menu est ouvert (anneau turquoise + elevation), utile quand des creneaux se chevauchent (scindes cote a cote).
 - **Fix positionnement Tooltip** : boutons en `position:absolute` → porter l'absolu sur le **wrapper** du
   `Tooltip` (prop `className`), sinon le wrapper mesure une zone nulle et la bulle est mal placee.
 - **Bug corrige — faux conflit horaire** (`SlotFormModal`) : la detection ne regardait que jour + horaire et

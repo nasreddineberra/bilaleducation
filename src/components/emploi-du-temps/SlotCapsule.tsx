@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Check, Trash2, CalendarDays, MoreVertical } from 'lucide-react'
+import { Check, CalendarDays, MoreVertical } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
@@ -79,28 +79,14 @@ export default function SlotCapsule({
         !noTeacher && slot.isModified && MODIFIED_BORDER,
         isDragging && 'opacity-30 scale-95',
         isDraggableEnabled && 'cursor-grab active:cursor-grabbing',
-        !isDraggableEnabled && canEdit && 'cursor-pointer',
-        !isDraggableEnabled && !canEdit && 'cursor-default',
+        !isDraggableEnabled && 'cursor-default',
       )}
-      onClick={(e) => { if (isDragging) return; e.stopPropagation(); onClick() }}
+      // Le clic sur le corps du créneau ne fait rien (on stoppe juste la propagation
+      // vers la cellule vide) : pour agir, l'utilisateur passe par le bouton menu « ⋯ ».
+      onClick={(e) => { if (isDragging) return; e.stopPropagation() }}
       onContextMenu={(e) => { e.stopPropagation(); onContextMenu(e) }}
-      {...(isDraggableEnabled
-        ? { ...listeners, ...attributes }
-        : canEdit
-        ? {
-            role: 'button' as const,
-            tabIndex: 0,
-            'aria-label': ariaLabel,
-            onKeyDown: (e: React.KeyboardEvent) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault(); e.stopPropagation()
-                // Créneau récurrent : ouvrir le menu d'actions (parité clavier du clic droit)
-                if (slot.isRecurring && onKeyMenu) onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect())
-                else onClick()
-              }
-            },
-          }
-        : {})}
+      aria-label={ariaLabel}
+      {...(isDraggableEnabled ? { ...listeners, ...attributes } : {})}
     >
       <div className="px-1.5 py-0.5 h-full flex flex-col overflow-hidden">
         {/* Course name or type */}
@@ -172,8 +158,8 @@ export default function SlotCapsule({
         </div>
       )}
 
-      {/* Menu d'actions (créneaux récurrents) — bouton visible au survol/focus, ouvre le menu accessible */}
-      {canEdit && slot.isRecurring && onKeyMenu && (
+      {/* Bouton menu « ⋯ » — seul point d'entrée des actions (Modifier / Supprimer) sur un créneau existant */}
+      {canEdit && onKeyMenu && (
         <Tooltip content="Actions du créneau" className="absolute top-0.5 right-0.5">
           <button
             className={clsx(
@@ -185,19 +171,6 @@ export default function SlotCapsule({
             aria-haspopup="menu"
           >
             <MoreVertical size={10} />
-          </button>
-        </Tooltip>
-      )}
-
-      {/* Delete button (hover, edit mode, non-recurring only) */}
-      {canEdit && !slot.isRecurring && (
-        <Tooltip content="Supprimer" className="absolute top-0.5 right-0.5">
-          <button
-            className="p-0.5 rounded bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity"
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
-            aria-label={`Supprimer le créneau : ${ariaLabel}`}
-          >
-            <Trash2 size={10} />
           </button>
         </Tooltip>
       )}
