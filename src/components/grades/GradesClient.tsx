@@ -21,6 +21,7 @@ type ClassRow = {
   main_teacher_name: string | null
   main_teacher_civilite: string | null
   cotisation_label: string | null
+  is_adult: boolean
 }
 
 type EvaluationRow = {
@@ -103,7 +104,7 @@ function getInitialScoreValue(grade: GradeRow | undefined, evalKind: string | nu
 export default function GradesClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
   evaluations, evalOrderConfigs, students, initialGrades,
-  schoolYearId, teacherId, bulletinArchives,
+  etablissementId, schoolYearId, teacherId, bulletinArchives,
 }: Props) {
 
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
@@ -247,6 +248,10 @@ export default function GradesClient({
     else          applyNav(intent)
   }
 
+  // Classe sélectionnée + type (élève vs adulte) : pilote la table de notes cible.
+  const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
+  const isAdultClass  = selectedClass?.is_adult ?? false
+
   // ── Complétion par évaluation ────────────────────────────────────────────────
   const getCompletion = useCallback((evalId: string) => {
     const total  = classStudents.length
@@ -261,38 +266,64 @@ export default function GradesClient({
     setPending(prev => ({ ...prev, [studentId]: { ...prev[studentId], ...update, dirty: true } }))
 
   // ── Sauvegarde ──────────────────────────────────────────────────────────────
+  // Valeurs de note communes selon le type d'évaluation.
+  const scoreFields = (entry: PendingEntry) => {
+    if (entry.is_absent)                          return { score: null, comment: null, is_absent: true }
+    if (selectedEval?.eval_kind === 'diagnostic') return { score: null, comment: entry.scoreValue || null, is_absent: false }
+    const score = entry.scoreValue === '' ? null : parseFloat(entry.scoreValue)
+    return { score, comment: entry.comment || null, is_absent: false }
+  }
+
   const handleSave = async () => {
     if (!selectedEvalId || !selectedEval) return
     const dirtyIds = Object.entries(pending).filter(([, v]) => v.dirty).map(([k]) => k)
     if (dirtyIds.length === 0) return
 
     setSaving(true); setError(null)
-
-    const upserts = dirtyIds.map(studentId => {
-      const entry = pending[studentId]
-      const base  = { student_id: studentId, evaluation_id: selectedEvalId, graded_at: new Date().toISOString(), ...(teacherId ? { graded_by: teacherId } : {}) }
-      if (entry.is_absent) {
-        return { ...base, score: null, comment: null, is_absent: true }
-      }
-      if (selectedEval.eval_kind === 'diagnostic') {
-        return { ...base, score: null, comment: entry.scoreValue || null, is_absent: false }
-      }
-      const score = entry.scoreValue === '' ? null : parseFloat(entry.scoreValue)
-      return { ...base, score, comment: entry.comment || null, is_absent: false }
-    })
-
     const supabase = createClient()
-    const { data, error: err } = await supabase
-      .from('grades')
-      .upsert(upserts, { onConflict: 'student_id,evaluation_id' })
-      .select('id, student_id, evaluation_id, score, comment, is_absent')
+    const gradedMeta = { graded_at: new Date().toISOString(), ...(teacherId ? { graded_by: teacherId } : {}) }
 
-    if (err) { setError(err.message); setSaving(false); return }
+    if (isAdultClass) {
+      // Clé participant composite « parentId-tutorNumber » → colonnes adult_grades.
+      const upserts = dirtyIds.map(pid => {
+        const sep = pid.lastIndexOf('-')
+        return {
+          parent_id:        pid.slice(0, sep),
+          tutor_number:     parseInt(pid.slice(sep + 1), 10),
+          evaluation_id:    selectedEvalId,
+          etablissement_id: etablissementId,
+          ...gradedMeta,
+          ...scoreFields(pending[pid]),
+        }
+      })
+      const { data, error: err } = await supabase
+        .from('adult_grades')
+        .upsert(upserts, { onConflict: 'parent_id,tutor_number,evaluation_id' })
+        .select('parent_id, tutor_number, evaluation_id, score, comment, is_absent')
+      if (err) { setError(err.message); setSaving(false); return }
+      const rows = (data as any[]).map(d => ({
+        student_id:    `${d.parent_id}-${d.tutor_number}`,
+        evaluation_id: d.evaluation_id, score: d.score, comment: d.comment, is_absent: d.is_absent,
+      })) as GradeRow[]
+      setGradesList(prev => [
+        ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
+        ...rows,
+      ])
+    } else {
+      const upserts = dirtyIds.map(studentId => ({
+        student_id: studentId, evaluation_id: selectedEvalId, ...gradedMeta, ...scoreFields(pending[studentId]),
+      }))
+      const { data, error: err } = await supabase
+        .from('grades')
+        .upsert(upserts, { onConflict: 'student_id,evaluation_id' })
+        .select('id, student_id, evaluation_id, score, comment, is_absent')
+      if (err) { setError(err.message); setSaving(false); return }
+      setGradesList(prev => [
+        ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
+        ...(data as GradeRow[]),
+      ])
+    }
 
-    setGradesList(prev => [
-      ...prev.filter(g => !(g.evaluation_id === selectedEvalId && dirtyIds.includes(g.student_id))),
-      ...(data as GradeRow[]),
-    ])
     setPending(prev => Object.fromEntries(Object.entries(prev).map(([k, v]) => [k, { ...v, dirty: false }])))
     setSaving(false)
   }
@@ -303,7 +334,7 @@ export default function GradesClient({
     setSaving(true); setError(null)
     const supabase = createClient()
     const { error: err } = await supabase
-      .from('grades')
+      .from(isAdultClass ? 'adult_grades' : 'grades')
       .delete()
       .eq('evaluation_id', selectedEvalId)
     if (err) { setError(err.message); setSaving(false); return }
@@ -608,13 +639,13 @@ export default function GradesClient({
                 {/* Tableau élèves */}
                 <div ref={tableRef} className="flex-1 min-h-0 overflow-y-auto">
                   {classStudents.length === 0 ? (
-                    <p className="text-sm text-warm-400 text-center py-8">Aucun élève inscrit dans cette classe.</p>
+                    <p className="text-sm text-warm-400 text-center py-8">{isAdultClass ? 'Aucun participant inscrit dans ce cours.' : 'Aucun élève inscrit dans cette classe.'}</p>
                   ) : (
                     <table aria-label="Saisie des notes des élèves" className="w-full text-sm border-collapse">
                       <thead className="sticky top-0 bg-white z-10">
                         <tr className="border-b-2 border-warm-100">
                           <th className="text-left text-xs font-semibold text-warm-500 py-2 pr-3 pl-1">#</th>
-                          <th className="text-left text-xs font-semibold text-warm-500 py-2 pr-3">Élève</th>
+                          <th className="text-left text-xs font-semibold text-warm-500 py-2 pr-3">{isAdultClass ? 'Participant' : 'Élève'}</th>
                           <th className="text-center text-xs font-semibold text-warm-500 py-2 px-3 w-36">
                             {selectedEval.eval_kind === 'scored'
                               ? `Note /${selectedEval.max_score}`

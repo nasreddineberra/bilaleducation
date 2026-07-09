@@ -14,6 +14,7 @@ type ClassRow = {
   main_teacher_name: string | null
   main_teacher_civilite: string | null
   cotisation_label: string | null
+  is_adult: boolean
 }
 
 type EvaluationRow = {
@@ -91,11 +92,11 @@ export default async function GradesPage() {
   if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
     const query = supabase
       .from('classes')
-      .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
+      .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label, is_adult)')
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
+    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -116,12 +117,12 @@ export default async function GradesPage() {
       if (classIds.length > 0) {
         const query = supabase
           .from('classes')
-          .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
+          .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label, is_adult)')
           .in('id', classIds)
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
+        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
       }
     }
   }
@@ -188,16 +189,23 @@ export default async function GradesPage() {
     evaluations = (data ?? []) as EvaluationRow[]
   }
 
-  // 6. Élèves inscrits (actifs) pour toutes les classes
-  let students: StudentRow[] = []
-  if (classIds.length > 0) {
+  // Séparer classes élèves / classes adultes (selon cotisation.is_adult)
+  const studentClassIds = classes.filter(c => !c.is_adult).map(c => c.id)
+  const adultClassIds   = classes.filter(c =>  c.is_adult).map(c => c.id)
+  const adultClassSet   = new Set(adultClassIds)
+
+  // 6. Participants (actifs) : élèves (enrollments) + tuteurs adultes (parent_class_enrollments)
+  // Clé participant unifiée : uuid élève, ou « parentId-tutorNumber » pour un adulte.
+  const students: StudentRow[] = []
+
+  if (studentClassIds.length > 0) {
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select('student_id, class_id, students(id, first_name, last_name, student_number, photo_url)')
-      .in('class_id', classIds)
+      .in('class_id', studentClassIds)
       .eq('status', 'active')
 
-    students = ((enrollments ?? []) as any[])
+    students.push(...((enrollments ?? []) as any[])
       .filter(e => e.students)
       .map(e => ({
         student_id:     e.student_id,
@@ -206,32 +214,81 @@ export default async function GradesPage() {
         last_name:      e.students.last_name,
         student_number: e.students.student_number,
         photo_url:      e.students.photo_url ?? null,
-      }))
-      .sort((a, b) =>
-        a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
-      )
+      })))
   }
 
-  // 7. Notes existantes pour toutes ces évaluations
-  let grades: GradeRow[] = []
-  const evalIds = evaluations.map(e => e.id)
-  if (evalIds.length > 0) {
+  if (adultClassIds.length > 0) {
+    const { data: adultEnr } = await supabase
+      .from('parent_class_enrollments')
+      .select('parent_id, class_id, tutor_number, parents(tutor1_first_name, tutor1_last_name, tutor2_first_name, tutor2_last_name)')
+      .in('class_id', adultClassIds)
+      .eq('status', 'active')
+
+    students.push(...((adultEnr ?? []) as any[])
+      .filter(e => e.parents)
+      .map(e => {
+        const p     = e.parents
+        const first = e.tutor_number === 1 ? p.tutor1_first_name : p.tutor2_first_name
+        const last  = e.tutor_number === 1 ? p.tutor1_last_name  : p.tutor2_last_name
+        return {
+          student_id:     `${e.parent_id}-${e.tutor_number}`,
+          class_id:       e.class_id,
+          first_name:     first ?? '',
+          last_name:      last ?? '',
+          student_number: '',
+          photo_url:      null,
+        }
+      }))
+  }
+
+  // Tri commun : nom puis prénom
+  students.sort((a, b) =>
+    a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
+  )
+
+  // 7. Notes existantes : grades (élèves) + adult_grades (adultes), clé participant unifiée
+  const grades: GradeRow[] = []
+  const studentEvalIds = evaluations.filter(e => !adultClassSet.has(e.class_id)).map(e => e.id)
+  const adultEvalIds   = evaluations.filter(e =>  adultClassSet.has(e.class_id)).map(e => e.id)
+
+  if (studentEvalIds.length > 0) {
     const { data } = await supabase
       .from('grades')
       .select('id, student_id, evaluation_id, score, comment, is_absent')
-      .in('evaluation_id', evalIds)
-    grades = (data ?? []) as GradeRow[]
+      .in('evaluation_id', studentEvalIds)
+    grades.push(...((data ?? []) as GradeRow[]))
+  }
+  if (adultEvalIds.length > 0) {
+    const { data } = await supabase
+      .from('adult_grades')
+      .select('parent_id, tutor_number, evaluation_id, score, comment, is_absent')
+      .in('evaluation_id', adultEvalIds)
+    grades.push(...((data ?? []) as any[]).map(g => ({
+      id:            '',
+      student_id:    `${g.parent_id}-${g.tutor_number}`,
+      evaluation_id: g.evaluation_id,
+      score:         g.score,
+      comment:       g.comment,
+      is_absent:     g.is_absent,
+    })))
   }
 
-  // 8. Archives de bulletins (pour bloquer la modification des notes)
+  // 8. Archives de bulletins (verrou de modification) : élèves + adultes
   type ArchiveRow = { class_id: string; period_id: string }
-  let bulletinArchives: ArchiveRow[] = []
-  if (classIds.length > 0) {
+  const bulletinArchives: ArchiveRow[] = []
+  if (studentClassIds.length > 0) {
     const { data } = await supabase
       .from('bulletin_archives')
       .select('class_id, period_id')
-      .in('class_id', classIds)
-    bulletinArchives = (data ?? []) as ArchiveRow[]
+      .in('class_id', studentClassIds)
+    bulletinArchives.push(...((data ?? []) as ArchiveRow[]))
+  }
+  if (adultClassIds.length > 0) {
+    const { data } = await supabase
+      .from('adult_bulletin_archives')
+      .select('class_id, period_id')
+      .in('class_id', adultClassIds)
+    bulletinArchives.push(...((data ?? []) as ArchiveRow[]))
   }
 
   return (

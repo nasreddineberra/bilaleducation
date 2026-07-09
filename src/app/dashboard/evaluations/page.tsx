@@ -14,6 +14,7 @@ type ClassRow = {
   main_teacher_name: string | null
   main_teacher_civilite: string | null
   cotisation_label: string | null
+  is_adult: boolean
 }
 
 type EvaluationRow = {
@@ -67,11 +68,11 @@ export default async function EvaluationsPage() {
   if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
     const query = supabase
       .from('classes')
-      .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
+      .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label, is_adult)')
       .order('name')
     if (yearLabel) query.eq('academic_year', yearLabel)
     const { data } = await query
-    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
+    classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
 
   } else if (role === 'enseignant') {
     const { data: teacher } = await supabase
@@ -92,12 +93,12 @@ export default async function EvaluationsPage() {
       if (classIds.length > 0) {
         const query = supabase
           .from('classes')
-          .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
+          .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label, is_adult)')
           .in('id', classIds)
           .order('name')
         if (yearLabel) query.eq('academic_year', yearLabel)
         const { data } = await query
-        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null })) as ClassRow[]
+        classes = (data ?? []).map((c: any) => ({ ...c, main_teacher_name: null, main_teacher_civilite: null, cotisation_label: c.cotisation_types?.label ?? null, is_adult: c.cotisation_types?.is_adult ?? false })) as ClassRow[]
       }
     }
   }

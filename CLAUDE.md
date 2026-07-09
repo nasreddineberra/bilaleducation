@@ -305,6 +305,31 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Leviers React 19 disponibles pour la suite** (non encore exploites) : `useActionState`/`useFormStatus`
   (formulaires), `useOptimistic` (affectations au clic, statuts en lot), `ref` en prop directe.
 
+#### 10 juillet 2026 (suite) — Audits Evaluations (Gabarits + Saisie notes + Bulletins) + Notation des adultes
+- **Audits a11y des 3 modules Evaluations** (Gabarits `EvaluationsClient`, Saisie notes `GradesClient`,
+  Bulletins `BulletinsClient`) : `aria-label` sur tous les boutons icone, `group-focus-within` (actions
+  revelees au clavier), `role=alert`, `aria-pressed` sur les onglets periode, tableaux `aria-label`, tooltip
+  de troncature maison remplace par le `Tooltip` standard (nouvelle prop `className`), quadratins `—` → `·`,
+  `error.tsx` sans icones. **StarInput** (saisie etoilee) en `role=group` + `aria-label`/`aria-pressed` par
+  demi-etoile. **Garde-fou anti-perte de saisie** (Saisie notes) : navigation classe/periode/eval via
+  `navigate()` + `ConfirmModal` si notes non enregistrees. Bulletins : desarchivage (destructif) en
+  `ConfirmModal`, echec d'appreciation rendu visible, **fix calcul moyennes de classe** (rattachement par
+  `ev.id` au lieu d'un matching fragile par nom, helper `weightedAvg` + `Map coursById`). Fallbacks migration
+  morts retires des 3 `page.tsx`.
+- **Notation des adultes (cours adultes) — chaine complete** : une classe est « adulte » si sa cotisation a
+  `is_adult = true` ; ses participants sont des **tuteurs** (`parent_class_enrollments`, cle composite
+  `parentId-tutorNumber`), pas des `students`. Comme `grades`/`bulletin_*` sont FK vers `students`, on ajoute
+  un **flux parallele** via 3 tables miroir (migration `add-adult-grading.sql`) : `adult_grades`,
+  `adult_bulletin_appreciations`, `adult_bulletin_archives` (RLS calquees + audit ; bucket `bulletins`
+  reutilise, chemin `adultes/`). **Les gabarits `evaluations` sont partages** (rattaches a `class_id`).
+  Les 3 pages (Gabarits/Saisie notes/Bulletins) **branchent** sur `cotisation.is_adult` : participants depuis
+  `parent_class_enrollments`, notes/bulletins dans les tables `adult_*`. PDF adulte : « Participant : » au lieu
+  de « Eleve : », matricule masque, bloc absences conserve (0). Cle participant unifiee cote client :
+  `student_id` = uuid eleve **ou** `parentId-tutorNumber` (parse via `lastIndexOf('-')`, l'uuid contient des `-`).
+- **Regle (memoire)** : classe adulte (`cotisation.is_adult`) ⟹ participants = `parent_class_enrollments`
+  (tuteurs), notes/bulletins dans les tables `adult_*`. Ne jamais ecrire une note d'adulte dans `grades`
+  (FK `students`).
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 
@@ -465,3 +490,5 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-profile-sensitive-columns-guard.sql` (trigger anti auto-escalade
   sur `profiles` : role/is_active/etablissement_id).
 - [x] Executer `supabase/migrations/add-get-verified-totp-user-ids-rpc.sql` (RPC statut 2FA visible admin).
+- [x] Executer `supabase/migrations/add-adult-grading.sql` (tables `adult_grades`, `adult_bulletin_appreciations`,
+  `adult_bulletin_archives` + RLS + audit ; notation des adultes).

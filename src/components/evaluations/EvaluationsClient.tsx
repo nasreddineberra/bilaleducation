@@ -26,6 +26,7 @@ type ClassRow = {
   main_teacher_name: string | null
   main_teacher_civilite: string | null
   cotisation_label: string | null
+  is_adult: boolean
 }
 
 type EvaluationRow = {
@@ -345,8 +346,9 @@ export default function EvaluationsClient({
   const openEdit = async (ev: EvaluationRow) => {
     setError(null)
     const supabase = createClient()
+    const gradesTable = classes.find(c => c.id === ev.class_id)?.is_adult ? 'adult_grades' : 'grades'
     const { count } = await supabase
-      .from('grades')
+      .from(gradesTable)
       .select('id', { count: 'exact', head: true })
       .eq('evaluation_id', ev.id)
     if ((count ?? 0) > 0) {
@@ -427,8 +429,9 @@ export default function EvaluationsClient({
   const handleDelete = async (evalId: string) => {
     setSubmitting(true); setError(null)
     const supabase = createClient()
+    const gradesTable = classes.find(c => c.id === selectedClassId)?.is_adult ? 'adult_grades' : 'grades'
     const { count } = await supabase
-      .from('grades')
+      .from(gradesTable)
       .select('id', { count: 'exact', head: true })
       .eq('evaluation_id', evalId)
     if ((count ?? 0) > 0) {

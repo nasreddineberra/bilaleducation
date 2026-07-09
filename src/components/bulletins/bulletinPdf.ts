@@ -107,14 +107,17 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
-  doc.text('Élève :', margin + 4, y + 6)
+  doc.text(data.isAdult ? 'Participant :' : 'Élève :', margin + 4, y + 6)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${data.student.last_name} ${data.student.first_name}`, margin + 22, y + 6)
+  doc.text(`${data.student.last_name} ${data.student.first_name}`, margin + (data.isAdult ? 32 : 22), y + 6)
 
-  doc.setFont('helvetica', 'bold')
-  doc.text('N° matricule :', margin + 4, y + 13)
-  doc.setFont('helvetica', 'normal')
-  doc.text(data.student.student_number, margin + 36, y + 13)
+  // N° matricule : uniquement pour les élèves (les adultes n'en ont pas)
+  if (!data.isAdult && data.student.student_number) {
+    doc.setFont('helvetica', 'bold')
+    doc.text('N° matricule :', margin + 4, y + 13)
+    doc.setFont('helvetica', 'normal')
+    doc.text(data.student.student_number, margin + 36, y + 13)
+  }
 
   // Colonne droite
   doc.setFont('helvetica', 'bold')

@@ -22,6 +22,7 @@ type ClassRow = {
   main_teacher_name: string | null
   main_teacher_civilite: string | null
   cotisation_label: string | null
+  is_adult: boolean
 }
 
 type EvaluationRow = {
@@ -139,6 +140,7 @@ export type BulletinData = {
   classSchedule: string | null
   cotisationLabel: string | null
   appreciation: string | null
+  isAdult: boolean
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -162,6 +164,7 @@ export default function BulletinsClient({
 
   const selectedClass = classes.find(c => c.id === selectedClassId)
   const selectedPeriod = periods.find(p => p.id === selectedPeriodId)
+  const isAdultClass = selectedClass?.is_adult ?? false
 
   // Élèves de la classe sélectionnée
   const classStudents = useMemo(() =>
@@ -400,6 +403,7 @@ export default function BulletinsClient({
         : null,
       cotisationLabel: selectedClass?.cotisation_label ?? null,
       appreciation: appreciationMap.get(student.student_id) || null,
+      isAdult: selectedClass?.is_adult ?? false,
     }
   }, [currentEvals, selectedPeriod, selectedClass, coursById, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
 
@@ -440,7 +444,9 @@ export default function BulletinsClient({
       for (const student of classStudents) {
         const data = computeBulletinData(student)
         const blob = await generateBulletinBlob(data)
-        const filePath = `${etablissementId}/${yearLabel ?? 'unknown'}/${selectedPeriodId}/${student.student_id}.pdf`
+        const filePath = isAdultClass
+          ? `${etablissementId}/adultes/${yearLabel ?? 'unknown'}/${selectedPeriodId}/${student.student_id}.pdf`
+          : `${etablissementId}/${yearLabel ?? 'unknown'}/${selectedPeriodId}/${student.student_id}.pdf`
 
         const { error: uploadError } = await supabase.storage
           .from('bulletins')
@@ -449,20 +455,40 @@ export default function BulletinsClient({
 
         const { data: { publicUrl } } = supabase.storage.from('bulletins').getPublicUrl(filePath)
 
-        const { data: row, error: insertError } = await supabase
-          .from('bulletin_archives')
-          .insert({
+        let insertPayload: Record<string, unknown>
+        if (isAdultClass) {
+          const sep = student.student_id.lastIndexOf('-')
+          insertPayload = {
             etablissement_id: etablissementId,
-            student_id: student.student_id,
-            class_id: selectedClassId,
-            period_id: selectedPeriodId,
-            file_path: filePath,
-            file_url: publicUrl,
-          })
-          .select('id, student_id, class_id, period_id, file_url, archived_at')
+            parent_id:    student.student_id.slice(0, sep),
+            tutor_number: parseInt(student.student_id.slice(sep + 1), 10),
+            class_id: selectedClassId, period_id: selectedPeriodId,
+            file_path: filePath, file_url: publicUrl,
+          }
+        } else {
+          insertPayload = {
+            etablissement_id: etablissementId, student_id: student.student_id,
+            class_id: selectedClassId, period_id: selectedPeriodId,
+            file_path: filePath, file_url: publicUrl,
+          }
+        }
+
+        const { data: row, error: insertError } = await supabase
+          .from(isAdultClass ? 'adult_bulletin_archives' : 'bulletin_archives')
+          .insert(insertPayload)
+          .select(isAdultClass
+            ? 'id, parent_id, tutor_number, class_id, period_id, file_url, archived_at'
+            : 'id, student_id, class_id, period_id, file_url, archived_at')
           .single()
         if (insertError) throw insertError
-        if (row) newArchives.push(row as ArchiveRow)
+        if (row) {
+          const r = row as any
+          newArchives.push({
+            id: r.id,
+            student_id: isAdultClass ? `${r.parent_id}-${r.tutor_number}` : r.student_id,
+            class_id: r.class_id, period_id: r.period_id, file_url: r.file_url, archived_at: r.archived_at,
+          } as ArchiveRow)
+        }
       }
 
       setArchives(prev => [...prev, ...newArchives])
@@ -471,7 +497,7 @@ export default function BulletinsClient({
     } finally {
       setArchiving(false)
     }
-  }, [selectedClassId, selectedPeriodId, allComplete, classStudents, computeBulletinData, etablissementId, yearLabel])
+  }, [selectedClassId, selectedPeriodId, allComplete, classStudents, computeBulletinData, etablissementId, yearLabel, isAdultClass])
 
   // Désarchiver
   const handleUnarchive = useCallback(async () => {
@@ -493,10 +519,10 @@ export default function BulletinsClient({
         await supabase.storage.from('bulletins').remove(filePaths)
       }
 
-      // Supprimer les lignes en DB
+      // Supprimer les lignes en DB (table selon le type de classe)
       const ids = currentArchives.map(a => a.id)
       const { error } = await supabase
-        .from('bulletin_archives')
+        .from(isAdultClass ? 'adult_bulletin_archives' : 'bulletin_archives')
         .delete()
         .in('id', ids)
       if (error) throw error
@@ -507,7 +533,7 @@ export default function BulletinsClient({
     } finally {
       setArchiving(false)
     }
-  }, [currentArchives])
+  }, [currentArchives, isAdultClass])
 
   // Sauvegarder une appréciation
   const handleSaveAppreciation = useCallback(async (studentId: string, text: string) => {
@@ -516,22 +542,42 @@ export default function BulletinsClient({
     setAppreciationError(null)
     try {
       const supabase = createClient()
-      const { data, error } = await supabase
-        .from('bulletin_appreciations')
-        .upsert({
+      let payload: Record<string, unknown>
+      let conflict: string
+      if (isAdultClass) {
+        const sep = studentId.lastIndexOf('-')
+        payload = {
           etablissement_id: etablissementId,
-          student_id: studentId,
-          class_id: selectedClassId,
-          period_id: selectedPeriodId,
-          appreciation: text,
-        }, { onConflict: 'student_id,class_id,period_id' })
-        .select('id, student_id, class_id, period_id, appreciation')
+          parent_id:    studentId.slice(0, sep),
+          tutor_number: parseInt(studentId.slice(sep + 1), 10),
+          class_id: selectedClassId, period_id: selectedPeriodId, appreciation: text,
+        }
+        conflict = 'parent_id,tutor_number,class_id,period_id'
+      } else {
+        payload = {
+          etablissement_id: etablissementId, student_id: studentId,
+          class_id: selectedClassId, period_id: selectedPeriodId, appreciation: text,
+        }
+        conflict = 'student_id,class_id,period_id'
+      }
+      const { data, error } = await supabase
+        .from(isAdultClass ? 'adult_bulletin_appreciations' : 'bulletin_appreciations')
+        .upsert(payload, { onConflict: conflict })
+        .select(isAdultClass
+          ? 'id, parent_id, tutor_number, class_id, period_id, appreciation'
+          : 'id, student_id, class_id, period_id, appreciation')
         .single()
       if (error) throw error
       if (data) {
+        const r = data as any
+        const row: AppreciationRow = {
+          id: r.id,
+          student_id: isAdultClass ? `${r.parent_id}-${r.tutor_number}` : r.student_id,
+          class_id: r.class_id, period_id: r.period_id, appreciation: r.appreciation,
+        }
         setAppreciations(prev => {
           const filtered = prev.filter(a => !(a.student_id === studentId && a.class_id === selectedClassId && a.period_id === selectedPeriodId))
-          return [...filtered, data as AppreciationRow]
+          return [...filtered, row]
         })
       }
     } catch (err: any) {
@@ -540,7 +586,7 @@ export default function BulletinsClient({
     } finally {
       setSavingAppreciation(null)
     }
-  }, [selectedClassId, selectedPeriodId, etablissementId])
+  }, [selectedClassId, selectedPeriodId, etablissementId, isAdultClass])
 
   if (classes.length === 0) {
     return (
@@ -628,7 +674,7 @@ export default function BulletinsClient({
             <div className="flex items-center gap-4 text-xs text-warm-500">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
-                {classStudents.length} élève{classStudents.length > 1 ? 's' : ''}
+                {classStudents.length} {isAdultClass ? 'participant' : 'élève'}{classStudents.length > 1 ? 's' : ''}
               </span>
               <span className="flex items-center gap-1">
                 <FileText className="w-3.5 h-3.5" />
@@ -713,7 +759,7 @@ export default function BulletinsClient({
             <thead>
               <tr className="bg-warm-50 border-b border-warm-200">
                 <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">#</th>
-                <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">Élève</th>
+                <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">{isAdultClass ? 'Participant' : 'Élève'}</th>
                 <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">N° matricule</th>
                 <th className="text-center py-2 px-4 font-semibold text-secondary-700 text-xs">Complétion</th>
                 <th className="text-center py-2 px-4 font-semibold text-secondary-700 text-xs">Moy. générale</th>
