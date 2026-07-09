@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // jsdom (sanitisation HTML au SSR) reste un module externe côté serveur :
+  // chargé depuis node_modules à l'exécution, jamais bundlé. Côté navigateur,
+  // il est neutralisé via le champ "browser" du package.json (window natif suffit).
+  serverExternalPackages: ['jsdom'],
+
   images: {
     remotePatterns: [
       {

@@ -284,12 +284,34 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Regle UI (memoire)** : **jamais de tiret quadratin `—`** dans l'UI (utiliser `·` / `-` / parentheses) ; plages
   horaires en demi-cadratin `–` tolerees. **Passe globale de nettoyage prevue en FIN DE V1** (ne pas la faire avant).
 
+#### 10 juillet 2026 — Montee Next 16.2.10 + React 19 + fix build (sanitisation isomorphe)
+- **Bump Next** `16.1.6` → `16.2.10` (+ `eslint-config-next`), montee mineure sans rupture. Verifie que le
+  build echouait **a l'identique en 16.1.6** → le bump n'etait pas en cause.
+- **Fix build de production (bug preexistant)** : `next build` cassait (« Module not found: Can't resolve 'fs' »)
+  car `src/lib/security/sanitize.ts` importait **jsdom** en statique, tire dans le **bundle navigateur** de 4
+  Client Components (`CahierTexteDetail`, `NotificationDetailClient`, `StaffMessageClient`, `NewMessageClient`).
+  Correctif : `sanitize.ts` rendu **isomorphe** (window natif au navigateur, jsdom uniquement au SSR via `require`
+  paresseux + instance mise en cache) ; jsdom exclu du bundle client via **`"browser": {"jsdom": false}`**
+  (package.json) et garde externe serveur via **`serverExternalPackages: ['jsdom']`** (next.config.js).
+  **0 composant touche**, API `sanitize()` toujours synchrone. Sanitisation serveur re-testee (XSS neutralise).
+  **Regle** : ne jamais importer jsdom statiquement dans un module atteignable par un Client Component (il est
+  SSR-rendu cote serveur ET bundle cote client).
+- **React `18.2` → `19.2`** (+ `@types/react`/`@types/react-dom` en 19) : **aucune reecriture**. Audit prealable
+  = 0 usage d'API supprimees/depreciees (forwardRef, defaultProps, findDOMNode, useFormState, propTypes) et 0
+  motif a friction de types (`useRef()` no-arg, `JSX.Element` global, `React.FC`). Toutes les libs tierces
+  declaraient deja React 19 (dnd-kit, TipTap 3, react-easy-crop, supabase/ssr), seule friction = **lucide-react**
+  bumpe `0.312` → `1.24.0` (saut majeur, 0 icone cassee au type-check).
+- Verifs : `type-check` vert, `build` complet vert, dev `/login` 200, sanitize serveur OK.
+- **Leviers React 19 disponibles pour la suite** (non encore exploites) : `useActionState`/`useFormStatus`
+  (formulaires), `useOptimistic` (affectations au clic, statuts en lot), `ref` en prop directe.
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 
 ## Stack technique
 
-- **Framework** : Next.js 15 (App Router, Server + Client Components)
+- **Framework** : Next.js 16.2.10 (App Router + Turbopack, Server + Client Components)
+- **UI** : React 19.2
 - **Base de donnees** : Supabase (PostgreSQL + Row Level Security)
 - **Styles** : Tailwind CSS (palette turquoise #18aa99 / orange #f97316)
 - **Editeur riche** : TipTap
@@ -297,6 +319,7 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Drag & Drop** : dnd-kit
 - **Notifications push** : web-push + nodemailer (emails)
 - **Dates** : date-fns
+- **Sanitisation HTML** : DOMPurify (isomorphe via `src/lib/security/sanitize.ts`, jsdom au SSR)
 
 ## Commandes
 
