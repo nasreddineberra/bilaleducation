@@ -253,6 +253,12 @@ export default function EmploiDuTempsClient({
   const toast = useToast()
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; confirmLabel?: string; onConfirm: () => void } | null>(null)
 
+  // Id (teachers.id) de l'enseignant connecté — resolu depuis son compte (user_id),
+  // et non l'id du profil : sinon le filtre `teacher_id === selectedTeacherId` ne matche jamais.
+  const ownTeacherId = role === 'enseignant'
+    ? (teachers.find(t => t.user_id === currentUserId)?.id ?? '')
+    : ''
+
   const [slots, setSlots] = useState<SlotData[]>(initialSlots)
   const [exceptions, setExceptions] = useState<ExceptionData[]>(initialExceptions)
   const [validations, setValidations] = useState<ValidationData[]>(initialValidations)
@@ -260,9 +266,7 @@ export default function EmploiDuTempsClient({
     role === 'enseignant' ? 'teacher' : 'global'
   )
   const [selectedClassId, setSelectedClassId] = useState<string>('')
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(
-    role === 'enseignant' ? currentUserId : ''
-  )
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(ownTeacherId)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -1334,7 +1338,7 @@ export default function EmploiDuTempsClient({
                 setViewMode(v)
                 if (v === 'global') { setSelectedClassId(''); setSelectedTeacherId(''); setSelectedDay(null) }
                 if (v === 'class') { setSelectedClassId(''); setSelectedTeacherId(''); setSelectedDay(null) }
-                if (v === 'teacher') { setSelectedClassId(''); setSelectedTeacherId(role === 'enseignant' ? currentUserId : ''); setSelectedDay(null) }
+                if (v === 'teacher') { setSelectedClassId(''); setSelectedTeacherId(ownTeacherId); setSelectedDay(null) }
               }}
               aria-pressed={viewMode === v}
               className={clsx(
@@ -1610,6 +1614,7 @@ export default function EmploiDuTempsClient({
                   canEdit={canEdit}
                   viewMode={viewMode}
                   isTeacher={role === 'enseignant'}
+                  currentTeacherId={ownTeacherId}
                   vacationLabel={vacLabel}
                   droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}

@@ -371,6 +371,15 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   toujours** l'ancien creneau a la veille du pivot, ce qui inversait la plage (`from > until`) quand l'ancien
   commencait pile au pivot. Correctif : si `effective_from >= pivot` (rien a conserver avant), on **supprime**
   l'ancien au lieu de le cloturer (cascade exceptions/validations) ; sinon cloture la veille (historique conserve).
+- **Parcours enseignant sur l'EDT (2 fixes)** : (1) **vue par defaut vide** — `selectedTeacherId` etait initialise
+  a `currentUserId` (id du profil) alors que le filtre compare `slot.teacher_id` (= `teachers.id`) → jamais de
+  match. Corrige : `ownTeacherId = teachers.find(t => t.user_id === currentUserId)?.id` (init + re-clic « Par
+  enseignant »). (2) **validation de la presence d'autrui** — le bouton ✓ s'affichait pour tout enseignant sur
+  n'importe quel creneau. Corrige : `showValidation = canEdit || (isTeacher && isOwnSlot)` (prop `isOwnSlot` =
+  `slot.teacher_id === ownTeacherId`, plombee via `DayColumn`). **Durcissement BDD** (migration
+  `harden-time-tracking-rls.sql`) : RLS de `staff_time_entries` + `schedule_validations` — SELECT reste tenant ;
+  ECRITURE = gestionnaires (admin/direction/resp.pedago/secretaire) tout, enseignant uniquement `profile_id =
+  auth.uid()`. Un enseignant ne peut plus ecrire une presence/validation au nom d'un autre, meme par API.
 
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
@@ -536,3 +545,5 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   `adult_bulletin_archives` + RLS + audit ; notation des adultes).
 - [x] Executer `supabase/migrations/fix-schedule-overlap-effective-dates.sql` (contrainte anti-doublon EDT
   rendue date-aware : `EXCLUDE gist` sur classe/jour/horaires + chevauchement des dates d'effet, `btree_gist`).
+- [ ] Executer `supabase/migrations/harden-time-tracking-rls.sql` (RLS `staff_time_entries` +
+  `schedule_validations` : ecriture reservee aux gestionnaires ou a sa propre presence pour un enseignant).

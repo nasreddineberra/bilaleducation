@@ -19,6 +19,7 @@ interface Props {
   canEdit: boolean
   viewMode: ViewMode
   isTeacher: boolean
+  currentTeacherId?: string
   isValidated: (sourceSlotId: string, slotDate: string) => boolean
   onValidate: (slot: ResolvedSlot) => void
   onCancelValidation: (sourceSlotId: string, slotDate: string) => void
@@ -56,7 +57,7 @@ function timeToMinutes(t: string): number {
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
-  isTeacher, vacationLabel, isValidated, onValidate, onCancelValidation,
+  isTeacher, currentTeacherId, vacationLabel, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
@@ -168,6 +169,7 @@ export default function DayColumn({
               isToday={isToday}
               canValidate={canValidate}
               isTeacher={isTeacher}
+              isOwnSlot={!!currentTeacherId && slot.teacher_id === currentTeacherId}
               validated={isValidated(slot.sourceSlotId, dateStr)}
               draggable={droppable}
               onValidate={() => onValidate(slot)}

@@ -25,6 +25,7 @@ interface Props {
   isToday: boolean
   canValidate: boolean
   isTeacher: boolean
+  isOwnSlot?: boolean
   validated: boolean
   draggable?: boolean
   menuActive?: boolean
@@ -43,7 +44,7 @@ function teacherShort(p: { first_name: string; last_name: string; civilite?: str
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, isToday, canValidate, isTeacher,
+  slot, style, viewMode, canEdit, isToday, canValidate, isTeacher, isOwnSlot = false,
   validated, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onClick, onContextMenu, onKeyMenu, onDelete,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -54,7 +55,9 @@ export default function SlotCapsule({
 
   const noTeacher = !slot.teacher_id
   const colorClass = validated ? VALIDATED_COLORS : (SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)
-  const showValidation = (isTeacher || canEdit) && canValidate && slot.slot_type !== 'pause'
+  // Validation : le personnel gestionnaire (canEdit) peut valider tout créneau ;
+  // un enseignant ne peut valider que SON propre créneau.
+  const showValidation = (canEdit || (isTeacher && isOwnSlot)) && canValidate && slot.slot_type !== 'pause'
 
   // Libellé accessible du créneau (cours, classe/prof selon la vue, salle, horaire, statut)
   const ariaParts = [slot.cours?.nom_fr ?? slot.slot_type]
