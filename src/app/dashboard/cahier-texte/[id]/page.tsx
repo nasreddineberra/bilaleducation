@@ -107,7 +107,7 @@ export default async function CahierTexteDetailPage({ params }: { params: Promis
     .single()
 
   const isAuthor = teacher?.id === journal.teacher_id
-  const canEdit = isAuthor || ['direction', 'responsable_pedagogique'].includes(role)
+  const canEdit = isAuthor || ['admin', 'direction', 'responsable_pedagogique'].includes(role)
 
   return (
     <div className="max-w-3xl mx-auto space-y-4 animate-fade-in">

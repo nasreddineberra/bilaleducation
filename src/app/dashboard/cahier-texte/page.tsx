@@ -136,7 +136,7 @@ export default async function CahierTextePage() {
   let allTeachers: { id: string; first_name: string; last_name: string }[] = []
   let allAssignments: { class_id: string; teacher_id: string; is_main_teacher: boolean; subject: string | null }[] = []
 
-  if (['direction', 'responsable_pedagogique'].includes(role)) {
+  if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
     const { data: t } = await supabase
       .from('teachers')
       .select('id, first_name, last_name')

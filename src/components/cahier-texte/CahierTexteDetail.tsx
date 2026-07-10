@@ -4,13 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import {
-  ArrowLeft, CalendarDays, BookOpenText, Pencil,
+  ArrowLeft, CalendarDays, BookOpenText,
   ClipboardList, BookOpen, Lightbulb, FileText,
   Eye, CheckCircle2, Circle,
 } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { createClient } from '@/lib/supabase/client'
 import { FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 
 interface Props {
   journal: any
@@ -86,7 +87,7 @@ export default function CahierTexteDetail({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/cahier-texte" className="btn btn-ghost p-2">
+          <Link href="/dashboard/cahier-texte" aria-label="Retour au cahier de texte" className="btn btn-ghost p-2">
             <ArrowLeft size={18} />
           </Link>
           <div>
@@ -109,7 +110,7 @@ export default function CahierTexteDetail({
         {canEdit && (
           <Link href={`/dashboard/cahier-texte/${journal.id}/edit`}>
             <FloatButton variant="edit" type="button">
-              <Pencil size={14} /> Modifier
+              Modifier
             </FloatButton>
           </Link>
         )}
@@ -175,6 +176,7 @@ export default function CahierTexteDetail({
                     <div key={studentId} className="flex items-center gap-4">
                       <button
                         onClick={() => toggleStatus(hw.id, studentId, 'is_seen')}
+                        aria-pressed={!!st?.is_seen}
                         className={clsx(
                           'flex items-center gap-1.5 text-sm transition-colors',
                           st?.is_seen ? 'text-blue-600' : 'text-warm-400 hover:text-blue-500'
@@ -185,6 +187,7 @@ export default function CahierTexteDetail({
                       </button>
                       <button
                         onClick={() => toggleStatus(hw.id, studentId, 'is_done')}
+                        aria-pressed={!!st?.is_done}
                         className={clsx(
                           'flex items-center gap-1.5 text-sm transition-colors',
                           st?.is_done ? 'text-green-600' : 'text-warm-400 hover:text-green-500'
@@ -205,11 +208,11 @@ export default function CahierTexteDetail({
                 <div className="flex items-center gap-4">
                   <h4 className="text-xs font-bold text-warm-500 uppercase">Suivi des familles</h4>
                   <span className="text-xs text-warm-400">
-                    {seenCount}/{totalStudents} vus — {doneCount}/{totalStudents} effectues
+                    {seenCount}/{totalStudents} vus · {doneCount}/{totalStudents} effectues
                   </span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table aria-label="Suivi des familles (vu / effectué) par élève" className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs text-warm-500 border-b border-warm-200">
                         <th className="pb-2 pr-4">Eleve</th>
@@ -227,20 +230,24 @@ export default function CahierTexteDetail({
                             </td>
                             <td className="py-1.5 px-4 text-center">
                               {st?.is_seen ? (
-                                <span className="text-blue-600 text-xs" title={formatShortDate(st.seen_at)}>
-                                  <Eye size={14} className="inline" />
-                                </span>
+                                <Tooltip content={`Vu le ${formatShortDate(st.seen_at)}`}>
+                                  <span className="text-blue-600 text-xs" aria-label={`Vu le ${formatShortDate(st.seen_at)}`}>
+                                    <Eye size={14} className="inline" />
+                                  </span>
+                                </Tooltip>
                               ) : (
-                                <span className="text-warm-300">—</span>
+                                <span className="text-warm-300" aria-label="Non vu">·</span>
                               )}
                             </td>
                             <td className="py-1.5 px-4 text-center">
                               {st?.is_done ? (
-                                <span className="text-green-600 text-xs" title={formatShortDate(st.done_at)}>
-                                  <CheckCircle2 size={14} className="inline" />
-                                </span>
+                                <Tooltip content={`Effectué le ${formatShortDate(st.done_at)}`}>
+                                  <span className="text-green-600 text-xs" aria-label={`Effectué le ${formatShortDate(st.done_at)}`}>
+                                    <CheckCircle2 size={14} className="inline" />
+                                  </span>
+                                </Tooltip>
                               ) : (
-                                <span className="text-warm-300">—</span>
+                                <span className="text-warm-300" aria-label="Non effectué">·</span>
                               )}
                             </td>
                           </tr>

@@ -396,6 +396,24 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   **Regle** : justificatifs/documents sensibles = bucket prive + URL signee, jamais `getPublicUrl`.
 - **Role `secretaire`** desormais inclus dans l'acces feuille d'appel (`page.tsx`) — il voyait 0 classe avant.
 
+#### 10 juillet 2026 (suite) — Audit Cahier de texte + implementation edition + regle admin=direction
+- **a11y** (module jamais audite) : onglets Journal/Devoirs en **ARIA tabs** (`role=tab`/`aria-selected`/`tabpanel`),
+  retours (ArrowLeft) `aria-label`, toggles Vu/Effectue `aria-pressed`, tableau de suivi `aria-label`, statuts
+  Vu/Effectue en `Tooltip` + `aria-label` (« Vu le … ») au lieu de `title=` natif, placeholders `—` → `·` +
+  `aria-label` (« Non vu »), `SearchField` `ariaLabel`.
+- **Regles UI** : icones retirees des boutons a libelle (Ajouter, Ajouter un devoir, Retirer, Modifier),
+  quadratins `—` → `·`, imports lucide nettoyes, **`error.tsx` cree** (manquait).
+- **Bug corrige — edition non implementee** : le bouton « Modifier » pointait vers `[id]/edit` **inexistant**
+  (404) et `CahierTexteForm.handleSubmit` faisait **toujours un `insert`**. Correctif : **nouvelle route
+  `[id]/edit/page.tsx`** (garde auteur ou direction/resp-pedago, charge seance + devoir + classes) ; le formulaire
+  **met a jour** en edition (seance + devoir : create/update/delete selon l'etat), prerempli ; notification parent
+  seulement sur **nouveau** devoir. \+ doublon d'`<option value="">` du select Matiere corrige. Le formulaire ne
+  gere **qu'un seul devoir par seance**.
+- **Regle (memoire) — `admin` = droits `direction` partout** : tout controle de permission autorisant `direction`
+  doit aussi autoriser `admin`. Trou corrige dans le cahier de texte (canCreate/isStaff/gardes/canEdit). Ne PAS
+  confondre avec les attributions de role et les **requetes de destinataires** (« envoyer a la direction »
+  **n'inclut pas** l'admin — decision utilisateur).
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 

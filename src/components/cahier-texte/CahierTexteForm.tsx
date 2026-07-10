@@ -4,7 +4,7 @@ import { useState, useMemo, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { BookOpenText, ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { BookOpenText, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
@@ -37,15 +37,16 @@ export default function CahierTexteForm({
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [contentHtml, setContentHtml] = useState(initialData?.content_html ?? '')
 
-  const [showHomework, setShowHomework] = useState(false)
-  const [hwTitle, setHwTitle] = useState('')
-  const [hwType, setHwType] = useState<string>('exercice')
-  const [hwDueDate, setHwDueDate] = useState('')
-  const [hwDescription, setHwDescription] = useState('')
+  const [showHomework, setShowHomework] = useState(!!initialData?.homework)
+  const [hwId] = useState<string | null>(initialData?.homework?.id ?? null)
+  const [hwTitle, setHwTitle] = useState(initialData?.homework?.title ?? '')
+  const [hwType, setHwType] = useState<string>(initialData?.homework?.homework_type ?? 'exercice')
+  const [hwDueDate, setHwDueDate] = useState(initialData?.homework?.due_date ?? '')
+  const [hwDescription, setHwDescription] = useState(initialData?.homework?.description_html ?? '')
 
   const [saving, setSaving] = useState(false)
 
-  const isStaff = ['direction', 'responsable_pedagogique'].includes(role)
+  const isStaff = ['admin', 'direction', 'responsable_pedagogique'].includes(role)
 
   // Matieres disponibles selon la classe sélectionnée et le rôle
   const availableSubjects = useMemo(() => {
@@ -108,48 +109,64 @@ export default function CahierTexteForm({
         return
       }
 
-      const { data: journal, error: journalErr } = await supabase
-        .from('class_journal')
-        .insert({
-          etablissement_id: etablissementId,
-          class_id: classId,
-          teacher_id: effectiveTeacherId,
-          subject: subject || null,
-          session_date: sessionDate,
-          title: title.trim(),
-          content_html: contentHtml,
-        })
-        .select('id')
-        .single()
+      const journalPayload = {
+        class_id: classId,
+        teacher_id: effectiveTeacherId,
+        subject: subject || null,
+        session_date: sessionDate,
+        title: title.trim(),
+        content_html: contentHtml,
+      }
 
-      if (journalErr) throw journalErr
-
-      if (showHomework && hwTitle.trim() && hwDueDate) {
-        const { data: hw, error: hwErr } = await supabase
-          .from('homework')
-          .insert({
-            etablissement_id: etablissementId,
-            class_id: classId,
-            teacher_id: effectiveTeacherId,
-            subject: subject || 'General',
-            journal_entry_id: journal.id,
-            title: hwTitle.trim(),
-            description_html: hwDescription,
-            homework_type: hwType,
-            due_date: hwDueDate,
-          })
+      // Seance : mise a jour en edition, insertion sinon
+      let journalId: string
+      if (isEdit) {
+        const { error } = await supabase.from('class_journal').update(journalPayload).eq('id', initialData.id)
+        if (error) throw error
+        journalId = initialData.id
+      } else {
+        const { data, error } = await supabase
+          .from('class_journal')
+          .insert({ etablissement_id: etablissementId, ...journalPayload })
           .select('id')
           .single()
+        if (error) throw error
+        journalId = data.id
+      }
 
-        if (hwErr) throw hwErr
-
-        if (hw) {
-          fetch('/api/notifications/homework', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ homework_id: hw.id, etablissement_id: etablissementId }),
-          }).catch((err) => console.error('[CahierTexteForm] Échec notification devoir:', err))
+      // Devoir : creer / mettre a jour / supprimer
+      if (showHomework && hwTitle.trim() && hwDueDate) {
+        const hwPayload = {
+          class_id: classId,
+          teacher_id: effectiveTeacherId,
+          subject: subject || 'General',
+          title: hwTitle.trim(),
+          description_html: hwDescription,
+          homework_type: hwType,
+          due_date: hwDueDate,
         }
+        if (hwId) {
+          const { error } = await supabase.from('homework').update(hwPayload).eq('id', hwId)
+          if (error) throw error
+        } else {
+          const { data: hw, error } = await supabase
+            .from('homework')
+            .insert({ etablissement_id: etablissementId, journal_entry_id: journalId, ...hwPayload })
+            .select('id')
+            .single()
+          if (error) throw error
+          if (hw) {
+            fetch('/api/notifications/homework', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ homework_id: hw.id, etablissement_id: etablissementId }),
+            }).catch((err) => console.error('[CahierTexteForm] Échec notification devoir:', err))
+          }
+        }
+      } else if (hwId) {
+        // Devoir retire lors de l'edition
+        const { error } = await supabase.from('homework').delete().eq('id', hwId)
+        if (error) throw error
       }
 
       router.push('/dashboard/cahier-texte')
@@ -165,7 +182,7 @@ export default function CahierTexteForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/cahier-texte" className="btn btn-ghost p-2">
+        <Link href="/dashboard/cahier-texte" aria-label="Retour au cahier de texte" className="btn btn-ghost p-2">
           <ArrowLeft size={18} />
         </Link>
         <h1 className="text-lg font-bold text-secondary-800 flex items-center gap-2">
@@ -203,8 +220,9 @@ export default function CahierTexteForm({
               value={subject}
               onChange={e => setSubject(e.target.value)}
             >
-              <option value=""></option>
-              {isMainForClass && <option value="">General (toutes matieres)</option>}
+              {isMainForClass
+                ? <option value="">General (toutes matieres)</option>
+                : <option value=""></option>}
               {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
             </FloatSelect>
           )}
@@ -270,7 +288,7 @@ export default function CahierTexteForm({
               type="button"
               onClick={() => setShowHomework(true)}
             >
-              <Plus size={14} /> Ajouter un devoir
+              Ajouter un devoir
             </FloatButton>
           ) : (
             <FloatButton
@@ -278,7 +296,7 @@ export default function CahierTexteForm({
               type="button"
               onClick={() => { setShowHomework(false); setHwTitle(''); setHwDescription(''); setHwDueDate('') }}
             >
-              <Trash2 size={14} /> Retirer
+              Retirer
             </FloatButton>
           )}
         </div>

@@ -4,8 +4,8 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import {
-  BookOpenText, Plus, CalendarDays, BookOpen,
-  ClipboardList, GraduationCap, FileText, Lightbulb,
+  CalendarDays, BookOpen,
+  ClipboardList, FileText, Lightbulb,
 } from 'lucide-react'
 import type { UserRole } from '@/types/database'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
@@ -53,7 +53,7 @@ export default function CahierTexteClient({
   const [filterSubject, setFilterSubject] = useState('')
 
   const selectedClass = classes.find(c => c.id === filterClass) ?? null
-  const canCreate = ['enseignant', 'direction', 'responsable_pedagogique'].includes(role)
+  const canCreate = ['admin', 'enseignant', 'direction', 'responsable_pedagogique'].includes(role)
 
   // Sujets uniques pour le filtre
   const subjects = useMemo(() => {
@@ -104,7 +104,7 @@ export default function CahierTexteClient({
               : null
             return (
               <option key={c.id} value={c.id}>
-                {[c.name, teacher].filter(Boolean).join(' — ')}
+                {[c.name, teacher].filter(Boolean).join(' · ')}
               </option>
             )
           })}
@@ -122,7 +122,7 @@ export default function CahierTexteClient({
           </FloatSelect>
         )}
 
-        <SearchField value={search} onChange={setSearch} />
+        <SearchField value={search} onChange={setSearch} ariaLabel="Rechercher dans le cahier de texte" />
 
         {/* Droite : infos classe + bouton */}
         <div className="flex items-center gap-3 ml-auto">
@@ -140,7 +140,7 @@ export default function CahierTexteClient({
           {canCreate && (
             <Link href="/dashboard/cahier-texte/new">
               <FloatButton variant="submit" type="button" className="whitespace-nowrap">
-                <Plus size={14} /> Ajouter
+                Ajouter
               </FloatButton>
             </Link>
           )}
@@ -148,8 +148,12 @@ export default function CahierTexteClient({
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-1 border-b border-warm-200">
+      <div className="flex gap-1 border-b border-warm-200" role="tablist" aria-label="Cahier de texte">
         <button
+          role="tab"
+          id="tab-journal"
+          aria-selected={tab === 'journal'}
+          aria-controls="panel-journal"
           onClick={() => setTab('journal')}
           className={clsx(
             'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
@@ -160,6 +164,10 @@ export default function CahierTexteClient({
           Journal de séance
         </button>
         <button
+          role="tab"
+          id="tab-devoirs"
+          aria-selected={tab === 'devoirs'}
+          aria-controls="panel-devoirs"
           onClick={() => setTab('devoirs')}
           className={clsx(
             'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
@@ -172,6 +180,7 @@ export default function CahierTexteClient({
       </div>
 
       {/* Contenu */}
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
       {tab === 'journal' ? (
         filteredJournal.length === 0 ? (
           <div className="card px-6 py-10 text-center">
@@ -269,6 +278,7 @@ export default function CahierTexteClient({
           </div>
         )
       )}
+      </div>
     </div>
   )
 }
