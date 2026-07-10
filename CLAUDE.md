@@ -381,6 +381,21 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   ECRITURE = gestionnaires (admin/direction/resp.pedago/secretaire) tout, enseignant uniquement `profile_id =
   auth.uid()`. Un enseignant ne peut plus ecrire une presence/validation au nom d'un autre, meme par API.
 
+#### 10 juillet 2026 (suite) — Audit Feuille d'appel (module jamais audite : 0 aria a l'origine)
+- **a11y** : modales Saisie + Justification en `role="dialog"` + `aria-modal` + `aria-labelledby` + Echap + fond
+  cliquable + X `aria-label` ; **trombinoscope** (cœur de l'appel) avec `aria-label` annoncant le statut
+  (« NOM Prenom : Absent… ») car il etait distingue par la **couleur seule** ; **ligne eleve** depliable au
+  clavier (`tabIndex`/`aria-expanded`/Entree-Espace) ; `aria-pressed` periodes, `aria-label` table, `role=alert`
+  erreurs, `aria-label` boutons icone (Supprimer, X commentaire).
+- **Regles UI** : icones retirees des boutons a libelle (Ajouter/Imprimer/Importer), quadratins `—` → `·`,
+  `error.tsx` sans icones.
+- **Bug corrige — justificatif inaccessible** : le bucket `absence-justificatifs` est **prive** mais le code
+  stockait `getPublicUrl()` (URL publique → 403 sur bucket prive). Correctif : on stocke le **chemin** et on
+  genere une **URL signee** (`createSignedUrl`, 60 s) a la consultation ; ajout du lien **« Voir »** dans l'etat
+  justifie (qui manquait). \+ **validation** a l'upload (PDF/image, max 5 Mo) et `accept` sur l'input.
+  **Regle** : justificatifs/documents sensibles = bucket prive + URL signee, jamais `getPublicUrl`.
+- **Role `secretaire`** desormais inclus dans l'acces feuille d'appel (`page.tsx`) — il voyait 0 classe avant.
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 
@@ -545,5 +560,5 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   `adult_bulletin_archives` + RLS + audit ; notation des adultes).
 - [x] Executer `supabase/migrations/fix-schedule-overlap-effective-dates.sql` (contrainte anti-doublon EDT
   rendue date-aware : `EXCLUDE gist` sur classe/jour/horaires + chevauchement des dates d'effet, `btree_gist`).
-- [ ] Executer `supabase/migrations/harden-time-tracking-rls.sql` (RLS `staff_time_entries` +
+- [x] Executer `supabase/migrations/harden-time-tracking-rls.sql` (RLS `staff_time_entries` +
   `schedule_validations` : ecriture reservee aux gestionnaires ou a sa propre presence pour un enseignant).

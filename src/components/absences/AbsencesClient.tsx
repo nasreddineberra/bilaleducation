@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 import Image from 'next/image'
-import { Plus, ChevronRight, ChevronDown, FileCheck, AlertTriangle, Upload, X, Trash2, Check, Printer } from 'lucide-react'
+import { ChevronRight, ChevronDown, FileCheck, AlertTriangle, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
@@ -351,7 +351,7 @@ export default function AbsencesClient({
               ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
               : c.main_teacher_name
             const infoParts = [c.name, teacher].filter(Boolean)
-            return <option key={c.id} value={c.id}>{infoParts.join(' — ')}</option>
+            return <option key={c.id} value={c.id}>{infoParts.join(' · ')}</option>
           })}
         </FloatSelect>
 
@@ -361,6 +361,7 @@ export default function AbsencesClient({
               <button
                 key={p.id}
                 onClick={() => { setSelectedPeriodId(p.id); setExpandedStudent(null) }}
+                aria-pressed={selectedPeriodId === p.id}
                 className={clsx(
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
@@ -418,7 +419,7 @@ export default function AbsencesClient({
                   onClick={() => setShowSaisie(true)}
                   className="text-xs px-2.5 py-1"
                 >
-                  <Plus size={14} /> Ajouter
+                  Ajouter
                 </FloatButton>
                 <FloatButton
                   variant="print"
@@ -426,7 +427,7 @@ export default function AbsencesClient({
                   onClick={handlePrintPdf}
                   className="text-xs px-2.5 py-1"
                 >
-                  <Printer size={14} /> Imprimer
+                  Imprimer
                 </FloatButton>
               </div>
               <div className="flex items-center gap-4 text-xs text-warm-500">
@@ -442,7 +443,7 @@ export default function AbsencesClient({
                   <p className="text-sm text-warm-400">Aucun élève inscrit dans cette classe.</p>
                 </div>
               ) : (
-                <table className="w-full text-xs">
+                <table aria-label="Récapitulatif des absences et retards par élève" className="w-full text-xs">
                   <thead className="sticky top-0 bg-warm-50 z-10">
                     <tr className="text-[11px] text-warm-500 uppercase tracking-wide">
                       <th className="text-left py-1 px-2 pl-3 font-semibold">Élèves</th>
@@ -541,12 +542,25 @@ function StudentRow({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [confirmRemoveJustId, setConfirmRemoveJustId] = useState<string | null>(null)
 
+  // Ouvre le justificatif : URL signee (bucket prive) ; valeur héritée en URL complete → directe.
+  const openJustificatif = async (stored: string) => {
+    if (stored.startsWith('http')) { window.open(stored, '_blank', 'noopener'); return }
+    const supabase = createClient()
+    const { data } = await supabase.storage.from('absence-justificatifs').createSignedUrl(stored, 60)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
+  }
+
   return (
     <>
       <tr
         onClick={onToggle}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        aria-label={`${student.last_name} ${student.first_name}, voir le détail des absences`}
         className={clsx(
           'cursor-pointer transition-colors border-b border-warm-50',
+          'focus:outline-none focus-visible:bg-primary-50',
           isExpanded ? 'bg-primary-50' : 'hover:bg-warm-50'
         )}
       >
@@ -589,6 +603,14 @@ function StudentRow({
                             <FileCheck size={12} /> Justifié
                             {a.justification_date && <span className="text-warm-400">({fmtDate(a.justification_date)})</span>}
                           </span>
+                          {a.justification_document_url && (
+                            <button
+                              onClick={e => { e.stopPropagation(); openJustificatif(a.justification_document_url!) }}
+                              className="text-primary-500 hover:text-primary-700 font-semibold transition-colors"
+                            >
+                              Voir
+                            </button>
+                          )}
                           <button
                             onClick={e => { e.stopPropagation(); onJustify(a) }}
                             className="text-primary-500 hover:text-primary-700 font-semibold transition-colors"
@@ -645,6 +667,7 @@ function StudentRow({
                       ) : (
                         <button
                           onClick={e => { e.stopPropagation(); setConfirmDeleteId(a.id) }}
+                          aria-label={`Supprimer ${a.absence_type === 'absence' ? "l'absence" : 'le retard'} du ${fmtDate(a.absence_date)}`}
                           className="text-warm-300 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={12} />
@@ -735,6 +758,13 @@ function SaisieModal({
   const [error,        setError]        = useState<string | null>(null)
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [isSaved,      setIsSaved]      = useState(false)
+
+  // Fermeture sur Échap
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
 
   // Fetch fresh absences on mount pour avoir les données à jour (évite le cache stale)
   useEffect(() => {
@@ -1041,13 +1071,18 @@ function SaisieModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="appel-title"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
 
         {/* Header */}
         <div className="px-4 py-2 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-bold text-secondary-800 whitespace-nowrap">Feuille d'appel du</h3>
+            <h3 id="appel-title" className="text-sm font-bold text-secondary-800 whitespace-nowrap">Feuille d'appel du</h3>
             <FloatInput
               label="Date"
               type="date"
@@ -1073,7 +1108,7 @@ function SaisieModal({
                 <span className="text-warm-600">{counts.retard}</span>
               </span>
             </div>
-            <button onClick={onClose} className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+            <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
           </div>
@@ -1093,8 +1128,10 @@ function SaisieModal({
                     key={s.student_id}
                     type="button"
                     onClick={() => cycleStatus(idx)}
+                    aria-label={`${s.last_name} ${s.first_name} : ${style.label}. Cliquer pour changer le statut.`}
                     className={clsx(
                       'relative flex flex-col items-center rounded-lg border-2 p-1.5 transition-all hover:shadow-md cursor-pointer select-none',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
                       style.border, style.bg
                     )}
                   >
@@ -1192,6 +1229,7 @@ function SaisieModal({
                             <button
                               type="button"
                               onMouseDown={e => { e.preventDefault(); setComment(idx, ''); setEditingComment(null) }}
+                              aria-label="Effacer le commentaire"
                               className="flex-shrink-0 text-warm-400 hover:text-red-500 transition-colors"
                             >
                               <X size={12} />
@@ -1216,6 +1254,7 @@ function SaisieModal({
                             <button
                               type="button"
                               onClick={() => setComment(idx, '')}
+                              aria-label="Effacer le commentaire"
                               className="flex-shrink-0 text-warm-300 hover:text-red-500 transition-colors"
                             >
                               <X size={11} />
@@ -1233,7 +1272,7 @@ function SaisieModal({
 
         {/* Footer */}
         {error && (
-          <p className="text-xs text-red-600 bg-red-50 px-4 py-2 border-t border-red-200">{error}</p>
+          <p role="alert" className="text-xs text-red-600 bg-red-50 px-4 py-2 border-t border-red-200">{error}</p>
         )}
 
         <div className="px-4 py-2.5 border-t border-warm-100 flex items-center justify-between flex-shrink-0">
@@ -1249,7 +1288,7 @@ function SaisieModal({
           </span>
           <div className="flex gap-2">
             <FloatButton variant="print" type="button" onClick={handlePrintSaisie}>
-              <Printer size={14} /> Imprimer
+              Imprimer
             </FloatButton>
             <FloatButton variant="secondary" type="button" onClick={onClose}>
               {isSaved ? 'Fermer' : 'Annuler'}
@@ -1291,6 +1330,25 @@ function JustificationModal({
   const [error,       setError]       = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // Fermeture sur Échap
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  // Validation du justificatif (PDF ou image, max 5 Mo)
+  const handleFileSelect = (f: File | null) => {
+    if (!f) { setFile(null); return }
+    if (!/\.(pdf|jpe?g|png|webp|heic)$/i.test(f.name)) {
+      setError('Format non supporté (PDF ou image).'); return
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError('Fichier trop volumineux (max 5 Mo).'); return
+    }
+    setError(null); setFile(f)
+  }
+
   const handleSubmit = async () => {
     setIsSubmitting(true)
     setError(null)
@@ -1299,7 +1357,8 @@ function JustificationModal({
       const supabase = createClient()
       let docUrl: string | null = absence.justification_document_url ?? null
 
-      // Upload du justificatif si fourni
+      // Upload du justificatif si fourni. On stocke le CHEMIN (bucket prive) et on
+      // genere une URL signee a la consultation — un getPublicUrl ne fonctionne pas ici.
       if (file) {
         const ext = file.name.split('.').pop() ?? 'pdf'
         const path = `${etablissementId}/${absence.id}.${ext}`
@@ -1307,10 +1366,7 @@ function JustificationModal({
           .from('absence-justificatifs')
           .upload(path, file, { upsert: true })
         if (uploadErr) throw uploadErr
-        const { data: { publicUrl } } = supabase.storage
-          .from('absence-justificatifs')
-          .getPublicUrl(path)
-        docUrl = publicUrl
+        docUrl = path
       }
 
       const { data, error: updateErr } = await supabase
@@ -1335,12 +1391,17 @@ function JustificationModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="justif-title"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+      >
 
         <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-secondary-800">{absence.is_justified ? 'Modifier la justification' : 'Justifier'}</h3>
-          <button onClick={onClose} className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+          <h3 id="justif-title" className="text-sm font-bold text-secondary-800">{absence.is_justified ? 'Modifier la justification' : 'Justifier'}</h3>
+          <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -1348,7 +1409,7 @@ function JustificationModal({
         <div className="px-4 py-3 space-y-3">
           <p className="text-sm text-secondary-700">
             <span className="font-semibold">{studentName}</span>
-            {' — '}
+            {' · '}
             <span className={absence.absence_type === 'absence' ? 'text-red-600' : 'text-amber-600'}>
               {absence.absence_type === 'absence' ? 'Absence' : 'Retard'}
             </span>
@@ -1381,14 +1442,14 @@ function JustificationModal({
                 onClick={() => fileRef.current?.click()}
                 className="text-xs px-3 py-1.5"
               >
-                <Upload size={12} /> {file ? 'Changer' : 'Importer'}
+                {file ? 'Changer' : 'Importer'}
               </FloatButton>
               {file && <span className="text-xs text-warm-500 truncate">{file.name}</span>}
             </div>
-            <input ref={fileRef} type="file" className="hidden" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+            <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
         </div>
 
         <div className="px-4 py-3 border-t border-warm-100 flex justify-end gap-2">
