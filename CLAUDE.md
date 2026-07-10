@@ -362,6 +362,15 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   des colonnes d'effet (deja presentes au runtime).
 - **Dette** : `schedule_exceptions` desormais filtrees sur les creneaux de l'annee (`in schedule_slot_id`),
   fin du `select('*')` non filtre. DnD reste monte mais inerte (`isDndActive = false`, futur Secondaire).
+- **Bug corrige — « duplicate key » + creneau incoherent au changement d'horaire** : (1) l'index d'unicite
+  `idx_schedule_no_class_overlap_recurring` ignorait les dates d'effet → deux creneaux recurrents de memes
+  horaires a periodes DISJOINTES etaient rejetes. Migration `fix-schedule-overlap-effective-dates.sql` :
+  remplacement par une contrainte `EXCLUDE USING gist` (classe/jour/debut/fin `=` + `daterange(from,until,'[]')`
+  `&&`, `WHERE is_active AND is_recurring`, extension `btree_gist`) ; garde `'empty'::daterange` si `from > until`
+  (evite l'erreur « range lower bound must be ... »). (2) Flux « Modifier toute la serie » : il **cloturait
+  toujours** l'ancien creneau a la veille du pivot, ce qui inversait la plage (`from > until`) quand l'ancien
+  commencait pile au pivot. Correctif : si `effective_from >= pivot` (rien a conserver avant), on **supprime**
+  l'ancien au lieu de le cloturer (cascade exceptions/validations) ; sinon cloture la veille (historique conserve).
 
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
@@ -525,3 +534,5 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-get-verified-totp-user-ids-rpc.sql` (RPC statut 2FA visible admin).
 - [x] Executer `supabase/migrations/add-adult-grading.sql` (tables `adult_grades`, `adult_bulletin_appreciations`,
   `adult_bulletin_archives` + RLS + audit ; notation des adultes).
+- [x] Executer `supabase/migrations/fix-schedule-overlap-effective-dates.sql` (contrainte anti-doublon EDT
+  rendue date-aware : `EXCLUDE gist` sur classe/jour/horaires + chevauchement des dates d'effet, `btree_gist`).

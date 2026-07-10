@@ -922,11 +922,17 @@ export default function EmploiDuTempsClient({
         pivotD.setDate(pivotD.getDate() - 1)
         const dayBefore = formatDate(pivotD)
 
-        // Clôturer l'ancien
-        await supabase
-          .from('schedule_slots')
-          .update({ effective_until: dayBefore })
-          .eq('id', data.id)
+        // Ancien créneau : clôturer la veille s'il a des jours AVANT le pivot (conserve
+        // l'historique) ; sinon (il commence au pivot ou après) le supprimer entièrement,
+        // sinon on créerait une plage inversée « from > until » (cascade : exceptions/validations).
+        if (!oldSlot.effective_from || oldSlot.effective_from < pivotDate) {
+          await supabase
+            .from('schedule_slots')
+            .update({ effective_until: dayBefore })
+            .eq('id', data.id)
+        } else {
+          await supabase.from('schedule_slots').delete().eq('id', data.id)
+        }
 
         // Créer le nouveau créneau avec effective_from = pivotDate
         const { error } = await supabase.from('schedule_slots').insert({
