@@ -49,7 +49,7 @@ export default async function CahierTextePage() {
   }
 
   // Classes selon le rôle
-  const classSelect = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, subject, teachers(civilite, first_name, last_name)), cotisation_types(label)'
+  const classSelect = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, subject, teachers(id, civilite, first_name, last_name)), cotisation_types(label)'
 
   let classIds: string[] = []
   let classes: any[] = []

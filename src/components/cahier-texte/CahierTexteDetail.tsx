@@ -12,6 +12,7 @@ import { sanitize } from '@/lib/security/sanitize'
 import { createClient } from '@/lib/supabase/client'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import CahierTexteForm from './CahierTexteForm'
 
 interface Props {
   journal: any
@@ -22,6 +23,8 @@ interface Props {
   canEdit: boolean
   parentId: string | null
   parentStudentIds: string[]
+  subjects: string[]
+  etablissementId: string
 }
 
 const HW_TYPE: Record<string, { label: string; color: string; icon: any }> = {
@@ -42,9 +45,10 @@ function formatShortDate(d: string | null): string {
 
 export default function CahierTexteDetail({
   journal, homeworks, homeworkStatuses: initialStatuses,
-  classStudents, role, canEdit, parentId, parentStudentIds,
+  classStudents, role, canEdit, parentId, parentStudentIds, subjects, etablissementId,
 }: Props) {
   const [statuses, setStatuses] = useState<any[]>(initialStatuses)
+  const [showEdit, setShowEdit] = useState(false)
   const isParent = role === 'parent'
   const canViewTracking = ['enseignant', 'direction', 'responsable_pedagogique', 'admin'].includes(role)
 
@@ -108,11 +112,9 @@ export default function CahierTexteDetail({
           </div>
         </div>
         {canEdit && (
-          <Link href={`/dashboard/cahier-texte/${journal.id}/edit`}>
-            <FloatButton variant="edit" type="button">
-              Modifier
-            </FloatButton>
-          </Link>
+          <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>
+            Modifier
+          </FloatButton>
         )}
       </div>
 
@@ -261,6 +263,35 @@ export default function CahierTexteDetail({
           </div>
         )
       })}
+
+      {showEdit && (
+        <CahierTexteForm
+          etablissementId={etablissementId}
+          classId={journal.class_id}
+          className={journal.classes?.name ?? ''}
+          teacherId={journal.teacher_id}
+          teacherLabel={teacherLabel}
+          subjects={subjects}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => setShowEdit(false)}
+          initialData={{
+            id: journal.id,
+            subject: journal.subject,
+            session_date: (journal.session_date ?? '').slice(0, 10),
+            title: journal.title,
+            content_html: journal.content_html,
+            homework: homeworks[0]
+              ? {
+                  id: homeworks[0].id,
+                  title: homeworks[0].title,
+                  homework_type: homeworks[0].homework_type,
+                  due_date: (homeworks[0].due_date ?? '').slice(0, 10),
+                  description_html: homeworks[0].description_html,
+                }
+              : undefined,
+          }}
+        />
+      )}
     </div>
   )
 }

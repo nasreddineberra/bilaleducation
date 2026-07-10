@@ -1,38 +1,54 @@
 'use client'
 
-import { useState, useMemo, lazy, Suspense } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { clsx } from 'clsx'
-import { BookOpenText, ArrowLeft } from 'lucide-react'
+import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
+// Valeur sentinelle pour « Général » : garde une valeur non vide dans le select
+// (sinon le label flottant de FloatSelect ne monte pas et chevauche le texte).
+const GENERAL = '__general__'
+
 interface Props {
-  role: string
-  classes: { id: string; name: string }[]
-  teacherId: string | null
-  teacherAssignments: { class_id: string; is_main_teacher: boolean; subject: string | null }[]
-  allTeachers: { id: string; first_name: string; last_name: string }[]
-  allAssignments: { class_id: string; teacher_id: string; is_main_teacher: boolean; subject: string | null }[]
   etablissementId: string
-  initialData?: any
+  // Classe + enseignant verrouillés (un seul prof par classe — mono-mode Primaire)
+  classId: string
+  className: string
+  teacherId: string
+  teacherLabel: string
+  subjects: string[]          // matières disponibles pour la classe
+  onClose: () => void
+  onSaved: () => void
+  initialData?: any           // présent en édition
+}
+
+// Champ en lecture seule (classe / enseignant), même gabarit visuel qu'un FloatField.
+function LockedField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="relative">
+      <div className="w-full pl-3 pr-8 pt-5 pb-1.5 rounded-lg border border-warm-200 bg-warm-50 text-sm text-secondary-700">
+        {value || '—'}
+      </div>
+      <span className="absolute left-3 top-1.5 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none">
+        {label}
+      </span>
+    </div>
+  )
 }
 
 export default function CahierTexteForm({
-  role, classes, teacherId, teacherAssignments,
-  allTeachers, allAssignments, etablissementId, initialData,
+  etablissementId, classId, className, teacherId, teacherLabel, subjects,
+  onClose, onSaved, initialData,
 }: Props) {
   const router = useRouter()
   const toast  = useToast()
   const isEdit = !!initialData
 
-  const [classId, setClassId] = useState(initialData?.class_id ?? '')
-  const [subject, setSubject] = useState(initialData?.subject ?? '')
-  const [selectedTeacherId, setSelectedTeacherId] = useState(initialData?.teacher_id ?? teacherId ?? '')
+  const [subject, setSubject] = useState<string>(initialData?.subject ?? '')  // '' = Général
   const [sessionDate, setSessionDate] = useState(initialData?.session_date ?? new Date().toISOString().slice(0, 10))
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [contentHtml, setContentHtml] = useState(initialData?.content_html ?? '')
@@ -46,53 +62,13 @@ export default function CahierTexteForm({
 
   const [saving, setSaving] = useState(false)
 
-  const isStaff = ['admin', 'direction', 'responsable_pedagogique'].includes(role)
-
-  // Matieres disponibles selon la classe sélectionnée et le rôle
-  const availableSubjects = useMemo(() => {
-    if (!classId) return []
-
-    if (isStaff) {
-      const subjects = allAssignments
-        .filter(a => a.class_id === classId && a.subject)
-        .map(a => a.subject!)
-      return [...new Set(subjects)].sort()
-    }
-
-    const myAssignmentsForClass = teacherAssignments.filter(a => a.class_id === classId)
-    const isMain = myAssignmentsForClass.some(a => a.is_main_teacher)
-
-    if (isMain) {
-      const subjects = allAssignments
-        .filter(a => a.class_id === classId && a.subject)
-        .map(a => a.subject!)
-      return [...new Set(subjects)].sort()
-    }
-
-    return myAssignmentsForClass
-      .filter(a => a.subject)
-      .map(a => a.subject!)
-  }, [classId, teacherAssignments, allAssignments, isStaff])
-
-  const isMainForClass = useMemo(() => {
-    if (isStaff) return true
-    return teacherAssignments.some(a => a.class_id === classId && a.is_main_teacher)
-  }, [classId, teacherAssignments, isStaff])
-
-  const availableTeachers = useMemo(() => {
-    if (!isStaff || !classId) return []
-    const teacherIds = [...new Set(allAssignments.filter(a => a.class_id === classId).map(a => a.teacher_id))]
-    return allTeachers.filter(t => teacherIds.includes(t.id))
-  }, [classId, allAssignments, allTeachers, isStaff])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!classId || !title.trim() || !contentHtml.trim()) {
+    if (!title.trim() || !contentHtml.trim()) {
       toast.error('Veuillez remplir tous les champs obligatoires.')
       return
     }
-
     if (showHomework && (!hwTitle.trim() || !hwDueDate)) {
       toast.error('Veuillez remplir le titre et la date de rendu du devoir.')
       return
@@ -102,23 +78,16 @@ export default function CahierTexteForm({
     const supabase = createClient()
 
     try {
-      const effectiveTeacherId = isStaff ? selectedTeacherId : teacherId
-      if (!effectiveTeacherId) {
-        toast.error('Enseignant non identifie.')
-        setSaving(false)
-        return
-      }
-
       const journalPayload = {
         class_id: classId,
-        teacher_id: effectiveTeacherId,
+        teacher_id: teacherId,
         subject: subject || null,
         session_date: sessionDate,
         title: title.trim(),
         content_html: contentHtml,
       }
 
-      // Seance : mise a jour en edition, insertion sinon
+      // Séance : mise à jour en édition, insertion sinon
       let journalId: string
       if (isEdit) {
         const { error } = await supabase.from('class_journal').update(journalPayload).eq('id', initialData.id)
@@ -134,11 +103,11 @@ export default function CahierTexteForm({
         journalId = data.id
       }
 
-      // Devoir : creer / mettre a jour / supprimer
+      // Devoir : créer / mettre à jour / supprimer
       if (showHomework && hwTitle.trim() && hwDueDate) {
         const hwPayload = {
           class_id: classId,
-          teacher_id: effectiveTeacherId,
+          teacher_id: teacherId,
           subject: subject || 'General',
           title: hwTitle.trim(),
           description_html: hwDescription,
@@ -164,199 +133,160 @@ export default function CahierTexteForm({
           }
         }
       } else if (hwId) {
-        // Devoir retire lors de l'edition
         const { error } = await supabase.from('homework').delete().eq('id', hwId)
         if (error) throw error
       }
 
-      router.push('/dashboard/cahier-texte')
+      onSaved()
       router.refresh()
+      onClose()
     } catch (err: any) {
       toast.error(err.message ?? 'Erreur lors de l\'enregistrement.')
-    } finally {
       setSaving(false)
     }
   }
 
+  // Modale volontairement NON fermable au clic sur le fond ni à Échap : on ne
+  // ferme que par les boutons (X / Annuler / enregistrement) pour ne pas perdre la saisie.
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard/cahier-texte" aria-label="Retour au cahier de texte" className="btn btn-ghost p-2">
-          <ArrowLeft size={18} />
-        </Link>
-        <h1 className="text-lg font-bold text-secondary-800 flex items-center gap-2">
-          <BookOpenText size={20} className="text-primary-500" />
-          {isEdit ? 'Modifier la seance' : 'Nouvelle seance'}
-        </h1>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" />
+      <form
+        onSubmit={handleSubmit}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ct-form-title"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
+        {/* Header */}
+        <div className="px-5 py-3 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
+          <h3 id="ct-form-title" className="text-sm font-bold text-secondary-800">
+            {isEdit ? 'Modifier la séance' : 'Nouvelle séance'}
+          </h3>
+          <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+            <X size={16} />
+          </button>
+        </div>
 
-      {/* Séance */}
-      <div className="card p-5 space-y-4">
-        <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Seance</h2>
+        {/* Corps */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <LockedField label="Classe" value={className} />
+            <LockedField label="Enseignant" value={teacherLabel} />
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Classe */}
-          <FloatSelect
-            label="Classe"
-            required
-            value={classId}
-            onChange={e => { setClassId(e.target.value); setSubject(''); setSelectedTeacherId(teacherId ?? '') }}
-          >
-            <option value=""></option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </FloatSelect>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FloatSelect
+              label="Matiere"
+              value={subject === '' ? GENERAL : subject}
+              onChange={e => setSubject(e.target.value === GENERAL ? '' : e.target.value)}
+            >
+              <option value={GENERAL}>General (toutes matieres)</option>
+              {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+            </FloatSelect>
 
-          {/* Matière */}
-          {availableSubjects.length === 0 && !isMainForClass ? (
             <FloatInput
-              label="Matiere"
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-            />
-          ) : (
-            <FloatSelect
-              label="Matiere"
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-            >
-              {isMainForClass
-                ? <option value="">General (toutes matieres)</option>
-                : <option value=""></option>}
-              {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-            </FloatSelect>
-          )}
-
-          {/* Enseignant (staff uniquement) */}
-          {isStaff && (
-            <FloatSelect
-              label="Enseignant"
+              label="Date de seance"
               required
-              value={selectedTeacherId}
-              onChange={e => setSelectedTeacherId(e.target.value)}
-            >
-              <option value=""></option>
-              {availableTeachers.map(t => (
-                <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-              ))}
-            </FloatSelect>
-          )}
+              type="date"
+              value={sessionDate}
+              onChange={e => setSessionDate(e.target.value)}
+            />
+          </div>
 
-          {/* Date */}
           <FloatInput
-            label="Date de seance"
+            label="Titre de la seance"
             required
-            type="date"
-            value={sessionDate}
-            onChange={e => setSessionDate(e.target.value)}
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="Ex : Les fractions - Introduction"
           />
-        </div>
 
-        {/* Titre */}
-        <FloatInput
-          label="Titre de la seance"
-          required
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder="Ex : Les fractions - Introduction"
-        />
-
-        {/* Contenu riche */}
-        <div>
-          <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">
-            Contenu de la seance <span className="text-red-400">*</span>
-          </label>
-          <div className="mt-1">
-            <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
-              <RichTextEditor
-                content={contentHtml}
-                onChange={setContentHtml}
-                placeholder="Decrivez ce qui a ete fait en classe..."
-              />
-            </Suspense>
-          </div>
-        </div>
-      </div>
-
-      {/* Devoirs */}
-      <div className="card p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Devoir</h2>
-          {!showHomework ? (
-            <FloatButton
-              variant="secondary"
-              type="button"
-              onClick={() => setShowHomework(true)}
-            >
-              Ajouter un devoir
-            </FloatButton>
-          ) : (
-            <FloatButton
-              variant="danger"
-              type="button"
-              onClick={() => { setShowHomework(false); setHwTitle(''); setHwDescription(''); setHwDueDate('') }}
-            >
-              Retirer
-            </FloatButton>
-          )}
-        </div>
-
-        {showHomework && (
-          <div className="space-y-4 border-t border-warm-200 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FloatInput
-                label="Titre du devoir"
-                required
-                value={hwTitle}
-                onChange={e => setHwTitle(e.target.value)}
-                placeholder="Ex : Exercices page 45"
-              />
-              <FloatSelect
-                label="Type"
-                required
-                value={hwType}
-                onChange={e => setHwType(e.target.value)}
-              >
-                <option value="exercice">Exercice</option>
-                <option value="lecon">Lecon a apprendre</option>
-                <option value="expose">Expose</option>
-                <option value="autre">Autre</option>
-              </FloatSelect>
-              <FloatInput
-                label="Date de rendu"
-                required
-                type="date"
-                value={hwDueDate}
-                onChange={e => setHwDueDate(e.target.value)}
-              />
+          <div>
+            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              Contenu de la seance <span className="text-red-400">*</span>
+            </label>
+            <div className="mt-1">
+              <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+                <RichTextEditor
+                  content={contentHtml}
+                  onChange={setContentHtml}
+                  placeholder="Decrivez ce qui a ete fait en classe..."
+                />
+              </Suspense>
             </div>
-            <div>
-              <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Consignes</label>
-              <div className="mt-1">
-                <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
-                  <RichTextEditor
-                    content={hwDescription}
-                    onChange={setHwDescription}
-                    placeholder="Instructions pour le devoir..."
+          </div>
+
+          {/* Devoir */}
+          <div className="border-t border-warm-200 pt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Devoir</h4>
+              {!showHomework ? (
+                <FloatButton variant="secondary" type="button" onClick={() => setShowHomework(true)}>
+                  Ajouter un devoir
+                </FloatButton>
+              ) : (
+                <FloatButton
+                  variant="danger"
+                  type="button"
+                  onClick={() => { setShowHomework(false); setHwTitle(''); setHwDescription(''); setHwDueDate('') }}
+                >
+                  Retirer
+                </FloatButton>
+              )}
+            </div>
+
+            {showHomework && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FloatInput
+                    label="Titre du devoir"
+                    required
+                    value={hwTitle}
+                    onChange={e => setHwTitle(e.target.value)}
+                    placeholder="Ex : Exercices page 45"
                   />
-                </Suspense>
+                  <FloatSelect label="Type" required value={hwType} onChange={e => setHwType(e.target.value)}>
+                    <option value="exercice">Exercice</option>
+                    <option value="lecon">Lecon a apprendre</option>
+                    <option value="expose">Expose</option>
+                    <option value="autre">Autre</option>
+                  </FloatSelect>
+                  <FloatInput
+                    label="Date de rendu"
+                    required
+                    type="date"
+                    value={hwDueDate}
+                    onChange={e => setHwDueDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">Consignes</label>
+                  <div className="mt-1">
+                    <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+                      <RichTextEditor
+                        content={hwDescription}
+                        onChange={setHwDescription}
+                        placeholder="Instructions pour le devoir..."
+                      />
+                    </Suspense>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
-        <div className="flex-1" />
-        <FloatButton variant="secondary" type="button" onClick={() => router.push('/dashboard/cahier-texte')}>
-          Annuler
-        </FloatButton>
-        <FloatButton variant={isEdit ? 'edit' : 'submit'} type="submit" loading={saving}>
-          {isEdit ? 'Modifier' : 'Valider'}
-        </FloatButton>
-      </div>
-    </form>
+        {/* Footer */}
+        <div className="px-5 py-3 border-t border-warm-100 flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <div className="flex-1" />
+          <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
+          <FloatButton variant={isEdit ? 'edit' : 'submit'} type="submit" loading={saving}>
+            {isEdit ? 'Modifier' : 'Valider'}
+          </FloatButton>
+        </div>
+      </form>
+    </div>
   )
 }

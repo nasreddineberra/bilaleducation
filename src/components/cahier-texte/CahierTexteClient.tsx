@@ -7,12 +7,13 @@ import {
   CalendarDays, BookOpen,
   ClipboardList, FileText, Lightbulb,
 } from 'lucide-react'
-import type { UserRole } from '@/types/database'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
+import CahierTexteForm from './CahierTexteForm'
 
 interface Props {
   role: string
-  classes: { id: string; name: string; level?: string | null; day_of_week?: string | null; start_time?: string | null; end_time?: string | null; class_teachers: { is_main_teacher: boolean; teachers: { civilite?: string | null; first_name: string; last_name: string } | null }[]; cotisation_types?: { label: string } | null }[]
+  classes: { id: string; name: string; level?: string | null; day_of_week?: string | null; start_time?: string | null; end_time?: string | null; class_teachers: { is_main_teacher: boolean; subject?: string | null; teachers: { id: string; civilite?: string | null; first_name: string; last_name: string } | null }[]; cotisation_types?: { label: string } | null }[]
   journalEntries: any[]
   homeworkEntries: any[]
   teacherId: string | null
@@ -52,8 +53,19 @@ export default function CahierTexteClient({
   const [filterClass, setFilterClass] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
 
+  const [showCreate, setShowCreate] = useState(false)
+
   const selectedClass = classes.find(c => c.id === filterClass) ?? null
   const canCreate = ['admin', 'enseignant', 'direction', 'responsable_pedagogique'].includes(role)
+
+  // Prof principal + matières de la classe filtrée (pré-remplissage de la création)
+  const mainCT = selectedClass?.class_teachers?.find(ct => ct.is_main_teacher) ?? null
+  const mainTeacherId = mainCT?.teachers?.id ?? ''
+  const mainTeacherLabel = mainCT?.teachers ? teacherName(mainCT.teachers) : ''
+  const classSubjects = useMemo(
+    () => [...new Set(((selectedClass?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort(),
+    [selectedClass]
+  )
 
   // Sujets uniques pour le filtre
   const subjects = useMemo(() => {
@@ -138,11 +150,23 @@ export default function CahierTexteClient({
             ) : null
           })()}
           {canCreate && (
-            <Link href="/dashboard/cahier-texte/new">
-              <FloatButton variant="submit" type="button" className="whitespace-nowrap">
+            !filterClass ? (
+              <Tooltip content="Sélectionnez une classe pour ajouter une séance">
+                <FloatButton variant="submit" type="button" disabled className="whitespace-nowrap">
+                  Ajouter
+                </FloatButton>
+              </Tooltip>
+            ) : (
+              <FloatButton
+                variant="submit"
+                type="button"
+                className="whitespace-nowrap"
+                disabled={!mainTeacherId}
+                onClick={() => setShowCreate(true)}
+              >
                 Ajouter
               </FloatButton>
-            </Link>
+            )
           )}
         </div>
       </div>
@@ -279,6 +303,19 @@ export default function CahierTexteClient({
         )
       )}
       </div>
+
+      {showCreate && selectedClass && mainTeacherId && (
+        <CahierTexteForm
+          etablissementId={etablissementId}
+          classId={selectedClass.id}
+          className={selectedClass.name}
+          teacherId={mainTeacherId}
+          teacherLabel={mainTeacherLabel}
+          subjects={classSubjects}
+          onClose={() => setShowCreate(false)}
+          onSaved={() => setShowCreate(false)}
+        />
+      )}
     </div>
   )
 }

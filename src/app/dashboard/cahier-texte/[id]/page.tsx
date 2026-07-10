@@ -109,6 +109,13 @@ export default async function CahierTexteDetailPage({ params }: { params: Promis
   const isAuthor = teacher?.id === journal.teacher_id
   const canEdit = isAuthor || ['admin', 'direction', 'responsable_pedagogique'].includes(role)
 
+  // Matières de la classe (pour la modale d'édition)
+  const { data: cts } = await supabase
+    .from('class_teachers')
+    .select('subject')
+    .eq('class_id', journal.class_id)
+  const subjects = [...new Set(((cts ?? []).map((c: { subject: string | null }) => c.subject).filter(Boolean) as string[]))].sort()
+
   return (
     <div className="max-w-3xl mx-auto space-y-4 animate-fade-in">
       <CahierTexteDetail
@@ -120,6 +127,8 @@ export default async function CahierTexteDetailPage({ params }: { params: Promis
         canEdit={canEdit}
         parentId={parentId}
         parentStudentIds={parentStudentIds}
+        subjects={subjects}
+        etablissementId={etablissementId}
       />
     </div>
   )

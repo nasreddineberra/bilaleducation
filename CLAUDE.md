@@ -413,6 +413,14 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   doit aussi autoriser `admin`. Trou corrige dans le cahier de texte (canCreate/isStaff/gardes/canEdit). Ne PAS
   confondre avec les attributions de role et les **requetes de destinataires** (« envoyer a la direction »
   **n'inclut pas** l'admin — decision utilisateur).
+- **Cahier de texte — creation/edition en modale verrouillee** (remaniement, **peaufinage affichage a finir**) :
+  `CahierTexteForm` reecrit en **modale** (creation depuis la liste, edition depuis le detail), fermable
+  **uniquement** par X / Annuler / Valider (pas de clic sur le fond ni Echap — volontaire, pas de perte de saisie).
+  **Classe + Enseignant pre-remplis et verrouilles** (`LockedField`, lecture seule ; enseignant = prof principal,
+  un seul prof par classe). Bouton « Ajouter » **grise tant qu'aucune classe** filtree. Select **Matiere** : option
+  « General » avec valeur sentinelle `__general__` (→ `null` en base) pour que le label flottant monte. **Routes
+  `new/` et `[id]/edit/` supprimees.** Prof principal + matieres derives du prop `classes` (select page enrichi
+  `class_teachers(..., teachers(id, ...))`). NB : des **bugs d'affichage restent a corriger** (repris le 11/07).
 
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
