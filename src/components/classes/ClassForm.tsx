@@ -180,6 +180,12 @@ export default function ClassForm({
   const [showAddRow,   setShowAddRow]   = useState(false)
   const [addTeacherId, setAddTeacherId] = useState('')
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
+  // Remplaçant (affectation temporaire, is_main_teacher = false)
+  const [showAddSub,   setShowAddSub]   = useState(false)
+  const [subTeacherId, setSubTeacherId] = useState('')
+  const [subFrom,      setSubFrom]      = useState('')
+  const [subUntil,     setSubUntil]     = useState('')
+  const [subErr,       setSubErr]       = useState<string | null>(null)
   const [pendingAssignAction, setPendingAssignAction] = useState<{
     type: 'delete'
     idx: number
@@ -231,6 +237,62 @@ export default function ClassForm({
 
   const handleRemoveAssignment = (teacher_id: string) =>
     setAssignments(prev => prev.filter(a => a.teacher_id !== teacher_id))
+
+  // ── Remplaçant : affectation temporaire (is_main_teacher = false) ──────────
+  const openAddSub = () => {
+    setSubTeacherId('')
+    setSubFrom(todayISO())
+    setSubUntil('')
+    setSubErr(null)
+    setShowAddSub(true)
+  }
+  // Chevauchement de deux périodes (null = borne ouverte)
+  const periodsOverlap = (aFrom: string | null, aUntil: string | null, bFrom: string | null, bUntil: string | null) => {
+    const af = aFrom || '0000-01-01', au = aUntil || '9999-12-31'
+    const bf = bFrom || '0000-01-01', bu = bUntil || '9999-12-31'
+    return af <= bu && bf <= au
+  }
+  const addSubstitute = () => {
+    const teacher = teachers.find(t => t.id === subTeacherId)
+    if (!teacher || !subFrom) return
+    if (subUntil && subUntil < subFrom) {
+      setSubErr('La date de fin doit être postérieure à la date de début.')
+      return
+    }
+    // Un seul remplaçant à la fois : refuser le chevauchement avec un remplaçant existant.
+    const conflict = assignments.find(a =>
+      !a.is_main_teacher && periodsOverlap(subFrom, subUntil || null, a.effective_from, a.effective_until)
+    )
+    if (conflict) {
+      setSubErr(`Un remplaçant (${conflict.teacher_name}) couvre déjà cette période. Terminez-le d'abord ou ajustez les dates.`)
+      return
+    }
+    setSubErr(null)
+    setAssignments(prev => [
+      ...prev,
+      {
+        teacher_id:      subTeacherId,
+        teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
+        is_main_teacher: false,
+        subject:         '',
+        effective_from:  subFrom || null,
+        effective_until: subUntil || null,   // null = remplacement ouvert (retour inconnu)
+      },
+    ])
+    setShowAddSub(false)
+  }
+  // Terminer un remplacement (retour de l'enseignant) : pose effective_until,
+  // conserve la ligne → bascule en historique. Réutilise la modale de clôture.
+  const openEndSub = (realIdx: number) => {
+    const a = assignments[realIdx]
+    setPendingAssignAction({
+      type: 'delete', idx: realIdx, effectiveDate: todayISO(),
+      applyFn: (date: string) => {
+        setAssignments(prev => prev.map((x, i) => i === realIdx ? { ...x, effective_until: date } : x))
+      },
+      message: `Le remplacement de "${a.teacher_name}" sera clôturé à la date choisie (retour de l'enseignant).`,
+    })
+  }
 
   // ── Slot handlers ─────────────────────────────────────────────────────────
   const handleSaveSlot = (draft: SlotDraft) => {
@@ -556,8 +618,8 @@ export default function ClassForm({
           </h2>
 
           {(() => {
-            const active  = assignments.filter(a => !a.effective_until)
-            const closed  = assignments.filter(a => !!a.effective_until)
+            const active  = assignments.filter(a => !a.effective_until && a.is_main_teacher)
+            const closed  = assignments.filter(a => !!a.effective_until && a.is_main_teacher)
 
             const isExistingAssignment = (a: AssignmentData) =>
               initialAssignments.some(ia => ia.teacher_id === a.teacher_id && !ia.effective_until)
@@ -702,6 +764,143 @@ export default function ClassForm({
               </button>
             )
           )}
+
+          {/* ── Remplaçant(s) — affectation temporaire ── */}
+          <div className="pt-3 mt-1 border-t border-warm-100 space-y-2">
+            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Remplaçant(s)</h2>
+            {(() => {
+              const subs = assignments.filter(a => !a.is_main_teacher)
+              const today = todayISO()
+              const currentSubs = subs.filter(a => !a.effective_until || a.effective_until > today)
+              const pastSubs    = subs.filter(a => a.effective_until && a.effective_until <= today)
+              return <>
+                {currentSubs.length > 0 ? (
+                  <div className="border border-warm-100 rounded-xl overflow-hidden">
+                    <table className="w-full text-sm" aria-label="Remplaçants en cours">
+                      <tbody className="divide-y divide-warm-50">
+                        {currentSubs.map(a => {
+                          const realIdx = assignments.indexOf(a)
+                          const canEnd = !a.effective_until && (!a.effective_from || a.effective_from <= today)
+                          return (
+                            <tr key={`sub-${a.teacher_id}-${a.effective_from ?? ''}`} className="hover:bg-warm-50/40">
+                              <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
+                                {a.teacher_name}
+                                <span className="ml-1.5 text-[10px] text-warm-400">
+                                  {a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : 'en cours'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-1 justify-end">
+                                  {confirmDeleteIdx === realIdx ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => { handleRemoveAssignment(a.teacher_id); setConfirmDeleteIdx(null) }}
+                                        className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                                      >
+                                        Confirmer
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setConfirmDeleteIdx(null)}
+                                        className="text-xs text-warm-500 hover:text-secondary-700 px-2 py-1 rounded-lg border border-warm-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
+                                      >
+                                        Annuler
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {canEnd && (
+                                        <Tooltip content="Terminer (retour de l'enseignant)">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEndSub(realIdx)}
+                                            aria-label={`Terminer le remplacement de ${a.teacher_name}`}
+                                            className="text-xs font-medium text-primary-600 hover:text-primary-800 px-2 py-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                                          >
+                                            Terminer
+                                          </button>
+                                        </Tooltip>
+                                      )}
+                                      <Tooltip content="Retirer">
+                                        <button
+                                          type="button"
+                                          onClick={() => setConfirmDeleteIdx(realIdx)}
+                                          aria-label={`Retirer ${a.teacher_name}`}
+                                          className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                                        >
+                                          <Trash2 size={13} />
+                                        </button>
+                                      </Tooltip>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  !showAddSub && <p className="text-xs text-warm-400">Aucun remplaçant en cours.</p>
+                )}
+
+                {showAddSub ? (
+                  <div className="bg-warm-50 border border-warm-200 rounded-xl p-3 space-y-3">
+                    <FloatSelect label="Enseignant" value={subTeacherId} onChange={e => setSubTeacherId(e.target.value)}>
+                      <option value="" />
+                      {availableTeachers.map(t => (
+                        <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+                      ))}
+                    </FloatSelect>
+                    <div className="grid grid-cols-2 gap-2">
+                      <FloatInput label="Du" type="date" value={subFrom} onChange={e => setSubFrom(e.target.value)} />
+                      <FloatInput label="Au" type="date" value={subUntil} onChange={e => setSubUntil(e.target.value)} />
+                    </div>
+                    <p className="text-[11px] text-warm-400">Laisser « Au » vide si la date de retour n'est pas connue (remplacement ouvert).</p>
+                    {subErr && <p role="alert" className="text-xs text-red-600">{subErr}</p>}
+                    <div className="flex gap-2 justify-end pt-1">
+                      <FloatButton type="button" variant="secondary" onClick={() => setShowAddSub(false)}>Annuler</FloatButton>
+                      <FloatButton type="button" variant="submit" onClick={addSubstitute} disabled={!subTeacherId || !subFrom}>
+                        Valider
+                      </FloatButton>
+                    </div>
+                  </div>
+                ) : (
+                  hasActiveMain && (
+                    <button
+                      type="button" onClick={openAddSub}
+                      className="text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors self-start rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    >
+                      Ajouter un remplaçant
+                    </button>
+                  )
+                )}
+
+                {/* ── Historique des remplacements ── */}
+                {pastSubs.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <h3 className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Historique des remplacements</h3>
+                    <div className="border border-warm-100 rounded-xl overflow-hidden opacity-60">
+                      <table className="w-full text-sm">
+                        <tbody className="divide-y divide-warm-50">
+                          {pastSubs.map((a, i) => (
+                            <tr key={`pastsub-${i}`} className="bg-warm-50/30">
+                              <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">{a.teacher_name}</td>
+                              <td className="px-3 py-1.5 text-[10px] text-warm-400 whitespace-nowrap text-right">
+                                {a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : ''}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            })()}
+          </div>
         </div>
       </div>
 

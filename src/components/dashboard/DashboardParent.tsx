@@ -36,7 +36,7 @@ interface Props {
 
 const HW_TYPE_BADGE: Record<string, { label: string; color: string; icon: any }> = {
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
-  lecon:    { label: 'Lecon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
+  lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
   expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
   autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-600', icon: FileText },
 }

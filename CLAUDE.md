@@ -422,6 +422,44 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   `new/` et `[id]/edit/` supprimees.** Prof principal + matieres derives du prop `classes` (select page enrichi
   `class_teachers(..., teachers(id, ...))`). NB : des **bugs d'affichage restent a corriger** (repris le 11/07).
 
+#### 11 juillet 2026 — Cahier de texte (fix modale + scission seance/devoir) + Remplacant enseignant
+- **Fix affichage modale** (`SeanceForm`/`DevoirForm`) : la modale etait rognee par le haut. Cause = la modale
+  etait rendue dans `.animate-fade-in` qui **garde un `transform: translateY(0)`** (fill `both`) → devient le bloc
+  conteneur du `position: fixed`. Correctif : rendu via **`createPortal(..., document.body)`** (comme `Tooltip`) +
+  `min-h-0` sur le corps scrollable. **Regle** : une modale `fixed` doit sortir de tout ancetre transforme (portail).
+- **Scission Seance / Devoir** (decision : devoir **totalement autonome**, jamais rattache a une seance) :
+  `CahierTexteForm` remplace par **`SeanceForm`** (`class_journal` seul) + **`DevoirForm`** (`homework`,
+  `journal_entry_id = null`). Bouton **« Ajouter »** contextuel a l'onglet (« Ajouter une seance » / « … un devoir »).
+  Nouvelle **fiche devoir** `devoir/[id]/page.tsx` + `DevoirDetail.tsx` (consignes + suivi parent/staff + Modifier) ;
+  la fiche seance n'affiche plus de devoir embarque. Lien liste devoir → `/dashboard/cahier-texte/devoir/[id]`.
+- **Gating par classe** : tant qu'aucune classe n'est selectionnee, les onglets affichent une invite
+  « Selectionnez une classe … » et le filtre Matiere est masque. **Selection de classe memorisee dans l'URL**
+  (`?class=`) : liens « Retour » des fiches + restauration au montage (marche avec le bouton Precedent).
+- **Matiere forcee « General » en V1** (mono-mode Primaire) : champ **verrouille** (`LockedField`) dans les 2 modales
+  ET filtre Matiere de la barre verrouille/grise sur « General ». Le select reviendra en Secondaire.
+- **Libelle « Lecon » → « Leçon »** partout dans l'affichage (badges liste/fiche, option formulaire, dashboard parent,
+  texte notification). La valeur BDD `homework_type = 'lecon'` (CHECK) reste inchangee.
+- **Envoi devoir par email aux tuteurs** : deja en place via `createNotification` (`tutor1_email` + `tutor2_email`).
+  Ajout de `responsable_pedagogique` a la garde de `/api/notifications/homework` (il peut creer des devoirs).
+  Seance = **consultation interne** (aucun envoi). Parcours parent **entierement code** (on active plus tard via
+  `CREATE_PARENT_ACCOUNTS`). **Reste** : classes adultes (participants via `parent_class_enrollments`) → 0 email
+  (pas d'`enrollments`) — a traiter.
+- **IMPORTANT — tables cahier de texte absentes** : `class_journal` / `homework` / `homework_status` n'existaient
+  **pas** en base (migration `create-cahier-texte.sql` jamais jouee) ; le code avalait l'erreur (`data ?? []`) → listes
+  vides. Migration **executee** le 11/07. Seeds `seed-seances-test.sql` / `seed-homework-test.sql` reecrits :
+  **contenu par classe** (adultes / maternelles), matiere « General » uniquement, idempotents.
+- **Remplacant enseignant — Phase A (fiche classe)** (`ClassForm.tsx`) : nouveau bloc **« Remplaçant(s) »** sous le
+  prof principal = ligne `class_teachers` **`is_main_teacher = false`** + `effective_from`/`until` (**aucune migration**,
+  colonnes deja presentes). « Au » facultatif = **remplacement ouvert** (retour inconnu). Action **« Terminer »**
+  (retour de l'enseignant) → pose `effective_until` via la modale de cloture → bascule en **« Historique des
+  remplacements »** (borne `<= aujourd'hui`). **« Retirer »** (corbeille) = suppression physique (erreur de saisie).
+  **Garde-fou anti-chevauchement** : un seul remplacant par periode (message si chevauchement + « fin >= debut »).
+  Le tableau « Enseignant principal » est scope aux principaux ; cascade EDT non impactee.
+  - **Phase B a faire** : RLS **par classe** (SELECT `class_journal`/`homework`/`homework_status` = classes ou je suis
+    affecte aujourd'hui via `class_teachers` + dates) au lieu de « par auteur » ; **attribution** de l'auteur dans la
+    modale = enseignant connecte (et non le prof principal) ; filtrage `class_teachers` par dates cote page.
+  - **Test en base** : 2 remplacants inseres sur MAT-SM-BD1 (script service-role) — **a supprimer** apres verif visuelle.
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 

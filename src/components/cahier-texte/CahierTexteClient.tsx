@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import {
@@ -9,7 +9,8 @@ import {
 } from 'lucide-react'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
-import CahierTexteForm from './CahierTexteForm'
+import SeanceForm from './SeanceForm'
+import DevoirForm from './DevoirForm'
 
 interface Props {
   role: string
@@ -25,7 +26,7 @@ interface Props {
 
 const HOMEWORK_TYPE_LABELS: Record<string, { label: string; color: string; icon: any }> = {
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
-  lecon:    { label: 'Lecon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
+  lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
   expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
   autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-600', icon: FileText },
 }
@@ -52,6 +53,23 @@ export default function CahierTexteClient({
   const [search, setSearch] = useState('')
   const [filterClass, setFilterClass] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
+
+  // Restaure la classe sélectionnée depuis l'URL (?class=) au montage — permet de
+  // retrouver sa sélection au retour d'une fiche (lien « Retour » ou bouton Précédent).
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('class')
+    if (c && classes.some(cl => cl.id === c)) setFilterClass(c)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Change la classe + mémorise le choix dans l'URL (sans rechargement).
+  const changeClass = (id: string) => {
+    setFilterClass(id)
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('class', id)
+    else url.searchParams.delete('class')
+    window.history.replaceState(null, '', url.toString())
+  }
 
   const [showCreate, setShowCreate] = useState(false)
 
@@ -105,7 +123,7 @@ export default function CahierTexteClient({
         <FloatSelect
           label="Classe"
           value={filterClass}
-          onChange={e => setFilterClass(e.target.value)}
+          onChange={e => changeClass(e.target.value)}
           wrapperClassName="w-fit"
         >
           <option value=""></option>
@@ -122,15 +140,18 @@ export default function CahierTexteClient({
           })}
         </FloatSelect>
 
-        {subjects.length > 0 && (
+        {/* V1 (mono-mode Primaire) : filtre Matière verrouillé sur « Général ».
+            En Secondaire, réactiver le select alimenté par les matières de la classe. */}
+        {filterClass && (
           <FloatSelect
             label="Matiere"
-            value={filterSubject}
-            onChange={e => setFilterSubject(e.target.value)}
+            value="__general__"
+            onChange={() => {}}
+            disabled
             wrapperClassName="w-fit"
+            className="bg-warm-50 text-warm-500 cursor-not-allowed"
           >
-            <option value=""></option>
-            {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="__general__">Général</option>
           </FloatSelect>
         )}
 
@@ -149,11 +170,12 @@ export default function CahierTexteClient({
               <span className="text-sm font-medium text-warm-600 whitespace-nowrap">{parts.join(' · ')}</span>
             ) : null
           })()}
-          {canCreate && (
-            !filterClass ? (
-              <Tooltip content="Sélectionnez une classe pour ajouter une séance">
+          {canCreate && (() => {
+            const addLabel = tab === 'journal' ? 'Ajouter une séance' : 'Ajouter un devoir'
+            return !filterClass ? (
+              <Tooltip content={`Sélectionnez une classe pour ${tab === 'journal' ? 'ajouter une séance' : 'ajouter un devoir'}`}>
                 <FloatButton variant="submit" type="button" disabled className="whitespace-nowrap">
-                  Ajouter
+                  {addLabel}
                 </FloatButton>
               </Tooltip>
             ) : (
@@ -164,10 +186,10 @@ export default function CahierTexteClient({
                 disabled={!mainTeacherId}
                 onClick={() => setShowCreate(true)}
               >
-                Ajouter
+                {addLabel}
               </FloatButton>
             )
-          )}
+          })()}
         </div>
       </div>
 
@@ -205,7 +227,12 @@ export default function CahierTexteClient({
 
       {/* Contenu */}
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-      {tab === 'journal' ? (
+      {!filterClass ? (
+        <div className="card px-6 py-10 text-center">
+          <BookOpen size={32} className="mx-auto text-warm-300 mb-2" />
+          <p className="text-sm text-warm-400">Sélectionnez une classe pour afficher le cahier de texte.</p>
+        </div>
+      ) : tab === 'journal' ? (
         filteredJournal.length === 0 ? (
           <div className="card px-6 py-10 text-center">
             <CalendarDays size={32} className="mx-auto text-warm-300 mb-2" />
@@ -224,7 +251,7 @@ export default function CahierTexteClient({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-bold text-warm-800 truncate">{j.title}</h3>
+                    <h3 className="text-sm font-bold text-secondary-800 truncate">{j.title}</h3>
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary-100 text-secondary-700">
                       {j.classes?.name}
                     </span>
@@ -261,7 +288,7 @@ export default function CahierTexteClient({
               return (
                 <Link
                   key={h.id}
-                  href={`/dashboard/cahier-texte/${h.journal_entry_id ?? h.id}?hw=${h.id}`}
+                  href={`/dashboard/cahier-texte/devoir/${h.id}`}
                   className={clsx(
                     'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group',
                     isPast && 'opacity-60'
@@ -275,7 +302,7 @@ export default function CahierTexteClient({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-bold text-warm-800 truncate">{h.title}</h3>
+                      <h3 className="text-sm font-bold text-secondary-800 truncate">{h.title}</h3>
                       <span className={clsx('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold', typeInfo.color)}>
                         <TypeIcon size={10} />
                         {typeInfo.label}
@@ -305,16 +332,29 @@ export default function CahierTexteClient({
       </div>
 
       {showCreate && selectedClass && mainTeacherId && (
-        <CahierTexteForm
-          etablissementId={etablissementId}
-          classId={selectedClass.id}
-          className={selectedClass.name}
-          teacherId={mainTeacherId}
-          teacherLabel={mainTeacherLabel}
-          subjects={classSubjects}
-          onClose={() => setShowCreate(false)}
-          onSaved={() => setShowCreate(false)}
-        />
+        tab === 'journal' ? (
+          <SeanceForm
+            etablissementId={etablissementId}
+            classId={selectedClass.id}
+            className={selectedClass.name}
+            teacherId={mainTeacherId}
+            teacherLabel={mainTeacherLabel}
+            subjects={classSubjects}
+            onClose={() => setShowCreate(false)}
+            onSaved={() => setShowCreate(false)}
+          />
+        ) : (
+          <DevoirForm
+            etablissementId={etablissementId}
+            classId={selectedClass.id}
+            className={selectedClass.name}
+            teacherId={mainTeacherId}
+            teacherLabel={mainTeacherLabel}
+            subjects={classSubjects}
+            onClose={() => setShowCreate(false)}
+            onSaved={() => setShowCreate(false)}
+          />
+        )
       )}
     </div>
   )

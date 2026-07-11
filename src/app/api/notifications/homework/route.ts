@@ -5,7 +5,7 @@ import { requireRole } from '@/lib/auth/requireRole'
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, error } = await requireRole(['admin', 'direction', 'enseignant'])
+    const { user, error } = await requireRole(['admin', 'direction', 'responsable_pedagogique', 'enseignant'])
     if (error) return error
 
     const { homework_id, etablissement_id } = await req.json()
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     const HW_TYPE_LABELS: Record<string, string> = {
       exercice: 'Exercice',
-      lecon: 'Lecon a apprendre',
+      lecon: 'Leçon à apprendre',
       expose: 'Expose',
       autre: 'Devoir',
     }
