@@ -460,6 +460,22 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
     modale = enseignant connecte (et non le prof principal) ; filtrage `class_teachers` par dates cote page.
   - **Test en base** : 2 remplacants inseres sur MAT-SM-BD1 (script service-role) — **a supprimer** apres verif visuelle.
 
+#### 12 juillet 2026 — Auth : double login apres inactivite + delai 1h + message dedie
+- **Bug « double login » corrige** : apres une deconnexion pour inactivite, la 1re reconnexion echouait (retour
+  sur `/login` « session expiree »), il fallait se connecter 2 fois. Cause : le cookie **httpOnly `app-session`**
+  (qui stocke `lastActivity`, gere par le middleware `proxy.ts`) ne peut **pas** etre efface par le logout client
+  (`window.location.href='/login'`, hard-nav) → il restait avec un `lastActivity` perime → au retour sur `/dashboard`
+  le middleware detectait `inactive` et re-deconnectait aussitot. **Fix** : le middleware **purge `app-session` sur
+  chaque `/login`** (`proxy.ts`, avant `return response`). **Regle** : un cookie httpOnly ne se nettoie que
+  cote serveur (middleware), jamais via JS client.
+- **Delai d'inactivite 30 min → 1h** (`src/lib/session-config.ts`, `INACTIVITY_SECONDS` = source unique middleware
+  + hook `useInactivityLogout`). Duree max de session inchangee (24h).
+- **Message dedie inactivite** : la deconnexion par inactivite redirige vers `/login?reason=inactivity` →
+  « Votre session a expire pour inactivite. Veuillez vous reconnecter. » (`login/page.tsx`). L'expiration 24h garde
+  `?reason=session` ; la **deconnexion manuelle** n'affiche aucun message. Cote client, `DashboardNav` distingue
+  `handleLogout()` (manuel, `/login`) et le hook inactivite (`doLogout('inactivity')`) ; cote middleware, le motif
+  est `inactivity` si inactif, `session` si duree max depassee.
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 
