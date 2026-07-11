@@ -212,17 +212,19 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
   const pathname  = usePathname()
   const { collapsed } = useSidebar()
 
-  const handleLogout = async () => {
+  const doLogout = async (reason?: 'inactivity') => {
     try {
       await authRepository.signOut()
     } catch (error) {
       console.error('Erreur de déconnexion:', error)
     }
     // Navigation dure pour purger tout le state React/Supabase en cache
-    window.location.href = '/login'
+    window.location.href = reason ? `/login?reason=${reason}` : '/login'
   }
 
-  useInactivityLogout(handleLogout)
+  // Déconnexion manuelle : pas de message ; inactivité : message dédié.
+  const handleLogout = () => doLogout()
+  useInactivityLogout(() => doLogout('inactivity'))
 
   return (
     <nav className="bg-white shadow-nav px-6 py-3 sticky top-0 z-30">

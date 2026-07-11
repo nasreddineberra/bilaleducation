@@ -100,7 +100,8 @@ export default function LoginPage() {
   // Message après déconnexion automatique (inactivité / durée max)
   useEffect(() => {
     const reason = new URLSearchParams(window.location.search).get('reason')
-    if (reason === 'session') setNotice('Votre session a expiré. Veuillez vous reconnecter.')
+    if (reason === 'inactivity') setNotice('Votre session a expiré pour inactivité. Veuillez vous reconnecter.')
+    else if (reason === 'session') setNotice('Votre session a expiré. Veuillez vous reconnecter.')
   }, [])
 
   // Charger le nom et logo de l'établissement

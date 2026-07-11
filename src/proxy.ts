@@ -159,7 +159,7 @@ export async function proxy(request: NextRequest) {
     return redirect
   }
 
-  // ── Gestion inactivité (30 min) + durée max (24h) ──────────────────────────
+  // ── Gestion inactivité (1h) + durée max (24h) ──────────────────────────────
   if (user && pathname.startsWith('/dashboard')) {
     const now = Math.floor(Date.now() / 1000)
     const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value
@@ -180,7 +180,8 @@ export async function proxy(request: NextRequest) {
     const expired = now - loginTime > MAX_SESSION_DURATION
 
     if (inactive || expired) {
-      const redirect = NextResponse.redirect(new URL('/login?reason=session', request.url))
+      const reason = inactive ? 'inactivity' : 'session'
+      const redirect = NextResponse.redirect(new URL(`/login?reason=${reason}`, request.url))
 
       // Déconnecter côté Supabase et propager la suppression des cookies auth
       const supabaseForSignOut = createServerClient(
@@ -266,6 +267,14 @@ export async function proxy(request: NextRequest) {
   } else if (user && !isAuthPath && pathname === '/') {
     const isSuperAdmin = user.app_metadata?.role === 'super_admin'
     return NextResponse.redirect(new URL(isSuperAdmin ? '/superadmin' : '/dashboard', request.url))
+  }
+
+  // Purger le cookie de session applicatif sur /login : le logout par inactivité
+  // (hard-nav côté client) ne peut pas effacer ce cookie httpOnly, qui garde alors
+  // un `lastActivity` périmé. Sans ce nettoyage, la première reconnexion réussie est
+  // aussitôt re-déconnectée par le contrôle d'inactivité (« double login »).
+  if (pathname === '/login') {
+    response.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
   }
 
   return response
