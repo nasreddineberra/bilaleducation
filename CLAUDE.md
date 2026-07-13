@@ -476,6 +476,50 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   `handleLogout()` (manuel, `/login`) et le hook inactivite (`doLogout('inactivity')`) ; cote middleware, le motif
   est `inactivity` si inactif, `session` si duree max depassee.
 
+#### 13 juillet 2026 — Remplacant (refonte fiche + liste) + Phase B RLS cahier de texte + modales detail + suivi adulte
+- **Session (correctif securite)** : le cookie `app-session` (tracker inactivite/duree max) avait un `maxAge` de 24h →
+  passe 24h d'inactivite il disparaissait, et son absence etait prise pour une session neuve → **la protection
+  d'inactivite s'auto-desactivait** (Supabase gardant la session). Fix : `SESSION_COOKIE_MAX_AGE = 30 jours`
+  (`session-config.ts`, utilise dans `proxy.ts`). **Regle** : le cookie tracker doit vivre plus longtemps que la
+  fenetre surveillee, sinon son absence = fausse session neuve.
+- **Sidebar** (`DashboardSidebar.tsx`) : accordeon — un clic sur un item **frere** d'un sous-groupe (ex. items de
+  Parametres a cote de Pedagogie) referme le sous-groupe (`setOpenSubGroup(null)`). Pedagogie ne restait plus deplie.
+- **Fiche classe — encadre Enseignant redeveloppe** (`ClassForm.tsx`) : un seul encadre **Titulaire + Remplacement +
+  Historique**. Convention **`effective_until` = dernier jour de remplacement (INCLUS)** : « en cours » =
+  `effective_until >= aujourd'hui`, historique = `< aujourd'hui`. **Titulaire** : une ligne + « Changer » (cloture
+  date + trace « Ancien titulaire »). **Remplacement en cours** : « Declarer » (Du + Au facultatif = ouvert),
+  « Terminer » (modale = **dernier jour**, defaut aujourd'hui, ajustable) → historique le lendemain ; un remplacant
+  **pas encore commence** n'affiche que « Retirer » (pas « Terminer », evite plage inversee). **Historique des
+  remplacements** toujours deplie, **trie date decroissante**, correction dates (niveau B : editer/supprimer,
+  confirme). Toute suppression **confirmee** (`ConfirmModal`). `availableTeachers` n'exclut que les affectations
+  **actives** (un enseignant d'historique reste selectionnable).
+- **Liste des classes** (`ClassesClient.tsx`, `classes/page.tsx`) : colonne « Enseignants » → **« Titulaire »**
+  (actif seul) + nouvelle colonne **« Remplacements »** (NOM Prenom · du — au / en cours), **triee date
+  decroissante**, hauteur de ligne = contenu (tous les remplacements affiches). Requete enrichie
+  (`class_teachers(..., effective_from, effective_until)`).
+- **Phase B — visibilite cahier de texte PAR CLASSE** (migration `cahier-texte-rls-par-classe.sql`) : les policies
+  **enseignant** de `class_journal`/`homework`/`homework_status` passent de « par auteur » a « par classe » :
+  - **Lecture** : classes ou je suis affecte, avec **fenetre de preparation 7 j** (`effective_from − 7j <=
+    aujourd'hui <= effective_until`) → un remplacant lit le cahier de texte du titulaire 7 j avant sa prise de poste.
+  - **Ecriture** : seulement mes propres entrees, sur une classe affectee **periode stricte** (`effective_from <=
+    aujourd'hui <= effective_until`). Auteur = enseignant connecte.
+  - `admin` ajoute a `journal_staff_crud`/`homework_staff_crud` (regle admin = direction).
+  - App : `cahier-texte/page.tsx` filtre les classes de l'enseignant sur la fenetre 7 j ; `CahierTexteClient`
+    attribue l'auteur d'une creation a l'**enseignant connecte** (titulaire OU remplacant), plus le titulaire par defaut.
+  - **Resp. pedagogique / direction / admin** = visibilite **complete** (staff_crud FOR ALL), non limitee.
+- **Cahier de texte — « Toutes les classes »** (`CahierTexteClient.tsx`) : option staff dans le filtre Classe →
+  affiche toutes les classes, **triees date puis classe**. Bas de carte enrichi : « **Enseignant · Cotisation ·
+  Jour HH:MM–HH:MM** ». « Ajouter » desactive en mode « Toutes les classes ». Choix memorise en URL (`?class=__all__`).
+- **Cartes → modales verrouillees** (option B, pages detail supprimees) : clic sur une carte ouvre
+  `SeanceDetailModal` / `DevoirDetailModal` (portail, **non fermable hors** — X / Fermer). « Modifier » enchaine sur
+  la modale d'edition. Pages `[id]` et `devoir/[id]` **supprimees** + composants `CahierTexteDetail`/`DevoirDetail`.
+- **Suivi devoir — classes adultes** (migration `add-adult-homework-status.sql`) : table parallele
+  `adult_homework_status` (cle `homework_id + parent_id + tutor_number`) car un adulte n'est pas un `student`.
+  `DevoirDetailModal` **generalise** (cle participant unifiee) : classe enfants → « Suivi des familles » (eleves,
+  `homework_status`) ; classe adulte → « Suivi des participants » (tuteurs `parent_class_enrollments`,
+  `adult_homework_status`). Le suivi (vu/effectue) n'apparait que si la classe a des participants.
+- **Debug** : scripts SQL `inspect-class-teachers.sql` (etat derive actif/historique) + `delete-test-substitutes.sql`.
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 

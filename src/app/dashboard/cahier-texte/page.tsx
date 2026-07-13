@@ -30,7 +30,7 @@ export default async function CahierTextePage() {
 
   // Teacher record + assignments (pour enseignant)
   let teacherId: string | null = null
-  let teacherAssignments: { class_id: string; is_main_teacher: boolean; subject: string | null }[] = []
+  let teacherAssignments: { class_id: string; is_main_teacher: boolean; subject: string | null; effective_from: string | null; effective_until: string | null }[] = []
 
   const { data: teacher } = await supabase
     .from('teachers')
@@ -42,14 +42,24 @@ export default async function CahierTextePage() {
     teacherId = teacher.id
     const { data: assignments } = await supabase
       .from('class_teachers')
-      .select('class_id, is_main_teacher, subject')
+      .select('class_id, is_main_teacher, subject, effective_from, effective_until')
       .eq('teacher_id', teacher.id)
 
     teacherAssignments = (assignments ?? []) as any[]
   }
 
+  // Fenêtre de LECTURE (Phase B) : classes où je suis affecté, avec préparation 7 j
+  // avant le début (effective_from − 7 j <= aujourd'hui <= effective_until). Aligné sur la RLS.
+  const _today = new Date()
+  const todayISO = _today.toISOString().slice(0, 10)
+  const _plus7 = new Date(_today); _plus7.setDate(_plus7.getDate() + 7)
+  const todayPlus7ISO = _plus7.toISOString().slice(0, 10)
+  const inReadWindow = (a: { effective_from: string | null; effective_until: string | null }) =>
+    (!a.effective_from || a.effective_from <= todayPlus7ISO) &&
+    (!a.effective_until || a.effective_until >= todayISO)
+
   // Classes selon le rôle
-  const classSelect = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, subject, teachers(id, civilite, first_name, last_name)), cotisation_types(label)'
+  const classSelect = 'id, name, level, day_of_week, start_time, end_time, class_teachers(is_main_teacher, subject, teachers(id, civilite, first_name, last_name)), cotisation_types(label, is_adult)'
 
   let classIds: string[] = []
   let classes: any[] = []
@@ -62,7 +72,7 @@ export default async function CahierTextePage() {
     classIds = classes.map((c: any) => c.id)
 
   } else if (role === 'enseignant' && teacherAssignments.length > 0) {
-    classIds = [...new Set(teacherAssignments.map(a => a.class_id))]
+    classIds = [...new Set(teacherAssignments.filter(inReadWindow).map(a => a.class_id))]
     const { data } = await supabase
       .from('classes')
       .select(classSelect)

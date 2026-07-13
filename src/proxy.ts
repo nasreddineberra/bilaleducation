@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ── Délais de session (en secondes) ──────────────────────────────────────────
-import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION } from '@/lib/session-config'
+import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE } from '@/lib/session-config'
 const SESSION_COOKIE = 'app-session'
 
 export async function proxy(request: NextRequest) {
@@ -204,14 +204,16 @@ export async function proxy(request: NextRequest) {
       return redirect
     }
 
-    // Session valide → mettre à jour la dernière activité
+    // Session valide → mettre à jour la dernière activité.
+    // maxAge long (≠ 24h) : le cookie doit survivre a une periode d'inactivite pour
+    // pouvoir CONSTATER l'expiration au retour (sinon son absence = session neuve).
     const cookieValue = JSON.stringify({ loginTime, lastActivity: now })
     response.cookies.set(SESSION_COOKIE, cookieValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: MAX_SESSION_DURATION,
+      maxAge: SESSION_COOKIE_MAX_AGE,
     })
   }
 

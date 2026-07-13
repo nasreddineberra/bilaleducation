@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import Link from 'next/link'
+import SeanceDetailModal from './SeanceDetailModal'
+import DevoirDetailModal from './DevoirDetailModal'
 import { clsx } from 'clsx'
 import {
   CalendarDays, BookOpen,
@@ -14,7 +15,7 @@ import DevoirForm from './DevoirForm'
 
 interface Props {
   role: string
-  classes: { id: string; name: string; level?: string | null; day_of_week?: string | null; start_time?: string | null; end_time?: string | null; class_teachers: { is_main_teacher: boolean; subject?: string | null; teachers: { id: string; civilite?: string | null; first_name: string; last_name: string } | null }[]; cotisation_types?: { label: string } | null }[]
+  classes: { id: string; name: string; level?: string | null; day_of_week?: string | null; start_time?: string | null; end_time?: string | null; class_teachers: { is_main_teacher: boolean; subject?: string | null; teachers: { id: string; civilite?: string | null; first_name: string; last_name: string } | null }[]; cotisation_types?: { label: string; is_adult?: boolean } | null }[]
   journalEntries: any[]
   homeworkEntries: any[]
   teacherId: string | null
@@ -45,6 +46,9 @@ function teacherName(t: { civilite?: string | null; first_name: string; last_nam
   return `${civ}${t.first_name} ${t.last_name}`
 }
 
+// Valeur spéciale du filtre Classe (staff) : afficher toutes les classes.
+const ALL_CLASSES = '__all__'
+
 export default function CahierTexteClient({
   role, classes, journalEntries, homeworkEntries,
   teacherId, teacherAssignments, allTeachers, allAssignments, etablissementId,
@@ -58,7 +62,8 @@ export default function CahierTexteClient({
   // retrouver sa sélection au retour d'une fiche (lien « Retour » ou bouton Précédent).
   useEffect(() => {
     const c = new URLSearchParams(window.location.search).get('class')
-    if (c && classes.some(cl => cl.id === c)) setFilterClass(c)
+    if (c === ALL_CLASSES && isStaff) setFilterClass(ALL_CLASSES)
+    else if (c && classes.some(cl => cl.id === c)) setFilterClass(c)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -72,14 +77,34 @@ export default function CahierTexteClient({
   }
 
   const [showCreate, setShowCreate] = useState(false)
+  const [detail, setDetail] = useState<{ type: 'seance' | 'devoir'; entry: any } | null>(null)
 
   const selectedClass = classes.find(c => c.id === filterClass) ?? null
   const canCreate = ['admin', 'enseignant', 'direction', 'responsable_pedagogique'].includes(role)
+  const isStaff = ['admin', 'direction', 'responsable_pedagogique'].includes(role)
+  const isAllClasses = filterClass === ALL_CLASSES
+
+  // Ligne de bas de carte : « Enseignant · Cotisation · Jour HH:MM–HH:MM »
+  const classById = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes])
+  const subjectsForClass = (classId: string) =>
+    [...new Set(((classById.get(classId)?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort()
+  const entryMeta = (entry: any) => {
+    const c = classById.get(entry.class_id)
+    const schedule = c?.day_of_week
+      ? `${c.day_of_week}${c.start_time && c.end_time ? ` ${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}` : ''}`
+      : null
+    return [teacherName(entry.teachers), c?.cotisation_types?.label, schedule].filter(Boolean).join(' · ')
+  }
 
   // Prof principal + matières de la classe filtrée (pré-remplissage de la création)
   const mainCT = selectedClass?.class_teachers?.find(ct => ct.is_main_teacher) ?? null
   const mainTeacherId = mainCT?.teachers?.id ?? ''
   const mainTeacherLabel = mainCT?.teachers ? teacherName(mainCT.teachers) : ''
+  // Auteur d'une création = enseignant CONNECTÉ s'il est affecté à la classe
+  // (titulaire OU remplaçant), sinon le titulaire (cas d'un staff qui crée pour le compte de).
+  const meCT = teacherId ? (selectedClass?.class_teachers?.find(ct => ct.teachers?.id === teacherId) ?? null) : null
+  const authorId = meCT?.teachers?.id ?? mainTeacherId
+  const authorLabel = meCT?.teachers ? teacherName(meCT.teachers) : mainTeacherLabel
   const classSubjects = useMemo(
     () => [...new Set(((selectedClass?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort(),
     [selectedClass]
@@ -95,22 +120,32 @@ export default function CahierTexteClient({
 
   const filteredJournal = useMemo(() => {
     let list = journalEntries
-    if (filterClass) list = list.filter(j => j.class_id === filterClass)
+    if (filterClass && filterClass !== ALL_CLASSES) list = list.filter(j => j.class_id === filterClass)
     if (filterSubject) list = list.filter(j => j.subject === filterSubject)
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(j => j.title.toLowerCase().includes(q) || stripHtml(j.content_html).toLowerCase().includes(q))
+    }
+    if (filterClass === ALL_CLASSES) {
+      list = [...list].sort((a, b) =>
+        (b.session_date ?? '').localeCompare(a.session_date ?? '') ||
+        (a.classes?.name ?? '').localeCompare(b.classes?.name ?? ''))
     }
     return list
   }, [journalEntries, filterClass, filterSubject, search])
 
   const filteredHomework = useMemo(() => {
     let list = homeworkEntries
-    if (filterClass) list = list.filter(h => h.class_id === filterClass)
+    if (filterClass && filterClass !== ALL_CLASSES) list = list.filter(h => h.class_id === filterClass)
     if (filterSubject) list = list.filter(h => h.subject === filterSubject)
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(h => h.title.toLowerCase().includes(q) || stripHtml(h.description_html).toLowerCase().includes(q))
+    }
+    if (filterClass === ALL_CLASSES) {
+      list = [...list].sort((a, b) =>
+        (b.due_date ?? '').localeCompare(a.due_date ?? '') ||
+        (a.classes?.name ?? '').localeCompare(b.classes?.name ?? ''))
     }
     return list
   }, [homeworkEntries, filterClass, filterSubject, search])
@@ -127,6 +162,7 @@ export default function CahierTexteClient({
           wrapperClassName="w-fit"
         >
           <option value=""></option>
+          {isStaff && <option value={ALL_CLASSES}>Toutes les classes</option>}
           {classes.map(c => {
             const main = c.class_teachers?.find(t => t.is_main_teacher)
             const teacher = main?.teachers
@@ -172,8 +208,8 @@ export default function CahierTexteClient({
           })()}
           {canCreate && (() => {
             const addLabel = tab === 'journal' ? 'Ajouter une séance' : 'Ajouter un devoir'
-            return !filterClass ? (
-              <Tooltip content={`Sélectionnez une classe pour ${tab === 'journal' ? 'ajouter une séance' : 'ajouter un devoir'}`}>
+            return (!filterClass || isAllClasses) ? (
+              <Tooltip content={`Sélectionnez une classe précise pour ${tab === 'journal' ? 'ajouter une séance' : 'ajouter un devoir'}`}>
                 <FloatButton variant="submit" type="button" disabled className="whitespace-nowrap">
                   {addLabel}
                 </FloatButton>
@@ -183,7 +219,7 @@ export default function CahierTexteClient({
                 variant="submit"
                 type="button"
                 className="whitespace-nowrap"
-                disabled={!mainTeacherId}
+                disabled={!authorId}
                 onClick={() => setShowCreate(true)}
               >
                 {addLabel}
@@ -241,10 +277,11 @@ export default function CahierTexteClient({
         ) : (
           <div className="space-y-2">
             {filteredJournal.map((j: any) => (
-              <Link
+              <button
                 key={j.id}
-                href={`/dashboard/cahier-texte/${j.id}`}
-                className="card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group"
+                type="button"
+                onClick={() => setDetail({ type: 'seance', entry: j })}
+                className="card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group text-left w-full"
               >
                 <div className="flex-shrink-0 w-16 text-center">
                   <div className="text-xs font-bold text-primary-600">{formatDate(j.session_date)}</div>
@@ -265,10 +302,10 @@ export default function CahierTexteClient({
                     {stripHtml(j.content_html).slice(0, 150)}
                   </p>
                   <div className="text-[11px] text-warm-400 mt-1">
-                    {teacherName(j.teachers)}
+                    {entryMeta(j)}
                   </div>
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         )
@@ -286,11 +323,12 @@ export default function CahierTexteClient({
               const isPast = new Date(h.due_date) < new Date(new Date().toDateString())
 
               return (
-                <Link
+                <button
                   key={h.id}
-                  href={`/dashboard/cahier-texte/devoir/${h.id}`}
+                  type="button"
+                  onClick={() => setDetail({ type: 'devoir', entry: h })}
                   className={clsx(
-                    'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group',
+                    'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group text-left w-full',
                     isPast && 'opacity-60'
                   )}
                 >
@@ -320,10 +358,10 @@ export default function CahierTexteClient({
                       {stripHtml(h.description_html).slice(0, 150)}
                     </p>
                     <div className="text-[11px] text-warm-400 mt-1">
-                      {teacherName(h.teachers)}
+                      {entryMeta(h)}
                     </div>
                   </div>
-                </Link>
+                </button>
               )
             })}
           </div>
@@ -331,14 +369,14 @@ export default function CahierTexteClient({
       )}
       </div>
 
-      {showCreate && selectedClass && mainTeacherId && (
+      {showCreate && selectedClass && authorId && (
         tab === 'journal' ? (
           <SeanceForm
             etablissementId={etablissementId}
             classId={selectedClass.id}
             className={selectedClass.name}
-            teacherId={mainTeacherId}
-            teacherLabel={mainTeacherLabel}
+            teacherId={authorId}
+            teacherLabel={authorLabel}
             subjects={classSubjects}
             onClose={() => setShowCreate(false)}
             onSaved={() => setShowCreate(false)}
@@ -348,13 +386,35 @@ export default function CahierTexteClient({
             etablissementId={etablissementId}
             classId={selectedClass.id}
             className={selectedClass.name}
-            teacherId={mainTeacherId}
-            teacherLabel={mainTeacherLabel}
+            teacherId={authorId}
+            teacherLabel={authorLabel}
             subjects={classSubjects}
             onClose={() => setShowCreate(false)}
             onSaved={() => setShowCreate(false)}
           />
         )
+      )}
+
+      {detail?.type === 'seance' && (
+        <SeanceDetailModal
+          journal={detail.entry}
+          role={role}
+          teacherId={teacherId}
+          subjects={subjectsForClass(detail.entry.class_id)}
+          etablissementId={etablissementId}
+          onClose={() => setDetail(null)}
+        />
+      )}
+      {detail?.type === 'devoir' && (
+        <DevoirDetailModal
+          homework={detail.entry}
+          role={role}
+          teacherId={teacherId}
+          isAdult={!!classById.get(detail.entry.class_id)?.cotisation_types?.is_adult}
+          subjects={subjectsForClass(detail.entry.class_id)}
+          etablissementId={etablissementId}
+          onClose={() => setDetail(null)}
+        />
       )}
     </div>
   )

@@ -608,7 +608,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                           <Link
                             key={child.href}
                             href={child.href!}
-                            onClick={handleLeafClick}
+                            onClick={() => { setOpenSubGroup(null); handleLeafClick() }}
                             aria-current={isActive ? 'page' : undefined}
                             className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
                           >
@@ -629,7 +629,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
             const link = (
               <Link
                 href={item.href!}
-                onClick={() => { setOpenGroup(null); handleLeafClick() }}
+                onClick={() => { setOpenGroup(null); setOpenSubGroup(null); handleLeafClick() }}
                 aria-current={isActive ? 'page' : undefined}
                 className={clsx(
                   'sidebar-item',

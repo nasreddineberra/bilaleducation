@@ -29,6 +29,8 @@ export default async function ClassesPage() {
         teacher_id,
         is_main_teacher,
         subject,
+        effective_from,
+        effective_until,
         teachers ( first_name, last_name )
       )
     `)

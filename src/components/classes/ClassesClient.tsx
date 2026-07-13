@@ -22,6 +22,8 @@ interface ClassTeacherRow {
   teacher_id: string
   is_main_teacher: boolean
   subject: string | null
+  effective_from: string | null
+  effective_until: string | null
   teachers: TeacherInfo | null
 }
 
@@ -41,6 +43,12 @@ interface ClassRow {
 
 interface ClassesClientProps {
   classes: ClassRow[]
+}
+
+function fmtD(d: string | null): string {
+  if (!d) return ''
+  const [y, m, day] = d.slice(0, 10).split('-')
+  return `${day}/${m}/${y}`
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -174,13 +182,18 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                 <th className="text-left list-th">Salle</th>
                 <th className="text-left list-th">Planning</th>
                 <th className="text-center list-th">Capacité</th>
-                <th className="text-left list-th">Enseignants</th>
+                <th className="text-left list-th">Titulaire</th>
+                <th className="text-left list-th">Remplacements</th>
                 <th className="px-4 py-1.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-50">
               {filtered.map(cls => {
-                const teachers     = cls.class_teachers ?? []
+                const teachers      = cls.class_teachers ?? []
+                const titulaire     = teachers.find(t => t.is_main_teacher && !t.effective_until)
+                const remplacements = teachers
+                  .filter(t => !t.is_main_teacher)
+                  .sort((a, b) => (b.effective_from ?? '').localeCompare(a.effective_from ?? ''))
 
                 return (
                   <tr
@@ -226,23 +239,24 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                       )}
                     </td>
                     <td className="list-td text-center text-secondary-600">{cls.max_students}</td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">
+                      {titulaire?.teachers
+                        ? `${titulaire.teachers.last_name} ${titulaire.teachers.first_name}`
+                        : <span className="text-warm-300 text-xs italic">Non affecté</span>}
+                    </td>
                     <td className="list-td">
-                      {teachers.length === 0 ? (
-                        <span className="text-warm-300 text-xs italic">Non affecté</span>
+                      {remplacements.length === 0 ? (
+                        <span className="text-warm-300">·</span>
                       ) : (
-                        <div className="flex flex-col gap-0.5">
-                          {teachers.slice(0, 2).map((t, i) => (
-                            <span key={i} className="text-xs text-secondary-600">
-                              {t.teachers ? `${t.teachers.last_name} ${t.teachers.first_name}` : '—'}
-                              {t.is_main_teacher
-                                ? <span className="ml-1 text-[10px] text-primary-500 font-medium">(principal)</span>
-                                : t.subject ? <span className="ml-1 text-warm-400">· {t.subject}</span> : null
-                              }
+                        <div className="flex flex-col gap-0.5 py-0.5">
+                          {remplacements.map((t, i) => (
+                            <span key={i} className="text-xs text-secondary-600 whitespace-nowrap">
+                              {t.teachers ? `${t.teachers.last_name} ${t.teachers.first_name}` : ''}
+                              <span className="ml-1 text-[10px] text-warm-400">
+                                {t.effective_from ? fmtD(t.effective_from) : 'Début'} — {t.effective_until ? fmtD(t.effective_until) : 'en cours'}
+                              </span>
                             </span>
                           ))}
-                          {teachers.length > 2 && (
-                            <span className="text-xs text-warm-400">+{teachers.length - 2} autre{teachers.length - 2 > 1 ? 's' : ''}</span>
-                          )}
                         </div>
                       )}
                     </td>
