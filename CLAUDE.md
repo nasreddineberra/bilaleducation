@@ -580,6 +580,8 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   absence/jour) ; saisie de **presence** = exclure les **absents**. **Personne remplacee** = uniquement les **absents** du
   jour (message si aucun). **Blocage suppression** d'une absence tant que des **remplacements du jour la referencent**
   (`replaced_profile_id`) : modale « Suppression impossible » (Supprimer grise) + garde-fou dans `handleDelete`.
+  La modale de suppression **normale** affiche un **recap de la saisie** (membre, type colore, date, horaire ou
+  periode+motif, remplacement) via le prop `children` de `ConfirmModal` → confirmer la bonne donnee.
 - **Ergonomie panneau du jour** : chaque personne en **2 colonnes** (identite avatar+nom a gauche sur une ligne,
   saisies a droite) ; `TruncatedText` (tooltip **uniquement si tronque**, mesure `scrollWidth`) sur nom/notes/rempl/motif ;
   filet `divide-y divide-warm-100` entre personnes ; panneau `self-start` (hauteur = contenu, `max-h-[65vh]` scroll) ;

@@ -913,12 +913,43 @@ export default function TempsPresenceClient({
 
       {/* ── Confirmation / blocage de suppression ────────────────────── */}
       {deleteConfirm && (() => {
-        const deps = blockingReplacements(entries.find(e => e.id === deleteConfirm))
+        const entry = entries.find(e => e.id === deleteConfirm)
+        const deps = blockingReplacements(entry)
         const blocked = deps.length > 0
         const depNames = [...new Set(deps.map(d => {
           const s = staffMap[d.profile_id]
           return s ? `${s.last_name} ${s.first_name}` : '·'
         }))]
+
+        // Recap de la saisie a supprimer (pour confirmer la bonne donnee).
+        const s = entry ? staffMap[entry.profile_id] : undefined
+        const pt = entry ? findPresenceType(presenceTypes, entry.entry_type) : undefined
+        const isAbs = pt?.is_absence ?? false
+        const dateLbl = entry ? new Date(entry.entry_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
+        const rs = entry?.replaced_profile_id ? staffMap[entry.replaced_profile_id] : undefined
+        const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
+          <div className="flex gap-2">
+            <span className="w-24 shrink-0 text-warm-400">{label}</span>
+            <span className="text-warm-700 font-medium">{children}</span>
+          </div>
+        )
+        const detail = entry ? (
+          <div className="space-y-2">
+            <p className="text-sm text-warm-700">Cette saisie sera définitivement supprimée :</p>
+            <div className="rounded-lg border border-warm-200 bg-warm-50 px-3 py-2 text-xs space-y-1">
+              <Row label="Membre">{s ? `${s.last_name} ${s.first_name}` : '·'}</Row>
+              <Row label="Type"><span style={{ color: pt?.color }} className="font-semibold">{pt?.label ?? entry.entry_type}</span></Row>
+              <Row label="Date"><span className="capitalize">{dateLbl}</span></Row>
+              {isAbs ? (
+                <Row label="Période">{PERIOD_LABEL[entry.absence_period] ?? 'Journée'}{entry.absence_reason ? ` · ${entry.absence_reason}` : ''}</Row>
+              ) : (
+                <Row label="Horaire">{fmtTime(entry.start_time)}–{fmtTime(entry.end_time)} ({fmtDuration(entry.duration_minutes)})</Row>
+              )}
+              {entry.is_replacement && rs && <Row label="Remplacement">Remplace {rs.last_name} {rs.first_name}</Row>}
+            </div>
+          </div>
+        ) : undefined
+
         return (
           <ConfirmModal
             variant={blocked ? 'warning' : 'danger'}
@@ -931,7 +962,9 @@ export default function TempsPresenceClient({
             cancelLabel={blocked ? 'Fermer' : 'Annuler'}
             onConfirm={() => handleDelete(deleteConfirm)}
             onCancel={() => setDeleteConfirm(null)}
-          />
+          >
+            {!blocked ? detail : undefined}
+          </ConfirmModal>
         )
       })()}
     </div>
