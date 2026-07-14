@@ -46,6 +46,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const [isReplacement, setIsReplacement] = useState(entry?.is_replacement ?? false)
   const [replacedId, setReplacedId] = useState(entry?.replaced_profile_id ?? '')
   const [absenceReason, setAbsenceReason] = useState(entry?.absence_reason ?? '')
+  const [absencePeriod, setAbsencePeriod] = useState<string>(entry?.absence_period ?? 'full')
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +62,32 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
   const isAbsence = presenceTypes.find(p => p.code.toUpperCase() === entryType.toUpperCase())?.is_absence ?? false
 
+  // On ne remplace qu'une personne ABSENTE ce jour : la liste « personne remplacee »
+  // se limite aux membres ayant une saisie d'absence ce jour (+ la selection en cours
+  // en edition, pour ne pas la perdre si les donnees ont change).
+  const isAbsenceType = (code: string) =>
+    presenceTypes.find(p => p.code.toUpperCase() === code.toUpperCase())?.is_absence ?? false
+  const absentIds = new Set(
+    existingEntries.filter(e => isAbsenceType(e.entry_type)).map(e => e.profile_id),
+  )
+  const replaceableStaff = staffList.filter(
+    s => s.id !== profileId && (absentIds.has(s.id) || s.id === replacedId),
+  )
+
+  // Exclusivite sur une journee :
+  //  - saisie d'ABSENCE  → exclure toute personne ayant DEJA une entree ce jour
+  //    (absente ou presente : une seule absence/jour, pas de melange).
+  //  - saisie de PRESENCE → exclure les personnes ABSENTES ce jour.
+  // On garde toujours le membre en cours d'edition.
+  const presentIds = new Set(
+    existingEntries.filter(e => !isAbsenceType(e.entry_type)).map(e => e.profile_id),
+  )
+  const busyIds = new Set([...absentIds, ...presentIds]) // toute entree ce jour
+  const excludedMemberIds = isAbsence ? busyIds : absentIds
+  const selectableStaff = staffList.filter(
+    s => !excludedMemberIds.has(s.id) || s.id === entry?.profile_id,
+  )
+
   const isDirty = !isEdit || (
     profileId !== (entry?.profile_id ?? currentUserId) ||
     entryType !== defaultType ||
@@ -69,6 +96,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     isReplacement !== (entry?.is_replacement ?? false) ||
     replacedId !== (entry?.replaced_profile_id ?? '') ||
     absenceReason !== (entry?.absence_reason ?? '') ||
+    absencePeriod !== (entry?.absence_period ?? 'full') ||
     notes !== (entry?.notes ?? '')
   )
 
@@ -104,7 +132,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       const overlap = existingEntries.find(e => {
         if (e.profile_id !== profileId) return false
         if (isEdit && e.id === entry!.id) return false
-        if (e.entry_type === 'absence' || !e.start_time || !e.end_time) return false
+        if (!e.start_time || !e.end_time) return false // absences (sans horaire) ignorees
         const eStart = e.start_time.slice(0, 5)
         const eEnd = e.end_time.slice(0, 5)
         return newStart < eEnd && newEnd > eStart
@@ -128,6 +156,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       is_replacement: isReplacement,
       replaced_profile_id: isReplacement && replacedId ? replacedId : null,
       absence_reason: isAbsence ? absenceReason : null,
+      absence_period: isAbsence ? absencePeriod : 'full',
       notes: notes || null,
       recorded_by: currentUserId,
     }
@@ -165,30 +194,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
           <p className="text-xs text-warm-500 capitalize">{dateLabel}</p>
 
-          {/* Staff select */}
-          {canManage ? (
-            <FloatSelect
-              label="MEMBRE ÉQUIPE"
-              required
-              value={profileId}
-              onChange={e => {
-                const val = e.target.value
-                setProfileId(val)
-                if (val && val === replacedId) setReplacedId('')
-              }}
-            >
-              <option value=""></option>
-              {staffList.map(s => (
-                <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
-              ))}
-            </FloatSelect>
-          ) : (
-            <p className="text-xs text-warm-600">
-              <span className="font-bold">{staffList.find(s => s.id === currentUserId)?.last_name} {staffList.find(s => s.id === currentUserId)?.first_name}</span>
-            </p>
-          )}
-
-          {/* Type */}
+          {/* Type (choisi en premier : conditionne la liste des membres) */}
           <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
             <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none select-none">Type<span className="text-red-400 ml-0.5">*</span></span>
             <div className="flex flex-wrap gap-2">
@@ -201,7 +207,12 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                       name="entry_type"
                       value={pt.code}
                       checked={selected}
-                      onChange={() => setEntryType(pt.code)}
+                      onChange={() => {
+                        setEntryType(pt.code)
+                        // Reinitialiser le membre s'il devient incoherent avec le type.
+                        const conflict = pt.is_absence ? busyIds : absentIds
+                        if (profileId && profileId !== entry?.profile_id && conflict.has(profileId)) setProfileId('')
+                      }}
                       className="sr-only"
                     />
                     <span
@@ -215,6 +226,31 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               })}
             </div>
           </div>
+
+          {/* Membre (filtre selon le type : une personne absente n'est pas saisissable
+              en presence, et une personne presente n'est pas saisissable en absence) */}
+          {canManage ? (
+            <FloatSelect
+              label="MEMBRE ÉQUIPE"
+              required
+              disabled={!entryType}
+              value={profileId}
+              onChange={e => {
+                const val = e.target.value
+                setProfileId(val)
+                if (val && val === replacedId) setReplacedId('')
+              }}
+            >
+              <option value=""></option>
+              {selectableStaff.map(s => (
+                <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
+              ))}
+            </FloatSelect>
+          ) : (
+            <p className="text-xs text-warm-600">
+              <span className="font-bold">{staffList.find(s => s.id === currentUserId)?.last_name} {staffList.find(s => s.id === currentUserId)?.first_name}</span>
+            </p>
+          )}
 
           {/* Horaires (sauf absence) */}
           {!isAbsence && (
@@ -254,17 +290,47 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                 {isReplacement && <span className="text-red-400 text-xs">*</span>}
               </div>
               {isReplacement && (
-                <FloatSelect
-                  label="Personne remplacée"
-                  value={replacedId}
-                  onChange={e => setReplacedId(e.target.value)}
-                >
-                  <option value=""></option>
-                  {staffList.filter(s => s.id !== profileId).map(s => (
-                    <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
-                  ))}
-                </FloatSelect>
+                replaceableStaff.length === 0 ? (
+                  <p role="alert" className="text-xs text-warm-500 bg-warm-50 border border-warm-200 rounded-lg px-3 py-2">
+                    Aucun membre marqué absent ce jour. Enregistrez d'abord l'absence de la personne remplacée.
+                  </p>
+                ) : (
+                  <FloatSelect
+                    label="Personne remplacée"
+                    value={replacedId}
+                    onChange={e => setReplacedId(e.target.value)}
+                  >
+                    <option value=""></option>
+                    {replaceableStaff.map(s => (
+                      <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
+                    ))}
+                  </FloatSelect>
+                )
               )}
+            </div>
+          )}
+
+          {/* Periode d'absence (journee / demi-journee) */}
+          {isAbsence && (
+            <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
+              <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none select-none">Période</span>
+              <div className="flex gap-2" role="group" aria-label="Période d'absence">
+                {(['full', 'am', 'pm'] as const).map(p => {
+                  const selected = absencePeriod === p
+                  const label = p === 'full' ? 'Journée' : p === 'am' ? 'Matin' : 'Après-midi'
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setAbsencePeriod(p)}
+                      aria-pressed={selected}
+                      className={`flex-1 text-center text-xs font-semibold py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${selected ? 'bg-secondary-700 text-white border-secondary-700' : 'bg-white border-warm-300 text-warm-500 hover:border-warm-400'}`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
 

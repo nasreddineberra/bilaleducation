@@ -27,20 +27,22 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
   // Gestionnaires « tout le staff » (aligne sur la RLS staff_time_entries_manage).
   // Le responsable pedagogique gere UNIQUEMENT les enseignants → traite a part cote client.
   const canManageAll = ['admin', 'direction', 'comptable', 'secretaire'].includes(role)
-  const canSeeRecap = ['admin', 'direction', 'comptable', 'responsable_pedagogique'].includes(role)
+  // enseignant inclus : il voit un recap de SES propres saisies (avec ses couts).
+  const canSeeRecap = ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant'].includes(role)
 
-  // Annee scolaire courante
+  // Annee scolaire courante (dates = perimetre du recap annuel)
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label')
+    .select('id, label, start_date, end_date')
     .eq('is_current', true)
     .maybeSingle()
 
-  // Liste du staff (profiles actifs, sauf parent et super_admin)
+  // Liste des membres pointables (profiles actifs). Exclus : parent, super_admin
+  // et admin (l'admin gere le suivi mais ne pointe pas son propre temps).
   const { data: staffList } = await supabase
     .from('profiles')
     .select('id, first_name, last_name, role')
-    .not('role', 'in', '("parent","super_admin")')
+    .not('role', 'in', '("parent","super_admin","admin")')
     .eq('is_active', true)
     .order('last_name')
     .order('first_name')
@@ -80,6 +82,9 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         presenceTypes={(presenceTypes ?? []) as any[]}
         presenceTypeRates={presenceTypeRates}
         schoolYearId={currentYear?.id ?? null}
+        schoolYearLabel={currentYear?.label ?? null}
+        schoolYearStart={currentYear?.start_date ?? null}
+        schoolYearEnd={currentYear?.end_date ?? null}
         initialMonth={initialMonth}
         etablissementNom={etab?.nom ?? 'Établissement'}
         etablissementLogo={etab?.logo_url ?? null}

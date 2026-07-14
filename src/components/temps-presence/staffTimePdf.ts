@@ -22,8 +22,9 @@ export interface StaffTimePdfRow {
 export interface StaffTimePdfInput {
   etablissementNom: string
   etablissementLogo: string | null
-  monthLabel: string                              // ex. "Juillet 2026"
-  typeColumns: { code: string; label: string }[]  // types non-absence, dans l'ordre
+  periodLabel: string                             // ex. "Juillet 2026" ou "Année scolaire 2025-2026"
+  // types non-absence, dans l'ordre ; rate/color pour la legende des taux (si showCosts)
+  typeColumns: { code: string; label: string; rate: number; color?: string }[]
   rows: StaffTimePdfRow[]
   totals: { typeMinutes: Record<string, number>; absenceDays: number; cost: number }
   showCosts: boolean
@@ -38,6 +39,16 @@ function fmtDuration(mins: number): string {
 
 function fmtEur(n: number): string {
   return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+}
+
+function fmtDays(n: number): string {
+  return `${n.toLocaleString('fr-FR')}j`
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim())
+  if (!m) return null
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
 }
 
 async function loadImageAsBase64(url: string): Promise<string | null> {
@@ -82,9 +93,33 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.accent)
-  doc.text(`Récapitulatif des temps de présence · ${input.monthLabel}`, margin + logoOffset, y + 13)
+  doc.text(`Récapitulatif des temps de présence · ${input.periodLabel}`, margin + logoOffset, y + 13)
 
-  y += logoBase64 ? 22 : 18
+  let headerBottom = y + (logoBase64 ? 22 : 18)
+
+  // Legende des taux horaires (haut a droite) — uniquement si couts visibles.
+  if (input.showCosts) {
+    const rated = input.typeColumns.filter(c => c.rate > 0)
+    if (rated.length > 0) {
+      const rightX = pageWidth - margin
+      let ry = y + 3
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(...COLORS.gray)
+      doc.text('Taux horaires', rightX, ry, { align: 'right' })
+      ry += 4
+      doc.setFont('helvetica', 'normal')
+      for (const c of rated) {
+        const rgb = c.color ? hexToRgb(c.color) : null
+        doc.setTextColor(...(rgb ?? COLORS.gray))
+        doc.text(`${c.label} : ${fmtEur(c.rate)}/h`, rightX, ry, { align: 'right' })
+        ry += 4
+      }
+      headerBottom = Math.max(headerBottom, ry)
+    }
+  }
+
+  y = headerBottom
 
   // Tableau
   const head = [[
@@ -100,7 +135,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       const mins = r.typeMinutes[c.code.toUpperCase()] ?? 0
       return mins > 0 ? fmtDuration(mins) : '·'
     }),
-    r.absenceDays > 0 ? `${r.absenceDays}j` : '·',
+    r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·',
     ...(input.showCosts ? [fmtEur(r.cost)] : []),
   ])
 
@@ -110,7 +145,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       const mins = input.totals.typeMinutes[c.code.toUpperCase()] ?? 0
       return mins > 0 ? fmtDuration(mins) : '·'
     }),
-    input.totals.absenceDays > 0 ? `${input.totals.absenceDays}j` : '·',
+    input.totals.absenceDays > 0 ? fmtDays(input.totals.absenceDays) : '·',
     ...(input.showCosts ? [fmtEur(input.totals.cost)] : []),
   ]]
 
@@ -122,12 +157,11 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
     foot,
     startY: y,
     margin: { left: margin, right: margin },
-    styles: { fontSize: 9, cellPadding: 2, lineColor: [225, 230, 233], lineWidth: 0.1 },
+    styles: { fontSize: 9, cellPadding: 2, lineColor: [225, 230, 233], lineWidth: 0.1, halign: 'center' },
     headStyles: { fillColor: COLORS.headerBg, textColor: COLORS.secondary, fontStyle: 'bold', halign: 'center' },
     footStyles: { fillColor: COLORS.footBg, textColor: COLORS.secondary, fontStyle: 'bold', halign: 'center' },
     columnStyles: {
-      0: { halign: 'left' },
-      [lastCol]: input.showCosts ? { halign: 'right' } : { halign: 'center' },
+      0: { halign: 'left' }, // Personnel a gauche ; heures / absences / cout centres
     },
     didParseCell: (data) => {
       // Colonne Absences en rouge (avant-derniere si couts, derniere sinon)
@@ -148,6 +182,6 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
   doc.setTextColor(...COLORS.gray)
   doc.text(`Généré le ${generated}`, margin, doc.internal.pageSize.getHeight() - 8)
 
-  const safeMonth = input.monthLabel.replace(/\s/g, '_')
-  doc.save(`Temps_de_presence_${safeMonth}.pdf`)
+  const safeLabel = input.periodLabel.replace(/\s/g, '_')
+  doc.save(`Temps_de_presence_${safeLabel}.pdf`)
 }

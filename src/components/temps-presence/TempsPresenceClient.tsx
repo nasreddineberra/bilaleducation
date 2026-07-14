@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { clsx } from 'clsx'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -25,6 +25,7 @@ export interface TimeEntry {
   is_replacement: boolean
   replaced_profile_id: string | null
   absence_reason: string | null
+  absence_period: string // 'full' | 'am' | 'pm'
   notes: string | null
   recorded_by: string | null
 }
@@ -59,6 +60,9 @@ interface Props {
   presenceTypes: PresenceType[]
   presenceTypeRates: PresenceTypeRate[]
   schoolYearId: string | null
+  schoolYearLabel: string | null
+  schoolYearStart: string | null // "YYYY-MM-DD"
+  schoolYearEnd: string | null   // "YYYY-MM-DD"
   initialMonth?: string // format "YYYY-MM"
   etablissementNom: string
   etablissementLogo: string | null
@@ -101,12 +105,32 @@ function fmtEur(n: number): string {
   return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 }
 
+// Valeur en jours d'une absence sur une journee selon les periodes saisies :
+// journee entiere = 1 ; matin ou apres-midi = 0,5 ; les deux demi-journees = 1.
+function absenceDayValue(periods: Set<string>): number {
+  if (periods.has('full')) return 1
+  return (periods.has('am') ? 0.5 : 0) + (periods.has('pm') ? 0.5 : 0)
+}
+
+// Formatage « 1j », « 0,5j », « 1,5j » (decimale francaise).
+function fmtDays(n: number): string {
+  return `${n.toLocaleString('fr-FR')}j`
+}
+
+// Libelle court d'une periode d'absence.
+const PERIOD_LABEL: Record<string, string> = { full: 'Journée', am: 'Matin', pm: 'Après-midi' }
+
 function getInitials(first: string, last: string): string {
   return `${(last?.[0] ?? '').toUpperCase()}${(first?.[0] ?? '').toUpperCase()}`
 }
 
 function dateKey(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  // Composantes LOCALES (pas toISOString/UTC) : sinon en fuseau UTC+ une date locale
+  // a minuit bascule a la veille → decalage d'un jour dans le calendrier.
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 // ─── Calendar helpers ────────────────────────────────────────────────────────
@@ -130,15 +154,100 @@ function getWeekDays(refDate: Date): Date[] {
   return Array.from({ length: 7 }, (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i))
 }
 
+// ─── Calcul d'un recapitulatif (mutualise mensuel / annuel) ──────────────────
+interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; absenceDays: number; cost: number }
+interface RecapResult { rows: RecapRow[]; totals: { typeMinutes: Record<string, number>; absenceDays: number; cost: number } }
+
+function buildRecap(
+  list: TimeEntry[],
+  staffMap: Record<string, StaffMember>,
+  presenceTypes: PresenceType[],
+  rateByTypeId: Record<string, number>,
+): RecapResult {
+  const recapMap: Record<string, Record<string, number>> = {}
+  // Absences : periodes saisies par (personne, jour) → converties en fractions de jour.
+  // Plusieurs saisies le meme jour se combinent (matin + apres-midi = 1 jour).
+  const absencePeriodsMap: Record<string, Record<string, Set<string>>> = {}
+
+  for (const e of list) {
+    if (!recapMap[e.profile_id]) recapMap[e.profile_id] = {}
+
+    const pt = findPresenceType(presenceTypes, e.entry_type)
+    if (pt?.is_absence) {
+      const byDate = (absencePeriodsMap[e.profile_id] ??= {})
+      ;(byDate[e.entry_date] ??= new Set()).add(e.absence_period || 'full')
+    } else {
+      const code = e.entry_type.toUpperCase()
+      recapMap[e.profile_id][code] = (recapMap[e.profile_id][code] ?? 0) + e.duration_minutes
+    }
+  }
+
+  const allProfileIds = new Set([...Object.keys(recapMap), ...Object.keys(absencePeriodsMap)])
+
+  const rows = Array.from(allProfileIds).map(profileId => {
+    const s = staffMap[profileId]
+    const typeMinutes = recapMap[profileId] ?? {}
+    const byDate = absencePeriodsMap[profileId] ?? {}
+    const absenceDays = Object.values(byDate).reduce((sum, periods) => sum + absenceDayValue(periods), 0)
+
+    let cost = 0
+    for (const pt of presenceTypes.filter(p => !p.is_absence)) {
+      const mins = typeMinutes[pt.code.toUpperCase()] ?? 0
+      const rate = rateByTypeId[pt.id] ?? 0
+      cost += (mins / 60) * rate
+    }
+
+    return {
+      profileId,
+      name: s ? `${s.last_name} ${s.first_name}` : '·',
+      typeMinutes,
+      absenceDays,
+      cost,
+    }
+  }).sort((a, b) => a.name.localeCompare(b.name))
+
+  const totals = rows.reduce((t, r) => {
+    const tm = { ...t.typeMinutes }
+    for (const [code, mins] of Object.entries(r.typeMinutes)) {
+      tm[code] = (tm[code] ?? 0) + mins
+    }
+    return { typeMinutes: tm, absenceDays: t.absenceDays + r.absenceDays, cost: t.cost + r.cost }
+  }, { typeMinutes: {} as Record<string, number>, absenceDays: 0, cost: 0 })
+
+  return { rows, totals }
+}
+
+// ─── Texte tronque avec tooltip UNIQUEMENT si le texte deborde ────────────────
+function TruncatedText({ text, tooltip, className = '' }: { text: string; tooltip?: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [truncated, setTruncated] = useState(false)
+  useEffect(() => {
+    const measure = () => {
+      const el = ref.current
+      if (el) setTruncated(el.scrollWidth > el.clientWidth + 1)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [text])
+
+  const inner = <span ref={ref} className={`block w-full truncate ${className}`}>{text}</span>
+  return truncated
+    ? <Tooltip content={tooltip ?? text} className="flex-1 min-w-0">{inner}</Tooltip>
+    : <span className="inline-flex flex-1 min-w-0">{inner}</span>
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function TempsPresenceClient({
   currentUserId, currentUserName, role, canManageAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
+  schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
 }: Props) {
   const supabase = createClient()
-  const canSeeCosts = ['admin', 'direction', 'comptable'].includes(role)
+  // enseignant voit ses propres couts (il ne voit que ses saisies).
+  const canSeeCosts = ['admin', 'direction', 'comptable', 'enseignant'].includes(role)
   const isRespPedago = role === 'responsable_pedagogique'
   // Peut saisir pour quelqu'un d'autre que soi : gestionnaires (tout le staff) OU
   // responsable pedagogique (enseignants uniquement).
@@ -160,10 +269,13 @@ export default function TempsPresenceClient({
   })
   const [selectedDay, setSelectedDay] = useState<string>(dateKey(new Date()))
   const [entries, setEntries] = useState<TimeEntry[]>([])
+  const [yearEntries, setYearEntries] = useState<TimeEntry[]>([]) // annee scolaire (recap annuel)
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [memberFilter, setMemberFilter] = useState<string>('') // '' = tous
+  const [recapModal, setRecapModal] = useState<'month' | 'year' | null>(null)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -216,6 +328,38 @@ export default function TempsPresenceClient({
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
 
+  // ── Fetch entries for the whole school year (recap annuel) ───────────
+  const fetchYearEntries = useCallback(async () => {
+    if (!schoolYearStart || !schoolYearEnd) { setYearEntries([]); return }
+
+    let query = supabase
+      .from('staff_time_entries')
+      .select('*')
+      .gte('entry_date', schoolYearStart)
+      .lte('entry_date', schoolYearEnd)
+
+    if (isRespPedago) {
+      const teacherIds = staffList.filter(s => s.role === 'enseignant').map(s => s.id)
+      if (!teacherIds.includes(currentUserId)) teacherIds.push(currentUserId)
+      query = query.in('profile_id', teacherIds)
+    } else if (!canManageAll) {
+      query = query.eq('profile_id', currentUserId)
+    }
+
+    const { data } = await query
+    setYearEntries((data ?? []) as TimeEntry[])
+  }, [schoolYearStart, schoolYearEnd, canManageAll, isRespPedago, currentUserId, staffList, supabase])
+
+  useEffect(() => { fetchYearEntries() }, [fetchYearEntries])
+
+  // Fermeture de la modale recapitulatif sur Echap (lecture seule → fermable).
+  useEffect(() => {
+    if (!recapModal) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setRecapModal(null) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [recapModal])
+
   // ── Navigation ──────────────────────────────────────────────────────
   const prev = () => {
     if (viewMode === 'month') setCurrentDate(new Date(year, month - 1, 1))
@@ -226,15 +370,21 @@ export default function TempsPresenceClient({
     else setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 7))
   }
 
+  // ── Filtre par membre (client, s'applique calendrier + recap) ────────
+  const filteredEntries = useMemo(
+    () => (memberFilter ? entries.filter(e => e.profile_id === memberFilter) : entries),
+    [entries, memberFilter],
+  )
+
   // ── Entries indexed by date ─────────────────────────────────────────
   const entriesByDate = useMemo(() => {
     const map: Record<string, TimeEntry[]> = {}
-    for (const e of entries) {
+    for (const e of filteredEntries) {
       if (!map[e.entry_date]) map[e.entry_date] = []
       map[e.entry_date].push(e)
     }
     return map
-  }, [entries])
+  }, [filteredEntries])
 
   // ── Day panel data ──────────────────────────────────────────────────
   const dayEntries = entriesByDate[selectedDay] ?? []
@@ -254,89 +404,129 @@ export default function TempsPresenceClient({
     return map
   }, [presenceTypeRates])
 
-  // ── Monthly recap ───────────────────────────────────────────────────
-  const monthlyRecap = useMemo(() => {
-    // recapMap[profileId][typeCode] = minutes (0 si absence = compte en jours)
-    const recapMap: Record<string, Record<string, number>> = {}
-    // Absences comptees en JOURS DISTINCTS (plusieurs saisies le meme jour = 1 jour).
-    const absenceDaysMap: Record<string, Set<string>> = {}
-
-    for (const e of entries) {
-      if (!recapMap[e.profile_id]) recapMap[e.profile_id] = {}
-
-      const pt = findPresenceType(presenceTypes, e.entry_type)
-      if (pt?.is_absence) {
-        (absenceDaysMap[e.profile_id] ??= new Set()).add(e.entry_date)
-      } else {
-        const code = e.entry_type.toUpperCase()
-        recapMap[e.profile_id][code] = (recapMap[e.profile_id][code] ?? 0) + e.duration_minutes
-      }
-    }
-
-    const allProfileIds = new Set([...Object.keys(recapMap), ...Object.keys(absenceDaysMap)])
-
-    const rows = Array.from(allProfileIds).map(profileId => {
-      const s = staffMap[profileId]
-      const typeMinutes = recapMap[profileId] ?? {}
-      const absenceDays = absenceDaysMap[profileId]?.size ?? 0
-
-      // Calcul cout : pour chaque presence type non-absence
-      let cost = 0
-      for (const pt of presenceTypes.filter(p => !p.is_absence)) {
-        const mins = typeMinutes[pt.code.toUpperCase()] ?? 0
-        const rate = rateByTypeId[pt.id] ?? 0
-        cost += (mins / 60) * rate
-      }
-
-      return {
-        profileId,
-        name: s ? `${s.last_name} ${s.first_name}` : '·',
-        typeMinutes,
-        absenceDays,
-        cost,
-      }
-    }).sort((a, b) => a.name.localeCompare(b.name))
-
-    const totals = rows.reduce((t, r) => {
-      const tm = { ...t.typeMinutes }
-      for (const [code, mins] of Object.entries(r.typeMinutes)) {
-        tm[code] = (tm[code] ?? 0) + mins
-      }
-      return { typeMinutes: tm, absenceDays: t.absenceDays + r.absenceDays, cost: t.cost + r.cost }
-    }, { typeMinutes: {} as Record<string, number>, absenceDays: 0, cost: 0 })
-
-    return { rows, totals }
-  }, [entries, staffMap, presenceTypes, rateByTypeId])
+  // ── Recap mensuel + annuel (memes calculs, jeux de donnees differents) ──
+  const filteredYearEntries = useMemo(
+    () => (memberFilter ? yearEntries.filter(e => e.profile_id === memberFilter) : yearEntries),
+    [yearEntries, memberFilter],
+  )
+  const monthlyRecap = useMemo(
+    () => buildRecap(filteredEntries, staffMap, presenceTypes, rateByTypeId),
+    [filteredEntries, staffMap, presenceTypes, rateByTypeId],
+  )
+  const annualRecap = useMemo(
+    () => buildRecap(filteredYearEntries, staffMap, presenceTypes, rateByTypeId),
+    [filteredYearEntries, staffMap, presenceTypes, rateByTypeId],
+  )
 
   // ── Calendar cells ──────────────────────────────────────────────────
   const calDays = viewMode === 'month' ? getMonthDays(year, month) : getWeekDays(currentDate)
   const todayKey = dateKey(new Date())
 
   // ── Delete handler ──────────────────────────────────────────────────
+  // Remplacements du meme jour qui referencent l'absence de cette personne :
+  // on ne peut pas supprimer l'absence tant qu'ils existent (ils la justifient).
+  const blockingReplacements = (entry: TimeEntry | undefined): TimeEntry[] => {
+    if (!entry) return []
+    const isAbs = findPresenceType(presenceTypes, entry.entry_type)?.is_absence ?? false
+    if (!isAbs) return []
+    return entries.filter(e =>
+      e.entry_date === entry.entry_date &&
+      e.is_replacement &&
+      e.replaced_profile_id === entry.profile_id,
+    )
+  }
+
   const handleDelete = async (id: string) => {
+    // Garde-fou (le bouton est deja desactive dans ce cas, ceinture + bretelles).
+    if (blockingReplacements(entries.find(e => e.id === id)).length > 0) {
+      setDeleteConfirm(null)
+      return
+    }
     await supabase.from('staff_time_entries').delete().eq('id', id)
     setDeleteConfirm(null)
     fetchEntries()
+    fetchYearEntries()
   }
 
-  // ── Export PDF du recapitulatif ─────────────────────────────────────
+  // ── Export PDF d'un recapitulatif (mensuel ou annuel) ───────────────
   const [exporting, setExporting] = useState(false)
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (scope: 'month' | 'year') => {
     setExporting(true)
     try {
+      const recap = scope === 'month' ? monthlyRecap : annualRecap
+      const periodLabel = scope === 'month'
+        ? `${MONTH_NAMES[month]} ${year}`
+        : `Année scolaire ${schoolYearLabel ?? ''}`.trim()
       await generateStaffTimePDF({
         etablissementNom,
         etablissementLogo,
-        monthLabel: `${MONTH_NAMES[month]} ${year}`,
-        typeColumns: presenceTypes.filter(p => !p.is_absence).map(p => ({ code: p.code, label: p.label })),
-        rows: monthlyRecap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, absenceDays: r.absenceDays, cost: r.cost })),
-        totals: monthlyRecap.totals,
+        periodLabel,
+        typeColumns: presenceTypes.filter(p => !p.is_absence).map(p => ({ code: p.code, label: p.label, rate: rateByTypeId[p.id] ?? 0, color: p.color })),
+        rows: recap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, absenceDays: r.absenceDays, cost: r.cost })),
+        totals: recap.totals,
         showCosts: canSeeCosts,
       })
     } finally {
       setExporting(false)
     }
   }
+
+  // ── Rendu du tableau d'un recapitulatif (mensuel ou annuel) ─────────
+  const nonAbsenceTypes = presenceTypes.filter(p => !p.is_absence)
+  const renderRecapTable = (recap: RecapResult, ariaLabel: string, emptyMsg: string) => (
+    recap.rows.length === 0 ? (
+      <p className="text-sm text-warm-400 italic text-center py-10">{emptyMsg}</p>
+    ) : (
+      <div className="overflow-x-auto rounded-xl border border-warm-100">
+          <table className="w-full text-sm" aria-label={ariaLabel}>
+            <thead>
+              <tr className="bg-warm-50/60 border-b border-warm-100">
+                <th className="px-5 py-2.5 text-left text-[11px] font-bold text-warm-500 uppercase tracking-wide">Personnel</th>
+                {nonAbsenceTypes.map(pt => (
+                  <th key={pt.id} className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: pt.color }}>
+                    {pt.label}
+                  </th>
+                ))}
+                <th className="px-4 py-2.5 text-center text-[11px] font-bold text-red-400 uppercase tracking-wide">Absences</th>
+                {canSeeCosts && <th className="px-5 py-2.5 text-right text-[11px] font-bold text-warm-500 uppercase tracking-wide">Coût</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-warm-100">
+              {recap.rows.map(r => (
+                <tr key={r.profileId} className="hover:bg-warm-50/60">
+                  <td className="px-5 py-3 font-medium text-warm-700 whitespace-nowrap">{r.name}</td>
+                  {nonAbsenceTypes.map(pt => {
+                    const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
+                    return (
+                      <td key={pt.id} className={`px-4 py-3 text-center tabular-nums ${mins > 0 ? 'text-warm-700' : 'text-warm-300'}`}>
+                        {mins > 0 ? fmtDuration(mins) : '·'}
+                      </td>
+                    )
+                  })}
+                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceDays > 0 ? 'text-red-600 font-medium' : 'text-warm-300'}`}>{r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·'}</td>
+                  {canSeeCosts && <td className="px-5 py-3 text-right font-bold text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(r.cost)}</td>}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-warm-50 border-t-2 border-warm-200 font-bold">
+                <td className="px-5 py-3 text-warm-700 uppercase text-[11px] tracking-wide">Total</td>
+                {nonAbsenceTypes.map(pt => {
+                  const mins = recap.totals.typeMinutes[pt.code.toUpperCase()] ?? 0
+                  return (
+                    <td key={pt.id} className="px-4 py-3 text-center tabular-nums" style={{ color: pt.color }}>
+                      {mins > 0 ? fmtDuration(mins) : '·'}
+                    </td>
+                  )
+                })}
+                <td className="px-4 py-3 text-center text-red-600 tabular-nums">{recap.totals.absenceDays > 0 ? fmtDays(recap.totals.absenceDays) : '·'}</td>
+                {canSeeCosts && <td className="px-5 py-3 text-right text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(recap.totals.cost)}</td>}
+              </tr>
+            </tfoot>
+          </table>
+      </div>
+    )
+  )
 
   // ── Badges for calendar cell ────────────────────────────────────────
   function renderCellBadges(dk: string) {
@@ -357,12 +547,9 @@ export default function TempsPresenceClient({
       const nameB = staffMap[b.profileId]?.last_name ?? ''
       return nameA.localeCompare(nameB)
     })
-    const shown = badges.slice(0, 4)
-    const extra = badges.length - 4
-
     return (
-      <div className="flex flex-wrap gap-0.5 mt-0.5">
-        {shown.map((data, i) => {
+      <div className="flex flex-wrap gap-0.5">
+        {badges.map((data, i) => {
           const s = staffMap[data.profileId]
           const initials = s ? getInitials(s.first_name, s.last_name) : '??'
           const fullName = s ? `${s.last_name} ${s.first_name}` : ''
@@ -384,16 +571,11 @@ export default function TempsPresenceClient({
                 className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold leading-none cursor-default"
                 style={entryStyle(color)}
               >
-                {initials} {data.mins > 0 ? fmtDuration(data.mins) : 'ABS'}
+                {initials} {data.mins > 0 ? fmtDuration(data.mins) : (pt?.code ?? data.type)}
               </span>
             </Tooltip>
           )
         })}
-        {extra > 0 && (
-          <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold bg-warm-200 text-warm-600">
-            +{extra}
-          </span>
-        )}
       </div>
     )
   }
@@ -430,6 +612,43 @@ export default function TempsPresenceClient({
           <button onClick={next} aria-label={viewMode === 'month' ? 'Mois suivant' : 'Semaine suivante'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronRight size={16} /></button>
         </div>
 
+        {canSeeRecap && (
+          <button
+            onClick={() => setRecapModal('month')}
+            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 active:scale-[0.97] transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-secondary-300 whitespace-nowrap"
+          >
+            Récap. mensuel
+          </button>
+        )}
+
+        <div className="ml-auto flex items-center gap-3">
+          {canManage && (
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="member-filter" className="text-xs font-medium text-warm-500">Membre</label>
+              <select
+                id="member-filter"
+                value={memberFilter}
+                onChange={e => setMemberFilter(e.target.value)}
+                aria-label="Filtrer par membre"
+                className="text-xs border border-warm-200 rounded-lg px-2 py-1 bg-white text-secondary-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 max-w-[180px]"
+              >
+                <option value="">Tous</option>
+                {assignableStaff.map(s => (
+                  <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {canSeeRecap && (
+            <button
+              onClick={() => setRecapModal('year')}
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 active:scale-[0.97] transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-secondary-300 whitespace-nowrap"
+            >
+              Récap. annuel
+            </button>
+          )}
+        </div>
+
       </div>
 
       {/* ── Garde : annee / types de presence manquants ──────────────── */}
@@ -460,7 +679,7 @@ export default function TempsPresenceClient({
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-warm-100 bg-warm-50">
             {DAY_NAMES.map(d => (
-              <div key={d} className="px-1 py-1.5 text-center text-[10px] font-bold text-warm-500 uppercase">{d}</div>
+              <div key={d} className="px-1 h-9 flex items-center justify-center text-[10px] font-bold text-warm-500 uppercase">{d}</div>
             ))}
           </div>
           {/* Day cells */}
@@ -488,23 +707,25 @@ export default function TempsPresenceClient({
                     !isSelected && 'hover:bg-warm-50',
                   )}
                 >
-                  <span className={clsx(
-                    'text-xs font-medium',
-                    isToday && 'bg-primary-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
-                    !isToday && (isCurrentMonth ? 'text-warm-700' : 'text-warm-300'),
-                  )}>
-                    {d.getDate()}
-                  </span>
-                  {renderCellBadges(dk)}
+                  <div className="flex items-start gap-1">
+                    <span className={clsx(
+                      'text-xs font-medium shrink-0',
+                      isToday && 'bg-primary-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
+                      !isToday && (isCurrentMonth ? 'text-warm-700' : 'text-warm-300'),
+                    )}>
+                      {d.getDate()}
+                    </span>
+                    <div className="flex-1 min-w-0">{renderCellBadges(dk)}</div>
+                  </div>
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* Day panel */}
-        <div className="card flex flex-col">
-          <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
+        {/* Day panel : hauteur = contenu (self-start) au lieu de s'etirer sur le calendrier */}
+        <div className="card flex flex-col self-start">
+          <div className="px-4 h-9 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <h3 className="text-xs font-bold text-secondary-800 capitalize">{selectedDayLabel}</h3>
             <Tooltip content={addBlockReason ?? 'Ajouter une saisie'}>
               <button
@@ -522,7 +743,7 @@ export default function TempsPresenceClient({
             </Tooltip>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="overflow-y-auto max-h-[65vh] px-3 py-1 divide-y divide-warm-100">
             {Object.keys(dayByStaff).length === 0 ? (
               <p className="text-xs text-warm-400 italic text-center py-8">Aucune saisie ce jour</p>
             ) : (
@@ -531,14 +752,16 @@ export default function TempsPresenceClient({
                 const name = s ? `${s.last_name} ${s.first_name}` : '·'
                 const totalMins = pEntries.reduce((sum, e) => sum + e.duration_minutes, 0)
                 return (
-                  <div key={pid} className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-[10px] font-bold">
+                  <div key={pid} className="flex items-start gap-2 py-2">
+                    {/* Identite (colonne gauche) : avatar + nom sur une seule ligne, aligne en haut */}
+                    <div className="flex items-center gap-1.5 w-36 shrink-0">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-[10px] font-bold shrink-0">
                         {s ? getInitials(s.first_name, s.last_name) : '??'}
                       </span>
-                      <span className="text-xs font-bold text-warm-800 flex-1">{name}</span>
-                      <span className="text-[10px] text-warm-400">{fmtDuration(totalMins)}</span>
+                      <TruncatedText text={name} className="text-[11px] font-bold text-warm-800" />
                     </div>
+                    {/* Saisies (colonne droite) */}
+                    <div className="flex-1 min-w-0 space-y-1">
                     {pEntries.map(e => {
                       const pt = findPresenceType(presenceTypes, e.entry_type)
                       const color = pt?.color ?? FALLBACK_COLOR
@@ -549,23 +772,28 @@ export default function TempsPresenceClient({
                         || e.profile_id === currentUserId
                         || (isRespPedago && targetIsTeacher)
                       return (
-                        <div key={e.id} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs" style={entryStyle(color)}>
+                        <div key={e.id} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]" style={entryStyle(color)}>
                           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(color)} />
-                          <span className="font-medium">{label}</span>
+                          <span className="font-medium shrink-0">{label}</span>
                           {!isAbs && e.start_time && (
-                            <span className="text-warm-500">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
+                            <span className="text-warm-500 shrink-0">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
                           )}
-                          <span className="text-warm-400">{fmtDuration(e.duration_minutes)}</span>
+                          <span className="text-warm-400 shrink-0">{fmtDuration(e.duration_minutes)}</span>
                           {e.notes && (
-                            <span className="italic text-warm-400 text-[10px] truncate">{e.notes}</span>
+                            <TruncatedText text={e.notes} className="italic text-warm-400 text-[10px]" />
                           )}
                           {e.is_replacement && e.replaced_profile_id && (
-                            <span className="italic text-warm-400 text-[10px]">
-                              rempl. {staffMap[e.replaced_profile_id]?.last_name ?? ''}
-                            </span>
+                            <TruncatedText
+                              text={`rempl. ${staffMap[e.replaced_profile_id]?.last_name ?? ''}`}
+                              tooltip={`Remplace ${staffMap[e.replaced_profile_id]?.last_name ?? ''} ${staffMap[e.replaced_profile_id]?.first_name ?? ''}`.trim()}
+                              className="italic text-warm-400 text-[10px]"
+                            />
+                          )}
+                          {isAbs && e.absence_period && e.absence_period !== 'full' && (
+                            <span className="text-warm-500 text-[10px] font-medium shrink-0">{PERIOD_LABEL[e.absence_period]}</span>
                           )}
                           {isAbs && e.absence_reason && (
-                            <span className="italic text-warm-400 text-[10px] truncate">{e.absence_reason}</span>
+                            <TruncatedText text={e.absence_reason} className="italic text-warm-400 text-[10px]" />
                           )}
                           {canEdit && (
                             <span className="ml-auto flex items-center gap-0.5 flex-shrink-0">
@@ -592,6 +820,7 @@ export default function TempsPresenceClient({
                         </div>
                       )
                     })}
+                    </div>
                   </div>
                 )
               })
@@ -607,88 +836,65 @@ export default function TempsPresenceClient({
         </div>
       </div>
 
-      {/* ── Recapitulatif mensuel ────────────────────────────────────── */}
-      {canSeeRecap && (
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-bold text-secondary-800">
-              Récapitulatif · {MONTH_NAMES[month]} {year}
-            </h3>
-            <div className="flex items-center gap-3">
+      {/* ── Modale d'un recapitulatif (mensuel OU annuel) ────────────── */}
+      {canSeeRecap && recapModal && (() => {
+        const isMonth = recapModal === 'month'
+        const modalTitle = isMonth
+          ? `Récapitulatif mensuel · ${MONTH_NAMES[month]} ${year}`
+          : (schoolYearLabel ? `Récapitulatif annuel · ${schoolYearLabel}` : 'Récapitulatif annuel')
+        const recap = isMonth ? monthlyRecap : annualRecap
+        const emptyMsg = isMonth ? 'Aucune saisie ce mois' : 'Aucune saisie cette année'
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+            onClick={() => setRecapModal(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="recap-modal-title"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* En-tete : titre + export + fermer */}
+              <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-warm-100 shrink-0">
+                <h3 id="recap-modal-title" className="text-sm font-bold text-secondary-800">{modalTitle}</h3>
+                <div className="flex items-center gap-2">
+                  {recap.rows.length > 0 && (
+                    <Tooltip content="Exporter le récapitulatif en PDF">
+                      <button
+                        onClick={() => handleExportPdf(isMonth ? 'month' : 'year')}
+                        disabled={exporting}
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary-700 text-white hover:bg-secondary-800 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {exporting ? 'Export…' : 'Exporter PDF'}
+                      </button>
+                    </Tooltip>
+                  )}
+                  <button onClick={() => setRecapModal(null)} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
+                </div>
+              </div>
+
+              {/* Legende des taux horaires (une fois, si couts visibles) */}
               {canSeeCosts && presenceTypeRates.length > 0 && (
-                <div className="flex flex-wrap gap-3 text-[10px] text-warm-400">
-                  {presenceTypes.filter(p => !p.is_absence).map(pt => {
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 border-b border-warm-100 bg-warm-50/60 text-[11px] shrink-0">
+                  <span className="font-semibold text-warm-500">Taux horaires</span>
+                  {nonAbsenceTypes.map(pt => {
                     const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
                     if (!rate) return null
                     return <span key={pt.id} style={{ color: pt.color }}>{pt.label} {fmtEur(rate)}/h</span>
                   })}
                 </div>
               )}
-              {monthlyRecap.rows.length > 0 && (
-                <Tooltip content="Exporter le récapitulatif en PDF">
-                  <button
-                    onClick={handleExportPdf}
-                    disabled={exporting}
-                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-warm-200 text-secondary-700 hover:bg-warm-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                  >
-                    {exporting ? 'Export…' : 'Exporter PDF'}
-                  </button>
-                </Tooltip>
-              )}
+
+              {/* Tableau */}
+              <div className="p-4 overflow-y-auto min-h-0">
+                {renderRecapTable(recap, modalTitle, emptyMsg)}
+              </div>
             </div>
           </div>
-          {monthlyRecap.rows.length === 0 ? (
-            <p className="text-xs text-warm-400 italic text-center py-6">Aucune saisie ce mois</p>
-          ) : (
-            <table className="w-full text-sm" aria-label={`Récapitulatif mensuel des temps de présence · ${MONTH_NAMES[month]} ${year}`}>
-              <thead>
-                <tr className="bg-warm-50 border-b border-warm-100">
-                  <th className="px-3 py-2 text-left text-xs font-bold text-warm-500 uppercase">Staff</th>
-                  {presenceTypes.filter(p => !p.is_absence).map(pt => (
-                    <th key={pt.id} className="px-3 py-2 text-center text-xs font-bold uppercase" style={{ color: pt.color }}>
-                      {pt.label}
-                    </th>
-                  ))}
-                  <th className="px-3 py-2 text-center text-xs font-bold text-red-400 uppercase">Absences</th>
-                  {canSeeCosts && <th className="px-3 py-2 text-right text-xs font-bold text-warm-500 uppercase">Coût</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-warm-50">
-                {monthlyRecap.rows.map(r => (
-                  <tr key={r.profileId} className="hover:bg-warm-50">
-                    <td className="px-3 py-2 font-medium text-warm-700">{r.name}</td>
-                    {presenceTypes.filter(p => !p.is_absence).map(pt => {
-                      const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
-                      return (
-                        <td key={pt.id} className="px-3 py-2 text-center text-warm-600">
-                          {mins > 0 ? fmtDuration(mins) : '·'}
-                        </td>
-                      )
-                    })}
-                    <td className="px-3 py-2 text-center text-warm-600">{r.absenceDays > 0 ? `${r.absenceDays}j` : '·'}</td>
-                    {canSeeCosts && <td className="px-3 py-2 text-right font-bold text-secondary-800">{fmtEur(r.cost)}</td>}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-warm-50 border-t border-warm-200 font-bold">
-                  <td className="px-3 py-2 text-warm-700">TOTAL</td>
-                  {presenceTypes.filter(p => !p.is_absence).map(pt => {
-                    const mins = monthlyRecap.totals.typeMinutes[pt.code.toUpperCase()] ?? 0
-                    return (
-                      <td key={pt.id} className="px-3 py-2 text-center" style={{ color: pt.color }}>
-                        {mins > 0 ? fmtDuration(mins) : '·'}
-                      </td>
-                    )
-                  })}
-                  <td className="px-3 py-2 text-center text-red-600">{monthlyRecap.totals.absenceDays > 0 ? `${monthlyRecap.totals.absenceDays}j` : '·'}</td>
-                  {canSeeCosts && <td className="px-3 py-2 text-right text-secondary-800">{fmtEur(monthlyRecap.totals.cost)}</td>}
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── Modal ────────────────────────────────────────────────────── */}
       {modalOpen && (
@@ -701,21 +907,33 @@ export default function TempsPresenceClient({
           presenceTypes={presenceTypes}
           existingEntries={dayEntries}
           onClose={() => { setModalOpen(false); setEditingEntry(null) }}
-          onSaved={() => { setModalOpen(false); setEditingEntry(null); fetchEntries() }}
+          onSaved={() => { setModalOpen(false); setEditingEntry(null); fetchEntries(); fetchYearEntries() }}
         />
       )}
 
-      {/* ── Confirmation de suppression ──────────────────────────────── */}
-      {deleteConfirm && (
-        <ConfirmModal
-          variant="danger"
-          title="Supprimer la saisie"
-          message="Cette saisie de temps de présence sera définitivement supprimée."
-          confirmLabel="Supprimer"
-          onConfirm={() => handleDelete(deleteConfirm)}
-          onCancel={() => setDeleteConfirm(null)}
-        />
-      )}
+      {/* ── Confirmation / blocage de suppression ────────────────────── */}
+      {deleteConfirm && (() => {
+        const deps = blockingReplacements(entries.find(e => e.id === deleteConfirm))
+        const blocked = deps.length > 0
+        const depNames = [...new Set(deps.map(d => {
+          const s = staffMap[d.profile_id]
+          return s ? `${s.last_name} ${s.first_name}` : '·'
+        }))]
+        return (
+          <ConfirmModal
+            variant={blocked ? 'warning' : 'danger'}
+            title={blocked ? 'Suppression impossible' : 'Supprimer la saisie'}
+            message={blocked
+              ? `Cette absence justifie ${deps.length} remplacement(s) ce jour (${depNames.join(', ')}). Supprimez d'abord ces saisies de remplacement.`
+              : 'Cette saisie de temps de présence sera définitivement supprimée.'}
+            confirmLabel="Supprimer"
+            confirmDisabled={blocked}
+            cancelLabel={blocked ? 'Fermer' : 'Annuler'}
+            onConfirm={() => handleDelete(deleteConfirm)}
+            onCancel={() => setDeleteConfirm(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

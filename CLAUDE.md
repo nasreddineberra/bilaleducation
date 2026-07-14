@@ -559,8 +559,42 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
     banniere ambre avec lien vers `Parametres → Types de presence` (evite une modale de saisie sans aucun type a choisir).
   - **Reste P4 (a la carte)** : filtre par membre, demi-journees d'absence.
 
+#### 14 juillet 2026 (suite) — Temps de presence P4 (complet) + exclusivite absence/presence + ergonomie
+- **P4 termine** (module Temps de presence) :
+  - **Filtre par membre** : select « Membre » dans la toolbar (roles gestionnaires + resp. pedago), filtre calendrier +
+    recaps. `staffList` (page.tsx) **exclut admin** (parent/super_admin deja exclus) : membres pointables = direction/
+    comptable/secretaire/resp.pedago/enseignant.
+  - **Enseignant voit ses couts** : `canSeeRecap`/`canSeeCosts` incluent `enseignant` (ne voit que sa propre ligne ;
+    RLS `presence_type_rates` = tenant, lecture OK).
+  - **Recaps = 2 modales SEPAREES** : boutons « Recap. mensuel » (a droite du selecteur de mois) + « Recap. annuel »
+    (groupe droite). Chaque modale = 1 tableau pleine largeur (`renderRecapTable`), en-tete titre + Export PDF + X,
+    legende des taux 1 ligne, `tabular-nums`, fermable X/fond/Echap. `buildRecap` mutualise mensuel/annuel ; annuel =
+    requete `start_date→end_date` de l'annee (`yearEntries`, rafraichi apres save/delete). PDF : `periodLabel` +
+    **taux horaires en haut a droite** (si couts) + **colonnes centrees**.
+  - **Demi-journees d'absence** (migration `add-absence-period.sql`) : colonne `absence_period ('full'|'am'|'pm')`.
+    Modale = toggle Journee/Matin/Apres-midi (si absence). Recap compte en **fractions** (journee=1, demi=0,5,
+    matin+aprem meme jour=1), affiche « 1,5j » (`fmtDays`) ; panneau du jour affiche Matin/Apres-midi.
+  - **Garde « aucun type configure »** : Ajouter grise + Tooltip + banniere ambre (lien Types de presence).
+- **Exclusivite absence / presence** (`TimeEntryModal`) : **Type choisi en premier** (membre grise tant qu'aucun type),
+  liste des membres filtree — saisie d'**absence** = exclure toute personne ayant **deja une entree ce jour** (une seule
+  absence/jour) ; saisie de **presence** = exclure les **absents**. **Personne remplacee** = uniquement les **absents** du
+  jour (message si aucun). **Blocage suppression** d'une absence tant que des **remplacements du jour la referencent**
+  (`replaced_profile_id`) : modale « Suppression impossible » (Supprimer grise) + garde-fou dans `handleDelete`.
+- **Ergonomie panneau du jour** : chaque personne en **2 colonnes** (identite avatar+nom a gauche sur une ligne,
+  saisies a droite) ; `TruncatedText` (tooltip **uniquement si tronque**, mesure `scrollWidth`) sur nom/notes/rempl/motif ;
+  filet `divide-y divide-warm-100` entre personnes ; panneau `self-start` (hauteur = contenu, `max-h-[65vh]` scroll) ;
+  en-tete du panneau `h-9` **aligne sur la bande de jours du calendrier**.
+- **Calendrier** : badges en **wrap horizontal dans une 2e colonne** a droite du numero ; **plafond +N supprime**
+  (tous les badges affiches).
+- **Fix decalage de date** : `dateKey` en composantes **locales** (plus `toISOString`/UTC) → « aujourd'hui » + badges
+  sur le bon jour.
+- **Fix badge « ABS » en dur** : le badge d'absence affichait `'ABS'` en dur → `pt?.code ?? data.type` (vrai code BDD).
+  Voir memoire `temps-presence-audit.md` : **passe fin de V1** pour traquer les valeurs en dur (`'ABS'`, `'cours'`…).
+- **Migrations executees** : `adjust-time-tracking-roles.sql`, `add-absence-period.sql`.
+
 ## Prochaine etape
-- Poursuite des **fonctionnalites utilisateurs** ; reste Temps de presence P4 (filtre par membre, demi-journees).
+- Poursuite des **fonctionnalites utilisateurs**. Reste (optionnel) : couplage EDT ↔ types COURS/ACTIVITE.
+  Tests reels reportes en **fin de V1** (l'utilisateur demandera un plan de test).
 
 ## Stack technique
 
