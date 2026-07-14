@@ -12,6 +12,9 @@ interface CreateNotificationParams {
   metadata?: Record<string, any>
   emailHtml?: string
   emailSubject?: string
+  // Force la liste des destinataires email (ex. classe adulte : uniquement le
+  // tuteur inscrit). Si absent, on envoie aux emails du foyer (getEmails).
+  emailsOverride?: string[]
 }
 
 interface ParentInfo {
@@ -50,7 +53,7 @@ export async function createNotification(params: CreateNotificationParams) {
   const parent = await getParentWithEmails(params.parent_id)
   if (!parent) return
 
-  const emails = getEmails(parent)
+  const emails = params.emailsOverride ?? getEmails(parent)
   let emailStatus: 'sent' | 'failed' | 'skipped' = 'skipped'
   let pushStatus: 'sent' | 'failed' | 'no_sub' = 'no_sub'
 

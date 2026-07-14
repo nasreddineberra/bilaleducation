@@ -4,6 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 // ── Délais de session (en secondes) ──────────────────────────────────────────
 import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE } from '@/lib/session-config'
 const SESSION_COOKIE = 'app-session'
+// Marqueur de session NAVIGATEUR : cookie sans maxAge/expires, supprimé par le
+// navigateur à sa fermeture. Permet de distinguer « navigateur resté ouvert »
+// (vraie inactivité → message) de « navigateur fermé puis rouvert » (démarrage à
+// froid → login neutre, sans message). app-session, lui, est persistant (30 j).
+const BROWSER_MARKER = 'app-open'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -156,6 +161,7 @@ export async function proxy(request: NextRequest) {
   if (!user && pathname.startsWith('/dashboard')) {
     const redirect = NextResponse.redirect(new URL('/login', request.url))
     redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+    redirect.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
     return redirect
   }
 
@@ -180,8 +186,14 @@ export async function proxy(request: NextRequest) {
     const expired = now - loginTime > MAX_SESSION_DURATION
 
     if (inactive || expired) {
-      const reason = inactive ? 'inactivity' : 'session'
-      const redirect = NextResponse.redirect(new URL(`/login?reason=${reason}`, request.url))
+      // Le message ne s'affiche que si le NAVIGATEUR est resté ouvert (marqueur de
+      // session présent). Sur un démarrage à froid (navigateur fermé puis rouvert),
+      // le marqueur a disparu → login neutre, sans message : on se reconnecte
+      // simplement, ce qui a du sens du point de vue de l'utilisateur.
+      const browserOpen = !!request.cookies.get(BROWSER_MARKER)?.value
+      const reason = browserOpen ? (inactive ? 'inactivity' : 'session') : null
+      const loginUrl = reason ? `/login?reason=${reason}` : '/login'
+      const redirect = NextResponse.redirect(new URL(loginUrl, request.url))
 
       // Déconnecter côté Supabase et propager la suppression des cookies auth
       const supabaseForSignOut = createServerClient(
@@ -201,6 +213,7 @@ export async function proxy(request: NextRequest) {
       await supabaseForSignOut.auth.signOut()
 
       redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+      redirect.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
       return redirect
     }
 
@@ -214,6 +227,15 @@ export async function proxy(request: NextRequest) {
       sameSite: 'lax',
       path: '/',
       maxAge: SESSION_COOKIE_MAX_AGE,
+    })
+
+    // Marqueur de session navigateur : SANS maxAge/expires → le navigateur le
+    // supprime à sa fermeture. Sa présence atteste que le navigateur est resté ouvert.
+    response.cookies.set(BROWSER_MARKER, '1', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
     })
   }
 
@@ -277,6 +299,7 @@ export async function proxy(request: NextRequest) {
   // aussitôt re-déconnectée par le contrôle d'inactivité (« double login »).
   if (pathname === '/login') {
     response.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+    response.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
   }
 
   return response

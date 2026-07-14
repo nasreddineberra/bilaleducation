@@ -2,10 +2,13 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Clock, X } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { generateStaffTimePDF } from './staffTimePdf'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +60,8 @@ interface Props {
   presenceTypeRates: PresenceTypeRate[]
   schoolYearId: string | null
   initialMonth?: string // format "YYYY-MM"
+  etablissementNom: string
+  etablissementLogo: string | null
 }
 
 function findPresenceType(presenceTypes: PresenceType[], code: string): PresenceType | undefined {
@@ -80,7 +85,7 @@ function dotStyle(color: string) {
 const FALLBACK_COLOR = '#6b7280'
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-const MONTH_NAMES = ['Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre']
+const MONTH_NAMES = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
 function fmtDuration(mins: number): string {
   const h = Math.floor(mins / 60)
@@ -130,9 +135,20 @@ function getWeekDays(refDate: Date): Date[] {
 export default function TempsPresenceClient({
   currentUserId, currentUserName, role, canManageAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
+  etablissementNom, etablissementLogo,
 }: Props) {
   const supabase = createClient()
   const canSeeCosts = ['admin', 'direction', 'comptable'].includes(role)
+  const isRespPedago = role === 'responsable_pedagogique'
+  // Peut saisir pour quelqu'un d'autre que soi : gestionnaires (tout le staff) OU
+  // responsable pedagogique (enseignants uniquement).
+  const canManage = canManageAll || isRespPedago
+  // Staff selectionnable dans la modale selon le perimetre du role.
+  const assignableStaff = useMemo(() => {
+    if (canManageAll) return staffList
+    if (isRespPedago) return staffList.filter(s => s.role === 'enseignant' || s.id === currentUserId)
+    return staffList.filter(s => s.id === currentUserId)
+  }, [canManageAll, isRespPedago, staffList, currentUserId])
 
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
   const [currentDate, setCurrentDate] = useState(() => {
@@ -151,6 +167,16 @@ export default function TempsPresenceClient({
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
+
+  // Garde : sans annee scolaire OU sans type de presence configure, la saisie est
+  // impossible (la modale n'aurait aucun type a choisir) → on bloque + on informe.
+  const noTypes = presenceTypes.length === 0
+  const canAdd = !!schoolYearId && !noTypes
+  const addBlockReason = !schoolYearId
+    ? 'Aucune année scolaire en cours'
+    : noTypes
+      ? 'Aucun type de présence configuré pour cette année'
+      : null
 
   // Staff map for quick lookup
   const staffMap = useMemo(() => {
@@ -173,7 +199,7 @@ export default function TempsPresenceClient({
       .order('entry_date')
       .order('start_time')
 
-    if (role === 'resp_pedagogique') {
+    if (isRespPedago) {
       // Resp. pedagogique voit tous les enseignants + lui-meme
       const teacherIds = staffList.filter(s => s.role === 'enseignant').map(s => s.id)
       if (!teacherIds.includes(currentUserId)) teacherIds.push(currentUserId)
@@ -186,7 +212,7 @@ export default function TempsPresenceClient({
     const { data } = await query
     setEntries((data ?? []) as TimeEntry[])
     setLoading(false)
-  }, [year, month, canManageAll, currentUserId, role, staffList, supabase])
+  }, [year, month, canManageAll, isRespPedago, currentUserId, staffList, supabase])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
 
@@ -232,16 +258,15 @@ export default function TempsPresenceClient({
   const monthlyRecap = useMemo(() => {
     // recapMap[profileId][typeCode] = minutes (0 si absence = compte en jours)
     const recapMap: Record<string, Record<string, number>> = {}
-    const absenceDaysMap: Record<string, number> = {}
+    // Absences comptees en JOURS DISTINCTS (plusieurs saisies le meme jour = 1 jour).
+    const absenceDaysMap: Record<string, Set<string>> = {}
 
     for (const e of entries) {
       if (!recapMap[e.profile_id]) recapMap[e.profile_id] = {}
-      if (!absenceDaysMap[e.profile_id]) absenceDaysMap[e.profile_id] = 0
 
       const pt = findPresenceType(presenceTypes, e.entry_type)
       if (pt?.is_absence) {
-        // Traitement absence : comptage en jours
-        absenceDaysMap[e.profile_id]++
+        (absenceDaysMap[e.profile_id] ??= new Set()).add(e.entry_date)
       } else {
         const code = e.entry_type.toUpperCase()
         recapMap[e.profile_id][code] = (recapMap[e.profile_id][code] ?? 0) + e.duration_minutes
@@ -253,7 +278,7 @@ export default function TempsPresenceClient({
     const rows = Array.from(allProfileIds).map(profileId => {
       const s = staffMap[profileId]
       const typeMinutes = recapMap[profileId] ?? {}
-      const absenceDays = absenceDaysMap[profileId] ?? 0
+      const absenceDays = absenceDaysMap[profileId]?.size ?? 0
 
       // Calcul cout : pour chaque presence type non-absence
       let cost = 0
@@ -265,7 +290,7 @@ export default function TempsPresenceClient({
 
       return {
         profileId,
-        name: s ? `${s.last_name} ${s.first_name}` : '—',
+        name: s ? `${s.last_name} ${s.first_name}` : '·',
         typeMinutes,
         absenceDays,
         cost,
@@ -292,6 +317,25 @@ export default function TempsPresenceClient({
     await supabase.from('staff_time_entries').delete().eq('id', id)
     setDeleteConfirm(null)
     fetchEntries()
+  }
+
+  // ── Export PDF du recapitulatif ─────────────────────────────────────
+  const [exporting, setExporting] = useState(false)
+  const handleExportPdf = async () => {
+    setExporting(true)
+    try {
+      await generateStaffTimePDF({
+        etablissementNom,
+        etablissementLogo,
+        monthLabel: `${MONTH_NAMES[month]} ${year}`,
+        typeColumns: presenceTypes.filter(p => !p.is_absence).map(p => ({ code: p.code, label: p.label })),
+        rows: monthlyRecap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, absenceDays: r.absenceDays, cost: r.cost })),
+        totals: monthlyRecap.totals,
+        showCosts: canSeeCosts,
+      })
+    } finally {
+      setExporting(false)
+    }
   }
 
   // ── Badges for calendar cell ────────────────────────────────────────
@@ -361,7 +405,7 @@ export default function TempsPresenceClient({
         const wk = getWeekDays(currentDate)
         const d1 = wk[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
         const d2 = wk[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-        return `${d1} — ${d2}`
+        return `${d1} – ${d2}`
       })()
 
   const selectedDayLabel = new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -371,22 +415,42 @@ export default function TempsPresenceClient({
 
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 bg-warm-100 rounded-lg p-0.5">
-          <button onClick={() => setViewMode('month')} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors', viewMode === 'month' ? 'bg-white shadow text-secondary-800' : 'text-warm-500')}>
+        <div className="flex items-center gap-1 bg-warm-100 rounded-lg p-0.5" role="group" aria-label="Mode d'affichage">
+          <button onClick={() => setViewMode('month')} aria-pressed={viewMode === 'month'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'month' ? 'bg-white shadow text-secondary-800' : 'text-warm-500')}>
             Mois
           </button>
-          <button onClick={() => setViewMode('week')} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors', viewMode === 'week' ? 'bg-white shadow text-secondary-800' : 'text-warm-500')}>
+          <button onClick={() => setViewMode('week')} aria-pressed={viewMode === 'week'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'week' ? 'bg-white shadow text-secondary-800' : 'text-warm-500')}>
             Semaine
           </button>
         </div>
 
         <div className="flex items-center gap-1">
-          <button onClick={prev} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500"><ChevronLeft size={16} /></button>
+          <button onClick={prev} aria-label={viewMode === 'month' ? 'Mois précédent' : 'Semaine précédente'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronLeft size={16} /></button>
           <span className="text-sm font-bold text-secondary-800 min-w-[180px] text-center">{title}</span>
-          <button onClick={next} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500"><ChevronRight size={16} /></button>
+          <button onClick={next} aria-label={viewMode === 'month' ? 'Mois suivant' : 'Semaine suivante'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronRight size={16} /></button>
         </div>
 
       </div>
+
+      {/* ── Garde : annee / types de presence manquants ──────────────── */}
+      {addBlockReason && (
+        <div role="status" className="card px-4 py-3 flex items-start gap-2.5 bg-amber-50 border-amber-200 text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <p className="text-xs">
+            {!schoolYearId ? (
+              <>Aucune année scolaire en cours. La saisie des temps de présence est indisponible.</>
+            ) : (
+              <>
+                Aucun type de présence configuré pour cette année. Configurez-les d'abord dans{' '}
+                <Link href="/dashboard/types-presence" className="font-semibold underline hover:text-amber-900">
+                  Paramètres → Types de présence
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* ── Calendar + Day panel ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -406,12 +470,18 @@ export default function TempsPresenceClient({
               const isCurrentMonth = d.getMonth() === month
               const isSelected = dk === selectedDay
               const isToday = dk === todayKey
+              const cellCount = (entriesByDate[dk] ?? []).length
+              const dLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+              const ariaLabel = `${dLabel}${isToday ? " (aujourd'hui)" : ''}, ${cellCount === 0 ? 'aucune saisie' : cellCount === 1 ? '1 saisie' : `${cellCount} saisies`}`
               return (
                 <button
                   key={i}
                   onClick={() => setSelectedDay(dk)}
+                  aria-label={ariaLabel}
+                  aria-pressed={isSelected}
+                  aria-current={isToday ? 'date' : undefined}
                   className={clsx(
-                    'relative border border-warm-50 p-1 text-left transition-colors min-h-[70px]',
+                    'relative border border-warm-50 p-1 text-left transition-colors min-h-[70px] outline-none focus-visible:ring-2 focus-visible:ring-primary-500/60 focus-visible:z-10',
                     viewMode === 'week' && 'min-h-[120px]',
                     isCurrentMonth ? 'bg-white' : 'bg-warm-50/50',
                     isSelected && 'ring-2 ring-primary-400 ring-inset',
@@ -436,19 +506,20 @@ export default function TempsPresenceClient({
         <div className="card flex flex-col">
           <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <h3 className="text-xs font-bold text-secondary-800 capitalize">{selectedDayLabel}</h3>
-            <button
-              onClick={() => { setEditingEntry(null); setModalOpen(true) }}
-              disabled={!schoolYearId}
-              title={!schoolYearId ? 'Aucune année scolaire en cours' : undefined}
-              className={clsx(
-                'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
-                schoolYearId
-                  ? 'bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
-                  : 'bg-warm-200 text-warm-400 cursor-not-allowed'
-              )}
-            >
-              <Plus size={12} /> Ajouter
-            </button>
+            <Tooltip content={addBlockReason ?? 'Ajouter une saisie'}>
+              <button
+                onClick={() => { setEditingEntry(null); setModalOpen(true) }}
+                disabled={!canAdd}
+                className={clsx(
+                  'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                  canAdd
+                    ? 'bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
+                    : 'bg-warm-200 text-warm-400 cursor-not-allowed'
+                )}
+              >
+                Ajouter
+              </button>
+            </Tooltip>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -457,7 +528,7 @@ export default function TempsPresenceClient({
             ) : (
               Object.entries(dayByStaff).map(([pid, pEntries]) => {
                 const s = staffMap[pid]
-                const name = s ? `${s.last_name} ${s.first_name}` : '—'
+                const name = s ? `${s.last_name} ${s.first_name}` : '·'
                 const totalMins = pEntries.reduce((sum, e) => sum + e.duration_minutes, 0)
                 return (
                   <div key={pid} className="space-y-1">
@@ -472,12 +543,16 @@ export default function TempsPresenceClient({
                       const pt = findPresenceType(presenceTypes, e.entry_type)
                       const color = pt?.color ?? FALLBACK_COLOR
                       const label = pt?.label ?? e.entry_type
-                      const canEdit = canManageAll || e.profile_id === currentUserId
+                      const isAbs = pt?.is_absence ?? false
+                      const targetIsTeacher = staffMap[e.profile_id]?.role === 'enseignant'
+                      const canEdit = canManageAll
+                        || e.profile_id === currentUserId
+                        || (isRespPedago && targetIsTeacher)
                       return (
                         <div key={e.id} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs" style={entryStyle(color)}>
                           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(color)} />
                           <span className="font-medium">{label}</span>
-                          {e.entry_type !== 'absence' && e.start_time && (
+                          {!isAbs && e.start_time && (
                             <span className="text-warm-500">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
                           )}
                           <span className="text-warm-400">{fmtDuration(e.duration_minutes)}</span>
@@ -489,23 +564,29 @@ export default function TempsPresenceClient({
                               rempl. {staffMap[e.replaced_profile_id]?.last_name ?? ''}
                             </span>
                           )}
-                          {e.entry_type === 'absence' && e.absence_reason && (
+                          {isAbs && e.absence_reason && (
                             <span className="italic text-warm-400 text-[10px] truncate">{e.absence_reason}</span>
                           )}
                           {canEdit && (
                             <span className="ml-auto flex items-center gap-0.5 flex-shrink-0">
-                              <button onClick={() => { setEditingEntry(e); setModalOpen(true) }} className="p-0.5 rounded hover:bg-white/50">
-                                <Pencil size={10} className="text-warm-400" />
-                              </button>
-                              {deleteConfirm === e.id ? (
-                                <button onClick={() => handleDelete(e.id)} className="p-0.5 rounded bg-danger-500 text-white">
-                                  <Trash2 size={10} />
+                              <Tooltip content="Modifier">
+                                <button
+                                  onClick={() => { setEditingEntry(e); setModalOpen(true) }}
+                                  aria-label="Modifier la saisie"
+                                  className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                                >
+                                  <Pencil size={10} className="text-warm-400" />
                                 </button>
-                              ) : (
-                                <button onClick={() => setDeleteConfirm(e.id)} className="p-0.5 rounded hover:bg-white/50">
+                              </Tooltip>
+                              <Tooltip content="Supprimer">
+                                <button
+                                  onClick={() => setDeleteConfirm(e.id)}
+                                  aria-label="Supprimer la saisie"
+                                  className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-danger-500/50"
+                                >
                                   <Trash2 size={10} className="text-warm-400" />
                                 </button>
-                              )}
+                              </Tooltip>
                             </span>
                           )}
                         </div>
@@ -529,24 +610,37 @@ export default function TempsPresenceClient({
       {/* ── Recapitulatif mensuel ────────────────────────────────────── */}
       {canSeeRecap && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between gap-3">
             <h3 className="text-sm font-bold text-secondary-800">
-              Recapitulatif — {MONTH_NAMES[month]} {year}
+              Récapitulatif · {MONTH_NAMES[month]} {year}
             </h3>
-            {canSeeCosts && presenceTypeRates.length > 0 && (
-              <div className="flex flex-wrap gap-3 text-[10px] text-warm-400">
-                {presenceTypes.filter(p => !p.is_absence).map(pt => {
-                  const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
-                  if (!rate) return null
-                  return <span key={pt.id} style={{ color: pt.color }}>{pt.label} {fmtEur(rate)}/h</span>
-                })}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {canSeeCosts && presenceTypeRates.length > 0 && (
+                <div className="flex flex-wrap gap-3 text-[10px] text-warm-400">
+                  {presenceTypes.filter(p => !p.is_absence).map(pt => {
+                    const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
+                    if (!rate) return null
+                    return <span key={pt.id} style={{ color: pt.color }}>{pt.label} {fmtEur(rate)}/h</span>
+                  })}
+                </div>
+              )}
+              {monthlyRecap.rows.length > 0 && (
+                <Tooltip content="Exporter le récapitulatif en PDF">
+                  <button
+                    onClick={handleExportPdf}
+                    disabled={exporting}
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-warm-200 text-secondary-700 hover:bg-warm-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {exporting ? 'Export…' : 'Exporter PDF'}
+                  </button>
+                </Tooltip>
+              )}
+            </div>
           </div>
           {monthlyRecap.rows.length === 0 ? (
             <p className="text-xs text-warm-400 italic text-center py-6">Aucune saisie ce mois</p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" aria-label={`Récapitulatif mensuel des temps de présence · ${MONTH_NAMES[month]} ${year}`}>
               <thead>
                 <tr className="bg-warm-50 border-b border-warm-100">
                   <th className="px-3 py-2 text-left text-xs font-bold text-warm-500 uppercase">Staff</th>
@@ -556,7 +650,7 @@ export default function TempsPresenceClient({
                     </th>
                   ))}
                   <th className="px-3 py-2 text-center text-xs font-bold text-red-400 uppercase">Absences</th>
-                  {canSeeCosts && <th className="px-3 py-2 text-right text-xs font-bold text-warm-500 uppercase">Cout</th>}
+                  {canSeeCosts && <th className="px-3 py-2 text-right text-xs font-bold text-warm-500 uppercase">Coût</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-warm-50">
@@ -567,11 +661,11 @@ export default function TempsPresenceClient({
                       const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
                       return (
                         <td key={pt.id} className="px-3 py-2 text-center text-warm-600">
-                          {mins > 0 ? fmtDuration(mins) : '—'}
+                          {mins > 0 ? fmtDuration(mins) : '·'}
                         </td>
                       )
                     })}
-                    <td className="px-3 py-2 text-center text-warm-600">{r.absenceDays > 0 ? `${r.absenceDays}j` : '—'}</td>
+                    <td className="px-3 py-2 text-center text-warm-600">{r.absenceDays > 0 ? `${r.absenceDays}j` : '·'}</td>
                     {canSeeCosts && <td className="px-3 py-2 text-right font-bold text-secondary-800">{fmtEur(r.cost)}</td>}
                   </tr>
                 ))}
@@ -583,11 +677,11 @@ export default function TempsPresenceClient({
                     const mins = monthlyRecap.totals.typeMinutes[pt.code.toUpperCase()] ?? 0
                     return (
                       <td key={pt.id} className="px-3 py-2 text-center" style={{ color: pt.color }}>
-                        {mins > 0 ? fmtDuration(mins) : '—'}
+                        {mins > 0 ? fmtDuration(mins) : '·'}
                       </td>
                     )
                   })}
-                  <td className="px-3 py-2 text-center text-red-600">{monthlyRecap.totals.absenceDays > 0 ? `${monthlyRecap.totals.absenceDays}j` : '—'}</td>
+                  <td className="px-3 py-2 text-center text-red-600">{monthlyRecap.totals.absenceDays > 0 ? `${monthlyRecap.totals.absenceDays}j` : '·'}</td>
                   {canSeeCosts && <td className="px-3 py-2 text-right text-secondary-800">{fmtEur(monthlyRecap.totals.cost)}</td>}
                 </tr>
               </tfoot>
@@ -602,12 +696,24 @@ export default function TempsPresenceClient({
           date={selectedDay}
           entry={editingEntry}
           currentUserId={currentUserId}
-          canManageAll={canManageAll}
-          staffList={staffList}
+          canManage={canManage}
+          staffList={assignableStaff}
           presenceTypes={presenceTypes}
           existingEntries={dayEntries}
           onClose={() => { setModalOpen(false); setEditingEntry(null) }}
           onSaved={() => { setModalOpen(false); setEditingEntry(null); fetchEntries() }}
+        />
+      )}
+
+      {/* ── Confirmation de suppression ──────────────────────────────── */}
+      {deleteConfirm && (
+        <ConfirmModal
+          variant="danger"
+          title="Supprimer la saisie"
+          message="Cette saisie de temps de présence sera définitivement supprimée."
+          confirmLabel="Supprimer"
+          onConfirm={() => handleDelete(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
         />
       )}
     </div>

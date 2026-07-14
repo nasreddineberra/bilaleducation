@@ -1,9 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 import TempsPresenceClient from '@/components/temps-presence/TempsPresenceClient'
 
 export default async function TempsPresencePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: initialMonth } = await searchParams
   const supabase = await createClient()
+  const etablissementId = (await headers()).get('x-etablissement-id') ?? ''
+
+  // Etablissement (en-tete de l'export PDF du recapitulatif)
+  const { data: etab } = await supabase
+    .from('etablissements')
+    .select('nom, logo_url')
+    .eq('id', etablissementId)
+    .maybeSingle()
 
   const { data: { user } } = await supabase.auth.getUser()
   const userId = user!.id
@@ -15,8 +24,10 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .single()
 
   const role = profile?.role ?? 'enseignant'
-  const canManageAll = ['admin', 'direction', 'secretaire', 'comptable'].includes(role)
-  const canSeeRecap = ['admin', 'direction', 'comptable', 'resp_pedagogique'].includes(role)
+  // Gestionnaires « tout le staff » (aligne sur la RLS staff_time_entries_manage).
+  // Le responsable pedagogique gere UNIQUEMENT les enseignants → traite a part cote client.
+  const canManageAll = ['admin', 'direction', 'comptable', 'secretaire'].includes(role)
+  const canSeeRecap = ['admin', 'direction', 'comptable', 'responsable_pedagogique'].includes(role)
 
   // Annee scolaire courante
   const { data: currentYear } = await supabase
@@ -70,6 +81,8 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         presenceTypeRates={presenceTypeRates}
         schoolYearId={currentYear?.id ?? null}
         initialMonth={initialMonth}
+        etablissementNom={etab?.nom ?? 'Établissement'}
+        etablissementLogo={etab?.logo_url ?? null}
       />
     </div>
   )

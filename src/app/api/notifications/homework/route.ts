@@ -15,32 +15,18 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // 1. Fetch homework with class + teacher info
+    // 1. Fetch homework with class + teacher info (cotisation → is_adult)
     const { data: hw } = await supabase
       .from('homework')
-      .select('*, classes:class_id(name), teachers:teacher_id(first_name, last_name, civilite)')
+      .select('*, classes:class_id(name, cotisation_types(is_adult)), teachers:teacher_id(first_name, last_name, civilite)')
       .eq('id', homework_id)
       .single()
 
     if (!hw) return NextResponse.json({ error: 'Devoir introuvable' }, { status: 404 })
 
-    // 2. Get students enrolled in this class
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('student_id, students:student_id(id, parent_id)')
-      .eq('class_id', hw.class_id)
-      .eq('status', 'active')
+    const isAdult = !!(hw.classes as any)?.cotisation_types?.is_adult
 
-    if (!enrollments?.length) return NextResponse.json({ ok: true, sent: 0 })
-
-    // 3. Group by parent_id
-    const parentIds = [...new Set(
-      (enrollments as any[])
-        .map(e => e.students?.parent_id)
-        .filter(Boolean)
-    )]
-
-    // 4. Format
+    // 2. Format
     const className = (hw.classes as any)?.name ?? ''
     const teacherInfo = hw.teachers as any
     const teacherLabel = teacherInfo
@@ -95,18 +81,58 @@ export async function POST(req: NextRequest) {
       </div>
     `
 
-    // 5. Send notifications
+    // 3. Construire les destinataires selon le type de classe.
+    // - Classe enfant : élèves inscrits → parent (email aux 2 tuteurs du foyer).
+    // - Classe adulte : participants (tuteurs) → email UNIQUEMENT au tuteur inscrit.
+    type Recipient = { parent_id: string; tutor_number?: number; emailsOverride?: string[] }
+    const recipients: Recipient[] = []
+
+    if (isAdult) {
+      const { data: participants } = await supabase
+        .from('parent_class_enrollments')
+        .select('parent_id, tutor_number, parents:parent_id(tutor1_email, tutor2_email)')
+        .eq('class_id', hw.class_id)
+        .eq('status', 'active')
+
+      for (const p of (participants ?? []) as any[]) {
+        const email = p.tutor_number === 1 ? p.parents?.tutor1_email : p.parents?.tutor2_email
+        recipients.push({
+          parent_id: p.parent_id,
+          tutor_number: p.tutor_number,
+          // Toujours forcé (même vide) : ne jamais retomber sur les 2 emails du foyer.
+          emailsOverride: email ? [email] : [],
+        })
+      }
+    } else {
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('student_id, students:student_id(id, parent_id)')
+        .eq('class_id', hw.class_id)
+        .eq('status', 'active')
+
+      const parentIds = [...new Set(
+        (enrollments as any[] ?? [])
+          .map(e => e.students?.parent_id)
+          .filter(Boolean)
+      )]
+      for (const id of parentIds) recipients.push({ parent_id: id })
+    }
+
+    if (recipients.length === 0) return NextResponse.json({ ok: true, sent: 0 })
+
+    // 4. Send notifications
     let sent = 0
-    for (const parentId of parentIds) {
+    for (const r of recipients) {
       await createNotification({
         etablissement_id,
         type: 'homework',
-        parent_id: parentId,
+        parent_id: r.parent_id,
         title,
         body,
-        metadata: { homework_id, subject: hw.subject, due_date: hw.due_date },
+        metadata: { homework_id, subject: hw.subject, due_date: hw.due_date, ...(r.tutor_number ? { tutor_number: r.tutor_number } : {}) },
         emailSubject: title,
         emailHtml,
+        ...(r.emailsOverride ? { emailsOverride: r.emailsOverride } : {}),
       })
       sent++
     }

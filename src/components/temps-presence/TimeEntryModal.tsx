@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
@@ -25,7 +25,7 @@ interface Props {
   date: string
   entry: TimeEntry | null
   currentUserId: string
-  canManageAll: boolean
+  canManage: boolean
   staffList: StaffMember[]
   presenceTypes: PresenceType[]
   existingEntries: TimeEntry[]
@@ -33,13 +33,13 @@ interface Props {
   onSaved: () => void
 }
 
-export default function TimeEntryModal({ date, entry, currentUserId, canManageAll, staffList, presenceTypes, existingEntries, onClose, onSaved }: Props) {
+export default function TimeEntryModal({ date, entry, currentUserId, canManage, staffList, presenceTypes, existingEntries, onClose, onSaved }: Props) {
   const supabase = createClient()
   const isEdit = !!entry
 
   const defaultType = entry?.entry_type ?? ''
 
-  const [profileId, setProfileId] = useState(entry?.profile_id ?? (canManageAll ? '' : currentUserId))
+  const [profileId, setProfileId] = useState(entry?.profile_id ?? (canManage ? '' : currentUserId))
   const [entryType, setEntryType] = useState<string>(defaultType)
   const [startTime, setStartTime] = useState(entry?.start_time?.slice(0, 5) ?? '09:00')
   const [endTime, setEndTime] = useState(entry?.end_time?.slice(0, 5) ?? '12:00')
@@ -49,6 +49,15 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const titleId = 'time-entry-modal-title'
+
+  // Focus initial. Fermeture volontairement limitee a X / Annuler (pas de clic
+  // hors modale ni Echap) pour ne pas perdre une saisie en cours.
+  useEffect(() => {
+    dialogRef.current?.focus()
+  }, [])
 
   const isAbsence = presenceTypes.find(p => p.code.toUpperCase() === entryType.toUpperCase())?.is_absence ?? false
 
@@ -64,7 +73,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
   )
 
   const canSave = isDirty
-    && (!canManageAll || !!profileId)
+    && (!canManage || !!profileId)
     && !!entryType
     && (isAbsence || (!!startTime && !!endTime))
     && (!isReplacement || !!replacedId)
@@ -82,7 +91,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
       const [eh, em] = endTime.split(':').map(Number)
       durationMinutes = (eh * 60 + em) - (sh * 60 + sm)
       if (durationMinutes <= 0) {
-        setError('L\'heure de fin doit etre superieure a l\'heure de debut')
+        setError('L\'heure de fin doit être supérieure à l\'heure de début')
         setSaving(false)
         return
       }
@@ -103,7 +112,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
       if (overlap) {
         const s = staffList.find(st => st.id === profileId)
         const name = s ? `${s.last_name} ${s.first_name}` : 'Cette personne'
-        setError(`${name} a deja un creneau de ${overlap.start_time?.slice(0, 5)} a ${overlap.end_time?.slice(0, 5)} ce jour. Les creneaux ne peuvent pas se chevaucher.`)
+        setError(`${name} a déjà un créneau de ${overlap.start_time?.slice(0, 5)} à ${overlap.end_time?.slice(0, 5)} ce jour. Les créneaux ne peuvent pas se chevaucher.`)
         setSaving(false)
         return
       }
@@ -134,14 +143,21 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 outline-none"
+      >
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <h3 className="text-sm font-bold text-secondary-800">
+          <h3 id={titleId} className="text-sm font-bold text-secondary-800">
             {isEdit ? 'Modifier la saisie' : 'Nouvelle saisie'}
           </h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-warm-100 text-warm-400"><X size={16} /></button>
+          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
         </div>
 
         {/* Body */}
@@ -150,7 +166,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
           <p className="text-xs text-warm-500 capitalize">{dateLabel}</p>
 
           {/* Staff select */}
-          {canManageAll ? (
+          {canManage ? (
             <FloatSelect
               label="MEMBRE ÉQUIPE"
               required
@@ -239,7 +255,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
               </div>
               {isReplacement && (
                 <FloatSelect
-                  label=""
+                  label="Personne remplacée"
                   value={replacedId}
                   onChange={e => setReplacedId(e.target.value)}
                 >
@@ -258,7 +274,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
               label="MOTIF"
               value={absenceReason}
               onChange={e => setAbsenceReason(e.target.value)}
-              placeholder="Maladie, conge..."
+              placeholder="Maladie, congé..."
             />
           )}
 
@@ -273,7 +289,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManageAl
 
           {/* Error */}
           {error && (
-            <p className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>
           )}
         </div>
 

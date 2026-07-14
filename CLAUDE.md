@@ -520,8 +520,47 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   `adult_homework_status`). Le suivi (vu/effectue) n'apparait que si la classe a des participants.
 - **Debug** : scripts SQL `inspect-class-teachers.sql` (etat derive actif/historique) + `delete-test-substitutes.sql`.
 
+#### 14 juillet 2026 — Auth (message session) + email devoir adultes + audit Temps de presence
+- **Auth — message d'inactivite au demarrage a froid** (`proxy.ts`, `login/page.tsx`) : le message « session
+  expiree pour inactivite » s'affichait a tort quand on **rouvrait le navigateur** (PC eteint) — le cookie
+  `app-session` (persistant 30 j) survit, le middleware voyait un `lastActivity` perime et redirigeait en
+  `?reason=inactivity`. Correctif : **marqueur de session navigateur `app-open`** (cookie httpOnly **sans
+  maxAge** → supprime a la fermeture du navigateur), pose a chaque requete `/dashboard` valide. En inactivite/
+  expiration : `?reason=` ajoute **seulement si `app-open` present** (navigateur reste ouvert = vraie inactivite) ;
+  sinon (demarrage a froid) redirection `/login` **nue, sans message**. Marqueur purge partout ou `app-session`
+  l'etait. **Regle** : un cookie de session (sans maxAge) distingue « navigateur reste ouvert » de « rouvert ».
+  Limite : navigateur regle sur « reprendre la session » restaure les cookies de session (message reapparait, cas rare).
+- **Email devoir — classes adultes** (`lib/notifications.ts`, `api/notifications/homework/route.ts`) : un devoir de
+  classe adulte n'envoyait **0 email** (destinataires pris via `enrollments` eleves). Ajout de `emailsOverride?` a
+  `createNotification` ; la route detecte `isAdult` (via `cotisation_types.is_adult`) → **classe enfant** = 2 tuteurs
+  du foyer (inchange), **classe adulte** = email au **seul tuteur inscrit** (`parent_class_enrollments` actif,
+  `tutor1/2_email` selon `tutor_number`, override toujours force meme vide). Push/in-app inchange (comptes parents
+  suspendus). Suivi adulte deja fait le 13/07.
+- **Audit module Temps de presence** (`temps-presence/`) — jamais audite. Voir memoire `temps-presence-audit.md`.
+  - **P1 permissions & correctness** : bug **`resp_pedagogique`** (role inexistant, le vrai = `responsable_pedagogique`)
+    a 2 endroits → le resp. pedago ne voyait ni le recap ni les saisies des enseignants. Modele de permissions
+    **decide** : admin/direction/**comptable**/secretaire gerent tout le staff ; **responsable_pedagogique** gere
+    **uniquement les enseignants** (+ soi), voit le recap, pas les couts ; enseignant = sa propre presence.
+    Client aligne (`canManageAll`, `canManage`, `assignableStaff`, `canEdit` par ligne) + migration
+    **`adjust-time-tracking-roles.sql`** (policy manage → `admin/direction/comptable/secretaire` ; nouvelle policy
+    `resp_pedago` = ecriture enseignants ou soi). Detection d'absence uniformisee sur **`is_absence`** (fin du
+    `entry_type === 'absence'` en dur). Recap absences comptees en **jours distincts**.
+  - **P2 a11y** : toolbar `aria-pressed`, nav `aria-label`, cellules jour `aria-label`/`aria-pressed`/`aria-current`,
+    actions Modifier/Supprimer en `Tooltip`+`aria-label`+focus, `TimeEntryModal` en `role=dialog`/`aria-modal`/
+    `aria-labelledby`/focus initial, erreur `role=alert`, table recap `aria-label`. **Modale de saisie = fermeture
+    X / Annuler uniquement** (pas de clic hors ni Echap : evite la perte de saisie, comme cahier de texte).
+  - **P3 charte** : quadratins `—` → `·` (plage semaine en `–`), icone `Plus` retiree de « Ajouter »,
+    suppression via `ConfirmModal` standard, `FloatSelect label=""` → « Personne remplacee », accents
+    (« Recapitulatif » → Récapitulatif, « Cout » → Coût, mois, messages).
+  - **P4 export PDF** : nouveau `staffTimePdf.ts` (jsPDF + autoTable, **import dynamique** hors bundle SSR, paysage
+    A4, en-tete logo + nom etab, TOTAL, respecte `canSeeCosts`) ; bouton « Exporter PDF » (label-only) dans l'en-tete
+    du recap ; `page.tsx` recupere l'etab (nom/logo via `x-etablissement-id`).
+  - **P4 garde « aucun type configure »** : `Ajouter` grise + Tooltip si aucune annee OU aucun type de presence ;
+    banniere ambre avec lien vers `Parametres → Types de presence` (evite une modale de saisie sans aucun type a choisir).
+  - **Reste P4 (a la carte)** : filtre par membre, demi-journees d'absence.
+
 ## Prochaine etape
-- Poursuite des **fonctionnalites utilisateurs**.
+- Poursuite des **fonctionnalites utilisateurs** ; reste Temps de presence P4 (filtre par membre, demi-journees).
 
 ## Stack technique
 
