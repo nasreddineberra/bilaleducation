@@ -33,19 +33,25 @@ type FormData = {
 // l'encadre ici pour eux (evite deux champs Remarques concurrents).
 const ROLES_WITH_NOTES: UserRole[] = ['direction', 'comptable', 'secretaire', 'responsable_pedagogique']
 
-// Roles creables depuis cet ecran. `parent` en est exclu : les comptes parents sont
-// SUSPENDUS en V1 (cf. CREATE_PARENT_ACCOUNTS = false) — les creer ici contournerait
-// la decision. `admin` / `super_admin` ne sont jamais creables ici.
+// Roles creables depuis cet ecran = ceux qui n'ont PAS de fiche metier dediee.
+// Sont volontairement exclus :
+//  - `enseignant` : cree depuis la fiche enseignant, qui cree atomiquement le compte
+//    auth + le profil + la ligne `teachers`. Le creer ici produirait un enseignant
+//    FANTOME (profil sans `teachers`) : absent de la liste Enseignants, non affectable
+//    a une classe (class_teachers -> teachers.id), invisible pour la validation EDT.
+//  - `parent` : comptes parents SUSPENDUS en V1 (cf. CREATE_PARENT_ACCOUNTS = false),
+//    et la fiche parents est le point d'entree.
+//  - `admin` / `super_admin` : jamais creables ici.
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'direction',                label: 'Direction'          },
   { value: 'comptable',                label: 'Comptable'          },
   { value: 'responsable_pedagogique',  label: 'Resp. Pédagogique'  },
-  { value: 'enseignant',               label: 'Enseignant'         },
   { value: 'secretaire',               label: 'Secrétaire'         },
 ]
 
-// Roles non modifiables sur une fiche existante (structurants ou hors perimetre V1).
-const LOCKED_ROLES: UserRole[] = ['admin', 'super_admin', 'parent']
+// Roles non modifiables sur une fiche existante : structurants, hors perimetre V1, ou
+// adosses a une fiche metier (changer le role laisserait une ligne teachers/parents orpheline).
+const LOCKED_ROLES: UserRole[] = ['admin', 'super_admin', 'parent', 'enseignant']
 const ROLE_LABELS: Record<string, string> = {
   super_admin:             'Super Admin',
   admin:                   'Administrateur',

@@ -674,6 +674,35 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
 - **Piege UI (memoire)** : `FloatInput` n'a pas de prop `disabled` utilisable → utiliser **`locked`**.
 - **Migrations executees** : `add-profile-notes.sql`, `fix-profiles-audit-user.sql`.
 
+#### 15 juillet 2026 (fin) — Roles creables, synchro d'identite profiles/teachers
+- **`enseignant` retire des roles creables** depuis la fiche utilisateur : le creer ici produisait un enseignant
+  **FANTOME** (profil `role='enseignant'` **sans ligne `teachers`**) → absent de la liste Enseignants, non affectable
+  a une classe (`class_teachers` → `teachers.id`), invisible pour la validation EDT (`teachers.user_id`), mais
+  present dans Utilisateurs et Temps de presence. Les enseignants se creent depuis la **fiche enseignant**
+  (`createTeacherWithAccount` : compte auth + profil + ligne `teachers`, atomique). Verifie : aucun fantome en base.
+  → `enseignant` ajoute a `LOCKED_ROLES` (changer le role laisserait une ligne `teachers` orpheline).
+  - **Modele resultant** : `ROLE_OPTIONS` (creables ici) = **direction / comptable / secretaire / resp. pedagogique**
+    = exactement `ROLES_WITH_NOTES`. **L'ecran Utilisateurs gere les comptes des roles SANS fiche metier** ;
+    enseignant → fiche enseignant, parent → fiche parents.
+- **Synchro d'identite `profiles` ↔ `teachers`** (migration `sync-identity-profile-teacher.sql`) :
+  `civilite / first_name / last_name` sont **dupliques** dans les 2 tables et **3 chemins** les modifiaient sans
+  jamais synchroniser l'autre — **Mon compte** (`updateOwnProfile`) et **fiche utilisateur** (`updateProfile`) →
+  `profiles` seul ; **fiche enseignant** (`updateTeacher`) → `teachers` seul. Un enseignant pouvait donc s'appeler
+  « X » cote compte et « Y » cote fiche. Correctif : **triggers bidirectionnels** (couvre tous les chemins, y
+  compris les scripts), **`SECURITY DEFINER`** — indispensable car la RLS `teachers` n'autorise l'ecriture qu'a
+  admin/direction : sans cela, un enseignant se renommant depuis Mon compte aurait vu la synchro **echouer
+  silencieusement**. Anti-recursion par `IS DISTINCT FROM` (la MAJ retour ne touche 0 ligne). Rattrapage inclus.
+  **Teste** : synchro OK dans les 2 sens, sans recursion. **Parents non concernes** (comptes suspendus en V1,
+  `tutor1/2_user_id` vides) → a traiter le jour de leur activation.
+- **Message EDT corrige** : « *Veuillez d'abord lier un compte dans la fiche enseignant* » renvoyait vers une
+  fonction **inexistante** (`TeacherForm` ne gere pas `user_id` ; aucun ecran de rattachement). Remplace par un
+  message vrai. Cas defensif inatteignable aujourd'hui (les 3 fiches ont toutes un compte).
+- **Cumul resp. pedagogique + enseignant** : impossible (role unique). Cas **absent aujourd'hui** → rien developpe.
+  Si ca revient : privilegier `role='responsable_pedagogique'` + fiche enseignant **rattachee au meme compte**
+  (necessite le rattachement + ajuster 2 tests `role === 'enseignant'`) ; **deux profils = depannage seulement**
+  (2 emails, 2 logins, heures/journal eclates). Multi-roles = V2. Voir memoire `role-cumul-enseignant.md`.
+- **Migration executee** : `sync-identity-profile-teacher.sql`.
+
 ## Prochaine etape
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,

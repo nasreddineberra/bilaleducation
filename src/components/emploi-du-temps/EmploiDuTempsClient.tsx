@@ -1179,7 +1179,10 @@ export default function EmploiDuTempsClient({
     const doValidate = async () => {
     const teacherProfileId = teacherProfileMap[resolved.teacher_id]
     if (!teacherProfileId) {
-      toast.error(`${teacherName} n'a pas de compte utilisateur lie. Veuillez d'abord lier un compte dans la fiche enseignant.`)
+      // Cas defensif : une fiche enseignant creee via le formulaire a toujours un compte
+      // (createTeacherWithAccount). Il n'existe AUCUN ecran pour rattacher un compte a une
+      // fiche existante → ne pas renvoyer l'utilisateur vers une fonction inexistante.
+      toast.error(`${teacherName} n'a pas de compte utilisateur : sa présence ne peut pas être enregistrée. Contactez l'administrateur.`)
       return
     }
 
