@@ -703,7 +703,78 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   (2 emails, 2 logins, heures/journal eclates). Multi-roles = V2. Voir memoire `role-cumul-enseignant.md`.
 - **Migration executee** : `sync-identity-profile-teacher.sql`.
 
+#### 15 juillet 2026 (soir) — Communications : audit + refonte de l'envoi aux parents (LOT 1)
+Module a 3 sous-menus (Parents / Staff-Enseignants / Messages envoyes), jamais audite. **Constat central : le
+module affichait « envoye » sans envoyer.** Refonte en 4 lots ; seul le **lot 1 (socle d'envoi)** est fait.
+
+- **DECOUVERTE MAJEURE — aucun email n'est JAMAIS parti de l'application** : `.env.local` ne contient que
+  `DEFAULT_TENANT_SLUG` + les 3 cles Supabase. **Pas de `SMTP_HOST`** → `src/lib/email.ts` construit son
+  transporteur uniquement si `SMTP_HOST` existe, sinon `null` → tout envoi retourne « Email non configure ».
+  Concerne devoirs, absences, recus de paiement, annonces. (Les mails de reinit. mdp passent par Supabase Auth,
+  d'ou l'illusion.) Explique pourquoi personne n'avait vu les bugs ci-dessous. **Prerequis prod ajoute.**
+- **Perimetre decide** : la communication aux parents = **voix de l'etablissement** → `admin` / `direction` /
+  `secretaire` / `responsable_pedagogique`. **L'enseignant ne communique que les devoirs** (cahier de texte) ;
+  le **comptable** ecrit aux familles **depuis Financements** (transactionnel : recu, relance) — son historique
+  d'envoi sera propre a ce module, `announcements` reste la table de la seule communication d'etablissement.
+  - Matrice : `class` / `selected` / `all_active` = les 4 roles ; **`all_registered`** (toute la base,
+    non-inscrits compris) = admin/direction/secretaire **seuls**. **« Parents choisis » = parents d'eleves
+    inscrits** → `all_registered` est le seul mode qui atteint les non-inscrits.
+  - NB : ce n'etait **pas** une decision d'origine mais un **accident** (la route API oubliait les autres roles).
+- **P1 corriges (7)** : (1) sous-menu **Staff** n'appelait **aucune** route → messages jamais envoyes (reste a
+  traiter a son tour) ; (2) route `/api/notifications/announcement` gardee `admin/direction/secretaire` alors que
+  l'UI ouvrait a d'autres → **403 avale** par un `fetch` fire-and-forget → faux succes ; (3) **« Direction en CCI »
+  etait une fiction** (`directionEmails` calcule, passe en prop, **jamais utilise** ; `bcc` inexistant dans tout le
+  code) ; (4) **classes adultes = 0 destinataire** (ciblage via `enrollments`/students seulement) ; (5) **PJ jamais
+  envoyees** (ni attachees, ni liees dans l'email) ; (6) **bucket public** + `getPublicUrl` + **aucune limite** ;
+  (7) permissions de ciblage **client-only** (la policy RLS autorisait tout type a tout role staff).
+- **Refonte** : **server action unique** `communications/actions.ts` (`sendParentMessage`) — garde de role **et**
+  de mode, **resolution des destinataires cote serveur** (source unique : enfants `enrollments` + adultes
+  `parent_class_enrollments` selon `cotisation.is_adult`, seul le tuteur inscrit servi), sanitisation **avant**
+  stockage/envoi, envoi par lots, et **retour d'un vrai compte rendu** (`sent` / `failed` / `withoutEmail`) →
+  fin du faux succes. **Route API supprimee** (morte + 2e point d'entree permettant de renvoyer un message).
+- **Plomberie partagee** (Financements s'y branchera) : `sendNotificationEmail` gagne `bcc` / `replyTo` /
+  `attachments` ; `createNotification` gagne `emailBcc` / `emailReplyTo` / `emailAttachments` et **retourne**
+  desormais un statut (`NotificationResult`) au lieu d'avaler ses erreurs.
+- **Regles d'envoi decidees** : **1 email par foyer** (`To` = adresses du foyer) → **aucune adresse d'un autre
+  foyer n'est exposee**, et le decoupage est inherent (pas de blast CCI, qui serait un motif spam, tuerait le
+  suivi par famille et buterait sur la limite ~100 dest./message). **CCI = role `direction` seul** (pas l'admin,
+  conforme a la regle « ecrire a la direction n'inclut pas l'admin »). **`Reply-To` = `etablissements.contact`,
+  OBLIGATOIRE** : si vide → **envoi refuse avant tout enregistrement** (pas de repli sur l'auteur, decision
+  utilisateur). **PJ : 1 Mo au total**, garde client + action + Storage, **reellement attachees** au mail (une URL
+  signee expirerait avant l'ouverture).
+- **Migration `rework-communications-security.sql`** (executee) : type d'annonce **controle en RLS**
+  (`announcements_insert_scoped`) ; bucket **prive** + `file_size_limit` 1 Mo + 8 types MIME ; policies storage
+  **cloisonnees par etablissement** (chemin `{etablissement_id}/...`) ; `announcement_attachments.file_url`
+  **remplacee** par `file_path` NOT NULL (URL signee a la consultation, meme regle que les justificatifs) ;
+  statut **`skipped`** ajoute (foyer sans adresse : marquer `failed` mentirait).
+- **Verifie en base** (scripts service-role jetables, supprimes) : bucket prive/1 Mo/8 types OK, `file_path`
+  NOT NULL OK (`23502`), `file_url` absente OK, `skipped` accepte et statut invalide refuse (`23514`).
+  **Module vierge** (0 annonce / 0 destinataire / 0 PJ / 0 fichier) → a permis de **durcir** la migration
+  (aucune clause d'heritage, policy strictement cloisonnee) plutot que de trainer du legacy.
+- **Bugs rattrapes par la verification en base, avant livraison** : **`etablissements.name` n'existe pas**
+  (colonne = **`nom`**) → l'action aurait plante a chaque envoi ; **`file_url` etait NOT NULL** → violation a la
+  1re PJ. Le pied de mail « Bilal Education » en dur devient le vrai `nom` de l'etablissement.
+- **Volume reel : 200-300 foyers** (et non ~45 comme le laissait croire le seed) → **Gmail gratuit hors jeu**
+  (~500 dest./jour : un envoi « tous les parents » = 60 % du quota). Workspace (~2 000/j) passe, mais a ce volume
+  un **service transactionnel** (Brevo/Resend/Mailgun) est le bon outil (rebonds, delivrabilite, reputation).
+  **Non bloquant pour l'architecture** : tous parlent SMTP → 4 champs de config, 0 ligne de code.
+  **Regle delivrabilite** : le `From` doit rester l'adresse du **compte SMTP** (alignement SPF/DKIM) ; on met le
+  **nom de l'etablissement en nom d'affichage**. Mettre `contact@mon-domaine` en `From` tout en passant par Gmail
+  = indesirable/rejet.
+- **Dettes constatees (non traitees)** : `current_etablissement_id()` est utilisee par des dizaines de migrations
+  mais **sa definition n'est nulle part dans le depot** (la base la connait, pas le code) → bloquera une
+  reconstruction d'environnement. `fn_audit_log()` prend l'etablissement dans le **profil de `auth.uid()`** et ne
+  se rabat sur `NEW.etablissement_id` qu'a defaut → **toute ecriture service-role sur une table SANS colonne
+  `etablissement_id` echoue** (`audit_logs.etablissement_id` NOT NULL) : piege pour le prochain script.
+  `src/lib/auth/requireRole.ts` definit un `UserRole` local **qui oublie `comptable`**.
+- **Reste a faire** : **lot Messagerie** (`Parametres → Etablissement → Messagerie` : config SMTP **par
+  etablissement** en base — table dediee, secret **jamais renvoye au navigateur**, transporteur **en pool avec
+  limite de debit**, bouton « Tester la connexion ») ; **lot 2 interface** (2/3 composition · 1/3 destinataires
+  collant, compteur vivant, alerte familles sans email, apercu en modale, `ConfirmModal` avant envoi, bouton
+  grise + banniere si contact etablissement absent) ; **lot 3 a11y + charte** ; **sous-menu Staff**.
+
 ## Prochaine etape
+- **Communications** : lot Messagerie (config SMTP), puis lot 2 (interface), lot 3 (a11y/charte), puis Staff.
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
   quadratins `—`, et les **prerequis de mise en production** ci-dessus.
@@ -844,6 +915,14 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 
 ## Prerequis MISE EN PRODUCTION (bloquants)
 
+- [ ] **AUCUN ENVOI D'EMAIL NE FONCTIONNE** (constate le 15/07/2026) : `.env.local` n'a **ni `SMTP_HOST`, ni
+  `SMTP_USER`, ni `EMAIL_FROM`**. `src/lib/email.ts` ne cree son transporteur que si `SMTP_HOST` existe → sinon
+  `null` et **tout envoi echoue silencieusement** (« Email non configure »). **Aucun email applicatif n'est jamais
+  parti** : devoirs, absences, recus de paiement, annonces. Seuls les mails d'Auth (reinit. mdp) fonctionnent,
+  car ils passent par Supabase. → Traite par le **lot Messagerie** (config SMTP par etablissement dans la fiche,
+  et non par variable d'environnement : l'app est multi-etablissement).
+  **Volume reel : 200-300 foyers** → Gmail **gratuit** insuffisant (~500 dest./jour) ; Workspace (~2 000/j) tient,
+  un service transactionnel (Brevo/Resend/Mailgun) est preferable a ce volume.
 - [ ] **`NEXT_PUBLIC_SITE_URL`** : **absent de `.env.local`**. `sendPasswordReset` (utilisateurs) et tout lien de mail
   auth retombent sur le fallback **`http://localhost:3000`** → en production, le mail de reinitialisation de mot de
   passe enverrait l'utilisateur **sur localhost** (lien mort). Definir la variable ET ajouter l'URL aux

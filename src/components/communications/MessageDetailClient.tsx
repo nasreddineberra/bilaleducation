@@ -25,7 +25,9 @@ type StaffRecipient = {
 }
 
 type Attachment = {
-  id: string; file_url: string; file_name: string; file_size: number | null
+  id: string; file_name: string; file_size: number | null
+  /** URL signee generee a la consultation (bucket prive). Null si illisible. */
+  url: string | null
 }
 
 interface Props {
@@ -142,17 +144,28 @@ export default function MessageDetailClient({ message, parentRecipients, staffRe
           <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Pieces jointes</h2>
           <div className="space-y-1">
             {attachments.map(a => (
-              <a
-                key={a.id}
-                href={a.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs hover:bg-warm-100 transition-colors"
-              >
-                <Paperclip size={12} className="text-warm-400" />
-                <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>
-                {a.file_size && <span className="text-warm-400">{(a.file_size / 1024).toFixed(0)} Ko</span>}
-              </a>
+              a.url ? (
+                <a
+                  key={a.id}
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs hover:bg-warm-100 transition-colors"
+                >
+                  <Paperclip size={12} className="text-warm-400" />
+                  <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>
+                  {a.file_size && <span className="text-warm-400">{(a.file_size / 1024).toFixed(0)} Ko</span>}
+                </a>
+              ) : (
+                <div
+                  key={a.id}
+                  className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs"
+                >
+                  <Paperclip size={12} className="text-warm-400" />
+                  <span className="text-warm-500 flex-1">{a.file_name}</span>
+                  <span className="text-warm-400 italic">Fichier indisponible</span>
+                </div>
+              )
             ))}
           </div>
         </div>

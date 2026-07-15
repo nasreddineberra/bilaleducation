@@ -202,10 +202,12 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
     children: [
       {
+        // L'enseignant ne communique que les devoirs (cahier de texte) ;
+        // le comptable ecrit aux familles depuis Financements (transactionnel).
         name:  'Parents',
         href:  '/dashboard/communications/new',
         icon:  Send,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
       {
         name:  'Staff / Enseignants',

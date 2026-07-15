@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendNotificationEmail } from '@/lib/email'
+import { sendNotificationEmail, type EmailAttachment } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push'
 
 interface CreateNotificationParams {
@@ -15,6 +15,19 @@ interface CreateNotificationParams {
   // Force la liste des destinataires email (ex. classe adulte : uniquement le
   // tuteur inscrit). Si absent, on envoie aux emails du foyer (getEmails).
   emailsOverride?: string[]
+  // Copie carbone invisible (ex. la direction, systematiquement en CCI des
+  // communications aux parents).
+  emailBcc?: string[]
+  // Adresse de reponse : sans elle le parent repond a un noreply.
+  emailReplyTo?: string
+  emailAttachments?: EmailAttachment[]
+}
+
+export interface NotificationResult {
+  ok: boolean
+  emailStatus: 'sent' | 'failed' | 'skipped'
+  pushStatus: 'sent' | 'failed' | 'no_sub'
+  error?: string
 }
 
 interface ParentInfo {
@@ -28,8 +41,12 @@ interface ParentInfo {
 
 /**
  * Crée une notification, envoie l'email et le push.
+ *
+ * Retourne le sort reel de l'envoi : les appelants qui doivent rendre compte a
+ * l'utilisateur (communications) s'en servent pour compter les echecs, ceux qui
+ * notifient en arriere-plan peuvent l'ignorer.
  */
-export async function createNotification(params: CreateNotificationParams) {
+export async function createNotification(params: CreateNotificationParams): Promise<NotificationResult> {
   const supabase = createAdminClient()
 
   // 1. Insert notification
@@ -47,15 +64,20 @@ export async function createNotification(params: CreateNotificationParams) {
     .select('id')
     .single()
 
-  if (error || !notif) return
+  if (error || !notif) {
+    return { ok: false, emailStatus: 'failed', pushStatus: 'no_sub', error: error?.message ?? 'Notification non créée.' }
+  }
 
   // 2. Récupérer les emails du parent
   const parent = await getParentWithEmails(params.parent_id)
-  if (!parent) return
+  if (!parent) {
+    return { ok: false, emailStatus: 'failed', pushStatus: 'no_sub', error: 'Parent introuvable.' }
+  }
 
   const emails = params.emailsOverride ?? getEmails(parent)
   let emailStatus: 'sent' | 'failed' | 'skipped' = 'skipped'
   let pushStatus: 'sent' | 'failed' | 'no_sub' = 'no_sub'
+  let emailError: string | undefined
 
   // 3. Envoyer l'email
   if (emails.length > 0 && params.emailHtml) {
@@ -63,8 +85,12 @@ export async function createNotification(params: CreateNotificationParams) {
       to: emails,
       subject: params.emailSubject ?? params.title,
       html: params.emailHtml,
+      bcc: params.emailBcc,
+      replyTo: params.emailReplyTo,
+      attachments: params.emailAttachments,
     })
     emailStatus = result.success ? 'sent' : 'failed'
+    emailError = result.error
   }
 
   // 4. Envoyer le push
@@ -82,6 +108,8 @@ export async function createNotification(params: CreateNotificationParams) {
     .from('notifications')
     .update({ email_status: emailStatus, push_status: pushStatus })
     .eq('id', notif.id)
+
+  return { ok: emailStatus !== 'failed', emailStatus, pushStatus, error: emailError }
 }
 
 /**

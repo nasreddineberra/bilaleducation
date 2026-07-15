@@ -8,8 +8,12 @@ import { useToast } from '@/lib/toast-context'
 import type { UserRole } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import { sanitize } from '@/lib/security/sanitize'
+import { sendParentMessage } from '@/app/dashboard/communications/actions'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
+
+const BUCKET = 'communication-attachments'
+const MAX_ATTACHMENTS_BYTES = 1024 * 1024   // 1 Mo, tous fichiers confondus
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,24 +34,24 @@ type TargetType = 'all_active' | 'all_registered' | 'class' | 'selected'
 
 interface Props {
   role: string
-  senderEmail: string
-  senderName: string
   classes: ClassRow[]
   parents: ParentRow[]
   classParentMap: Record<string, string[]>
-  directionEmails: string[]
+  /** Parents d'eleves inscrits cette annee (enfants + adultes en cours adulte).
+   *  Vivier de « Parents choisis » — le serveur applique la meme borne. */
+  enrolledParentIds: string[]
   etablissementId: string
-  schoolYearId: string | null
-  yearLabel: string | null
 }
 
 // ─── Permissions par rôle ────────────────────────────────────────────────────
 
+// Miroir de PARENT_COMM_ROLES / ALL_REGISTERED_ROLES (actions.ts), qui font foi.
+// Ici c'est du confort d'affichage : la garde reelle est cote serveur et en RLS.
 const TARGET_PERMISSIONS: Record<TargetType, UserRole[]> = {
   all_active:     ['admin', 'direction', 'secretaire', 'responsable_pedagogique'],
   all_registered: ['admin', 'direction', 'secretaire'],
-  class:          ['admin', 'direction', 'responsable_pedagogique', 'comptable', 'secretaire', 'enseignant'],
-  selected:       ['admin', 'direction', 'responsable_pedagogique', 'comptable', 'secretaire', 'enseignant'],
+  class:          ['admin', 'direction', 'secretaire', 'responsable_pedagogique'],
+  selected:       ['admin', 'direction', 'secretaire', 'responsable_pedagogique'],
 }
 
 const TARGET_LABELS: Record<TargetType, string> = {
@@ -77,7 +81,7 @@ function getParentLabel(parent: ParentRow): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function NewMessageClient({
-  role, senderEmail, senderName, classes, parents, classParentMap, directionEmails, etablissementId, schoolYearId, yearLabel,
+  role, classes, parents, classParentMap, enrolledParentIds, etablissementId,
 }: Props) {
   const toast = useToast()
   const [targetType, setTargetType] = useState<TargetType | null>(null)
@@ -93,14 +97,22 @@ export default function NewMessageClient({
 
   const targetTypes: TargetType[] = ['all_active', 'all_registered', 'class', 'selected']
 
-  // Parents filtrés pour la recherche
+  const enrolledSet = useMemo(() => new Set(enrolledParentIds), [enrolledParentIds])
+
+  // Vivier de « Parents choisis » : les inscrits de l'annee uniquement. Pour
+  // toucher les anciennes familles, il faut « Tous les parents enregistrés ».
+  const selectableParents = useMemo(
+    () => parents.filter(p => enrolledSet.has(p.id)),
+    [parents, enrolledSet],
+  )
+
   const filteredParents = useMemo(() => {
-    if (!parentSearch.trim()) return parents
+    if (!parentSearch.trim()) return selectableParents
     const q = parentSearch.toLowerCase()
-    return parents.filter(p =>
+    return selectableParents.filter(p =>
       `${p.tutor1_last_name} ${p.tutor1_first_name} ${p.tutor2_last_name ?? ''} ${p.tutor2_first_name ?? ''}`.toLowerCase().includes(q)
     )
-  }, [parents, parentSearch])
+  }, [selectableParents, parentSearch])
 
   // Calcul des emails destinataires
   const recipientEmails = useMemo(() => {
@@ -170,139 +182,76 @@ export default function NewMessageClient({
     })
   }
 
-  // Ajout de pieces jointes
+  // Ajout de pieces jointes. Plafond garde ici ET cote serveur ET dans Storage :
+  // les PJ sont reellement attachees au mail, un envoi trop lourd serait rejete.
   const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setAttachments(prev => [...prev, ...Array.from(e.target.files!)])
-    }
+    const added = e.target.files ? Array.from(e.target.files) : []
     e.target.value = ''
+    if (added.length === 0) return
+
+    setAttachments(prev => {
+      const next = [...prev, ...added]
+      const total = next.reduce((sum, f) => sum + f.size, 0)
+      if (total > MAX_ATTACHMENTS_BYTES) {
+        toast.error('Les pièces jointes ne peuvent pas dépasser 1 Mo au total.')
+        return prev
+      }
+      return next
+    })
   }
 
   const removeAttachment = (idx: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== idx))
   }
 
-  // Envoi
+  // Envoi. La resolution des destinataires, la garde de role et l'email vivent
+  // cote serveur (actions.ts) : ici on depose les PJ et on rend compte du resultat.
   const handleSend = async () => {
-    if (!canSend) return
+    if (!canSend || !targetType) return
     setSending(true)
+
+    const uploadedPaths: string[] = []
 
     try {
       const supabase = createClient()
 
-      // 1. Upload des pieces jointes
-      const attachmentUrls: { file_url: string; file_name: string; file_size: number }[] = []
+      // 1. Depot des pieces jointes, cloisonnees par etablissement
+      const uploaded: { path: string; name: string; size: number }[] = []
       for (const file of attachments) {
         const ext = file.name.split('.').pop()
-        const path = `communications/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: uploadErr } = await supabase.storage
-          .from('communication-attachments')
-          .upload(path, file)
-        if (uploadErr) throw new Error(`Erreur upload ${file.name}: ${uploadErr.message}`)
-        const { data: urlData } = supabase.storage.from('communication-attachments').getPublicUrl(path)
-        attachmentUrls.push({ file_url: urlData.publicUrl, file_name: file.name, file_size: file.size })
+        const path = `${etablissementId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(path, file)
+        if (uploadErr) throw new Error(`Envoi impossible de ${file.name} : ${uploadErr.message}`)
+        uploadedPaths.push(path)
+        uploaded.push({ path, name: file.name, size: file.size })
       }
 
-      // 2. Creer l'annonce
-      const { data: announcement, error: annErr } = await supabase
-        .from('announcements')
-        .insert({
-          etablissement_id: etablissementId,
-          title: subject,
-          content: bodyHtml,
-          body_html: bodyHtml,
-          announcement_type: targetType,
-          target_class_id: targetType === 'class' ? selectedClassId : null,
-          channel: 'email',
-          sender_email: senderEmail,
-          published_by: (await supabase.auth.getUser()).data.user?.id,
-          is_published: true,
-          published_at: new Date().toISOString(),
-          sent_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single()
+      // 2. Envoi
+      const result = await sendParentMessage({
+        targetType,
+        classId:     selectedClassId,
+        parentIds:   [...selectedParentIds],
+        subject,
+        bodyHtml,
+        attachments: uploaded,
+      })
 
-      if (annErr) throw new Error(annErr.message)
-
-      // 3. Sauvegarder les pieces jointes
-      if (attachmentUrls.length > 0) {
-        await supabase.from('announcement_attachments').insert(
-          attachmentUrls.map(a => ({ announcement_id: announcement.id, ...a }))
-        )
+      if (result.error) {
+        // Le message n'est pas parti : ne pas laisser les PJ orphelines dans le bucket.
+        if (uploadedPaths.length > 0) await supabase.storage.from(BUCKET).remove(uploadedPaths)
+        toast.error(result.error)
+        return
       }
 
-      // 4. Resoudre les destinataires et inserer
-      let resolvedParentIds: string[] = []
+      // Rendre compte de ce qui s'est reellement passe, sans arrondir.
+      const details: string[] = []
+      if (result.failed)       details.push(`${result.failed} échec(s)`)
+      if (result.withoutEmail) details.push(`${result.withoutEmail} famille(s) sans adresse email`)
 
-      if (targetType === 'selected') {
-        resolvedParentIds = [...selectedParentIds]
-      } else if (targetType === 'class' && selectedClassId) {
-        const { data: enrollments } = await supabase
-          .from('enrollments')
-          .select('students(parent_id)')
-          .eq('class_id', selectedClassId)
-          .eq('status', 'active')
-        resolvedParentIds = [...new Set(
-          ((enrollments ?? []) as any[]).map(e => e.students?.parent_id).filter(Boolean)
-        )]
-      } else if (targetType === 'all_active' && schoolYearId) {
-        // Tous les parents d'eleves actifs cette annee
-        const { data: activeClasses } = await supabase
-          .from('classes')
-          .select('id')
-          .eq('academic_year', yearLabel ?? '')
-        const classIds = (activeClasses ?? []).map(c => c.id)
-        if (classIds.length > 0) {
-          const { data: enrollments } = await supabase
-            .from('enrollments')
-            .select('students(parent_id)')
-            .in('class_id', classIds)
-            .eq('status', 'active')
-          resolvedParentIds = [...new Set(
-            ((enrollments ?? []) as any[]).map(e => e.students?.parent_id).filter(Boolean)
-          )]
-        }
-      } else if (targetType === 'all_registered') {
-        resolvedParentIds = parents.map(p => p.id)
-      }
+      const base = `${result.sent} email(s) envoyé(s) sur ${result.households} foyer(s).`
+      if (details.length > 0) toast.error(`${base} ${details.join(', ')}.`)
+      else                    toast.success(base)
 
-      if (resolvedParentIds.length > 0) {
-        // Recuperer emails des parents resolus
-        const { data: resolvedParents } = await supabase
-          .from('parents')
-          .select('id, tutor1_email, tutor2_email')
-          .in('id', resolvedParentIds)
-
-        const recipients = (resolvedParents ?? []).map(p => ({
-          announcement_id: announcement.id,
-          parent_id: p.id,
-          email: [p.tutor1_email, p.tutor2_email].filter(Boolean).join(', '),
-          email_status: 'pending' as const,
-        }))
-
-        if (recipients.length > 0) {
-          await supabase.from('announcement_recipients').insert(recipients)
-        }
-
-        // Mettre a jour le count
-        await supabase
-          .from('announcements')
-          .update({ recipient_count: recipients.length })
-          .eq('id', announcement.id)
-      }
-
-      // Notifications parents (fire-and-forget)
-      if (announcement?.id) {
-        fetch('/api/notifications/announcement', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ announcement_id: announcement.id, etablissement_id: etablissementId }),
-        }).catch((err) => console.error('[NewMessage] Échec notification annonce:', err))
-      }
-
-      toast.success("Message enregistré avec succès. L'envoi des emails est en cours.")
-      // Reset form
       setSubject('')
       setBodyHtml('')
       setAttachments([])
@@ -310,7 +259,7 @@ export default function NewMessageClient({
       setSelectedClassId(null)
       setSelectedParentIds(new Set())
     } catch (err: any) {
-      toast.error(err.message ?? 'Erreur lors de l\'envoi')
+      toast.error(err.message ?? "Erreur lors de l'envoi")
     } finally {
       setSending(false)
     }
@@ -437,14 +386,16 @@ export default function NewMessageClient({
         {/* Recap emails */}
         {targetType && recipientSummary && (
           <div className="space-y-1">
-            <label className="text-xs font-medium text-warm-500">Recapitulatif des destinataires (CCI)</label>
+            <label className="text-xs font-medium text-warm-500">Récapitulatif des destinataires</label>
             <textarea
               readOnly
               value={recipientSummary}
               rows={2}
               className="input text-xs w-full bg-warm-50 text-warm-600 resize-none"
             />
-            <p className="text-xs text-warm-400">{recipientEmails.length} email(s) destinataire(s) — Direction en CCI</p>
+            <p className="text-xs text-warm-400">
+              {recipientEmails.length} email(s) destinataire(s) · un envoi par foyer · direction en copie invisible
+            </p>
           </div>
         )}
       </div>
