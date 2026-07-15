@@ -108,6 +108,8 @@ export interface Profile {
   phone?: string
   avatar_url?: string
   is_active: boolean
+  /** Remarques internes — pour les roles sans fiche metier (direction, comptable, secretaire, resp. pedago). */
+  notes?: string | null
   created_at: string
   updated_at: string
 }

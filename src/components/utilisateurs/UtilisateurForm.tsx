@@ -6,7 +6,7 @@ import { CheckCircle2, Eye, EyeOff, Check, X, ShieldCheck, ShieldAlert } from 'l
 import { clsx } from 'clsx'
 import { createUser, updateProfile, updateEmail, sendPasswordReset, resetUserTwoFactor } from '@/app/dashboard/utilisateurs/actions'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Profile, UserRole } from '@/types/database'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
@@ -22,18 +22,40 @@ type FormData = {
   civilite:   string
   first_name: string
   last_name:  string
-  role:       UserRole
+  role:       UserRole | ''   // '' = aucun role choisi (le select demarre vide)
   phone:      string
+  notes:      string
 }
 
+// Roles SANS fiche metier dediee : `profiles` est leur seule fiche → c'est le seul
+// endroit ou consigner des remarques. Les enseignants (teachers.notes) et les parents
+// (parents.notes) ont deja leur champ sur leur propre fiche → on n'affiche pas
+// l'encadre ici pour eux (evite deux champs Remarques concurrents).
+const ROLES_WITH_NOTES: UserRole[] = ['direction', 'comptable', 'secretaire', 'responsable_pedagogique']
+
+// Roles creables depuis cet ecran. `parent` en est exclu : les comptes parents sont
+// SUSPENDUS en V1 (cf. CREATE_PARENT_ACCOUNTS = false) — les creer ici contournerait
+// la decision. `admin` / `super_admin` ne sont jamais creables ici.
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'direction',                label: 'Direction'          },
   { value: 'comptable',                label: 'Comptable'          },
   { value: 'responsable_pedagogique',  label: 'Resp. Pédagogique'  },
   { value: 'enseignant',               label: 'Enseignant'         },
   { value: 'secretaire',               label: 'Secrétaire'         },
-  { value: 'parent',                   label: 'Parent'             },
 ]
+
+// Roles non modifiables sur une fiche existante (structurants ou hors perimetre V1).
+const LOCKED_ROLES: UserRole[] = ['admin', 'super_admin', 'parent']
+const ROLE_LABELS: Record<string, string> = {
+  super_admin:             'Super Admin',
+  admin:                   'Administrateur',
+  direction:               'Direction',
+  comptable:               'Comptable',
+  responsable_pedagogique: 'Resp. Pédagogique',
+  enseignant:              'Enseignant',
+  secretaire:              'Secrétaire',
+  parent:                  'Parent',
+}
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 const toUpperCase  = (v: string) => v.toUpperCase()
@@ -65,13 +87,15 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
     civilite:   profile?.civilite   ?? '',
     first_name: profile?.first_name ?? '',
     last_name:  profile?.last_name  ?? '',
-    role:       profile?.role       ?? 'enseignant',
+    role:       profile?.role       ?? '',   // select vide a la creation (regle projet)
     phone:      profile?.phone      ?? '',
+    notes:      profile?.notes      ?? '',
   })
 
   const initialForm    = useRef<FormData>({ ...form })
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
   const [showPassword, setShowPassword] = useState(false)
+  const [pwdFocused,   setPwdFocused]   = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resetStatus,  setResetStatus]  = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
@@ -80,13 +104,20 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
   const touch = (field: string) =>
     setTouched(prev => new Set([...prev, field]))
 
+  // Le role d'un compte structurant / hors perimetre V1 n'est pas modifiable.
+  const roleLocked = isEditing && LOCKED_ROLES.includes(profile.role)
+
+  // Remarques : uniquement pour les roles sans fiche metier (suit le role choisi).
+  const showNotes = !!form.role && ROLES_WITH_NOTES.includes(form.role as UserRole)
+
   // Validation
   const vCivilite  = !form.civilite
   const vEmail     = !isValidEmail(form.email.trim())
   const vPassword  = !isEditing && !isPasswordValid(form.password, form.first_name, form.last_name)
   const vFirstName = form.first_name.trim().length < 2
   const vLastName  = form.last_name.trim().length  < 2
-  const isValid    = !vCivilite && !vEmail && !vPassword && !vFirstName && !vLastName
+  const vRole      = !form.role
+  const isValid    = !vCivilite && !vEmail && !vPassword && !vFirstName && !vLastName && !vRole
 
   // La fiche est réservée à admin/direction (garde route) : l'email de n'importe
   // quel utilisateur y est modifiable (cas « l'utilisateur demande un changement d'email »).
@@ -116,21 +147,23 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
           if (emailResult.error) { toast.error(emailResult.error); setIsSubmitting(false); return }
         }
         result = await updateProfile(profile.id, {
-          role:       form.role,
+          role:       form.role as UserRole,   // non vide : garanti par isValid
           civilite:   form.civilite.trim() || undefined,
           first_name: form.first_name.trim(),
           last_name:  form.last_name.trim(),
           phone:      form.phone.trim() || undefined,
+          notes:      showNotes ? (form.notes.trim() || undefined) : undefined,
         })
       } else {
         result = await createUser({
           email:      form.email.trim(),
           password:   form.password,
-          role:       form.role,
+          role:       form.role as UserRole,   // non vide : garanti par isValid
           civilite:   form.civilite.trim() || undefined,
           first_name: form.first_name.trim(),
           last_name:  form.last_name.trim(),
           phone:      form.phone.trim() || undefined,
+          notes:      showNotes ? (form.notes.trim() || undefined) : undefined,
         })
       }
 
@@ -149,8 +182,37 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
     }
   }
 
+  // Initiales pour le bandeau (NOM Prénom)
+  const initiales = `${(profile?.last_name?.[0] ?? '').toUpperCase()}${(profile?.first_name?.[0] ?? '').toUpperCase()}`
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-3 max-w-2xl">
+
+      {/* En-tête : avatar + nom + repères (aligné sur les autres fiches) */}
+      {isEditing && profile && (
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none bg-warm-100 text-warm-600 ring-1 ring-warm-200">
+            {initiales}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-secondary-800 leading-tight truncate">
+              {profile.last_name} {profile.first_name}
+            </h1>
+            <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5 flex-wrap">
+              <span>{ROLE_LABELS[profile.role] ?? profile.role}</span>
+              <span>· {profile.email}</span>
+              {!profile.is_active && (
+                <span className="bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">Inactif</span>
+              )}
+              {profile.role !== 'parent' && (
+                has2fa
+                  ? <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">2FA activée</span>
+                  : <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">2FA non configurée</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card p-4 space-y-3">
 
@@ -200,15 +262,21 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
             required
             aria-required="true"
             value={form.role}
-            onChange={e => set('role', e.target.value as UserRole)}
-            disabled={profile?.role === 'admin'}
+            onChange={e => set('role', e.target.value)}
+            onBlur={() => touch('role')}
+            disabled={roleLocked}
+            error={touched.has('role') && vRole ? 'Requis' : undefined}
           >
-            {profile?.role === 'admin'
-              ? <option value="admin">Administrateur</option>
-              : ROLE_OPTIONS.map(opt => (
+            {roleLocked ? (
+              <option value={profile.role}>{ROLE_LABELS[profile.role] ?? profile.role}</option>
+            ) : (
+              <>
+                <option value="" disabled hidden></option>
+                {ROLE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))
-            }
+                ))}
+              </>
+            )}
           </FloatSelect>
           <FloatInput
             label="Téléphone"
@@ -297,10 +365,14 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
                 className="pr-10"
                 value={form.password}
                 onChange={e => set('password', e.target.value)}
-                onBlur={() => touch('password')}
+                onFocus={() => setPwdFocused(true)}
+                onBlur={() => { setPwdFocused(false); touch('password') }}
               />
               <button
                 type="button"
+                // Ne pas voler le focus au champ : sinon basculer la visibilite
+                // le blurerait et masquerait la checklist.
+                onMouseDown={e => e.preventDefault()}
                 onClick={() => setShowPassword(v => !v)}
                 aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 aria-pressed={showPassword}
@@ -309,7 +381,8 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {touched.has('password') && form.password.length > 0 && (
+            {/* Regles visibles uniquement pendant que le champ a le focus. */}
+            {pwdFocused && (
               <PasswordChecklist
                 password={form.password}
                 firstName={form.first_name}
@@ -317,6 +390,16 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
               />
             )}
           </div>
+        )}
+
+        {/* Remarques internes — rôles sans fiche métier uniquement */}
+        {showNotes && (
+          <FloatTextarea
+            label="Remarques"
+            rows={3}
+            value={form.notes}
+            onChange={e => set('notes', e.target.value)}
+          />
         )}
 
       </div>

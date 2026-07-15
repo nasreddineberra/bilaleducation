@@ -20,6 +20,7 @@ export async function createUser(data: {
   first_name: string
   last_name:  string
   phone?:     string
+  notes?:     string
 }): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
@@ -58,8 +59,11 @@ export async function createUser(data: {
     return { error: authError.message }
   }
 
-  // 2. Insérer le profil dans une transaction atomique via RPC
-  const { error: rpcError } = await supabase.rpc('create_profile_only', {
+  // 2. Insérer le profil via RPC, avec le client SESSION : le trigger d'audit capte
+  //    alors l'acteur (auth.uid()). Le RPC est SECURITY INVOKER et la policy
+  //    « Admin and direction can insert profiles » autorise l'insertion.
+  const session = await createClient()
+  const { error: rpcError } = await session.rpc('create_profile_only', {
     p_profile_id:       authData.user.id,
     p_email:            data.email,
     p_role:             data.role,
@@ -78,6 +82,16 @@ export async function createUser(data: {
     return { error: `Erreur lors de la création du profil : ${rpcError.message}` }
   }
 
+  // Remarques : posees apres le RPC (signature fixe). Champ libre non critique →
+  // un echec ici ne doit pas annuler la creation du compte.
+  if (data.notes?.trim()) {
+    const { error: notesError } = await session
+      .from('profiles')
+      .update({ notes: data.notes.trim() })
+      .eq('id', authData.user.id)
+    if (notesError) console.error('[createUser] Remarques non enregistrees:', notesError)
+  }
+
   revalidatePath('/dashboard/utilisateurs')
   return {}
 }
@@ -90,6 +104,7 @@ export async function updateProfile(id: string, data: {
   first_name: string
   last_name:  string
   phone?:     string
+  notes?:     string
 }): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
@@ -98,7 +113,9 @@ export async function updateProfile(id: string, data: {
   const validation = validateInput(UpdateProfileSchema, data)
   if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
-  const supabase = createAdminClient()
+  // Client SESSION (pas admin) : le trigger d'audit capte alors l'acteur via auth.uid().
+  // Requiert la policy « Admin and direction can update profiles » (fix-profiles-audit-user.sql).
+  const supabase = await createClient()
 
   const { error } = await supabase.from('profiles').update({
     role:       data.role,
@@ -106,6 +123,7 @@ export async function updateProfile(id: string, data: {
     first_name: data.first_name,
     last_name:  data.last_name,
     phone:      data.phone || null,
+    notes:      data.notes || null,
   }).eq('id', id)
 
   if (error) return { error: 'Erreur lors de la mise à jour.' }
@@ -120,7 +138,16 @@ export async function toggleActive(id: string, is_active: boolean): Promise<{ er
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
-  const supabase = createAdminClient()
+  // Client SESSION : le trigger d'audit capte l'acteur via auth.uid().
+  const supabase = await createClient()
+
+  // Garde anti lock-out : les comptes structurants (admin / super_admin) ne peuvent
+  // pas etre desactives, meme par un admin ou une direction (sinon plus d'acces).
+  const { data: target } = await supabase.from('profiles').select('role').eq('id', id).maybeSingle()
+  if (!target) return { error: 'Utilisateur introuvable.' }
+  if (!is_active && (target.role === 'admin' || target.role === 'super_admin')) {
+    return { error: 'Ce compte est structurant : il ne peut pas être désactivé.' }
+  }
 
   const { error } = await supabase.from('profiles').update({ is_active }).eq('id', id)
 
@@ -144,7 +171,10 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
     return { error: authError.message }
   }
 
-  const { error: profileError } = await supabase.from('profiles').update({ email }).eq('id', id)
+  // Table via client SESSION → l'acteur est capte par le trigger d'audit
+  // (le compte auth, lui, ne peut etre modifie qu'avec le service-role).
+  const session = await createClient()
+  const { error: profileError } = await session.from('profiles').update({ email }).eq('id', id)
   if (profileError) return { error: "Erreur lors de la mise à jour de l'email." }
 
   revalidatePath('/dashboard/utilisateurs')
@@ -196,10 +226,26 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
 
   const supabase = createAdminClient()
 
+  // NB : NEXT_PUBLIC_SITE_URL DOIT etre defini en production, sinon le lien du mail
+  // pointe sur localhost (et l'URL doit figurer dans les Redirect URLs Supabase).
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback?next=/auth/reset-password`,
   })
 
   if (error) return { error: 'Erreur lors de l\'envoi de l\'email.' }
+
+  // Tracabilite : action sensible declenchee par un admin/direction.
+  // Client SESSION → l'acteur est capte (le client admin serait anonyme).
+  try {
+    const session = await createClient()
+    await logAudit(session, {
+      action: 'UPDATE',
+      entityType: 'auth',
+      description: `Envoi d'un lien de réinitialisation du mot de passe à ${email}`,
+    })
+  } catch {
+    // non bloquant : la trace ne doit pas faire echouer l'envoi
+  }
+
   return {}
 }

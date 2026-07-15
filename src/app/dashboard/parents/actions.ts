@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
@@ -173,8 +174,10 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
     })
   }
 
-  // Créer la fiche parents
-  const { data: parent, error: parentError } = await supabase
+  // Créer la fiche parents avec le client SESSION : le trigger d'audit capte alors
+  // l'acteur (auth.uid()). Le client admin reste réservé aux comptes auth des tuteurs.
+  const session = await createClient()
+  const { data: parent, error: parentError } = await session
     .from('parents')
     .insert(parentData)
     .select('id')
@@ -210,7 +213,9 @@ export async function updateParentRecord(
   const validation = validateInput(UpdateParentSchema, payload)
   if ('error' in validation) return { error: `Validation : ${validation.error}` }
 
-  const supabase = createAdminClient()
+  // Client SESSION (pas admin) : le trigger d'audit capte l'acteur via auth.uid().
+  // La policy « Admin, direction and secretaire can manage parents » (FOR ALL) l'autorise.
+  const supabase = await createClient()
 
   // Sanitize payload pour empêcher l'injection de champs interdits
   const rawPayload = payload as Record<string, unknown>

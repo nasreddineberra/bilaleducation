@@ -15,6 +15,7 @@ export const CreateUserSchema = z.object({
   first_name: z.string().min(2, 'Prénom trop court'),
   last_name: z.string().min(2, 'Nom trop court'),
   phone: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 })
 
 export const UpdateProfileSchema = z.object({
@@ -23,6 +24,7 @@ export const UpdateProfileSchema = z.object({
   first_name: z.string().min(2, 'Prénom trop court'),
   last_name: z.string().min(2, 'Nom trop court'),
   phone: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 })
 
 // ─── Enseignants ────────────────────────────────────────────────────────────

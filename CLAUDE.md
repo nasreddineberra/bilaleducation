@@ -628,10 +628,56 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   suppression d'annee → cascade OK, codes a 2 ou 4 caracteres rejetes (23514).
 - **Migration executee** : `add-presence-type-reserved-kind.sql`.
 
+#### 15 juillet 2026 (suite) — Audit module Utilisateurs + tracabilite du journal (profiles / parents)
+- **P1 securite / correctness** :
+  - **Lock-out corrige** : le toggle actif/inactif n'etait bloque que pour `admin` cote UI, et `toggleActive`
+    n'avait **aucun controle du role cible** → une direction pouvait desactiver le **super_admin** (et l'admin via
+    l'API). Desormais : garde **serveur** (refus si cible `admin`/`super_admin`) + UI grisee (`isCore`).
+    NB : le super_admin (espace `/superadmin`, gestion des etablissements/licences) a `etablissement_id` NULL →
+    la RLS tenant l'exclut deja de cet ecran ; la garde est de la defense en profondeur.
+  - **Role du select vide a la creation** (etait pre-rempli a `enseignant`) + obligatoire (`vRole`) — regle projet.
+  - **`parent` retire des roles creables** (comptes parents suspendus en V1). Role **verrouille** en edition pour
+    `admin`/`super_admin`/`parent` (`LOCKED_ROLES`).
+- **P2 charte / ergonomie** : **bandeau d'en-tete** sur la fiche (avatar + `h1` NOM Prenom + role · email + badges
+  Inactif / 2FA), calque sur la fiche enseignant ; **`ListStatCard`** (fini le `card` maison en `text-2xl`) rendues
+  **cliquables (filtres)** comme les autres listes ; bouton « Ajouter » au style charte `FloatButton` ; tableau en
+  **`text-xs`**, email sans `font-mono`, quadratin `—` → `·` ; **vrais onglets ARIA** (`tablist/tab/tabpanel`,
+  roving tabindex, fleches) + **deep-link `?tab=`** ; **`space-y-6` → `space-y-2`** (les 4 listes principales sont
+  en `space-y-2`).
+- **P3 confirmations** : **desactivation** d'un compte (perte d'acces) et **envoi du lien de reinitialisation**
+  (email) passent par `ConfirmModal` — la reinit. 2FA en avait deja une.
+- **Champ « Remarques »** (`profiles.notes`, migration `add-profile-notes.sql`) : affiche **uniquement** pour les
+  roles **sans fiche metier** (direction / comptable / secretaire / responsable_pedagogique) — les enseignants
+  (`teachers.notes`) et parents (`parents.notes`) ont deja le leur (evite deux champs concurrents). Suit le role
+  choisi. Place en fin de carte, apres le mot de passe. Schemas Zod mis a jour (sinon rejet a la validation).
+  A la creation, pose apres le RPC `create_profile_only` (signature fixe), echec non bloquant.
+- **Checklist mot de passe** : ne s'affichait qu'au **blur** (d'ou l'impression qu'elle dependait de l'oeil, qui
+  blure le champ). Desormais visible **pendant le focus** uniquement, et le bouton oeil ne vole plus le focus
+  (`onMouseDown` neutralise).
+- **TRACABILITE DU JOURNAL — cause generale** : le trigger `fn_audit_log()` lit `auth.uid()` ; une ecriture de
+  **table** via `createAdminClient()` (service-role) n'a **pas de session** → `audit_logs.user_id` NULL →
+  colonne « Utilisateur » vide. **Regle : les tables s'ecrivent avec le client SESSION ; le client admin est
+  reserve aux comptes `auth`** (`auth.admin.*`, `resetPasswordForEmail`).
+  - **`profiles`** : `createUser` / `updateProfile` / `toggleActive` / `updateEmail` passes en client session.
+    Il **manquait la policy RLS UPDATE** pour admin/direction (seule « update own profile » existait) — c'est ce
+    qui forcait le contournement en service-role → migration **`fix-profiles-audit-user.sql`** (policy scopee a
+    l'etablissement, garde `coalesce(get_user_role(), '')`). N'elargit aucun pouvoir (les server actions etaient
+    deja gardees par `requireRoleServer`). **Verifie : acteur capte.**
+  - **`parents`** : `createParentAccount` (insert fiche) + `updateParent` passes en client session. **Aucune
+    migration** : la policy « Admin, direction and secretaire can manage parents » (FOR ALL) existait deja.
+    **Verifie : acteur capte.**
+  - **`sendPasswordReset`** : n'etait **pas trace** (contrairement a la reinit. 2FA) → `logAudit` ajoute.
+  - **Sains** (verifies) : `school_years`, `students`, `teachers`, `cotisation_types`, `staff_time_entries`.
+  - **Piege de diagnostic** : les **scripts service-role jetables** produisent eux aussi des logs sans acteur
+    (ex. test du trigger `school_years` du 15/07 13:42) — verifier l'**origine**, pas seulement la date.
+  - **Passe globale « tracabilite » a faire en fin de V1** (voir memoire `audit-trail-actor.md`).
+- **Piege UI (memoire)** : `FloatInput` n'a pas de prop `disabled` utilisable → utiliser **`locked`**.
+- **Migrations executees** : `add-profile-notes.sql`, `fix-profiles-audit-user.sql`.
+
 ## Prochaine etape
-- **Audit du module Utilisateurs** (liste + fiche, dans Parametres) : ergonomie / charte a reprendre — l'audit du
-  7-8 juillet est anterieur a plusieurs regles affinees depuis.
-- Tests reels reportes en **fin de V1** (l'utilisateur demandera un plan de test).
+- Poursuite des **fonctionnalites utilisateurs**.
+- Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
+  quadratins `—`, et les **prerequis de mise en production** ci-dessus.
 
 ## Stack technique
 
@@ -766,6 +812,15 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 | Formulaire cours/UE | 1 |
 
 ---
+
+## Prerequis MISE EN PRODUCTION (bloquants)
+
+- [ ] **`NEXT_PUBLIC_SITE_URL`** : **absent de `.env.local`**. `sendPasswordReset` (utilisateurs) et tout lien de mail
+  auth retombent sur le fallback **`http://localhost:3000`** → en production, le mail de reinitialisation de mot de
+  passe enverrait l'utilisateur **sur localhost** (lien mort). Definir la variable ET ajouter l'URL aux
+  **Redirect URLs** autorisees du projet Supabase (Auth → URL Configuration).
+- [ ] Verifier la **duree de validite des liens auth** (Supabase → Auth → *Email OTP expiration*, **1 h par defaut**) :
+  les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
 

@@ -45,6 +45,9 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
   const [error, setError] = useState<string | null>(null)
   const [reset2faTarget, setReset2faTarget] = useState<Profile | null>(null)
   const [resetting2fa, setResetting2fa] = useState(false)
+  // Actions sensibles → confirmation (desactivation = perte d'acces ; reset mdp = envoi d'email)
+  const [deactivateTarget, setDeactivateTarget] = useState<Profile | null>(null)
+  const [resetPwdTarget, setResetPwdTarget] = useState<Profile | null>(null)
 
   const handleReset2fa = async () => {
     if (!reset2faTarget) return
@@ -92,7 +95,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
       )}
 
       <div className="card p-0 overflow-hidden">
-        <table className="w-full" aria-label="Utilisateurs">
+        <table className="w-full text-xs" aria-label="Utilisateurs">
           <thead>
             <tr className="border-b border-warm-100">
               <th className="list-th w-3/12">Utilisateur</th>
@@ -109,8 +112,10 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
               const isLoading = loadingId === profile.id
               const resetSent = resetSentId === profile.id
               const fullName = `${profile.last_name} ${profile.first_name}`
-              const toggleLabel = profile.role === 'admin'
-                ? 'Le compte administrateur ne peut pas être désactivé'
+              // Comptes structurants : jamais desactivables (garde aussi cote serveur).
+              const isCore = profile.role === 'admin' || profile.role === 'super_admin'
+              const toggleLabel = isCore
+                ? 'Ce compte est structurant : il ne peut pas être désactivé'
                 : profile.is_active ? 'Désactiver' : 'Activer'
               const resetLabel = resetSent ? 'Email envoyé' : 'Réinitialiser le mot de passe'
 
@@ -139,7 +144,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
 
                   {/* Email */}
                   <td className="list-td">
-                    <span className="text-sm text-warm-600 font-mono">{profile.email}</span>
+                    <span className="text-warm-600">{profile.email}</span>
                   </td>
 
                   {/* Rôle */}
@@ -168,7 +173,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                   <td className="list-td whitespace-nowrap">
                     {profile.role === 'parent' ? (
                       <Tooltip content="La 2FA n'est pas requise pour les parents">
-                        <span className="text-warm-300 text-xs">—</span>
+                        <span className="text-warm-300">·</span>
                       </Tooltip>
                     ) : twoFactorSet.has(profile.id) ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
@@ -196,15 +201,15 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                         </button>
                       </Tooltip>
 
-                      {/* Activer / Désactiver (admin non modifiable) */}
+                      {/* Activer / Désactiver (comptes structurants non modifiables) */}
                       <Tooltip content={toggleLabel}>
                         <button
-                          onClick={() => handleToggle(profile)}
-                          disabled={isLoading || profile.role === 'admin'}
+                          onClick={() => profile.is_active ? setDeactivateTarget(profile) : handleToggle(profile)}
+                          disabled={isLoading || isCore}
                           aria-label={toggleLabel}
                           className={clsx(
                             'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
-                            profile.role === 'admin'
+                            isCore
                               ? 'text-warm-200 cursor-not-allowed'
                               : profile.is_active
                                 ? 'text-warm-400 hover:text-amber-600 hover:bg-amber-50'
@@ -222,7 +227,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                       {/* Réinitialiser mot de passe */}
                       <Tooltip content={resetLabel}>
                         <button
-                          onClick={() => handleResetPassword(profile)}
+                          onClick={() => setResetPwdTarget(profile)}
                           disabled={isLoading || resetSent}
                           aria-label={resetLabel}
                           className={clsx(
@@ -262,6 +267,30 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
           </tbody>
         </table>
       </div>
+
+      {deactivateTarget && (
+        <ConfirmModal
+          variant="warning"
+          title="Désactiver ce compte ?"
+          message={`${deactivateTarget.last_name} ${deactivateTarget.first_name} ne pourra plus se connecter à l'application. Le compte reste conservé et peut être réactivé à tout moment.`}
+          confirmLabel="Désactiver"
+          cancelLabel="Annuler"
+          onConfirm={() => { const p = deactivateTarget; setDeactivateTarget(null); handleToggle(p) }}
+          onCancel={() => setDeactivateTarget(null)}
+        />
+      )}
+
+      {resetPwdTarget && (
+        <ConfirmModal
+          variant="warning"
+          title="Réinitialiser le mot de passe ?"
+          message={`Un email de réinitialisation sera envoyé à ${resetPwdTarget.email}. La personne devra suivre le lien pour définir un nouveau mot de passe.`}
+          confirmLabel="Envoyer le lien"
+          cancelLabel="Annuler"
+          onConfirm={() => { const p = resetPwdTarget; setResetPwdTarget(null); handleResetPassword(p) }}
+          onCancel={() => setResetPwdTarget(null)}
+        />
+      )}
 
       {reset2faTarget && (
         <ConfirmModal
