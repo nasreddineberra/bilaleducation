@@ -175,6 +175,8 @@ interface Props {
   coursList: CoursData[]
   ueList: UEData[]
   todayValidations: ValidationData[]
+  /** Types de presence reserves de l'annee : correspondance slot_type → code reel. */
+  reservedPresenceTypes?: { code: string; reserved_kind: string }[]
   weekStartDay?: number  // 0=Dimanche, 1=Lundi, 6=Samedi
   workingDays?: number   // 5=Lun-Ven, 7=Lun-Dim
   schoolYearStartDate?: string | null  // YYYY-MM-DD
@@ -238,6 +240,7 @@ export default function EmploiDuTempsClient({
   currentUserId, currentUserName, role, canEdit, schoolYearId,
   classes, teachers, slots: initialSlots, exceptions: initialExceptions,
   rooms, coursList, ueList, todayValidations: initialValidations,
+  reservedPresenceTypes = [],
   weekStartDay = 1,
   workingDays = 5,
   schoolYearStartDate, schoolYearEndDate, vacations = [],
@@ -1179,6 +1182,19 @@ export default function EmploiDuTempsClient({
       toast.error(`${teacherName} n'a pas de compte utilisateur lie. Veuillez d'abord lier un compte dans la fiche enseignant.`)
       return
     }
+
+    // Le type de creneau ('cours'/'activite') n'est PAS un code de type de presence.
+    // On resout le type reserve correspondant pour ecrire son VRAI code (ex. 'CRS'),
+    // sinon l'heure serait comptee mais invisible dans le recap Temps de presence.
+    const entryType = reservedPresenceTypes.find(t => t.reserved_kind === resolved.slot_type)?.code
+    if (!entryType) {
+      toast.error(
+        `Aucun type de presence n'est associe aux creneaux « ${resolved.slot_type} » pour cette annee. `
+        + 'Configurez-le dans Parametres → Types de presence.',
+      )
+      return
+    }
+
     const durationMin = timeToMinutes(resolved.end_time) - timeToMinutes(resolved.start_time)
 
     const { data: timeEntry, error: teErr } = await supabase
@@ -1186,7 +1202,7 @@ export default function EmploiDuTempsClient({
       .insert({
         profile_id: teacherProfileId,
         entry_date: slotDate,
-        entry_type: resolved.slot_type,
+        entry_type: entryType,
         start_time: resolved.start_time,
         end_time: resolved.end_time,
         duration_minutes: durationMin,
@@ -1217,7 +1233,7 @@ export default function EmploiDuTempsClient({
       confirmLabel: 'Valider',
       onConfirm: doValidate,
     })
-  }, [supabase, currentUserId, teacherProfileMap])
+  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)

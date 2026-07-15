@@ -41,7 +41,7 @@ export default async function TypesPresencePage() {
   // Types de l'année en cours (établissement filtré par RLS)
   const { data: types } = await supabase
     .from('presence_types')
-    .select('id, label, code, color, is_active, is_absence, order_index, school_year_id')
+    .select('id, label, code, color, is_active, is_absence, order_index, school_year_id, reserved_kind')
     .eq('school_year_id', currentYear.id)
     .order('order_index')
     .order('label')

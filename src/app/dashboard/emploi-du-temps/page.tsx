@@ -58,6 +58,14 @@ export default async function EmploiDuTempsPage() {
     .eq('is_active', true)
     .order('start_time')
 
+  // Types de présence RÉSERVÉS de l'année : correspondance slot_type ('cours'/'activite')
+  // → code réel du type (ex. 'CRS'/'ACT') écrit dans staff_time_entries à la validation.
+  const { data: reservedPresenceTypes } = await supabase
+    .from('presence_types')
+    .select('code, reserved_kind')
+    .eq('school_year_id', currentYear.id)
+    .not('reserved_kind', 'is', null)
+
   // Exceptions — limitées aux créneaux de l'année en cours (évite le sur-fetch)
   const slotIds = (slots ?? []).map((s: { id: string }) => s.id)
   const { data: exceptions } = slotIds.length > 0
@@ -110,6 +118,7 @@ export default async function EmploiDuTempsPage() {
         coursList={(coursList ?? []) as any[]}
         ueList={(ueList ?? []) as any[]}
         todayValidations={(todayValidations ?? []) as any[]}
+        reservedPresenceTypes={(reservedPresenceTypes ?? []) as any[]}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}
         schoolYearStartDate={currentYear.start_date ?? null}

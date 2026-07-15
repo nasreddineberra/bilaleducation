@@ -594,9 +594,44 @@ Methode : audit lecture seule d'un module, puis corrections par lots apres accor
   Voir memoire `temps-presence-audit.md` : **passe fin de V1** pour traquer les valeurs en dur (`'ABS'`, `'cours'`…).
 - **Migrations executees** : `adjust-time-tracking-roles.sql`, `add-absence-period.sql`.
 
+#### 15 juillet 2026 — Couplage EDT ↔ Temps de presence : types de presence RESERVES
+- **Bug de fond corrige** (latent, 0 validation en base au moment du fix) : `handleValidate` (EDT) inserait
+  `staff_time_entries.entry_type = schedule_slots.slot_type` = **`cours`/`activite`**, alors que le recap Temps de
+  presence regroupe par **CODE** de `presence_types` (ici `CRS`/`ACT`). Aucune correspondance → l'heure validee
+  etait comptee en base mais **invisible** dans le recap (pas de colonne). **Confusion code / libelle** a l'origine.
+- **Migration `add-presence-type-reserved-kind.sql`** (idempotente) :
+  - colonne **`reserved_kind`** (`absence`|`cours`|`activite`) : marque le type **RESERVE** ET sert de
+    **correspondance EDT** (aucune valeur en dur cote app) ; backfill des types existants ; unicite partielle
+    `(etablissement, annee, reserved_kind)`.
+  - **`CHECK (char_length(code) = 3)`** : code de type = exactement 3 caracteres (`AB.`/`CRS`/`ACT`/`MEN`).
+  - **`fn_ensure_reserved_presence_types(etab, annee)`** idempotente (`IF NOT EXISTS`) : cree les 3 types manquants
+    en **reprenant code/libelle/couleur de l'annee precedente**, sinon defauts. Backfill de toutes les annees.
+  - **Trigger `school_years` AFTER INSERT** → toute nouvelle annee recoit les 3 types reserves (annees saisies a
+    l'avance incluses, rejeu sans effet).
+  - **Trigger `presence_types` BEFORE UPDATE/DELETE** → suppression interdite, `code`/`reserved_kind`/`is_absence`/
+    `is_active` non modifiables. **La garde DELETE ne mord que si l'annee existe encore** → la CASCADE de suppression
+    d'une annee/etablissement passe (FK `ON DELETE CASCADE`).
+  - **Consequence** : les codes reserves sont toujours "pris" → **non reutilisables** par un autre type (unicite
+    existante `presence_types_etab_year_code_key`).
+- **EDT** (`EmploiDuTempsClient` + `page.tsx`) : `handleValidate` **resout** `slot_type` → type reserve de l'annee →
+  ecrit son **vrai code**. Si aucun type reserve → **blocage + message** (« Configurez-le dans Parametres → Types de
+  presence ») au lieu d'orpheliner l'heure. La page charge `reservedPresenceTypes` (code + reserved_kind).
+- **Types de presence** (`TypesPresenceClient` + `page.tsx`) : « Reserve » pilote par **`reserved_kind`** (couvre les 3,
+  au lieu de `is_absence`) ; les reserves gardent l'icone **Modifier** mais **seule la couleur** est editable
+  (Libelle/Code en `locked`, Actif `disabled`) ; pas de suppression ; bandeau d'info reecrit (ABSENCE + COURS +
+  ACTIVITE) ; code borne a 3 caracteres (`maxLength`, validation `!== 3`).
+- **Piege UI (memoire)** : `FloatInput` n'a **pas** de prop `disabled` utilisable — il expose **`locked`** (et
+  `disabled={locked}` est ecrit APRES le `{...props}`, donc un `disabled` passe en prop est **ecrase**). Utiliser
+  `locked` (qui applique aussi le style grise).
+- **Verifie en base** : backfill (3 types x 3 annees), DELETE/UPDATE code/is_active bloques, couleur autorisee,
+  type normal (MEN) toujours modifiable/supprimable, nouvelle annee → 3 types crees avec les codes de l'etablissement,
+  suppression d'annee → cascade OK, codes a 2 ou 4 caracteres rejetes (23514).
+- **Migration executee** : `add-presence-type-reserved-kind.sql`.
+
 ## Prochaine etape
-- Poursuite des **fonctionnalites utilisateurs**. Reste (optionnel) : couplage EDT ↔ types COURS/ACTIVITE.
-  Tests reels reportes en **fin de V1** (l'utilisateur demandera un plan de test).
+- **Audit du module Utilisateurs** (liste + fiche, dans Parametres) : ergonomie / charte a reprendre — l'audit du
+  7-8 juillet est anterieur a plusieurs regles affinees depuis.
+- Tests reels reportes en **fin de V1** (l'utilisateur demandera un plan de test).
 
 ## Stack technique
 

@@ -18,6 +18,8 @@ export interface PresenceType {
   is_absence:     boolean
   order_index:    number
   school_year_id: string
+  /** Type systeme : 'absence' | 'cours' | 'activite' | null. Reserve = non supprimable/recodable. */
+  reserved_kind:  string | null
 }
 
 interface YearRef { id: string; label: string }
@@ -85,8 +87,8 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
       setError('Le libellé est obligatoire.')
       return
     }
-    if (!editing?.code?.trim() || editing.code.trim().length < 3) {
-      setError('Le code doit contenir au moins 3 caractères.')
+    if (!editing?.code?.trim() || editing.code.trim().length !== 3) {
+      setError('Le code doit contenir exactement 3 caractères.')
       return
     }
     if (!editing?.color) {
@@ -202,7 +204,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
 
     const { data: prevTypes, error: e1 } = await supabase
       .from('presence_types')
-      .select('label, code, color, is_active, is_absence, order_index')
+      .select('label, code, color, is_active, is_absence, order_index, reserved_kind')
       .eq('school_year_id', previousYear.id)
       .order('order_index')
 
@@ -256,6 +258,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             label="Libellé"
             required
             compact
+            locked={!!editing.reserved_kind}
             value={editing.label ?? ''}
             onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
           />
@@ -264,11 +267,13 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
       <td className="px-4 py-3">
         <div className="w-2/3">
           <FloatInput
-            label="Code (min. 3 car.)"
+            label="Code (3 car.)"
             required
             compact
+            maxLength={3}
+            locked={!!editing.reserved_kind}
             value={editing.code ?? ''}
-            onChange={e => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
+            onChange={e => setEditing({ ...editing, code: e.target.value.toUpperCase().slice(0, 3) })}
           />
         </div>
       </td>
@@ -305,8 +310,9 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
           <input
             type="checkbox"
             checked={editing.is_active ?? true}
+            disabled={!!editing.reserved_kind}
             onChange={e => setEditing({ ...editing, is_active: e.target.checked })}
-            className="h-3.5 w-3.5 rounded border-warm-300 accent-primary-500"
+            className="h-3.5 w-3.5 rounded border-warm-300 accent-primary-500 disabled:opacity-50"
           />
           Actif
         </label>
@@ -318,7 +324,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
               type="button"
               variant="submit"
               onClick={save}
-              disabled={saving || !editing.label?.trim() || (editing.code?.trim().length ?? 0) < 3 || !editing.color}
+              disabled={saving || !editing.label?.trim() || (editing.code?.trim().length ?? 0) !== 3 || !editing.color}
               aria-label="Valider"
             >
               <Check size={13} />
@@ -371,7 +377,12 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
       <div className="card p-0 overflow-hidden">
         <div className="flex items-start gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-xs text-blue-600">
           <Info size={13} className="mt-0.5 shrink-0 text-blue-400" />
-          <span>Le type <strong>ABSENCE</strong> est réservé à la gestion des absences. Il ne peut pas être modifié ni supprimé.</span>
+          <span>
+            Les types <strong>ABSENCE</strong>, <strong>COURS</strong> et <strong>ACTIVITÉ</strong> sont <strong>réservés</strong> au
+            bon fonctionnement de l'application (gestion des absences, validation des présences depuis l'emploi du temps).
+            Ils sont reconduits automatiquement chaque année et ne peuvent être ni supprimés ni désactivés ; leur libellé et
+            leur code sont verrouillés. Seule leur <strong>couleur</strong> est modifiable.
+          </span>
         </div>
         <table className="w-full text-xs" aria-label="Types de présence">
           <thead>
@@ -419,8 +430,25 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                     </span>
                   </td>
                   <td className="list-td">
-                    {row.is_absence ? (
-                      <span className="block text-right text-[10px] text-warm-500 italic pr-1">Réservé</span>
+                    {row.reserved_kind ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip content="Type réservé : reconduit chaque année, non supprimable, libellé et code verrouillés (l'emploi du temps s'y rattache). Seule la couleur est modifiable.">
+                          <span className="text-[10px] text-warm-500 italic">Réservé</span>
+                        </Tooltip>
+                        <Tooltip content="Modifier la couleur">
+                          <button
+                            onClick={() => startEdit(row)}
+                            disabled={!!editing}
+                            aria-label={`Modifier la couleur de ${row.label}`}
+                            className={clsx(
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                              editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100'
+                            )}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        </Tooltip>
+                      </div>
                     ) : confirmDeleteId === row.id ? (
                       <div className="flex items-center justify-end gap-1.5">
                         <button
