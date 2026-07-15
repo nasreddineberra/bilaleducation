@@ -82,6 +82,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
   // 3. Envoyer l'email
   if (emails.length > 0 && params.emailHtml) {
     const result = await sendNotificationEmail({
+      etablissementId: params.etablissement_id,
       to: emails,
       subject: params.emailSubject ?? params.title,
       html: params.emailHtml,

@@ -39,7 +39,7 @@ interface Props {
 
 const TYPE_LABELS: Record<string, string> = {
   all_active: 'Tous les parents (actifs)',
-  all_registered: 'Tous les parents (base)',
+  all_registered: 'Tous les contacts',
   class: 'Parents d\'une classe',
   selected: 'Parents choisis',
   staff: 'Staff interne',
@@ -103,7 +103,7 @@ export default function MessageDetailClient({ message, parentRecipients, staffRe
           <div>
             <span className="font-bold text-warm-500 uppercase tracking-widest">Expediteur</span>
             <p className="text-warm-700 mt-0.5">
-              {message.profiles ? `${message.profiles.first_name} ${message.profiles.last_name}` : '—'}
+              {message.profiles ? `${message.profiles.last_name} ${message.profiles.first_name}` : '·'}
               {message.sender_email && <span className="text-warm-400 ml-1">({message.sender_email})</span>}
             </p>
           </div>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
+import { hasSmtpConfig } from '@/lib/email'
 import NewMessageClient from '@/components/communications/NewMessageClient'
 
 // Communication aux parents = voix de l'etablissement. L'enseignant ne communique
@@ -39,11 +40,12 @@ export default async function NewMessagePage() {
     day_of_week: string | null; start_time: string | null; end_time: string | null
     main_teacher_name: string | null; main_teacher_civilite: string | null
     cotisation_label: string | null
+    is_adult: boolean
   }
 
   const classQuery = supabase
     .from('classes')
-    .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label)')
+    .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label, is_adult)')
     .order('name')
   if (yearLabel) classQuery.eq('academic_year', yearLabel)
 
@@ -53,6 +55,7 @@ export default async function NewMessagePage() {
     main_teacher_name: null,
     main_teacher_civilite: null,
     cotisation_label: c.cotisation_types?.label ?? null,
+    is_adult: !!c.cotisation_types?.is_adult,
   })) as ClassRow[]
 
   const classIds = classes.map(c => c.id)
@@ -70,7 +73,8 @@ export default async function NewMessagePage() {
       (mainTeacherRows ?? []).map(ct => [
         ct.class_id,
         ct.teachers
-          ? { name: `${ct.teachers.first_name} ${ct.teachers.last_name}`, civilite: ct.teachers.civilite }
+          // NOM avant Prenom : regle de l'application.
+          ? { name: `${ct.teachers.last_name} ${ct.teachers.first_name}`, civilite: ct.teachers.civilite }
           : null,
       ])
     )
@@ -94,50 +98,72 @@ export default async function NewMessagePage() {
     .order('tutor1_last_name')
   const parents = (parentData ?? []) as ParentRow[]
 
-  // ─── Mapping classe → parents ──────────────────────────────────────────────
+  // ─── Participants par classe ───────────────────────────────────────────────
   // Une classe adulte n'a pas d'eleves : ses participants sont les tuteurs
-  // inscrits (parent_class_enrollments). Sans eux, une classe adulte afficherait
-  // « aucun destinataire » alors que l'envoi, lui, fonctionne.
-  const classParentMap: Record<string, string[]> = {}
+  // inscrits, et seul le tuteur inscrit est servi (`tutorNumber`). Pour une
+  // classe d'enfants, on sert le foyer (`tutorNumber: null`).
+  // Ce decoupage reproduit exactement la resolution serveur (actions.ts) : sans
+  // lui, le compteur afficherait autre chose que ce qui part reellement.
+  type Participant = { parentId: string; tutorNumber: number | null }
+  const classParticipants: Record<string, Participant[]> = {}
   const enrolledParentIds = new Set<string>()
 
   if (classIds.length > 0) {
+    const adultClassIds = classes.filter(c => c.is_adult).map(c => c.id)
+    const childClassIds = classes.filter(c => !c.is_adult).map(c => c.id)
+
     const [{ data: enrollments }, { data: adultEnrollments }] = await Promise.all([
-      supabase
-        .from('enrollments')
-        .select('class_id, students(parent_id)')
-        .in('class_id', classIds)
-        .eq('status', 'active'),
-      supabase
-        .from('parent_class_enrollments')
-        .select('class_id, parent_id')
-        .in('class_id', classIds)
-        .eq('status', 'active'),
+      childClassIds.length > 0
+        ? supabase
+            .from('enrollments')
+            .select('class_id, students(parent_id)')
+            .in('class_id', childClassIds)
+            .eq('status', 'active')
+        : Promise.resolve({ data: [] as any[] }),
+      adultClassIds.length > 0
+        ? supabase
+            .from('parent_class_enrollments')
+            .select('class_id, parent_id, tutor_number')
+            .in('class_id', adultClassIds)
+            .eq('status', 'active')
+        : Promise.resolve({ data: [] as any[] }),
     ])
 
-    const map: Record<string, Set<string>> = {}
-    const add = (classId: string, parentId?: string | null) => {
+    const add = (classId: string, parentId: string | null | undefined, tutorNumber: number | null) => {
       if (!parentId) return
-      if (!map[classId]) map[classId] = new Set()
-      map[classId].add(parentId)
+      if (!classParticipants[classId]) classParticipants[classId] = []
+      if (!classParticipants[classId].some(p => p.parentId === parentId && p.tutorNumber === tutorNumber)) {
+        classParticipants[classId].push({ parentId, tutorNumber })
+      }
       enrolledParentIds.add(parentId)
     }
 
-    for (const e of ((enrollments ?? []) as any[])) add(e.class_id, e.students?.parent_id)
-    for (const a of ((adultEnrollments ?? []) as any[])) add(a.class_id, a.parent_id)
-
-    for (const [cid, pids] of Object.entries(map)) classParentMap[cid] = [...pids]
+    for (const e of ((enrollments ?? []) as any[])) add(e.class_id, e.students?.parent_id, null)
+    for (const a of ((adultEnrollments ?? []) as any[])) add(a.class_id, a.parent_id, a.tutor_number)
   }
 
+  // ─── Pre-requis d'envoi ────────────────────────────────────────────────────
+  // On bloque en amont plutot que de laisser rediger puis echouer a l'envoi.
+  const { data: etab } = await supabase
+    .from('etablissements')
+    .select('contact')
+    .eq('id', etablissementId)
+    .single()
+
+  const smtpConfigured = etablissementId ? await hasSmtpConfig(etablissementId) : false
+
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="animate-fade-in">
       <NewMessageClient
         role={role}
         classes={classes}
         parents={parents}
-        classParentMap={classParentMap}
+        classParticipants={classParticipants}
         enrolledParentIds={[...enrolledParentIds]}
         etablissementId={etablissementId}
+        smtpConfigured={smtpConfigured}
+        contact={etab?.contact ?? null}
+        yearLabel={yearLabel}
       />
     </div>
   )

@@ -29,7 +29,7 @@ interface Props {
 
 const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
   all_active:     { label: 'Tous les parents (élèves actifs)',  icon: Users,     color: 'bg-blue-100 text-blue-700' },
-  all_registered: { label: 'Tous les parents enregistrés',     icon: Globe,     color: 'bg-purple-100 text-purple-700' },
+  all_registered: { label: 'Tous les contacts',                icon: Globe,     color: 'bg-purple-100 text-purple-700' },
   class:          { label: "Parents d'une classe",             icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
   selected:       { label: 'Parents choisis',                  icon: UserCheck, color: 'bg-green-100 text-green-700' },
   staff:          { label: 'Staff interne',                    icon: Users,     color: 'bg-warm-100 text-warm-700' },
@@ -142,7 +142,7 @@ export default function SentMessagesClient({ messages, role }: Props) {
                       {m.recipient_count ?? '—'}
                     </td>
                     <td className="px-3 py-2 text-xs text-warm-500">
-                      {m.profiles ? `${m.profiles.first_name} ${m.profiles.last_name}` : '—'}
+                      {m.profiles ? `${m.profiles.last_name} ${m.profiles.first_name}` : '·'}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link

@@ -773,8 +773,76 @@ module affichait « envoye » sans envoyer.** Refonte en 4 lots ; seul le **lot 
   collant, compteur vivant, alerte familles sans email, apercu en modale, `ConfirmModal` avant envoi, bouton
   grise + banniere si contact etablissement absent) ; **lot 3 a11y + charte** ; **sous-menu Staff**.
 
+#### 15 juillet 2026 (soir, suite) — Messagerie par etablissement (SOCLE) + refonte de l'ecran d'envoi (LOT 2)
+
+**LOT MESSAGERIE — `Parametres → Etablissement → Messagerie`** (le vrai socle : sans lui, rien ne part).
+- **Migration `add-etablissement-smtp.sql`** (executee) : table `etablissement_smtp` (host, port, secure,
+  username, password, from_name, from_email ; PK = `etablissement_id`). **Config en base et non en variable
+  d'environnement** : l'app est multi-etablissement, une variable est globale par nature.
+- **Regime « serveur uniquement »** : RLS activee et **AUCUNE policy** + `REVOKE ALL ON ... FROM anon,
+  authenticated` → meme un admin ne peut pas lire le mot de passe depuis la console du navigateur. Seul le
+  service-role (donc le serveur) y accede. **Ne JAMAIS ajouter de policy de lecture** : ce serait exposer le
+  secret. Consequence assumee : toute lecture/ecriture passe par une server action.
+  - **Pas de trigger d'audit sur cette table** : `fn_audit_log()` copie `to_jsonb(NEW)` dans
+    `audit_logs.new_data` → **le mot de passe SMTP y atterrirait en clair**. Tracabilite via un `logAudit`
+    explicite (client session → acteur capte), qui note serveur/expediteur mais **jamais le secret**.
+  - `getSmtpSettings()` est **le seul point de sortie** vers le navigateur : il **retire le mot de passe** et
+    renvoie `hasPassword: boolean`. Champ **en ecriture seule** (vide a l'affichage, saisi seulement pour
+    changer). Reserve **admin/direction** (la section ne s'affiche pas pour les autres).
+- **Service email refondu** (`src/lib/email.ts`) : `sendNotificationEmail` prend desormais **`etablissementId`**
+  et charge la config de l'etablissement ; transporteur **en pool avec limite de debit** (3 connexions,
+  ~5 msg/s) **mis en cache par etablissement** avec invalidation par signature de config. A 200-300 foyers,
+  envoyer d'un seul elan = blocage temporaire cote fournisseur. Seul appelant : `notifications.ts` (qui a deja
+  `etablissement_id`) → changement contenu. \+ `hasSmtpConfig()` (existence sans toucher au secret).
+- **« Tester la connexion »** : va jusqu'a l'**envoi reel** vers `etablissements.contact`. Une connexion qui
+  repond ne prouve rien (quota, expediteur refuse, compte restreint). Teste la config **saisie**, pas
+  enregistree → on valide avant de sauvegarder, sans jamais renvoyer le mot de passe au client.
+- **Regle delivrabilite (rappel)** : `from_email` **doit** etre l'adresse du compte SMTP (alignement SPF/DKIM).
+  `from_name` = nom d'affichage (defaut : nom de l'etablissement). **Distinction a retenir** :
+  *Adresse d'expedition* (`From`, technique, imposee par le compte) ≠ *Email de contact*
+  (`Reply-To`, humaine, choisie, destinataire du test). Elles peuvent etre identiques.
+- **Fiche etablissement — mise en page** : **2 colonnes** (Identite + Messagerie a gauche, Documents requis a
+  droite) separees d'un **filet vertical**, alignees en haut, **sans scrollbar de page** (`overflow-y-auto`
+  retire). Titre **« Identite »** ajoute au 1er encadre (meme charte que « Messagerie »). Bouton **Valider
+  rentre dans l'encadre** ; mention **« * obligatoire » commune**, sous la colonne gauche.
+
+**LOT 2 — refonte de l'ecran d'envoi aux parents** (`NewMessageClient`) :
+- **2 colonnes** : composition a gauche, **panneau destinataires collant** a droite. Les ciblages interdits
+  **n'apparaissent plus** (au lieu d'etre grises) : on ne montre pas ce qu'on refuse.
+- **Fin du mur d'adresses** (`<textarea>` de 300 emails) → **compteur vivant** : « N foyers cibles · N emails ·
+  un envoi par foyer ». Familles injoignables **nommees** (alerte ambre) + modale « Voir le detail ».
+- **Compteur exact pour les classes adultes** : `classParticipants` (page) porte `tutorNumber`
+  (`null` = foyer, 1|2 = classe adulte) → le calcul client **reproduit la resolution serveur**. Libelle adapte
+  (« participants » et non « foyers »). Sans ca l'ecran aurait affiche autre chose que ce qui part.
+- **Apercu + detail en modales portees dans `<body>`** (`createPortal`) : rappel du piege `animate-fade-in`,
+  dont le `transform` capture le `position: fixed` (deja rencontre sur le cahier de texte).
+- **`ConfirmModal` avant envoi** (irreversible) : recap objet / cible / volume / PJ + avertissement explicite
+  quand le ciblage inclut les non-inscrits.
+- **Blocage en amont** : banniere + « Envoyer » grise si la **messagerie** ou l'**email de contact** manquent
+  (lien vers les parametres) → on ne redige plus pour rien.
+- **Libelles** : « Parents {annee en cours} » (dynamique, repli si aucune annee) et **« Tous les contacts »**
+  (ex-« Tous les parents enregistres ») — **aligne aussi dans l'historique et la fiche message**, qui gardaient
+  deux autres noms. **« Tout selectionner » supprime** (tout le monde = le bouton « Parents {annee} », pas une
+  selection manuelle) ; recherche placee a droite de « Tout deselectionner ». Liste des familles a **hauteur
+  fixe de 10 lignes** (fixe et non `max-h` : sinon le panneau saute au filtrage). **Mention « direction en copie
+  invisible » retiree** du recap (l'info ne concerne qu'admin/direction) — la CCI part toujours.
+- **Infos de classe sur 3 lignes** (`<dl>` Enseignant / Cotisation / Horaire), toujours affichees avec
+  « Non affecte » / « Non renseigne » pour que la hauteur ne varie pas.
+- **Nouvelle classe `.list-scroll`** (globals.css) : scrollbar fine sur **fond clair**, pendant de
+  `.sidebar-scroll` (taillee pour la sidebar sombre, pouce blanc). Point d'extension pour les listes bornees.
+
+**REGLE (memoire `name-before-firstname`) — le NOM vient TOUJOURS avant le prenom.** Enoncee par l'utilisateur
+apres **3 inversions** introduites ici : prof principal construit en `${first_name} ${last_name}` (page), et
+expediteur inverse dans l'historique **et** la fiche message. CLAUDE.md ne l'enoncait qu'en creux (« Fiche eleve
+NOM Prenom »). Controle : `grep -rn "first_name}[^\`]*last_name}"` — toute occurrence en **affichage** est un bug.
+
+- **Dette** : `npm run lint` est **casse** (`next lint` a disparu en Next 16) — non traite.
+- **Migration executee** : `add-etablissement-smtp.sql`.
+- **Reste** : configurer une messagerie et **tester un envoi reel** (jamais fait) ; **lot 3** (a11y + charte de
+  l'historique et de la fiche message) ; **sous-menu Staff** (n'envoie toujours rien).
+
 ## Prochaine etape
-- **Communications** : lot Messagerie (config SMTP), puis lot 2 (interface), lot 3 (a11y/charte), puis Staff.
+- **Communications** : configurer la messagerie + tester un envoi reel, puis lot 3 (a11y/charte), puis Staff.
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
   quadratins `—`, et les **prerequis de mise en production** ci-dessus.
@@ -959,3 +1027,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   rendue date-aware : `EXCLUDE gist` sur classe/jour/horaires + chevauchement des dates d'effet, `btree_gist`).
 - [x] Executer `supabase/migrations/harden-time-tracking-rls.sql` (RLS `staff_time_entries` +
   `schedule_validations` : ecriture reservee aux gestionnaires ou a sa propre presence pour un enseignant).
+- [x] Executer `supabase/migrations/rework-communications-security.sql` (type d'annonce controle en RLS,
+  bucket PJ prive 1 Mo cloisonne par etablissement, `file_url` → `file_path` NOT NULL, statut `skipped`).
+- [x] Executer `supabase/migrations/add-etablissement-smtp.sql` (table `etablissement_smtp` : config SMTP par
+  etablissement, RLS sans policy + privileges revoques = serveur uniquement).

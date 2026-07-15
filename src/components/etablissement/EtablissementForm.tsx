@@ -135,6 +135,8 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
         <div className="card p-5">
+          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest mb-3">Identité</h2>
+
           <div className="flex gap-6">
 
             {/* Gauche : Logo 160×160 + boutons */}
@@ -210,19 +212,18 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
             </div>
 
           </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-warm-500"><span className="font-semibold text-red-400">*</span> obligatoire</span>
-          <div className="flex-1" />
-          <FloatButton
-            type="submit"
-            variant="submit"
-            disabled={isSubmitting || !isValid || isUnchanged}
-          >
-            {isSubmitting ? 'Enregistrement...' : 'Valider'}
-          </FloatButton>
+          {/* Actions dans l'encadre (la mention « * obligatoire » est commune aux
+              deux encadres et vit sous la colonne, dans la page) */}
+          <div className="flex items-center justify-end mt-4">
+            <FloatButton
+              type="submit"
+              variant="submit"
+              disabled={isSubmitting || !isValid || isUnchanged}
+            >
+              {isSubmitting ? 'Enregistrement...' : 'Valider'}
+            </FloatButton>
+          </div>
         </div>
 
       </form>
