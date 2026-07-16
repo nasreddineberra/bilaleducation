@@ -434,7 +434,7 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
           {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <FloatInput label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-            <FloatInput label="Montant (EUR)" type="number" step="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
+            <FloatInput label="Montant (EUR)" type="number" step="any" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
           <FloatInput label="Libellé" type="text" placeholder="Description de la dépense" value={label} onChange={e => setLabel(e.target.value)} required />
           <FloatSelect label="Catégorie" value={category} onChange={e => setCategory(e.target.value)}>
@@ -548,7 +548,7 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
           {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <FloatInput label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-            <FloatInput label="Montant (EUR)" type="number" step="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
+            <FloatInput label="Montant (EUR)" type="number" step="any" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
           <FloatInput label="Libellé" type="text" placeholder="Description du revenu" value={label} onChange={e => setLabel(e.target.value)} required />
           <FloatSelect label="Source" value={sourceType} onChange={e => setSourceType(e.target.value)}>

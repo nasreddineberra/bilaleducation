@@ -1,10 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
+
+// Principales banques (chèques), triées alphabétiquement, + « Autre » pour saisie libre.
+const BANKS = [
+  'AXA Banque', 'BforBank', 'BNP Paribas', 'Banque Populaire', 'Boursorama',
+  "Caisse d'Épargne", 'CIC', 'Crédit Agricole', 'Crédit Coopératif',
+  'Crédit du Nord', 'Crédit Mutuel', 'Fortuneo', 'Hello bank!', 'HSBC', 'ING',
+  'La Banque Postale', 'LCL', 'Monabanq', 'Société Générale',
+].sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }))
+const BANK_OTHER = '__autre__'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,8 +33,8 @@ interface Props {
 }
 
 const METHODS: { value: FeePaymentMethod; label: string }[] = [
-  { value: 'cash',     label: 'Especes'  },
-  { value: 'check',    label: 'Cheque'   },
+  { value: 'cash',     label: 'Espèces'  },
+  { value: 'check',    label: 'Chèque'   },
   { value: 'card',     label: 'CB'       },
   { value: 'transfer', label: 'Virement' },
   { value: 'online',   label: 'En ligne' },
@@ -75,7 +85,10 @@ export default function PaymentModal({
 
   // Champs spécifiques par méthode
   const [checkNumber,   setCheckNumber]   = useState(initCheckNumber)
-  const [bank,          setBank]          = useState(initBank)
+  // Banque : select des principales + « Autre » → saisie libre.
+  const [bankChoice, setBankChoice] = useState(initBank ? (BANKS.includes(initBank) ? initBank : BANK_OTHER) : '')
+  const [bankOther,  setBankOther]  = useState(BANKS.includes(initBank) ? '' : initBank)
+  const bank = bankChoice === BANK_OTHER ? bankOther.trim() : bankChoice
   const [transactionId, setTransactionId] = useState(initTxId)
   const [transferRef,   setTransferRef]   = useState(initTransferRef)
 
@@ -206,13 +219,9 @@ export default function PaymentModal({
           .single()
         if (err) throw err
 
-        // Notification parent (fire-and-forget)
-        fetch('/api/notifications/payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parent_id: parentId, amount: parsedAmount, method: safeMethod, receipt: receipt.trim() || null, paid_date: paidDate }),
-        }).catch((err) => console.error('[PaymentModal] Échec notification paiement:', err))
-
+        // Le reçu par email n'est plus envoyé ici (route cassée : garde de rôle
+        // oubliant le comptable + envoi fire-and-forget silencieux). Remplacé par
+        // l'attestation de paiement, envoyée quand le règlement est soldé (lot 2).
         setSaving(false)
         onSaved(data as FeeInstallment)
       }
@@ -223,21 +232,33 @@ export default function PaymentModal({
   }
 
   return (
+    // Modale de saisie : fermeture par X / Annuler uniquement (pas de fond
+    // cliquable ni Echap → evite la perte de saisie), comme les autres saisies.
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="payment-modal-title"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in"
+      >
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
           <div>
-            <h2 className="text-base font-bold text-secondary-800">
+            <h2 id="payment-modal-title" className="text-base font-bold text-secondary-800">
               {isEdit ? 'Modifier le paiement' : 'Enregistrer un paiement'}
             </h2>
             <p className="text-xs text-warm-500 mt-0.5">
-              Total du : {fmtEur(totalDue)}
+              Total dû : {fmtEur(totalDue)}
               {remaining < totalDue && remaining > 0 && ` · Reste : ${fmtEur(remaining)}`}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+          >
             <X size={18} />
           </button>
         </div>
@@ -251,14 +272,13 @@ export default function PaymentModal({
           {/* Montant + Date */}
           <div className="grid grid-cols-2 gap-3">
             <FloatInput
-              label="Montant (EUR)"
+              label="Montant (€)"
               type="number"
               min="0.01"
-              step="0.01"
+              step="any"
               value={amount}
               onChange={e => setAmount(e.target.value)}
               required
-              autoFocus
             />
             <FloatInput
               label="Date"
@@ -274,19 +294,20 @@ export default function PaymentModal({
             <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">
               Mode de paiement <span className="text-red-400">*</span>
             </label>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Mode de paiement">
               {METHODS.map(m => {
                 const isOnline   = m.value === 'online'
                 const isSelected = method === m.value
-                return (
+                const btn = (
                   <button
                     key={m.value}
                     type="button"
                     disabled={isOnline}
+                    aria-pressed={!isOnline && isSelected}
                     onClick={() => !isOnline && setMethod(m.value)}
-                    title={isOnline ? 'Bientot disponible' : undefined}
                     className={[
-                      'relative px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
+                      'relative w-full px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
                       isOnline   ? 'opacity-40 cursor-not-allowed border-warm-200 text-warm-400 bg-warm-50' : '',
                       !isOnline && isSelected  ? 'border-primary-400 bg-primary-50 text-primary-700' : '',
                       !isOnline && !isSelected ? 'border-warm-200 hover:bg-warm-100 text-secondary-600' : '',
@@ -295,34 +316,51 @@ export default function PaymentModal({
                     {m.label}
                     {isOnline && (
                       <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-warm-400 text-white text-[9px] px-1 rounded-full whitespace-nowrap">
-                        bientot
+                        bientôt
                       </span>
                     )}
                   </button>
                 )
+                return isOnline
+                  ? <Tooltip key={m.value} content="Bientôt disponible">{btn}</Tooltip>
+                  : btn
               })}
             </div>
           </div>
 
           {/* Champs dynamiques selon méthode */}
           {method === 'check' && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-blue-50/40 rounded-xl border border-blue-100">
-              <FloatInput
-                label="N° chèque"
-                type="text"
-                placeholder="78542"
-                value={checkNumber}
-                onChange={e => setCheckNumber(e.target.value.replace(/\D/g, ''))}
-                required
-              />
-              <FloatInput
-                label="Banque"
-                type="text"
-                placeholder="BNP Paribas..."
-                value={bank}
-                onChange={e => setBank(e.target.value.replace(/[^A-Za-zÀ-ÿ\s]/g, '').toUpperCase())}
-                required
-              />
+            <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <FloatInput
+                  label="N° chèque"
+                  type="text"
+                  placeholder="78542"
+                  value={checkNumber}
+                  onChange={e => setCheckNumber(e.target.value.replace(/\D/g, ''))}
+                  required
+                />
+                <FloatSelect
+                  label="Banque"
+                  required
+                  value={bankChoice}
+                  onChange={e => setBankChoice(e.target.value)}
+                >
+                  <option value="" disabled hidden></option>
+                  {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                  <option value={BANK_OTHER}>Autre…</option>
+                </FloatSelect>
+              </div>
+              {bankChoice === BANK_OTHER && (
+                <FloatInput
+                  label="Nom de la banque"
+                  type="text"
+                  placeholder="Saisir le nom de la banque"
+                  value={bankOther}
+                  onChange={e => setBankOther(e.target.value)}
+                  required
+                />
+              )}
             </div>
           )}
 

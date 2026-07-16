@@ -36,6 +36,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
       tutor2_adult_courses,
       tutor1_relationship,
       tutor2_relationship,
+      situation_familiale,
       students!inner (
         id,
         first_name,
@@ -82,7 +83,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
           teachers ( civilite, first_name, last_name )
         ),
         cotisation_types (
-          id, label, amount, registration_fee
+          id, label, amount, registration_fee, max_installments
         )
       )
     `)
@@ -97,7 +98,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
   if (adultParentIds.length > 0) {
     const { data } = await supabase
       .from('parents')
-      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name, tutor1_adult_courses, tutor2_adult_courses, tutor1_relationship, tutor2_relationship')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name, tutor1_adult_courses, tutor2_adult_courses, tutor1_relationship, tutor2_relationship, situation_familiale')
       .in('id', adultParentIds)
       .order('tutor1_last_name')
       .order('tutor1_first_name')

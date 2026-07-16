@@ -899,6 +899,48 @@ client-only, CCI fiction, PJ publiques. Meme traitement que le lot 1 parents.
   **« Tout deselectionner »** a gauche de la recherche. Sidebar « Staff / Enseignants » masquee pour enseignant.
 - **Reste** : configurer une messagerie et **tester un envoi reel** (canaux notif / email / les deux).
 
+#### 16 juillet 2026 (suite) — Financements sous-menu REGLEMENTS : refonte en plan de travail + fix comptable
+Audit puis refonte complete du cœur (`FinancementsClient`, 1000+ lignes) et de `PaymentModal`.
+- **Bug comptable majeur (reporte par l'utilisateur)** : les **reductions / avoirs / remboursements** etaient
+  retranches du **PERÇU** au lieu de reduire le **DÛ**. Consequence : payer toute sa cotisation + un remboursement
+  de 20 → affiche « Partiel » (doit encore 20). Corrige : `totalDue = subtotal + adjustmentsTotal` (les
+  ajustements < 0 reduisent le du), `netPercu = paiements seuls`. Helper unique **`feeStatus(paid, due)`**
+  (pending/partial/paid/**overpaid**) partage par le calcul, l'affichage ET la persistance
+  (`handlePaymentSaved`, `removePayment`, `add/removeAdjustment` persistent `total_due` = subtotal + ajustements
+  + le statut). **« Trop perçu »** : carte du bas passe de « RESTE » a **« TROP PERÇU »** (rouge) avec le montant
+  excedentaire ; ligne worklist affiche **« + 20 € » rouge** (plus « 0 € »).
+- **Plan de travail (master-detail)** : la recherche-combobox devient une **liste de familles a gauche**
+  (`w-fit` = largeur de la ligne de filtres, hauteur fixe + scroll interne `.list-scroll`), triee **alphabetique**,
+  pastille de statut + reste du + barre de progression ; **bandeau tresorerie** en haut (Facture / Encaisse /
+  Reste) + **compteurs-filtres cliquables** (En attente / Partiel / Solde, + **Trop perçu rouge** seulement s'il
+  en existe) ; **filtres aussi sous la recherche** (Tous / En attente / Partiels / Soldes / Trop perçu, 1 ligne).
+  Detail a droite : **bandeau famille** (avatar + NOM Prenom des tuteurs + situation familiale + statut, calque
+  fiche parent ; requete enrichie `situation_familiale`). **Aucune nouvelle requete** : tout se calcule des
+  donnees deja chargees (helper `computeFamilyFinancials`, `familyStats`, `kpi`, `worklist`).
+- **Echeances (option A, sans blocage)** : max effectif = **plus grand `max_installments`** parmi les types de la
+  famille (eleves **+** adultes ; `max_installments` ajoute a la requete adultes). Badge en-tete Paiements
+  **« N echeances / max »** vert (≤) / orange (>), tooltip explicatif ; **numero « # » orange** sur les lignes au
+  dela ; « Echeances max : X » sur la ligne Total cotisations du recap. **On ne grise pas** (cas exceptionnel de
+  difficulte familiale). `max_installments` 0/absent = pas de limite → pas de badge.
+- **Reçu supprime, remplace par attestation (lot 2 a venir)** : le `fetch('/api/notifications/payment')`
+  fire-and-forget (casse : garde oubliait le comptable) est **retire de PaymentModal**. Boutons **Relancer**
+  (impayes/partiels) et **Attestation** (solde) poses en **placeholder desactive** (tooltip « lot 2 »), a cabler
+  avec PDF + relance + historique propre a Financements.
+- **Charte + a11y + ergo** (maniaque assume) : `card p-0`/tables condensees `text-xs` `px-2`, quadratins `—` → `·`,
+  `EUR` → `€`, accents (Especes/Cheque/Recapitulatif/Eleve...), modale paiement accessible (`role=dialog`,
+  fermeture X/Annuler), methodes `aria-pressed`, boutons sans icone, messages en **toast** (`useToast`, plus de
+  banniere qui pousse le contenu), **suppressions paiement ET reduction en `ConfirmModal`** (fini le 2-clics
+  inline), **modale ajout reduction** (comme paiement), **Sous-total → Total cotisations**, cartes Paiements /
+  Reductions **fusionnees en 1 carte** (en-tetes h-9 identiques, totaux « Total : X » centres), reference tronquee
+  + tooltip (sinon poussait les icones hors cadre), **step des montants `any`** (fleches +/-1, decimales OK),
+  **banque (cheque) en select** des principales banques triees + « Autre » saisie libre. Couleurs : « solde/
+  encaisse/positif » = **primary** (turquoise, comme les cartes stat des listes), pas un vert generique.
+  Changer de moyen de paiement en edition **reconstruit la reference** (les infos de l'ancien moyen sont effacees).
+- **`step="any"`** applique aussi aux 2 champs montant de `SyntheseClient` (Situation financiere), par coherence.
+- **Aucune migration** (tout applicatif + enrichissement de requetes). **Reste** : lot 2 (attestation PDF +
+  relance + historique), et l'audit des 2 autres sous-menus (Stats reglements, Situation financiere — dont le
+  **bucket `documents-expenses` public a passer en prive**, repere a l'audit).
+
 ## Prochaine etape
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.

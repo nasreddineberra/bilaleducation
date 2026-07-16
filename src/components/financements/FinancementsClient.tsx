@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { Plus, Trash2, Pencil, AlertTriangle, CheckCircle2, MessageSquareText } from 'lucide-react'
+import { Trash2, Pencil, AlertTriangle, MessageSquareText, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/lib/toast-context'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
@@ -41,8 +43,16 @@ interface ParentOption {
   tutor1_first_name: string
   tutor2_last_name: string | null
   tutor2_first_name: string | null
+  situation_familiale: string | null
+  maxInstallments: number   // 0 = pas de limite d'echeances
   students: StudentLine[]
   adultLines: AdultLine[]
+}
+
+const SITUATION_LABELS: Record<string, string> = {
+  'mariés': 'Mariés', 'pacsés': 'Pacsés', 'concubinage': 'Concubinage',
+  'célibataire': 'Célibataire', 'séparés': 'Séparés', 'divorcés': 'Divorcés',
+  'veuf': 'Veuf(ve)', 'autre': 'Autre',
 }
 
 interface Props {
@@ -72,15 +82,67 @@ const STATUS_LABELS: Record<FeeStatus, string> = {
   overpaid: 'Trop perçu',
 }
 
+// « Soldé » = couleur positive de l'app (primary/turquoise, comme les cartes
+// stat des listes), pas un vert generique. Les autres statuts gardent le code
+// feu (gris/orange/rouge).
 const STATUS_COLORS: Record<FeeStatus, string> = {
   pending:  'bg-gray-100 text-gray-600',
   partial:  'bg-orange-100 text-orange-800',
-  paid:     'bg-green-100 text-green-800',
+  paid:     'bg-primary-50 text-primary-700',
   overpaid: 'bg-red-100 text-red-800',
 }
 
+// Pastille + barre de progression du plan de travail.
+const STATUS_DOT: Record<FeeStatus, string> = {
+  pending:  'bg-warm-300',
+  partial:  'bg-orange-400',
+  paid:     'bg-primary-500',
+  overpaid: 'bg-red-500',
+}
+const STATUS_BAR: Record<FeeStatus, string> = {
+  pending:  'bg-warm-300',
+  partial:  'bg-orange-400',
+  paid:     'bg-primary-500',
+  overpaid: 'bg-red-500',
+}
+
 const METHOD_LABELS: Record<string, string> = {
-  cash: 'Especes', check: 'Cheque', card: 'CB', transfer: 'Virement', online: 'En ligne',
+  cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
+}
+
+// Calcul financier d'une famille (source unique : plan de travail, KPI ET detail).
+// `fee` = ligne family_fees (avec fee_adjustments / fee_installments) ou null.
+interface FamilyFinancials {
+  subtotal: number
+  totalDue: number
+  adjustmentsTotal: number   // negatif pour les reductions
+  totalPaid: number
+  netPercu: number           // paiements + ajustements
+  remaining: number
+  status: FeeStatus
+}
+function computeFamilyFinancials(parent: ParentOption | null, fee: any): FamilyFinancials {
+  const subtotal = parent
+    ? parent.students.reduce((a, s) => a + s.total, 0) + parent.adultLines.reduce((a, x) => a + x.total, 0)
+    : 0
+  const adjustmentsTotal = (fee?.fee_adjustments ?? []).reduce((a: number, x: any) => a + x.amount, 0)
+  // Les reductions / avoirs / remboursements (adjustmentsTotal < 0) reduisent ce
+  // que la famille DOIT, pas ce qu'elle a paye. Payer la cotisation entiere solde
+  // toujours (un remboursement de 20 ne remet pas 20 a devoir).
+  const totalDue = subtotal + adjustmentsTotal
+  const totalPaid = (fee?.fee_installments ?? []).reduce((a: number, x: any) => a + (x.amount_paid ?? 0), 0)
+  const netPercu = totalPaid
+  const remaining = totalDue - netPercu
+  return { subtotal, totalDue, adjustmentsTotal, totalPaid, netPercu, remaining, status: feeStatus(netPercu, totalDue) }
+}
+
+// Statut d'un dossier a partir du percu et du du (source unique, cote client).
+function feeStatus(paid: number, due: number): FeeStatus {
+  if (paid > due && due > 0) return 'overpaid'
+  if (due <= 0)             return 'paid'
+  if (paid >= due)          return 'paid'
+  if (paid > 0)             return 'partial'
+  return 'pending'
 }
 
 const DAYS: Record<string, string> = {
@@ -167,7 +229,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
         id: s.id,
         first_name: s.first_name,
         last_name: s.last_name,
-        class_name: cls?.name ?? '—',
+        class_name: cls?.name ?? '·',
         cotisation_label: ct?.label ?? '',
         class_tooltip,
         cotisation_amount: cotisation,
@@ -189,7 +251,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
       return {
         id: `adult-${ae.parent_id}-${ae.tutor_number}-${cls?.id}`,
         tutor_label: tutorName,
-        class_name: cls?.name ?? '—',
+        class_name: cls?.name ?? '·',
         cotisation_label: ct?.label ?? '',
         class_tooltip: buildClassTooltip(cls),
         cotisation_amount: cotisation,
@@ -198,12 +260,23 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
       }
     })
 
+    // Max effectif d'echeances = le PLUS GRAND max_installments parmi les types de
+    // cotisation de la famille (eleves + adultes). 0/absent = pas de limite pour ce
+    // type. Si aucun type n'a de max defini → 0 (pas de badge, on ne limite rien).
+    const allMax = [
+      ...studentsRaw.map((s: any) => s.enrollments?.[0]?.classes?.cotisation_types?.max_installments),
+      ...parentAdultEnrollments.map((ae: any) => ae.classes?.cotisation_types?.max_installments),
+    ].filter((m: any): m is number => typeof m === 'number' && m > 0)
+    const maxInstallments = allMax.length ? Math.max(...allMax) : 0
+
     return {
       id: p.id,
       tutor1_last_name: p.tutor1_last_name,
       tutor1_first_name: p.tutor1_first_name,
       tutor2_last_name: p.tutor2_last_name ?? null,
       tutor2_first_name: p.tutor2_first_name ?? null,
+      situation_familiale: p.situation_familiale ?? null,
+      maxInstallments,
       students,
       adultLines,
     }
@@ -214,29 +287,15 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, initialParentId }: Props & { initialParentId?: string }) {
   const supabase = createClient()
+  const toast = useToast()
 
   const parentOptions = useMemo(() => parseParents(rawParents, adultEnrollments), [rawParents, adultEnrollments])
 
   const [selectedParentId, setSelectedParentId] = useState<string>(initialParentId ?? '')
 
-  // Combobox parent
-  const initParent = initialParentId ? parentOptions.find(p => p.id === initialParentId) : null
-  const initLabel  = initParent
-    ? `${initParent.tutor1_last_name.toUpperCase()} ${initParent.tutor1_first_name}${initParent.tutor2_last_name && initParent.tutor2_first_name ? ` | ${initParent.tutor2_last_name.toUpperCase()} ${initParent.tutor2_first_name}` : ''}`
-    : ''
-  const [parentSearch,   setParentSearch]   = useState(initLabel)
-  const [parentDropOpen, setParentDropOpen] = useState(false)
-  const parentDropRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (parentDropRef.current && !parentDropRef.current.contains(e.target as Node)) {
-        setParentDropOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  // Plan de travail : recherche + filtre de statut de la liste des familles.
+  const [parentSearch,  setParentSearch]  = useState('')
+  const [statusFilter,  setStatusFilter]  = useState<FeeStatus | null>(null)
   const [familyFees, setFamilyFees]             = useState<any[]>(initialFees)
   const familyFeesRef = useRef(familyFees)
   familyFeesRef.current = familyFees
@@ -245,25 +304,26 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const [success, setSuccess]                   = useState<string | null>(null)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [editingPayment, setEditingPayment]     = useState<FeeInstallment | null>(null)
-  const [deleteStep, setDeleteStep]   = useState<{ id: string; step: 1 | 2 } | null>(null)
+  const [deletePaymentTarget, setDeletePaymentTarget] = useState<FeeInstallment | null>(null)
+  const [deleteAdjTarget, setDeleteAdjTarget] = useState<FeeAdjustment | null>(null)
 
-  // Auto-dismiss notifications
+  // Messages remontes en toast (plus de banniere qui pousse le contenu).
   useEffect(() => {
     if (!success) return
-    const t = setTimeout(() => setSuccess(null), 4000)
-    return () => clearTimeout(t)
-  }, [success])
+    toast.success(success)
+    setSuccess(null)
+  }, [success, toast])
 
   useEffect(() => {
     if (!error) return
-    const t = setTimeout(() => setError(null), 6000)
-    return () => clearTimeout(t)
-  }, [error])
+    toast.error(error)
+    setError(null)
+  }, [error, toast])
 
   // Ajustements
   const [addingAdjustment, setAddingAdjustment] = useState(false)
   const [adjForm, setAdjForm] = useState({
-    type: 'reduction' as AdjustmentType,
+    type: '' as AdjustmentType | '',
     label: '',
     amount: '',
     date: new Date().toISOString().slice(0, 10),
@@ -273,49 +333,56 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
   const selectedParent = parentOptions.find(p => p.id === selectedParentId)
 
-  const filteredParents = useMemo(() => {
+  // ── Plan de travail : stats par famille, KPI, liste filtree/triee ──────────
+  const familyStats = useMemo(
+    () => parentOptions.map(p => {
+      const fee = familyFees.find((f: any) => f.parent_id === p.id) ?? null
+      return { parent: p, ...computeFamilyFinancials(p, fee) }
+    }),
+    [parentOptions, familyFees],
+  )
+
+  const kpi = useMemo(() => {
+    let billed = 0, collected = 0, outstanding = 0
+    const counts: Record<FeeStatus, number> = { pending: 0, partial: 0, paid: 0, overpaid: 0 }
+    for (const f of familyStats) {
+      billed      += f.totalDue
+      collected   += Math.max(0, f.netPercu)
+      outstanding += Math.max(0, f.remaining)
+      counts[f.status]++
+    }
+    return { billed, collected, outstanding, counts }
+  }, [familyStats])
+
+  const worklist = useMemo(() => {
     const q = parentSearch.trim().toLowerCase()
-    if (!q) return parentOptions
-    return parentOptions.filter(p => {
-      const t1 = `${p.tutor1_last_name} ${p.tutor1_first_name}`.toLowerCase()
-      const t2 = p.tutor2_last_name && p.tutor2_first_name
-        ? `${p.tutor2_last_name} ${p.tutor2_first_name}`.toLowerCase()
-        : ''
-      return t1.includes(q) || t2.includes(q)
-    })
-  }, [parentOptions, parentSearch])
+    return familyStats
+      .filter(f => !statusFilter || f.status === statusFilter)
+      .filter(f => {
+        if (!q) return true
+        const p = f.parent
+        const t1 = `${p.tutor1_last_name} ${p.tutor1_first_name}`.toLowerCase()
+        const t2 = p.tutor2_last_name && p.tutor2_first_name ? `${p.tutor2_last_name} ${p.tutor2_first_name}`.toLowerCase() : ''
+        return t1.includes(q) || t2.includes(q)
+      })
+      .sort((a, b) =>
+        a.parent.tutor1_last_name.localeCompare(b.parent.tutor1_last_name, 'fr', { sensitivity: 'base' }) ||
+        a.parent.tutor1_first_name.localeCompare(b.parent.tutor1_first_name, 'fr', { sensitivity: 'base' }))
+  }, [familyStats, statusFilter, parentSearch])
 
+  // ── Detail de la famille selectionnee (meme calcul via le helper) ──────────
   const currentFee = familyFees.find((f: any) => f.parent_id === selectedParentId) ?? null
-
-  const studentsSubtotal = selectedParent
-    ? selectedParent.students.reduce((acc, s) => acc + s.total, 0)
-    : 0
-  const adultsSubtotal = selectedParent
-    ? selectedParent.adultLines.reduce((acc, a) => acc + a.total, 0)
-    : 0
-  const subtotal = studentsSubtotal + adultsSubtotal
+  const sel = computeFamilyFinancials(selectedParent ?? null, currentFee)
+  const { subtotal, totalDue, adjustmentsTotal, totalPaid, netPercu, remaining, status: derivedStatus } = sel
 
   const adjustments: FeeAdjustment[] = (currentFee?.fee_adjustments ?? [])
     .sort((a: FeeAdjustment, b: FeeAdjustment) =>
       new Date(a.adjustment_date).getTime() - new Date(b.adjustment_date).getTime()
     )
-  const adjustmentsTotal = adjustments.reduce((acc, a) => acc + a.amount, 0)
-  const totalDue = subtotal
-
   const payments: FeeInstallment[] = (currentFee?.fee_installments ?? [])
     .sort((a: FeeInstallment, b: FeeInstallment) =>
       new Date(a.paid_date ?? a.created_at).getTime() - new Date(b.paid_date ?? b.created_at).getTime()
     )
-  const totalPaid = payments.reduce((acc, p) => acc + p.amount_paid, 0)
-  const netPercu = totalPaid + adjustmentsTotal // paiements - |réductions|
-  const remaining = totalDue - netPercu
-
-  const derivedStatus: FeeStatus =
-    netPercu > totalDue && totalDue > 0 ? 'overpaid'
-    : totalDue <= 0    ? 'paid'
-    : netPercu >= totalDue ? 'paid'
-    : netPercu > 0  ? 'partial'
-    : 'pending'
 
   // ── Créer/récupérer le family_fee ────────────────────────────────────────
 
@@ -343,7 +410,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       setFamilyFees(prev => [...prev, data])
       return data.id
     } catch (e: any) {
-      setError(e.message ?? 'Erreur lors de la creation du dossier.')
+      setError(e.message ?? 'Erreur lors de la création du dossier.')
       return null
     } finally {
       setSaving(false)
@@ -355,6 +422,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const addAdjustment = async () => {
     const label = adjForm.label.trim()
     const rawAmount = parseFloat(adjForm.amount)
+    if (!adjForm.type) { setError('Le type est obligatoire.'); return }
     if (!label) { setError('Le motif est obligatoire.'); return }
     if (isNaN(rawAmount) || rawAmount <= 0) { setError('Le montant doit être supérieur à 0.'); return }
     const amount = -Math.abs(rawAmount)
@@ -370,7 +438,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         .insert({
           family_fee_id:   feeId,
           adjustment_date: adjForm.date,
-          adjustment_type: adjForm.type,
+          adjustment_type: adjForm.type as AdjustmentType,
           label,
           amount,
         })
@@ -379,16 +447,18 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       if (err) throw err
 
       const newAdjTotal = adjustmentsTotal + amount
-      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: subtotal }).eq('id', feeId)
+      const newDue = subtotal + newAdjTotal   // les ajustements reduisent le du
+      const newStatus = feeStatus(totalPaid, newDue)
+      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus }).eq('id', feeId)
 
       setFamilyFees(prev => prev.map(f =>
         f.id === feeId
-          ? { ...f, adjustments_total: newAdjTotal, total_due: subtotal, fee_adjustments: [...(f.fee_adjustments ?? []), data] }
+          ? { ...f, adjustments_total: newAdjTotal, total_due: newDue, status: newStatus, fee_adjustments: [...(f.fee_adjustments ?? []), data] }
           : f
       ))
       setAddingAdjustment(false)
-      setAdjForm({ type: 'reduction', label: '', amount: '', date: new Date().toISOString().slice(0, 10) })
-      setSuccess('Ajustement enregistre.')
+      setAdjForm({ type: '', label: '', amount: '', date: new Date().toISOString().slice(0, 10) })
+      setSuccess('Ajustement enregistré.')
     } catch (e: any) {
       setError(e.message ?? 'Erreur.')
     } finally {
@@ -397,6 +467,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   }
 
   const removeAdjustment = async (adj: FeeAdjustment) => {
+    setDeleteAdjTarget(null)
     if (!currentFee) return
     setSaving(true)
     setError(null)
@@ -404,10 +475,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       const { error: err } = await supabase.from('fee_adjustments').delete().eq('id', adj.id)
       if (err) throw err
       const newAdjTotal = adjustmentsTotal - adj.amount
-      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: subtotal }).eq('id', currentFee.id)
+      const newDue = subtotal + newAdjTotal
+      const newStatus = feeStatus(totalPaid, newDue)
+      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus }).eq('id', currentFee.id)
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
-          ? { ...f, adjustments_total: newAdjTotal, total_due: subtotal, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
+          ? { ...f, adjustments_total: newAdjTotal, total_due: newDue, status: newStatus, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
           : f
       ))
       setSuccess('Ajustement supprime.')
@@ -435,10 +508,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       : [...existingInstallments, newPayment]
     const totalPaid = updatedInstallments.reduce((s, p: any) => s + (p.amount_paid ?? 0), 0)
     const due = fee?.total_due ?? 0
-    let status: FeeStatus = 'pending'
-    if (totalPaid > due && due > 0) status = 'overpaid'
-    else if (totalPaid >= due && due > 0) status = 'paid'
-    else if (totalPaid > 0) status = 'partial'
+    const status = feeStatus(totalPaid, due)
 
     // Mettre à jour l'état local
     setFamilyFees(prev => prev.map(f =>
@@ -457,16 +527,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   }
 
   const removePayment = async (payment: FeeInstallment) => {
+    setDeletePaymentTarget(null)
     if (!currentFee) return
-    if (!deleteStep || deleteStep.id !== payment.id) {
-      setDeleteStep({ id: payment.id, step: 1 })
-      return
-    }
-    if (deleteStep.step === 1) {
-      setDeleteStep({ id: payment.id, step: 2 })
-      return
-    }
-    setDeleteStep(null)
     setSaving(true)
     setError(null)
     try {
@@ -476,10 +538,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       const remaining2 = payments.filter(p => p.id !== payment.id)
       const newTotalPaid = remaining2.reduce((s, p) => s + p.amount_paid, 0)
       const due = currentFee.total_due
-      let status: FeeStatus = 'pending'
-      if (newTotalPaid > due && due > 0) status = 'overpaid'
-      else if (newTotalPaid >= due && due > 0) status = 'paid'
-      else if (newTotalPaid > 0) status = 'partial'
+      const status = feeStatus(newTotalPaid, due)
 
       await supabase.from('family_fees').update({ status }).eq('id', currentFee.id)
 
@@ -499,50 +558,78 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col gap-3">
 
-      {/* Combobox parent */}
-      <div className="card p-3">
-        <div ref={parentDropRef} className="relative w-fit">
-          <div className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">
-            Parents / Tuteurs légaux
-          </div>
-          <SearchField
-            value={parentSearch}
-            onChange={v => {
-              setParentSearch(v)
-              setParentDropOpen(true)
-              if (!v) { setSelectedParentId('') }
-            }}
-            onFocus={() => setParentDropOpen(true)}
-            placeholder="Rechercher un parent…"
-            className="w-[400px]"
-          />
-          {parentDropOpen && (
-            <div className="absolute z-20 top-full mt-1 w-full bg-white border border-warm-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-              {filteredParents.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-warm-400">Aucun résultat</div>
-              ) : filteredParents.map(p => {
-                const t1 = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
-                const t2 = p.tutor2_last_name && p.tutor2_first_name
-                  ? ` | ${p.tutor2_last_name.toUpperCase()} ${p.tutor2_first_name}`
-                  : ''
-                const label = `${t1}${t2}`
+      {/* ── Bandeau trésorerie + filtres de statut (cliquables) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
+        <div className="card px-3 py-2">
+          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Facturé</p>
+          <p className="text-lg font-bold text-secondary-800 tabular-nums">{fmtEur(kpi.billed)}</p>
+        </div>
+        <div className="card px-3 py-2">
+          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Encaissé</p>
+          <p className="text-lg font-bold text-primary-600 tabular-nums">{fmtEur(kpi.collected)}</p>
+        </div>
+        <div className="card px-3 py-2">
+          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Reste à encaisser</p>
+          <p className="text-lg font-bold text-orange-700 tabular-nums">{fmtEur(kpi.outstanding)}</p>
+        </div>
+        {(([['pending', 'En attente'], ['partial', 'Partiel'], ['paid', 'Soldé']]) as [FeeStatus, string][]).map(([st, label]) => {
+          const active = statusFilter === st
+          return (
+            <button
+              key={st}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setStatusFilter(active ? null : st)}
+              className={clsx(
+                'card px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+                active ? 'ring-2 ring-primary-400' : 'hover:bg-warm-50',
+              )}
+            >
+              <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest flex items-center gap-1">
+                <span className={clsx('w-2 h-2 rounded-full', STATUS_DOT[st])} aria-hidden="true" /> {label}
+              </p>
+              <p className="text-lg font-bold text-secondary-800 tabular-nums">{kpi.counts[st]}</p>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Plan de travail : liste des familles + détail ── */}
+      <div className="flex-1 min-h-0 flex gap-4">
+
+        {/* Liste des familles — largeur = celle de la ligne de filtres (w-fit) */}
+        <aside className="w-fit shrink-0 card p-0 flex flex-col overflow-hidden">
+          <div className="p-2 border-b border-warm-100 space-y-2">
+            <SearchField
+              value={parentSearch}
+              onChange={setParentSearch}
+              placeholder="Rechercher une famille…"
+              ariaLabel="Rechercher une famille"
+              className="w-full"
+            />
+            {/* Filtre de statut (synchronise avec les compteurs du bandeau).
+                Le filtre « Trop perçu » (rouge) n'apparait que s'il en existe. */}
+            <div className="flex flex-nowrap gap-1" role="group" aria-label="Filtrer par statut">
+              {(([
+                [null, 'Tous'], ['pending', 'En attente'], ['partial', 'Partiels'], ['paid', 'Soldés'],
+                ...(kpi.counts.overpaid > 0 ? [['overpaid', 'Trop perçu']] : []),
+              ]) as [FeeStatus | null, string][]).map(([st, label]) => {
+                const active = statusFilter === st
+                const isOver = st === 'overpaid'
                 return (
                   <button
-                    key={p.id}
+                    key={label}
                     type="button"
-                    onClick={() => {
-                      setSelectedParentId(p.id)
-                      setParentSearch(label)
-                      setParentDropOpen(false)
-                      setError(null)
-                      setSuccess(null)
-                      setAddingAdjustment(false)
-                    }}
+                    aria-pressed={active}
+                    onClick={() => setStatusFilter(st)}
                     className={clsx(
-                      'w-full text-left px-3 py-2 text-sm hover:bg-warm-50 transition-colors',
-                      selectedParentId === p.id && 'bg-primary-50 text-primary-700 font-medium',
+                      'px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2',
+                      isOver ? 'focus-visible:ring-red-400' : 'focus-visible:ring-primary-400',
+                      isOver
+                        ? (active ? 'border-red-300 bg-red-100 text-red-700' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100')
+                        : (active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-500 bg-white hover:bg-warm-50'),
                     )}
                   >
                     {label}
@@ -550,95 +637,107 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 )
               })}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+          <ul className="flex-1 overflow-y-auto list-scroll divide-y divide-warm-50" aria-label="Familles">
+            {worklist.length === 0 ? (
+              <li className="px-3 py-3 text-xs text-warm-400 italic">Aucune famille.</li>
+            ) : worklist.map(f => {
+              const p = f.parent
+              const name = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
+              const active = selectedParentId === p.id
+              const pct = f.totalDue > 0 ? Math.min(100, Math.round((f.netPercu / f.totalDue) * 100)) : (f.status === 'paid' ? 100 : 0)
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => { setSelectedParentId(p.id); setError(null); setSuccess(null); setAddingAdjustment(false) }}
+                    className={clsx(
+                      'w-full text-left px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400',
+                      active ? 'bg-primary-50' : 'hover:bg-warm-50',
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={clsx('w-2 h-2 rounded-full shrink-0', STATUS_DOT[f.status])} aria-hidden="true" />
+                      <span className={clsx('text-xs font-medium truncate flex-1', active ? 'text-primary-700' : 'text-secondary-700')}>{name}</span>
+                      <span className={clsx('text-xs tabular-nums whitespace-nowrap', f.status === 'overpaid' ? 'text-red-600 font-medium' : 'text-warm-500')}>
+                        {f.status === 'paid' ? 'Soldé'
+                          : f.status === 'overpaid' ? `+ ${fmtEur(Math.abs(f.remaining))}`
+                          : fmtEur(Math.max(0, f.remaining))}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1 rounded-full bg-warm-100 overflow-hidden">
+                      <div className={clsx('h-full rounded-full', STATUS_BAR[f.status])} style={{ width: `${pct}%` }} />
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </aside>
 
-      {/* Messages */}
-      {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</div>
-      )}
-      {success && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <CheckCircle2 size={16} /> {success}
-        </div>
-      )}
+        {/* Détail de la famille sélectionnée */}
+        <div className="flex-1 min-w-0 overflow-y-auto list-scroll space-y-3">
 
       {!selectedParent && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 animate-pulse">
-          {/* Skeleton colonne gauche */}
-          <div className="card overflow-hidden">
-            <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100">
-              <div className="h-3 w-40 bg-warm-200 rounded-full" />
-            </div>
-            <div className="p-4 space-y-3">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex gap-3">
-                  <div className="h-4 bg-warm-100 rounded-full flex-1" />
-                  <div className="h-4 bg-warm-100 rounded-full w-20" />
-                  <div className="h-4 bg-warm-100 rounded-full w-16" />
-                  <div className="h-4 bg-warm-100 rounded-full w-16" />
-                </div>
-              ))}
-              <div className="pt-2 border-t border-warm-100 flex justify-end">
-                <div className="h-4 w-24 bg-warm-200 rounded-full" />
-              </div>
-            </div>
-          </div>
-          {/* Skeleton colonne droite */}
-          <div className="space-y-3">
-            <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
-                <div className="h-3 w-24 bg-warm-200 rounded-full" />
-                <div className="h-7 w-20 bg-warm-100 rounded-lg" />
-              </div>
-              <div className="p-4 flex flex-col items-center gap-3 py-12">
-                <div className="h-6 w-6 bg-warm-200 rounded-full" />
-                <div className="h-3 w-40 bg-warm-100 rounded-full" />
-              </div>
-            </div>
-            <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
-                <div className="h-3 w-36 bg-warm-200 rounded-full" />
-                <div className="h-7 w-20 bg-warm-100 rounded-lg" />
-              </div>
-              <div className="px-4 py-6 flex justify-center">
-                <div className="h-3 w-48 bg-warm-100 rounded-full" />
-              </div>
-            </div>
-          </div>
+        <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-20">
+          <p className="text-sm text-warm-500">Sélectionnez une famille dans la liste pour gérer son règlement.</p>
+          <p className="text-xs text-warm-400">Filtrez par statut avec les compteurs ci-dessus.</p>
         </div>
       )}
 
       {selectedParent && (<>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* En-tete : quelle famille (calque de la fiche parent) */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-warm-100 text-warm-600 ring-1 ring-warm-200">
+            {`${(selectedParent.tutor1_last_name[0] ?? '').toUpperCase()}${(selectedParent.tutor1_first_name[0] ?? '').toUpperCase()}`}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-secondary-800 leading-tight truncate">
+              {selectedParent.tutor1_last_name.toUpperCase()} {selectedParent.tutor1_first_name}
+              {selectedParent.tutor2_last_name && (
+                <span className="text-warm-400 font-medium"> &amp; {selectedParent.tutor2_last_name.toUpperCase()} {selectedParent.tutor2_first_name}</span>
+              )}
+            </h1>
+            <div className="flex items-center gap-2 text-xs mt-0.5 flex-wrap">
+              {selectedParent.situation_familiale
+                ? <span className="text-warm-500">{SITUATION_LABELS[selectedParent.situation_familiale] ?? selectedParent.situation_familiale}</span>
+                : <span className="text-warm-300 italic">Situation non renseignée</span>}
+              <span className={clsx('font-bold uppercase text-[10px] px-2 py-0.5 rounded-full', STATUS_COLORS[derivedStatus])}>
+                {STATUS_LABELS[derivedStatus]}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
 
           {/* ── Colonne gauche ── */}
           <div className="space-y-4">
 
             {/* Récapitulatif famille */}
             <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Recapitulatif famille</h3>
+              <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
+                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Récapitulatif famille</h3>
               </div>
-              <table className="w-full text-left">
+              <table className="w-full text-left" aria-label="Récapitulatif famille">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Eleve</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Classe</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Cotisation</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Frais</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Reduc.</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Total</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Élève</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Classe</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Cotisation</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Frais</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Réduc.</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedParent.students.map(s => (
                     <tr key={s.id} className="border-b border-warm-50">
-                      <td className="px-3 py-2 text-sm font-medium text-secondary-800">{s.last_name.toUpperCase()} {s.first_name}</td>
-                      <td className="px-3 py-2 text-sm text-secondary-600">
+                      <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{s.last_name.toUpperCase()} {s.first_name}</td>
+                      <td className="px-2 py-1.5 text-xs text-secondary-600">
                         {s.class_tooltip ? (
-                          <Tooltip content={s.class_tooltip}>
+                          <Tooltip content={<span className="whitespace-nowrap">{s.class_tooltip}</span>} maxWidth="max-w-none">
                             <span className="cursor-default underline decoration-dotted underline-offset-2">
                               {s.class_name}
                             </span>
@@ -646,35 +745,30 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                         ) : (
                           <span className="cursor-default">{s.class_name}</span>
                         )}
-                        {s.cotisation_label && (
-                          <span className="ml-1.5 text-[10px] font-medium bg-warm-100 text-warm-600 px-1.5 py-0.5 rounded-full">
-                            {s.cotisation_label}
-                          </span>
-                        )}
                       </td>
-                      <td className="px-3 py-2 text-sm text-secondary-700 text-right tabular-nums">{fmtEur(s.cotisation_amount)}</td>
-                      <td className="px-3 py-2 text-sm text-secondary-700 text-right tabular-nums">
-                        {s.registration_fee > 0 ? fmtEur(s.registration_fee) : <span className="text-warm-300">—</span>}
+                      <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">{fmtEur(s.cotisation_amount)}</td>
+                      <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">
+                        {s.registration_fee > 0 ? fmtEur(s.registration_fee) : <span className="text-warm-300">·</span>}
                       </td>
-                      <td className="px-3 py-2 text-sm text-right tabular-nums">
+                      <td className="px-2 py-1.5 text-xs text-right tabular-nums">
                         {s.sibling_discount > 0
                           ? <span className="text-green-600">-{fmtEur(s.sibling_discount)}</span>
-                          : <span className="text-warm-300">—</span>}
+                          : <span className="text-warm-300">·</span>}
                       </td>
-                      <td className="px-3 py-2 text-sm font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(s.total)}</td>
+                      <td className="px-2 py-1.5 text-xs font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(s.total)}</td>
                     </tr>
                   ))}
                   {selectedParent.adultLines.length > 0 && (
                     <>
                       <tr className="bg-violet-50/40 border-b border-warm-100">
-                        <td colSpan={6} className="px-3 py-1.5 text-[10px] font-bold text-violet-500 uppercase tracking-widest">Cours adultes</td>
+                        <td colSpan={6} className="px-2 py-1.5 text-[10px] font-bold text-violet-500 uppercase tracking-widest">Cours adultes</td>
                       </tr>
                       {selectedParent.adultLines.map(a => (
                         <tr key={a.id} className="border-b border-warm-50">
-                          <td className="px-3 py-2 text-sm font-medium text-secondary-800">{a.tutor_label}</td>
-                          <td className="px-3 py-2 text-sm text-secondary-600">
+                          <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{a.tutor_label}</td>
+                          <td className="px-2 py-1.5 text-xs text-secondary-600">
                             {a.class_tooltip ? (
-                              <Tooltip content={a.class_tooltip}>
+                              <Tooltip content={<span className="whitespace-nowrap">{a.class_tooltip}</span>} maxWidth="max-w-none">
                                 <span className="cursor-default underline decoration-dotted underline-offset-2">
                                   {a.class_name}
                                 </span>
@@ -682,18 +776,13 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                             ) : (
                               <span className="cursor-default">{a.class_name}</span>
                             )}
-                            {a.cotisation_label && (
-                              <span className="ml-1.5 text-[10px] font-medium bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full">
-                                {a.cotisation_label}
-                              </span>
-                            )}
                           </td>
-                          <td className="px-3 py-2 text-sm text-secondary-700 text-right tabular-nums">{fmtEur(a.cotisation_amount)}</td>
-                          <td className="px-3 py-2 text-sm text-secondary-700 text-right tabular-nums">
-                            {a.registration_fee > 0 ? fmtEur(a.registration_fee) : <span className="text-warm-300">—</span>}
+                          <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">{fmtEur(a.cotisation_amount)}</td>
+                          <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">
+                            {a.registration_fee > 0 ? fmtEur(a.registration_fee) : <span className="text-warm-300">·</span>}
                           </td>
-                          <td className="px-3 py-2 text-sm text-right tabular-nums"><span className="text-warm-300">—</span></td>
-                          <td className="px-3 py-2 text-sm font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(a.total)}</td>
+                          <td className="px-2 py-1.5 text-xs text-right tabular-nums"><span className="text-warm-300">·</span></td>
+                          <td className="px-2 py-1.5 text-xs font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(a.total)}</td>
                         </tr>
                       ))}
                     </>
@@ -701,7 +790,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </tbody>
                 <tfoot>
                   <tr className="bg-warm-50/60">
-                    <td colSpan={5} className="px-3 py-2.5 text-sm font-semibold text-secondary-700 text-right">Sous-total</td>
+                    <td colSpan={3} className="px-3 py-2.5 text-xs text-warm-500 text-left">
+                      {selectedParent.maxInstallments > 0 && `Échéances max : ${selectedParent.maxInstallments}`}
+                    </td>
+                    <td colSpan={2} className="px-3 py-2.5 text-sm font-semibold text-secondary-700 text-right">Total cotisations</td>
                     <td className="px-3 py-2.5 text-sm font-bold text-secondary-800 text-right tabular-nums">{fmtEur(subtotal)}</td>
                   </tr>
                 </tfoot>
@@ -712,64 +804,75 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
           {/* ── Colonne droite : Paiements ── */}
           <div className="space-y-3">
-          <div className={clsx('card overflow-hidden flex flex-col border-2', {
-            'border-green-200 bg-green-50/30': derivedStatus === 'paid',
-            'border-orange-200 bg-orange-50/30': derivedStatus === 'partial',
-            'border-gray-200 bg-gray-50/30': derivedStatus === 'pending',
-            'border-red-200 bg-red-50/30': derivedStatus === 'overpaid',
-          })}>
-            <div className={clsx('px-4 py-2.5 border-b flex items-center justify-between', {
-              'bg-green-50/60 border-green-100': derivedStatus === 'paid',
-              'bg-orange-50/60 border-orange-100': derivedStatus === 'partial',
-              'bg-gray-50/60 border-gray-100': derivedStatus === 'pending',
-              'bg-red-50/60 border-red-100': derivedStatus === 'overpaid',
-            })}>
+          <div className="card overflow-hidden">
+            <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 relative flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Paiements</h3>
-                <span className={clsx('px-2 py-0.5 rounded-full text-[10px] font-semibold', STATUS_COLORS[derivedStatus])}>
-                  {STATUS_LABELS[derivedStatus]}
-                </span>
+                {selectedParent.maxInstallments > 0 && payments.length > 0 && (
+                  <Tooltip content={<span className="whitespace-nowrap">{payments.length} échéance{payments.length > 1 ? 's' : ''} enregistrée{payments.length > 1 ? 's' : ''} sur {selectedParent.maxInstallments} autorisée{selectedParent.maxInstallments > 1 ? 's' : ''} · maximum des types de cotisation de la famille</span>} maxWidth="max-w-none">
+                    <span className={clsx('px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums cursor-default',
+                      payments.length > selectedParent.maxInstallments ? 'bg-orange-100 text-orange-700' : 'bg-primary-50 text-primary-700')}>
+                      {payments.length} échéance{payments.length > 1 ? 's' : ''} / {selectedParent.maxInstallments}
+                    </span>
+                  </Tooltip>
+                )}
               </div>
+              {payments.length > 0 && (
+                <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-secondary-700 tabular-nums">
+                  Total : {fmtEur(totalPaid)}
+                </span>
+              )}
               <FloatButton
                 variant="submit"
                 type="button"
                 onClick={() => { setPaymentModalOpen(true); setError(null); setSuccess(null) }}
                 disabled={totalDue <= 0}
+                className="!py-1 !px-2.5 !text-xs"
               >
-                <Plus size={14} /> Ajouter
+                Ajouter
               </FloatButton>
             </div>
 
             {payments.length > 0 ? (
-              <table className="w-full text-left">
+              <table className="w-full text-left" aria-label="Paiements enregistrés">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-center w-8">#</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Moyen</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Reference</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">N° Recu</th>
-                    <th className="px-3 py-2 w-8"></th>
-                    <th className="px-3 py-2 w-16"></th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-center w-8">#</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Moyen</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Référence</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">N° Reçu</th>
+                    <th className="px-1 py-2 w-6"></th>
+                    <th className="px-1 py-2 w-14"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((p, idx) => {
                     const ref = p.payment_reference as any
+                    // La colonne « Moyen » donne deja le contexte : pas de prefixe.
                     let refLabel = ''
-                    if (ref?.check_number) refLabel = `CHQ ${ref.check_number}`
-                    else if (ref?.transaction_id) refLabel = `TXN ${ref.transaction_id}`
+                    if (ref?.check_number) refLabel = ref.check_number
+                    else if (ref?.transaction_id) refLabel = ref.transaction_id
                     else if (ref?.reference) refLabel = ref.reference
                     return (
                       <tr key={p.id} className="border-b border-warm-50 hover:bg-warm-50/40">
-                        <td className="px-3 py-2 text-sm text-warm-400 text-center">{idx + 1}</td>
-                        <td className="px-3 py-2 text-sm text-secondary-700">{p.paid_date ? fmtDate(p.paid_date) : '—'}</td>
-                        <td className="px-3 py-2 text-sm font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(p.amount_paid)}</td>
-                        <td className="px-3 py-2 text-sm text-secondary-600">{p.payment_method ? (METHOD_LABELS[p.payment_method] ?? p.payment_method) : '—'}</td>
-                        <td className="px-3 py-2 text-xs text-secondary-500 font-mono">{refLabel || <span className="text-warm-300">—</span>}</td>
-                        <td className="px-3 py-2 text-xs text-secondary-500">{p.receipt_number || <span className="text-warm-300">—</span>}</td>
-                        <td className="px-3 py-2 text-center">
+                        <td className={clsx('px-2 py-1.5 text-xs text-center tabular-nums',
+                          selectedParent.maxInstallments > 0 && idx + 1 > selectedParent.maxInstallments ? 'text-orange-600 font-bold' : 'text-warm-400')}>
+                          {idx + 1}
+                        </td>
+                        <td className="px-2 py-1.5 text-xs text-secondary-700">{p.paid_date ? fmtDate(p.paid_date) : '·'}</td>
+                        <td className="px-2 py-1.5 text-xs font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(p.amount_paid)}</td>
+                        <td className="px-2 py-1.5 text-xs text-secondary-600">{p.payment_method ? (METHOD_LABELS[p.payment_method] ?? p.payment_method) : '·'}</td>
+                        <td className="px-2 py-1.5 text-xs text-secondary-500 font-mono">
+                          {refLabel ? (
+                            <Tooltip content={<span className="whitespace-nowrap">{refLabel}</span>} maxWidth="max-w-none">
+                              <span className="block max-w-[90px] truncate cursor-default">{refLabel}</span>
+                            </Tooltip>
+                          ) : <span className="text-warm-300">·</span>}
+                        </td>
+                        <td className="px-2 py-1.5 text-xs text-secondary-500 whitespace-nowrap">{p.receipt_number || <span className="text-warm-300">·</span>}</td>
+                        <td className="px-2 py-1.5 text-center">
                           {p.notes && (
                             <Tooltip content={p.notes}>
                               <span className="inline-flex text-warm-400 hover:text-secondary-600 cursor-help">
@@ -778,50 +881,31 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                             </Tooltip>
                           )}
                         </td>
-                        <td className="px-3 py-2">
-                          {deleteStep?.id === p.id ? (
-                            <span className="flex items-center gap-1">
+                        <td className="px-2 py-1.5">
+                          <span className="flex items-center gap-1">
+                            <Tooltip content="Modifier">
                               <button
-                                onClick={() => removePayment(p)}
+                                type="button"
+                                aria-label="Modifier le paiement"
+                                onClick={() => { setEditingPayment(p); setPaymentModalOpen(true); setError(null); setSuccess(null) }}
                                 disabled={saving}
-                                className={`text-[11px] font-medium border rounded px-1.5 py-0.5 transition-colors ${
-                                  deleteStep.step === 1
-                                    ? 'text-orange-600 bg-orange-50 hover:bg-orange-100 border-orange-200'
-                                    : 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200'
-                                }`}
+                                className="p-1 text-warm-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                               >
-                                {deleteStep.step === 1 ? 'Supprimer ?' : 'Confirmer'}
+                                <Pencil size={14} aria-hidden="true" />
                               </button>
+                            </Tooltip>
+                            <Tooltip content="Supprimer">
                               <button
-                                onClick={() => setDeleteStep(null)}
+                                type="button"
+                                aria-label="Supprimer le paiement"
+                                onClick={() => setDeletePaymentTarget(p)}
                                 disabled={saving}
-                                className="text-[11px] font-medium text-warm-500 hover:text-secondary-700 hover:bg-warm-100 rounded px-1.5 py-0.5 transition-colors"
+                                className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                               >
-                                Annuler
+                                <Trash2 size={14} aria-hidden="true" />
                               </button>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <Tooltip content="Modifier">
-                                <button
-                                  onClick={() => { setEditingPayment(p); setPaymentModalOpen(true); setError(null); setSuccess(null) }}
-                                  disabled={saving}
-                                  className="p-1 text-warm-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                              </Tooltip>
-                              <Tooltip content="Supprimer">
-                                <button
-                                  onClick={() => removePayment(p)}
-                                  disabled={saving}
-                                  className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </Tooltip>
-                            </span>
-                          )}
+                            </Tooltip>
+                          </span>
                         </td>
                       </tr>
                     )
@@ -829,132 +913,76 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </tbody>
               </table>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center py-12 text-center gap-2">
-                <AlertTriangle size={24} className={derivedStatus === 'pending' ? 'text-red-500' : 'text-warm-300'} />
+              <div className="flex flex-col items-center justify-center py-3 text-center gap-1">
+                <AlertTriangle size={20} className={derivedStatus === 'pending' ? 'text-red-500' : 'text-warm-300'} aria-hidden="true" />
                 <p className={clsx('text-sm', derivedStatus === 'pending' ? 'text-red-500 font-medium' : 'text-warm-400')}>Aucun paiement enregistré.</p>
-                {totalDue > 0 && (
-                  <p className="text-xs text-warm-400">Cliquez sur &quot;+ Ajouter&quot; pour enregistrer un règlement.</p>
-                )}
                 {totalDue <= 0 && (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
-                    <AlertTriangle size={12} /> Completez d&apos;abord le recapitulatif pour calculer le total du.
+                    <AlertTriangle size={12} aria-hidden="true" /> Complétez d&apos;abord le récapitulatif pour calculer le total dû.
                   </p>
                 )}
               </div>
             )}
-          </div>
 
-          {/* Réductions & Avoirs */}
-          <div className="card overflow-hidden">
-            <div className="px-4 py-2.5 bg-warm-50/60 border-b border-warm-100 flex items-center justify-between">
+          {/* Réductions & Avoirs — meme carte que Paiements (section separee) */}
+            <div className="px-4 h-9 mt-2 bg-warm-50/60 border-y border-warm-100 relative flex items-center justify-between">
               <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Réductions & Avoirs</h3>
-              {!addingAdjustment && (
-                <FloatButton
-                  variant="submit"
-                  type="button"
-                  onClick={() => { setAddingAdjustment(true); setError(null); setSuccess(null) }}
-                >
-                  <Plus size={13} /> Ajouter
-                </FloatButton>
+              {adjustmentsTotal !== 0 && (
+                <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-secondary-700 tabular-nums">
+                  Total : {fmtEur(Math.abs(adjustmentsTotal))}
+                </span>
               )}
+              <FloatButton
+                variant="submit"
+                type="button"
+                onClick={() => {
+                  setAdjForm({ type: '', label: '', amount: '', date: new Date().toISOString().slice(0, 10) })
+                  setAddingAdjustment(true); setError(null); setSuccess(null)
+                }}
+                className="!py-1 !px-2.5 !text-xs"
+              >
+                Ajouter
+              </FloatButton>
             </div>
 
-            {addingAdjustment && (
-              <div className="p-3 border-b border-warm-100 bg-primary-50/20 space-y-2">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <FloatInput
-                    label="Date"
-                    type="date"
-                    value={adjForm.date}
-                    onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))}
-                    compact
-                  />
-                  <FloatSelect
-                    label="Type"
-                    value={adjForm.type}
-                    onChange={e => setAdjForm(f => ({ ...f, type: e.target.value as AdjustmentType }))}
-                    compact
-                  >
-                    <option value="reduction">Réduction</option>
-                    <option value="avoir">Avoir</option>
-                    <option value="remboursement">Remboursement</option>
-                  </FloatSelect>
-                  <div className="sm:col-span-2">
-                    <FloatInput
-                      label="Motif"
-                      type="text"
-                      placeholder="Famille nombreuse..."
-                      value={adjForm.label}
-                      onChange={e => setAdjForm(f => ({ ...f, label: e.target.value }))}
-                      compact
-                    />
-                  </div>
-                </div>
-                <div className="flex items-end gap-2">
-                  <div className="w-36">
-                    <FloatInput
-                      label="Montant (EUR)"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="50"
-                      value={adjForm.amount}
-                      onChange={e => setAdjForm(f => ({ ...f, amount: e.target.value }))}
-                      compact
-                    />
-                  </div>
-                  <FloatButton variant="submit" type="button" onClick={addAdjustment} disabled={saving}>Valider</FloatButton>
-                  <FloatButton variant="secondary" type="button" onClick={() => setAddingAdjustment(false)} disabled={saving}>Annuler</FloatButton>
-                </div>
-              </div>
-            )}
-
             {adjustments.length > 0 ? (
-              <table className="w-full text-left">
+              <table className="w-full text-left" aria-label="Réductions et avoirs">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider">Motif</th>
-                    <th className="px-3 py-2 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Motif</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
                     <th className="px-3 py-2 w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {adjustments.map(a => (
                     <tr key={a.id} className="border-b border-warm-50">
-                      <td className="px-3 py-2 text-sm text-secondary-600">{fmtDate(a.adjustment_date)}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-1.5 text-xs text-secondary-600">{fmtDate(a.adjustment_date)}</td>
+                      <td className="px-2 py-1.5">
                         <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium',
                           a.adjustment_type === 'reduction' ? 'bg-blue-50 text-blue-700' : a.adjustment_type === 'remboursement' ? 'bg-orange-50 text-orange-700' : 'bg-purple-50 text-purple-700'
                         )}>
                           {a.adjustment_type === 'reduction' ? 'Réduction' : a.adjustment_type === 'remboursement' ? 'Remboursement' : 'Avoir'}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-sm text-secondary-700">{a.label}</td>
-                      <td className="px-3 py-2 text-sm font-medium text-green-600 text-right tabular-nums">{fmtEur(Math.abs(a.amount))}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-2 py-1.5 text-xs text-secondary-700">{a.label}</td>
+                      <td className="px-2 py-1.5 text-xs font-medium text-warm-600 text-right tabular-nums">- {fmtEur(Math.abs(a.amount))}</td>
+                      <td className="px-2 py-1.5">
                         <Tooltip content="Supprimer">
-                          <button onClick={() => removeAdjustment(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 size={14} />
+                          <button type="button" aria-label="Supprimer la réduction" onClick={() => setDeleteAdjTarget(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+                            <Trash2 size={14} aria-hidden="true" />
                           </button>
                         </Tooltip>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-warm-50/60">
-                    <td colSpan={3} className="px-3 py-2 text-sm font-semibold text-secondary-700 text-right">Total réductions</td>
-                    <td className="px-3 py-2 text-sm font-bold text-green-700 text-right tabular-nums">{fmtEur(Math.abs(adjustmentsTotal))}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
               </table>
             ) : !addingAdjustment && (
-              <div className="px-4 py-6 text-center space-y-1">
+              <div className="px-4 py-3 text-center">
                 <p className="text-sm text-warm-400">Aucune réduction ni avoir.</p>
-                <p className="text-xs text-warm-400">Cliquez sur &quot;+ Ajouter&quot; pour enregistrer une réduction ou un avoir.</p>
               </div>
             )}
           </div>
@@ -964,28 +992,56 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         </div>
 
         {/* Totaux en bas de page */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="card p-4">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="card p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-secondary-700">{`TOTAL D\u00DB`}</span>
-              <span className="text-lg font-bold text-secondary-800">{fmtEur(totalDue)}</span>
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-secondary-700">{`TOTAL PER\u00C7U`}</span>
+              <span className="text-xs font-semibold text-secondary-700">{'TOTAL D\u00DB'}</span>
               <div className="text-right">
                 {adjustmentsTotal !== 0 && (
                   <span className="text-xs text-warm-500 mr-1">
-                    {fmtEur(totalPaid)} - {fmtEur(Math.abs(adjustmentsTotal))} =
+                    {fmtEur(subtotal)} - {fmtEur(Math.abs(adjustmentsTotal))} =
                   </span>
                 )}
-                <span className="text-lg font-bold text-secondary-800">{fmtEur(netPercu)}</span>
+                <span className="text-base font-bold text-secondary-800 tabular-nums">{fmtEur(totalDue)}</span>
               </div>
             </div>
           </div>
+          <div className="card p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-secondary-700">{'TOTAL PER\u00C7U'}</span>
+              <span className="text-base font-bold text-secondary-800 tabular-nums">{fmtEur(netPercu)}</span>
+            </div>
+          </div>
+          <div className="card p-3">
+            <div className="flex items-center justify-between">
+              <span className={clsx('text-xs font-semibold', derivedStatus === 'overpaid' ? 'text-red-600' : 'text-secondary-700')}>
+                {derivedStatus === 'overpaid' ? 'TROP PERÇU' : 'RESTE'}
+              </span>
+              <span className={clsx('text-base font-bold tabular-nums',
+                derivedStatus === 'overpaid' ? 'text-red-600' : remaining > 0 ? 'text-orange-700' : 'text-primary-600')}>
+                {derivedStatus === 'overpaid' ? fmtEur(Math.abs(remaining)) : fmtEur(Math.max(0, remaining))}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions comptable \u2014 cablees au lot 2 (attestation + relance) */}
+        <div className="flex items-center justify-end gap-2">
+          {(derivedStatus === 'pending' || derivedStatus === 'partial') && totalDue > 0 && (
+            <Tooltip content="Bient\u00F4t : relance par email (lot 2)">
+              <span><FloatButton type="button" variant="secondary" disabled>Relancer</FloatButton></span>
+            </Tooltip>
+          )}
+          {derivedStatus === 'paid' && totalDue > 0 && (
+            <Tooltip content="Bient\u00F4t : attestation de paiement par email (lot 2)">
+              <span><FloatButton type="button" variant="submit" disabled>Attestation</FloatButton></span>
+            </Tooltip>
+          )}
         </div>
       </>)}
+
+        </div>{/* detail pane */}
+      </div>{/* flex worklist + detail */}
 
       {/* Modale paiement */}
       {paymentModalOpen && selectedParent && (
@@ -1002,6 +1058,125 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           onClose={() => { setPaymentModalOpen(false); setEditingPayment(null) }}
           onSaved={handlePaymentSaved}
         />
+      )}
+
+      {/* Confirmation de suppression d'un paiement */}
+      <ConfirmModal
+        open={!!deletePaymentTarget}
+        title="Supprimer ce paiement ?"
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="danger"
+        confirmColor="red"
+        onConfirm={() => deletePaymentTarget && removePayment(deletePaymentTarget)}
+        onCancel={() => setDeletePaymentTarget(null)}
+      >
+        {deletePaymentTarget && (
+          <p className="text-xs text-warm-600">
+            {deletePaymentTarget.paid_date ? fmtDate(deletePaymentTarget.paid_date) : '·'}
+            {' · '}<strong className="text-warm-700">{fmtEur(deletePaymentTarget.amount_paid)}</strong>
+            {deletePaymentTarget.payment_method && ` · ${METHOD_LABELS[deletePaymentTarget.payment_method] ?? deletePaymentTarget.payment_method}`}
+            {deletePaymentTarget.receipt_number && ` · ${deletePaymentTarget.receipt_number}`}
+          </p>
+        )}
+      </ConfirmModal>
+
+      {/* Confirmation de suppression d'une reduction / avoir */}
+      <ConfirmModal
+        open={!!deleteAdjTarget}
+        title="Supprimer cette ligne comptable ?"
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        variant="danger"
+        confirmColor="red"
+        onConfirm={() => deleteAdjTarget && removeAdjustment(deleteAdjTarget)}
+        onCancel={() => setDeleteAdjTarget(null)}
+      >
+        {deleteAdjTarget && (
+          <p className="text-xs text-warm-600">
+            {deleteAdjTarget.adjustment_type === 'reduction' ? 'Réduction' : deleteAdjTarget.adjustment_type === 'remboursement' ? 'Remboursement' : 'Avoir'}
+            {' · '}{deleteAdjTarget.label}{' · '}<strong className="text-warm-700">{fmtEur(Math.abs(deleteAdjTarget.amount))}</strong>
+          </p>
+        )}
+      </ConfirmModal>
+
+      {/* Modale reduction / avoir — meme facture que la modale paiement.
+          Fermeture X / Annuler uniquement (pas de fond ni Echap : evite la perte de saisie). */}
+      {addingAdjustment && selectedParent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="adj-modal-title" className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
+              <h2 id="adj-modal-title" className="text-base font-bold text-secondary-800">Réduction ou avoir</h2>
+              <button
+                type="button"
+                onClick={() => setAddingAdjustment(false)}
+                aria-label="Fermer"
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <FloatInput
+                  label="Date"
+                  type="date"
+                  required
+                  aria-required="true"
+                  value={adjForm.date}
+                  onChange={e => setAdjForm(f => ({ ...f, date: e.target.value }))}
+                />
+                <FloatSelect
+                  label="Type"
+                  required
+                  aria-required="true"
+                  value={adjForm.type}
+                  onChange={e => setAdjForm(f => ({ ...f, type: e.target.value as AdjustmentType }))}
+                >
+                  <option value="" disabled hidden></option>
+                  <option value="reduction">Réduction</option>
+                  <option value="avoir">Avoir</option>
+                  <option value="remboursement">Remboursement</option>
+                </FloatSelect>
+              </div>
+              <FloatInput
+                label="Motif"
+                type="text"
+                required
+                aria-required="true"
+                placeholder="Famille nombreuse..."
+                value={adjForm.label}
+                onChange={e => setAdjForm(f => ({ ...f, label: e.target.value }))}
+              />
+              <FloatInput
+                label="Montant (€)"
+                type="number"
+                required
+                aria-required="true"
+                min="0"
+                step="any"
+                placeholder="50"
+                value={adjForm.amount}
+                onChange={e => setAdjForm(f => ({ ...f, amount: e.target.value }))}
+              />
+
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+                <div className="flex-1" />
+                <FloatButton variant="secondary" type="button" onClick={() => setAddingAdjustment(false)} disabled={saving}>Annuler</FloatButton>
+                <FloatButton
+                  variant="submit"
+                  type="button"
+                  onClick={addAdjustment}
+                  disabled={saving || !adjForm.type || !adjForm.label.trim() || !(parseFloat(adjForm.amount) > 0) || !adjForm.date}
+                >
+                  Valider
+                </FloatButton>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
