@@ -22,7 +22,7 @@ export default async function CommunicationsPage() {
   // Messages envoyes
   let query = supabase
     .from('announcements')
-    .select('id, title, announcement_type, target_class_id, channel, recipient_count, published_at, sent_at, published_by, profiles:published_by(first_name, last_name), classes:target_class_id(name)')
+    .select('id, title, announcement_type, target_class_id, channel, recipient_count, published_at, sent_at, published_by, profiles:published_by(first_name, last_name), classes:target_class_id(name, class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
     .eq('etablissement_id', etablissementId)
     .eq('is_published', true)
     .order('published_at', { ascending: false })

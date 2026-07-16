@@ -838,11 +838,41 @@ NOM Prenom »). Controle : `grep -rn "first_name}[^\`]*last_name}"` — toute oc
 
 - **Dette** : `npm run lint` est **casse** (`next lint` a disparu en Next 16) — non traite.
 - **Migration executee** : `add-etablissement-smtp.sql`.
-- **Reste** : configurer une messagerie et **tester un envoi reel** (jamais fait) ; **lot 3** (a11y + charte de
-  l'historique et de la fiche message) ; **sous-menu Staff** (n'envoie toujours rien).
+
+#### 16 juillet 2026 — Communications LOT 3 (a11y + charte historique & fiche message)
+- **P1 bug (introduit par le lot 1)** : le statut **`skipped`** (foyer sans adresse) etait invisible sur la
+  fiche message — pas de badge (`STATUS_BADGE` s'arretait a pending/sent/delivered/failed) → affiche « En attente »
+  a tort, et **absent des compteurs** (boucle sur 4 cles en dur). Correctif : badge « Sans email » (ambre),
+  **compteurs derives des statuts reellement presents** (`reduce`, plus de liste figee). **`delivered` retire**
+  (jamais pose par le code — pas d'accuse de reception ; le vert va a « Envoye »).
+- **Historique (`SentMessagesClient`)** : `card p-0` + `.list-th/.list-td/.list-name` + `text-xs`, **ligne
+  cliquable** (nom = `<Link>` avec `stopPropagation`), boutons **sans icone**, filtres `aria-pressed`, table
+  `aria-label`, `th scope`, recherche `ariaLabel`, quadratins → `·`. **Bouton « Parents » masque** pour
+  comptable/enseignant (via le `role`, qui etait passe mais inutilise).
+- **Sous-filtre classe** : quand « Parents d'une classe » est actif, un **`FloatSelect`** (copie exacte
+  d'« Affectations apprenants » : `wrapperClassName="w-fit"`, libelle « Nom · Civilite NOM Prenom », requete
+  enrichie `class_teachers(teachers(...))`) place **a droite** (`ml-auto`), en `compact` (mini hauteur), option
+  **« Toutes les classes »** avec sentinelle **`__all__`** (valeur NON vide, sinon le label flottant chevauche
+  le texte de l'option — piege `FloatSelect`). Ne propose que les classes reellement presentes.
+- **Filtres memorises** (recherche + type + classe) en **`sessionStorage`** : retrouves au retour d'une fiche
+  (lien ou Precedent). **Piege corrige** : le flag d'hydratation doit etre un **`state`, pas un `ref`** — un ref
+  passe a true des l'effet de restauration, et l'effet de persistance (meme commit) reecrit alors les defauts
+  par-dessus le stockage AVANT que les valeurs restaurees s'appliquent. En `state`, il reste false durant le
+  commit de montage → pas d'ecrasement.
+- **Fiche message (`MessageDetailClient`)** : **condensee** (3 cartes serrees au lieu de 5), **labels**
+  (capitales) sur chaque champ ; **Objet = 1er champ pleine largeur de la carte infos** (choix utilisateur),
+  **Message** en label sur le corps. **Infos classe** ajoutees (Enseignant / Cotisation / Horaire — requete
+  `[id]/page.tsx` enrichie). **Destinataires** : encadre a **hauteur figee** (320px, `.list-scroll`) + **champ
+  de recherche** + entete collant. **« Retour a la liste »** rendu **au niveau page** (`ChevronLeft` + style
+  commun), identique a classes/[id] et annee-scolaire/[id].
+- **Lecon apprise (frustration utilisateur)** : « comme X » = aller **lire le composant X et le recopier**
+  (mêmes classes Tailwind, mêmes infos affichees) au 1er coup, pas le reconstruire de memoire. Le `FloatSelect`
+  a coute plusieurs allers-retours (largeur `w-56` au lieu de `w-fit` → tronque ; libelle sans l'enseignant).
+- **Reste** : configurer une messagerie et **tester un envoi reel** (jamais fait) ; **sous-menu Staff**
+  (n'envoie toujours rien).
 
 ## Prochaine etape
-- **Communications** : configurer la messagerie + tester un envoi reel, puis lot 3 (a11y/charte), puis Staff.
+- **Communications** : configurer la messagerie + tester un envoi reel, puis **sous-menu Staff**.
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
   quadratins `—`, et les **prerequis de mise en production** ci-dessus.
