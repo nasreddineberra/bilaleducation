@@ -35,9 +35,16 @@ export default async function CommunicationsPage() {
   const { data } = await query
   const messages = (data ?? []) as any[]
 
+  // Annee en cours : libelle dynamique « Parents {annee} » (comme l'ecran d'envoi).
+  const { data: schoolYear } = await supabase
+    .from('school_years')
+    .select('label')
+    .eq('is_current', true)
+    .single()
+
   return (
     <div className="space-y-4 animate-fade-in">
-      <SentMessagesClient messages={messages} role={role} />
+      <SentMessagesClient messages={messages} yearLabel={schoolYear?.label ?? null} />
     </div>
   )
 }

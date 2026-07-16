@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Mail, Users, UserCheck, Globe } from 'lucide-react'
-import { FloatButton, FloatSelect, SearchField } from '@/components/ui/FloatFields'
+import { FloatSelect, SearchField } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,12 +30,9 @@ type MessageRow = {
 
 interface Props {
   messages: MessageRow[]
-  role: string
+  /** Annee en cours : libelle dynamique « Parents {annee} » (comme l'ecran d'envoi). */
+  yearLabel: string | null
 }
-
-// La communication aux parents est reservee a ces roles (miroir de la sidebar
-// et de la garde serveur). Le comptable et l'enseignant ne voient pas le bouton.
-const PARENT_COMM_ROLES = ['admin', 'direction', 'secretaire', 'responsable_pedagogique']
 
 const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
   all_active:     { label: 'Parents (élèves inscrits)', icon: Users,     color: 'bg-blue-100 text-blue-700' },
@@ -58,15 +55,16 @@ function formatDate(d: string | null): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function SentMessagesClient({ messages, role }: Props) {
+export default function SentMessagesClient({ messages, yearLabel }: Props) {
   const router = useRouter()
+  // « Parents {annee} » si une annee est en cours, sinon repli.
+  const allActiveLabel = yearLabel ? `Parents ${yearLabel}` : 'Parents (élèves inscrits)'
+  const typeLabel = (type: string) => type === 'all_active' ? allActiveLabel : (TYPE_LABELS[type]?.label ?? type)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('')
   // '__all__' = toutes les classes. Valeur non vide (et non '') pour que le label
   // flottant du FloatSelect monte au lieu de chevaucher le texte de l'option.
   const [filterClassId, setFilterClassId] = useState<string>('__all__')
-
-  const canWriteParents = PARENT_COMM_ROLES.includes(role)
 
   // Restauration au montage puis persistance a chaque changement (sessionStorage :
   // survit au retour depuis une fiche, quel que soit le chemin — lien ou Precedent).
@@ -131,17 +129,8 @@ export default function SentMessagesClient({ messages, role }: Props) {
 
   return (
     <div className="space-y-2">
-      {/* Header */}
-      <div className="flex items-center justify-end gap-2">
-        {canWriteParents && (
-          <Link href="/dashboard/communications/new">
-            <FloatButton variant="submit" type="button">Parents</FloatButton>
-          </Link>
-        )}
-        <Link href="/dashboard/communications/staff">
-          <FloatButton variant="submit" type="button">Staff / Enseignants</FloatButton>
-        </Link>
-      </div>
+      {/* Pas de boutons raccourcis : la creation passe par la sidebar
+          (Communications → Parents / Staff). */}
 
       {/* Filtres */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
@@ -167,7 +156,7 @@ export default function SentMessagesClient({ messages, role }: Props) {
                     : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50'
                 )}
               >
-                {type === '' ? 'Tous les messages' : TYPE_LABELS[type]?.label}
+                {type === '' ? 'Tous les messages' : typeLabel(type)}
               </button>
             )
           })}
@@ -232,7 +221,7 @@ export default function SentMessagesClient({ messages, role }: Props) {
                     <td className="list-td">
                       <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase', typeInfo.color)}>
                         <TypeIcon size={10} aria-hidden="true" />
-                        {typeInfo.label}
+                        {typeLabel(m.announcement_type ?? '')}
                         {m.classes?.name ? ` · ${m.classes.name}` : ''}
                       </span>
                     </td>
