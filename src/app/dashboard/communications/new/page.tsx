@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import { hasSmtpConfig } from '@/lib/email'
+import { buildSignatureHtml } from '@/lib/communications/signature'
 import NewMessageClient from '@/components/communications/NewMessageClient'
 
 // Communication aux parents = voix de l'etablissement. L'enseignant ne communique
@@ -146,11 +147,14 @@ export default async function NewMessagePage() {
   // On bloque en amont plutot que de laisser rediger puis echouer a l'envoi.
   const { data: etab } = await supabase
     .from('etablissements')
-    .select('contact')
+    .select('nom, contact, adresse, telephone')
     .eq('id', etablissementId)
     .single()
 
   const smtpConfigured = etablissementId ? await hasSmtpConfig(etablissementId) : false
+
+  // Signature auto (editable) ajoutee au corps : Cordialement + coordonnees.
+  const signatureHtml = buildSignatureHtml(etab)
 
   return (
     <div className="animate-fade-in">
@@ -164,6 +168,7 @@ export default async function NewMessagePage() {
         smtpConfigured={smtpConfigured}
         contact={etab?.contact ?? null}
         yearLabel={yearLabel}
+        signatureHtml={signatureHtml}
       />
     </div>
   )

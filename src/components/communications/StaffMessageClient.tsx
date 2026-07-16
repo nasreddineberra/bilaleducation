@@ -24,6 +24,8 @@ interface Props {
   staffMembers: StaffMember[]
   etablissementId: string
   smtpConfigured: boolean
+  /** Signature auto (Cordialement + coordonnees) pre-remplie dans le corps, editable. */
+  signatureHtml: string
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -98,14 +100,15 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   )
 }
 
-export default function StaffMessageClient({ role, staffMembers, etablissementId, smtpConfigured }: Props) {
+export default function StaffMessageClient({ role, staffMembers, etablissementId, smtpConfigured, signatureHtml }: Props) {
   const toast = useToast()
   const [channel, setChannel] = useState<StaffChannel>('notification')
   const [group, setGroup] = useState<'all' | 'staff' | 'teachers' | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [subject, setSubject] = useState('')
-  const [bodyHtml, setBodyHtml] = useState('')
+  // Corps pre-rempli avec la signature (editable) : on redige au-dessus.
+  const [bodyHtml, setBodyHtml] = useState(signatureHtml)
   const [attachments, setAttachments] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [showPreview, setShowPreview] = useState(false)

@@ -51,6 +51,8 @@ interface Props {
   contact: string | null
   /** Annee scolaire en cours : nomme le ciblage « Parents {annee} ». */
   yearLabel: string | null
+  /** Signature auto (Cordialement + coordonnees) pre-remplie dans le corps, editable. */
+  signatureHtml: string
 }
 
 // ─── Permissions par rôle ────────────────────────────────────────────────────
@@ -131,6 +133,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 export default function NewMessageClient({
   role, classes, parents, classParticipants, enrolledParentIds, etablissementId, smtpConfigured, contact, yearLabel,
+  signatureHtml,
 }: Props) {
   const toast = useToast()
   const TARGET_LABELS = useMemo(() => targetLabels(yearLabel), [yearLabel])
@@ -138,7 +141,8 @@ export default function NewMessageClient({
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null)
   const [selectedParentIds, setSelectedParentIds] = useState<Set<string>>(new Set())
   const [subject, setSubject] = useState('')
-  const [bodyHtml, setBodyHtml] = useState('')
+  // Corps pre-rempli avec la signature (editable) : on redige au-dessus.
+  const [bodyHtml, setBodyHtml] = useState(signatureHtml)
   const [attachments, setAttachments] = useState<File[]>([])
   const [sending, setSending] = useState(false)
   const [showPreview, setShowPreview] = useState(false)

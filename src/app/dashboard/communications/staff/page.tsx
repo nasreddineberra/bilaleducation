@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import { hasSmtpConfig } from '@/lib/email'
+import { buildSignatureHtml } from '@/lib/communications/signature'
 import StaffMessageClient from '@/components/communications/StaffMessageClient'
 
 // Communication interne = encadrement (tout staff SAUF enseignant). Le comptable
@@ -36,6 +37,14 @@ export default async function StaffMessagePage() {
 
   const smtpConfigured = etablissementId ? await hasSmtpConfig(etablissementId) : false
 
+  // Signature auto (editable) ajoutee au corps : Cordialement + coordonnees.
+  const { data: etab } = await supabase
+    .from('etablissements')
+    .select('nom, contact, adresse, telephone')
+    .eq('id', etablissementId)
+    .single()
+  const signatureHtml = buildSignatureHtml(etab)
+
   return (
     <div className="animate-fade-in">
       <StaffMessageClient
@@ -43,6 +52,7 @@ export default async function StaffMessagePage() {
         staffMembers={(staffMembers ?? []) as any[]}
         etablissementId={etablissementId}
         smtpConfigured={smtpConfigured}
+        signatureHtml={signatureHtml}
       />
     </div>
   )

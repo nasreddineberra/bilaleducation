@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { sendNotificationEmail, hasSmtpConfig } from '@/lib/email'
+import { sanitize } from '@/lib/security/sanitize'
 import type { UserRole } from '@/types/database'
 
 // Communication comptable = admin / direction / comptable (le comptable ecrit
@@ -76,21 +77,21 @@ export async function sendRelance(payload: SendRelancePayload): Promise<SendRela
 
   const { data: etab } = await supabase
     .from('etablissements')
-    .select('nom, contact')
+    .select('contact')
     .eq('id', profile.etablissement_id)
     .single()
 
-  const etabName = etab?.nom ?? 'Votre établissement'
   // Le parent repond a l'ecole ; repli sur l'expediteur si pas de contact.
   const replyTo = etab?.contact?.trim() || profile.email || undefined
 
-  const bodyHtml = escapeHtml(body).replace(/\n/g, '<br>')
+  // Corps redige dans l'editeur riche : deja du HTML, on le sanitise (jamais de
+  // nl2br/escape ici, sinon les balises seraient echappees). La signature
+  // (coordonnees etablissement) fait partie du corps edite.
+  const safeBody = sanitize(body)
   const emailHtml = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1a1a1a;">${escapeHtml(subject)}</h2>
-      <div style="color: #444; line-height: 1.6;">${bodyHtml}</div>
-      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-      <p style="color: #999; font-size: 12px;">${escapeHtml(etabName)}</p>
+      <div style="color: #444; line-height: 1.6;">${safeBody}</div>
     </div>
   `
 
@@ -114,7 +115,7 @@ export async function sendRelance(payload: SendRelancePayload): Promise<SendRela
       school_year_id:   payload.schoolYearId,
       type:             'relance',
       subject,
-      body_html:        bodyHtml,
+      body_html:        safeBody,
       recipients:       recipients.join(', '),
       sent_by:          user.id,
       status,

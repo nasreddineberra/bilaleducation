@@ -129,7 +129,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
   // Etablissement (en-tete de l'attestation PDF, identique aux bulletins).
   const { data: etablissement } = await supabase
     .from('etablissements')
-    .select('nom, logo_url, adresse, telephone')
+    .select('nom, logo_url, adresse, telephone, contact')
     .single()
 
   return (

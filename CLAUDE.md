@@ -966,7 +966,29 @@ Volet communication du comptable, propre au module (decision : ne vit PAS dans `
 - **Reste Financements** : audit des 2 autres sous-menus (Stats reglements, Situation financiere — bucket
   `documents-expenses` public a passer en prive) ; test d'un **envoi reel** de relance (depend du SMTP).
 
+#### 17 juillet 2026 — Signature auto de mail + relance en editeur riche
+- **Signature de mail automatique (editable) en fin de corps** — helper partage
+  `src/lib/communications/signature.ts` (`buildSignatureHtml`) : « Cordialement, » + **nom / adresse /
+  Tél : {telephone} / contact** de l'etablissement (seules les lignes renseignees). Rendue en HTML.
+  - **Communications → Parents** (`NewMessageClient` + `new/page.tsx`) et **→ Staff** (`StaffMessageClient` +
+    `staff/page.tsx`) : le corps (`RichTextEditor`) s'ouvre **pre-rempli** avec la signature (deux lignes vides
+    au-dessus pour rediger), prop `signatureHtml` construite cote serveur depuis `etablissements`
+    (nom, adresse, telephone, contact). NB Staff : la signature apparait aussi en canal Notification seule.
+  - **Relance Financements** : signature integree au gabarit (voir ci-dessous). Cote serveur, aucune signature
+    en dur (elle vit dans le corps edite).
+- **Relance de paiement passee en editeur riche** (alignement sur Communications, decision utilisateur :
+  « ca fait plus pro… le destinataire le recoit en HTML ») :
+  - `FinancementsClient` : `FloatTextarea` → `RichTextEditor` (lazy + Suspense) dans la modale de relance ;
+    gabarit `openRelance` reecrit en **HTML** avec le **montant restant du en gras** (`<strong>`) + signature
+    HTML en fin de corps.
+  - `sendRelance` (`actions.ts`) : le corps est **sanitise** (`sanitize()`, comme `sendParentMessage`) au lieu de
+    `escapeHtml + nl2br` — sinon les balises seraient echappees ; c'est aussi la protection XSS. `body_html`
+    stocke = HTML sanitise. L'historique/fiche n'affiche jamais le corps (date · type · objet), rien d'autre a
+    ajuster. **Aucune migration.**
+
 ## Prochaine etape
+- **Financements** : demain, audit des **2 autres sous-menus** (Stats reglements = `VueGlobaleClient`,
+  Situation financiere = `SyntheseClient` — dont le bucket `documents-expenses` **public a passer en prive**).
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,

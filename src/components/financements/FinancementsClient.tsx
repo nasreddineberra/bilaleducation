@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { Trash2, Pencil, AlertTriangle, MessageSquareText, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -8,7 +8,9 @@ import { useToast } from '@/lib/toast-context'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
+
+const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 import { sendRelance, logAttestation, type FinancementCommunication } from '@/app/dashboard/financements/actions'
 import { generateAttestationPdfBase64 } from './attestationPdf'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
@@ -63,7 +65,7 @@ interface Props {
   adultEnrollments: any[]
   familyFees: any[]
   communications: any[]
-  etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null } | null
+  etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null; contact: string | null } | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -582,12 +584,17 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     const cotisWord = plural ? 'cotisations' : 'cotisation'
     const laLes     = plural ? 'les' : 'la'
     setRelanceSubject(`Rappel de paiement · ${cotisWord} ${currentYear.label}`)
+    // Corps en HTML (editeur riche) : montant du en gras + signature editable en fin.
+    const sig = ['Cordialement,', etablissement?.nom, etablissement?.adresse,
+      etablissement?.telephone ? `Tél : ${etablissement.telephone}` : null, etablissement?.contact]
+      .filter(Boolean).join('<br>')
     setRelanceBody(
-      `Madame, Monsieur,\n\n` +
-      `Sauf erreur de notre part, il reste ${fmtEur(Math.max(0, remaining))} à régler sur ${laLes} ${cotisWord} ${currentYear.label} ` +
-      `(${fmtEur(totalDue)} au total, dont ${fmtEur(netPercu)} déjà réglés).\n\n` +
-      `Nous vous remercions de bien vouloir régulariser votre situation. Pour toute difficulté, n'hésitez pas à nous contacter.\n\n` +
-      `Cordialement,`
+      `<p>Madame, Monsieur,</p>` +
+      `<p>Sauf erreur de notre part, il reste <strong>${fmtEur(Math.max(0, remaining))}</strong> à régler sur ${laLes} ${cotisWord} ${currentYear.label} ` +
+      `(${fmtEur(totalDue)} au total, dont ${fmtEur(netPercu)} déjà réglés).</p>` +
+      `<p>Nous vous remercions de bien vouloir régulariser votre situation. Pour toute difficulté, n'hésitez pas à nous contacter.</p>` +
+      `<p></p>` +
+      `<p>${sig}</p>`
     )
     setRelanceOpen(true)
   }
@@ -1233,14 +1240,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 value={relanceSubject}
                 onChange={e => setRelanceSubject(e.target.value)}
               />
-              <FloatTextarea
-                label="Message"
-                required
-                aria-required="true"
-                rows={9}
-                value={relanceBody}
-                onChange={e => setRelanceBody(e.target.value)}
-              />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-warm-500 uppercase tracking-widest">Message</label>
+                <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
+                  <RichTextEditor content={relanceBody} onChange={setRelanceBody} />
+                </Suspense>
+              </div>
               <div className="flex items-center justify-end gap-2">
                 <FloatButton variant="secondary" type="button" onClick={() => setRelanceOpen(false)} disabled={relanceSending}>Annuler</FloatButton>
                 <FloatButton
