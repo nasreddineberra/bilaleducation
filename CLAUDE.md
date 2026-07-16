@@ -985,6 +985,12 @@ Volet communication du comptable, propre au module (decision : ne vit PAS dans `
     `escapeHtml + nl2br` — sinon les balises seraient echappees ; c'est aussi la protection XSS. `body_html`
     stocke = HTML sanitise. L'historique/fiche n'affiche jamais le corps (date · type · objet), rien d'autre a
     ajuster. **Aucune migration.**
+- **Financements Reglements — carte « Trop perçu » dans le bandeau tresorerie** : le trop-percu gonflait
+  visuellement le RESTE (identite reelle : `FACTURE = ENCAISSE + RESTE − TROP-PERCU`). Choix utilisateur :
+  garder ENCAISSE = cash recu (trop-percu inclus) et **expliciter le trop-percu par une carte dediee** (nombre +
+  montant total, `kpi.overpaid`). Carte **cliquable** (filtre la worklist sur `overpaid`, comme les compteurs) ;
+  n'apparait que si `kpi.counts.overpaid > 0` (meme condition que la puce worklist) → bandeau en 7 colonnes
+  seulement dans ce cas. Nombre a gauche / montant a droite, meme police.
 
 ## Prochaine etape
 - **Financements** : demain, audit des **2 autres sous-menus** (Stats reglements = `VueGlobaleClient`,

@@ -357,15 +357,16 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   )
 
   const kpi = useMemo(() => {
-    let billed = 0, collected = 0, outstanding = 0
+    let billed = 0, collected = 0, outstanding = 0, overpaid = 0
     const counts: Record<FeeStatus, number> = { pending: 0, partial: 0, paid: 0, overpaid: 0 }
     for (const f of familyStats) {
       billed      += f.totalDue
-      collected   += Math.max(0, f.netPercu)
-      outstanding += Math.max(0, f.remaining)
+      collected   += Math.max(0, f.netPercu)      // encaisse = cash recu (trop-percu inclus)
+      outstanding += Math.max(0, f.remaining)     // reste du (plancher a 0)
+      overpaid    += Math.max(0, -f.remaining)    // trop-percu = perceu au-dela du du
       counts[f.status]++
     }
-    return { billed, collected, outstanding, counts }
+    return { billed, collected, outstanding, overpaid, counts }
   }, [familyStats])
 
   const worklist = useMemo(() => {
@@ -688,7 +689,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     <div className="h-full flex flex-col gap-3">
 
       {/* ── Bandeau trésorerie + filtres de statut (cliquables) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
+      <div className={clsx('grid grid-cols-2 gap-2', kpi.counts.overpaid > 0 ? 'lg:grid-cols-7' : 'lg:grid-cols-6')}>
         <div className="card px-3 py-2">
           <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Facturé</p>
           <p className="text-lg font-bold text-secondary-800 tabular-nums">{fmtEur(kpi.billed)}</p>
@@ -721,6 +722,25 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             </button>
           )
         })}
+        {kpi.counts.overpaid > 0 && (
+          <button
+            type="button"
+            aria-pressed={statusFilter === 'overpaid'}
+            onClick={() => setStatusFilter(statusFilter === 'overpaid' ? null : 'overpaid')}
+            className={clsx(
+              'card px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400',
+              statusFilter === 'overpaid' ? 'ring-2 ring-red-400' : 'hover:bg-warm-50',
+            )}
+          >
+            <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" /> Trop perçu
+            </p>
+            <p className="text-lg font-bold text-red-600 tabular-nums flex items-baseline justify-between gap-2">
+              <span>{kpi.counts.overpaid}</span>
+              <span>{fmtEur(kpi.overpaid)}</span>
+            </p>
+          </button>
+        )}
       </div>
 
       {/* ── Plan de travail : liste des familles + détail ── */}
