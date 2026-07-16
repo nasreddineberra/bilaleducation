@@ -67,7 +67,7 @@ interface Props {
 function fmtEur(n: number) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency', currency: 'EUR',
-    minimumFractionDigits: 0, maximumFractionDigits: 2,
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
   }).format(n)
 }
 
@@ -708,6 +708,20 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </span>
             </div>
           </div>
+
+          {/* Actions comptable (cablees au lot 2 : attestation + relance) */}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {(derivedStatus === 'pending' || derivedStatus === 'partial') && totalDue > 0 && (
+              <Tooltip content="Bientôt : relance par email (lot 2)">
+                <span><FloatButton type="button" variant="secondary" disabled>Relancer</FloatButton></span>
+              </Tooltip>
+            )}
+            {derivedStatus === 'paid' && totalDue > 0 && (
+              <Tooltip content="Bientôt : attestation de paiement par email (lot 2)">
+                <span><FloatButton type="button" variant="submit" disabled>Attestation</FloatButton></span>
+              </Tooltip>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
@@ -1023,20 +1037,6 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </span>
             </div>
           </div>
-        </div>
-
-        {/* Actions comptable \u2014 cablees au lot 2 (attestation + relance) */}
-        <div className="flex items-center justify-end gap-2">
-          {(derivedStatus === 'pending' || derivedStatus === 'partial') && totalDue > 0 && (
-            <Tooltip content="Bient\u00F4t : relance par email (lot 2)">
-              <span><FloatButton type="button" variant="secondary" disabled>Relancer</FloatButton></span>
-            </Tooltip>
-          )}
-          {derivedStatus === 'paid' && totalDue > 0 && (
-            <Tooltip content="Bient\u00F4t : attestation de paiement par email (lot 2)">
-              <span><FloatButton type="button" variant="submit" disabled>Attestation</FloatButton></span>
-            </Tooltip>
-          )}
         </div>
       </>)}
 
