@@ -119,6 +119,19 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     .eq('school_year_id', currentYear.id)
     .order('created_at')
 
+  // Historique des communications comptables (relance / attestation) de l'annee.
+  const { data: communications } = await supabase
+    .from('financement_communications')
+    .select('id, parent_id, type, subject, recipients, status, sent_at, sent_by')
+    .eq('school_year_id', currentYear.id)
+    .order('sent_at', { ascending: false })
+
+  // Etablissement (en-tete de l'attestation PDF, identique aux bulletins).
+  const { data: etablissement } = await supabase
+    .from('etablissements')
+    .select('nom, logo_url, adresse, telephone')
+    .single()
+
   return (
     <div className="h-full animate-fade-in">
       <FinancementsClient
@@ -126,6 +139,8 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         parents={allParents as any[]}
         adultEnrollments={(adultEnrollments ?? []) as any[]}
         familyFees={(familyFees ?? []) as any[]}
+        communications={(communications ?? []) as any[]}
+        etablissement={(etablissement ?? null) as any}
         initialParentId={initialParentId}
       />
     </div>

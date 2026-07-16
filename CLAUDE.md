@@ -941,6 +941,31 @@ Audit puis refonte complete du cœur (`FinancementsClient`, 1000+ lignes) et de 
   relance + historique), et l'audit des 2 autres sous-menus (Stats reglements, Situation financiere — dont le
   **bucket `documents-expenses` public a passer en prive**, repere a l'audit).
 
+#### 16 juillet 2026 (suite) — Financements LOT 2 : communication comptable (relance + attestation + historique)
+Volet communication du comptable, propre au module (decision : ne vit PAS dans `announcements`).
+- **Migration `create-financement-communications.sql`** (executee) : table `financement_communications`
+  (etablissement, parent, annee, `type` relance|attestation, subject, body_html, recipients, sent_by, sent_at,
+  status). **Append-only**, RLS finance (admin/direction/comptable). C'est LA table d'historique (relance ET
+  attestation). Verifiee en base (CHECK type/status refuses).
+- **Encadre « Communication comptable »** sous le Recapitulatif famille : historique des envois de la famille
+  (date · badge Relance/Attestation · objet). L'historique se rafraichit apres chaque action (etat local).
+- **Relance d'impayes** (`sendRelance`, `actions.ts`) : bouton « Relancer » (en attente/partiel) → modale
+  **pre-remplie** (objet « Rappel de paiement · cotisation(s) {annee} », corps avec reste du / total / percu
+  injectes, **accord singulier/pluriel** selon le nombre de cotisations du recap), envoi **aux deux tuteurs du
+  foyer** via la messagerie (`sendNotificationEmail`, Reply-To = contact ecole), puis log dans l'historique.
+  Bloque proprement si pas de messagerie / pas d'email.
+- **Attestation de paiement** (`attestationPdf.ts` + `logAttestation`) : bouton « Attestation » (soldee) →
+  **ouvre le PDF directement dans un nouvel onglet** (imprimable), PLUS d'email, PLUS de modale (le tuteur retire
+  le document signe/cachete a l'ecole). Etablie pour le **foyer** (tuteur 1 + 2), accord « a/ont regle ». Le PDF
+  (jsPDF, cote client) a le **meme en-tete que les bulletins** (logo gauche + nom/adresse, titre a droite, sans
+  turquoise), corps « L'etablissement mentionne ci-dessus atteste que ... a regle l'integralite des cotisations
+  ... activites culturelles et linguistiques ... pour un montant total de X », tableau des inscriptions +
+  reduction eventuelle + total, « Fait le X · Pour faire valoir ce que de droit ». **Delivrance tracee** dans
+  l'historique (`logAttestation`, insert seul, sans email/SMTP). **Piege gere** : ouvrir l'onglet AVANT le
+  `await` de generation (`window.open('', '_blank')` puis `win.location.href = url`) sinon le popup est bloque.
+- **Reste Financements** : audit des 2 autres sous-menus (Stats reglements, Situation financiere — bucket
+  `documents-expenses` public a passer en prive) ; test d'un **envoi reel** de relance (depend du SMTP).
+
 ## Prochaine etape
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.

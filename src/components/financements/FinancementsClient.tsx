@@ -8,7 +8,9 @@ import { useToast } from '@/lib/toast-context'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { sendRelance, logAttestation, type FinancementCommunication } from '@/app/dashboard/financements/actions'
+import { generateAttestationPdfBase64 } from './attestationPdf'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,6 +62,8 @@ interface Props {
   parents: any[]
   adultEnrollments: any[]
   familyFees: any[]
+  communications: any[]
+  etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null } | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -285,7 +289,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, initialParentId }: Props & { initialParentId?: string }) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId }: Props & { initialParentId?: string }) {
   const supabase = createClient()
   const toast = useToast()
 
@@ -306,6 +310,14 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const [editingPayment, setEditingPayment]     = useState<FeeInstallment | null>(null)
   const [deletePaymentTarget, setDeletePaymentTarget] = useState<FeeInstallment | null>(null)
   const [deleteAdjTarget, setDeleteAdjTarget] = useState<FeeAdjustment | null>(null)
+  // Communication comptable (relance)
+  const [communications, setCommunications] = useState<FinancementCommunication[]>(initialComms)
+  const [relanceOpen, setRelanceOpen] = useState(false)
+  const [relanceSubject, setRelanceSubject] = useState('')
+  const [relanceBody, setRelanceBody] = useState('')
+  const [relanceSending, setRelanceSending] = useState(false)
+  // Attestation (generee + ouverte pour impression, non envoyee par email)
+  const [attestSending, setAttestSending] = useState(false)
 
   // Messages remontes en toast (plus de banniere qui pousse le contenu).
   useEffect(() => {
@@ -383,6 +395,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     .sort((a: FeeInstallment, b: FeeInstallment) =>
       new Date(a.paid_date ?? a.created_at).getTime() - new Date(b.paid_date ?? b.created_at).getTime()
     )
+
+  // Communications comptables de la famille selectionnee (deja triees serveur : recent d'abord).
+  const familyComms = useMemo(
+    () => communications.filter(c => c.parent_id === selectedParentId),
+    [communications, selectedParentId],
+  )
 
   // ── Créer/récupérer le family_fee ────────────────────────────────────────
 
@@ -555,6 +573,108 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     }
   }
 
+  // ── Relance d'impayes ─────────────────────────────────────────────────────
+  const openRelance = () => {
+    if (!selectedParent) return
+    // Pluriel selon le nombre de cotisations du recap (lignes eleves + adultes).
+    const nbCotis = selectedParent.students.length + selectedParent.adultLines.length
+    const plural  = nbCotis > 1
+    const cotisWord = plural ? 'cotisations' : 'cotisation'
+    const laLes     = plural ? 'les' : 'la'
+    setRelanceSubject(`Rappel de paiement · ${cotisWord} ${currentYear.label}`)
+    setRelanceBody(
+      `Madame, Monsieur,\n\n` +
+      `Sauf erreur de notre part, il reste ${fmtEur(Math.max(0, remaining))} à régler sur ${laLes} ${cotisWord} ${currentYear.label} ` +
+      `(${fmtEur(totalDue)} au total, dont ${fmtEur(netPercu)} déjà réglés).\n\n` +
+      `Nous vous remercions de bien vouloir régulariser votre situation. Pour toute difficulté, n'hésitez pas à nous contacter.\n\n` +
+      `Cordialement,`
+    )
+    setRelanceOpen(true)
+  }
+
+  const submitRelance = async () => {
+    if (!selectedParent) return
+    setRelanceSending(true)
+    const res = await sendRelance({
+      parentId:     selectedParent.id,
+      schoolYearId: currentYear.id,
+      subject:      relanceSubject,
+      body:         relanceBody,
+    })
+    setRelanceSending(false)
+    if (res.error) { toast.error(res.error); return }
+    if (res.communication) setCommunications(prev => [res.communication!, ...prev])
+    setRelanceOpen(false)
+    toast.success('Relance envoyée.')
+  }
+
+  // ── Attestation de paiement ────────────────────────────────────────────────
+  const nbCotisWord = selectedParent
+    ? (selectedParent.students.length + selectedParent.adultLines.length > 1 ? 'cotisations' : 'cotisation')
+    : 'cotisation'
+
+  // Le foyer : tuteur 1 (+ tuteur 2 si present).
+  const foyerTutorNames = (): string[] => {
+    if (!selectedParent) return []
+    const names = [`${selectedParent.tutor1_last_name.toUpperCase()} ${selectedParent.tutor1_first_name}`]
+    if (selectedParent.tutor2_last_name) names.push(`${selectedParent.tutor2_last_name.toUpperCase()} ${selectedParent.tutor2_first_name}`)
+    return names
+  }
+
+  const buildAttestationBase64 = async (tutorNames: string[]): Promise<string> => {
+    const p = selectedParent!
+    const lines = [
+      ...p.students.map(s => ({ nom: `${s.last_name.toUpperCase()} ${s.first_name}`, detail: s.class_name, montant: s.total })),
+      ...p.adultLines.map(a => ({ nom: a.tutor_label, detail: a.class_name, montant: a.total })),
+    ]
+    return generateAttestationPdfBase64({
+      etablissementNom:       etablissement?.nom ?? 'Établissement',
+      etablissementLogo:      etablissement?.logo_url ?? null,
+      etablissementAdresse:   etablissement?.adresse ?? null,
+      etablissementTelephone: etablissement?.telephone ?? null,
+      tutorNames,
+      yearLabel:  currentYear.label,
+      lines,
+      reduction:  Math.abs(adjustmentsTotal),
+      total:      totalDue,
+      dateStr:    new Date().toLocaleDateString('fr-FR'),
+    })
+  }
+
+  // Genere le PDF pour le FOYER, l'ouvre dans un nouvel onglet (imprimable) et trace la delivrance.
+  const issueAttestation = async () => {
+    if (!selectedParent) return
+    const tutorNames = foyerTutorNames()
+
+    // Ouvrir l'onglet MAINTENANT (dans le geste utilisateur), sinon le navigateur
+    // bloque le popup une fois qu'on a « await » la generation du PDF.
+    const win = window.open('', '_blank')
+
+    setAttestSending(true)
+    try {
+      const base64 = await buildAttestationBase64(tutorNames)
+      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+      if (win) win.location.href = url
+      else window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+
+      const res = await logAttestation({
+        parentId:     selectedParent.id,
+        schoolYearId: currentYear.id,
+        subject:      `Attestation de paiement · ${nbCotisWord} ${currentYear.label}`,
+        recipients:   tutorNames.join(', '),
+      })
+      if (res.error) { toast.error(res.error); return }
+      if (res.communication) setCommunications(prev => [res.communication!, ...prev])
+      toast.success('Attestation ouverte pour impression.')
+    } catch (e: any) {
+      toast.error(e.message ?? "Erreur lors de la génération de l'attestation.")
+    } finally {
+      setAttestSending(false)
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -712,14 +832,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           {/* Actions comptable (cablees au lot 2 : attestation + relance) */}
           <div className="ml-auto flex items-center gap-2 shrink-0">
             {(derivedStatus === 'pending' || derivedStatus === 'partial') && totalDue > 0 && (
-              <Tooltip content="Bientôt : relance par email (lot 2)">
-                <span><FloatButton type="button" variant="secondary" disabled>Relancer</FloatButton></span>
-              </Tooltip>
+              <FloatButton type="button" variant="secondary" onClick={openRelance}>Relancer</FloatButton>
             )}
             {derivedStatus === 'paid' && totalDue > 0 && (
-              <Tooltip content="Bientôt : attestation de paiement par email (lot 2)">
-                <span><FloatButton type="button" variant="submit" disabled>Attestation</FloatButton></span>
-              </Tooltip>
+              <FloatButton type="button" variant="submit" onClick={issueAttestation} loading={attestSending}>Attestation</FloatButton>
             )}
           </div>
         </div>
@@ -812,6 +928,32 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* Communication comptable — historique des envois (relance / attestation) */}
+            <div className="card overflow-hidden">
+              <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
+                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Communication comptable</h3>
+              </div>
+              {familyComms.length === 0 ? (
+                <div className="px-4 py-3 text-center">
+                  <p className="text-sm text-warm-400">Aucune communication.</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-warm-50" aria-label="Communications comptables">
+                  {familyComms.map(c => (
+                    <li key={c.id} className="px-3 py-1.5 flex items-center gap-2 text-xs">
+                      <span className="text-warm-500 whitespace-nowrap tabular-nums">{fmtDate(c.sent_at)}</span>
+                      <span className={clsx('px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase shrink-0',
+                        c.type === 'relance' ? 'bg-orange-50 text-orange-700' : 'bg-primary-50 text-primary-700')}>
+                        {c.type === 'relance' ? 'Relance' : 'Attestation'}
+                      </span>
+                      <span className="flex-1 truncate text-secondary-700">{c.subject}</span>
+                      {c.status === 'failed' && <span className="text-red-500 shrink-0">Échec</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
           </div>
@@ -1058,6 +1200,62 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           onClose={() => { setPaymentModalOpen(false); setEditingPayment(null) }}
           onSaved={handlePaymentSaved}
         />
+      )}
+
+      {/* Modale de relance d'impayes (modele pre-rempli, editable).
+          Fermeture X / Annuler uniquement (pas de fond ni Echap : evite la perte de saisie). */}
+      {relanceOpen && selectedParent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="relance-modal-title" className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
+              <div>
+                <h2 id="relance-modal-title" className="text-base font-bold text-secondary-800">Relance d'impayé</h2>
+                <p className="text-xs text-warm-500 mt-0.5">
+                  Aux deux tuteurs du foyer · {selectedParent.tutor1_last_name.toUpperCase()} {selectedParent.tutor1_first_name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRelanceOpen(false)}
+                aria-label="Fermer"
+                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <FloatInput
+                label="Objet"
+                type="text"
+                required
+                aria-required="true"
+                value={relanceSubject}
+                onChange={e => setRelanceSubject(e.target.value)}
+              />
+              <FloatTextarea
+                label="Message"
+                required
+                aria-required="true"
+                rows={9}
+                value={relanceBody}
+                onChange={e => setRelanceBody(e.target.value)}
+              />
+              <div className="flex items-center justify-end gap-2">
+                <FloatButton variant="secondary" type="button" onClick={() => setRelanceOpen(false)} disabled={relanceSending}>Annuler</FloatButton>
+                <FloatButton
+                  variant="submit"
+                  type="button"
+                  onClick={submitRelance}
+                  loading={relanceSending}
+                  disabled={relanceSending || !relanceSubject.trim() || !relanceBody.trim()}
+                >
+                  Envoyer
+                </FloatButton>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Confirmation de suppression d'un paiement */}
