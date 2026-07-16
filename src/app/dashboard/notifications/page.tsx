@@ -18,18 +18,21 @@ export default async function NotificationsPage() {
 
   const role = profile?.role ?? 'enseignant'
 
-  // Notifications staff (le user est destinataire)
+  // Notifications staff (le user est destinataire). Les messages « email seul »
+  // (channel = 'email') ne s'affichent pas dans la cloche : jointure inner +
+  // filtre sur le canal.
   const { data: staffNotifs } = await supabase
     .from('announcement_staff_recipients')
     .select(`
       id, is_read, read_at, created_at,
-      announcements:announcement_id(
+      announcements!inner(
         id, title, body_html, content, channel,
         announcement_type, published_at, sent_at,
         profiles:published_by(first_name, last_name)
       )
     `)
     .eq('profile_id', userId)
+    .neq('announcements.channel', 'email')
     .order('created_at', { ascending: false })
 
   // Notifications parent (le user est lié à un parent)

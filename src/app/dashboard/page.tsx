@@ -59,11 +59,13 @@ export default async function DashboardPage() {
     : { data: null }
 
   // ── Notifications non lues ───────────────────────────────────────────
+  // « email seul » exclu de la cloche in-app (jointure inner + filtre canal).
   const { count: staffUnread } = await supabase
     .from('announcement_staff_recipients')
-    .select('id', { count: 'exact', head: true })
+    .select('id, announcements!inner(channel)', { count: 'exact', head: true })
     .eq('profile_id', userId)
     .eq('is_read', false)
+    .neq('announcements.channel', 'email')
 
   const { data: parentLink } = await supabase
     .from('parents')
@@ -86,8 +88,9 @@ export default async function DashboardPage() {
   // ── Dernières notifications ──────────────────────────────────────────
   const { data: recentNotifsRaw } = await supabase
     .from('announcement_staff_recipients')
-    .select('id, is_read, created_at, announcements:announcement_id(id, title, published_at, profiles:published_by(first_name, last_name))')
+    .select('id, is_read, created_at, announcements!inner(id, title, channel, published_at, profiles:published_by(first_name, last_name))')
     .eq('profile_id', userId)
+    .neq('announcements.channel', 'email')
     .order('created_at', { ascending: false })
     .limit(3)
 

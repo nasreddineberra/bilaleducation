@@ -868,11 +868,39 @@ NOM Prenom »). Controle : `grep -rn "first_name}[^\`]*last_name}"` — toute oc
 - **Lecon apprise (frustration utilisateur)** : « comme X » = aller **lire le composant X et le recopier**
   (mêmes classes Tailwind, mêmes infos affichees) au 1er coup, pas le reconstruire de memoire. Le `FloatSelect`
   a coute plusieurs allers-retours (largeur `w-56` au lieu de `w-fit` → tronque ; libelle sans l'enseignant).
-- **Reste** : configurer une messagerie et **tester un envoi reel** (jamais fait) ; **sous-menu Staff**
-  (n'envoie toujours rien).
+- **Lecon apprise (recherche)** : ne pas elargir une recherche a l'email + au libelle de role sans y penser —
+  domaine email commun + roles repetes → une chaine courte matche presque tout, la recherche « semble » ne
+  filtrer qu'au 5e caractere. Rechercher sur **NOM Prenom** (comme « Parents choisis »), insensible aux accents.
+
+#### 16 juillet 2026 (suite) — Communications sous-menu STAFF (refonte complete)
+Le staff a des comptes ET une boite in-app (`/dashboard/notifications` lit `announcement_staff_recipients`) qui
+**fonctionnait deja**. Ce qui etait casse : **l'email ne partait jamais** (aucune route/action), permissions
+client-only, CCI fiction, PJ publiques. Meme traitement que le lot 1 parents.
+- **Decisions utilisateur** : envoi reserve a l'**encadrement = tout staff SAUF enseignant** (le **comptable
+  ecrit** : paie / sujets comptables ; l'enseignant reste **destinataire**). **3 canaux** au choix (Email /
+  Notification / Les deux — reels car ils ont un compte). **Direction en CCI**. Selection en masse (Tous /
+  Staff / Enseignants d'un clic).
+- **Migration `rework-communications-staff.sql`** : insertion d'une annonce `staff` ET des destinataires staff
+  **reservee a l'encadrement** en RLS (retire `enseignant` de `announcements_insert_scoped` ; remplace la policy
+  `FOR ALL` des destinataires par une `staff_recipients_write_scoped`). SELECT/`marquer comme lu` inchanges
+  (l'enseignant garde sa boite).
+- **Server action `staff-actions.ts` (`sendStaffMessage`)** : garde encadrement, resolution serveur (union
+  group `all|staff|teachers` + roles + ids), envoi email via `sendNotificationEmail` (**un envoi par
+  destinataire**, aucune adresse de collegue exposee ; CCI direction sans doublon ; `Reply-To` = l'auteur car
+  interne), PJ privees 1 Mo, vrai compte rendu (notifie / envoye / echec). Destinataires **toujours
+  enregistres** (trace) ; `email_status = 'skipped'` si canal notification seul.
+- **Canal in-app filtre** : un message **`channel = 'email'` n'apparait PAS dans la cloche** → jointure
+  **`announcements!inner(channel)` + `.neq('announcements.channel','email')`** aux **3 endroits** qui comptent
+  la boite : `layout.tsx` (badge), `dashboard/page.tsx` (badge + recents), `notifications/page.tsx`.
+- **Page (`StaffMessageClient`)** refondue comme Parents : 2 colonnes, canal (`aria-pressed`), compteur vivant,
+  aperçu + detail en modales portail, `ConfirmModal`, upload prive, blocage si canal email sans messagerie,
+  a11y/charte. **Badges de role = memes couleurs que la liste utilisateurs** (`ROLE_COLORS` recopie). Liste
+  **triee par role (hierarchie) puis NOM Prenom** (meme `ROLE_ORDER`/tri que la liste utilisateurs).
+  **« Tout deselectionner »** a gauche de la recherche. Sidebar « Staff / Enseignants » masquee pour enseignant.
+- **Reste** : configurer une messagerie et **tester un envoi reel** (canaux notif / email / les deux).
 
 ## Prochaine etape
-- **Communications** : configurer la messagerie + tester un envoi reel, puis **sous-menu Staff**.
+- **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
   quadratins `—`, et les **prerequis de mise en production** ci-dessus.

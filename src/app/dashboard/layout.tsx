@@ -42,12 +42,15 @@ export default async function DashboardLayout({
     }
   }
 
-  // Compteur notifications non lues (staff) — pas caché (change fréquemment)
+  // Compteur notifications non lues (staff) — pas caché (change fréquemment).
+  // Les messages « email seul » (channel = 'email') n'apparaissent pas dans la
+  // cloche in-app : jointure inner + filtre sur le canal de l'annonce.
   const { count: staffUnread } = await supabase
     .from('announcement_staff_recipients')
-    .select('id', { count: 'exact', head: true })
+    .select('id, announcements!inner(channel)', { count: 'exact', head: true })
     .eq('profile_id', user.id)
     .eq('is_read', false)
+    .neq('announcements.channel', 'email')
 
   // Compteur notifications non lues (parent) — pas caché
   const { data: parentLink } = await supabase

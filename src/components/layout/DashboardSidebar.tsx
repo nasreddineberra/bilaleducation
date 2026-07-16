@@ -210,10 +210,13 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
       {
+        // Communication interne = encadrement (tout staff sauf enseignant).
+        // Le comptable ecrit (paie / sujets comptables) ; l'enseignant reste
+        // destinataire mais n'ecrit pas au staff.
         name:  'Staff / Enseignants',
         href:  '/dashboard/communications/staff',
         icon:  UsersRound,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable'],
       },
       {
         name:  'Messages envoyés',
