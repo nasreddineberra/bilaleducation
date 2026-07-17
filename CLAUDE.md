@@ -992,9 +992,92 @@ Volet communication du comptable, propre au module (decision : ne vit PAS dans `
   n'apparait que si `kpi.counts.overpaid > 0` (meme condition que la puce worklist) → bandeau en 7 colonnes
   seulement dans ce cas. Nombre a gauche / montant a droite, meme police.
 
+#### 17 juillet 2026 (suite) — Financements : helper comptable partage + Stats reglements + Situation financiere
+- **BUG COMPTABLE EN 3 EXEMPLAIRES** : le calcul (remise fratrie + modele) etait **copie-colle dans les 3
+  sous-menus**, et seul Reglements avait ete corrige le 16/07 → Stats reglements ET Situation financiere
+  retranchaient encore les reductions du **percu** au lieu du **du**, affichant donc des chiffres differents de
+  Reglements pour la meme famille. Nouveau **`src/lib/financements/compute.ts`** (source unique, isomorphe) :
+  `feeStatus`, `computeFamilyFinancials(subtotal, fee|fee[])`, `siblingDiscounts(cotisations[])`, `lineTotal`.
+  Les **3 pages** y sont branchees. Ecart supprime au passage : Reglements comptait un eleve sans cotisation dans
+  l'ordre de la fratrie, les 2 autres le sautaient (`continue`). `countByType` (code mort) retire des 3 copies.
+  **Regle** : ne jamais reimplementer le calcul dans une page.
+- **`src/lib/financements/roles.ts`** (`FINANCE_ROLES` = admin/direction/comptable, `isFinanceRole`) : module
+  ordinaire car `actions.ts` est `'use server'` et ne peut exporter **que des fonctions async** (piege deja paye
+  sur Utilisateurs : `export type` → 500).
+
+**STATS REGLEMENTS (`vue-globale`) — refonte en tableau de bord** (la page n'avait AUCUN graphique : 2 tableaux
+faisant doublon avec la worklist de Reglements). **Recharts 3.9.2** ajoute (aucune lib de graphes n'existait).
+- **Skill `dataviz` chargee avant d'ecrire la 1re ligne de chart** — elle a rattrape 2 erreurs :
+  (1) « encaissements mensuels en barres + cumul en courbe » = **double axe**, l'anti-pattern n°1 → remplace par
+  la **courbe de cumul seule + ligne de repere « Facture »** (meme unite, meme axe) ;
+  (2) ma palette choisie a l'oeil **echouait** au script de validation. Les rampes **`secondary` (ardoise) et
+  `warm` (beige) de la charte tombent sous le plancher de chroma → **inutilisables comme couleurs categorielles**
+  (elles « lisent gris »). Palette retenue et **validee** (`scripts/validate_palette.js`, surface `#ffffff`) :
+  marque en tete `#18aa99` + `#cc8200`, puis `#2a78d6` / `#e87ba4` / `#4a3aa7`.
+- Contenu : bandeau **DOSSIERS · FACTURE · ENCAISSE · RESTE A ENCAISSER · TROP PERCU · TAUX DE RECOUVREMENT**
+  (memes intitules que Reglements) ; encadre **« Repartitions »** (2 donuts : statut + moyens de paiement) ;
+  **Facture par activite** ; **Top 10 debitrices** en **liste HTML** (et non Recharts : vrais `<button>`
+  clavier + `Tooltip` du projet + troncature 1 ligne, impossible proprement dans un axe SVG) ; **Rythme de
+  collecte** ; **tableau des dossiers** trie par reste du decroissant.
+- **Limite assumee** : « Facture par activite » n'a **pas d'equivalent encaisse** — un paiement est enregistre au
+  niveau du **foyer**, jamais rattache a une inscription. Ventiler supposerait un prorata = un chiffre invente.
+- Ventilation par moyen de paiement corrigee : portait **seulement sur les familles soldees** (sous-estimait la
+  caisse) → desormais sur tout l'encaisse.
+- Titre header : « Stats reglements » → **« Statistiques sur reglements »** (`DashboardNav`, titre + fil d'Ariane).
+
+**SITUATION FINANCIERE (`/dashboard/financements`) — audit + securisation** (migration
+`secure-financements-situation.sql`, **executee et verifiee**) :
+- **P1 SECURITE — RLS sans role** : `expenses` / `other_revenues` n'etaient filtrees que par tenant → **un
+  ENSEIGNANT** pouvait lire ET ecrire le CA, le cout des salaires et les depenses. \+ **aucune page Financements
+  n'avait de garde de role**. Corrige : policies `FOR ALL` reservees a **admin/direction/comptable**
+  (`coalesce(get_user_role(), '')`) + garde sur les **3 pages**.
+- **P1 SECURITE — bucket `documents-expenses` PUBLIC** (`getPublicUrl`) → factures et justificatifs lisibles
+  **sans authentification** par toute personne ayant l'URL ; chemin `expenses/<ts>.<ext>` **non cloisonne** ;
+  aucune validation type/taille. Corrige : bucket **prive**, 2 Mo, 4 types MIME, chemin **`{etablissement_id}/`**,
+  policies storage cloisonnees, **URL signee** (60 s) a la consultation, gardes client type+taille.
+  **`document_url` → `document_path`** (tables vides : 0 depense / 0 revenu → durci sans clause d'heritage).
+- **PIEGE MIGRATION** : `DELETE FROM storage.objects` est **interdit** (`storage.protect_delete()` → 42501) ; le
+  SQL Editor etant transactionnel, **toute la migration etait annulee**. Le menage des objets passe par l'**API
+  Storage** (script service-role jetable). **Regle** : en SQL on touche `storage.buckets` et les policies, jamais
+  les objets.
+- **P1 PERTE DE DONNEES** : `deleteConfirmStep` etait un etat **partage entre toutes les lignes** → armer la
+  ligne A puis cliquer la corbeille de la ligne **B** supprimait B **immediatement, sans confirmation**.
+  Remplace par `ConfirmModal` (recap libelle/date/montant ; le justificatif part avec la depense).
+- **P1 dates en dur** : `${label.split('-')[0]}-08-01` supposait un libelle « AAAA-AAAA » **et** une annee aout→aout
+  → remplace par les vraies bornes `start_date`/`end_date`. Filtre `is_active` retire sur `presence_types` (un type
+  desactive en cours d'annee a pu servir a des heures deja saisies).
+- **P1 taux manquant silencieux** : `rateByCode[...] ?? 0` → les heures sans taux comptaient **0 € sans signal**.
+  Desormais **banniere ambre** (code + heures non valorisees + lien vers le parametrage).
+- **P3 charte** : modales refondues en coque **`FormModal`** partagee (`role=dialog`/`aria-modal`/`aria-labelledby`/
+  **Echap**, fermeture X/Annuler/Echap **sans clic sur le fond**, **portee dans `<body>`** — `animate-fade-in` garde
+  un `transform` qui capturerait le `fixed`) ; `card` → **`card p-0`** (les 4 encadres avaient le retrait de 24 px) ;
+  `aria-label` sur les 3 tables ; `title=` → `Tooltip` ; quadratins des selects (« Loyer — Location » → « · ») ;
+  `<h3>` → `<h2>` ; 2 decimales obligatoires ; « Montant (EUR) » → **€** ; `select('*')` remplace ; **palette**
+  `success-*`/`danger-*`/`amber` → **primary/orange/red** de la charte (+ remise fratrie `green-600` → `primary-600`
+  dans Reglements).
+- **Saisie** : libelle en **1re lettre majuscule** (`capFirst`, motif du referentiel des cours) ; **categorie** et
+  **source** rendues **obligatoires** ; categorie **« Maintenance »** ajoutee.
+- **Stats discretes** sur les 3 encadres : **barre empilee 100 % (5 px) + legende avec %**, en **pied de carte
+  epingle** (TOTAL sorti du `<tfoot>` ; la liste pousse en `flex-1` → les 3 pieds s'alignent). **Top 4 + « Autres »**.
+  **Degrades d'UNE teinte** (rouge = sortie, turquoise = entree), valides `--ordinal` : une couleur categorielle
+  doit suivre **l'entite, jamais son rang** (sinon « Loyer » changerait de couleur quand « Charges » le depasse).
+  « Autres » en **gris neutre** hors degrade (un reliquat n'est pas une magnitude) — ce qui regle aussi le fait que
+  le rouge ne peut pas produire 5 pas valides.
+
+**CONTRASTE DES INTITULES (design system)** : mesure — `warm-400` = **2,06:1**, `warm-500` = 2,34:1,
+`warm-600` = 3,20:1, **`warm-700` = 5,04:1**. Le seuil WCAG AA du **petit texte est 4,5:1** (le 3:1 ne vaut que
+pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du minimum**.
+- **`.list-th` passe en `warm-700`** : 1 ligne dans `globals.css` → **tous les en-tetes de liste de l'app**
+  deviennent conformes.
+- **`.stat-label`** cree (`text-[10px] font-bold text-warm-700 uppercase tracking-wide`), pendant de `.list-th`
+  pour les cartes ; adopte sur les **3 pages Financements** (15 intitules qui utilisaient **3 combinaisons
+  concurrentes**). **Pas de `sed` sur les 146 lignes `warm-400/500 + uppercase`** de l'app : toutes ne sont pas
+  des intitules.
+- **Reste** : 24 occurrences dans Reglements (titres `<h3>` du panneau de detail + `<th>` maison en `px-2`, la
+  ou `.list-th` impose `px-4`) → arbitrer entre `.stat-label` et une variante compacte `.list-th-compact`.
+
 ## Prochaine etape
-- **Financements** : demain, audit des **2 autres sous-menus** (Stats reglements = `VueGlobaleClient`,
-  Situation financiere = `SyntheseClient` — dont le bucket `documents-expenses` **public a passer en prive**).
+- **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact` ci-dessus.
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
@@ -1184,3 +1267,8 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   bucket PJ prive 1 Mo cloisonne par etablissement, `file_url` → `file_path` NOT NULL, statut `skipped`).
 - [x] Executer `supabase/migrations/add-etablissement-smtp.sql` (table `etablissement_smtp` : config SMTP par
   etablissement, RLS sans policy + privileges revoques = serveur uniquement).
+- [x] Executer `supabase/migrations/create-financement-communications.sql` (historique relance/attestation).
+- [x] Executer `supabase/migrations/secure-financements-situation.sql` (RLS finance sur `expenses`/
+  `other_revenues`, bucket `documents-expenses` prive 2 Mo cloisonne, `document_url` → `document_path`).
+  **Verifie en base** : bucket `public: false` / 2 Mo / 4 types, `document_path` presente, `document_url` absente,
+  0 orphelin. NB : le menage des objets Storage s'est fait par l'**API** (DELETE SQL interdit, 42501).

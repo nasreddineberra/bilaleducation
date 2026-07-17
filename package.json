@@ -42,6 +42,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-easy-crop": "^5.5.6",
+    "recharts": "^3.9.2",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },

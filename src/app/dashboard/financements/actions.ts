@@ -4,11 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { sendNotificationEmail, hasSmtpConfig } from '@/lib/email'
 import { sanitize } from '@/lib/security/sanitize'
-import type { UserRole } from '@/types/database'
-
-// Communication comptable = admin / direction / comptable (le comptable ecrit
-// aux familles pour la relance et l'attestation, depuis Financements).
-const FINANCE_ROLES: UserRole[] = ['admin', 'direction', 'comptable']
+import { FINANCE_ROLES } from '@/lib/financements/roles'
 
 export interface FinancementCommunication {
   id: string

@@ -1,13 +1,21 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import VueGlobaleClient from '@/components/financements/VueGlobaleClient'
+import { computeFamilyFinancials, siblingDiscounts, lineTotal } from '@/lib/financements/compute'
+import { isFinanceRole } from '@/lib/financements/roles'
 import { AlertTriangle } from 'lucide-react'
 
 export default async function VueGlobalePage() {
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!isFinanceRole(me?.role)) redirect('/dashboard')
+
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label')
+    .select('id, label, start_date, end_date')
     .eq('is_current', true)
     .single()
 
@@ -35,7 +43,7 @@ export default async function VueGlobalePage() {
           status,
           classes!inner (
             academic_year,
-            cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type )
+            cotisation_types ( id, label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type )
           )
         )
       )
@@ -49,7 +57,7 @@ export default async function VueGlobalePage() {
   // Inscriptions adultes
   const { data: adultEnrollments } = await supabase
     .from('parent_class_enrollments')
-    .select(`parent_id, tutor_number, classes ( cotisation_types ( id, amount, registration_fee ) )`)
+    .select(`parent_id, tutor_number, classes ( cotisation_types ( id, label, is_adult, amount, registration_fee ) )`)
     .eq('status', 'active')
 
   // Parents adultes sans eleve
@@ -84,7 +92,7 @@ export default async function VueGlobalePage() {
     .select(`
       id, parent_id, total_due, status,
       fee_adjustments ( adjustment_type, amount ),
-      fee_installments ( amount_paid, payment_method )
+      fee_installments ( amount_paid, payment_method, paid_date, created_at )
     `)
     .eq('school_year_id', currentYear.id)
 
@@ -96,7 +104,6 @@ export default async function VueGlobalePage() {
     totalPaid: number
     remaining: number
     status: 'pending' | 'partial' | 'paid' | 'overpaid'
-    byMethod: Record<string, number>
   }
 
   const feeByParent: Record<string, any> = {}
@@ -107,94 +114,113 @@ export default async function VueGlobalePage() {
 
   const rows: FamilyRow[] = []
 
+  // Facture par type de cotisation (activite) : exact, ligne a ligne.
+  // NB : l'ENCAISSE n'est pas ventilable par activite — un paiement est enregistre
+  // au niveau du foyer, jamais rattache a une inscription precise.
+  const cotisAgg: Record<string, { label: string; billed: number; count: number; isAdult: boolean }> = {}
+  const addCotis = (ct: any, amount: number) => {
+    const label = ct?.label ?? 'Sans cotisation'
+    if (!cotisAgg[label]) cotisAgg[label] = { label, billed: 0, count: 0, isAdult: !!ct?.is_adult }
+    cotisAgg[label].billed += amount
+    cotisAgg[label].count++
+  }
+
   for (const p of allParents as any[]) {
-    // Calcul du total du
+    // Sous-total des inscriptions : eleves (avec remise fratrie) + adultes.
+    // La regle vit dans le helper partage avec Reglements — surtout ne pas la
+    // reimplementer ici, c'est ce qui faisait diverger les deux sous-menus.
     const students = p.students ?? []
-    const countByType: Record<string, number> = {}
-    for (const s of students) {
+    const discounts = siblingDiscounts(
+      students.map((s: any) => (s.enrollments ?? [])[0]?.classes?.cotisation_types)
+    )
+
+    let subtotal = 0
+    students.forEach((s: any, i: number) => {
       const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-      if (ct?.id) countByType[ct.id] = (countByType[ct.id] ?? 0) + 1
-    }
+      if (!ct) return
+      const t = lineTotal(ct, discounts[i])
+      subtotal += t
+      addCotis(ct, t)
+    })
 
-    const indexByType: Record<string, number> = {}
-    let globalIndex = 0
-    let familyDue = 0
-
-    for (const s of students) {
-      const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-      if (!ct) continue
-      const ctId = ct.id ?? ''
-      const sameTypeOnly = ct.sibling_discount_same_type ?? false
-      let discount = 0
-      if (ct.sibling_discount > 0) {
-        if (sameTypeOnly) {
-          const typeIdx = indexByType[ctId] ?? 0
-          if (typeIdx > 0) discount = Number(ct.sibling_discount)
-          indexByType[ctId] = typeIdx + 1
-        } else {
-          if (globalIndex > 0) discount = Number(ct.sibling_discount)
-        }
-      } else {
-        if (sameTypeOnly) indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
-      }
-      globalIndex++
-      familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0) - discount
-    }
-
-    // Adultes
     for (const ae of (adultByParent[p.id] ?? [])) {
       const ct = ae.classes?.cotisation_types
       if (!ct) continue
-      familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0)
+      const t = lineTotal(ct)
+      subtotal += t
+      addCotis(ct, t)
     }
 
-    // Ajustements et paiements depuis family_fees
     const parentFees = feeByParent[p.id]?.fees ?? []
-    let totalPaid = 0
-    const byMethod: Record<string, number> = {}
-    let adjustmentsTotal = 0
-
-    for (const ff of parentFees) {
-      for (const adj of (ff.fee_adjustments ?? [])) {
-        adjustmentsTotal += Number(adj.amount ?? 0)
-      }
-      for (const inst of (ff.fee_installments ?? [])) {
-        const amt = Number(inst.amount_paid ?? 0)
-        totalPaid += amt
-        if (inst.payment_method && amt > 0) {
-          byMethod[inst.payment_method] = (byMethod[inst.payment_method] ?? 0) + amt
-        }
-      }
-    }
-
-    // totalDue = récapitulatif brut, netPercu = paiements - réductions
-    const netPercu = totalPaid + adjustmentsTotal
-    const remaining = familyDue - netPercu
-
-    let status: FamilyRow['status'] = 'pending'
-    if (netPercu > familyDue && familyDue > 0) status = 'overpaid'
-    else if (familyDue <= 0 || netPercu >= familyDue) status = 'paid'
-    else if (netPercu > 0) status = 'partial'
+    const { totalDue, totalPaid, netPercu, remaining, status } = computeFamilyFinancials(subtotal, parentFees)
 
     const label = [p.tutor1_last_name, p.tutor1_first_name].filter(Boolean).join(' ')
       + (p.tutor2_last_name ? ` / ${[p.tutor2_last_name, p.tutor2_first_name].filter(Boolean).join(' ')}` : '')
 
-    if (familyDue > 0 || totalPaid > 0) {
+    if (totalDue > 0 || totalPaid > 0) {
       rows.push({
         parentId: p.id,
         parentLabel: label,
-        totalDue: familyDue,
+        totalDue,
         totalPaid: netPercu,
         remaining,
         status,
-        byMethod,
       })
     }
   }
 
+  // ─── Agregats globaux pour les graphiques ─────────────────────────────────
+  const allFees = (familyFees ?? []) as any[]
+
+  // Encaissements : ventilation par moyen de paiement + par mois.
+  // `paid_date` peut manquer sur d'anciennes lignes → repli sur `created_at`.
+  const byMethod: Record<string, number> = {}
+  const paidByMonth: Record<string, number> = {}
+  for (const ff of allFees) {
+    for (const inst of (ff.fee_installments ?? [])) {
+      const amt = Number(inst.amount_paid ?? 0)
+      if (amt <= 0) continue
+      if (inst.payment_method) byMethod[inst.payment_method] = (byMethod[inst.payment_method] ?? 0) + amt
+      const d = inst.paid_date ?? inst.created_at
+      if (d) {
+        const key = String(d).slice(0, 7)   // YYYY-MM
+        paidByMonth[key] = (paidByMonth[key] ?? 0) + amt
+      }
+    }
+  }
+
+  // Mois couverts : bornes de l'annee scolaire ; repli sur l'etendue des paiements.
+  const seenMonths = Object.keys(paidByMonth).sort()
+  const fromKey = currentYear.start_date ? String(currentYear.start_date).slice(0, 7) : seenMonths[0]
+  const toKey   = currentYear.end_date   ? String(currentYear.end_date).slice(0, 7)   : seenMonths[seenMonths.length - 1]
+
+  const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+  const monthly: { key: string; label: string; amount: number; cumul: number }[] = []
+  if (fromKey && toKey) {
+    let [y, m] = fromKey.split('-').map(Number)
+    const [ey, em] = toKey.split('-').map(Number)
+    let cumul = 0
+    while (y < ey || (y === ey && m <= em)) {
+      const key = `${y}-${String(m).padStart(2, '0')}`
+      const amount = paidByMonth[key] ?? 0
+      cumul += amount
+      monthly.push({ key, label: `${MONTHS[m - 1]} ${String(y).slice(2)}`, amount, cumul })
+      m++
+      if (m > 12) { m = 1; y++ }
+    }
+  }
+
+  const byCotisation = Object.values(cotisAgg).sort((a, b) => b.billed - a.billed)
+
   return (
     <div className="h-full animate-fade-in">
-      <VueGlobaleClient rows={rows} yearLabel={currentYear.label} />
+      <VueGlobaleClient
+        rows={rows}
+        yearLabel={currentYear.label}
+        monthly={monthly}
+        byMethod={byMethod}
+        byCotisation={byCotisation}
+      />
     </div>
   )
 }

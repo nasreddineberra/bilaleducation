@@ -137,9 +137,11 @@
   }
 
   /* ── Listes globales : densité/typo partagées (tables paginées) ── */
-  /* En-tête de colonne. Ajouter `text-center` en plus pour centrer. */
+  /* En-tête de colonne. Ajouter `text-center` en plus pour centrer.
+     warm-700 (5,04:1 sur blanc) et non warm-500 (2,34:1) : du petit texte
+     demande 4,5:1 (WCAG AA) — le 3:1 ne vaut que pour du texte ≥ 24 px. */
   .list-th {
-    @apply text-left px-4 py-1.5 text-[11px] font-semibold text-warm-500 uppercase tracking-wider;
+    @apply text-left px-4 py-1.5 text-[11px] font-semibold text-warm-700 uppercase tracking-wider;
   }
   /* Cellule de ligne (espacement vertical compact). */
   .list-td {
@@ -148,6 +150,13 @@
   /* Libellé principal d'une ligne (nom). */
   .list-name {
     @apply text-[13px] font-medium;
+  }
+  /* Intitulé de carte stat / de bloc chiffré (« FACTURÉ », « ENCAISSÉ »…).
+     Pendant de .list-th pour les cartes : même exigence de contraste, et met
+     fin aux 3 variantes concurrentes (9px/warm-400, 10px/tracking-widest,
+     11px/warm-500). L'interlettrage aide la lecture des majuscules. */
+  .stat-label {
+    @apply text-[10px] font-bold text-warm-700 uppercase tracking-wide;
   }
 
   /* Card sans padding interne (pour les composants qui gèrent leur propre layout) */

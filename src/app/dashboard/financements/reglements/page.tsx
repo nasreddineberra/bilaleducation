@@ -1,10 +1,17 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import FinancementsClient from '@/components/financements/FinancementsClient'
+import { isFinanceRole } from '@/lib/financements/roles'
 import { AlertTriangle } from 'lucide-react'
 
 export default async function FinancementsPage({ searchParams }: { searchParams: Promise<{ parent?: string }> }) {
   const { parent: initialParentId } = await searchParams
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!isFinanceRole(me?.role)) redirect('/dashboard')
 
   // Année en cours
   const { data: currentYear } = await supabase

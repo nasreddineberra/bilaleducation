@@ -13,6 +13,10 @@ import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 import { sendRelance, logAttestation, type FinancementCommunication } from '@/app/dashboard/financements/actions'
 import { generateAttestationPdfBase64 } from './attestationPdf'
+import {
+  computeFamilyFinancials, feeStatus, siblingDiscounts, lineTotal,
+  type FamilyFinancials,
+} from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -116,39 +120,14 @@ const METHOD_LABELS: Record<string, string> = {
   cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
 }
 
-// Calcul financier d'une famille (source unique : plan de travail, KPI ET detail).
-// `fee` = ligne family_fees (avec fee_adjustments / fee_installments) ou null.
-interface FamilyFinancials {
-  subtotal: number
-  totalDue: number
-  adjustmentsTotal: number   // negatif pour les reductions
-  totalPaid: number
-  netPercu: number           // paiements + ajustements
-  remaining: number
-  status: FeeStatus
-}
-function computeFamilyFinancials(parent: ParentOption | null, fee: any): FamilyFinancials {
+// Calcul financier d'une famille : le modele vit dans `lib/financements/compute`
+// (source unique partagee avec Stats reglements). Ici, seul l'assemblage du
+// sous-total a partir des lignes deja totalisees de la famille.
+function familyFinancials(parent: ParentOption | null, fee: any): FamilyFinancials {
   const subtotal = parent
     ? parent.students.reduce((a, s) => a + s.total, 0) + parent.adultLines.reduce((a, x) => a + x.total, 0)
     : 0
-  const adjustmentsTotal = (fee?.fee_adjustments ?? []).reduce((a: number, x: any) => a + x.amount, 0)
-  // Les reductions / avoirs / remboursements (adjustmentsTotal < 0) reduisent ce
-  // que la famille DOIT, pas ce qu'elle a paye. Payer la cotisation entiere solde
-  // toujours (un remboursement de 20 ne remet pas 20 a devoir).
-  const totalDue = subtotal + adjustmentsTotal
-  const totalPaid = (fee?.fee_installments ?? []).reduce((a: number, x: any) => a + (x.amount_paid ?? 0), 0)
-  const netPercu = totalPaid
-  const remaining = totalDue - netPercu
-  return { subtotal, totalDue, adjustmentsTotal, totalPaid, netPercu, remaining, status: feeStatus(netPercu, totalDue) }
-}
-
-// Statut d'un dossier a partir du percu et du du (source unique, cote client).
-function feeStatus(paid: number, due: number): FeeStatus {
-  if (paid > due && due > 0) return 'overpaid'
-  if (due <= 0)             return 'paid'
-  if (paid >= due)          return 'paid'
-  if (paid > 0)             return 'partial'
-  return 'pending'
+  return computeFamilyFinancials(subtotal, fee)
 }
 
 const DAYS: Record<string, string> = {
@@ -188,43 +167,16 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
   return raw.map(p => {
     const studentsRaw = p.students ?? []
 
-    // Pré-calcul : nombre d'enfants par cotisation_type_id (pour règle même type)
-    const countByType: Record<string, number> = {}
-    for (const s of studentsRaw) {
-      const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-      if (ct?.id) countByType[ct.id] = (countByType[ct.id] ?? 0) + 1
-    }
+    // Remise fratrie : regle portee par le helper partage (source unique).
+    const discounts = siblingDiscounts(
+      studentsRaw.map((s: any) => (s.enrollments ?? [])[0]?.classes?.cotisation_types)
+    )
 
-    // Compteurs d'index pour chaque type (pour savoir si c'est le 1er, 2e... du type)
-    const indexByType: Record<string, number> = {}
-    let globalIndex = 0
-
-    const students: StudentLine[] = studentsRaw.map((s: any) => {
+    const students: StudentLine[] = studentsRaw.map((s: any, i: number) => {
       const enrollment = (s.enrollments ?? [])[0]
       const cls = enrollment?.classes
       const ct = cls?.cotisation_types
-      const ctId = ct?.id ?? ''
-      const sameTypeOnly: boolean = ct?.sibling_discount_same_type ?? false
-
-      // Index de cet enfant dans son groupe (même type ou global)
-      let discount = 0
-      if (ct?.sibling_discount > 0) {
-        if (sameTypeOnly) {
-          // Réduction uniquement si un autre enfant du même type précède
-          const typeIdx = indexByType[ctId] ?? 0
-          if (typeIdx > 0) discount = ct.sibling_discount
-          indexByType[ctId] = typeIdx + 1
-        } else {
-          // Tous types confondus : réduction dès le 2e enfant global
-          if (globalIndex > 0) discount = ct.sibling_discount
-        }
-      } else {
-        // Pas de remise configurée — on incrémente quand même les compteurs
-        if (sameTypeOnly) {
-          indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
-        }
-      }
-      globalIndex++
+      const discount = discounts[i]
 
       const cotisation = ct?.amount ?? 0
       const regFee = ct?.registration_fee ?? 0
@@ -241,7 +193,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
         cotisation_amount: cotisation,
         registration_fee: regFee,
         sibling_discount: discount,
-        total: cotisation + regFee - discount,
+        total: lineTotal(ct, discount),
       }
     })
     // Lignes adultes
@@ -351,7 +303,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const familyStats = useMemo(
     () => parentOptions.map(p => {
       const fee = familyFees.find((f: any) => f.parent_id === p.id) ?? null
-      return { parent: p, ...computeFamilyFinancials(p, fee) }
+      return { parent: p, ...familyFinancials(p, fee) }
     }),
     [parentOptions, familyFees],
   )
@@ -387,7 +339,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
   // ── Detail de la famille selectionnee (meme calcul via le helper) ──────────
   const currentFee = familyFees.find((f: any) => f.parent_id === selectedParentId) ?? null
-  const sel = computeFamilyFinancials(selectedParent ?? null, currentFee)
+  const sel = familyFinancials(selectedParent ?? null, currentFee)
   const { subtotal, totalDue, adjustmentsTotal, totalPaid, netPercu, remaining, status: derivedStatus } = sel
 
   const adjustments: FeeAdjustment[] = (currentFee?.fee_adjustments ?? [])
@@ -691,15 +643,15 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       {/* ── Bandeau trésorerie + filtres de statut (cliquables) ── */}
       <div className={clsx('grid grid-cols-2 gap-2', kpi.counts.overpaid > 0 ? 'lg:grid-cols-7' : 'lg:grid-cols-6')}>
         <div className="card px-3 py-2">
-          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Facturé</p>
+          <p className="stat-label">Facturé</p>
           <p className="text-lg font-bold text-secondary-800 tabular-nums">{fmtEur(kpi.billed)}</p>
         </div>
         <div className="card px-3 py-2">
-          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Encaissé</p>
+          <p className="stat-label">Encaissé</p>
           <p className="text-lg font-bold text-primary-600 tabular-nums">{fmtEur(kpi.collected)}</p>
         </div>
         <div className="card px-3 py-2">
-          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Reste à encaisser</p>
+          <p className="stat-label">Reste à encaisser</p>
           <p className="text-lg font-bold text-orange-700 tabular-nums">{fmtEur(kpi.outstanding)}</p>
         </div>
         {(([['pending', 'En attente'], ['partial', 'Partiel'], ['paid', 'Soldé']]) as [FeeStatus, string][]).map(([st, label]) => {
@@ -715,7 +667,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 active ? 'ring-2 ring-primary-400' : 'hover:bg-warm-50',
               )}
             >
-              <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest flex items-center gap-1">
+              <p className="stat-label flex items-center gap-1">
                 <span className={clsx('w-2 h-2 rounded-full', STATUS_DOT[st])} aria-hidden="true" /> {label}
               </p>
               <p className="text-lg font-bold text-secondary-800 tabular-nums">{kpi.counts[st]}</p>
@@ -732,7 +684,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               statusFilter === 'overpaid' ? 'ring-2 ring-red-400' : 'hover:bg-warm-50',
             )}
           >
-            <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest flex items-center gap-1">
+            <p className="stat-label flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" /> Trop perçu
             </p>
             <p className="text-lg font-bold text-red-600 tabular-nums flex items-baseline justify-between gap-2">
@@ -909,7 +861,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       </td>
                       <td className="px-2 py-1.5 text-xs text-right tabular-nums">
                         {s.sibling_discount > 0
-                          ? <span className="text-green-600">-{fmtEur(s.sibling_discount)}</span>
+                          ? <span className="text-primary-600">-{fmtEur(s.sibling_discount)}</span>
                           : <span className="text-warm-300">·</span>}
                       </td>
                       <td className="px-2 py-1.5 text-xs font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(s.total)}</td>
