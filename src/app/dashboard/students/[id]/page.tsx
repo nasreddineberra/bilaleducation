@@ -86,7 +86,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
           .eq('student_id', id),
         supabase
           .from('periods')
-          .select('id, label, order_index, school_years(label)')
+          .select('id, label, order_index, is_current, school_years(label)')
           .order('order_index'),
       ])
     : [{ data: [] }, { data: [] }, { data: [] }]

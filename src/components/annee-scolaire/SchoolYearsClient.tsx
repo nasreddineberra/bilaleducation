@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2, CalendarDays } from 'lucide-react'
+import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -166,7 +167,16 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                         {year.periods
                           .sort((a, b) => a.order_index - b.order_index)
                           .map(p => (
-                            <span key={p.id} className="text-xs font-mono bg-warm-100 text-warm-700 px-1.5 py-0.5 rounded">
+                            <span
+                              key={p.id}
+                              className={clsx(
+                                'text-xs font-mono px-1.5 py-0.5 rounded',
+                                // Turquoise UNIQUEMENT pour la periode en cours de l'annee en cours.
+                                year.is_current && p.is_current
+                                  ? 'bg-primary-500 text-white'
+                                  : 'bg-warm-100 text-warm-700',
+                              )}
+                            >
                               {p.label}
                             </span>
                           ))}

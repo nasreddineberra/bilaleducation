@@ -78,7 +78,7 @@ export default function AbsencesClient({
   yearLabel,
 }: AbsencesClientProps) {
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>((periods.find(p => p.is_current) ?? periods[0])?.id ?? null)
   const [absences,         setAbsences]         = useState<Absence[]>(initialAbsences)
   const [expandedStudent,  setExpandedStudent]  = useState<string | null>(null)
   const [showSaisie,       setShowSaisie]       = useState(false)

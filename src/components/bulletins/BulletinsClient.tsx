@@ -152,7 +152,7 @@ export default function BulletinsClient({
 }: Props) {
 
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>((periods.find(p => p.is_current) ?? periods[0])?.id ?? null)
   const [generating, setGenerating] = useState<string | null>(null) // student_id or 'all'
   const [archives, setArchives] = useState<ArchiveRow[]>(initialArchives)
   const [archiving, setArchiving] = useState(false)

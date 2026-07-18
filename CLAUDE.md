@@ -1135,8 +1135,37 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
   Enseignants / Comptabilite / Secretariat (map `CHIP_LABELS`), tandis que le **badge d'un membre**
   garde son rôle au singulier (`ROLE_LABELS`).
 
+#### 19 juillet 2026 (suite) — Periode « en cours » + verrouillage des annees non courantes
+- **Migration `add-period-is-current.sql`** (a jouer) : `periods.is_current` (bool) + index d'unicite
+  partiel (une seule periode courante par annee). Pas de backfill → sans marquage, les ecrans
+  retombent sur la 1re periode (aucune regression) ; le code lit `is_current` de façon tolerante
+  (marche avant/apres migration).
+- **Feature « periode en cours »** : la direction choisit UNE periode courante (les periodes n'ont pas
+  de dates → choix manuel). Sert de **defaut du selecteur de periode** sur Bulletins, Notes,
+  Evaluations, Feuille d'appel, et le formulaire discipline de la fiche eleve
+  (`(periods.find(p => p.is_current) ?? periods[0])`). Encadre autonome `CurrentPeriodCard` (radio +
+  bouton) place **dans** `SchoolYearForm` via un slot (2e position, meme taille), editable **admin/
+  direction** et **uniquement sur l'annee en cours**. Server action `annee-scolaire/actions.ts`
+  (`setCurrentPeriod`, garde + trace). `Period.is_current` ajoute au type partage.
+- **Verrouillage des annees NON courantes** (`SchoolYearForm`) : une annee qui n'est pas l'annee en
+  cours est **en lecture seule** (dates, repartition, vacances, types d'eval verrouilles ; « Modifier »
+  inactif ; banniere). **Seule exception** : la case « Annee en cours » (seul moyen d'activer une annee —
+  la liste n'a pas d'action « activer »). Cette case est **desactivee si une AUTRE annee est deja en
+  cours** (prop `anotherYearIsCurrent`, requetee page detail + creation). **Consequence assumee** :
+  changer d'annee en cours = 2 etapes (desactiver A, activer B) avec un etat transitoire « aucune annee
+  en cours ».
+- **Fusion des encadres** : Identite + Repartition + Type d'evaluation + boutons Annuler/Modifier
+  regroupes en **un seul encadre** (sous-blocs separes par un filet) ; « Periode en cours » en dessous.
+- **RÉPARTITION en 1er = Semestriel** (avant Trimestriel). **Liste des annees** : titre header au
+  **pluriel** (« Années scolaires » ; la fiche reste au singulier) ; badge de **periode en cours**
+  colore en turquoise **uniquement** sur l'annee en cours (les autres restent en badge normal).
+
 ## Prochaine etape
-- **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact` ci-dessus.
+- **Pages a traiter** : **Notifications** puis **Dashboard**.
+- **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
+  puis **reset table par table** pour repartir sur une nouvelle annee — objectif : garder la **BDD la plus
+  legere possible**. Voir memoire `year-rollover-archiving`.
+- **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact`.
 - **Verifier visuellement** la passe de lisibilite module par module (surtout les etats inactifs
   et les modales).
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
+import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -29,6 +30,23 @@ export default async function EditAnneeScolairePage({ params }: Props) {
   ])
 
   if (!schoolYear) notFound()
+
+  // Role de l'utilisateur : seuls admin/direction modifient la periode en cours.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+  const isAdminDir = me?.role === 'admin' || me?.role === 'direction'
+  // La periode en cours ne se regle que sur l'annee EN COURS.
+  const canEditPeriod = isAdminDir && !!schoolYear.is_current
+
+  // Une AUTRE annee est-elle deja « en cours » ? (bloque l'activation de celle-ci)
+  const { count: otherCurrentCount } = await supabase
+    .from('school_years')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_current', true)
+    .neq('id', id)
+  const anotherYearIsCurrent = (otherCurrentCount ?? 0) > 0
 
   // Vérifie si des notes ont été saisies pour cette année
   const { data: periodRows } = await supabase
@@ -96,7 +114,20 @@ export default async function EditAnneeScolairePage({ params }: Props) {
         Retour à la liste
       </Link>
 
-      <SchoolYearForm schoolYear={schoolYear} weekStartDay={etablissement?.week_start_day ?? 1} gradedEvalTypes={gradedEvalTypes} usedEvalTypes={usedEvalTypes} />
+      <SchoolYearForm
+        schoolYear={schoolYear}
+        weekStartDay={etablissement?.week_start_day ?? 1}
+        gradedEvalTypes={gradedEvalTypes}
+        usedEvalTypes={usedEvalTypes}
+        anotherYearIsCurrent={anotherYearIsCurrent}
+        currentPeriodSlot={
+          <CurrentPeriodCard
+            schoolYearId={schoolYear.id}
+            periods={schoolYear.periods ?? []}
+            canEdit={canEditPeriod}
+          />
+        }
+      />
 
     </div>
   )

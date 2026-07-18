@@ -84,6 +84,7 @@ export interface Period {
   school_year_id: string
   label: string              // "T1", "T2", "T3" / "S1", "S2"
   order_index: number
+  is_current?: boolean       // periode « en cours » (defaut du selecteur de periode)
   created_at: string
 }
 

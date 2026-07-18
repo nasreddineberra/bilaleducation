@@ -224,7 +224,7 @@ export default function EvaluationsClient({
 }: Props) {
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>((periods.find(p => p.is_current) ?? periods[0])?.id ?? null)
 
   // ── Formulaire ──────────────────────────────────────────────────────────────
   const [adding,          setAdding]          = useState<string | null>(null)   // cours_id

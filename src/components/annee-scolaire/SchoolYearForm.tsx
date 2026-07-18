@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { X, Pencil } from 'lucide-react'
+import { X, Pencil, AlertTriangle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
@@ -20,6 +20,8 @@ interface SchoolYearFormProps {
   weekStartDay?:     number   // 1=Lundi, 6=Samedi, 0=Dimanche
   gradedEvalTypes?:  string[] // types ayant des notes saisies → badge "Notes saisies"
   usedEvalTypes?:    string[] // types utilisés dans gabarits sans note → badge "Utilisé dans gabarit"
+  currentPeriodSlot?: React.ReactNode  // encadre « Periode en cours » (2e position, en edition)
+  anotherYearIsCurrent?: boolean       // une AUTRE annee est deja « en cours » → activation bloquee
 }
 
 // Type frontend uniquement : scored_10 / scored_20 remplacent "scored" + max_score
@@ -118,10 +120,14 @@ function getWeeksBetween(startDate: string, endDate: string, startDay: number): 
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1, gradedEvalTypes = [], usedEvalTypes = [] }: SchoolYearFormProps) {
+export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1, gradedEvalTypes = [], usedEvalTypes = [], currentPeriodSlot, anotherYearIsCurrent = false }: SchoolYearFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!schoolYear
+  // Une annee qui n'est PAS l'annee en cours est en lecture seule (protection des
+  // annees passees/futures). Seule la case « Annee en cours » reste active, pour
+  // pouvoir l'activer (puis la modifier). Base sur l'etat ENREGISTRE, pas le form.
+  const readOnly  = isEditing && !schoolYear?.is_current
 
   const getInitialForm = (): FormData => {
     if (!schoolYear) {
@@ -303,7 +309,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
   // Un type est verrouillé s'il a des notes ou est utilisé dans un gabarit
   const isEvalTypeLocked = (type: FormEvalType): boolean =>
-    gradedEvalTypes.includes(type) || usedEvalTypes.includes(type)
+    readOnly || gradedEvalTypes.includes(type) || usedEvalTypes.includes(type)
 
   // Badge affiché sur le type verrouillé
   const lockBadge = (type: FormEvalType) => {
@@ -500,8 +506,20 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-2xl">
 
-      {/* ── Libellé + Répartition ────────────────────────────────────────────── */}
-      <div className="card p-3">
+      {readOnly && (
+        <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+          <span>
+            <b>Fiche en lecture seule.</b>{' '}
+            {anotherYearIsCurrent
+              ? 'Année en cours déjà existante.'
+              : 'Cochez « Année en cours » puis enregistrez pour l\'activer.'}
+          </span>
+        </div>
+      )}
+
+      {/* ── Encadré unique : Identité + Répartition + Type d'évaluation + actions ── */}
+      <div className="card p-3 space-y-3">
         <div className="grid grid-cols-2 gap-4">
 
           {/* Colonne 1 : Libellé + En cours + Vacances */}
@@ -520,23 +538,29 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 vLabelYearMismatch ? 'Le libellé ne correspond pas aux dates saisies.' : undefined
               }
             />
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className={clsx('flex items-center gap-2', anotherYearIsCurrent ? 'cursor-not-allowed' : 'cursor-pointer')}>
               <input
                 type="checkbox"
                 id="is_current"
                 checked={form.is_current}
                 onChange={e => set('is_current', e.target.checked)}
-                className="w-4 h-4 accent-primary-500"
+                disabled={anotherYearIsCurrent}
+                className="w-4 h-4 accent-primary-500 disabled:opacity-60"
               />
               <span className="text-sm text-secondary-700 select-none">Année en cours</span>
             </label>
+            {anotherYearIsCurrent && (
+              <p className="text-[11px] text-warm-700 -mt-1">
+                Une autre année est déjà en cours. Désactivez-la d'abord sur sa fiche.
+              </p>
+            )}
 
             {/* Mini-tableau vacances */}
             <div className="pt-1">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Vacances</h3>
                 {weeks.length > 0 && (
-                  <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} className="!px-2 !py-0.5 !text-xs !rounded">
+                  <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} disabled={readOnly} className="!px-2 !py-0.5 !text-xs !rounded">
                     Gérer
                   </FloatButton>
                 )}
@@ -587,6 +611,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   if (form.end_date && e.target.value && form.end_date <= e.target.value) set('end_date', '')
                 }}
                 onBlur={() => touch('start_date')}
+                locked={readOnly}
                 required
                 error={touched.has('start_date') && vStartDate ? 'Obligatoire.' : undefined}
               />
@@ -597,7 +622,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 onChange={e => { if (!form.start_date || e.target.value > form.start_date) set('end_date', e.target.value) }}
                 onBlur={() => touch('end_date')}
                 min={form.start_date || undefined}
-                locked={!form.start_date}
+                locked={readOnly || !form.start_date}
                 required
                 error={
                   touched.has('end_date') && vEndDate ? 'Obligatoire.' :
@@ -615,14 +640,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               </div>
             <div className="flex gap-2">
               {([
-                { value: 'trimestrial', label: 'Trimestriel', sub: 'T1 · T2 · T3' },
                 { value: 'semestrial',  label: 'Semestriel',  sub: 'S1 · S2' },
+                { value: 'trimestrial', label: 'Trimestriel', sub: 'T1 · T2 · T3' },
               ] as const).map(opt => (
                 <label
                   key={opt.value}
                   className={clsx(
                     'flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border transition-colors',
-                    (gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                    (readOnly || gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
                     form.period_type === opt.value
                       ? 'border-primary-400 bg-primary-50'
                       : 'border-warm-200 bg-white hover:border-warm-300'
@@ -633,8 +658,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     name="period_type"
                     value={opt.value}
                     checked={form.period_type === opt.value}
-                    onChange={() => (gradedEvalTypes.length === 0 && usedEvalTypes.length === 0) && set('period_type', opt.value)}
-                    disabled={gradedEvalTypes.length > 0 || usedEvalTypes.length > 0}
+                    onChange={() => (!readOnly && gradedEvalTypes.length === 0 && usedEvalTypes.length === 0) && set('period_type', opt.value)}
+                    disabled={readOnly || gradedEvalTypes.length > 0 || usedEvalTypes.length > 0}
                     className="accent-primary-500"
                   />
                   <div>
@@ -648,13 +673,12 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           </div>
 
         </div>
-      </div>
 
-      {/* ── Type d'évaluation ─────────────────────────────────────────────── */}
-      <div className={clsx(
-        'card p-3 space-y-2',
-        vNoEval && hasSubmitted && 'ring-1 ring-red-300'
-      )}>
+        {/* ── Type d'évaluation (même encadré) ──────────────────────────────── */}
+        <div className={clsx(
+          'space-y-2 pt-3 border-t border-warm-100',
+          vNoEval && hasSubmitted && 'ring-1 ring-red-300 rounded-lg p-2'
+        )}>
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
             Type d'évaluation <span className="text-red-400">*</span>
@@ -825,7 +849,23 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           })()}
 
         </div>
+        </div>
+
+        {/* ── Actions (dans le même encadré) ────────────────────────────────── */}
+        <div className="flex items-center gap-3 pt-3 border-t border-warm-100">
+          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <div className="flex-1" />
+          <FloatButton type="button" variant="secondary" onClick={() => router.push('/dashboard/annee-scolaire')} disabled={isSubmitting}>
+            Annuler
+          </FloatButton>
+          <FloatButton type="submit" variant={isEditing ? 'edit' : 'submit'} disabled={isSubmitting || !hasChanges || !isValid}>
+            {isEditing ? 'Modifier' : 'Valider'}
+          </FloatButton>
+        </div>
       </div>
+
+      {/* Encadré « Période en cours » (en dessous) */}
+      {currentPeriodSlot}
 
       {/* ── Modale Vacances scolaires ──────────────────────────────────────── */}
       {showVacModal && weeks.length > 0 && createPortal(
@@ -978,18 +1018,6 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           </div>
         </div>,
       document.body)}
-
-      {/* ── Actions ───────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 pt-1">
-        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
-        <div className="flex-1" />
-        <FloatButton type="button" variant="secondary" onClick={() => router.push('/dashboard/annee-scolaire')} disabled={isSubmitting}>
-          Annuler
-        </FloatButton>
-        <FloatButton type="submit" variant={isEditing ? 'edit' : 'submit'} disabled={isSubmitting || !hasChanges || !isValid}>
-          {isEditing ? 'Modifier' : 'Valider'}
-        </FloatButton>
-      </div>
 
     </form>
   )

@@ -36,6 +36,7 @@ type PeriodRow = {
   id: string
   label: string
   order_index: number
+  is_current?: boolean
   school_years?: { label: string } | null
 }
 
@@ -126,7 +127,7 @@ export default function StudentDiscipline({
   const [expandedHelp, setExpandedHelp] = useState(false)
 
   // Form state
-  const [formPeriod, setFormPeriod] = useState(currentYearPeriods[0]?.id ?? periods[0]?.id ?? '')
+  const [formPeriod, setFormPeriod] = useState((currentYearPeriods.find(p => p.is_current) ?? currentYearPeriods[0])?.id ?? periods[0]?.id ?? '')
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10))
   const [formSeverity, setFormSeverity] = useState<WarningSeverity | ''>('')
   const [formMotif, setFormMotif] = useState('')
@@ -159,7 +160,7 @@ export default function StudentDiscipline({
 
   const resetForm = useCallback(() => {
     setShowForm(false)
-    setFormPeriod(currentYearPeriods[0]?.id ?? periods[0]?.id ?? '')
+    setFormPeriod((currentYearPeriods.find(p => p.is_current) ?? currentYearPeriods[0])?.id ?? periods[0]?.id ?? '')
     setFormDate(new Date().toISOString().slice(0, 10))
     setFormSeverity('')
     setFormMotif('')

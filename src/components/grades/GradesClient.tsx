@@ -109,7 +109,7 @@ export default function GradesClient({
 
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(periods[0]?.id ?? null)
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>((periods.find(p => p.is_current) ?? periods[0])?.id ?? null)
   const [selectedEvalId,   setSelectedEvalId]   = useState<string | null>(null)
   const [expandedUEs,      setExpandedUEs]      = useState<Set<string>>(new Set(ues.map(u => u.id)))
 

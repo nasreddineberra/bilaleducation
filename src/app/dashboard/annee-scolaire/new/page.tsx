@@ -10,6 +10,13 @@ export default async function NewAnneeScolairePage() {
     .select('id, week_start_day')
     .single()
 
+  // Impossible de creer une annee « en cours » si une autre l'est deja.
+  const { count } = await supabase
+    .from('school_years')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_current', true)
+  const anotherYearIsCurrent = (count ?? 0) > 0
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -21,7 +28,7 @@ export default async function NewAnneeScolairePage() {
         Retour à la liste
       </Link>
 
-      <SchoolYearForm etablissementId={etablissement?.id ?? ''} weekStartDay={etablissement?.week_start_day ?? 1} />
+      <SchoolYearForm etablissementId={etablissement?.id ?? ''} weekStartDay={etablissement?.week_start_day ?? 1} anotherYearIsCurrent={anotherYearIsCurrent} />
 
     </div>
   )

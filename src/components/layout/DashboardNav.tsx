@@ -38,7 +38,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/financements/vue-globale': 'Statistiques sur règlements',
   '/dashboard/etablissement':     'Établissement',
   '/dashboard/utilisateurs':      'Utilisateurs',
-  '/dashboard/annee-scolaire':    'Année scolaire',
+  '/dashboard/annee-scolaire':    'Années scolaires',
   '/dashboard/annee-scolaire/new':'Nouvelle année scolaire',
   '/dashboard/cours':             'Référentiel des cours',
   '/dashboard/cotisations':       'Financiers',
@@ -170,7 +170,7 @@ function getBreadcrumbs(pathname: string): Crumb[] {
   const paramsPages: Record<string, string> = {
     '/dashboard/teachers':       'Enseignants',
     '/dashboard/utilisateurs':   'Utilisateurs',
-    '/dashboard/annee-scolaire': 'Année scolaire',
+    '/dashboard/annee-scolaire': 'Années scolaires',
     '/dashboard/cotisations':    'Financiers',
     '/dashboard/types-presence': 'Types de présence',
     '/dashboard/ressources':     'Ressources',
