@@ -408,7 +408,7 @@ export default function GradesClient({
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
                     ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
-                    : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
+                    : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >
                 {PERIOD_LABELS[p.label] ?? p.label}
@@ -438,7 +438,7 @@ export default function GradesClient({
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
           if (schedule) parts.push(schedule)
           if (parts.length === 0) return null
-          return <span className="ml-auto text-sm font-medium text-warm-600 whitespace-nowrap">{parts.join(' · ')}</span>
+          return <span className="ml-auto text-sm font-medium text-warm-700 whitespace-nowrap">{parts.join(' · ')}</span>
         })()}
       </div>
 
@@ -456,11 +456,11 @@ export default function GradesClient({
         {/* ── Gauche : Gabarit (lecture seule) ── */}
         <div className="w-72 flex-shrink-0 flex flex-col min-h-0">
           <div className="card p-3 flex flex-col gap-2 h-full min-h-0">
-            <p className="text-xs font-bold text-warm-500 uppercase tracking-widest flex-shrink-0">Gabarit</p>
+            <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-shrink-0">Gabarit</p>
 
             {noSchoolYear || noClassOrPeriod || currentEvals.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
-                <p className="text-xs text-warm-400 text-center px-2">
+                <p className="text-xs text-warm-700 text-center px-2">
                   {noSchoolYear
                     ? 'Aucune année scolaire active.'
                     : noClassOrPeriod
@@ -491,11 +491,11 @@ export default function GradesClient({
                         className="flex items-center gap-1.5 w-full px-2 py-1.5 bg-warm-50 hover:bg-warm-100 transition-colors text-left"
                       >
                         {expanded
-                          ? <ChevronDown  size={13} className="text-warm-400 flex-shrink-0" />
-                          : <ChevronRight size={13} className="text-warm-400 flex-shrink-0" />
+                          ? <ChevronDown  size={13} className="text-warm-700 flex-shrink-0" />
+                          : <ChevronRight size={13} className="text-warm-700 flex-shrink-0" />
                         }
                         {ue.code && (
-                          <span className="text-[10px] font-mono text-warm-400 bg-warm-200 px-1 rounded flex-shrink-0">
+                          <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0">
                             {ue.code}
                           </span>
                         )}
@@ -523,7 +523,7 @@ export default function GradesClient({
                             const modEvals = ueEvals.filter(e => getEffModId(e) === mod.id)
                             return (
                               <div key={mod.id} className="mt-0.5 ml-4">
-                                <p className="text-[10px] font-semibold text-warm-400 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
+                                <p className="text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
                                   {mod.code && <span className="font-mono mr-1">{mod.code}</span>}
                                   {mod.nom_fr}
                                 </p>
@@ -556,7 +556,7 @@ export default function GradesClient({
 
             {!selectedEval ? (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center text-warm-400">
+                <div className="text-center text-warm-700">
                   <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Sélectionnez une évaluation dans le gabarit.</p>
                 </div>
@@ -569,7 +569,7 @@ export default function GradesClient({
                     <p className="text-sm font-bold text-secondary-800">
                       {selectedCours?.nom_fr ?? 'Cours introuvable'}
                       {selectedCours?.nom_ar && (
-                        <span className="text-warm-400 font-normal ml-2">{selectedCours.nom_ar}</span>
+                        <span className="text-warm-700 font-normal ml-2">{selectedCours.nom_ar}</span>
                       )}
                     </p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -583,15 +583,15 @@ export default function GradesClient({
                         )
                       })()}
                       {selectedEval.eval_kind === 'diagnostic' && diagnosticOptions.some(o => o.comment) && (
-                        <span className="text-xs text-warm-500">
+                        <span className="text-xs text-warm-700">
                           {diagnosticOptions.filter(o => o.comment).map(o => `${o.acronym} : ${o.comment}`).join(' - ')}
                         </span>
                       )}
                       {selectedEval.eval_kind === 'scored' && (
-                        <span className="text-xs text-warm-500">Coef. {selectedEval.coefficient}</span>
+                        <span className="text-xs text-warm-700">Coef. {selectedEval.coefficient}</span>
                       )}
                       {selectedEval.evaluation_date && (
-                        <span className="text-xs text-warm-400">
+                        <span className="text-xs text-warm-700">
                           {new Date(selectedEval.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}
                         </span>
                       )}
@@ -616,7 +616,7 @@ export default function GradesClient({
                           </span>
                         )}
                         {showAvg && avg !== null && total > 0 && graded >= total && (
-                          <span className="text-[10px] text-warm-500">
+                          <span className="text-[10px] text-warm-700">
                             Moy.{' '}
                             <span className="font-semibold text-secondary-700">
                               {avg}{kind === 'scored' ? ` / ${selectedEval.max_score}` : ' / 5'}
@@ -639,21 +639,21 @@ export default function GradesClient({
                 {/* Tableau élèves */}
                 <div ref={tableRef} className="flex-1 min-h-0 overflow-y-auto">
                   {classStudents.length === 0 ? (
-                    <p className="text-sm text-warm-400 text-center py-8">{isAdultClass ? 'Aucun participant inscrit dans ce cours.' : 'Aucun élève inscrit dans cette classe.'}</p>
+                    <p className="text-sm text-warm-700 text-center py-8">{isAdultClass ? 'Aucun participant inscrit dans ce cours.' : 'Aucun élève inscrit dans cette classe.'}</p>
                   ) : (
                     <table aria-label="Saisie des notes des élèves" className="w-full text-sm border-collapse">
                       <thead className="sticky top-0 bg-white z-10">
                         <tr className="border-b-2 border-warm-100">
-                          <th className="text-left text-xs font-semibold text-warm-500 py-2 pr-3 pl-1">#</th>
-                          <th className="text-left text-xs font-semibold text-warm-500 py-2 pr-3">{isAdultClass ? 'Participant' : 'Élève'}</th>
-                          <th className="text-center text-xs font-semibold text-warm-500 py-2 px-3 w-36">
+                          <th className="text-left text-xs font-semibold text-warm-700 py-2 pr-3 pl-1">#</th>
+                          <th className="text-left text-xs font-semibold text-warm-700 py-2 pr-3">{isAdultClass ? 'Participant' : 'Élève'}</th>
+                          <th className="text-center text-xs font-semibold text-warm-700 py-2 px-3 w-36">
                             {selectedEval.eval_kind === 'scored'
                               ? `Note /${selectedEval.max_score}`
                               : selectedEval.eval_kind === 'diagnostic'
                               ? 'Appréciation'
                               : 'Étoiles'}
                           </th>
-                          <th className="text-center text-xs font-semibold text-warm-500 py-2 pl-3 w-20">Absent</th>
+                          <th className="text-center text-xs font-semibold text-warm-700 py-2 pl-3 w-20">Absent</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -674,13 +674,13 @@ export default function GradesClient({
                               )}
                             >
                               {/* Numéro */}
-                              <td className="py-1.5 pr-2 pl-1 text-xs text-warm-300 font-mono w-8">{idx + 1}</td>
+                              <td className="py-1.5 pr-2 pl-1 text-xs text-warm-700 font-mono w-8">{idx + 1}</td>
 
                               {/* Nom */}
                               <td className="py-1.5 pr-3">
                                 <span className="font-medium text-secondary-700">{student.last_name}</span>
                                 <span className="text-secondary-500 ml-1">{student.first_name}</span>
-                                <span className="hidden sm:inline text-[10px] text-warm-300 font-mono ml-1.5">{student.student_number}</span>
+                                <span className="hidden sm:inline text-[10px] text-warm-700 font-mono ml-1.5">{student.student_number}</span>
                               </td>
 
                               {/* Saisie de la note */}
@@ -752,10 +752,10 @@ export default function GradesClient({
                     const { graded, total } = getCompletion(selectedEvalId!)
                     const absent = gradesList.filter(g => g.evaluation_id === selectedEvalId && g.is_absent).length
                     return (
-                      <p className="text-xs text-warm-400 flex-1">
+                      <p className="text-xs text-warm-700 flex-1">
                         <span className={clsx(
                           'font-semibold',
-                          graded === total && total > 0 ? 'text-green-600' : graded > 0 ? 'text-amber-600' : 'text-warm-400'
+                          graded === total && total > 0 ? 'text-green-600' : graded > 0 ? 'text-amber-600' : 'text-warm-700'
                         )}>
                           {graded}/{total}
                         </span>
@@ -770,7 +770,7 @@ export default function GradesClient({
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {!isArchived && (confirmReset ? (
                       <div role="group" aria-label="Confirmer la réinitialisation des notes" className="flex items-center gap-1.5">
-                        <span className="text-xs text-warm-500">Réinitialiser toutes les notes ?</span>
+                        <span className="text-xs text-warm-700">Réinitialiser toutes les notes ?</span>
                         <FloatButton variant="danger" type="button" onClick={handleReset} disabled={saving} loading={saving} aria-label="Confirmer la réinitialisation">
                           Oui
                         </FloatButton>
@@ -883,7 +883,7 @@ function EvalRow({
       {/* Nom du cours */}
       <span className="flex-1 truncate min-w-0">
         {coursItem?.code && (
-          <span className="font-mono text-[10px] text-warm-400 mr-1">{coursItem.code}</span>
+          <span className="font-mono text-[10px] text-warm-700 mr-1">{coursItem.code}</span>
         )}
         {coursItem?.nom_fr ?? 'Cours introuvable'}
       </span>
@@ -891,7 +891,7 @@ function EvalRow({
       {/* Compteur */}
       <span className={clsx(
         'text-[10px] font-mono flex-shrink-0',
-        isComplete ? 'text-green-500' : isPartial ? 'text-amber-500' : 'text-warm-300'
+        isComplete ? 'text-green-500' : isPartial ? 'text-amber-500' : 'text-warm-700'
       )}>
         {graded}/{total}
       </span>

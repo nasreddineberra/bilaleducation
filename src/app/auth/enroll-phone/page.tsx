@@ -151,7 +151,7 @@ export default function EnrollPhonePage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-secondary-800 leading-tight">Activer la double authentification</h2>
-                  <p className="text-xs text-warm-500 mt-0.5">Un code SMS vous sera envoyé à chaque connexion.</p>
+                  <p className="text-xs text-warm-700 mt-0.5">Un code SMS vous sera envoyé à chaque connexion.</p>
                 </div>
               </div>
 
@@ -173,7 +173,7 @@ export default function EnrollPhonePage() {
                     className="input"
                     placeholder="+33 6 12 34 56 78"
                   />
-                  <p className="text-xs text-warm-400 mt-1">Format international requis (ex. +33612345678).</p>
+                  <p className="text-xs text-warm-700 mt-1">Format international requis (ex. +33612345678).</p>
                 </div>
 
                 <button
@@ -204,7 +204,7 @@ export default function EnrollPhonePage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-secondary-800 leading-tight">Vérification</h2>
-                  <p className="text-xs text-warm-500 mt-0.5">
+                  <p className="text-xs text-warm-700 mt-0.5">
                     Code envoyé au <span className="font-semibold text-secondary-700">{phone}</span>
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export default function EnrollPhonePage() {
                     className={clsx(
                       'text-sm font-medium transition-colors',
                       cooldown > 0 || isSubmitting
-                        ? 'text-warm-300 cursor-not-allowed'
+                        ? 'text-warm-700 cursor-not-allowed'
                         : 'text-primary-600 hover:text-primary-700'
                     )}
                   >
@@ -278,7 +278,7 @@ export default function EnrollPhonePage() {
                 <CheckCircle2 size={48} className="text-green-500" />
               </div>
               <h2 className="text-xl font-bold text-secondary-800">Double authentification activée</h2>
-              <p className="text-sm text-warm-500">
+              <p className="text-sm text-warm-700">
                 Votre numéro <span className="font-semibold text-secondary-700">{phone}</span> est maintenant enregistré.
                 Un code SMS vous sera demandé à chaque connexion.
               </p>

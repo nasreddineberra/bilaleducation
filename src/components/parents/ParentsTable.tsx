@@ -141,8 +141,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
   if (parents.length === 0) {
     return (
       <div className="card py-16 text-center">
-        <p className="text-warm-400 text-sm">Aucune fiche parents pour le moment</p>
-        <p className="text-warm-300 text-xs mt-1">Cliquez sur "Ajouter une fiche" pour commencer</p>
+        <p className="text-warm-700 text-sm">Aucune fiche parents pour le moment</p>
+        <p className="text-warm-700 text-xs mt-1">Cliquez sur "Ajouter une fiche" pour commencer</p>
       </div>
     )
   }
@@ -194,7 +194,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         {parent.tutor1_last_name} {parent.tutor1_first_name}
                       </Link>
                       {parent.tutor1_relationship && (
-                        <span className="text-xs text-warm-400">
+                        <span className="text-xs text-warm-700">
                           {RELATION_LABEL[parent.tutor1_relationship] ?? parent.tutor1_relationship}
                         </span>
                       )}
@@ -212,7 +212,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                           {parent.tutor2_last_name} {parent.tutor2_first_name}
                         </span>
                         {parent.tutor2_relationship && (
-                          <span className="text-xs text-warm-400">
+                          <span className="text-xs text-warm-700">
                             {RELATION_LABEL[parent.tutor2_relationship] ?? parent.tutor2_relationship}
                           </span>
                         )}
@@ -221,16 +221,16 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         )}
                       </div>
                     ) : (
-                      <span className="text-warm-300 text-xs">—</span>
+                      <span className="text-warm-700 text-xs">·</span>
                     )}
                   </td>
 
                   {/* Situation familiale */}
                   <td className="list-td text-center">
-                    <span className="text-xs text-warm-500">
+                    <span className="text-xs text-warm-700">
                       {parent.situation_familiale
                         ? (SITUATION_LABEL[parent.situation_familiale] ?? parent.situation_familiale)
-                        : '—'}
+                        : '·'}
                     </span>
                   </td>
 
@@ -238,7 +238,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   <td className="list-td" onClick={(e) => e.stopPropagation()}>
                     {confirmDeleteId === parent.id ? (
                       <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-warm-500">Supprimer ?</span>
+                        <span className="text-xs text-warm-700">Supprimer ?</span>
                         <button
                           onClick={() => handleDelete(parent.id)}
                           disabled={isDeleting}
@@ -248,7 +248,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs font-medium px-2.5 py-1 bg-warm-100 text-warm-600 rounded-lg hover:bg-warm-200 transition-colors"
+                          className="text-xs font-medium px-2.5 py-1 bg-warm-100 text-warm-700 rounded-lg hover:bg-warm-200 transition-colors"
                         >
                           Annuler
                         </button>
@@ -273,7 +273,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                           <button
                             onClick={() => router.push(`/dashboard/parents/${parent.id}`)}
                             aria-label="Modifier la fiche"
-                            className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Pencil size={14} />
                           </button>
@@ -289,7 +289,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                             <button
                               onClick={() => { setConfirmDeleteId(parent.id); setDeleteError(null) }}
                               aria-label="Supprimer la fiche"
-                              className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -305,9 +305,9 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   <tr className="bg-warm-50">
                     <td colSpan={4} className="px-6 py-2">
                       {loadingChildrenId === parent.id ? (
-                        <p className="text-sm text-warm-400">Chargement...</p>
+                        <p className="text-sm text-warm-700">Chargement...</p>
                       ) : childrenMap[parent.id]?.length === 0 ? (
-                        <p className="text-sm text-warm-400">Aucun élève rattaché à cette fiche.</p>
+                        <p className="text-sm text-warm-700">Aucun élève rattaché à cette fiche.</p>
                       ) : (
                         <div className="flex flex-wrap gap-3">
                           {childrenMap[parent.id]?.map(student => {
@@ -358,8 +358,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                   aria-label={`Ouvrir la fiche de ${student.first_name} ${student.last_name}`}
                                   className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                                 >
-                                  <span className="font-mono text-xs text-warm-400">{student.student_number}</span>
-                                  <span className={clsx('font-medium', student.is_active ? 'text-secondary-700' : 'text-warm-500')}>
+                                  <span className="font-mono text-xs text-warm-700">{student.student_number}</span>
+                                  <span className={clsx('font-medium', student.is_active ? 'text-secondary-700' : 'text-warm-400')}>
                                     {student.last_name} {student.first_name}
                                   </span>
                                 </button>

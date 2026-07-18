@@ -94,13 +94,13 @@ function PaginationBar({ page, totalPages, onNavigate }: {
         onClick={() => onNavigate(page - 1)}
         disabled={page === 1}
         aria-label="Page précédente"
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
       >
         <ChevronLeft size={15} />
       </button>
       {getPages().map((p, i) =>
         p === '...' ? (
-          <span key={`e${i}`} className="px-1 text-warm-400 text-sm select-none">...</span>
+          <span key={`e${i}`} className="px-1 text-warm-700 text-sm select-none">...</span>
         ) : (
           <button
             key={p}
@@ -121,7 +121,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
         onClick={() => onNavigate(page + 1)}
         disabled={page === totalPages}
         aria-label="Page suivante"
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
       >
         <ChevronRight size={15} />
       </button>
@@ -225,7 +225,7 @@ export default function AuditLogsClient({
             'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px rounded-t outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40',
             !filters.user
               ? 'border-primary-500 text-primary-700'
-              : 'border-transparent text-warm-500 hover:text-secondary-700'
+              : 'border-transparent text-warm-700 hover:text-secondary-700'
           )}
         >
           Tous
@@ -239,7 +239,7 @@ export default function AuditLogsClient({
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px rounded-t outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40',
               filters.user === u.user_id
                 ? 'border-primary-500 text-primary-700'
-                : 'border-transparent text-warm-500 hover:text-secondary-700'
+                : 'border-transparent text-warm-700 hover:text-secondary-700'
             )}
           >
             {u.user_name || u.user_email}
@@ -250,7 +250,7 @@ export default function AuditLogsClient({
       {/* Filtres */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-2">
-          <label htmlFor="log-date-from" className="text-xs text-warm-500">Du</label>
+          <label htmlFor="log-date-from" className="text-xs text-warm-700">Du</label>
           <input
             id="log-date-from"
             type="date"
@@ -260,7 +260,7 @@ export default function AuditLogsClient({
           />
         </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="log-date-to" className="text-xs text-warm-500">Au</label>
+          <label htmlFor="log-date-to" className="text-xs text-warm-700">Au</label>
           <input
             id="log-date-to"
             type="date"
@@ -312,7 +312,7 @@ export default function AuditLogsClient({
       {purgeResult && (
         <div role="status" aria-live="polite" className="mb-2 px-3 py-2 rounded-lg bg-warm-100 text-sm text-secondary-700 flex items-center justify-between">
           <span>{purgeResult}</span>
-          <button onClick={() => setPurgeResult(null)} className="text-warm-500 hover:text-secondary-700 text-xs rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Fermer</button>
+          <button onClick={() => setPurgeResult(null)} className="text-warm-700 hover:text-secondary-700 text-xs rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Fermer</button>
         </div>
       )}
 
@@ -332,7 +332,7 @@ export default function AuditLogsClient({
             className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md outline-none"
           >
             <h3 id="purge-title" className="text-lg font-bold text-secondary-800 mb-2">Confirmer la purge</h3>
-            <p className="text-sm text-warm-600 mb-4">
+            <p className="text-sm text-warm-700 mb-4">
               Cette action supprimera tous les logs datant de plus d&apos;un mois.
               Seuls les logs du dernier mois seront conserves. Cette action est irreversible.
             </p>
@@ -352,7 +352,7 @@ export default function AuditLogsClient({
       <div className="card flex-1 overflow-hidden">
         <table className="w-full text-sm" aria-label="Journal d'activité">
           <thead>
-            <tr className="border-b border-warm-200 text-left text-xs text-warm-500 uppercase tracking-wider">
+            <tr className="border-b border-warm-200 text-left text-xs text-warm-700 uppercase tracking-wider">
               <th className="py-2 px-3 whitespace-nowrap">Date</th>
               <th className="py-2 px-3 whitespace-nowrap">Utilisateur</th>
               <th className="py-2 px-3 whitespace-nowrap">Action</th>
@@ -363,7 +363,7 @@ export default function AuditLogsClient({
           <tbody>
             {logs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-warm-400">
+                <td colSpan={5} className="py-8 text-center text-warm-700">
                   Aucun log trouve
                 </td>
               </tr>
@@ -401,7 +401,7 @@ export default function AuditLogsClient({
                     <td className="py-1.5 px-3 whitespace-nowrap">
                       <span className="text-secondary-700 font-medium">{log.user_name || log.user_email || '-'}</span>
                       {log.user_id && userRoles[log.user_id] && (
-                        <span className="ml-1.5 text-warm-400 text-[11px]">({ROLE_LABELS[userRoles[log.user_id]] ?? userRoles[log.user_id]})</span>
+                        <span className="ml-1.5 text-warm-700 text-[11px]">({ROLE_LABELS[userRoles[log.user_id]] ?? userRoles[log.user_id]})</span>
                       )}
                     </td>
                     <td className="py-1.5 px-3 whitespace-nowrap">
@@ -412,10 +412,10 @@ export default function AuditLogsClient({
                     <td className="py-1.5 px-3">
                       <span className="text-secondary-600">{ENTITY_LABELS[log.entity_type] ?? log.entity_type}</span>
                       {entityLabel && (
-                        <span className="ml-1.5 text-warm-500 text-xs">{entityLabel}</span>
+                        <span className="ml-1.5 text-warm-700 text-xs">{entityLabel}</span>
                       )}
                     </td>
-                    <td className="py-1.5 px-3 text-xs text-warm-500">
+                    <td className="py-1.5 px-3 text-xs text-warm-700">
                       {detailText && (
                         <Tooltip content={detailText}>
                           <span className="block truncate max-w-[16rem]">{detailText}</span>
@@ -432,7 +432,7 @@ export default function AuditLogsClient({
 
       {/* Pied de page : compteur + pagination */}
       <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-warm-500">
+        <span className="text-xs text-warm-700">
           {totalCount} resultat{totalCount > 1 ? 's' : ''}
         </span>
         <PaginationBar

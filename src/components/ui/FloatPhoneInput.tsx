@@ -81,7 +81,7 @@ export function FloatPhoneInput({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={flagUrl(selected.iso)} alt={selected.name} className="w-5 h-auto rounded-sm flex-shrink-0" />
             <span className="text-xs text-secondary-700 font-mono">{selected.code}</span>
-            <ChevronDown size={12} className="text-warm-400" />
+            <ChevronDown size={12} className="text-warm-700" />
           </button>
 
           {open && (
@@ -128,7 +128,7 @@ export function FloatPhoneInput({
             'peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase',
             error
               ? 'text-red-500 peer-focus:text-red-500'
-              : 'text-warm-400 peer-focus:text-primary-600 peer-[&:not(:placeholder-shown)]:text-warm-500',
+              : 'text-warm-700 peer-focus:text-primary-600 peer-[&:not(:placeholder-shown)]:text-warm-700',
           ].join(' ')}>
             {label}
           </label>

@@ -222,14 +222,14 @@ export default function LoginPage() {
               )}
             </div>
             <h1 className="text-xl font-bold text-secondary-800">{nomEtab}</h1>
-            <p className="text-sm text-warm-400 mt-0.5">Espace de gestion</p>
+            <p className="text-sm text-warm-700 mt-0.5">Espace de gestion</p>
           </div>
 
           {/* Carte formulaire */}
           <div className="bg-white rounded-2xl p-8 shadow-card border border-warm-100">
 
             <h2 className="text-lg font-bold text-secondary-800 mb-1">Connexion</h2>
-            <p className="text-sm text-warm-400 mb-6">Connectez-vous à votre compte</p>
+            <p className="text-sm text-warm-700 mb-6">Connectez-vous à votre compte</p>
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
@@ -279,7 +279,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(v => !v)}
                   aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                   aria-pressed={showPassword}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 z-10"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 z-10"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -306,7 +306,7 @@ export default function LoginPage() {
           </div>
 
           {/* Version mobile : texte discret */}
-          <p className="mt-8 text-center text-xs text-warm-400">
+          <p className="mt-8 text-center text-xs text-warm-700">
             Bilal Education · Gestion Administrative & Pédagogique
           </p>
         </div>

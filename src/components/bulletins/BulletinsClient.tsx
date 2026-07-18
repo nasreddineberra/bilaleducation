@@ -590,8 +590,8 @@ export default function BulletinsClient({
 
   if (classes.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-warm-500">
-        <AlertCircle className="w-12 h-12 mb-3 text-warm-300" />
+      <div className="flex flex-col items-center justify-center h-64 text-warm-700">
+        <AlertCircle className="w-12 h-12 mb-3 text-warm-700" />
         <p className="text-lg font-medium">Aucune classe disponible</p>
       </div>
     )
@@ -635,7 +635,7 @@ export default function BulletinsClient({
                     'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                     selectedPeriodId === p.id
                       ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
-                      : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
+                      : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
                   )}
                 >
                   {PERIOD_LABELS[p.label] ?? p.label}
@@ -671,7 +671,7 @@ export default function BulletinsClient({
         {/* Info classe + boutons archivage */}
         {selectedClass && (
           <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-4 text-xs text-warm-500">
+            <div className="flex items-center gap-4 text-xs text-warm-700">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
                 {classStudents.length} {isAdultClass ? 'participant' : 'élève'}{classStudents.length > 1 ? 's' : ''}
@@ -696,7 +696,7 @@ export default function BulletinsClient({
                 ].filter(Boolean)
                 return parts.map((p, i) => (
                   <span key={i}>
-                    {i > 0 && <span className="text-warm-300 mx-1">·</span>}
+                    {i > 0 && <span className="text-warm-700 mx-1">·</span>}
                     {p}
                   </span>
                 ))
@@ -748,8 +748,8 @@ export default function BulletinsClient({
 
       {/* ── Tableau des élèves ─────────────────────────────────────────────────── */}
       {currentEvals.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-card p-8 text-center text-warm-500">
-          <AlertCircle className="w-10 h-10 mx-auto mb-2 text-warm-300" />
+        <div className="bg-white rounded-2xl shadow-card p-8 text-center text-warm-700">
+          <AlertCircle className="w-10 h-10 mx-auto mb-2 text-warm-700" />
           <p className="font-medium">Aucune évaluation pour cette période</p>
           <p className="text-xs mt-1">Créez d'abord des gabarits et saisissez les notes</p>
         </div>
@@ -803,11 +803,11 @@ export default function BulletinsClient({
                       idx % 2 === 0 ? 'bg-white' : 'bg-warm-50/30'
                     )}
                   >
-                    <td className="py-2 px-4 text-warm-400 text-xs">{idx + 1}</td>
+                    <td className="py-2 px-4 text-warm-700 text-xs">{idx + 1}</td>
                     <td className="py-2 px-4 font-medium text-secondary-800">
                       {s.last_name} {s.first_name}
                     </td>
-                    <td className="py-2 px-4 text-warm-500 text-xs">{s.student_number}</td>
+                    <td className="py-2 px-4 text-warm-700 text-xs">{s.student_number}</td>
                     <td className="py-2 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         {isComplete ? (
@@ -823,7 +823,7 @@ export default function BulletinsClient({
                             />
                           </div>
                         )}
-                        <span className="text-xs text-warm-500">{comp?.filled ?? 0}/{comp?.total ?? 0}</span>
+                        <span className="text-xs text-warm-700">{comp?.filled ?? 0}/{comp?.total ?? 0}</span>
                       </div>
                     </td>
                     <td className="py-2 px-4 text-center">
@@ -832,14 +832,14 @@ export default function BulletinsClient({
                           {avg.toFixed(2)}/20
                         </span>
                       ) : (
-                        <span className="text-warm-400">–</span>
+                        <span className="text-warm-700">–</span>
                       )}
                     </td>
                     <td className="py-2 px-4 text-center">
                       {absCount > 0 ? (
                         <span className="text-xs text-red-600 font-medium">{absCount}</span>
                       ) : (
-                        <span className="text-xs text-warm-400">0</span>
+                        <span className="text-xs text-warm-700">0</span>
                       )}
                     </td>
                     <td className="py-2 px-4">
@@ -866,7 +866,7 @@ export default function BulletinsClient({
                             </a>
                           </Tooltip>
                         ) : (
-                          <span className="text-xs text-warm-300">–</span>
+                          <span className="text-xs text-warm-700">–</span>
                         )
                       ) : (
                         <Tooltip content={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : 'Télécharger le PDF'}>
@@ -938,21 +938,21 @@ function AppreciationCell({
 
   if (disabled) {
     return value
-      ? <span className="text-xs text-warm-500 line-clamp-1">{value}</span>
-      : <span className="text-xs text-warm-300">–</span>
+      ? <span className="text-xs text-warm-700 line-clamp-1">{value}</span>
+      : <span className="text-xs text-warm-700">–</span>
   }
 
   if (!editing) {
     return (
       <button
         onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 50) }}
-        className="flex items-center gap-1 text-xs text-warm-500 hover:text-primary-600 transition-colors w-full text-left"
+        className="flex items-center gap-1 text-xs text-warm-700 hover:text-primary-600 transition-colors w-full text-left"
         aria-label={value ? 'Modifier l\'appréciation' : 'Ajouter une appréciation'}
       >
         {value ? (
           <span className="line-clamp-1">{value}</span>
         ) : (
-          <span className="flex items-center gap-1 text-warm-300 italic">
+          <span className="flex items-center gap-1 text-warm-700 italic">
             <MessageSquare className="w-3 h-3" />
             Ajouter
           </span>
@@ -985,7 +985,7 @@ function AppreciationCell({
         <button
           onClick={() => { setText(value); setEditing(false) }}
           aria-label="Annuler la modification de l'appréciation"
-          className="text-[10px] font-medium px-1.5 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors"
+          className="text-[10px] font-medium px-1.5 py-0.5 bg-warm-100 text-warm-700 rounded hover:bg-warm-200 transition-colors"
         >
           Annuler
         </button>

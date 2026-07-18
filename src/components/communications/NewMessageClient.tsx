@@ -112,12 +112,12 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-warm-100">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">{title}</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="text-warm-400 hover:text-warm-600 rounded p-1 focus:outline-none focus:ring-2 focus:ring-primary-400"
+            className="text-warm-700 hover:text-warm-700 rounded p-1 focus:outline-none focus:ring-2 focus:ring-primary-400"
           >
             <X size={16} />
           </button>
@@ -366,7 +366,7 @@ export default function NewMessageClient({
           </div>
 
           <div className="card p-4 space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Message</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Message</h2>
             <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
               <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
             </Suspense>
@@ -374,10 +374,10 @@ export default function NewMessageClient({
 
           <div className="card p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                 Pièces jointes
                 {attachments.length > 0 && (
-                  <span className="ml-2 font-normal normal-case tracking-normal text-warm-400">
+                  <span className="ml-2 font-normal normal-case tracking-normal text-warm-700">
                     {(attachmentsSize / 1024).toFixed(0)} Ko sur 1024 Ko
                   </span>
                 )}
@@ -393,19 +393,19 @@ export default function NewMessageClient({
             </div>
 
             {attachments.length === 0 ? (
-              <p className="text-xs text-warm-400">Aucune pièce jointe · 1 Mo au total maximum.</p>
+              <p className="text-xs text-warm-700">Aucune pièce jointe · 1 Mo au total maximum.</p>
             ) : (
               <ul className="space-y-1">
                 {attachments.map((file, idx) => (
                   <li key={idx} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
-                    <Paperclip size={12} className="text-warm-400 shrink-0" />
+                    <Paperclip size={12} className="text-warm-700 shrink-0" />
                     <span className="text-warm-700 flex-1 truncate">{file.name}</span>
-                    <span className="text-warm-400">{(file.size / 1024).toFixed(0)} Ko</span>
+                    <span className="text-warm-700">{(file.size / 1024).toFixed(0)} Ko</span>
                     <button
                       type="button"
                       onClick={() => removeAttachment(idx)}
                       aria-label={`Retirer ${file.name}`}
-                      className="text-warm-400 hover:text-red-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-400"
+                      className="text-warm-700 hover:text-red-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-400"
                     >
                       <X size={12} />
                     </button>
@@ -439,7 +439,7 @@ export default function NewMessageClient({
         {/* ─── Destinataires ───────────────────────────────────────────────── */}
         <aside className="w-[340px] shrink-0 sticky top-0 space-y-3">
           <div className="card p-4 space-y-3">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Destinataires</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Destinataires</h2>
 
             {/* Seuls les ciblages autorises sont proposes : on ne montre pas ce
                 qui est interdit. */}
@@ -460,7 +460,7 @@ export default function NewMessageClient({
                       'text-left px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400',
                       active
                         ? 'border-primary-300 bg-primary-50 text-primary-700'
-                        : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50',
+                        : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
                     )}
                   >
                     {TARGET_LABELS[tt]}
@@ -470,7 +470,7 @@ export default function NewMessageClient({
             </div>
 
             {targetType && (
-              <p className="text-xs text-warm-400">{TARGET_HINTS[targetType]}</p>
+              <p className="text-xs text-warm-700">{TARGET_HINTS[targetType]}</p>
             )}
 
             {targetType === 'class' && (
@@ -490,20 +490,20 @@ export default function NewMessageClient({
                 {selectedClass && (
                   <dl className="text-xs space-y-0.5">
                     <div className="flex gap-1.5">
-                      <dt className="text-warm-400 shrink-0">Enseignant</dt>
-                      <dd className="text-warm-600 truncate">
+                      <dt className="text-warm-700 shrink-0">Enseignant</dt>
+                      <dd className="text-warm-700 truncate">
                         {selectedClass.main_teacher_name
                           ? [selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')
                           : 'Non affecté'}
                       </dd>
                     </div>
                     <div className="flex gap-1.5">
-                      <dt className="text-warm-400 shrink-0">Cotisation</dt>
-                      <dd className="text-warm-600 truncate">{selectedClass.cotisation_label ?? 'Non renseignée'}</dd>
+                      <dt className="text-warm-700 shrink-0">Cotisation</dt>
+                      <dd className="text-warm-700 truncate">{selectedClass.cotisation_label ?? 'Non renseignée'}</dd>
                     </div>
                     <div className="flex gap-1.5">
-                      <dt className="text-warm-400 shrink-0">Horaire</dt>
-                      <dd className="text-warm-600 truncate">
+                      <dt className="text-warm-700 shrink-0">Horaire</dt>
+                      <dd className="text-warm-700 truncate">
                         {selectedClass.day_of_week && selectedClass.start_time && selectedClass.end_time
                           ? `${selectedClass.day_of_week} ${selectedClass.start_time.slice(0, 5)}–${selectedClass.end_time.slice(0, 5)}`
                           : 'Non renseigné'}
@@ -523,7 +523,7 @@ export default function NewMessageClient({
                     type="button"
                     onClick={deselectAllFiltered}
                     disabled={selectedParentIds.size === 0}
-                    className="text-xs text-warm-500 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                    className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                   >
                     Tout désélectionner
                   </button>
@@ -556,7 +556,7 @@ export default function NewMessageClient({
                         >
                           {selected
                             ? <CheckSquare size={14} className="text-primary-600 shrink-0" />
-                            : <Square size={14} className="text-warm-300 shrink-0" />}
+                            : <Square size={14} className="text-warm-700 shrink-0" />}
                           <span className={clsx('font-medium truncate', selected ? 'text-primary-700' : 'text-warm-700')}>
                             {getParentLabel(p)}
                           </span>
@@ -568,10 +568,10 @@ export default function NewMessageClient({
                     )
                   })}
                   {filteredParents.length === 0 && (
-                    <li className="text-xs text-warm-400 italic px-3 py-2">Aucune famille trouvée.</li>
+                    <li className="text-xs text-warm-700 italic px-3 py-2">Aucune famille trouvée.</li>
                   )}
                 </ul>
-                <p className="text-xs text-warm-500">{selectedParentIds.size} famille(s) sélectionnée(s)</p>
+                <p className="text-xs text-warm-700">{selectedParentIds.size} famille(s) sélectionnée(s)</p>
               </div>
             )}
           </div>
@@ -581,11 +581,11 @@ export default function NewMessageClient({
             <div className="card p-4 space-y-2" aria-live="polite">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-warm-700 tabular-nums">{recipients.length}</span>
-                <span className="text-xs text-warm-500">
+                <span className="text-xs text-warm-700">
                   {unitLabel}{recipients.length > 1 ? 's' : ''} ciblé{recipients.length > 1 ? 's' : ''}
                 </span>
               </div>
-              <p className="text-xs text-warm-500">
+              <p className="text-xs text-warm-700">
                 {emailCount} email{emailCount > 1 ? 's' : ''} · un envoi par {unitLabel}
               </p>
 
@@ -624,7 +624,7 @@ export default function NewMessageClient({
           <hr className="my-2 border-warm-100" />
           <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitize(bodyHtml) }} />
           {contact && (
-            <p className="text-xs text-warm-400 mt-4 pt-3 border-t border-warm-100">
+            <p className="text-xs text-warm-700 mt-4 pt-3 border-t border-warm-100">
               Les familles répondront à {contact}.
             </p>
           )}
@@ -639,7 +639,7 @@ export default function NewMessageClient({
               <li key={`${r.parent.id}-${r.emails.join('')}`} className="flex items-center gap-2 py-1.5 text-xs">
                 <span className="font-medium text-warm-700 flex-1 truncate">{getParentLabel(r.parent)}</span>
                 {r.emails.length > 0
-                  ? <span className="text-warm-400 truncate max-w-[280px]">{r.emails.join(', ')}</span>
+                  ? <span className="text-warm-700 truncate max-w-[280px]">{r.emails.join(', ')}</span>
                   : <span className="text-amber-600 shrink-0">Sans adresse email</span>}
               </li>
             ))}
@@ -660,16 +660,16 @@ export default function NewMessageClient({
         onConfirm={handleSend}
         onCancel={() => setConfirmOpen(false)}
       >
-        <div className="space-y-1.5 text-xs text-warm-600">
-          <p><span className="text-warm-400">Objet :</span> <strong className="text-warm-700">{subject}</strong></p>
-          <p><span className="text-warm-400">Cible :</span> {targetType ? TARGET_LABELS[targetType] : ''}{selectedClass ? ` · ${selectedClass.name}` : ''}</p>
+        <div className="space-y-1.5 text-xs text-warm-700">
+          <p><span className="text-warm-700">Objet :</span> <strong className="text-warm-700">{subject}</strong></p>
+          <p><span className="text-warm-700">Cible :</span> {targetType ? TARGET_LABELS[targetType] : ''}{selectedClass ? ` · ${selectedClass.name}` : ''}</p>
           <p>
-            <span className="text-warm-400">Envoi à :</span>{' '}
+            <span className="text-warm-700">Envoi à :</span>{' '}
             <strong className="text-warm-700">{recipients.length} {unitLabel}{recipients.length > 1 ? 's' : ''}</strong>
             {' '}({emailCount} email{emailCount > 1 ? 's' : ''})
           </p>
           {attachments.length > 0 && (
-            <p><span className="text-warm-400">Pièces jointes :</span> {attachments.map(a => a.name).join(', ')}</p>
+            <p><span className="text-warm-700">Pièces jointes :</span> {attachments.map(a => a.name).join(', ')}</p>
           )}
           {withoutEmail.length > 0 && (
             <p className="text-amber-700">{withoutEmail.length} destinataire(s) sans adresse email ne recevront rien.</p>

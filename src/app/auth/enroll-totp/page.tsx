@@ -210,7 +210,7 @@ export default function EnrollTotpPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-secondary-800 leading-tight">Activer la double authentification</h2>
-                  <p className="text-xs text-warm-500 mt-0.5">Scannez le QR code avec Google Authenticator ou une application compatible.</p>
+                  <p className="text-xs text-warm-700 mt-0.5">Scannez le QR code avec Google Authenticator ou une application compatible.</p>
                 </div>
               </div>
 
@@ -237,7 +237,7 @@ export default function EnrollTotpPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-secondary-800 leading-tight">Configuration TOTP</h2>
-                  <p className="text-xs text-warm-500 mt-0.5">Scannez le QR code puis saisissez le code à 6 chiffres.</p>
+                  <p className="text-xs text-warm-700 mt-0.5">Scannez le QR code puis saisissez le code à 6 chiffres.</p>
                 </div>
               </div>
 
@@ -264,7 +264,7 @@ export default function EnrollTotpPage() {
                   ) : qrCodeData?.type === 'uri' ? (
                     <canvas ref={canvasRef} className="rounded-lg" />
                   ) : null}
-                  <p className="text-xs text-warm-500 text-center">
+                  <p className="text-xs text-warm-700 text-center">
                     Scannez avec <span className="font-semibold">Google Authenticator</span>, <span className="font-semibold">Authy</span> ou une application compatible.
                   </p>
                 </div>
@@ -307,7 +307,7 @@ export default function EnrollTotpPage() {
                 <CheckCircle2 size={48} className="text-green-500" />
               </div>
               <h2 className="text-xl font-bold text-secondary-800">Double authentification activée</h2>
-              <p className="text-sm text-warm-500">
+              <p className="text-sm text-warm-700">
                 Votre application d'authentification est maintenant configurée.
                 Un code à 6 chiffres vous sera demandé à chaque connexion.
               </p>

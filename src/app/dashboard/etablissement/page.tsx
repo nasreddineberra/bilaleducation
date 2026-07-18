@@ -39,7 +39,7 @@ export default async function EtablissementPage() {
         )}
 
         {/* Mention commune aux deux encadres */}
-        <p className="text-xs text-warm-500">
+        <p className="text-xs text-warm-700">
           <span className="font-semibold text-red-400">*</span> obligatoire
         </p>
       </div>

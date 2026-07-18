@@ -56,7 +56,7 @@ export default async function NewStudentPage() {
 
       <Link
         href="/dashboard/students"
-        className="inline-flex items-center gap-1.5 text-sm text-warm-500 hover:text-secondary-700 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
       >
         <ChevronLeft size={15} />
         Retour à la liste
@@ -67,7 +67,7 @@ export default async function NewStudentPage() {
           <AlertCircle className="text-orange-400" size={36} />
           <div>
             <p className="text-base font-semibold text-secondary-800">Limite d'élèves atteinte</p>
-            <p className="text-sm text-warm-500 mt-1">
+            <p className="text-sm text-warm-700 mt-1">
               Votre accès essai est limité à <strong>{maxStudents} élève{maxStudents! > 1 ? 's' : ''}</strong> actif{maxStudents! > 1 ? 's' : ''}.
               Contactez-nous pour passer à un abonnement complet.
             </p>

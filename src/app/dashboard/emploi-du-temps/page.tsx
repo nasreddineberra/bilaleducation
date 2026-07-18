@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 
 const EmploiDuTempsClient = dynamic(
   () => import('@/components/emploi-du-temps/EmploiDuTempsClient'),
-  { loading: () => <div className="flex items-center justify-center h-96 text-warm-400">Chargement de l'emploi du temps…</div> },
+  { loading: () => <div className="flex items-center justify-center h-96 text-warm-700">Chargement de l'emploi du temps…</div> },
 )
 
 export default async function EmploiDuTempsPage() {
@@ -30,7 +30,7 @@ export default async function EmploiDuTempsPage() {
 
   if (!currentYear) {
     return (
-      <div className="h-full flex items-center justify-center text-warm-400">
+      <div className="h-full flex items-center justify-center text-warm-700">
         Aucune année scolaire active
       </div>
     )

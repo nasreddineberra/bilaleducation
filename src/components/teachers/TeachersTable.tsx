@@ -85,8 +85,8 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
   if (teachers.length === 0) {
     return (
       <div className="card py-16 text-center">
-        <p className="text-warm-400 text-sm">Aucun enseignant pour le moment</p>
-        <p className="text-warm-300 text-xs mt-1">Cliquez sur "Ajouter un enseignant" pour commencer</p>
+        <p className="text-warm-700 text-sm">Aucun enseignant pour le moment</p>
+        <p className="text-warm-700 text-xs mt-1">Cliquez sur "Ajouter un enseignant" pour commencer</p>
       </div>
     )
   }
@@ -144,31 +144,31 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                       {teacher.last_name} {teacher.first_name}
                     </Link>
                     {!teacher.is_active && (
-                      <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">inactif</span>
+                      <span className="text-xs bg-warm-200 text-warm-700 px-1.5 py-0.5 rounded font-medium">inactif</span>
                     )}
                   </div>
                 </td>
 
                 {/* N° employé */}
                 <td className="list-td">
-                  <span className="font-mono text-xs text-warm-500 whitespace-nowrap">{teacher.employee_number}</span>
+                  <span className="font-mono text-xs text-warm-700 whitespace-nowrap">{teacher.employee_number}</span>
                 </td>
 
                 {/* Email */}
                 <td className="list-td hidden md:table-cell">
-                  <span className="text-xs text-warm-500">{teacher.email}</span>
+                  <span className="text-xs text-warm-700">{teacher.email}</span>
                 </td>
 
                 {/* Spécialisation */}
                 <td className="list-td hidden lg:table-cell">
-                  <span className="text-xs text-warm-500">
-                    {teacher.specialization || <span className="text-warm-300">—</span>}
+                  <span className="text-xs text-warm-700">
+                    {teacher.specialization || <span className="text-warm-700">—</span>}
                   </span>
                 </td>
 
                 {/* Date d'embauche */}
                 <td className="list-td hidden lg:table-cell">
-                  <span className="text-xs text-warm-500">
+                  <span className="text-xs text-warm-700">
                     {new Date(teacher.hire_date).toLocaleDateString('fr-FR')}
                   </span>
                 </td>
@@ -180,7 +180,7 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                       <button
                         onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
                         aria-label="Modifier l'enseignant"
-                        className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                       >
                         <Pencil size={14} />
                       </button>
@@ -189,7 +189,7 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                       <button
                         onClick={() => startDelete(teacher)}
                         aria-label="Supprimer l'enseignant"
-                        className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                        className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -234,7 +234,7 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                   <li><strong>{deps.grades}</strong> note{deps.grades > 1 ? 's' : ''} saisie{deps.grades > 1 ? 's' : ''}</li>
                 )}
               </ul>
-              <p className="text-xs text-warm-500">
+              <p className="text-xs text-warm-700">
                 Vous pouvez le <strong>rendre inactif</strong> : son historique est conservé et son
                 compte de connexion est désactivé.
               </p>

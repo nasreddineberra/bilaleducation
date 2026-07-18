@@ -38,7 +38,7 @@ export default async function SuperAdminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-secondary-800">Établissements</h1>
-          <p className="text-warm-500 text-sm mt-1">
+          <p className="text-warm-700 text-sm mt-1">
             {etablissements?.length ?? 0} établissement{(etablissements?.length ?? 0) > 1 ? 's' : ''} enregistré{(etablissements?.length ?? 0) > 1 ? 's' : ''}
           </p>
         </div>
@@ -50,20 +50,20 @@ export default async function SuperAdminPage() {
 
       {!etablissements?.length ? (
         <div className="card p-12 text-center">
-          <Building2 className="w-12 h-12 text-warm-300 mx-auto mb-3" />
-          <p className="text-warm-500 font-medium">Aucun établissement</p>
-          <p className="text-warm-400 text-sm mt-1">Créez votre premier client avec le bouton ci-dessus.</p>
+          <Building2 className="w-12 h-12 text-warm-700 mx-auto mb-3" />
+          <p className="text-warm-700 font-medium">Aucun établissement</p>
+          <p className="text-warm-700 text-sm mt-1">Créez votre premier client avec le bouton ci-dessus.</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-warm-100 bg-warm-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wide">Établissement</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wide">Statut</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wide">Abonnement</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wide">Utilisateurs</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-warm-500 uppercase tracking-wide">Élèves</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Établissement</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Statut</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Abonnement</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Utilisateurs</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Élèves</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -77,7 +77,7 @@ export default async function SuperAdminPage() {
                   <tr key={e.id} className="hover:bg-warm-50/50 transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-secondary-800">{e.nom}</p>
-                      <p className="text-xs text-warm-400 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
+                      <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
                     </td>
                     <td className="px-4 py-3">
                       {e.is_active ? (
@@ -92,21 +92,21 @@ export default async function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3">
                       {dateStr ? (
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${expired ? 'text-red-600 bg-red-50' : 'text-warm-600 bg-warm-100'}`}>
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${expired ? 'text-red-600 bg-red-50' : 'text-warm-700 bg-warm-100'}`}>
                           <Clock className="w-3.5 h-3.5" />
                           {expired ? 'Expiré ' : ''}{dateStr}
                         </span>
                       ) : (
-                        <span className="text-xs text-warm-400">Sans expiration</span>
+                        <span className="text-xs text-warm-700">Sans expiration</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="inline-flex items-center gap-1 text-warm-600">
+                      <span className="inline-flex items-center gap-1 text-warm-700">
                         <Users className="w-3.5 h-3.5" />{s?.users ?? '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="inline-flex items-center gap-1 text-warm-600">
+                      <span className="inline-flex items-center gap-1 text-warm-700">
                         <GraduationCap className="w-3.5 h-3.5" />{s?.students ?? '—'}
                       </span>
                     </td>

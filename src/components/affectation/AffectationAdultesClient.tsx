@@ -123,7 +123,7 @@ function TutorCard({
       className={clsx(
         'w-full flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs transition-colors select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
         disabled
-          ? 'bg-warm-50 border-warm-100 text-warm-400 cursor-not-allowed'
+          ? 'bg-warm-50 border-warm-100 text-warm-700 cursor-not-allowed'
           : 'bg-white border-warm-200 text-secondary-800 cursor-pointer hover:border-primary-300 hover:bg-primary-50/30',
       )}
     >
@@ -137,12 +137,12 @@ function TutorCard({
         assignedClassLine
           ? (
             <Tooltip content={<span className="whitespace-nowrap">{assignedClassLine}</span>} maxWidth="max-w-none">
-              <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+              <span className="text-[10px] bg-warm-200 text-warm-700 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
                 {assignedClassName}
               </span>
             </Tooltip>
           ) : (
-            <span className="text-[10px] bg-warm-200 text-warm-600 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
+            <span className="text-[10px] bg-warm-200 text-warm-700 px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0">
               {assignedClassName}
             </span>
           )
@@ -163,8 +163,8 @@ function ClassRoster({
   return (
     <div className="flex-1 min-h-0 rounded-xl flex flex-col overflow-hidden">
       {rosterTutors.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-warm-400">
-          <Users size={28} className="text-warm-300" />
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-warm-700">
+          <Users size={28} className="text-warm-700" />
           <p className="text-sm">Cliquez un participant à gauche pour l&apos;affecter</p>
         </div>
       ) : (
@@ -182,7 +182,7 @@ function ClassRoster({
                 <button
                   onClick={() => onRemove(t.id)}
                   aria-label={`Retirer ${t.last_name} ${t.first_name}`}
-                  className="p-0.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
+                  className="p-0.5 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                 >
                   <X size={13} />
                 </button>
@@ -292,7 +292,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     if (!selectedClass) return null
     const line = classInfoLine(selectedClass)
     if (!line) return null
-    return <div className="text-xs text-warm-500">{line}</div>
+    return <div className="text-xs text-warm-700">{line}</div>
   }
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
@@ -334,8 +334,8 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
       {/* Panels */}
       {!selectedClassId ? (
         <div className="flex-1 min-h-0 card flex flex-col items-center justify-center">
-          <Users size={32} className="text-warm-300 mb-3" />
-          <p className="text-warm-400 text-sm">Sélectionnez un cours adulte pour commencer l'affectation</p>
+          <Users size={32} className="text-warm-700 mb-3" />
+          <p className="text-warm-700 text-sm">Sélectionnez un cours adulte pour commencer l'affectation</p>
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
@@ -344,11 +344,11 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
             {/* ── Panel gauche : participants disponibles ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-wide">
+                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-wide">
                   Participants ({tutors.length} inscrit{tutors.length > 1 ? 's' : ''} · {unassignedCount} non affecté{unassignedCount > 1 ? 's' : ''})
                 </h3>
                 <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1.5 text-[11px] text-warm-600 cursor-pointer select-none whitespace-nowrap">
+                  <label className="flex items-center gap-1.5 text-[11px] text-warm-700 cursor-pointer select-none whitespace-nowrap">
                     <input
                       type="checkbox"
                       checked={onlyUnassigned}
@@ -363,7 +363,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
 
               <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
                 {poolTutors.length === 0 && q && (
-                  <p className="text-xs text-warm-400 text-center py-6">Aucun résultat</p>
+                  <p className="text-xs text-warm-700 text-center py-6">Aucun résultat</p>
                 )}
                 {pagedTutors.map(t => {
                   const isInCurrentClass      = roster.includes(t.id)
@@ -389,14 +389,14 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
               {/* Pagination */}
               {poolTotalPages > 1 && (
                 <div className="flex-shrink-0 flex items-center justify-between pt-2 border-t border-warm-100">
-                  <span className="text-[11px] text-warm-400">
+                  <span className="text-[11px] text-warm-700">
                     {(poolCurPage - 1) * POOL_PAGE_SIZE + 1}–{Math.min(poolCurPage * POOL_PAGE_SIZE, poolTutors.length)} / {poolTutors.length}
                   </span>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setPoolPage(p => Math.max(1, p - 1))}
                       disabled={poolCurPage === 1}
-                      className="p-1 rounded text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="p-1 rounded text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
                       <ChevronLeft size={13} />
                     </button>
@@ -409,14 +409,14 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                       }, [])
                       .map((p, i) =>
                         p === '…' ? (
-                          <span key={`e${i}`} className="text-[11px] text-warm-400 px-0.5">…</span>
+                          <span key={`e${i}`} className="text-[11px] text-warm-700 px-0.5">…</span>
                         ) : (
                           <button
                             key={p}
                             onClick={() => setPoolPage(p as number)}
                             className={clsx(
                               'w-6 h-6 rounded text-[11px] font-medium transition-colors',
-                              p === poolCurPage ? 'bg-primary-600 text-white' : 'text-warm-500 hover:bg-warm-100 hover:text-secondary-700'
+                              p === poolCurPage ? 'bg-primary-600 text-white' : 'text-warm-700 hover:bg-warm-100 hover:text-secondary-700'
                             )}
                           >
                             {p}
@@ -426,7 +426,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                     <button
                       onClick={() => setPoolPage(p => Math.min(poolTotalPages, p + 1))}
                       disabled={poolCurPage === poolTotalPages}
-                      className="p-1 rounded text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="p-1 rounded text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
                       <ChevronRight size={13} />
                     </button>
@@ -449,7 +449,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                         type="button"
                         onClick={reloadClass}
                         aria-label="Recharger le cours depuis la base"
-                        className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                       >
                         <RotateCcw size={15} />
                       </button>

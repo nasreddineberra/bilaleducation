@@ -19,7 +19,7 @@ const HW_TYPE: Record<string, { label: string; color: string; icon: any }> = {
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
   lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
   expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
-  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-600', icon: FileText },
+  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-700', icon: FileText },
 }
 
 function teacherLabelOf(t: any): string {
@@ -200,12 +200,12 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
         <div className="px-5 py-3 border-b border-warm-100 flex items-start justify-between gap-3 flex-shrink-0">
           <div className="min-w-0">
             <h3 id="devoir-detail-title" className="text-sm font-bold text-secondary-800 truncate">{homework.title}</h3>
-            <div className="flex items-center gap-2 text-[11px] text-warm-500 mt-0.5 flex-wrap">
+            <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
               <CalendarDays size={12} />
-              <span className={clsx('font-medium', isPast ? 'text-warm-400' : 'text-red-600')}>A rendre le {formatDate(homework.due_date)}</span>
+              <span className={clsx('font-medium', isPast ? 'text-warm-700' : 'text-red-600')}>A rendre le {formatDate(homework.due_date)}</span>
               <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold">{homework.classes?.name}</span>
               {homework.subject && homework.subject !== 'General' && (
-                <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-600 font-bold">{homework.subject}</span>
+                <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
               )}
               <span className={clsx('inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold', typeInfo.color)}>
                 <TypeIcon size={11} />{typeInfo.label}
@@ -215,7 +215,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
-            <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+            <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
           </div>
@@ -244,11 +244,11 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
                   <div key={key} className="flex items-center gap-4">
                     {p && <span className="text-sm text-warm-700 w-40 truncate">{p.name}</span>}
                     <button onClick={() => toggle(key, 'is_seen')} aria-pressed={!!st?.is_seen}
-                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_seen ? 'text-blue-600' : 'text-warm-400 hover:text-blue-500')}>
+                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_seen ? 'text-blue-600' : 'text-warm-700 hover:text-blue-500')}>
                       {st?.is_seen ? <Eye size={16} /> : <Circle size={16} />} Vu
                     </button>
                     <button onClick={() => toggle(key, 'is_done')} aria-pressed={!!st?.is_done}
-                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_done ? 'text-green-600' : 'text-warm-400 hover:text-green-500')}>
+                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_done ? 'text-green-600' : 'text-warm-700 hover:text-green-500')}>
                       {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} Effectue
                     </button>
                   </div>
@@ -262,12 +262,12 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">{trackingLabel}</h4>
-                <span className="text-xs text-warm-400">{seenCount}/{total} vus · {doneCount}/{total} effectues</span>
+                <span className="text-xs text-warm-700">{seenCount}/{total} vus · {doneCount}/{total} effectues</span>
               </div>
               <div className="overflow-x-auto">
                 <table aria-label={`${trackingLabel} (vu / effectué)`} className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs text-warm-500 border-b border-warm-200">
+                    <tr className="text-left text-xs text-warm-700 border-b border-warm-200">
                       <th className="pb-2 pr-4">{isAdult ? 'Participant' : 'Eleve'}</th>
                       <th className="pb-2 px-4 text-center">Vu</th>
                       <th className="pb-2 px-4 text-center">Effectue</th>
@@ -284,14 +284,14 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
                               <Tooltip content={`Vu le ${formatShortDate(st.seen_at)}`}>
                                 <span className="text-blue-600 text-xs" aria-label={`Vu le ${formatShortDate(st.seen_at)}`}><Eye size={14} className="inline" /></span>
                               </Tooltip>
-                            ) : <span className="text-warm-300" aria-label="Non vu">·</span>}
+                            ) : <span className="text-warm-700" aria-label="Non vu">·</span>}
                           </td>
                           <td className="py-1.5 px-4 text-center">
                             {st?.is_done ? (
                               <Tooltip content={`Effectué le ${formatShortDate(st.done_at)}`}>
                                 <span className="text-green-600 text-xs" aria-label={`Effectué le ${formatShortDate(st.done_at)}`}><CheckCircle2 size={14} className="inline" /></span>
                               </Tooltip>
-                            ) : <span className="text-warm-300" aria-label="Non effectué">·</span>}
+                            ) : <span className="text-warm-700" aria-label="Non effectué">·</span>}
                           </td>
                         </tr>
                       )

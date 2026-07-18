@@ -288,7 +288,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         {/* Identité de l'élève */}
         <div className="card p-3 space-y-2">
           <div className="flex items-center">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest whitespace-nowrap">
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap">
               Identité de l'élève
             </h2>
             <div className="flex-1 flex justify-center">
@@ -412,24 +412,24 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         {parentData && (
           <div className="grid grid-cols-2 gap-2">
             <div className="card p-3 space-y-1.5">
-              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
               <InfoBlock>
-                <p>{tutorInfo?.address || <span className="text-warm-400 italic">Non renseignée</span>}</p>
+                <p>{tutorInfo?.address || <span className="text-warm-700 italic">Non renseignée</span>}</p>
                 {(tutorInfo?.postal_code || tutorInfo?.city) && (
-                  <p className="text-warm-500">
+                  <p className="text-warm-700">
                     {[tutorInfo.postal_code, tutorInfo.city].filter(Boolean).join(' ')}
                   </p>
                 )}
               </InfoBlock>
             </div>
             <div className="card p-3 space-y-1.5">
-              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                 {"Contact d'urgence & Santé"}
               </h2>
               <InfoBlock>
-                <p className="font-medium">{tutorInfo?.name || <span className="text-warm-400 italic">—</span>}</p>
-                <p className="font-mono text-xs text-warm-500">{tutorInfo?.phone || '—'}</p>
-                <p className="text-warm-500 text-xs">{tutorInfo?.email || '—'}</p>
+                <p className="font-medium">{tutorInfo?.name || <span className="text-warm-700 italic">·</span>}</p>
+                <p className="font-mono text-xs text-warm-700">{tutorInfo?.phone || '·'}</p>
+                <p className="text-warm-700 text-xs">{tutorInfo?.email || '·'}</p>
               </InfoBlock>
             </div>
           </div>
@@ -442,7 +442,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
           {/* Rattachement parental */}
           <div className="card p-3 space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
               Rattachement parental
             </h2>
 
@@ -483,7 +483,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
             <>
               {/* Sélecteur source tuteur */}
               <div className="card p-3">
-                <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">
                   Reprendre les informations (adresse et contact) du responsable
                 </p>
                 <div className="flex flex-col gap-1.5">
@@ -494,7 +494,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                     onChange={() => setTutorSource('tutor1')}
                   >
                     <span className="font-medium">{relLabel(parentData.tutor1_relationship, 'Tuteur 1')}</span>
-                    {' '}— {parentData.tutor1_last_name} {parentData.tutor1_first_name}
+                    {' · '}{parentData.tutor1_last_name} {parentData.tutor1_first_name}
                   </FloatRadioCard>
 
                   {hasTutor2 && (
@@ -505,7 +505,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                       onChange={() => setTutorSource('tutor2')}
                     >
                       <span className="font-medium">{relLabel(parentData.tutor2_relationship, 'Tuteur 2')}</span>
-                      {' '}— {parentData.tutor2_last_name} {parentData.tutor2_first_name}
+                      {' · '}{parentData.tutor2_last_name} {parentData.tutor2_first_name}
                     </FloatRadioCard>
                   )}
                 </div>
@@ -514,13 +514,13 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               {/* Frères / Sœurs */}
               <div className="card p-3 space-y-1.5 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <Users size={13} className="text-warm-400" />
-                  <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                  <Users size={13} className="text-warm-700" />
+                  <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                     {"Frères / Sœurs"}
                   </h2>
                 </div>
                 {siblings.length === 0 ? (
-                  <p className="text-[11px] text-warm-300 italic">{"Aucun frère ou sœur enregistré."}</p>
+                  <p className="text-[11px] text-warm-700 italic">{"Aucun frère ou sœur enregistré."}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {siblings.map(sib => {
@@ -543,21 +543,21 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                             >
                               {sib.last_name} {sib.first_name}
                             </Link>
-                            <span className="text-[11px] text-warm-400">{age} ans</span>
+                            <span className={`text-[11px] ${sib.is_active ? 'text-warm-700' : 'text-warm-400'}`}>{age} ans</span>
                             {!sib.is_active && (
-                              <span className="text-[10px] bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium leading-none">inactif</span>
+                              <span className="text-[10px] bg-warm-200 text-warm-700 px-1.5 py-0.5 rounded font-medium leading-none">inactif</span>
                             )}
                             {sib.gender === 'male' ? (
                               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold leading-none">M</span>
                             ) : sib.gender === 'female' ? (
                               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-pink-100 text-pink-500 text-[10px] font-bold leading-none">F</span>
                             ) : (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-400 text-[10px] font-bold leading-none">—</span>
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-700 text-[10px] font-bold leading-none">—</span>
                             )}
                           </div>
                           {cls?.name && (
-                            <p className="text-[11px] text-warm-500 mt-0.5">
-                              Classe : {cls.name}{schedule ? ` · ${schedule}` : ''}{teacherName ? ` — ${teacherName}` : ''}
+                            <p className={`text-[11px] mt-0.5 ${sib.is_active ? 'text-warm-700' : 'text-warm-400'}`}>
+                              Classe : {cls.name}{teacherName ? ` · ${teacherName}` : ''}{schedule ? ` · ${schedule}` : ''}
                             </p>
                           )}
                         </div>
@@ -573,7 +573,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
       {/* ── Autorisations & Suivi particulier ── */}
       <div className="card p-3 space-y-2 max-w-5xl">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
           Autorisations & Suivi particulier
         </h2>
 
@@ -611,7 +611,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-2 pt-1">
-        <span className="text-xs text-warm-400"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
+        <span className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
         <div className="flex-1" />
         <FloatButton type="button" variant="secondary" onClick={() => router.push(backHref)}>
           Annuler
@@ -658,7 +658,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               <button
                 onClick={handleCloseParentModal}
                 aria-label="Fermer"
-                className="flex-shrink-0 p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                className="flex-shrink-0 p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
               >
                 <X size={18} />
               </button>
@@ -667,7 +667,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
             {/* Contenu scrollable */}
             <div className="overflow-y-auto flex-1 px-6 py-4">
               {loadingParent ? (
-                <div className="flex items-center justify-center py-16 gap-3 text-warm-400">
+                <div className="flex items-center justify-center py-16 gap-3 text-warm-700">
                   <Loader2 size={20} className="animate-spin" />
                   <span className="text-sm">Chargement de la fiche…</span>
                 </div>
@@ -857,7 +857,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
           {photoUrl ? (
             <Image src={photoUrl} alt="Photo élève" width={78} height={104} className="w-full h-full object-cover" unoptimized />
           ) : (
-            <User size={32} className="text-warm-300" />
+            <User size={32} className="text-warm-700" />
           )}
         </div>
 
@@ -905,7 +905,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
               <button
                 type="button"
                 onClick={() => setConfirmDelete(false)}
-                className="text-xs text-warm-400 hover:text-warm-600 transition-colors"
+                className="text-xs text-warm-700 hover:text-secondary-700 transition-colors"
               >
                 Annuler
               </button>
@@ -939,7 +939,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
               <button
                 type="button"
                 onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
               >
                 <X size={16} />
               </button>
@@ -997,7 +997,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
               <button
                 type="button"
                 onClick={closeWebcam}
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
               >
                 <X size={16} />
               </button>

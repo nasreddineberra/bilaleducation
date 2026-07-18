@@ -32,7 +32,7 @@ export default function RootError({
         Une erreur est survenue
       </h2>
 
-      <p className="text-sm text-warm-500 mb-6 max-w-md leading-relaxed">
+      <p className="text-sm text-warm-700 mb-6 max-w-md leading-relaxed">
         Le chargement de l'application a échoué. Cela peut être dû à un problème de connexion ou à une erreur temporaire du serveur.
       </p>
 
@@ -47,7 +47,7 @@ export default function RootError({
 
         <button
           onClick={() => router.push('/')}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-warm-100 text-warm-600 hover:bg-warm-200 transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-warm-100 text-warm-700 hover:bg-warm-200 transition-colors"
         >
           <Home size={15} />
           Accueil

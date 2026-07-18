@@ -50,17 +50,17 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
         <div className="px-5 py-3 border-b border-warm-100 flex items-start justify-between gap-3 flex-shrink-0">
           <div className="min-w-0">
             <h3 id="seance-detail-title" className="text-sm font-bold text-secondary-800 truncate">{journal.title}</h3>
-            <div className="flex items-center gap-2 text-[11px] text-warm-500 mt-0.5 flex-wrap">
+            <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
               <CalendarDays size={12} />
               <span>{formatDate(journal.session_date)}</span>
               <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold">{journal.classes?.name}</span>
-              {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-600 font-bold">{journal.subject}</span>}
+              {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
               <span>{teacherLabel}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
-            <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+            <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
           </div>

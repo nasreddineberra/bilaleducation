@@ -1076,8 +1076,39 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
 - **Reste** : 24 occurrences dans Reglements (titres `<h3>` du panneau de detail + `<th>` maison en `px-2`, la
   ou `.list-th` impose `px-4`) → arbitrer entre `.stat-label` et une variante compacte `.list-th-compact`.
 
+#### 18 juillet 2026 — Passe globale de LISIBILITE (beige clair → warm-700)
+- **Constat** : `text-warm-400` = 2,06:1, `warm-500` = 2,34:1, `warm-600` = 3,20:1 sur blanc —
+  tous **sous** le seuil WCAG AA petit texte (4,5:1). Decision utilisateur : **plus de beige
+  clair**, tout le texte lisible en **`text-warm-700`** (5,04:1).
+- **Module Apprenants (reference)** : liste + fiche + 3 onglets + composants partages. Regles
+  fixees : texte/intitules/infos/**placeholders**/**icones accessoires** → warm-700 ; **grise
+  d'etat preserve** (ligne inactive, valeur verrouillee) en warm-400 ; **3 niveaux de fond**
+  (actif blanc / inactif `warm-50` / survol `warm-100`, survol toujours + fonce que l'inactif) ;
+  age & « Non affecte » **conditionnels** (fonce si actif, grise si inactif) ; pas d'icone `+`
+  sur « Ajouter ».
+- **Champ de recherche** (`SearchField`) : placeholder + loupe + croix → warm-700 (le texte
+  saisi est `secondary-800`, quasi-noir → placeholder warm-700 reste nettement plus clair,
+  pas de confusion « champ pre-rempli »).
+- **Composants partages** (impact toute l'app) : `FloatFields` (labels Input/Select/Textarea/
+  Checkbox, chevron, hint, bouton « ? », **labels de champs verrouilles**), `ListStatCard`
+  (libelle), `.list-th` (deja fait 17/07), `.stat-label`.
+- **Passe GLOBALE** : bump `text-warm-300/400/500/600 → warm-700` sur les **114 fichiers** via
+  sed (hors `FloatFields`, traite a la main). **Restauration ciblee** du grise semantique :
+  branche INACTIVE des ternaires `is_active ?` (nom inactif → warm-400) sur ParentsTable,
+  TeachersTable, UtilisateursTable, StudentsTable, StudentForm (freres/sœurs), StudentsStatusSyncModal ;
+  valeur verrouillee + case decochee (FloatFields). **Piege** : le sed re-bumpe les branches
+  inactives soigneusement mises a warm-400 → toujours restaurer APRES le bump global. **Regle
+  (memoire `label-contrast-pass`)** : nouveau texte lisible = warm-700 ; warm-400 UNIQUEMENT
+  pour un etat desactive/inactif.
+- **Divers** : quadratins d'affichage `—` → `·` sur la fiche apprenant (enseignant frere/sœur,
+  cartes « Pere · … », contact vide) + colonne « Situation familiale » (liste parents) ; ordre
+  du bloc frere/sœur corrige (**classe · enseignant · horaires**) ; « Niveau » masque si vide
+  (onglet Scolarite) ; icone `+` retiree de « Ajouter » (Apprenants + Parents).
+
 ## Prochaine etape
 - **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact` ci-dessus.
+- **Verifier visuellement** la passe de lisibilite module par module (surtout les etats inactifs
+  et les modales) ; nettoyage des quadratins `—` restants = passe de fin de V1.
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,

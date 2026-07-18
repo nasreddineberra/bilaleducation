@@ -104,7 +104,7 @@ export default function StudentDetail({
       {/* En-tête : avatar + nom + repères */}
       <div className="flex items-center gap-3">
         <div className={clsx(
-          'w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none bg-warm-100 text-warm-600',
+          'w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none bg-warm-100 text-warm-700',
           genderRing
         )}>
           {initiales}
@@ -113,13 +113,13 @@ export default function StudentDetail({
           <h1 className="text-lg font-bold text-secondary-800 leading-tight truncate">
             {student.last_name} {student.first_name}
           </h1>
-          <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
             <span className="font-mono">{student.student_number}</span>
             {activeClassName
               ? <span>· {activeClassName}</span>
-              : <span className="text-warm-300 italic">· Non affecté</span>}
+              : <span className="text-warm-700 italic">· Non affecté</span>}
             {!student.is_active && (
-              <span className="bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">Inactif</span>
+              <span className="bg-warm-200 text-warm-700 px-1.5 py-0.5 rounded font-medium">Inactif</span>
             )}
             {student.has_pai && (
               <span className="font-semibold text-red-500 bg-red-100 px-1.5 py-0.5 rounded">PAI</span>
@@ -149,7 +149,7 @@ export default function StudentDetail({
                 'outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
                 active
                   ? 'border-primary-600 text-primary-700'
-                  : 'border-transparent text-warm-400 hover:text-warm-600 hover:border-warm-300'
+                  : 'border-transparent text-warm-700 hover:text-secondary-800 hover:border-warm-300'
               )}
             >
               <Icon size={15} />

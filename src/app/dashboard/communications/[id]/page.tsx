@@ -71,7 +71,7 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
           annee-scolaire/[id]) pour une structure identique. */}
       <Link
         href="/dashboard/communications"
-        className="inline-flex items-center gap-1.5 text-sm text-warm-500 hover:text-secondary-700 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
       >
         <ChevronLeft size={15} />
         Retour à la liste

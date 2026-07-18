@@ -208,7 +208,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
       {completionStats.total > 0 && (
         <div className="card p-3">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-warm-600">
+            <span className="text-[11px] font-semibold text-warm-700">
               Complétude du dossier
             </span>
             <span className={clsx(
@@ -240,7 +240,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
         return (
           <div key={cat.key} className="card">
             <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
-              <h3 className="text-[11px] font-semibold text-warm-600 uppercase tracking-wide">{cat.label}</h3>
+              <h3 className="text-[11px] font-semibold text-warm-700 uppercase tracking-wide">{cat.label}</h3>
               <FloatButton
                 variant="submit"
                 onClick={() => {
@@ -258,7 +258,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
             </div>
 
             {types.length === 0 && (
-              <p className="px-3 py-2 text-[11px] text-warm-300 italic">
+              <p className="px-3 py-2 text-[11px] text-warm-700 italic">
                 Aucun document attendu.
               </p>
             )}
@@ -290,12 +290,12 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Fichier</label>
+                      <label className="block text-[11px] font-medium text-warm-700 mb-0.5">Fichier</label>
                       <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*,.pdf"
-                        className="text-xs text-warm-600 file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary w-full"
+                        className="text-xs text-warm-700 file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary w-full"
                         onChange={e => setFormFile(e.target.files?.[0] ?? null)}
                       />
                     </div>
@@ -329,13 +329,13 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                     ) : (
                       t.is_required
                         ? <AlertCircle size={12} className="text-red-400" />
-                        : <FileText size={12} className="text-warm-200" />
+                        : <FileText size={12} className="text-warm-700" />
                     )}
 
                     {/* Nom du type */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className={clsx('text-xs', doc ? 'text-warm-700' : 'text-warm-400')}>
+                        <span className="text-xs text-warm-700">
                           {t.label}
                         </span>
                         {t.is_required && !doc && (
@@ -345,7 +345,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
 
                       {doc && (
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-warm-400 truncate max-w-[120px]">{doc.file_name}</span>
+                          <span className="text-[10px] text-warm-700 truncate max-w-[120px]">{doc.file_name}</span>
                           {doc.expires_at && (
                             <span className={clsx(
                               'text-[9px] font-medium px-1 py-0.5 rounded-full',
@@ -370,7 +370,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                             onClick={() => handlePreview(doc.file_url)}
                             disabled={loadingPreview}
                             aria-label="Aperçu du document"
-                            className="text-warm-400 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="text-warm-700 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Eye size={12} />
                           </button>
@@ -379,7 +379,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                           <button
                             onClick={() => handleDownload(doc.file_url, doc.file_name)}
                             aria-label="Télécharger le document"
-                            className="text-warm-400 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="text-warm-700 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Download size={12} />
                           </button>
@@ -387,14 +387,14 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                         {confirmDelete === doc.id ? (
                           <div className="flex items-center gap-1 text-[11px]">
                             <button onClick={() => handleDelete(doc.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
-                            <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline">Non</button>
+                            <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
                           </div>
                         ) : (
                           <Tooltip content="Supprimer">
                             <button
                               onClick={() => setConfirmDelete(doc.id)}
                               aria-label="Supprimer le document"
-                              className="text-warm-400 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              className="text-warm-700 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -420,7 +420,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
               <h3 className="text-xs font-bold text-secondary-800">Aperçu du document</h3>
               <button
                 onClick={() => setPreviewUrl(null)}
-                className="p-1.5 text-warm-400 hover:text-white hover:bg-red-500 rounded-lg transition-colors"
+                className="p-1.5 text-warm-700 hover:text-white hover:bg-red-500 rounded-lg transition-colors"
               >
                 <X size={18} />
               </button>

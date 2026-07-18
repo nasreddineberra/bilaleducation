@@ -119,7 +119,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
                 'px-4 py-1.5 rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                 active
                   ? 'bg-white text-secondary-800 shadow-sm'
-                  : 'text-warm-500 hover:text-secondary-700'
+                  : 'text-warm-700 hover:text-secondary-700'
               )}
             >
               {t.label} ({count})

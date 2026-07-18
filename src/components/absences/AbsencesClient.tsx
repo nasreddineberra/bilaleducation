@@ -366,7 +366,7 @@ export default function AbsencesClient({
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
                     ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
-                    : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
+                    : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >
                 {PERIOD_LABELS[p.label] ?? p.label}
@@ -395,7 +395,7 @@ export default function AbsencesClient({
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
           if (schedule) parts.push(schedule)
           if (parts.length === 0) return null
-          return <span className="ml-auto text-sm font-medium text-warm-600 whitespace-nowrap">{parts.join(' · ')}</span>
+          return <span className="ml-auto text-sm font-medium text-warm-700 whitespace-nowrap">{parts.join(' · ')}</span>
         })()}
       </div>
 
@@ -404,7 +404,7 @@ export default function AbsencesClient({
 
         {noClassOrPeriod || noSchoolYear ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-warm-400">
+            <p className="text-sm text-warm-700">
               {noSchoolYear ? 'Aucune année scolaire active.' : 'Sélectionnez une classe et une période.'}
             </p>
           </div>
@@ -430,7 +430,7 @@ export default function AbsencesClient({
                   Imprimer
                 </FloatButton>
               </div>
-              <div className="flex items-center gap-4 text-xs text-warm-500">
+              <div className="flex items-center gap-4 text-xs text-warm-700">
                 <span>{summary.abs} absence{summary.abs > 1 ? 's' : ''} <span className="text-red-500 font-semibold">({summary.absNJ} NJ)</span></span>
                 <span>{summary.ret} retard{summary.ret > 1 ? 's' : ''}</span>
               </div>
@@ -440,12 +440,12 @@ export default function AbsencesClient({
             <div className="flex-1 overflow-y-auto">
               {classStudents.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-warm-400">Aucun élève inscrit dans cette classe.</p>
+                  <p className="text-sm text-warm-700">Aucun élève inscrit dans cette classe.</p>
                 </div>
               ) : (
                 <table aria-label="Récapitulatif des absences et retards par élève" className="w-full text-xs">
                   <thead className="sticky top-0 bg-warm-50 z-10">
-                    <tr className="text-[11px] text-warm-500 uppercase tracking-wide">
+                    <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
                       <th className="text-left py-1 px-2 pl-3 font-semibold">Élèves</th>
                       <th className="text-center py-1 px-2 font-semibold w-14">Abs</th>
                       <th className="text-center py-1 px-2 font-semibold w-14">Abs NJ</th>
@@ -581,12 +581,12 @@ function StudentRow({
         <tr>
           <td colSpan={6} className="bg-warm-50/50 px-3 py-2">
             {absences.length === 0 ? (
-              <p className="text-xs text-warm-400 italic py-1">Aucune absence ou retard enregistré.</p>
+              <p className="text-xs text-warm-700 italic py-1">Aucune absence ou retard enregistré.</p>
             ) : (
               <div className="space-y-1">
                 {absences.map(a => (
                   <div key={a.id} className="flex items-center gap-3 text-xs py-1 border-b border-warm-100 last:border-0">
-                    <span className="font-mono text-warm-600 w-16 flex-shrink-0">{fmtDate(a.absence_date)}</span>
+                    <span className="font-mono text-warm-700 w-16 flex-shrink-0">{fmtDate(a.absence_date)}</span>
                     <span className={clsx(
                       'px-2 py-0.5 rounded-full text-[11px] font-semibold flex-shrink-0',
                       a.absence_type === 'absence'
@@ -595,13 +595,13 @@ function StudentRow({
                     )}>
                       {a.absence_type === 'absence' ? 'Absence' : 'Retard'}
                     </span>
-                    {a.comment && <span className="text-warm-500 truncate">{a.comment}</span>}
+                    {a.comment && <span className="text-warm-700 truncate">{a.comment}</span>}
                     <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                       {a.is_justified ? (
                         <span className="flex items-center gap-1.5">
                           <span className="flex items-center gap-1 text-green-600">
                             <FileCheck size={12} /> Justifié
-                            {a.justification_date && <span className="text-warm-400">({fmtDate(a.justification_date)})</span>}
+                            {a.justification_date && <span className="text-warm-700">({fmtDate(a.justification_date)})</span>}
                           </span>
                           {a.justification_document_url && (
                             <button
@@ -627,7 +627,7 @@ function StudentRow({
                               </button>
                               <button
                                 onClick={e => { e.stopPropagation(); setConfirmRemoveJustId(null) }}
-                                className="text-warm-400 hover:text-warm-600"
+                                className="text-warm-700 hover:text-warm-700"
                               >
                                 Annuler
                               </button>
@@ -635,7 +635,7 @@ function StudentRow({
                           ) : (
                             <button
                               onClick={e => { e.stopPropagation(); setConfirmRemoveJustId(a.id) }}
-                              className="text-warm-400 hover:text-red-500 font-semibold transition-colors"
+                              className="text-warm-700 hover:text-red-500 font-semibold transition-colors"
                             >
                               Retirer
                             </button>
@@ -659,7 +659,7 @@ function StudentRow({
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
-                            className="text-warm-400 hover:text-warm-600"
+                            className="text-warm-700 hover:text-warm-700"
                           >
                             Annuler
                           </button>
@@ -668,7 +668,7 @@ function StudentRow({
                         <button
                           onClick={e => { e.stopPropagation(); setConfirmDeleteId(a.id) }}
                           aria-label={`Supprimer ${a.absence_type === 'absence' ? "l'absence" : 'le retard'} du ${fmtDate(a.absence_date)}`}
-                          className="text-warm-300 hover:text-red-500 transition-colors"
+                          className="text-warm-700 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -1097,18 +1097,18 @@ function SaisieModal({
             <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                <span className="text-warm-600">{counts.present}</span>
+                <span className="text-warm-700">{counts.present}</span>
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                <span className="text-warm-600">{counts.absence}</span>
+                <span className="text-warm-700">{counts.absence}</span>
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span className="text-warm-600">{counts.retard}</span>
+                <span className="text-warm-700">{counts.retard}</span>
               </span>
             </div>
-            <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+            <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
           </div>
@@ -1162,14 +1162,14 @@ function SaisieModal({
           {/* Panneau droit : recapitulatif absents/retards */}
           <div className="w-72 flex-shrink-0 border-l border-warm-100 flex flex-col bg-warm-50/30">
             <div className="px-3 py-2 border-b border-warm-100 flex-shrink-0">
-              <h4 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              <h4 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                 Absences / Retards ({nonPresent.length})
               </h4>
             </div>
 
             <div className="flex-1 overflow-y-auto">
               {nonPresent.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-2 text-warm-400">
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-warm-700">
                   <Check size={24} />
                   <p className="text-xs">Tous presents</p>
                 </div>
@@ -1203,7 +1203,7 @@ function SaisieModal({
                         >
                           {status === 'absence' ? 'Retard ?' : 'Absent ?'}
                         </button>
-                        <span className="text-warm-300">|</span>
+                        <span className="text-warm-700">|</span>
                         <button
                           type="button"
                           onClick={() => setEntry(idx, 'present')}
@@ -1230,7 +1230,7 @@ function SaisieModal({
                               type="button"
                               onMouseDown={e => { e.preventDefault(); setComment(idx, ''); setEditingComment(null) }}
                               aria-label="Effacer le commentaire"
-                              className="flex-shrink-0 text-warm-400 hover:text-red-500 transition-colors"
+                              className="flex-shrink-0 text-warm-700 hover:text-red-500 transition-colors"
                             >
                               <X size={12} />
                             </button>
@@ -1245,7 +1245,7 @@ function SaisieModal({
                               'text-[10px] truncate flex-1 text-left',
                               comment
                                 ? status === 'absence' ? 'text-red-600 font-medium' : 'text-amber-600 font-medium'
-                                : 'text-warm-400 italic'
+                                : 'text-warm-700 italic'
                             )}
                           >
                             {comment || '+ Ajouter un commentaire'}
@@ -1255,7 +1255,7 @@ function SaisieModal({
                               type="button"
                               onClick={() => setComment(idx, '')}
                               aria-label="Effacer le commentaire"
-                              className="flex-shrink-0 text-warm-300 hover:text-red-500 transition-colors"
+                              className="flex-shrink-0 text-warm-700 hover:text-red-500 transition-colors"
                             >
                               <X size={11} />
                             </button>
@@ -1276,7 +1276,7 @@ function SaisieModal({
         )}
 
         <div className="px-4 py-2.5 border-t border-warm-100 flex items-center justify-between flex-shrink-0">
-          <span className="text-xs text-warm-400">
+          <span className="text-xs text-warm-700">
             {!hasChanges
               ? 'Aucune modification'
               : [
@@ -1401,7 +1401,7 @@ function JustificationModal({
 
         <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
           <h3 id="justif-title" className="text-sm font-bold text-secondary-800">{absence.is_justified ? 'Modifier la justification' : 'Justifier'}</h3>
-          <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+          <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -1432,7 +1432,7 @@ function JustificationModal({
           />
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">
               Document justificatif
             </label>
             <div className="flex items-center gap-2">
@@ -1444,7 +1444,7 @@ function JustificationModal({
               >
                 {file ? 'Changer' : 'Importer'}
               </FloatButton>
-              {file && <span className="text-xs text-warm-500 truncate">{file.name}</span>}
+              {file && <span className="text-xs text-warm-700 truncate">{file.name}</span>}
             </div>
             <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
           </div>

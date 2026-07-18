@@ -147,7 +147,7 @@ export default function TotpChallengePage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-secondary-800 leading-tight">Vérification en deux étapes</h2>
-              <p className="text-xs text-warm-500 mt-0.5">
+              <p className="text-xs text-warm-700 mt-0.5">
                 Saisissez le code de votre application d'authentification.
               </p>
             </div>
@@ -156,7 +156,7 @@ export default function TotpChallengePage() {
           {!isReady ? (
             <div className="text-center py-8">
               <Loader2 size={32} className="animate-spin text-primary-500 mx-auto" />
-              <p className="text-sm text-warm-400 mt-3">Chargement…</p>
+              <p className="text-sm text-warm-700 mt-3">Chargement…</p>
             </div>
           ) : (
             <form onSubmit={handleVerify} noValidate className="space-y-4">

@@ -40,7 +40,7 @@ export default function DashboardHeader({ firstName, roleLabel, yearLabel, perio
           <h2 className="text-2xl font-bold text-secondary-800">
             Bonjour, {firstName}
           </h2>
-          <p className="text-warm-500 mt-1 text-sm">
+          <p className="text-warm-700 mt-1 text-sm">
             {roleLabel} · {today}
           </p>
         </div>
@@ -52,7 +52,7 @@ export default function DashboardHeader({ firstName, roleLabel, yearLabel, perio
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Bell size={14} className="text-primary-500" />
-              <span className="text-xs font-bold text-warm-600">
+              <span className="text-xs font-bold text-warm-700">
                 {unreadNotifs} notification{unreadNotifs > 1 ? 's' : ''} non lue{unreadNotifs > 1 ? 's' : ''}
               </span>
             </div>
@@ -72,7 +72,7 @@ export default function DashboardHeader({ firstName, roleLabel, yearLabel, perio
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
                   <span className="font-medium text-warm-700 truncate flex-1">{ann.title}</span>
-                  <span className="text-warm-400 flex-shrink-0">{formatDate(ann.published_at)}</span>
+                  <span className="text-warm-700 flex-shrink-0">{formatDate(ann.published_at)}</span>
                 </Link>
               )
             })}

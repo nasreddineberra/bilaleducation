@@ -153,7 +153,7 @@ export default function MfaChallengePage() {
             <div>
               <h2 className="text-xl font-bold text-secondary-800 leading-tight">Vérification en deux étapes</h2>
               {maskedPhone && (
-                <p className="text-xs text-warm-500 mt-0.5">
+                <p className="text-xs text-warm-700 mt-0.5">
                   Code envoyé au <span className="font-semibold text-secondary-700">{maskedPhone}</span>
                 </p>
               )}
@@ -166,7 +166,7 @@ export default function MfaChallengePage() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <p className="text-sm text-warm-400 mt-3">Envoi du SMS…</p>
+              <p className="text-sm text-warm-700 mt-3">Envoi du SMS…</p>
             </div>
           ) : (
             <form onSubmit={handleVerify} noValidate className="space-y-4">
@@ -220,7 +220,7 @@ export default function MfaChallengePage() {
                   className={clsx(
                     'text-sm font-medium transition-colors',
                     cooldown > 0 || isSubmitting
-                      ? 'text-warm-300 cursor-not-allowed'
+                      ? 'text-warm-700 cursor-not-allowed'
                       : 'text-primary-600 hover:text-primary-700'
                   )}
                 >

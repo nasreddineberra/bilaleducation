@@ -144,7 +144,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
 
       {/* ── Formulaire d'ajout ── */}
       <div className="card p-3 space-y-3 max-w-5xl">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Ajouter un document</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Ajouter un document</h2>
 
         <div className="flex flex-wrap items-end gap-2">
           <div className="w-44">
@@ -194,15 +194,15 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}
-        <p className="text-[11px] text-warm-400">Formats acceptés : PDF, image… — 1 Mo maximum.</p>
-        <p className="text-xs text-warm-400"><span className="font-semibold text-red-400">*</span> champs obligatoires</p>
+        <p className="text-[11px] text-warm-700">Formats acceptés : PDF, image… — 1 Mo maximum.</p>
+        <p className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</p>
       </div>
 
       {/* ── Tableau (trié par catégorie) ── */}
       {documents.length === 0 ? (
         <div className="card py-12 text-center max-w-3xl">
-          <FileText size={32} className="text-warm-300 mx-auto" />
-          <p className="text-sm text-warm-400 mt-2">Aucun document pour le moment.</p>
+          <FileText size={32} className="text-warm-700 mx-auto" />
+          <p className="text-sm text-warm-700 mt-2">Aucun document pour le moment.</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden max-w-4xl">
@@ -225,13 +225,13 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                     <td className="list-td text-secondary-700 whitespace-nowrap">{categoryLabel}</td>
                     <td className="list-td">
                       <span className="list-name text-secondary-800 truncate">
-                        {doc.label || <span className="text-warm-300">—</span>}
+                        {doc.label || <span className="text-warm-700">—</span>}
                       </span>
                     </td>
                     <td className="list-td">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <FileText size={13} className="text-warm-400 flex-shrink-0" />
-                        <span className="text-xs text-warm-500 truncate">{doc.file_name}</span>
+                        <FileText size={13} className="text-warm-700 flex-shrink-0" />
+                        <span className="text-xs text-warm-700 truncate">{doc.file_name}</span>
                       </div>
                     </td>
                     <td className="list-td whitespace-nowrap">
@@ -240,11 +240,11 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                           'text-[11px] px-1.5 py-0.5 rounded font-medium',
                           exp === 'expired' ? 'bg-red-100 text-red-600'
                             : exp === 'soon' ? 'bg-amber-100 text-amber-700'
-                            : 'bg-warm-100 text-warm-500'
+                            : 'bg-warm-100 text-warm-700'
                         )}>
                           {exp === 'expired' ? 'Expiré' : `Exp. ${formatDate(doc.expires_at)}`}
                         </span>
-                      ) : <span className="text-warm-300">—</span>}
+                      ) : <span className="text-warm-700">—</span>}
                     </td>
                     <td className="list-td">
                       <div className="flex items-center justify-end gap-1">
@@ -252,7 +252,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                           <button
                             onClick={() => handlePreview(doc.file_url)}
                             aria-label="Aperçu du document"
-                            className="p-1 text-warm-400 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1 text-warm-700 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Eye size={14} />
                           </button>
@@ -261,7 +261,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                           <button
                             onClick={() => handleDownload(doc.file_url, doc.file_name)}
                             aria-label="Télécharger le document"
-                            className="p-1 text-warm-400 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1 text-warm-700 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Download size={14} />
                           </button>
@@ -269,14 +269,14 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                         {confirmDelete === doc.id ? (
                           <span className="flex items-center gap-1 text-[11px]">
                             <button onClick={() => handleDelete(doc.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
-                            <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline">Non</button>
+                            <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
                           </span>
                         ) : (
                           <Tooltip content="Supprimer">
                             <button
                               onClick={() => setConfirmDelete(doc.id)}
                               aria-label="Supprimer le document"
-                              className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                             >
                               <Trash2 size={14} />
                             </button>

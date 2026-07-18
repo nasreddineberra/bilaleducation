@@ -129,7 +129,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
 
       {/* ── Mes informations (éditable) ── */}
       <form onSubmit={handleSave} noValidate className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Mes informations</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mes informations</h2>
 
         <div className="grid grid-cols-[6rem_1fr_1fr] gap-3">
           <FloatSelect label="Civilité" value={form.civilite} onChange={e => set('civilite', e.target.value)}>
@@ -153,7 +153,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
 
       {/* ── Compte ── */}
       <div className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Compte</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Compte</h2>
         <div className="grid grid-cols-2 gap-3">
           {canEditEmail ? (
             <FloatInput
@@ -173,14 +173,14 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
         )}
         {canEditEmail ? (
           <div className="flex items-center gap-3">
-            <p className="text-[11px] text-warm-400">Le rôle et l&apos;établissement ne sont pas modifiables.</p>
+            <p className="text-[11px] text-warm-700">Le rôle et l&apos;établissement ne sont pas modifiables.</p>
             <div className="flex-1" />
             <FloatButton type="button" variant="edit" disabled={!emailChanged || emailSaving} onClick={() => setConfirmEmail(true)}>
               Changer l&apos;email
             </FloatButton>
           </div>
         ) : (
-          <p className="text-[11px] text-warm-400">
+          <p className="text-[11px] text-warm-700">
             Pour changer d&apos;adresse email, de rôle ou d&apos;établissement, contactez un administrateur.
           </p>
         )}
@@ -188,7 +188,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
 
       {/* ── Mot de passe ── */}
       <form onSubmit={changePassword} noValidate className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Mot de passe</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mot de passe</h2>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="relative">
@@ -205,7 +205,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
               onClick={() => setShowPw(v => !v)}
               aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
               aria-pressed={showPw}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 z-10"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 z-10"
             >
               {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
@@ -226,7 +226,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
             {PASSWORD_RULES.map(rule => {
               const ok = rule.test(newPw, profile.first_name, profile.last_name)
               return (
-                <li key={rule.key} className={`flex items-center gap-1.5 text-[11px] ${ok ? 'text-emerald-600' : 'text-warm-400'}`}>
+                <li key={rule.key} className={`flex items-center gap-1.5 text-[11px] ${ok ? 'text-emerald-600' : 'text-warm-700'}`}>
                   {ok ? <Check size={12} className="flex-shrink-0" /> : <X size={12} className="flex-shrink-0" />}
                   {rule.label}
                 </li>

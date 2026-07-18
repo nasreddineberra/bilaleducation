@@ -51,7 +51,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
           <BookOpen size={14} className="text-success-500" /> Mes classes
         </h3>
         {stats.myClasses.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune classe assignée</p>
+          <p className="text-xs text-warm-700 italic py-4 text-center">Aucune classe assignée</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {stats.myClasses.map(c => (
@@ -60,7 +60,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
                   <span className="text-sm font-bold text-warm-800">{c.name}</span>
                   {c.isMain && <span className="text-[10px] font-bold uppercase bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">Principal</span>}
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-warm-500">
+                <div className="flex items-center gap-3 mt-1 text-xs text-warm-700">
                   <span>{c.enrolled} élève{c.enrolled > 1 ? 's' : ''}</span>
                   {c.schedule && (
                     <span>{DAY_NAMES[c.schedule.day_of_week]} {fmtTime(c.schedule.start_time)}-{fmtTime(c.schedule.end_time)}</span>
@@ -81,7 +81,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
           <Link href="/dashboard/absences" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
         </div>
         {stats.recentAbsences.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune absence récente</p>
+          <p className="text-xs text-warm-700 italic py-4 text-center">Aucune absence récente</p>
         ) : (
           <div className="space-y-1.5">
             {stats.recentAbsences.map(a => (
@@ -89,9 +89,9 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
                 <span className="font-medium text-warm-700 truncate">
                   {a.students?.last_name} {a.students?.first_name}
                 </span>
-                <span className="text-warm-400 flex-shrink-0">{a.classes?.name}</span>
-                <span className="ml-auto text-warm-400 flex-shrink-0">{ABSENCE_TYPE[a.absence_type] ?? a.absence_type}</span>
-                <span className="text-warm-300 flex-shrink-0">
+                <span className="text-warm-700 flex-shrink-0">{a.classes?.name}</span>
+                <span className="ml-auto text-warm-700 flex-shrink-0">{ABSENCE_TYPE[a.absence_type] ?? a.absence_type}</span>
+                <span className="text-warm-700 flex-shrink-0">
                   {new Date(a.absence_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                 </span>
               </div>

@@ -43,16 +43,16 @@ export default function DashboardPedago({ stats, ...headerProps }: Props) {
           <Link href="/dashboard/evaluations" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
         </div>
         {stats.recentEvals.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucune évaluation récente</p>
+          <p className="text-xs text-warm-700 italic py-4 text-center">Aucune évaluation récente</p>
         ) : (
           <div className="space-y-1.5">
             {stats.recentEvals.map(e => (
               <div key={e.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
                 <span className="font-medium text-warm-700 truncate flex-1">{e.title}</span>
-                <span className="text-warm-400 flex-shrink-0">{e.classes?.name}</span>
+                <span className="text-warm-700 flex-shrink-0">{e.classes?.name}</span>
                 {e.evaluation_date && (
-                  <span className="text-warm-300 flex-shrink-0">
+                  <span className="text-warm-700 flex-shrink-0">
                     {new Date(e.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                   </span>
                 )}

@@ -66,7 +66,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
           </h3>
           <div className="flex items-end gap-3">
             <p className="text-4xl font-bold text-secondary-800">{collectRate}%</p>
-            <p className="text-xs text-warm-400 pb-1">du total facturé</p>
+            <p className="text-xs text-warm-700 pb-1">du total facturé</p>
           </div>
           <div className="h-3 bg-warm-100 rounded-full overflow-hidden">
             <div className="h-full bg-success-500 rounded-full transition-all" style={{ width: `${collectRate}%` }} />
@@ -87,7 +87,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
               </div>
               <div className="flex flex-wrap gap-3 mt-1">
                 {Object.entries(stats.feesByStatus).filter(([, v]) => v > 0).map(([status, count]) => (
-                  <span key={status} className="flex items-center gap-1 text-[10px] text-warm-500">
+                  <span key={status} className="flex items-center gap-1 text-[10px] text-warm-700">
                     <span className={clsx('w-2 h-2 rounded-full', STATUS_COLORS[status])} />
                     {STATUS_LABELS[status]} ({count})
                   </span>
@@ -107,7 +107,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
             <Link href="/dashboard/financements" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
           </div>
           {stats.recentPayments.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucun paiement récent</p>
+            <p className="text-xs text-warm-700 italic py-4 text-center">Aucun paiement récent</p>
           ) : (
             <div className="space-y-1.5">
               {stats.recentPayments.map(p => (
@@ -117,7 +117,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
                     {p.family_fees?.parents?.tutor1_last_name} {p.family_fees?.parents?.tutor1_first_name}
                   </span>
                   <span className="ml-auto font-bold text-success-600 flex-shrink-0">{formatCurrency(Number(p.amount_paid))}</span>
-                  <span className="text-warm-400 flex-shrink-0">{METHOD_LABELS[p.payment_method ?? ''] ?? p.payment_method}</span>
+                  <span className="text-warm-700 flex-shrink-0">{METHOD_LABELS[p.payment_method ?? ''] ?? p.payment_method}</span>
                 </div>
               ))}
             </div>
@@ -130,7 +130,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
             <AlertTriangle size={14} className="text-danger-500" /> Familles en retard
           </h3>
           {stats.overdueFamilies.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune famille en retard</p>
+            <p className="text-xs text-warm-700 italic py-4 text-center">Aucune famille en retard</p>
           ) : (
             <div className="space-y-1.5">
               {stats.overdueFamilies.map(f => (

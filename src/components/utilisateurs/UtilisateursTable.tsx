@@ -29,7 +29,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
   responsable_pedagogique: 'bg-purple-100 text-purple-700',
   enseignant:              'bg-primary-100 text-primary-700',
   secretaire:              'bg-blue-100 text-blue-700',
-  parent:                  'bg-warm-100 text-warm-600',
+  parent:                  'bg-warm-100 text-warm-700',
 }
 
 interface UtilisateursTableProps {
@@ -81,7 +81,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
   if (profiles.length === 0) {
     return (
       <div className="card py-16 text-center">
-        <p className="text-warm-400 text-sm">Aucun utilisateur pour le moment</p>
+        <p className="text-warm-700 text-sm">Aucun utilisateur pour le moment</p>
       </div>
     )
   }
@@ -135,7 +135,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                       onClick={(e) => e.stopPropagation()}
                       className={clsx(
                         'list-name hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-                        profile.is_active ? 'text-secondary-800' : 'text-warm-500'
+                        profile.is_active ? 'text-secondary-800' : 'text-warm-400'
                       )}
                     >
                       {fullName}
@@ -144,7 +144,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
 
                   {/* Email */}
                   <td className="list-td">
-                    <span className="text-warm-600">{profile.email}</span>
+                    <span className="text-warm-700">{profile.email}</span>
                   </td>
 
                   {/* Rôle */}
@@ -163,7 +163,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                       'text-xs font-medium px-2 py-0.5 rounded-full',
                       profile.is_active
                         ? 'bg-green-100 text-green-700'
-                        : 'bg-warm-200 text-warm-500'
+                        : 'bg-warm-200 text-warm-700'
                     )}>
                       {profile.is_active ? 'Actif' : 'Inactif'}
                     </span>
@@ -173,7 +173,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                   <td className="list-td whitespace-nowrap">
                     {profile.role === 'parent' ? (
                       <Tooltip content="La 2FA n'est pas requise pour les parents">
-                        <span className="text-warm-300">·</span>
+                        <span className="text-warm-700">·</span>
                       </Tooltip>
                     ) : twoFactorSet.has(profile.id) ? (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
@@ -194,7 +194,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                         <button
                           onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
                           aria-label={`Modifier ${fullName}`}
-                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           disabled={isLoading}
                         >
                           <Pencil size={14} />
@@ -212,8 +212,8 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                             isCore
                               ? 'text-warm-200 cursor-not-allowed'
                               : profile.is_active
-                                ? 'text-warm-400 hover:text-amber-600 hover:bg-amber-50'
-                                : 'text-warm-400 hover:text-green-600 hover:bg-green-50',
+                                ? 'text-warm-700 hover:text-amber-600 hover:bg-amber-50'
+                                : 'text-warm-700 hover:text-green-600 hover:bg-green-50',
                             isLoading && 'opacity-40 cursor-wait'
                           )}
                         >
@@ -234,7 +234,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                             'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
                             resetSent
                               ? 'text-green-500 bg-green-50 cursor-default'
-                              : 'text-warm-400 hover:text-primary-600 hover:bg-primary-50',
+                              : 'text-warm-700 hover:text-primary-600 hover:bg-primary-50',
                             isLoading && 'opacity-40 cursor-wait'
                           )}
                         >
@@ -251,7 +251,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                             aria-label={`Réinitialiser la 2FA de ${fullName}`}
                             className={clsx(
                               'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50',
-                              'text-warm-400 hover:text-red-600 hover:bg-red-50',
+                              'text-warm-700 hover:text-red-600 hover:bg-red-50',
                               isLoading && 'opacity-40 cursor-wait'
                             )}
                           >

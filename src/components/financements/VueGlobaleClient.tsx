@@ -94,7 +94,7 @@ function VizTooltip({ active, payload, label, total, unit }: any) {
         return (
           <p key={p.dataKey ?? p.name} className="flex items-center gap-1.5 text-[11px] text-secondary-700">
             <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: p.color ?? p.payload?.fill }} aria-hidden="true" />
-            <span className="text-warm-500">{p.name}</span>
+            <span className="text-warm-700">{p.name}</span>
             <span className="font-semibold tabular-nums ml-auto">{shown}{pct}</span>
           </p>
         )
@@ -111,7 +111,7 @@ function VizCard({ title, hint, height = 200, children, className }: {
     <section className={clsx('card p-3 flex flex-col', className)}>
       <div className="flex items-baseline gap-2 mb-2">
         <h2 className="stat-label">{title}</h2>
-        {hint && <p className="text-[10px] text-warm-400">{hint}</p>}
+        {hint && <p className="text-[10px] text-warm-700">{hint}</p>}
       </div>
       <div style={{ height }} className="min-w-0">{children}</div>
     </section>
@@ -126,7 +126,7 @@ function VizLegend({ items }: { items: { label: string; color: string; value?: s
         <li key={i.label} className="flex items-center gap-1.5 text-[11px] text-secondary-700">
           <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: i.color }} aria-hidden="true" />
           {i.label}
-          {i.value && <span className="text-warm-500 tabular-nums">· {i.value}</span>}
+          {i.value && <span className="text-warm-700 tabular-nums">· {i.value}</span>}
         </li>
       ))}
     </ul>
@@ -194,7 +194,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
   if (rows.length === 0) {
     return (
       <div className="card p-8 text-center">
-        <p className="text-sm text-warm-500">Aucun dossier pour l'année {yearLabel}.</p>
+        <p className="text-sm text-warm-700">Aucun dossier pour l'année {yearLabel}.</p>
       </div>
     )
   }
@@ -245,11 +245,11 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       {/* ── Ligne 1 : répartitions (2 donuts dans un seul encadré) + activités ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <section className="card p-3">
-          <h2 className="text-[11px] font-bold text-warm-500 uppercase tracking-widest mb-2">Répartitions</h2>
+          <h2 className="text-[11px] font-bold text-warm-700 uppercase tracking-widest mb-2">Répartitions</h2>
           <div className="grid grid-cols-2 gap-2">
             {/* Statut */}
             <div className="min-w-0">
-              <p className="text-[10px] text-warm-400 text-center mb-1">Dossiers par statut</p>
+              <p className="text-[10px] text-warm-700 text-center mb-1">Dossiers par statut</p>
               <div style={{ height: 132 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -269,9 +269,9 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
 
             {/* Moyens de paiement */}
             <div className="min-w-0 lg:border-l lg:border-warm-100 lg:pl-2">
-              <p className="text-[10px] text-warm-400 text-center mb-1">Moyens de paiement</p>
+              <p className="text-[10px] text-warm-700 text-center mb-1">Moyens de paiement</p>
               {methodTotal === 0 ? (
-                <p className="text-xs text-warm-400 italic grid place-items-center" style={{ height: 132 }}>Aucun encaissement.</p>
+                <p className="text-xs text-warm-700 italic grid place-items-center" style={{ height: 132 }}>Aucun encaissement.</p>
               ) : (
                 <>
                   <div style={{ height: 132 }}>
@@ -317,10 +317,10 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
         <section className="card p-3 flex flex-col">
           <div className="flex items-baseline gap-2 mb-2">
             <h2 className="stat-label">Top 10 familles débitrices</h2>
-            <p className="text-[10px] text-warm-400">cliquer pour ouvrir le dossier</p>
+            <p className="text-[10px] text-warm-700">cliquer pour ouvrir le dossier</p>
           </div>
           {topDebtors.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-6 text-center">Aucun impayé.</p>
+            <p className="text-xs text-warm-700 italic py-6 text-center">Aucun impayé.</p>
           ) : (
             <ul className="space-y-0.5">
               {topDebtors.map(r => (
@@ -369,7 +369,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       <section className="card p-0">
         <div className="px-3 py-2 border-b border-warm-100">
           <h2 className="stat-label">
-            Dossiers · {yearLabel} <span className="text-warm-400 font-medium normal-case tracking-normal">· reste dû décroissant</span>
+            Dossiers · {yearLabel} <span className="text-warm-700 font-medium normal-case tracking-normal">· reste dû décroissant</span>
           </h2>
         </div>
         <div className="max-h-56 overflow-y-auto list-scroll">
@@ -398,7 +398,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
                   <td className="list-td text-right tabular-nums">{fmt(r.totalDue)}</td>
                   <td className="list-td text-right tabular-nums text-primary-600">{fmt(r.totalPaid)}</td>
                   <td className={clsx('list-td text-right tabular-nums font-semibold',
-                    r.remaining > 0 ? 'text-orange-700' : r.remaining < 0 ? 'text-red-600' : 'text-warm-400')}>
+                    r.remaining > 0 ? 'text-orange-700' : r.remaining < 0 ? 'text-red-600' : 'text-warm-700')}>
                     {r.remaining < 0 ? `+ ${fmt(Math.abs(r.remaining))}` : fmt(Math.max(0, r.remaining))}
                   </td>
                 </tr>

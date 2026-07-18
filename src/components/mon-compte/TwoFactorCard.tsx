@@ -50,10 +50,10 @@ export default function TwoFactorCard() {
 
   return (
     <div className="card p-4 space-y-3">
-      <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Double authentification (2FA)</h2>
+      <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Double authentification (2FA)</h2>
 
       {loading ? (
-        <p className="text-sm text-warm-400">Chargement…</p>
+        <p className="text-sm text-warm-700">Chargement…</p>
       ) : (
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export default function TwoFactorCard() {
               : <ShieldAlert size={18} className="text-amber-500 flex-shrink-0" />}
             <div>
               <p className="text-sm font-medium text-secondary-800">{enrolled ? 'Activée' : 'Non configurée'}</p>
-              <p className="text-[11px] text-warm-400">
+              <p className="text-[11px] text-warm-700">
                 {enrolled
                   ? 'Une application d\'authentification est associée à votre compte.'
                   : 'Sécurisez votre compte avec une application d\'authentification.'}

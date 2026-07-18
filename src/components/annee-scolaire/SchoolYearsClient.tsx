@@ -100,9 +100,9 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
       {/* Liste vide */}
       {schoolYears.length === 0 && (
         <div className="card py-16 text-center">
-          <CalendarDays size={32} className="mx-auto text-warm-300 mb-3" />
-          <p className="text-warm-400 text-sm">Aucune année scolaire configurée</p>
-          <p className="text-warm-300 text-xs mt-1">
+          <CalendarDays size={32} className="mx-auto text-warm-700 mb-3" />
+          <p className="text-warm-700 text-sm">Aucune année scolaire configurée</p>
+          <p className="text-warm-700 text-xs mt-1">
             Cliquez sur "Nouvelle année" pour commencer
           </p>
         </div>
@@ -150,23 +150,23 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                     </td>
 
                     {/* Rentrée */}
-                    <td className="list-td text-xs text-warm-600 whitespace-nowrap">
+                    <td className="list-td text-xs text-warm-700 whitespace-nowrap">
                       {year.start_date ? fmtDate(year.start_date) : '—'}
                     </td>
 
                     {/* Fin */}
-                    <td className="list-td text-xs text-warm-600 whitespace-nowrap">
+                    <td className="list-td text-xs text-warm-700 whitespace-nowrap">
                       {year.end_date ? fmtDate(year.end_date) : '—'}
                     </td>
 
                     {/* Répartition + Périodes */}
                     <td className="list-td">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-warm-600">{PERIOD_LABELS[year.period_type]}</span>
+                        <span className="text-xs text-warm-700">{PERIOD_LABELS[year.period_type]}</span>
                         {year.periods
                           .sort((a, b) => a.order_index - b.order_index)
                           .map(p => (
-                            <span key={p.id} className="text-xs font-mono bg-warm-100 text-warm-600 px-1.5 py-0.5 rounded">
+                            <span key={p.id} className="text-xs font-mono bg-warm-100 text-warm-700 px-1.5 py-0.5 rounded">
                               {p.label}
                             </span>
                           ))}
@@ -184,7 +184,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                     <td className="list-td text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       {confirmDeleteId === year.id ? (
                         <div className="flex items-center justify-end gap-1">
-                          <span className="text-xs text-warm-500 mr-1">Supprimer ?</span>
+                          <span className="text-xs text-warm-700 mr-1">Supprimer ?</span>
                           <button
                             onClick={() => handleDelete(year.id)}
                             disabled={isDeleting}
@@ -194,7 +194,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(null)}
-                            className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
+                            className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-700 rounded hover:bg-warm-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
                           >
                             Annuler
                           </button>
@@ -205,7 +205,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                             <button
                               onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
                               aria-label={`Modifier ${year.label}`}
-                              className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                              className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                             >
                               <Pencil size={13} />
                             </button>
@@ -215,7 +215,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                               <button
                                 onClick={() => { setConfirmDeleteId(year.id); setDeleteError(null) }}
                                 aria-label={`Supprimer ${year.label}`}
-                                className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                                className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                               >
                                 <Trash2 size={13} />
                               </button>

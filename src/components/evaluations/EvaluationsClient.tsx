@@ -106,7 +106,7 @@ function CoursRefRow({
     <div className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-primary-50 transition-colors">
       <span className="w-1 h-1 rounded-full bg-warm-300 flex-shrink-0" />
       {c.code && (
-        <span className="text-[10px] font-mono text-warm-400 bg-warm-100 px-1 rounded flex-shrink-0">{c.code}</span>
+        <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 rounded flex-shrink-0">{c.code}</span>
       )}
       <Tooltip content={c.nom_fr} className="flex-1 min-w-0">
         <span className="block w-full text-xs text-secondary-700 truncate text-left">{c.nom_fr}</span>
@@ -119,7 +119,7 @@ function CoursRefRow({
             onClick={onAdd}
             disabled={disabled}
             aria-label={`Ajouter une évaluation : ${c.nom_fr}`}
-            className="p-0.5 text-warm-300 hover:text-primary-600 rounded transition-colors disabled:opacity-30"
+            className="p-0.5 text-warm-700 hover:text-primary-600 rounded transition-colors disabled:opacity-30"
           >
             <Plus size={13} />
           </button>
@@ -561,7 +561,7 @@ export default function EvaluationsClient({
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
                     ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
-                    : 'bg-white border border-warm-200 text-warm-600 hover:bg-warm-50 hover:border-warm-400'
+                    : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >
                 {formatPeriodLabel(p.label)}
@@ -597,7 +597,7 @@ export default function EvaluationsClient({
           if (schedule) parts.push(schedule)
           if (parts.length === 0) return null
           return (
-            <span className="ml-auto text-sm font-medium text-warm-600 whitespace-nowrap">
+            <span className="ml-auto text-sm font-medium text-warm-700 whitespace-nowrap">
               {parts.join(' · ')}
             </span>
           )
@@ -610,7 +610,7 @@ export default function EvaluationsClient({
         {/* ── Gauche : Référentiel ── */}
         <div className="w-72 flex-shrink-0 flex flex-col min-h-0">
           <div className="card p-3 flex flex-col gap-2 h-full min-h-0">
-            <p className="text-xs font-bold text-warm-500 uppercase tracking-widest flex-shrink-0">
+            <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-shrink-0">
               Référentiel des cours
             </p>
 
@@ -627,7 +627,7 @@ export default function EvaluationsClient({
             {/* Arbre */}
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1">
               {filteredUes.length === 0 && (
-                <p className="text-xs text-warm-400 text-center py-6">
+                <p className="text-xs text-warm-700 text-center py-6">
                   {search ? 'Aucun résultat' : 'Référentiel vide'}
                 </p>
               )}
@@ -647,11 +647,11 @@ export default function EvaluationsClient({
                       className="flex items-center gap-1.5 w-full px-2 py-1.5 bg-warm-50 hover:bg-warm-100 transition-colors text-left"
                     >
                       {expanded
-                        ? <ChevronDown  size={13} className="text-warm-400 flex-shrink-0" />
-                        : <ChevronRight size={13} className="text-warm-400 flex-shrink-0" />
+                        ? <ChevronDown  size={13} className="text-warm-700 flex-shrink-0" />
+                        : <ChevronRight size={13} className="text-warm-700 flex-shrink-0" />
                       }
                       {ue.code && (
-                        <span className="text-[10px] font-mono text-warm-400 bg-warm-200 px-1 rounded flex-shrink-0">
+                        <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0">
                           {ue.code}
                         </span>
                       )}
@@ -680,7 +680,7 @@ export default function EvaluationsClient({
                           if (modCours.length === 0) return null
                           return (
                             <div key={mod.id} className="mt-0.5 ml-4">
-                              <p className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
+                              <p className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
                                 {mod.code && <span className="font-mono">{mod.code}</span>}
                                 {mod.nom_fr}
                               </p>
@@ -712,12 +712,12 @@ export default function EvaluationsClient({
 
             {/* En-tête droite */}
             <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-              <p className="text-xs font-bold text-warm-500 uppercase tracking-widest flex-1">
+              <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-1">
                 Évaluations
                 {selectedClassId && selectedPeriodId && (() => {
                   const cls = classes.find(c => c.id === selectedClassId)
                   const per = periods.find(p => p.id === selectedPeriodId)
-                  return <span className="normal-case font-normal ml-1 text-warm-400">· {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
+                  return <span className="normal-case font-normal ml-1 text-warm-700">· {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
                 })()}
               </p>
               {currentEvals.length > 0 && (
@@ -793,7 +793,7 @@ export default function EvaluationsClient({
                         <div key={ev.id} className="px-1">
                           <p className="text-xs font-medium text-secondary-700 mb-1">
                             {coursItem?.code && (
-                              <span className="font-mono text-[10px] text-warm-400 mr-1.5 bg-warm-100 px-1 py-px rounded">
+                              <span className="font-mono text-[10px] text-warm-700 mr-1.5 bg-warm-100 px-1 py-px rounded">
                                 {coursItem.code}
                               </span>
                             )}
@@ -849,13 +849,13 @@ export default function EvaluationsClient({
                         </div>
                         <div className="flex-1 min-w-0">
                           {coursItem?.code && (
-                            <span className="font-mono text-[10px] text-warm-400 mr-1.5 bg-warm-100 px-1 py-px rounded">
+                            <span className="font-mono text-[10px] text-warm-700 mr-1.5 bg-warm-100 px-1 py-px rounded">
                               {coursItem.code}
                             </span>
                           )}
                           <span className="text-xs text-secondary-700">{coursItem?.nom_fr ?? 'Cours introuvable'}</span>
                           {coursItem?.nom_ar && (
-                            <span className="text-xs text-warm-400 ml-2">{coursItem.nom_ar}</span>
+                            <span className="text-xs text-warm-700 ml-2">{coursItem.nom_ar}</span>
                           )}
                         </div>
                         <span className={clsx(
@@ -867,15 +867,15 @@ export default function EvaluationsClient({
                             <span> /{ev.max_score}</span>
                           )}
                         </span>
-                        <span className="text-xs text-warm-500 flex-shrink-0 font-mono">×{ev.coefficient}</span>
+                        <span className="text-xs text-warm-700 flex-shrink-0 font-mono">×{ev.coefficient}</span>
                         {ev.evaluation_date && (
-                          <span className="text-xs text-warm-400 flex-shrink-0 font-mono">
+                          <span className="text-xs text-warm-700 flex-shrink-0 font-mono">
                             {new Date(ev.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                           </span>
                         )}
                         {isDeleting ? (
                           <div role="group" aria-label="Confirmer la suppression de l'évaluation" className="flex items-center gap-1 flex-shrink-0">
-                            <span className="text-xs text-warm-500">Supprimer ?</span>
+                            <span className="text-xs text-warm-700">Supprimer ?</span>
                             <button
                               onClick={() => handleDelete(ev.id)}
                               disabled={submitting}
@@ -888,7 +888,7 @@ export default function EvaluationsClient({
                               onClick={() => setConfirmDelete(null)}
                               autoFocus
                               aria-label="Annuler la suppression"
-                              className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-600 rounded hover:bg-warm-200 transition-colors"
+                              className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-700 rounded hover:bg-warm-200 transition-colors"
                             >
                               Non
                             </button>
@@ -899,7 +899,7 @@ export default function EvaluationsClient({
                               <button
                                 onClick={() => openEdit(ev)}
                 aria-label="Modifier l'évaluation"
-                                className="p-1 text-warm-400 hover:text-primary-600 rounded transition-colors"
+                                className="p-1 text-warm-700 hover:text-primary-600 rounded transition-colors"
                               >
                                 <Pencil size={12} />
                               </button>
@@ -908,7 +908,7 @@ export default function EvaluationsClient({
                               <button
                                 onClick={() => { setConfirmDelete(ev.id); setAdding(null); setEditing(null) }}
                 aria-label="Supprimer l'évaluation"
-                                className="p-1 text-warm-400 hover:text-danger-500 rounded transition-colors"
+                                className="p-1 text-warm-700 hover:text-danger-500 rounded transition-colors"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -923,7 +923,7 @@ export default function EvaluationsClient({
                     <div className="px-1">
                       <p className="text-xs font-medium text-secondary-700 mb-1">
                         {c.code && (
-                          <span className="font-mono text-[10px] text-warm-400 mr-1.5 bg-warm-100 px-1 py-px rounded">
+                          <span className="font-mono text-[10px] text-warm-700 mr-1.5 bg-warm-100 px-1 py-px rounded">
                             {c.code}
                           </span>
                         )}
@@ -970,11 +970,11 @@ export default function EvaluationsClient({
                         </div>
                         <span className="flex-1">
                           {ue.code && (
-                            <span className="font-mono text-warm-400 mr-1.5 normal-case">[{ue.code}]</span>
+                            <span className="font-mono text-warm-700 mr-1.5 normal-case">[{ue.code}]</span>
                           )}
                           {ue.nom_fr}
                           {ue.nom_ar && (
-                            <span className="font-normal normal-case text-warm-400 ml-2">{ue.nom_ar}</span>
+                            <span className="font-normal normal-case text-warm-700 ml-2">{ue.nom_ar}</span>
                           )}
                         </span>
                       </div>
@@ -994,7 +994,7 @@ export default function EvaluationsClient({
                           return (
                             <div key={mod.id} className="mt-1.5 ml-4 rounded-lg">
                               {/* En-tête module */}
-                              <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-400 uppercase tracking-wider px-2 pb-0.5 pt-1">
+                              <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider px-2 pb-0.5 pt-1">
                                 <div className="flex items-center flex-shrink-0">
                                   {modIds.indexOf(mod.id) > 0 && (
                                     <Tooltip content="Monter le module">
@@ -1023,7 +1023,7 @@ export default function EvaluationsClient({
                                   {mod.code && <span className="font-mono">{mod.code}</span>}
                                   {mod.nom_fr}
                                   {mod.nom_ar && (
-                                    <span className="normal-case font-normal text-warm-300 ml-2">{mod.nom_ar}</span>
+                                    <span className="normal-case font-normal text-warm-700 ml-2">{mod.nom_ar}</span>
                                   )}
                                 </span>
                               </div>
@@ -1052,7 +1052,7 @@ export default function EvaluationsClient({
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex-1 flex items-center justify-center text-center">
-      <div className="text-warm-400">
+      <div className="text-warm-700">
         <BookOpen size={32} className="mx-auto mb-2 opacity-30" />
         <p className="text-sm max-w-xs">{message}</p>
       </div>

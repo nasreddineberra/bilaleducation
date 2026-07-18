@@ -45,7 +45,7 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
           <Link href="/dashboard/students" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
         </div>
         {stats.recentStudents.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucun élève récent</p>
+          <p className="text-xs text-warm-700 italic py-4 text-center">Aucun élève récent</p>
         ) : (
           <div className="space-y-1.5">
             {stats.recentStudents.map(s => (
@@ -56,8 +56,8 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
                 <span className="font-medium text-warm-700 truncate">{s.last_name} {s.first_name}</span>
-                <span className="text-warm-400 flex-shrink-0">{s.student_number}</span>
-                <span className="ml-auto text-warm-300 flex-shrink-0">
+                <span className="text-warm-700 flex-shrink-0">{s.student_number}</span>
+                <span className="ml-auto text-warm-700 flex-shrink-0">
                   {new Date(s.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                 </span>
               </Link>

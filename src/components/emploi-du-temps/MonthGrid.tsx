@@ -69,7 +69,7 @@ export default function MonthGrid({
         {orderedDays.map(d => (
           <div
             key={d}
-            className="p-2 text-center text-xs font-semibold uppercase tracking-wide text-warm-500 border-l first:border-l-0 border-warm-100"
+            className="p-2 text-center text-xs font-semibold uppercase tracking-wide text-warm-700 border-l first:border-l-0 border-warm-100"
           >
             {DAY_LABELS_SHORT[d]}
           </div>
@@ -118,7 +118,7 @@ export default function MonthGrid({
                         'text-[11px] leading-none font-medium',
                         isToday
                           ? 'bg-amber-500 text-white rounded-full w-5 h-5 flex items-center justify-center'
-                          : isCurrentMonth ? 'text-warm-700' : 'text-warm-300',
+                          : isCurrentMonth ? 'text-warm-700' : 'text-warm-700',
                       )}
                     >
                       {cell.date.getDate()}
@@ -150,7 +150,7 @@ export default function MonthGrid({
                         />
                       ))}
                       {hasMore && (
-                        <span className="text-[8px] text-warm-400 font-medium px-1 cursor-default">
+                        <span className="text-[8px] text-warm-700 font-medium px-1 cursor-default">
                           +{daySlots.length - (MAX_VISIBLE - 1)} autres
                         </span>
                       )}

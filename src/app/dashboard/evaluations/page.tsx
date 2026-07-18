@@ -106,8 +106,8 @@ export default async function EvaluationsPage() {
   if (classes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
-        <AlertTriangle size={36} className="text-warm-400" />
-        <p className="text-sm text-warm-500">Aucune classe disponible.</p>
+        <AlertTriangle size={36} className="text-warm-700" />
+        <p className="text-sm text-warm-700">Aucune classe disponible.</p>
       </div>
     )
   }

@@ -51,7 +51,7 @@ export default function ConfirmModal({
               {title ?? (isDanger ? 'Confirmer la suppression' : 'Confirmation')}
             </h3>
           </div>
-          <button onClick={onCancel} className="p-1 rounded-lg hover:bg-warm-100 text-warm-400">
+          <button onClick={onCancel} className="p-1 rounded-lg hover:bg-warm-100 text-warm-700">
             <X size={16} />
           </button>
         </div>

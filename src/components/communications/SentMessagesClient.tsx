@@ -153,7 +153,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
                   'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
                   active
                     ? 'border-primary-300 bg-primary-50 text-primary-700'
-                    : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50'
+                    : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50'
                 )}
               >
                 {type === '' ? 'Tous les messages' : typeLabel(type)}
@@ -183,8 +183,8 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
       {/* Tableau */}
       {filtered.length === 0 ? (
         <div className="card px-6 py-10 text-center">
-          <Mail size={32} className="mx-auto text-warm-300 mb-2" aria-hidden="true" />
-          <p className="text-sm text-warm-400">Aucun message envoyé.</p>
+          <Mail size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
+          <p className="text-sm text-warm-700">Aucun message envoyé.</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
@@ -200,7 +200,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
             </thead>
             <tbody className="divide-y divide-warm-50">
               {filtered.map(m => {
-                const typeInfo = TYPE_LABELS[m.announcement_type ?? ''] ?? { label: m.announcement_type ?? '·', icon: Mail, color: 'bg-warm-100 text-warm-600' }
+                const typeInfo = TYPE_LABELS[m.announcement_type ?? ''] ?? { label: m.announcement_type ?? '·', icon: Mail, color: 'bg-warm-100 text-warm-700' }
                 const TypeIcon = typeInfo.icon
                 return (
                   <tr
@@ -208,7 +208,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
                     onClick={() => router.push(`/dashboard/communications/${m.id}`)}
                     className="hover:bg-warm-50 transition-colors cursor-pointer"
                   >
-                    <td className="list-td text-warm-500 whitespace-nowrap">{formatDate(m.published_at)}</td>
+                    <td className="list-td text-warm-700 whitespace-nowrap">{formatDate(m.published_at)}</td>
                     <td className="list-td">
                       <Link
                         href={`/dashboard/communications/${m.id}`}
@@ -225,8 +225,8 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
                         {m.classes?.name ? ` · ${m.classes.name}` : ''}
                       </span>
                     </td>
-                    <td className="list-td text-warm-600 tabular-nums">{m.recipient_count ?? '·'}</td>
-                    <td className="list-td text-warm-500">
+                    <td className="list-td text-warm-700 tabular-nums">{m.recipient_count ?? '·'}</td>
+                    <td className="list-td text-warm-700">
                       {m.profiles ? `${m.profiles.last_name} ${m.profiles.first_name}` : '·'}
                     </td>
                   </tr>

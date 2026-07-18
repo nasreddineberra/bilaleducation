@@ -475,20 +475,20 @@ export default function TempsPresenceClient({
   const nonAbsenceTypes = presenceTypes.filter(p => !p.is_absence)
   const renderRecapTable = (recap: RecapResult, ariaLabel: string, emptyMsg: string) => (
     recap.rows.length === 0 ? (
-      <p className="text-sm text-warm-400 italic text-center py-10">{emptyMsg}</p>
+      <p className="text-sm text-warm-700 italic text-center py-10">{emptyMsg}</p>
     ) : (
       <div className="overflow-x-auto rounded-xl border border-warm-100">
           <table className="w-full text-sm" aria-label={ariaLabel}>
             <thead>
               <tr className="bg-warm-50/60 border-b border-warm-100">
-                <th className="px-5 py-2.5 text-left text-[11px] font-bold text-warm-500 uppercase tracking-wide">Personnel</th>
+                <th className="px-5 py-2.5 text-left text-[11px] font-bold text-warm-700 uppercase tracking-wide">Personnel</th>
                 {nonAbsenceTypes.map(pt => (
                   <th key={pt.id} className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: pt.color }}>
                     {pt.label}
                   </th>
                 ))}
                 <th className="px-4 py-2.5 text-center text-[11px] font-bold text-red-400 uppercase tracking-wide">Absences</th>
-                {canSeeCosts && <th className="px-5 py-2.5 text-right text-[11px] font-bold text-warm-500 uppercase tracking-wide">Coût</th>}
+                {canSeeCosts && <th className="px-5 py-2.5 text-right text-[11px] font-bold text-warm-700 uppercase tracking-wide">Coût</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
@@ -498,12 +498,12 @@ export default function TempsPresenceClient({
                   {nonAbsenceTypes.map(pt => {
                     const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
                     return (
-                      <td key={pt.id} className={`px-4 py-3 text-center tabular-nums ${mins > 0 ? 'text-warm-700' : 'text-warm-300'}`}>
+                      <td key={pt.id} className={`px-4 py-3 text-center tabular-nums ${mins > 0 ? 'text-warm-700' : 'text-warm-700'}`}>
                         {mins > 0 ? fmtDuration(mins) : '·'}
                       </td>
                     )
                   })}
-                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceDays > 0 ? 'text-red-600 font-medium' : 'text-warm-300'}`}>{r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·'}</td>
+                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceDays > 0 ? 'text-red-600 font-medium' : 'text-warm-700'}`}>{r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·'}</td>
                   {canSeeCosts && <td className="px-5 py-3 text-right font-bold text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(r.cost)}</td>}
                 </tr>
               ))}
@@ -598,18 +598,18 @@ export default function TempsPresenceClient({
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 bg-warm-100 rounded-lg p-0.5" role="group" aria-label="Mode d'affichage">
-          <button onClick={() => setViewMode('month')} aria-pressed={viewMode === 'month'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'month' ? 'bg-white shadow text-secondary-800' : 'text-warm-500')}>
+          <button onClick={() => setViewMode('month')} aria-pressed={viewMode === 'month'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'month' ? 'bg-white shadow text-secondary-800' : 'text-warm-700')}>
             Mois
           </button>
-          <button onClick={() => setViewMode('week')} aria-pressed={viewMode === 'week'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'week' ? 'bg-white shadow text-secondary-800' : 'text-warm-500')}>
+          <button onClick={() => setViewMode('week')} aria-pressed={viewMode === 'week'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'week' ? 'bg-white shadow text-secondary-800' : 'text-warm-700')}>
             Semaine
           </button>
         </div>
 
         <div className="flex items-center gap-1">
-          <button onClick={prev} aria-label={viewMode === 'month' ? 'Mois précédent' : 'Semaine précédente'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronLeft size={16} /></button>
+          <button onClick={prev} aria-label={viewMode === 'month' ? 'Mois précédent' : 'Semaine précédente'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronLeft size={16} /></button>
           <span className="text-sm font-bold text-secondary-800 min-w-[180px] text-center">{title}</span>
-          <button onClick={next} aria-label={viewMode === 'month' ? 'Mois suivant' : 'Semaine suivante'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-500 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronRight size={16} /></button>
+          <button onClick={next} aria-label={viewMode === 'month' ? 'Mois suivant' : 'Semaine suivante'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronRight size={16} /></button>
         </div>
 
         {canSeeRecap && (
@@ -624,7 +624,7 @@ export default function TempsPresenceClient({
         <div className="ml-auto flex items-center gap-3">
           {canManage && (
             <div className="flex items-center gap-1.5">
-              <label htmlFor="member-filter" className="text-xs font-medium text-warm-500">Membre</label>
+              <label htmlFor="member-filter" className="text-xs font-medium text-warm-700">Membre</label>
               <select
                 id="member-filter"
                 value={memberFilter}
@@ -679,7 +679,7 @@ export default function TempsPresenceClient({
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-warm-100 bg-warm-50">
             {DAY_NAMES.map(d => (
-              <div key={d} className="px-1 h-9 flex items-center justify-center text-[10px] font-bold text-warm-500 uppercase">{d}</div>
+              <div key={d} className="px-1 h-9 flex items-center justify-center text-[10px] font-bold text-warm-700 uppercase">{d}</div>
             ))}
           </div>
           {/* Day cells */}
@@ -711,7 +711,7 @@ export default function TempsPresenceClient({
                     <span className={clsx(
                       'text-xs font-medium shrink-0',
                       isToday && 'bg-primary-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
-                      !isToday && (isCurrentMonth ? 'text-warm-700' : 'text-warm-300'),
+                      !isToday && (isCurrentMonth ? 'text-warm-700' : 'text-warm-700'),
                     )}>
                       {d.getDate()}
                     </span>
@@ -735,7 +735,7 @@ export default function TempsPresenceClient({
                   'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                   canAdd
                     ? 'bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
-                    : 'bg-warm-200 text-warm-400 cursor-not-allowed'
+                    : 'bg-warm-200 text-warm-700 cursor-not-allowed'
                 )}
               >
                 Ajouter
@@ -745,7 +745,7 @@ export default function TempsPresenceClient({
 
           <div className="overflow-y-auto max-h-[65vh] px-3 py-1 divide-y divide-warm-100">
             {Object.keys(dayByStaff).length === 0 ? (
-              <p className="text-xs text-warm-400 italic text-center py-8">Aucune saisie ce jour</p>
+              <p className="text-xs text-warm-700 italic text-center py-8">Aucune saisie ce jour</p>
             ) : (
               Object.entries(dayByStaff).map(([pid, pEntries]) => {
                 const s = staffMap[pid]
@@ -776,24 +776,24 @@ export default function TempsPresenceClient({
                           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(color)} />
                           <span className="font-medium shrink-0">{label}</span>
                           {!isAbs && e.start_time && (
-                            <span className="text-warm-500 shrink-0">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
+                            <span className="text-warm-700 shrink-0">{fmtTime(e.start_time)}-{fmtTime(e.end_time)}</span>
                           )}
-                          <span className="text-warm-400 shrink-0">{fmtDuration(e.duration_minutes)}</span>
+                          <span className="text-warm-700 shrink-0">{fmtDuration(e.duration_minutes)}</span>
                           {e.notes && (
-                            <TruncatedText text={e.notes} className="italic text-warm-400 text-[10px]" />
+                            <TruncatedText text={e.notes} className="italic text-warm-700 text-[10px]" />
                           )}
                           {e.is_replacement && e.replaced_profile_id && (
                             <TruncatedText
                               text={`rempl. ${staffMap[e.replaced_profile_id]?.last_name ?? ''}`}
                               tooltip={`Remplace ${staffMap[e.replaced_profile_id]?.last_name ?? ''} ${staffMap[e.replaced_profile_id]?.first_name ?? ''}`.trim()}
-                              className="italic text-warm-400 text-[10px]"
+                              className="italic text-warm-700 text-[10px]"
                             />
                           )}
                           {isAbs && e.absence_period && e.absence_period !== 'full' && (
-                            <span className="text-warm-500 text-[10px] font-medium shrink-0">{PERIOD_LABEL[e.absence_period]}</span>
+                            <span className="text-warm-700 text-[10px] font-medium shrink-0">{PERIOD_LABEL[e.absence_period]}</span>
                           )}
                           {isAbs && e.absence_reason && (
-                            <TruncatedText text={e.absence_reason} className="italic text-warm-400 text-[10px]" />
+                            <TruncatedText text={e.absence_reason} className="italic text-warm-700 text-[10px]" />
                           )}
                           {canEdit && (
                             <span className="ml-auto flex items-center gap-0.5 flex-shrink-0">
@@ -803,7 +803,7 @@ export default function TempsPresenceClient({
                                   aria-label="Modifier la saisie"
                                   className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                                 >
-                                  <Pencil size={10} className="text-warm-400" />
+                                  <Pencil size={10} className="text-warm-700" />
                                 </button>
                               </Tooltip>
                               <Tooltip content="Supprimer">
@@ -812,7 +812,7 @@ export default function TempsPresenceClient({
                                   aria-label="Supprimer la saisie"
                                   className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-danger-500/50"
                                 >
-                                  <Trash2 size={10} className="text-warm-400" />
+                                  <Trash2 size={10} className="text-warm-700" />
                                 </button>
                               </Tooltip>
                             </span>
@@ -829,7 +829,7 @@ export default function TempsPresenceClient({
 
           {/* Day total */}
           {dayEntries.length > 0 && (
-            <div className="px-4 py-2 border-t border-warm-100 bg-warm-50 text-xs font-bold text-warm-600 flex items-center gap-1.5">
+            <div className="px-4 py-2 border-t border-warm-100 bg-warm-50 text-xs font-bold text-warm-700 flex items-center gap-1.5">
               <Clock size={12} /> Total jour : {fmtDuration(dayEntries.reduce((s, e) => s + e.duration_minutes, 0))}
             </div>
           )}
@@ -871,14 +871,14 @@ export default function TempsPresenceClient({
                       </button>
                     </Tooltip>
                   )}
-                  <button onClick={() => setRecapModal(null)} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
+                  <button onClick={() => setRecapModal(null)} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
                 </div>
               </div>
 
               {/* Legende des taux horaires (une fois, si couts visibles) */}
               {canSeeCosts && presenceTypeRates.length > 0 && (
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 border-b border-warm-100 bg-warm-50/60 text-[11px] shrink-0">
-                  <span className="font-semibold text-warm-500">Taux horaires</span>
+                  <span className="font-semibold text-warm-700">Taux horaires</span>
                   {nonAbsenceTypes.map(pt => {
                     const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
                     if (!rate) return null
@@ -929,7 +929,7 @@ export default function TempsPresenceClient({
         const rs = entry?.replaced_profile_id ? staffMap[entry.replaced_profile_id] : undefined
         const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
           <div className="flex gap-2">
-            <span className="w-24 shrink-0 text-warm-400">{label}</span>
+            <span className="w-24 shrink-0 text-warm-700">{label}</span>
             <span className="text-warm-700 font-medium">{children}</span>
           </div>
         )

@@ -248,7 +248,7 @@ export default function PaymentModal({
             <h2 id="payment-modal-title" className="text-base font-bold text-secondary-800">
               {isEdit ? 'Modifier le paiement' : 'Enregistrer un paiement'}
             </h2>
-            <p className="text-xs text-warm-500 mt-0.5">
+            <p className="text-xs text-warm-700 mt-0.5">
               Total dû : {fmtEur(totalDue)}
               {remaining < totalDue && remaining > 0 && ` · Reste : ${fmtEur(remaining)}`}
             </p>
@@ -257,7 +257,7 @@ export default function PaymentModal({
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+            className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
           >
             <X size={18} />
           </button>
@@ -291,7 +291,7 @@ export default function PaymentModal({
 
           {/* Mode de paiement */}
           <div>
-            <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">
+            <label className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">
               Mode de paiement <span className="text-red-400">*</span>
             </label>
             <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Mode de paiement">
@@ -308,7 +308,7 @@ export default function PaymentModal({
                     className={[
                       'relative w-full px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
                       'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                      isOnline   ? 'opacity-40 cursor-not-allowed border-warm-200 text-warm-400 bg-warm-50' : '',
+                      isOnline   ? 'opacity-40 cursor-not-allowed border-warm-200 text-warm-700 bg-warm-50' : '',
                       !isOnline && isSelected  ? 'border-primary-400 bg-primary-50 text-primary-700' : '',
                       !isOnline && !isSelected ? 'border-warm-200 hover:bg-warm-100 text-secondary-600' : '',
                     ].join(' ')}

@@ -110,11 +110,11 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
           <div className="flex items-baseline gap-4">
             <div>
               <p className="text-2xl font-bold text-secondary-800">{formatCurrency(stats.totalPercu)}</p>
-              <p className="text-xs text-warm-400 -mt-1">total perçu</p>
+              <p className="text-xs text-warm-700 -mt-1">total perçu</p>
             </div>
             <div>
-              <p className="text-lg font-semibold text-warm-500">{formatCurrency(stats.totalDue)}</p>
-              <p className="text-xs text-warm-400 -mt-1">total dû</p>
+              <p className="text-lg font-semibold text-warm-700">{formatCurrency(stats.totalDue)}</p>
+              <p className="text-xs text-warm-700 -mt-1">total dû</p>
             </div>
           </div>
           {/* Barre percu / du */}
@@ -126,10 +126,10 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
                   style={{ width: `${collectPct}%` }}
                 />
               </div>
-              <p className="text-[10px] text-warm-400 mt-1">{collectPct}% perçu</p>
+              <p className="text-[10px] text-warm-700 mt-1">{collectPct}% perçu</p>
               <div className="flex flex-wrap gap-3 mt-1">
                 {Object.entries(stats.feesByStatus).filter(([, v]) => v > 0).map(([status, count]) => (
-                  <span key={status} className="flex items-center gap-1 text-[10px] text-warm-500">
+                  <span key={status} className="flex items-center gap-1 text-[10px] text-warm-700">
                     <span className={clsx('w-2 h-2 rounded-full', STATUS_COLORS[status])} />
                     {STATUS_LABELS[status]} ({count})
                   </span>
@@ -150,11 +150,11 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-2xl font-bold text-secondary-800">{stats.msgSentThisMonth}</p>
-              <p className="text-xs text-warm-400">messages ce mois</p>
+              <p className="text-xs text-warm-700">messages ce mois</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-secondary-800">{stats.msgReadRate}%</p>
-              <p className="text-xs text-warm-400">taux de lecture</p>
+              <p className="text-xs text-warm-700">taux de lecture</p>
             </div>
           </div>
           {/* Barre taux de lecture */}
@@ -172,7 +172,7 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
             <BookOpen size={14} className="text-success-500" /> Effectifs par classe
           </h3>
           {stats.classCapacity.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune classe</p>
+            <p className="text-xs text-warm-700 italic py-4 text-center">Aucune classe</p>
 
           ) : (
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -182,7 +182,7 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
                   <div key={c.name}>
                     <div className="flex items-center justify-between text-[11px] mb-0.5">
                       <span className="text-warm-700 font-medium truncate">{c.name}</span>
-                      <span className="text-warm-400 flex-shrink-0">{c.enrolled}/{c.max}</span>
+                      <span className="text-warm-700 flex-shrink-0">{c.enrolled}/{c.max}</span>
                     </div>
                     <div className="h-1.5 bg-warm-100 rounded-full overflow-hidden">
                       <div
@@ -206,7 +206,7 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
             <Link href="/dashboard/absences" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
           </div>
           {stats.recentAbsences.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune absence récente</p>
+            <p className="text-xs text-warm-700 italic py-4 text-center">Aucune absence récente</p>
           ) : (
             <div className="space-y-1">
               {stats.recentAbsences.map(a => (
@@ -215,11 +215,11 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
                   <span className="font-medium text-warm-700 truncate">
                     {a.students?.last_name} {a.students?.first_name}
                   </span>
-                  <span className="text-warm-400 flex-shrink-0">{a.classes?.name}</span>
-                  <span className="ml-auto text-warm-400 flex-shrink-0">
+                  <span className="text-warm-700 flex-shrink-0">{a.classes?.name}</span>
+                  <span className="ml-auto text-warm-700 flex-shrink-0">
                     {ABSENCE_TYPE[a.absence_type] ?? a.absence_type}
                   </span>
-                  <span className="text-warm-300 flex-shrink-0">
+                  <span className="text-warm-700 flex-shrink-0">
                     {new Date(a.absence_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                   </span>
                 </div>

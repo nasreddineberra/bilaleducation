@@ -132,8 +132,8 @@ export default function NotificationsClient({ notifications, role, parentId }: P
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-sm text-warm-600">
-            <Bell size={16} className="text-warm-400" />
+          <span className="inline-flex items-center gap-1.5 text-sm text-warm-700">
+            <Bell size={16} className="text-warm-700" />
             {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
           </span>
           {unreadCount > 0 && (
@@ -181,8 +181,8 @@ export default function NotificationsClient({ notifications, role, parentId }: P
       {/* Liste */}
       {filtered.length === 0 ? (
         <div className="card px-6 py-10 text-center">
-          <Bell size={32} className="mx-auto text-warm-300 mb-2" />
-          <p className="text-sm text-warm-400">Aucune notification.</p>
+          <Bell size={32} className="mx-auto text-warm-700 mb-2" />
+          <p className="text-sm text-warm-700">Aucune notification.</p>
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -190,7 +190,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             const isRead = n.is_read || readIds.has(n.id)
 
             if (n.source === 'auto') {
-              const typeInfo = AUTO_TYPE_LABELS[n.type] ?? { label: '—', icon: Bell, color: 'bg-warm-100 text-warm-600' }
+              const typeInfo = AUTO_TYPE_LABELS[n.type] ?? { label: '—', icon: Bell, color: 'bg-warm-100 text-warm-700' }
               const TypeIcon = typeInfo.icon
 
               return (
@@ -204,7 +204,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                 >
                   <div className="mt-1 flex-shrink-0">
                     {isRead ? (
-                      <Eye size={16} className="text-warm-300" />
+                      <Eye size={16} className="text-warm-700" />
                     ) : (
                       <EyeOff size={16} className="text-primary-500" />
                     )}
@@ -213,7 +213,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                     <div className="flex items-center gap-2">
                       <h3 className={clsx(
                         'text-sm truncate',
-                        isRead ? 'text-warm-600' : 'text-warm-800 font-bold'
+                        isRead ? 'text-warm-700' : 'text-warm-800 font-bold'
                       )}>
                         {n.title}
                       </h3>
@@ -222,8 +222,8 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                         {typeInfo.label}
                       </span>
                     </div>
-                    <p className="text-xs text-warm-400 mt-0.5 truncate">{n.body}</p>
-                    <div className="text-[11px] text-warm-400 mt-1">
+                    <p className="text-xs text-warm-700 mt-0.5 truncate">{n.body}</p>
+                    <div className="text-[11px] text-warm-700 mt-1">
                       {formatDate(n.created_at)}
                     </div>
                   </div>
@@ -234,7 +234,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             // Announcement notification
             const ann = n.announcements
             if (!ann) return null
-            const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '—', icon: Mail, color: 'bg-warm-100 text-warm-600' }
+            const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '—', icon: Mail, color: 'bg-warm-100 text-warm-700' }
             const TypeIcon = typeInfo.icon
             const preview = stripHtml(ann.body_html ?? ann.content ?? '').slice(0, 120)
 
@@ -250,7 +250,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
               >
                 <div className="mt-1 flex-shrink-0">
                   {isRead ? (
-                    <Eye size={16} className="text-warm-300" />
+                    <Eye size={16} className="text-warm-700" />
                   ) : (
                     <EyeOff size={16} className="text-primary-500" />
                   )}
@@ -259,7 +259,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                   <div className="flex items-center gap-2">
                     <h3 className={clsx(
                       'text-sm truncate',
-                      isRead ? 'text-warm-600' : 'text-warm-800 font-bold'
+                      isRead ? 'text-warm-700' : 'text-warm-800 font-bold'
                     )}>
                       {ann.title}
                     </h3>
@@ -269,9 +269,9 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                     </span>
                   </div>
                   {preview && (
-                    <p className="text-xs text-warm-400 mt-0.5 truncate">{preview}</p>
+                    <p className="text-xs text-warm-700 mt-0.5 truncate">{preview}</p>
                   )}
-                  <div className="flex items-center gap-3 mt-1 text-[11px] text-warm-400">
+                  <div className="flex items-center gap-3 mt-1 text-[11px] text-warm-700">
                     <span>{formatDate(ann.sent_at ?? ann.published_at)}</span>
                     {ann.profiles && (
                       <span>de {ann.profiles.first_name} {ann.profiles.last_name}</span>

@@ -17,9 +17,9 @@ export default function StatCard({ title, value, subtitle, icon: Icon, iconBg, i
       <div className={clsx('absolute top-0 left-0 right-0 h-1 rounded-t-2xl', accentBar)} />
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[10px] font-semibold text-warm-500 uppercase tracking-wider">{title}</p>
+          <p className="text-[10px] font-semibold text-warm-700 uppercase tracking-wider">{title}</p>
           <p className="text-2xl font-bold text-secondary-800 mt-1 leading-none">{value}</p>
-          {subtitle && <p className="text-[10px] text-warm-400 mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-[10px] text-warm-700 mt-1">{subtitle}</p>}
         </div>
         <div className={clsx('p-2 rounded-xl shadow-sm flex-shrink-0', iconBg)}>
           <Icon className={clsx('w-5 h-5', iconColor)} />

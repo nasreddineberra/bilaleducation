@@ -107,7 +107,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
           <button
             onClick={() => !saving && onClose()}
             aria-label="Fermer"
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <X size={16} />
           </button>
@@ -121,7 +121,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
               <Tooltip content="Tout actif (sauf affectés)">
                 <button
                   type="button" onClick={() => setAll(true)} aria-label="Rendre tout actif (sauf apprenants affectés)"
-                  className="p-1 rounded-lg text-warm-400 hover:text-primary-600 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                  className="p-1 rounded-lg text-warm-700 hover:text-primary-600 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                 >
                   <ToggleRight size={26} />
                 </button>
@@ -129,7 +129,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
               <Tooltip content="Tout inactif (sauf affectés)">
                 <button
                   type="button" onClick={() => setAll(false)} aria-label="Rendre tout inactif (sauf apprenants affectés)"
-                  className="p-1 rounded-lg text-warm-400 hover:text-amber-600 hover:bg-amber-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500/50"
+                  className="p-1 rounded-lg text-warm-700 hover:text-amber-600 hover:bg-amber-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500/50"
                 >
                   <ToggleLeft size={26} />
                 </button>
@@ -137,13 +137,13 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
               <Tooltip content="Recharger depuis la base">
                 <button
                   type="button" onClick={load} aria-label="Recharger les statuts depuis la base"
-                  className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                  className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                 >
                   <RotateCcw size={18} />
                 </button>
               </Tooltip>
             </div>
-            <span className="text-xs text-warm-500 whitespace-nowrap">
+            <span className="text-xs text-warm-700 whitespace-nowrap">
               <strong className="text-primary-600">{activeCount}</strong> actif{activeCount > 1 ? 's' : ''} / {rows.length}
             </span>
           </div>
@@ -152,11 +152,11 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
         {/* Body */}
         <div className="overflow-y-auto flex-1">
           {loading ? (
-            <p className="text-sm text-warm-400 px-5 py-8">Chargement…</p>
+            <p className="text-sm text-warm-700 px-5 py-8">Chargement…</p>
           ) : error ? (
             <p role="alert" className="text-sm text-red-600 px-5 py-8">{error}</p>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-warm-400 px-5 py-8 text-center">Aucun apprenant.</p>
+            <p className="text-sm text-warm-700 px-5 py-8 text-center">Aucun apprenant.</p>
           ) : (
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-warm-50 z-10">
@@ -182,7 +182,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
                             <span className="text-[11px] font-medium bg-primary-50 text-primary-700 border border-primary-200 px-1.5 py-0.5 rounded-full">{r.className}</span>
                           )
                         ) : (
-                          <span className="text-warm-400 italic">Non affecté</span>
+                          <span className="text-warm-700 italic">Non affecté</span>
                         )}
                       </td>
                       <td className="list-td">
@@ -202,7 +202,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
                   )
                 })}
                 {filtered.length === 0 && (
-                  <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-warm-400">Aucun résultat.</td></tr>
+                  <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-warm-700">Aucun résultat.</td></tr>
                 )}
               </tbody>
             </table>
@@ -211,7 +211,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
 
         {/* Footer */}
         <div className="flex items-center gap-3 px-5 py-3 border-t border-warm-100">
-          <span className="text-[11px] text-warm-400">
+          <span className="text-[11px] text-warm-700">
             Un apprenant affecté à une classe reste actif (interrupteur verrouillé).
           </span>
           <div className="flex-1" />

@@ -193,7 +193,7 @@ export default function StudentScolarite({
   if (yearGroups.length === 0) {
     return (
       <div className="card p-4 text-center">
-        <p className="text-xs text-warm-400 italic">Aucune inscription enregistrée.</p>
+        <p className="text-xs text-warm-700 italic">Aucune inscription enregistrée.</p>
       </div>
     )
   }
@@ -210,7 +210,7 @@ export default function StudentScolarite({
               const ds = disciplineStatsByYear.get(year)
               if (!ds || (ds.abs === 0 && ds.retards === 0 && ds.warnings === 0)) return null
               return (
-                <span className="flex items-center gap-2 text-[11px] text-warm-500 ml-2">
+                <span className="flex items-center gap-2 text-[11px] text-warm-700 ml-2">
                   {ds.abs > 0 && (
                     <span className="flex items-center gap-0.5">
                       <AlertTriangle size={10} className="text-red-400" />
@@ -251,19 +251,20 @@ export default function StudentScolarite({
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-bold text-secondary-800">
-                          {cls.name} – {cls.level}
+                          {cls.name}{cls.level ? ` – ${cls.level}` : ''}
                         </p>
                         <span className={clsx(
                           'text-[10px] font-medium px-1.5 py-0.5 rounded-full',
-                          STATUS_COLOR[enrollment.status] ?? 'bg-warm-100 text-warm-500'
+                          STATUS_COLOR[enrollment.status] ?? 'bg-warm-100 text-warm-700'
                         )}>
                           {STATUS_LABEL[enrollment.status] ?? enrollment.status}
                         </span>
                       </div>
-                      <p className="text-[11px] text-warm-400 mt-0.5">
+                      <p className="text-[11px] text-warm-700 mt-0.5">
                         {teacher && <>{teacher} · </>}
                         {cls.cotisation_types?.label && <>{cls.cotisation_types.label} · </>}
-                        Niveau {cls.level} · {cls.day_of_week && (
+                        {cls.level && <>Niveau {cls.level} · </>}
+                        {cls.day_of_week && (
                           <>
                             {cls.day_of_week}
                             {cls.start_time && cls.end_time && ` ${cls.start_time.slice(0, 5)}–${cls.end_time.slice(0, 5)}`}
@@ -301,7 +302,7 @@ export default function StudentScolarite({
 
                         return (
                           <div key={period.id} className="px-3 py-1.5 flex items-center gap-2">
-                            <span className="text-[11px] font-semibold text-warm-500 w-20 flex-shrink-0">
+                            <span className="text-[11px] font-semibold text-warm-700 w-20 flex-shrink-0">
                               {PERIOD_LABELS[period.label] ?? period.label}
                             </span>
 
@@ -325,11 +326,11 @@ export default function StudentScolarite({
                                 Bulletin
                               </a>
                             ) : (
-                              <span className="text-[11px] text-warm-300 italic">—</span>
+                              <span className="text-[11px] text-warm-700 italic">—</span>
                             )}
 
                             {(absTotal > 0 || retards > 0) && (
-                              <span className="flex items-center gap-1 text-[11px] text-warm-400 ml-auto">
+                              <span className="flex items-center gap-1 text-[11px] text-warm-700 ml-auto">
                                 {absTotal > 0 && <><AlertTriangle size={10} className="text-red-400" /> {absTotal} abs.</>}
                                 {retards > 0 && <>{absTotal > 0 ? ' · ' : ''}<Clock size={10} className="text-amber-400" /> {retards} ret.</>}
                               </span>
@@ -340,7 +341,7 @@ export default function StudentScolarite({
                     </div>
                   ) : (
                     <div className="px-3 py-2">
-                      <p className="text-[11px] text-warm-300 italic">Aucune période trouvée</p>
+                      <p className="text-[11px] text-warm-700 italic">Aucune période trouvée</p>
                     </div>
                   )}
                 </div>

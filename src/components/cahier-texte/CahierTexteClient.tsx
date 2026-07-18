@@ -29,7 +29,7 @@ const HOMEWORK_TYPE_LABELS: Record<string, { label: string; color: string; icon:
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
   lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
   expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
-  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-600', icon: FileText },
+  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-700', icon: FileText },
 }
 
 function formatDate(d: string): string {
@@ -185,7 +185,7 @@ export default function CahierTexteClient({
             onChange={() => {}}
             disabled
             wrapperClassName="w-fit"
-            className="bg-warm-50 text-warm-500 cursor-not-allowed"
+            className="bg-warm-50 text-warm-700 cursor-not-allowed"
           >
             <option value="__general__">Général</option>
           </FloatSelect>
@@ -203,7 +203,7 @@ export default function CahierTexteClient({
               : null
             const parts = [teacher, selectedClass.cotisation_types?.label, selectedClass.level ? `Niveau ${selectedClass.level}` : null, schedule].filter(Boolean)
             return parts.length > 0 ? (
-              <span className="text-sm font-medium text-warm-600 whitespace-nowrap">{parts.join(' · ')}</span>
+              <span className="text-sm font-medium text-warm-700 whitespace-nowrap">{parts.join(' · ')}</span>
             ) : null
           })()}
           {canCreate && (() => {
@@ -239,7 +239,7 @@ export default function CahierTexteClient({
           onClick={() => setTab('journal')}
           className={clsx(
             'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            tab === 'journal' ? 'border-primary-500 text-primary-700' : 'border-transparent text-warm-500 hover:text-warm-700'
+            tab === 'journal' ? 'border-primary-500 text-primary-700' : 'border-transparent text-warm-700 hover:text-warm-700'
           )}
         >
           <CalendarDays size={14} className="inline mr-1.5" />
@@ -253,7 +253,7 @@ export default function CahierTexteClient({
           onClick={() => setTab('devoirs')}
           className={clsx(
             'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            tab === 'devoirs' ? 'border-primary-500 text-primary-700' : 'border-transparent text-warm-500 hover:text-warm-700'
+            tab === 'devoirs' ? 'border-primary-500 text-primary-700' : 'border-transparent text-warm-700 hover:text-warm-700'
           )}
         >
           <ClipboardList size={14} className="inline mr-1.5" />
@@ -265,14 +265,14 @@ export default function CahierTexteClient({
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
       {!filterClass ? (
         <div className="card px-6 py-10 text-center">
-          <BookOpen size={32} className="mx-auto text-warm-300 mb-2" />
-          <p className="text-sm text-warm-400">Sélectionnez une classe pour afficher le cahier de texte.</p>
+          <BookOpen size={32} className="mx-auto text-warm-700 mb-2" />
+          <p className="text-sm text-warm-700">Sélectionnez une classe pour afficher le cahier de texte.</p>
         </div>
       ) : tab === 'journal' ? (
         filteredJournal.length === 0 ? (
           <div className="card px-6 py-10 text-center">
-            <CalendarDays size={32} className="mx-auto text-warm-300 mb-2" />
-            <p className="text-sm text-warm-400">Aucune seance enregistree.</p>
+            <CalendarDays size={32} className="mx-auto text-warm-700 mb-2" />
+            <p className="text-sm text-warm-700">Aucune seance enregistree.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -293,15 +293,15 @@ export default function CahierTexteClient({
                       {j.classes?.name}
                     </span>
                     {j.subject && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warm-100 text-warm-600">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warm-100 text-warm-700">
                         {j.subject}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-warm-400 mt-0.5 truncate">
+                  <p className="text-xs text-warm-700 mt-0.5 truncate">
                     {stripHtml(j.content_html).slice(0, 150)}
                   </p>
-                  <div className="text-[11px] text-warm-400 mt-1">
+                  <div className="text-[11px] text-warm-700 mt-1">
                     {entryMeta(j)}
                   </div>
                 </div>
@@ -312,8 +312,8 @@ export default function CahierTexteClient({
       ) : (
         filteredHomework.length === 0 ? (
           <div className="card px-6 py-10 text-center">
-            <ClipboardList size={32} className="mx-auto text-warm-300 mb-2" />
-            <p className="text-sm text-warm-400">Aucun devoir enregistre.</p>
+            <ClipboardList size={32} className="mx-auto text-warm-700 mb-2" />
+            <p className="text-sm text-warm-700">Aucun devoir enregistre.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -333,10 +333,10 @@ export default function CahierTexteClient({
                   )}
                 >
                   <div className="flex-shrink-0 w-16 text-center">
-                    <div className={clsx('text-xs font-bold', isPast ? 'text-warm-400' : 'text-red-600')}>
+                    <div className={clsx('text-xs font-bold', isPast ? 'text-warm-700' : 'text-red-600')}>
                       {formatDate(h.due_date)}
                     </div>
-                    <div className="text-[10px] text-warm-400">a rendre</div>
+                    <div className="text-[10px] text-warm-700">a rendre</div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -349,15 +349,15 @@ export default function CahierTexteClient({
                         {h.classes?.name}
                       </span>
                       {h.subject && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warm-100 text-warm-600">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warm-100 text-warm-700">
                           {h.subject}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-warm-400 mt-0.5 truncate">
+                    <p className="text-xs text-warm-700 mt-0.5 truncate">
                       {stripHtml(h.description_html).slice(0, 150)}
                     </p>
-                    <div className="text-[11px] text-warm-400 mt-1">
+                    <div className="text-[11px] text-warm-700 mt-1">
                       {entryMeta(h)}
                     </div>
                   </div>

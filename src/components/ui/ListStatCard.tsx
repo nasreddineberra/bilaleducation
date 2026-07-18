@@ -33,7 +33,7 @@ export default function ListStatCard({
   const content = (
     <>
       <span className={clsx('text-xl font-bold', valueColor)}>{value}</span>
-      <span className="text-xs text-warm-500 leading-tight">{label}</span>
+      <span className="text-xs text-warm-700 leading-tight">{label}</span>
     </>
   )
 

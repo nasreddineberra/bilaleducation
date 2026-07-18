@@ -135,7 +135,7 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
         <div className="card p-5">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest mb-3">Identité</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest mb-3">Identité</h2>
 
           <div className="flex gap-6">
 
@@ -324,7 +324,7 @@ function LogoField({
       <div className="w-40 h-40 rounded-xl border border-warm-200 bg-white flex items-center justify-center overflow-hidden">
         {logoUrl
           ? <Image src={logoUrl} alt="Logo de l'établissement" width={160} height={160} className="w-full h-full object-contain p-2" unoptimized />
-          : <span className="text-xs text-warm-400 text-center px-2">Aucun logo</span>
+          : <span className="text-xs text-warm-700 text-center px-2">Aucun logo</span>
         }
       </div>
 
@@ -361,7 +361,7 @@ function LogoField({
             <button
               type="button"
               onClick={() => setConfirmDelete(false)}
-              className={`${linkCls} text-warm-500 hover:text-warm-700 focus-visible:ring-warm-400/50`}
+              className={`${linkCls} text-warm-700 hover:text-warm-700 focus-visible:ring-warm-400/50`}
             >
               Annuler
             </button>
@@ -394,7 +394,7 @@ function LogoField({
                 type="button"
                 onClick={closeCrop}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
                 <X size={16} />
               </button>
@@ -411,7 +411,7 @@ function LogoField({
               />
             </div>
             <div className="px-4 py-3 flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-xs text-warm-500">
+              <label className="flex items-center gap-2 text-xs text-warm-700">
                 <span className="whitespace-nowrap">Zoom</span>
                 <input
                   type="range"

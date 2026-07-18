@@ -570,7 +570,7 @@ export default function ClassForm({
 
         {/* ── Colonne gauche — Informations générales ── */}
         <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Informations générales</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Informations générales</h2>
 
           <FloatInput
             label="Nom de la classe"
@@ -650,7 +650,7 @@ export default function ClassForm({
 
         {/* ── Colonne droite — Enseignant ── */}
         <div className="card p-4 space-y-4 flex flex-col">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
             Enseignant <span className="text-red-400">*</span>
           </h2>
 
@@ -669,7 +669,7 @@ export default function ClassForm({
               {/* ── Titulaire ── */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] font-bold text-warm-500 uppercase tracking-wide">Titulaire</h3>
+                  <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Titulaire</h3>
                   {!showAddRow && (
                     <button type="button" onClick={openTitulairePanel}
                       className="text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
@@ -682,7 +682,7 @@ export default function ClassForm({
                   <div className="border border-warm-100 rounded-xl px-3 py-2 flex items-center justify-between">
                     <span className="font-medium text-secondary-800">{activeTit.teacher_name}</span>
                     {activeTit.effective_from && (
-                      <span className="text-[10px] text-warm-400">depuis le {fmtDate(activeTit.effective_from)}</span>
+                      <span className="text-[10px] text-warm-700">depuis le {fmtDate(activeTit.effective_from)}</span>
                     )}
                   </div>
                 ) : (
@@ -690,7 +690,7 @@ export default function ClassForm({
                     <div className={clsx('flex items-center gap-2 text-sm rounded-xl px-3 py-2',
                       touched.has('assignments') && vAssignments
                         ? 'text-red-600 bg-red-50 border border-red-200'
-                        : 'text-warm-400 bg-warm-50')}>
+                        : 'text-warm-700 bg-warm-50')}>
                       <BookOpen size={14} />
                       {touched.has('assignments') && vAssignments ? 'Un titulaire est requis.' : 'Aucun titulaire affecté.'}
                     </div>
@@ -718,19 +718,19 @@ export default function ClassForm({
                     {formerTits.map(a => {
                       const realIdx = assignments.indexOf(a)
                       return (
-                        <div key={`ft-${realIdx}`} className="group flex items-center justify-between text-[11px] text-warm-400 pl-3 pr-1">
+                        <div key={`ft-${realIdx}`} className="group flex items-center justify-between text-[11px] text-warm-700 pl-3 pr-1">
                           <span>Ancien titulaire : <span className="text-secondary-500">{a.teacher_name}</span></span>
                           <span className="flex items-center gap-1.5 whitespace-nowrap">
                             <span>{a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : ''}</span>
                             <Tooltip content="Corriger les dates">
                               <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-400 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
                                 <Pencil size={11} />
                               </button>
                             </Tooltip>
                             <Tooltip content="Supprimer">
                               <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-400 hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                                 <Trash2 size={11} />
                               </button>
                             </Tooltip>
@@ -744,7 +744,7 @@ export default function ClassForm({
 
               {/* ── Remplacement en cours ── */}
               <div className="space-y-1.5 pt-3 border-t border-warm-100">
-                <h3 className="text-[11px] font-bold text-warm-500 uppercase tracking-wide">Remplacement en cours</h3>
+                <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Remplacement en cours</h3>
 
                 {currentSub ? (() => {
                   const realIdx = assignments.indexOf(currentSub)
@@ -754,7 +754,7 @@ export default function ClassForm({
                     <div className="border border-warm-100 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
                       <span className="font-medium text-secondary-800 whitespace-nowrap">{currentSub.teacher_name}</span>
                       <span className="flex items-center gap-2 whitespace-nowrap">
-                        <span className="text-[10px] text-warm-400">
+                        <span className="text-[10px] text-warm-700">
                           {currentSub.effective_from ? fmtDate(currentSub.effective_from) : 'Début'} → {endLabel}
                         </span>
                         {started && (
@@ -767,7 +767,7 @@ export default function ClassForm({
                         )}
                         <Tooltip content="Retirer (erreur de saisie)">
                           <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Retirer ${currentSub.teacher_name}`}
-                            className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50">
+                            className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50">
                             <Trash2 size={13} />
                           </button>
                         </Tooltip>
@@ -784,7 +784,7 @@ export default function ClassForm({
                       <FloatInput label="Du" type="date" value={subFrom} onChange={e => setSubFrom(e.target.value)} />
                       <FloatInput label="Au" type="date" value={subUntil} onChange={e => setSubUntil(e.target.value)} />
                     </div>
-                    <p className="text-[11px] text-warm-400">Laisser « Au » vide si la date de retour n'est pas connue (remplacement ouvert).</p>
+                    <p className="text-[11px] text-warm-700">Laisser « Au » vide si la date de retour n'est pas connue (remplacement ouvert).</p>
                     {subErr && <p role="alert" className="text-xs text-red-600">{subErr}</p>}
                     <div className="flex gap-2 justify-end pt-1">
                       <FloatButton type="button" variant="secondary" onClick={() => setShowAddSub(false)}>Annuler</FloatButton>
@@ -793,7 +793,7 @@ export default function ClassForm({
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-warm-400">Aucun remplacement en cours.</span>
+                    <span className="text-xs text-warm-700">Aucun remplacement en cours.</span>
                     {hasActiveMain && (
                       <button type="button" onClick={openAddSub}
                         className="text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
@@ -807,7 +807,7 @@ export default function ClassForm({
               {/* ── Historique des remplacements ── */}
               {pastSubs.length > 0 && (
                 <div className="pt-3 border-t border-warm-100 space-y-1.5">
-                  <h3 className="text-[11px] font-bold text-warm-500 uppercase tracking-wide">
+                  <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">
                     Historique des remplacements ({pastSubs.length})
                   </h3>
                   <div className="border border-warm-100 rounded-xl overflow-hidden opacity-70">
@@ -818,20 +818,20 @@ export default function ClassForm({
                           return (
                             <tr key={`pastsub-${realIdx}`} className="group bg-warm-50/30">
                               <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">{a.teacher_name}</td>
-                              <td className="px-3 py-1.5 text-[10px] text-warm-400 whitespace-nowrap text-right">
+                              <td className="px-3 py-1.5 text-[10px] text-warm-700 whitespace-nowrap text-right">
                                 {a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : ''}
                               </td>
                               <td className="px-2 py-1.5 w-12">
                                 <div className="flex items-center gap-1 justify-end">
                                   <Tooltip content="Corriger les dates">
                                     <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-400 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
+                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
                                       <Pencil size={11} />
                                     </button>
                                   </Tooltip>
                                   <Tooltip content="Supprimer">
                                     <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-400 hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                                       <Trash2 size={11} />
                                     </button>
                                   </Tooltip>
@@ -854,7 +854,7 @@ export default function ClassForm({
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Planning EDT</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Planning EDT</h2>
             {slots.length > 0 && (
               <span className="text-[10px] font-semibold bg-primary-100 text-primary-700 border border-primary-200 px-1.5 py-0.5 rounded-full">
                 {slots.length} créneau{slots.length > 1 ? 'x' : ''}
@@ -877,7 +877,7 @@ export default function ClassForm({
           <div className="border border-warm-100 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-warm-50 border-b border-warm-100 text-[10px] font-semibold text-warm-500 uppercase tracking-wider">
+                <tr className="bg-warm-50 border-b border-warm-100 text-[10px] font-semibold text-warm-700 uppercase tracking-wider">
                   <th className="text-left px-3 py-2">Jour</th>
                   <th className="text-left px-3 py-2">Horaire</th>
                   <th className="text-left px-3 py-2">Du</th>
@@ -899,10 +899,10 @@ export default function ClassForm({
                         {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
-                        {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-300">—</span>}
+                        {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">—</span>}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
-                        {slot.effective_until ? fmtDate(slot.effective_until) : <span className="text-warm-400 italic">ouvert</span>}
+                        {slot.effective_until ? fmtDate(slot.effective_until) : <span className="text-warm-700 italic">ouvert</span>}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1 justify-end">
@@ -910,7 +910,7 @@ export default function ClassForm({
                             <button
                               type="button" onClick={() => handleEditSlot(idx)}
                               aria-label={`Modifier le créneau ${slot.day_of_week} ${slot.start_time.slice(0, 5)}`}
-                              className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                              className="p-1 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                             >
                               <Pencil size={12} />
                             </button>
@@ -919,7 +919,7 @@ export default function ClassForm({
                             <button
                               type="button" onClick={() => handleDeleteSlot(idx)}
                               aria-label={`Supprimer le créneau ${slot.day_of_week} ${slot.start_time.slice(0, 5)}`}
-                              className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -935,7 +935,7 @@ export default function ClassForm({
         )}
 
         {slots.length === 0 && (
-          <div className="flex items-center gap-2 text-sm text-warm-400 bg-warm-50 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-warm-700 bg-warm-50 rounded-xl px-4 py-3">
             <CalendarDays size={14} />
             Aucun créneau déployé dans l'emploi du temps.
           </div>
@@ -1000,7 +1000,7 @@ export default function ClassForm({
           <div className="px-5 py-4 space-y-3">
             <p className="text-sm text-warm-700">{pendingAssignAction.message}</p>
             <div>
-              <label htmlFor="assign-effective-date" className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Date d&apos;effet</label>
+              <label htmlFor="assign-effective-date" className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Date d&apos;effet</label>
               <input
                 id="assign-effective-date"
                 type="date"
@@ -1016,7 +1016,7 @@ export default function ClassForm({
             <button
               type="button"
               onClick={() => setPendingAssignAction(null)}
-              className="text-sm text-warm-500 hover:text-secondary-700 px-3 py-1.5 rounded-lg border border-warm-200 transition-colors"
+              className="text-sm text-warm-700 hover:text-secondary-700 px-3 py-1.5 rounded-lg border border-warm-200 transition-colors"
             >
               Annuler
             </button>
@@ -1168,7 +1168,7 @@ function SlotFormModal({
           <button
             type="button" onClick={onCancel}
             aria-label="Fermer"
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <X size={16} />
           </button>
@@ -1210,7 +1210,7 @@ function SlotFormModal({
             const h = Math.floor(diff / 60)
             const m = diff % 60
             return (
-              <p className="text-xs text-warm-500">
+              <p className="text-xs text-warm-700">
                 Durée : <span className="font-semibold text-secondary-700">
                   {h > 0 ? `${h}h` : ''}{m > 0 ? `${m < 10 && h > 0 ? '0' : ''}${m}min` : ''}
                 </span>

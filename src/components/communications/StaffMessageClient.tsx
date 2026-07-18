@@ -46,9 +46,9 @@ const ROLE_COLORS: Record<string, string> = {
   responsable_pedagogique: 'bg-purple-100 text-purple-700',
   enseignant:              'bg-primary-100 text-primary-700',
   secretaire:              'bg-blue-100 text-blue-700',
-  parent:                  'bg-warm-100 text-warm-600',
+  parent:                  'bg-warm-100 text-warm-700',
 }
-const roleColor = (r: string) => ROLE_COLORS[r] ?? 'bg-warm-100 text-warm-500'
+const roleColor = (r: string) => ROLE_COLORS[r] ?? 'bg-warm-100 text-warm-700'
 
 // Meme ordre hierarchique que la liste des utilisateurs : role puis NOM Prenom.
 const ROLE_ORDER: Record<string, number> = {
@@ -87,9 +87,9 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-warm-100">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">{title}</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Fermer"
-            className="text-warm-400 hover:text-warm-600 rounded p-1 focus:outline-none focus:ring-2 focus:ring-primary-400">
+            className="text-warm-700 hover:text-warm-700 rounded p-1 focus:outline-none focus:ring-2 focus:ring-primary-400">
             <X size={16} />
           </button>
         </div>
@@ -268,7 +268,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
         {/* ─── Composition ─────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-3">
           <div className="card p-4 space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Canal</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Canal</h2>
             <div className="flex gap-2" role="group" aria-label="Canal d'envoi">
               {CHANNELS.map(({ value, label }) => {
                 const active = channel === value
@@ -280,7 +280,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                     onClick={() => setChannel(value)}
                     className={clsx(
                       'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                      active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50',
+                      active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
                     )}
                   >
                     {label}
@@ -295,7 +295,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
           </div>
 
           <div className="card p-4 space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Message</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Message</h2>
             <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
               <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
             </Suspense>
@@ -303,10 +303,10 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
 
           <div className="card p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                 Pièces jointes
                 {attachments.length > 0 && (
-                  <span className="ml-2 font-normal normal-case tracking-normal text-warm-400">
+                  <span className="ml-2 font-normal normal-case tracking-normal text-warm-700">
                     {(attachmentsSize / 1024).toFixed(0)} Ko sur 1024 Ko
                   </span>
                 )}
@@ -318,18 +318,18 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
               <input ref={fileInputRef} type="file" multiple onChange={handleFileAdd} className="hidden" />
             </div>
             {attachments.length === 0 ? (
-              <p className="text-xs text-warm-400">
+              <p className="text-xs text-warm-700">
                 Aucune pièce jointe · 1 Mo au total maximum{!wantsEmail && ' · envoyées seulement par email'}.
               </p>
             ) : (
               <ul className="space-y-1">
                 {attachments.map((file, idx) => (
                   <li key={idx} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
-                    <Paperclip size={12} className="text-warm-400 shrink-0" />
+                    <Paperclip size={12} className="text-warm-700 shrink-0" />
                     <span className="text-warm-700 flex-1 truncate">{file.name}</span>
-                    <span className="text-warm-400">{(file.size / 1024).toFixed(0)} Ko</span>
+                    <span className="text-warm-700">{(file.size / 1024).toFixed(0)} Ko</span>
                     <button type="button" onClick={() => removeAttachment(idx)} aria-label={`Retirer ${file.name}`}
-                      className="text-warm-400 hover:text-red-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-400">
+                      className="text-warm-700 hover:text-red-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-400">
                       <X size={12} />
                     </button>
                   </li>
@@ -351,7 +351,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
         {/* ─── Destinataires ───────────────────────────────────────────────── */}
         <aside className="w-[340px] shrink-0 sticky top-0 space-y-3">
           <div className="card p-4 space-y-3">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Destinataires</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Destinataires</h2>
 
             {/* Raccourcis : un clic = tout le groupe, sans cocher un par un. */}
             <div className="flex flex-wrap gap-1.5">
@@ -363,7 +363,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                   onClick={() => toggleGroup(g)}
                   className={clsx(
                     'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                    group === g ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-600 bg-white hover:bg-warm-50',
+                    group === g ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
                   )}
                 >
                   {label}
@@ -381,7 +381,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                   onClick={() => toggleRole(r)}
                   className={clsx(
                     'px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                    selectedRoles.has(r) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-500 bg-white hover:bg-warm-50',
+                    selectedRoles.has(r) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
                   )}
                 >
                   {ROLE_LABELS[r] ?? r}
@@ -396,7 +396,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                   type="button"
                   onClick={() => { setGroup(null); setSelectedRoles(new Set()); setSelectedIds(new Set()) }}
                   disabled={recipients.length === 0}
-                  className="text-xs text-warm-500 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                  className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                 >
                   Tout désélectionner
                 </button>
@@ -417,7 +417,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                           selected ? 'bg-primary-50' : 'hover:bg-warm-50',
                         )}
                       >
-                        {selected ? <CheckSquare size={14} className="text-primary-600 shrink-0" /> : <Square size={14} className="text-warm-300 shrink-0" />}
+                        {selected ? <CheckSquare size={14} className="text-primary-600 shrink-0" /> : <Square size={14} className="text-warm-700 shrink-0" />}
                         <span className={clsx('font-medium truncate', selected ? 'text-primary-700' : 'text-warm-700')}>{fullName(s)}</span>
                         <span className={clsx('ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', roleColor(s.role))}>{ROLE_LABELS[s.role] ?? s.role}</span>
                         {!s.email && <span className="text-amber-600 shrink-0">Sans email</span>}
@@ -425,7 +425,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                     </li>
                   )
                 })}
-                {filteredStaff.length === 0 && <li className="text-xs text-warm-400 italic px-3 py-2">Aucun membre trouvé.</li>}
+                {filteredStaff.length === 0 && <li className="text-xs text-warm-700 italic px-3 py-2">Aucun membre trouvé.</li>}
               </ul>
             </div>
           </div>
@@ -434,7 +434,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
             <div className="card p-4 space-y-2" aria-live="polite">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-warm-700 tabular-nums">{recipients.length}</span>
-                <span className="text-xs text-warm-500">destinataire{recipients.length > 1 ? 's' : ''}</span>
+                <span className="text-xs text-warm-700">destinataire{recipients.length > 1 ? 's' : ''}</span>
               </div>
               {wantsEmail && withoutEmail.length > 0 && (
                 <p className="text-xs text-amber-700">{withoutEmail.length} sans adresse email (pas d'envoi mail)</p>
@@ -466,7 +466,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                 <span className="font-medium text-warm-700 flex-1 truncate">{fullName(r)}</span>
                 <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium', roleColor(r.role))}>{ROLE_LABELS[r.role] ?? r.role}</span>
                 {r.email
-                  ? <span className="text-warm-400 truncate max-w-[220px]">{r.email}</span>
+                  ? <span className="text-warm-700 truncate max-w-[220px]">{r.email}</span>
                   : <span className="text-amber-600 shrink-0">Sans email</span>}
               </li>
             ))}
@@ -485,12 +485,12 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
         onConfirm={handleSend}
         onCancel={() => setConfirmOpen(false)}
       >
-        <div className="space-y-1.5 text-xs text-warm-600">
-          <p><span className="text-warm-400">Objet :</span> <strong className="text-warm-700">{subject}</strong></p>
-          <p><span className="text-warm-400">Canal :</span> {CHANNELS.find(c => c.value === channel)?.label}</p>
-          <p><span className="text-warm-400">Destinataires :</span> <strong className="text-warm-700">{recipients.length}</strong></p>
+        <div className="space-y-1.5 text-xs text-warm-700">
+          <p><span className="text-warm-700">Objet :</span> <strong className="text-warm-700">{subject}</strong></p>
+          <p><span className="text-warm-700">Canal :</span> {CHANNELS.find(c => c.value === channel)?.label}</p>
+          <p><span className="text-warm-700">Destinataires :</span> <strong className="text-warm-700">{recipients.length}</strong></p>
           {attachments.length > 0 && wantsEmail && (
-            <p><span className="text-warm-400">Pièces jointes :</span> {attachments.map(a => a.name).join(', ')}</p>
+            <p><span className="text-warm-700">Pièces jointes :</span> {attachments.map(a => a.name).join(', ')}</p>
           )}
           {wantsEmail && withoutEmail.length > 0 && (
             <p className="text-amber-700">{withoutEmail.length} destinataire(s) sans email ne recevront pas le mail.</p>

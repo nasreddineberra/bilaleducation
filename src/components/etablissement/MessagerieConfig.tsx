@@ -108,7 +108,7 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
   return (
     <div className="card p-5 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Messagerie</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Messagerie</h2>
           <span
             role="status"
             className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
@@ -191,14 +191,14 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
               onMouseDown={e => e.preventDefault()}
               aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
               aria-pressed={showPassword}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-warm-400 hover:text-warm-600 focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-warm-700 hover:text-warm-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
             >
               {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
         </div>
 
-        <p className="text-xs text-warm-400">
+        <p className="text-xs text-warm-700">
           Gmail : identifiant = adresse complète, et <strong>mot de passe d'application</strong> (2FA requise).
           Le mot de passe enregistré n'est jamais réaffiché.
         </p>
@@ -220,7 +220,7 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
           />
         </div>
 
-        <p className="text-xs text-warm-400">
+        <p className="text-xs text-warm-700">
           L'adresse d'expédition doit être celle du compte, sinon les messages partent en indésirable.
           {contact
             ? <> Les familles répondront à <strong>{contact}</strong>.</>

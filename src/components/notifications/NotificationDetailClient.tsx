@@ -62,14 +62,14 @@ export default function NotificationDetailClient({ message, attachments }: Props
       {/* Titre */}
       <div className="card p-4">
         <h2 className="text-lg font-bold text-warm-800">{message.title}</h2>
-        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-warm-500">
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-warm-700">
           <span>{formatDate(message.sent_at ?? message.published_at)}</span>
           {message.profiles && (
             <span>
               de <span className="font-medium text-warm-700">{message.profiles.first_name} {message.profiles.last_name}</span>
             </span>
           )}
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warm-100 text-warm-600">
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warm-100 text-warm-700">
             {TYPE_LABELS[message.announcement_type ?? ''] ?? message.announcement_type}
           </span>
           <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-600">
@@ -89,7 +89,7 @@ export default function NotificationDetailClient({ message, attachments }: Props
       {/* Pieces jointes */}
       {attachments.length > 0 && (
         <div className="card p-4 space-y-2">
-          <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Pieces jointes</h3>
+          <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Pieces jointes</h3>
           <div className="space-y-1">
             {attachments.map(a => (
               <a
@@ -99,9 +99,9 @@ export default function NotificationDetailClient({ message, attachments }: Props
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs hover:bg-warm-100 transition-colors"
               >
-                <Paperclip size={12} className="text-warm-400" />
+                <Paperclip size={12} className="text-warm-700" />
                 <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>
-                {a.file_size && <span className="text-warm-400">{(a.file_size / 1024).toFixed(0)} Ko</span>}
+                {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
               </a>
             ))}
           </div>

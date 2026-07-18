@@ -534,7 +534,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             {/* Mini-tableau vacances */}
             <div className="pt-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Vacances</h3>
+                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Vacances</h3>
                 {weeks.length > 0 && (
                   <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} className="!px-2 !py-0.5 !text-xs !rounded">
                     Gérer
@@ -542,7 +542,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 )}
               </div>
               {vacations.length === 0 ? (
-                <p className="text-xs text-warm-400 italic">
+                <p className="text-xs text-warm-700 italic">
                   {weeks.length > 0 ? 'Aucune vacance définie' : 'Renseigner les dates pour définir les vacances'}
                 </p>
               ) : (
@@ -557,12 +557,12 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                         return (
                           <tr key={v.start_date} className="hover:bg-warm-50/60">
                             <td className="px-2 py-1 font-medium text-secondary-700">
-                              {v.label || <span className="text-warm-400 italic">Sans nom</span>}
+                              {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                             </td>
-                            <td className="px-2 py-1 text-warm-500 whitespace-nowrap text-right">
+                            <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right">
                               {fmtShort(start)}–{fmtShort(end)}
                             </td>
-                            <td className="px-2 py-1 text-warm-400 text-right whitespace-nowrap">
+                            <td className="px-2 py-1 text-warm-700 text-right whitespace-nowrap">
                               {nbWeeks} sem.
                             </td>
                           </tr>
@@ -608,7 +608,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+                <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                   Répartition <span className="text-red-400">*</span>
                 </h2>
                 {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies — verrouillé</span>}
@@ -639,7 +639,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   />
                   <div>
                     <p className="text-sm font-semibold text-secondary-800">{opt.label}</p>
-                    <p className="text-xs text-warm-400">{opt.sub}</p>
+                    <p className="text-xs text-warm-700">{opt.sub}</p>
                   </div>
                 </label>
               ))}
@@ -656,7 +656,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         vNoEval && hasSubmitted && 'ring-1 ring-red-300'
       )}>
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
             Type d'évaluation <span className="text-red-400">*</span>
           </h2>
           {vNoEval && hasSubmitted && (
@@ -692,8 +692,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 {form.eval_types.includes('diagnostic') && (
                   <div className="mt-1.5 ml-7 space-y-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-warm-400 w-20 text-center">Acronyme</span>
-                      <span className="text-xs text-warm-400 flex-1">Commentaire</span>
+                      <span className="text-xs text-warm-700 w-20 text-center">Acronyme</span>
+                      <span className="text-xs text-warm-700 flex-1">Commentaire</span>
                     </div>
                     {form.diagnostic_options.map((opt, i) => (
                       <div key={i} className="flex items-center gap-1.5">
@@ -719,7 +719,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               type="button"
                               onClick={() => removeDiagnosticOption(i)}
                               aria-label={`Supprimer l'option ${opt.acronym || i + 1}`}
-                              className="p-1 text-warm-300 hover:text-danger-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+                              className="p-1 text-warm-700 hover:text-danger-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
                             >
                               <X size={13} />
                             </button>
@@ -764,7 +764,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     Notée sur 10
                     {lockBadge('scored_10')}
                   </p>
-                  <p className="text-xs text-warm-400">Notes de 0 à 10</p>
+                  <p className="text-xs text-warm-700">Notes de 0 à 10</p>
                 </div>
               </label>
             )
@@ -791,7 +791,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     Notée sur 20
                     {lockBadge('scored_20')}
                   </p>
-                  <p className="text-xs text-warm-400">Notes de 0 à 20</p>
+                  <p className="text-xs text-warm-700">Notes de 0 à 20</p>
                 </div>
               </label>
             )
@@ -818,7 +818,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     Étoilée
                     {lockBadge('stars')}
                   </p>
-                  <p className="text-xs text-warm-400">0 à 5 étoiles · par tranche de 0,5</p>
+                  <p className="text-xs text-warm-700">0 à 5 étoiles · par tranche de 0,5</p>
                 </div>
               </label>
             )
@@ -845,7 +845,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
               <div>
                 <h2 id="vac-modal-title" className="text-base font-bold text-secondary-800">Vacances scolaires</h2>
-                <p className="text-xs text-warm-500 mt-0.5">
+                <p className="text-xs text-warm-700 mt-0.5">
                   {vacationMondaySet.size > 0
                     ? `${vacationMondaySet.size} semaine${vacationMondaySet.size > 1 ? 's' : ''} sélectionnée${vacationMondaySet.size > 1 ? 's' : ''}`
                     : 'Cliquez sur une semaine pour la marquer en vacances'}
@@ -855,7 +855,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 type="button"
                 onClick={() => setShowVacModal(false)}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
                 <X size={18} />
               </button>
@@ -897,7 +897,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                                   'w-full flex items-center justify-between px-2 py-1 rounded-md border text-[11px] transition-colors',
                                   isVac
                                     ? 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
-                                    : 'bg-white border-warm-150 text-warm-600 hover:bg-warm-50 hover:border-warm-300'
+                                    : 'bg-white border-warm-150 text-warm-700 hover:bg-warm-50 hover:border-warm-300'
                                 )}
                               >
                                 <span className="font-semibold">S{w.weekNum}</span>
@@ -917,7 +917,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               {/* Nommage des périodes */}
               {vacations.length > 0 && (
                 <div className="mt-3 space-y-1.5">
-                  <p className="text-[11px] font-bold text-warm-500 uppercase tracking-wide">Périodes de vacances</p>
+                  <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Périodes de vacances</p>
                   {vacations.map(v => {
                     const start = new Date(v.start_date + 'T00:00:00')
                     const end = new Date(v.end_date + 'T00:00:00')
@@ -927,7 +927,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     if (isEditingThis) {
                       return (
                         <div key={v.start_date} className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                          <span className="text-xs text-warm-500 whitespace-nowrap">{fmtShort(start)}–{fmtShort(end)}</span>
+                          <span className="text-xs text-warm-700 whitespace-nowrap">{fmtShort(start)}–{fmtShort(end)}</span>
                           <input
                             type="text"
                             value={vacLabelDraft}
@@ -949,15 +949,15 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     return (
                       <div key={v.start_date} className="flex items-center gap-2 px-2 py-1.5 bg-amber-50/60 border border-amber-100 rounded-lg">
                         <span className="text-xs font-medium text-amber-800 flex-1">
-                          {v.label || <span className="text-warm-400 italic">Sans nom</span>}
+                          {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                         </span>
-                        <span className="text-[11px] text-warm-500">{fmtShort(start)}–{fmtShort(end)}</span>
+                        <span className="text-[11px] text-warm-700">{fmtShort(start)}–{fmtShort(end)}</span>
                         <Tooltip content="Renommer">
                           <button
                             type="button"
                             onClick={() => { setEditingVacLabel(groupKey); setVacLabelDraft(v.label) }}
                             aria-label={`Renommer la période ${v.label || 'sans nom'}`}
-                            className="p-0.5 text-warm-400 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                            className="p-0.5 text-warm-700 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                           >
                             <Pencil size={11} />
                           </button>

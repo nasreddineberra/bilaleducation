@@ -240,8 +240,8 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
                   <nav className="flex items-center gap-1 mb-0.5">
                     {crumbs.map((crumb, i) => (
                       <span key={i} className="flex items-center gap-1">
-                        {i > 0 && <ChevronRight size={11} className="text-warm-300 flex-shrink-0" />}
-                        <span className={i === crumbs.length - 1 ? 'text-xs text-warm-500' : 'text-xs text-warm-400'}>
+                        {i > 0 && <ChevronRight size={11} className="text-warm-700 flex-shrink-0" />}
+                        <span className={i === crumbs.length - 1 ? 'text-xs text-warm-700' : 'text-xs text-warm-700'}>
                           {crumb.label}
                         </span>
                       </span>
@@ -287,7 +287,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
               <p className="text-sm font-semibold text-secondary-800 leading-tight">
                 {profile?.first_name} {profile?.last_name}
               </p>
-              <p className="text-xs text-warm-500 capitalize leading-tight mt-0.5">
+              <p className="text-xs text-warm-700 capitalize leading-tight mt-0.5">
                 {profile?.role?.replace('_', ' ')}
               </p>
             </div>
@@ -309,7 +309,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
           {/* Déconnexion */}
           <button
             onClick={handleLogout}
-            className="p-2 text-warm-500 hover:text-danger-500 hover:bg-danger-50 rounded-xl transition-all duration-200"
+            className="p-2 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded-xl transition-all duration-200"
             title="Déconnexion"
             aria-label="Déconnexion"
           >

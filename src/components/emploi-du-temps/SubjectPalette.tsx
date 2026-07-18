@@ -55,7 +55,7 @@ function DraggableSubject({ item }: { item: PaletteSubject }) {
         <p className="text-xs font-semibold text-secondary-800 truncate">
           {item.ueCode ? `${item.ueCode} — ` : ''}{item.ueName}
         </p>
-        <p className="text-[10px] text-warm-400 truncate">
+        <p className="text-[10px] text-warm-700 truncate">
           {item.teacherName || 'Non affecté'}
         </p>
       </div>
@@ -69,8 +69,8 @@ export default function SubjectPalette({ subjects }: Props) {
   if (subjects.length === 0) {
     return (
       <div className="w-48 flex-shrink-0 border-r border-warm-100 bg-warm-50/50 p-3">
-        <h3 className="text-[10px] font-bold text-warm-400 uppercase tracking-widest mb-2">Matières</h3>
-        <div className="flex items-center gap-2 text-xs text-warm-400 py-4">
+        <h3 className="text-[10px] font-bold text-warm-700 uppercase tracking-widest mb-2">Matières</h3>
+        <div className="flex items-center gap-2 text-xs text-warm-700 py-4">
           <BookOpen size={14} />
           Aucune matière affectée.
         </div>
@@ -80,7 +80,7 @@ export default function SubjectPalette({ subjects }: Props) {
 
   return (
     <div className="w-48 flex-shrink-0 border-r border-warm-100 bg-warm-50/50 p-3 overflow-y-auto">
-      <h3 className="text-[10px] font-bold text-warm-400 uppercase tracking-widest mb-2">
+      <h3 className="text-[10px] font-bold text-warm-700 uppercase tracking-widest mb-2">
         Matières ({subjects.length})
       </h3>
       <div className="space-y-1.5">

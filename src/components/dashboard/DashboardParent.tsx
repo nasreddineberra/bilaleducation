@@ -10,7 +10,7 @@ const ABSENCE_TYPE: Record<string, string> = {
 }
 
 const FEE_STATUS: Record<string, { label: string; color: string }> = {
-  pending: { label: 'En attente', color: 'text-warm-500 bg-warm-100' },
+  pending: { label: 'En attente', color: 'text-warm-700 bg-warm-100' },
   partial: { label: 'Partiel', color: 'text-amber-700 bg-amber-100' },
   paid:    { label: 'Soldé', color: 'text-success-700 bg-success-100' },
   overdue: { label: 'En retard', color: 'text-danger-700 bg-danger-100' },
@@ -38,7 +38,7 @@ const HW_TYPE_BADGE: Record<string, { label: string; color: string; icon: any }>
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
   lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
   expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
-  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-600', icon: FileText },
+  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-700', icon: FileText },
 }
 
 function formatCurrency(n: number): string {
@@ -58,7 +58,7 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
           <Users size={14} className="text-primary-500" /> Mes enfants
         </h3>
         {stats.children.length === 0 ? (
-          <p className="text-xs text-warm-400 italic py-4 text-center">Aucun enfant enregistré</p>
+          <p className="text-xs text-warm-700 italic py-4 text-center">Aucun enfant enregistré</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {stats.children.map(child => (
@@ -75,7 +75,7 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-warm-800">{child.first_name} {child.last_name}</p>
-                  <p className="text-xs text-warm-500">
+                  <p className="text-xs text-warm-700">
                     {child.enrollments?.[0]?.classes?.name ?? 'Non inscrit'}
                   </p>
                 </div>
@@ -93,13 +93,13 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
             <FileText size={14} className="text-blue-500" /> Dernières notes
           </h3>
           {stats.recentGrades.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune note récente</p>
+            <p className="text-xs text-warm-700 italic py-4 text-center">Aucune note récente</p>
           ) : (
             <div className="space-y-1.5">
               {stats.recentGrades.map(g => (
                 <div key={g.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
                   <span className="font-medium text-warm-700 truncate">{g.students?.first_name}</span>
-                  <span className="text-warm-400 truncate flex-1">{g.evaluations?.title}</span>
+                  <span className="text-warm-700 truncate flex-1">{g.evaluations?.title}</span>
                   <span className="font-bold text-secondary-800 flex-shrink-0">
                     {g.score}/{g.evaluations?.max_score}
                   </span>
@@ -115,15 +115,15 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
             <AlertTriangle size={14} className="text-amber-500" /> Absences
           </h3>
           {stats.recentAbsences.length === 0 ? (
-            <p className="text-xs text-warm-400 italic py-4 text-center">Aucune absence</p>
+            <p className="text-xs text-warm-700 italic py-4 text-center">Aucune absence</p>
           ) : (
             <div className="space-y-1.5">
               {stats.recentAbsences.map(a => (
                 <div key={a.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
                   <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', a.is_justified ? 'bg-success-500' : 'bg-danger-500')} />
                   <span className="font-medium text-warm-700 truncate">{a.students?.first_name}</span>
-                  <span className="text-warm-400 flex-shrink-0">{ABSENCE_TYPE[a.absence_type] ?? a.absence_type}</span>
-                  <span className="ml-auto text-warm-300 flex-shrink-0">
+                  <span className="text-warm-700 flex-shrink-0">{ABSENCE_TYPE[a.absence_type] ?? a.absence_type}</span>
+                  <span className="ml-auto text-warm-700 flex-shrink-0">
                     {new Date(a.absence_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                   </span>
                 </div>
@@ -155,7 +155,7 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
                     {typeInfo.label}
                   </span>
                   <span className="font-medium text-warm-700 truncate flex-1">{hw.title}</span>
-                  <span className="text-warm-400 flex-shrink-0">{hw.classes?.name}</span>
+                  <span className="text-warm-700 flex-shrink-0">{hw.classes?.name}</span>
                   <span className="ml-1 font-bold text-red-600 flex-shrink-0">
                     {new Date(hw.due_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                   </span>

@@ -34,7 +34,7 @@ function LockedField({ label, value }: { label: string; value: string }) {
       <div className="w-full pl-3 pr-8 pt-5 pb-1.5 rounded-lg border border-warm-200 bg-warm-50 text-sm text-secondary-700">
         {value || '·'}
       </div>
-      <span className="absolute left-3 top-1.5 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none">
+      <span className="absolute left-3 top-1.5 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none">
         {label}
       </span>
     </div>
@@ -120,7 +120,7 @@ export default function SeanceForm({
           <h3 id="seance-form-title" className="text-sm font-bold text-secondary-800">
             {isEdit ? 'Modifier la séance' : 'Nouvelle séance'}
           </h3>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+          <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -155,7 +155,7 @@ export default function SeanceForm({
           />
 
           <div>
-            <label className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            <label className="text-xs font-bold text-warm-700 uppercase tracking-widest">
               Contenu de la seance <span className="text-red-400">*</span>
             </label>
             <div className="mt-1">

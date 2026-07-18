@@ -1364,7 +1364,7 @@ export default function EmploiDuTempsClient({
                 'px-3 py-1.5 transition-colors',
                 viewMode === v
                   ? 'text-white'
-                  : 'bg-white text-warm-600 hover:bg-warm-50'
+                  : 'bg-white text-warm-700 hover:bg-warm-50'
               )}
               style={viewMode === v ? { backgroundColor: SIDEBAR_COLOR } : undefined}
             >
@@ -1386,19 +1386,19 @@ export default function EmploiDuTempsClient({
             >
               {selectedClassId ? (() => {
                 const cls = classes.find(c => c.id === selectedClassId)
-                if (!cls) return <span className="text-warm-400">Sélectionner une classe</span>
+                if (!cls) return <span className="text-warm-700">Sélectionner une classe</span>
                 const mainT = cls.class_teachers?.find(ct => ct.is_main_teacher)
                 const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
                 return (
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-secondary-800">{cls.name}</span>
-                    {teacher && <span className="text-warm-400 text-xs">{teacher}</span>}
+                    {teacher && <span className="text-warm-700 text-xs">{teacher}</span>}
                   </span>
                 )
               })() : (
-                <span className="text-warm-400">Sélectionner une classe</span>
+                <span className="text-warm-700">Sélectionner une classe</span>
               )}
-              <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
+              <ChevronDown size={13} className={clsx('text-warm-700 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
             </button>
             {classDropOpen && (
               <div role="listbox" aria-label="Classes" className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
@@ -1419,7 +1419,7 @@ export default function EmploiDuTempsClient({
                       )}
                     >
                       <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      {infoParts.length > 0 && <span className="text-warm-400 text-xs truncate">{infoParts.join(' · ')}</span>}
+                      {infoParts.length > 0 && <span className="text-warm-700 text-xs truncate">{infoParts.join(' · ')}</span>}
                     </button>
                   )
                 })}
@@ -1444,9 +1444,9 @@ export default function EmploiDuTempsClient({
                   {selectedTeacher.last_name} {selectedTeacher.first_name}
                 </span>
               ) : (
-                <span className="text-warm-400">Sélectionner un enseignant</span>
+                <span className="text-warm-700">Sélectionner un enseignant</span>
               )}
-              <ChevronDown size={13} className={clsx('text-warm-400 flex-shrink-0 transition-transform', teacherDropOpen && 'rotate-180')} />
+              <ChevronDown size={13} className={clsx('text-warm-700 flex-shrink-0 transition-transform', teacherDropOpen && 'rotate-180')} />
             </button>
             {teacherDropOpen && (
               <div role="listbox" aria-label="Enseignants" className="absolute top-full left-0 mt-1 w-64 bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
@@ -1475,7 +1475,7 @@ export default function EmploiDuTempsClient({
           const cls = classes.find(c => c.id === selectedClassId)
           if (!cls) return null
           const info = classInfoLine(cls)
-          return info ? <span className="text-sm font-medium text-warm-600 whitespace-nowrap">{info}</span> : null
+          return info ? <span className="text-sm font-medium text-warm-700 whitespace-nowrap">{info}</span> : null
         })()}
 
         <div className="flex-1" />
@@ -1487,7 +1487,7 @@ export default function EmploiDuTempsClient({
             aria-pressed={viewType === 'week'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'week' ? 'bg-warm-700 text-white' : 'bg-white text-warm-500 hover:bg-warm-50',
+              viewType === 'week' ? 'bg-warm-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Semaine
@@ -1497,7 +1497,7 @@ export default function EmploiDuTempsClient({
             aria-pressed={viewType === 'month'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'month' ? 'bg-warm-700 text-white' : 'bg-white text-warm-500 hover:bg-warm-50',
+              viewType === 'month' ? 'bg-warm-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Mois
@@ -1522,11 +1522,11 @@ export default function EmploiDuTempsClient({
           <button
             onClick={() => viewType === 'week' ? setWeekOffset(o => o - 1) : setMonthOffset(o => o - 1)}
             aria-label={viewType === 'week' ? 'Semaine précédente' : 'Mois précédent'}
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-500 select-none capitalize">
+          <span className="text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-700 select-none capitalize">
             {viewType === 'week'
               ? `S${weekNum} · ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`
               : `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`
@@ -1535,7 +1535,7 @@ export default function EmploiDuTempsClient({
           <button
             onClick={() => viewType === 'week' ? setWeekOffset(o => o + 1) : setMonthOffset(o => o + 1)}
             aria-label={viewType === 'week' ? 'Semaine suivante' : 'Mois suivant'}
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors"
           >
             <ChevronRight size={16} />
           </button>
@@ -1549,7 +1549,7 @@ export default function EmploiDuTempsClient({
             className={clsx(
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
               viewType === 'week' && isFullWeekVacation
-                ? 'bg-warm-200 text-warm-400 cursor-not-allowed'
+                ? 'bg-warm-200 text-warm-700 cursor-not-allowed'
                 : 'bg-secondary-700 hover:bg-secondary-800 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
             )}
           >
@@ -1576,7 +1576,7 @@ export default function EmploiDuTempsClient({
             className="grid border-b border-warm-100 flex-shrink-0"
             style={{ gridTemplateColumns: `56px repeat(${activeDays.length}, 1fr)` }}
           >
-            <div className="p-2 text-xs text-warm-400" />
+            <div className="p-2 text-xs text-warm-700" />
             {activeDays.map(d => (
               <button
                 key={d}
@@ -1587,7 +1587,7 @@ export default function EmploiDuTempsClient({
                   'p-2 text-center text-xs font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
                   selectedDay === d
                     ? 'text-white'
-                    : d === todayDow ? 'text-amber-600 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-500 hover:bg-warm-50'
+                    : d === todayDow ? 'text-amber-600 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-700 hover:bg-warm-50'
                 )}
                 style={selectedDay === d ? { backgroundColor: SIDEBAR_COLOR } : undefined}
               >
@@ -1607,7 +1607,7 @@ export default function EmploiDuTempsClient({
               {hours.map((h, i) => (
                 <div
                   key={h}
-                  className="absolute w-full text-right pr-2 text-[10px] text-warm-400 -translate-y-1/2"
+                  className="absolute w-full text-right pr-2 text-[10px] text-warm-700 -translate-y-1/2"
                   style={{ top: `${(i / hours.length) * 100}%` }}
                 >
                   {String(h).padStart(2, '0')}:00
@@ -1739,8 +1739,8 @@ export default function EmploiDuTempsClient({
           }}
         >
           {/* En-tête : contexte (date du créneau) */}
-          <div className="px-2.5 py-1.5 mb-1 border-b border-warm-100 text-xs text-warm-400">
-            Créneau · <span className="font-medium text-warm-500 capitalize">
+          <div className="px-2.5 py-1.5 mb-1 border-b border-warm-100 text-xs text-warm-700">
+            Créneau · <span className="font-medium text-warm-700 capitalize">
               {new Date(contextMenu.slot.date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}
             </span>
           </div>
@@ -1748,7 +1748,7 @@ export default function EmploiDuTempsClient({
           {contextMenu.slot.isRecurring ? (
             <>
               {/* Cette occurrence */}
-              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Ce créneau</p>
+              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-700 uppercase tracking-wider">Ce créneau</p>
               <button
                 role="menuitem"
                 autoFocus
@@ -1756,7 +1756,7 @@ export default function EmploiDuTempsClient({
                 className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
                 onClick={() => openEditThisOnly(contextMenu.slot)}
               >
-                <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+                <Pencil size={14} className="text-warm-700 flex-shrink-0" />
                 Modifier
               </button>
               <button
@@ -1772,14 +1772,14 @@ export default function EmploiDuTempsClient({
               <div className="border-t border-warm-100 my-1" />
 
               {/* Toute la série récurrente */}
-              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-400 uppercase tracking-wider">Toute la série</p>
+              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-700 uppercase tracking-wider">Toute la série</p>
               <button
                 role="menuitem"
                 aria-label="Modifier toute la série"
                 className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
                 onClick={() => openEditAll(contextMenu.slot)}
               >
-                <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+                <Pencil size={14} className="text-warm-700 flex-shrink-0" />
                 Modifier
               </button>
               <button
@@ -1805,7 +1805,7 @@ export default function EmploiDuTempsClient({
                 className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
                 onClick={() => openEditAll(contextMenu.slot)}
               >
-                <Pencil size={14} className="text-warm-400 flex-shrink-0" />
+                <Pencil size={14} className="text-warm-700 flex-shrink-0" />
                 Modifier
               </button>
               <button

@@ -30,8 +30,8 @@ export default async function TypesPresencePage() {
   if (!currentYear) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center animate-fade-in">
-        <AlertTriangle size={32} className="text-warm-400" />
-        <p className="text-sm text-warm-500">
+        <AlertTriangle size={32} className="text-warm-700" />
+        <p className="text-sm text-warm-700">
           Aucune année scolaire en cours. Définissez-en une pour gérer les types de présence.
         </p>
       </div>

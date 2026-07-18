@@ -11,7 +11,7 @@ const isValidEmail = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 function Field({ label, error, children }: { label: React.ReactNode; error?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">{label}</label>
+      <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">{label}</label>
       {children}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
@@ -95,7 +95,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
     <div className="space-y-4">
       <form onSubmit={handleSubmit} noValidate>
         <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Informations</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Informations</h2>
 
           <Field label={<>Nom <span className="text-red-400">*</span></>} error={touched.has('nom') && vNom ? 'Obligatoire.' : undefined}>
             <input type="text" value={form.nom} onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')} className={inputCls('nom', vNom)} />
@@ -138,12 +138,12 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
       </form>
 
       <div className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Accès & Abonnement</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Accès & Abonnement</h2>
 
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-secondary-700">Statut d'accès</p>
-            <p className="text-xs text-warm-500 mt-0.5">{ecole.is_active ? "L'école peut se connecter." : "L'accès est bloqué."}</p>
+            <p className="text-xs text-warm-700 mt-0.5">{ecole.is_active ? "L'école peut se connecter." : "L'accès est bloqué."}</p>
           </div>
           <button onClick={handleToggle} disabled={toggling} className={clsx('btn text-sm px-4 py-2', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
             {toggling ? '...' : ecole.is_active ? 'Désactiver' : 'Activer'}
@@ -158,7 +158,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
               {savingDate ? '...' : 'Enregistrer'}
             </button>
             {subExpiry && (
-              <button onClick={() => { setSubExpiry(''); updateSubscription(ecole.id, null) }} className="btn btn-secondary text-sm px-3 py-2 text-warm-500 whitespace-nowrap">
+              <button onClick={() => { setSubExpiry(''); updateSubscription(ecole.id, null) }} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
                 Aucune
               </button>
             )}
@@ -167,7 +167,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
 
         <div className="border-t border-warm-100 pt-3">
           <p className="text-sm font-medium text-secondary-700 mb-0.5">Limite d'élèves (mode essai)</p>
-          <p className="text-xs text-warm-400 mb-2">Laisser vide pour un accès illimité</p>
+          <p className="text-xs text-warm-700 mb-2">Laisser vide pour un accès illimité</p>
           <div className="flex items-center gap-2">
             <input
               type="number" min="1" placeholder="Illimitée"
@@ -178,7 +178,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
               {savingMax ? '...' : 'Enregistrer'}
             </button>
             {maxStudents && (
-              <button onClick={() => { setMaxStudents(''); updateMaxStudents(ecole.id, null) }} className="btn btn-secondary text-sm px-3 py-2 text-warm-500 whitespace-nowrap">
+              <button onClick={() => { setMaxStudents(''); updateMaxStudents(ecole.id, null) }} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
                 Aucune
               </button>
             )}

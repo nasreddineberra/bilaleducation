@@ -186,17 +186,17 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           <h3 id={titleId} className="text-sm font-bold text-secondary-800">
             {isEdit ? 'Modifier la saisie' : 'Nouvelle saisie'}
           </h3>
-          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-400 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
+          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
         </div>
 
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
 
-          <p className="text-xs text-warm-500 capitalize">{dateLabel}</p>
+          <p className="text-xs text-warm-700 capitalize">{dateLabel}</p>
 
           {/* Type (choisi en premier : conditionne la liste des membres) */}
           <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
-            <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none select-none">Type<span className="text-red-400 ml-0.5">*</span></span>
+            <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">Type<span className="text-red-400 ml-0.5">*</span></span>
             <div className="flex flex-wrap gap-2">
               {presenceTypes.map(pt => {
                 const selected = entryType.toUpperCase() === pt.code.toUpperCase()
@@ -216,7 +216,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                       className="sr-only"
                     />
                     <span
-                      className={`block text-center text-xs font-semibold py-1.5 rounded-md border cursor-pointer transition-all ${!selected ? 'bg-white border-warm-300 text-warm-500 hover:border-warm-400' : ''}`}
+                      className={`block text-center text-xs font-semibold py-1.5 rounded-md border cursor-pointer transition-all ${!selected ? 'bg-white border-warm-300 text-warm-700 hover:border-warm-400' : ''}`}
                       style={selected ? { backgroundColor: pt.color, color: '#fff', borderColor: pt.color } : undefined}
                     >
                       {pt.label}
@@ -247,7 +247,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               ))}
             </FloatSelect>
           ) : (
-            <p className="text-xs text-warm-600">
+            <p className="text-xs text-warm-700">
               <span className="font-bold">{staffList.find(s => s.id === currentUserId)?.last_name} {staffList.find(s => s.id === currentUserId)?.first_name}</span>
             </p>
           )}
@@ -291,7 +291,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               </div>
               {isReplacement && (
                 replaceableStaff.length === 0 ? (
-                  <p role="alert" className="text-xs text-warm-500 bg-warm-50 border border-warm-200 rounded-lg px-3 py-2">
+                  <p role="alert" className="text-xs text-warm-700 bg-warm-50 border border-warm-200 rounded-lg px-3 py-2">
                     Aucun membre marqué absent ce jour. Enregistrez d'abord l'absence de la personne remplacée.
                   </p>
                 ) : (
@@ -313,7 +313,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           {/* Periode d'absence (journee / demi-journee) */}
           {isAbsence && (
             <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
-              <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-500 pointer-events-none select-none">Période</span>
+              <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">Période</span>
               <div className="flex gap-2" role="group" aria-label="Période d'absence">
                 {(['full', 'am', 'pm'] as const).map(p => {
                   const selected = absencePeriod === p
@@ -324,7 +324,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                       type="button"
                       onClick={() => setAbsencePeriod(p)}
                       aria-pressed={selected}
-                      className={`flex-1 text-center text-xs font-semibold py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${selected ? 'bg-secondary-700 text-white border-secondary-700' : 'bg-white border-warm-300 text-warm-500 hover:border-warm-400'}`}
+                      className={`flex-1 text-center text-xs font-semibold py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${selected ? 'bg-secondary-700 text-white border-secondary-700' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
                     >
                       {label}
                     </button>

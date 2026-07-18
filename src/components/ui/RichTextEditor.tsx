@@ -57,7 +57,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
       title={title}
       className={clsx(
         'p-1.5 rounded transition-colors',
-        active ? 'bg-primary-100 text-primary-700' : 'text-warm-500 hover:bg-warm-100'
+        active ? 'bg-primary-100 text-primary-700' : 'text-warm-700 hover:bg-warm-100'
       )}
     >
       {children}
@@ -119,7 +119,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
 
         {/* Color picker */}
         <div className="relative group">
-          <button type="button" className="p-1.5 rounded text-warm-500 hover:bg-warm-100" title="Couleur du texte">
+          <button type="button" className="p-1.5 rounded text-warm-700 hover:bg-warm-100" title="Couleur du texte">
             <Palette size={14} />
           </button>
           <div className="absolute top-full left-0 mt-1 hidden group-hover:grid grid-cols-5 gap-1 p-2 bg-white border border-warm-200 rounded-lg shadow-lg z-50">

@@ -179,7 +179,7 @@ export default function ForgotPasswordPage() {
               )}
             </div>
             <h1 className="text-xl font-bold text-secondary-800">{nomEtab}</h1>
-            <p className="text-sm text-warm-400 mt-0.5">Espace de gestion</p>
+            <p className="text-sm text-warm-700 mt-0.5">Espace de gestion</p>
           </div>
 
           {/* Carte formulaire */}
@@ -195,7 +195,7 @@ export default function ForgotPasswordPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-secondary-800 mb-2">Email envoyé</h2>
-                  <p className="text-sm text-warm-500 leading-relaxed">
+                  <p className="text-sm text-warm-700 leading-relaxed">
                     Si un compte est associé à <span className="font-semibold text-secondary-700">{email}</span>,
                     vous recevrez un lien de réinitialisation par email.
                   </p>
@@ -211,7 +211,7 @@ export default function ForgotPasswordPage() {
             ) : (
               <>
                 <h2 className="text-lg font-bold text-secondary-800 mb-1">Mot de passe oublié ?</h2>
-                <p className="text-sm text-warm-400 mb-6">
+                <p className="text-sm text-warm-700 mb-6">
                   Entrez votre email pour recevoir un lien de réinitialisation.
                 </p>
 
@@ -265,7 +265,7 @@ export default function ForgotPasswordPage() {
           </div>
 
           {/* Version mobile : texte discret */}
-          <p className="mt-8 text-center text-xs text-warm-400">
+          <p className="mt-8 text-center text-xs text-warm-700">
             Bilal Education · Gestion Administrative & Pédagogique
           </p>
         </div>

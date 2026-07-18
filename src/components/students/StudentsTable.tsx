@@ -24,11 +24,11 @@ function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
     parts.push(<span key="r" className="text-amber-700 whitespace-nowrap">{discipline.retards} {discipline.retards > 1 ? 'retards' : 'retard'}</span>)
   if (discipline.avertissements > 0)
     parts.push(<span key="w" className="text-purple-600 whitespace-nowrap">{discipline.avertissements} avert.</span>)
-  if (parts.length === 0) return <span className="text-xs text-warm-300">—</span>
+  if (parts.length === 0) return <span className="text-xs text-warm-700">—</span>
   return (
     <span className="text-xs">
       {parts.map((node, i) => (
-        <span key={i}>{i > 0 ? <span className="text-warm-300">, </span> : null}{node}</span>
+        <span key={i}>{i > 0 ? <span className="text-warm-700">, </span> : null}{node}</span>
       ))}
     </span>
   )
@@ -44,7 +44,7 @@ function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firs
       : 'ring-1 ring-warm-200'
   return (
     <div className={clsx(
-      'w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-warm-100 text-warm-600',
+      'w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-warm-100 text-warm-700',
       ring
     )}>
       {initiales}
@@ -99,8 +99,8 @@ export default function StudentsTable({ students }: StudentsTableProps) {
   if (students.length === 0) {
     return (
       <div className="card py-16 text-center">
-        <p className="text-warm-400 text-sm">Aucun élève pour le moment</p>
-        <p className="text-warm-300 text-xs mt-1">Cliquez sur "Ajouter un élève" pour commencer</p>
+        <p className="text-warm-700 text-sm">Aucun élève pour le moment</p>
+        <p className="text-warm-700 text-xs mt-1">Cliquez sur "Ajouter un élève" pour commencer</p>
       </div>
     )
   }
@@ -143,12 +143,15 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 key={student.id}
                 onClick={() => router.push(`/dashboard/students/${student.id}`)}
                 className={clsx(
+                  // 3 niveaux distincts : actif au repos = blanc, inactif au repos
+                  // = warm-50 (bande grise discrete), survol = warm-100 (toujours
+                  // plus fonce que l'inactif → jamais confondu avec lui).
                   'transition-colors cursor-pointer',
                   student.has_pai
-                    ? 'bg-red-50/70 hover:bg-red-100/60'
+                    ? 'bg-red-50/70 hover:bg-red-100/70'
                     : student.is_active
-                      ? 'hover:bg-warm-50'
-                      : 'bg-warm-50/60 hover:bg-warm-100/60'
+                      ? 'hover:bg-warm-100'
+                      : 'bg-warm-50 hover:bg-warm-100'
                 )}
               >
 
@@ -168,7 +171,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       {student.last_name} {student.first_name}
                     </Link>
                     {!student.is_active && (
-                      <span className="text-xs bg-warm-200 text-warm-500 px-1.5 py-0.5 rounded font-medium">inactif</span>
+                      <span className="text-xs bg-warm-200 text-warm-700 px-1.5 py-0.5 rounded font-medium">inactif</span>
                     )}
                     {student.has_pai && (
                       <Tooltip content="Projet d'Aide Individualisé">
@@ -198,7 +201,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 <td className="list-td">
                   <span className={clsx(
                     'font-mono text-xs',
-                    student.is_active ? 'text-warm-500' : 'text-warm-300'
+                    student.is_active ? 'text-warm-700' : 'text-warm-400'
                   )}>{student.student_number}</span>
                 </td>
 
@@ -219,7 +222,10 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       )}>{student.class_name}</span>
                     )
                   ) : (
-                    <span className="text-xs text-warm-300 italic">Non affecté</span>
+                    <span className={clsx(
+                      'text-xs italic',
+                      student.is_active ? 'text-warm-700' : 'text-warm-400'
+                    )}>Non affecté</span>
                   )}
                 </td>
 
@@ -229,7 +235,10 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                     'text-xs',
                     student.is_active ? 'text-secondary-700' : 'text-warm-400'
                   )}>{formatDate(student.date_of_birth)}</span>
-                  <span className="text-xs text-warm-400 ml-1.5">({calcAge(student.date_of_birth)})</span>
+                  <span className={clsx(
+                    'text-xs ml-1.5',
+                    student.is_active ? 'text-secondary-700' : 'text-warm-400'
+                  )}>({calcAge(student.date_of_birth)})</span>
                 </td>
 
                 {/* Discipline (actifs uniquement) */}
@@ -241,7 +250,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 <td className="list-td" onClick={(e) => e.stopPropagation()}>
                   {confirmDeleteId === student.id ? (
                     <div className="flex items-center justify-end gap-2">
-                      <span className="text-xs text-warm-500">Supprimer ?</span>
+                      <span className="text-xs text-warm-700">Supprimer ?</span>
                       <button
                         onClick={() => handleDelete(student.id)}
                         disabled={isDeleting}
@@ -251,7 +260,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       </button>
                       <button
                         onClick={() => setConfirmDeleteId(null)}
-                        className="text-xs font-medium px-2.5 py-1 bg-warm-100 text-warm-600 rounded-lg hover:bg-warm-200 transition-colors"
+                        className="text-xs font-medium px-2.5 py-1 bg-warm-100 text-warm-700 rounded-lg hover:bg-warm-200 transition-colors"
                       >
                         Annuler
                       </button>
@@ -262,7 +271,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                         <button
                           onClick={() => router.push(`/dashboard/students/${student.id}`)}
                           aria-label="Modifier l'élève"
-                          className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                         >
                           <Pencil size={14} />
                         </button>
@@ -271,7 +280,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                         <button
                           onClick={() => { setConfirmDeleteId(student.id); setDeleteError(null) }}
                           aria-label="Supprimer l'élève"
-                          className="p-1.5 text-warm-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                          className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={14} />
                         </button>

@@ -101,7 +101,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
           {hasError && (
             <div className="text-center space-y-4">
               <h2 className="text-xl font-bold text-secondary-800">Lien invalide ou expiré</h2>
-              <p className="text-sm text-warm-500">
+              <p className="text-sm text-warm-700">
                 Ce lien de réinitialisation est invalide ou a expiré.
                 Veuillez recommencer la procédure depuis votre application.
               </p>
@@ -121,7 +121,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
                 <CheckCircle2 size={48} className="text-green-500" />
               </div>
               <h2 className="text-xl font-bold text-secondary-800">Mot de passe mis à jour</h2>
-              <p className="text-sm text-warm-500">
+              <p className="text-sm text-warm-700">
                 Votre mot de passe a été modifié avec succès.
               </p>
               <button
@@ -137,7 +137,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
           {!hasError && !success && (
             <>
               <h2 className="text-xl font-bold text-secondary-800 mb-1">Nouveau mot de passe</h2>
-              <p className="text-sm text-warm-500 mb-6">Choisissez un mot de passe sécurisé.</p>
+              <p className="text-sm text-warm-700 mb-6">Choisissez un mot de passe sécurisé.</p>
 
               <form onSubmit={handleSubmit} noValidate className="space-y-5">
 
@@ -164,7 +164,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
                     <button
                       type="button"
                       onClick={() => setShowPwd(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700"
                     >
                       {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -195,7 +195,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
                     <button
                       type="button"
                       onClick={() => setShowConfirm(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700"
                     >
                       {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -256,7 +256,7 @@ function PasswordChecklist({
         return (
           <li key={rule.key} className={clsx(
             'flex items-center gap-1.5 text-xs',
-            ok ? 'text-green-600' : 'text-warm-400'
+            ok ? 'text-green-600' : 'text-warm-700'
           )}>
             {ok
               ? <Check size={11} className="flex-shrink-0" />

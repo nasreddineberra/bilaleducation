@@ -49,14 +49,14 @@ function PaginationBar({ page, totalPages, onNavigate }: {
       <button
         onClick={() => onNavigate(page - 1)}
         disabled={page === 1}
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronLeft size={15} />
       </button>
 
       {getPages().map((p, i) =>
         p === '...' ? (
-          <span key={`e${i}`} className="px-1 text-warm-400 text-sm select-none">…</span>
+          <span key={`e${i}`} className="px-1 text-warm-700 text-sm select-none">…</span>
         ) : (
           <button
             key={p}
@@ -75,7 +75,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
       <button
         onClick={() => onNavigate(page + 1)}
         disabled={page === totalPages}
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronRight size={15} />
       </button>
@@ -161,7 +161,7 @@ export default function TeachersClient({ teachers, filteredCount, page, q, filte
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-warm-400">
+        <span className="text-xs text-warm-700">
           {filteredCount} enseignant{filteredCount > 1 ? 's' : ''}
           {q.trim() ? ` trouvé${filteredCount > 1 ? 's' : ''} pour « ${q} »` : ''}
         </span>

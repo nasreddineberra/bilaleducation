@@ -57,7 +57,7 @@ const TYPE_LABELS: Record<string, string> = {
 // sent, failed, skipped (foyer sans adresse : rien tente). `delivered` n'est
 // jamais pose par le code — pas d'accuse de reception → on ne l'affiche pas.
 const STATUS_BADGE: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: 'En attente', color: 'bg-warm-100 text-warm-600',   icon: Clock },
+  pending: { label: 'En attente', color: 'bg-warm-100 text-warm-700',   icon: Clock },
   sent:    { label: 'Envoyé',     color: 'bg-green-100 text-green-700', icon: CheckCircle },
   failed:  { label: 'Échec',      color: 'bg-red-100 text-red-700',     icon: XCircle },
   skipped: { label: 'Sans email', color: 'bg-amber-100 text-amber-700', icon: Mail },
@@ -137,13 +137,13 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
           L'objet est le 1er champ, en pleine largeur (c'est l'identite du message). */}
       <div className="card p-3 space-y-2">
         <div>
-          <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Objet</p>
+          <p className="text-[10px] font-bold text-warm-700 uppercase tracking-widest">Objet</p>
           <h1 className="text-sm text-warm-800 font-semibold mt-0.5">{message.title}</h1>
         </div>
         <dl className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4 gap-y-2 pt-2 border-t border-warm-100">
           {meta.map(({ k, v }) => (
             <div key={k} className="min-w-0">
-              <dt className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">{k}</dt>
+              <dt className="text-[10px] font-bold text-warm-700 uppercase tracking-widest">{k}</dt>
               <dd className="text-xs text-warm-700 font-medium truncate mt-0.5">{v}</dd>
             </div>
           ))}
@@ -165,7 +165,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
 
       {/* Corps + pieces jointes */}
       <div className="card p-3 space-y-2">
-        <p className="text-[10px] font-bold text-warm-400 uppercase tracking-widest">Message</p>
+        <p className="text-[10px] font-bold text-warm-700 uppercase tracking-widest">Message</p>
         <div
           className="prose prose-sm max-w-none"
           dangerouslySetInnerHTML={{ __html: sanitize(message.body_html ?? message.content) }}
@@ -181,15 +181,15 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs hover:bg-warm-100 transition-colors mr-2"
                 >
-                  <Paperclip size={12} className="text-warm-400" aria-hidden="true" />
+                  <Paperclip size={12} className="text-warm-700" aria-hidden="true" />
                   <span className="text-primary-700 font-medium">{a.file_name}</span>
-                  {a.file_size && <span className="text-warm-400">{(a.file_size / 1024).toFixed(0)} Ko</span>}
+                  {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
                 </a>
               ) : (
                 <span key={a.id} className="inline-flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs mr-2">
-                  <Paperclip size={12} className="text-warm-400" aria-hidden="true" />
-                  <span className="text-warm-500">{a.file_name}</span>
-                  <span className="text-warm-400 italic">indisponible</span>
+                  <Paperclip size={12} className="text-warm-700" aria-hidden="true" />
+                  <span className="text-warm-700">{a.file_name}</span>
+                  <span className="text-warm-700 italic">indisponible</span>
                 </span>
               )
             ))}
@@ -200,7 +200,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
       {/* Destinataires : encadre a hauteur figee, recherche, defilement interne */}
       <div className="card p-0 overflow-hidden">
         <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between gap-3">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest whitespace-nowrap">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap">
             Destinataires ({allRecipients.length})
           </h2>
           {allRecipients.length > 0 && (
@@ -215,7 +215,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
         </div>
 
         {allRecipients.length === 0 ? (
-          <p className="text-xs text-warm-400 italic px-3 py-3">Aucun destinataire enregistré.</p>
+          <p className="text-xs text-warm-700 italic px-3 py-3">Aucun destinataire enregistré.</p>
         ) : (
           // Hauteur figee (~8 lignes + entete) : la liste defile en interne, la
           // page ne s'allonge pas quel que soit le nombre de destinataires.
@@ -236,11 +236,11 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
                   return (
                     <tr key={idx} className="hover:bg-warm-50">
                       <td className="list-td text-warm-700 font-medium">{r.name}</td>
-                      <td className="list-td text-warm-500">{r.email}</td>
+                      <td className="list-td text-warm-700">{r.email}</td>
                       <td className="list-td">
                         <span className={clsx(
                           'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase',
-                          r.type === 'parent' ? 'bg-blue-50 text-blue-600' : 'bg-warm-100 text-warm-600'
+                          r.type === 'parent' ? 'bg-blue-50 text-blue-600' : 'bg-warm-100 text-warm-700'
                         )}>
                           {r.type === 'parent' ? 'Parent' : 'Staff'}
                         </span>
@@ -255,7 +255,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
                 })}
                 {filteredRecipients.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="list-td text-warm-400 italic">Aucun destinataire trouvé.</td>
+                    <td colSpan={4} className="list-td text-warm-700 italic">Aucun destinataire trouvé.</td>
                   </tr>
                 )}
               </tbody>

@@ -328,7 +328,7 @@ export default function SlotFormModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
           <h3 id="slot-form-title" className="text-sm font-bold text-warm-800">{modalTitle}</h3>
-          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-400">
+          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-700">
             <X size={16} />
           </button>
         </div>
@@ -340,7 +340,7 @@ export default function SlotFormModal({
             <>
               <div className="flex justify-between">
                 <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</label>
+                  <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Type</label>
                   <div className="flex gap-2 mt-1" role="group" aria-label="Type de créneau">
                     {SLOT_TYPES.map(st => (
                       <button
@@ -352,7 +352,7 @@ export default function SlotFormModal({
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           slotType === st.value
                             ? 'text-white border-[#2e4550]'
-                            : 'bg-white text-warm-600 border-warm-200 hover:bg-warm-50',
+                            : 'bg-white text-warm-700 border-warm-200 hover:bg-warm-50',
                           isEditMode && 'opacity-60 cursor-not-allowed'
                         )}
                         style={slotType === st.value ? { backgroundColor: SIDEBAR_COLOR } : undefined}
@@ -363,7 +363,7 @@ export default function SlotFormModal({
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Fréquence <span className="text-red-400">*</span></label>
+                  <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Fréquence <span className="text-red-400">*</span></label>
                   <div className="flex gap-2 mt-1" role="group" aria-label="Fréquence">
                     {[
                       { value: false, label: 'Ponctuel' },
@@ -378,7 +378,7 @@ export default function SlotFormModal({
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           isRecurring === opt.value
                             ? 'text-white border-[#2e4550]'
-                            : 'bg-white text-warm-600 border-warm-200 hover:bg-warm-50',
+                            : 'bg-white text-warm-700 border-warm-200 hover:bg-warm-50',
                           isEditMode && 'opacity-60 cursor-not-allowed'
                         )}
                         style={isRecurring === opt.value ? { backgroundColor: SIDEBAR_COLOR } : undefined}
@@ -508,7 +508,7 @@ export default function SlotFormModal({
           {isEditingThisOnly && (
             <div className="flex justify-between">
               <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Type</label>
+                <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Type</label>
                 <div className="flex gap-2 mt-1">
                   <span className="px-3 py-1 rounded-lg text-xs font-medium border text-white border-[#2e4550] opacity-60" style={{ backgroundColor: SIDEBAR_COLOR }}>
                     {SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'}
@@ -516,7 +516,7 @@ export default function SlotFormModal({
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">Fréquence</label>
+                <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Fréquence</label>
                 <div className="flex gap-2 mt-1">
                   <span className="px-3 py-1 rounded-lg text-xs font-medium border text-white border-[#2e4550] opacity-60" style={{ backgroundColor: SIDEBAR_COLOR }}>
                     Exception ponctuelle

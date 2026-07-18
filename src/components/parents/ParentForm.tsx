@@ -300,14 +300,14 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       <div className="max-w-lg mx-auto mt-8">
         <div className="card p-6 space-y-4">
           <h2 className="text-lg font-bold text-secondary-800">Fiche parents et comptes utilisateurs créés</h2>
-          <p className="text-sm text-warm-600">
+          <p className="text-sm text-warm-700">
             {createdAccounts.length === 1 ? 'Un compte utilisateur a été créé' : `${createdAccounts.length} comptes utilisateurs ont été créés`} automatiquement.
           </p>
           {createdAccounts.map((acc, i) => (
             <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
               <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">{acc.tutorLabel}</p>
               <p className="text-sm text-secondary-700">{acc.email}</p>
-              <p className="text-xs text-warm-500 mt-1">Mot de passe temporaire :</p>
+              <p className="text-xs text-warm-700 mt-1">Mot de passe temporaire :</p>
               <p className="text-lg font-mono font-bold text-secondary-800 select-all">{acc.tempPassword}</p>
             </div>
           ))}
@@ -339,20 +339,20 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       {/* En-tête de fiche (édition) : qui édite-t-on */}
       {isEditing && parent && (
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none bg-warm-100 text-warm-600 ring-1 ring-warm-200">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
             {`${(parent.tutor1_last_name?.[0] ?? '').toUpperCase()}${(parent.tutor1_first_name?.[0] ?? '').toUpperCase()}`}
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-bold text-secondary-800 leading-tight truncate">
               {parent.tutor1_last_name} {parent.tutor1_first_name}
               {parent.tutor2_last_name && (
-                <span className="text-warm-400 font-medium"> &amp; {parent.tutor2_last_name} {parent.tutor2_first_name}</span>
+                <span className="text-warm-700 font-medium"> &amp; {parent.tutor2_last_name} {parent.tutor2_first_name}</span>
               )}
             </h1>
-            <div className="flex items-center gap-2 text-xs text-warm-500 mt-0.5 flex-wrap">
+            <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
               {parent.situation_familiale
                 ? <span>{SITUATION_LABELS[parent.situation_familiale] ?? parent.situation_familiale}</span>
-                : <span className="text-warm-300 italic">Situation non renseignée</span>}
+                : <span className="text-warm-700 italic">Situation non renseignée</span>}
               {(parent.tutor1_adult_courses || parent.tutor2_adult_courses) && (
                 <span className="font-medium text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">Cours adultes</span>
               )}
@@ -369,7 +369,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
           {/* Infos tuteur 1 */}
           <div className="card p-3 space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
               Tuteur 1 — Responsable principal
             </h2>
 
@@ -437,7 +437,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
 
           {/* Adresse tuteur 1 */}
           <div className="card p-3 space-y-2">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
             <FloatInput
               label="Adresse"
               value={form.tutor1_address}
@@ -537,7 +537,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
                 />
               </>
             ) : (
-              <p className="text-xs text-warm-300 italic">
+              <p className="text-xs text-warm-700 italic">
                 Cochez la case ci-dessus pour renseigner un second responsable.
               </p>
             )}
@@ -547,7 +547,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           {showTutor2 && (
             <div className="card p-3 space-y-2">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Adresse</h2>
+                <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
                 <FloatCheckbox
                   variant="compact"
                   label="Identique tuteur 1"
@@ -585,11 +585,11 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
       {/* ── Situation familiale ── */}
       <div className="card p-3 space-y-2">
         <div className="flex gap-3">
-          <h2 className="min-w-[200px] text-xs font-bold text-warm-500 uppercase tracking-widest">
+          <h2 className="min-w-[200px] text-xs font-bold text-warm-700 uppercase tracking-widest">
             Situation familiale
           </h2>
           {SITUATIONS_WITH_GARDE.has(form.situation_familiale) && (
-            <span className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            <span className="text-xs font-bold text-warm-700 uppercase tracking-widest">
               Type de garde
             </span>
           )}

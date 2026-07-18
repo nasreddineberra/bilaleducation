@@ -162,12 +162,12 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
       {/* État vide */}
       {filtered.length === 0 ? (
         <div className="card p-12 flex flex-col items-center gap-4 text-center">
-          <BookOpen size={40} className="text-warm-300" />
+          <BookOpen size={40} className="text-warm-700" />
           <div>
             <p className="text-base font-semibold text-secondary-700">
               {search ? 'Aucune classe trouvée' : 'Aucune classe configurée'}
             </p>
-            <p className="text-sm text-warm-400 mt-1">
+            <p className="text-sm text-warm-700 mt-1">
               {search ? 'Modifiez votre recherche.' : 'Créez votre première classe pour commencer.'}
             </p>
           </div>
@@ -214,17 +214,17 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           'ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
                           cls.cotisation_types.is_adult
                             ? 'bg-violet-100 text-violet-600'
-                            : 'bg-warm-100 text-warm-600'
+                            : 'bg-warm-100 text-warm-700'
                         )}>
                           {cls.cotisation_types.label}
                         </span>
                       )}
                     </td>
                     <td className="list-td text-secondary-600">
-                      {cls.level || <span className="text-warm-300">—</span>}
+                      {cls.level || <span className="text-warm-700">—</span>}
                     </td>
                     <td className="list-td text-secondary-600">
-                      {cls.room_number || <span className="text-warm-300">—</span>}
+                      {cls.room_number || <span className="text-warm-700">—</span>}
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">
                       {cls.day_of_week ? (
@@ -235,24 +235,24 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           )}
                         </span>
                       ) : (
-                        <span className="text-warm-300">—</span>
+                        <span className="text-warm-700">—</span>
                       )}
                     </td>
                     <td className="list-td text-center text-secondary-600">{cls.max_students}</td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">
                       {titulaire?.teachers
                         ? `${titulaire.teachers.last_name} ${titulaire.teachers.first_name}`
-                        : <span className="text-warm-300 text-xs italic">Non affecté</span>}
+                        : <span className="text-warm-700 text-xs italic">Non affecté</span>}
                     </td>
                     <td className="list-td">
                       {remplacements.length === 0 ? (
-                        <span className="text-warm-300">·</span>
+                        <span className="text-warm-700">·</span>
                       ) : (
                         <div className="flex flex-col gap-0.5 py-0.5">
                           {remplacements.map((t, i) => (
                             <span key={i} className="text-xs text-secondary-600 whitespace-nowrap">
                               {t.teachers ? `${t.teachers.last_name} ${t.teachers.first_name}` : ''}
-                              <span className="ml-1 text-[10px] text-warm-400">
+                              <span className="ml-1 text-[10px] text-warm-700">
                                 {t.effective_from ? fmtD(t.effective_from) : 'Début'} — {t.effective_until ? fmtD(t.effective_until) : 'en cours'}
                               </span>
                             </span>
@@ -266,7 +266,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           <button
                             onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
                             aria-label={`Modifier ${cls.name}`}
-                            className="p-1.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1.5 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Pencil size={14} />
                           </button>
@@ -275,7 +275,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           <button
                             onClick={() => startDelete(cls)}
                             aria-label={`Supprimer ${cls.name}`}
-                            className="p-1.5 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            className="p-1.5 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                           >
                             <Trash2 size={14} />
                           </button>

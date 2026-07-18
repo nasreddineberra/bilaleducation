@@ -299,7 +299,7 @@ export default function StudentDiscipline({
 
       {/* En-tête année */}
       {currentYearLabel && (
-        <p className="text-xs font-semibold text-warm-500">Année scolaire {currentYearLabel}</p>
+        <p className="text-xs font-semibold text-warm-700">Année scolaire {currentYearLabel}</p>
       )}
 
       {/* Compteurs globaux */}
@@ -313,18 +313,18 @@ export default function StudentDiscipline({
       {/* Section Absences & Retards */}
       <div className="card">
         <div className="px-3 py-1.5 border-b border-warm-200 flex items-center gap-2">
-          <AlertTriangle size={13} className="text-warm-500" />
+          <AlertTriangle size={13} className="text-warm-700" />
           <h3 className="text-xs font-semibold text-warm-700">Absences et retards</h3>
-          <span className="text-[11px] text-warm-400 ml-auto">{sortedAbsences.length} enreg.</span>
+          <span className="text-[11px] text-warm-700 ml-auto">{sortedAbsences.length} enreg.</span>
         </div>
 
         {sortedAbsences.length === 0 ? (
-          <p className="px-3 py-2 text-xs text-warm-400 italic">Aucune absence ni retard enregistré.</p>
+          <p className="px-3 py-2 text-xs text-warm-700 italic">Aucune absence ni retard enregistré.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-warm-100 text-warm-500">
+                <tr className="border-b border-warm-100 text-warm-700">
                   <th className="text-left px-3 py-1 font-medium">Date</th>
                   <th className="text-left px-3 py-1 font-medium">Période</th>
                   <th className="text-left px-3 py-1 font-medium">Type</th>
@@ -338,7 +338,7 @@ export default function StudentDiscipline({
                     <td className="px-3 py-1 whitespace-nowrap">
                       {new Date(a.absence_date).toLocaleDateString('fr-FR')}
                     </td>
-                    <td className="px-3 py-1 whitespace-nowrap text-warm-500">
+                    <td className="px-3 py-1 whitespace-nowrap text-warm-700">
                       {periodMap.get(a.period_id) ?? '–'}
                     </td>
                     <td className="px-3 py-1">
@@ -360,7 +360,7 @@ export default function StudentDiscipline({
                         <span className="text-[11px] text-red-500">Non</span>
                       )}
                     </td>
-                    <td className="px-3 py-1 text-warm-500 max-w-[200px] truncate">
+                    <td className="px-3 py-1 text-warm-700 max-w-[200px] truncate">
                       {a.comment || '–'}
                     </td>
                   </tr>
@@ -374,9 +374,9 @@ export default function StudentDiscipline({
       {/* Section Avertissements */}
       <div className="card">
         <div className="px-3 py-1.5 border-b border-warm-200 flex items-center gap-2">
-          <ShieldIcon className="text-warm-500" />
+          <ShieldIcon className="text-warm-700" />
           <h3 className="text-xs font-semibold text-warm-700">Avertissements</h3>
-          <span className="text-[11px] text-warm-400">{sortedWarnings.length} enreg.</span>
+          <span className="text-[11px] text-warm-700">{sortedWarnings.length} enreg.</span>
           <FloatButton
             variant="submit"
             onClick={() => { setShowForm(true); setError(null) }}
@@ -445,7 +445,7 @@ export default function StudentDiscipline({
                 {expandedHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
               {expandedHelp && (
-                <div className="mt-1.5 space-y-1.5 text-[11px] text-warm-600 bg-white rounded border border-warm-200 p-2">
+                <div className="mt-1.5 space-y-1.5 text-[11px] text-warm-700 bg-white rounded border border-warm-200 p-2">
                   {(Object.keys(SEVERITY_CONFIG) as WarningSeverity[]).map(key => (
                     <div key={key}>
                       <span className={clsx('font-semibold inline-block px-1 py-0.5 rounded text-[10px] mr-1', SEVERITY_CONFIG[key].color)}>
@@ -472,7 +472,7 @@ export default function StudentDiscipline({
 
             {/* Pièces jointes */}
             <div>
-              <label className="block text-[11px] font-medium text-warm-600 mb-0.5">Pièces jointes</label>
+              <label className="block text-[11px] font-medium text-warm-700 mb-0.5">Pièces jointes</label>
               <div className="flex flex-wrap items-center gap-2">
                 <FloatButton
                   type="button"
@@ -492,9 +492,9 @@ export default function StudentDiscipline({
                   onChange={handleFileChange}
                 />
                 {formFiles.map((f, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-warm-100 text-warm-600 px-2 py-1 rounded">
+                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-warm-100 text-warm-700 px-2 py-1 rounded">
                     {f.name}
-                    <button type="button" onClick={() => removeFile(i)} className="text-warm-400 hover:text-red-500">
+                    <button type="button" onClick={() => removeFile(i)} className="text-warm-700 hover:text-red-500">
                       <X size={12} />
                     </button>
                   </span>
@@ -530,7 +530,7 @@ export default function StudentDiscipline({
 
         {/* Liste des avertissements */}
         {sortedWarnings.length === 0 && !showForm ? (
-          <p className="px-3 py-2 text-xs text-warm-400 italic">Aucun avertissement enregistré.</p>
+          <p className="px-3 py-2 text-xs text-warm-700 italic">Aucun avertissement enregistré.</p>
         ) : (
           <div className="divide-y divide-warm-100">
             {sortedWarnings.map(w => (
@@ -541,17 +541,17 @@ export default function StudentDiscipline({
                       <span className="text-xs font-medium text-warm-700 whitespace-nowrap">
                         {new Date(w.warning_date).toLocaleDateString('fr-FR')}
                       </span>
-                      <span className="text-[11px] text-warm-400">
+                      <span className="text-[11px] text-warm-700">
                         {periodMap.get(w.period_id) ?? '–'}
                       </span>
                       <span className={clsx(
                         'text-[10px] font-medium px-1.5 py-0.5 rounded-full',
-                        SEVERITY_CONFIG[w.severity]?.color ?? 'bg-warm-100 text-warm-600'
+                        SEVERITY_CONFIG[w.severity]?.color ?? 'bg-warm-100 text-warm-700'
                       )}>
                         {SEVERITY_CONFIG[w.severity]?.label ?? w.severity}
                       </span>
                     </div>
-                    <p className="text-xs text-warm-600 mt-0.5 whitespace-pre-line">{w.motif}</p>
+                    <p className="text-xs text-warm-700 mt-0.5 whitespace-pre-line">{w.motif}</p>
                     {w.attachments.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         {w.attachments.map(att => (
@@ -574,14 +574,14 @@ export default function StudentDiscipline({
                       <div className="flex items-center gap-1 text-xs">
                         <span className="text-red-600">Supprimer ?</span>
                         <button onClick={() => handleDelete(w.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline">Non</button>
+                        <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
                       </div>
                     ) : (
                       <Tooltip content="Supprimer">
                         <button
                           onClick={() => setConfirmDelete(w.id)}
                           aria-label="Supprimer l'avertissement"
-                          className="text-warm-300 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                          className="text-warm-700 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -604,7 +604,7 @@ function CounterCard({ label, value, color, bg }: { label: string; value: number
   return (
     <div className={clsx('rounded-lg p-2 text-center', bg)}>
       <div className={clsx('text-lg font-bold', color)}>{value}</div>
-      <div className="text-[11px] text-warm-500">{label}</div>
+      <div className="text-[11px] text-warm-700">{label}</div>
     </div>
   )
 }

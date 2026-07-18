@@ -728,7 +728,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       isOver ? 'focus-visible:ring-red-400' : 'focus-visible:ring-primary-400',
                       isOver
                         ? (active ? 'border-red-300 bg-red-100 text-red-700' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100')
-                        : (active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-500 bg-white hover:bg-warm-50'),
+                        : (active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50'),
                     )}
                   >
                     {label}
@@ -739,7 +739,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           </div>
           <ul className="flex-1 overflow-y-auto list-scroll divide-y divide-warm-50" aria-label="Familles">
             {worklist.length === 0 ? (
-              <li className="px-3 py-3 text-xs text-warm-400 italic">Aucune famille.</li>
+              <li className="px-3 py-3 text-xs text-warm-700 italic">Aucune famille.</li>
             ) : worklist.map(f => {
               const p = f.parent
               const name = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
@@ -759,7 +759,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     <div className="flex items-center gap-2">
                       <span className={clsx('w-2 h-2 rounded-full shrink-0', STATUS_DOT[f.status])} aria-hidden="true" />
                       <span className={clsx('text-xs font-medium truncate flex-1', active ? 'text-primary-700' : 'text-secondary-700')}>{name}</span>
-                      <span className={clsx('text-xs tabular-nums whitespace-nowrap', f.status === 'overpaid' ? 'text-red-600 font-medium' : 'text-warm-500')}>
+                      <span className={clsx('text-xs tabular-nums whitespace-nowrap', f.status === 'overpaid' ? 'text-red-600 font-medium' : 'text-warm-700')}>
                         {f.status === 'paid' ? 'Soldé'
                           : f.status === 'overpaid' ? `+ ${fmtEur(Math.abs(f.remaining))}`
                           : fmtEur(Math.max(0, f.remaining))}
@@ -780,28 +780,28 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
       {!selectedParent && (
         <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-20">
-          <p className="text-sm text-warm-500">Sélectionnez une famille dans la liste pour gérer son règlement.</p>
-          <p className="text-xs text-warm-400">Filtrez par statut avec les compteurs ci-dessus.</p>
+          <p className="text-sm text-warm-700">Sélectionnez une famille dans la liste pour gérer son règlement.</p>
+          <p className="text-xs text-warm-700">Filtrez par statut avec les compteurs ci-dessus.</p>
         </div>
       )}
 
       {selectedParent && (<>
         {/* En-tete : quelle famille (calque de la fiche parent) */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-warm-100 text-warm-600 ring-1 ring-warm-200">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
             {`${(selectedParent.tutor1_last_name[0] ?? '').toUpperCase()}${(selectedParent.tutor1_first_name[0] ?? '').toUpperCase()}`}
           </div>
           <div className="min-w-0">
             <h1 className="text-base font-bold text-secondary-800 leading-tight truncate">
               {selectedParent.tutor1_last_name.toUpperCase()} {selectedParent.tutor1_first_name}
               {selectedParent.tutor2_last_name && (
-                <span className="text-warm-400 font-medium"> &amp; {selectedParent.tutor2_last_name.toUpperCase()} {selectedParent.tutor2_first_name}</span>
+                <span className="text-warm-700 font-medium"> &amp; {selectedParent.tutor2_last_name.toUpperCase()} {selectedParent.tutor2_first_name}</span>
               )}
             </h1>
             <div className="flex items-center gap-2 text-xs mt-0.5 flex-wrap">
               {selectedParent.situation_familiale
-                ? <span className="text-warm-500">{SITUATION_LABELS[selectedParent.situation_familiale] ?? selectedParent.situation_familiale}</span>
-                : <span className="text-warm-300 italic">Situation non renseignée</span>}
+                ? <span className="text-warm-700">{SITUATION_LABELS[selectedParent.situation_familiale] ?? selectedParent.situation_familiale}</span>
+                : <span className="text-warm-700 italic">Situation non renseignée</span>}
               <span className={clsx('font-bold uppercase text-[10px] px-2 py-0.5 rounded-full', STATUS_COLORS[derivedStatus])}>
                 {STATUS_LABELS[derivedStatus]}
               </span>
@@ -827,17 +827,17 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             {/* Récapitulatif famille */}
             <div className="card overflow-hidden">
               <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Récapitulatif famille</h3>
+                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Récapitulatif famille</h3>
               </div>
               <table className="w-full text-left" aria-label="Récapitulatif famille">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Élève</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Classe</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Cotisation</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Frais</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Réduc.</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Total</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Élève</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Classe</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Cotisation</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Frais</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Réduc.</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -857,12 +857,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       </td>
                       <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">{fmtEur(s.cotisation_amount)}</td>
                       <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">
-                        {s.registration_fee > 0 ? fmtEur(s.registration_fee) : <span className="text-warm-300">·</span>}
+                        {s.registration_fee > 0 ? fmtEur(s.registration_fee) : <span className="text-warm-700">·</span>}
                       </td>
                       <td className="px-2 py-1.5 text-xs text-right tabular-nums">
                         {s.sibling_discount > 0
                           ? <span className="text-primary-600">-{fmtEur(s.sibling_discount)}</span>
-                          : <span className="text-warm-300">·</span>}
+                          : <span className="text-warm-700">·</span>}
                       </td>
                       <td className="px-2 py-1.5 text-xs font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(s.total)}</td>
                     </tr>
@@ -888,9 +888,9 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                           </td>
                           <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">{fmtEur(a.cotisation_amount)}</td>
                           <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">
-                            {a.registration_fee > 0 ? fmtEur(a.registration_fee) : <span className="text-warm-300">·</span>}
+                            {a.registration_fee > 0 ? fmtEur(a.registration_fee) : <span className="text-warm-700">·</span>}
                           </td>
-                          <td className="px-2 py-1.5 text-xs text-right tabular-nums"><span className="text-warm-300">·</span></td>
+                          <td className="px-2 py-1.5 text-xs text-right tabular-nums"><span className="text-warm-700">·</span></td>
                           <td className="px-2 py-1.5 text-xs font-semibold text-secondary-800 text-right tabular-nums">{fmtEur(a.total)}</td>
                         </tr>
                       ))}
@@ -899,7 +899,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </tbody>
                 <tfoot>
                   <tr className="bg-warm-50/60">
-                    <td colSpan={3} className="px-3 py-2.5 text-xs text-warm-500 text-left">
+                    <td colSpan={3} className="px-3 py-2.5 text-xs text-warm-700 text-left">
                       {selectedParent.maxInstallments > 0 && `Échéances max : ${selectedParent.maxInstallments}`}
                     </td>
                     <td colSpan={2} className="px-3 py-2.5 text-sm font-semibold text-secondary-700 text-right">Total cotisations</td>
@@ -912,17 +912,17 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             {/* Communication comptable — historique des envois (relance / attestation) */}
             <div className="card overflow-hidden">
               <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Communication comptable</h3>
+                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Communication comptable</h3>
               </div>
               {familyComms.length === 0 ? (
                 <div className="px-4 py-3 text-center">
-                  <p className="text-sm text-warm-400">Aucune communication.</p>
+                  <p className="text-sm text-warm-700">Aucune communication.</p>
                 </div>
               ) : (
                 <ul className="divide-y divide-warm-50" aria-label="Communications comptables">
                   {familyComms.map(c => (
                     <li key={c.id} className="px-3 py-1.5 flex items-center gap-2 text-xs">
-                      <span className="text-warm-500 whitespace-nowrap tabular-nums">{fmtDate(c.sent_at)}</span>
+                      <span className="text-warm-700 whitespace-nowrap tabular-nums">{fmtDate(c.sent_at)}</span>
                       <span className={clsx('px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase shrink-0',
                         c.type === 'relance' ? 'bg-orange-50 text-orange-700' : 'bg-primary-50 text-primary-700')}>
                         {c.type === 'relance' ? 'Relance' : 'Attestation'}
@@ -942,7 +942,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           <div className="card overflow-hidden">
             <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 relative flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Paiements</h3>
+                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Paiements</h3>
                 {selectedParent.maxInstallments > 0 && payments.length > 0 && (
                   <Tooltip content={<span className="whitespace-nowrap">{payments.length} échéance{payments.length > 1 ? 's' : ''} enregistrée{payments.length > 1 ? 's' : ''} sur {selectedParent.maxInstallments} autorisée{selectedParent.maxInstallments > 1 ? 's' : ''} · maximum des types de cotisation de la famille</span>} maxWidth="max-w-none">
                     <span className={clsx('px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums cursor-default',
@@ -972,12 +972,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <table className="w-full text-left" aria-label="Paiements enregistrés">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-center w-8">#</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Moyen</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Référence</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">N° Reçu</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-center w-8">#</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Date</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Montant</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Moyen</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Référence</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">N° Reçu</th>
                     <th className="px-1 py-2 w-6"></th>
                     <th className="px-1 py-2 w-14"></th>
                   </tr>
@@ -993,7 +993,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     return (
                       <tr key={p.id} className="border-b border-warm-50 hover:bg-warm-50/40">
                         <td className={clsx('px-2 py-1.5 text-xs text-center tabular-nums',
-                          selectedParent.maxInstallments > 0 && idx + 1 > selectedParent.maxInstallments ? 'text-orange-600 font-bold' : 'text-warm-400')}>
+                          selectedParent.maxInstallments > 0 && idx + 1 > selectedParent.maxInstallments ? 'text-orange-600 font-bold' : 'text-warm-700')}>
                           {idx + 1}
                         </td>
                         <td className="px-2 py-1.5 text-xs text-secondary-700">{p.paid_date ? fmtDate(p.paid_date) : '·'}</td>
@@ -1004,13 +1004,13 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                             <Tooltip content={<span className="whitespace-nowrap">{refLabel}</span>} maxWidth="max-w-none">
                               <span className="block max-w-[90px] truncate cursor-default">{refLabel}</span>
                             </Tooltip>
-                          ) : <span className="text-warm-300">·</span>}
+                          ) : <span className="text-warm-700">·</span>}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-secondary-500 whitespace-nowrap">{p.receipt_number || <span className="text-warm-300">·</span>}</td>
+                        <td className="px-2 py-1.5 text-xs text-secondary-500 whitespace-nowrap">{p.receipt_number || <span className="text-warm-700">·</span>}</td>
                         <td className="px-2 py-1.5 text-center">
                           {p.notes && (
                             <Tooltip content={p.notes}>
-                              <span className="inline-flex text-warm-400 hover:text-secondary-600 cursor-help">
+                              <span className="inline-flex text-warm-700 hover:text-secondary-600 cursor-help">
                                 <MessageSquareText size={14} />
                               </span>
                             </Tooltip>
@@ -1024,7 +1024,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                                 aria-label="Modifier le paiement"
                                 onClick={() => { setEditingPayment(p); setPaymentModalOpen(true); setError(null); setSuccess(null) }}
                                 disabled={saving}
-                                className="p-1 text-warm-400 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                                className="p-1 text-warm-700 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                               >
                                 <Pencil size={14} aria-hidden="true" />
                               </button>
@@ -1035,7 +1035,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                                 aria-label="Supprimer le paiement"
                                 onClick={() => setDeletePaymentTarget(p)}
                                 disabled={saving}
-                                className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                                className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                               >
                                 <Trash2 size={14} aria-hidden="true" />
                               </button>
@@ -1049,8 +1049,8 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </table>
             ) : (
               <div className="flex flex-col items-center justify-center py-3 text-center gap-1">
-                <AlertTriangle size={20} className={derivedStatus === 'pending' ? 'text-red-500' : 'text-warm-300'} aria-hidden="true" />
-                <p className={clsx('text-sm', derivedStatus === 'pending' ? 'text-red-500 font-medium' : 'text-warm-400')}>Aucun paiement enregistré.</p>
+                <AlertTriangle size={20} className={derivedStatus === 'pending' ? 'text-red-500' : 'text-warm-700'} aria-hidden="true" />
+                <p className={clsx('text-sm', derivedStatus === 'pending' ? 'text-red-500 font-medium' : 'text-warm-700')}>Aucun paiement enregistré.</p>
                 {totalDue <= 0 && (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
                     <AlertTriangle size={12} aria-hidden="true" /> Complétez d&apos;abord le récapitulatif pour calculer le total dû.
@@ -1061,7 +1061,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
           {/* Réductions & Avoirs — meme carte que Paiements (section separee) */}
             <div className="px-4 h-9 mt-2 bg-warm-50/60 border-y border-warm-100 relative flex items-center justify-between">
-              <h3 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Réductions & Avoirs</h3>
+              <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Réductions & Avoirs</h3>
               {adjustmentsTotal !== 0 && (
                 <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-secondary-700 tabular-nums">
                   Total : {fmtEur(Math.abs(adjustmentsTotal))}
@@ -1084,10 +1084,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <table className="w-full text-left" aria-label="Réductions et avoirs">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Date</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Type</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider">Motif</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-500 uppercase tracking-wider text-right">Montant</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Date</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Type</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Motif</th>
+                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Montant</th>
                     <th className="px-3 py-2 w-10"></th>
                   </tr>
                 </thead>
@@ -1103,10 +1103,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                         </span>
                       </td>
                       <td className="px-2 py-1.5 text-xs text-secondary-700">{a.label}</td>
-                      <td className="px-2 py-1.5 text-xs font-medium text-warm-600 text-right tabular-nums">- {fmtEur(Math.abs(a.amount))}</td>
+                      <td className="px-2 py-1.5 text-xs font-medium text-warm-700 text-right tabular-nums">- {fmtEur(Math.abs(a.amount))}</td>
                       <td className="px-2 py-1.5">
                         <Tooltip content="Supprimer">
-                          <button type="button" aria-label="Supprimer la réduction" onClick={() => setDeleteAdjTarget(a)} disabled={saving} className="p-1 text-warm-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+                          <button type="button" aria-label="Supprimer la réduction" onClick={() => setDeleteAdjTarget(a)} disabled={saving} className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
                             <Trash2 size={14} aria-hidden="true" />
                           </button>
                         </Tooltip>
@@ -1117,7 +1117,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </table>
             ) : !addingAdjustment && (
               <div className="px-4 py-3 text-center">
-                <p className="text-sm text-warm-400">Aucune réduction ni avoir.</p>
+                <p className="text-sm text-warm-700">Aucune réduction ni avoir.</p>
               </div>
             )}
           </div>
@@ -1133,7 +1133,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <span className="text-xs font-semibold text-secondary-700">{'TOTAL D\u00DB'}</span>
               <div className="text-right">
                 {adjustmentsTotal !== 0 && (
-                  <span className="text-xs text-warm-500 mr-1">
+                  <span className="text-xs text-warm-700 mr-1">
                     {fmtEur(subtotal)} - {fmtEur(Math.abs(adjustmentsTotal))} =
                   </span>
                 )}
@@ -1189,7 +1189,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
               <div>
                 <h2 id="relance-modal-title" className="text-base font-bold text-secondary-800">Relance d'impayé</h2>
-                <p className="text-xs text-warm-500 mt-0.5">
+                <p className="text-xs text-warm-700 mt-0.5">
                   Aux deux tuteurs du foyer · {selectedParent.tutor1_last_name.toUpperCase()} {selectedParent.tutor1_first_name}
                 </p>
               </div>
@@ -1197,7 +1197,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 type="button"
                 onClick={() => setRelanceOpen(false)}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
               >
                 <X size={18} />
               </button>
@@ -1213,7 +1213,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 onChange={e => setRelanceSubject(e.target.value)}
               />
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-warm-500 uppercase tracking-widest">Message</label>
+                <label className="block text-xs font-bold text-warm-700 uppercase tracking-widest">Message</label>
                 <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
                   <RichTextEditor content={relanceBody} onChange={setRelanceBody} />
                 </Suspense>
@@ -1247,7 +1247,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         onCancel={() => setDeletePaymentTarget(null)}
       >
         {deletePaymentTarget && (
-          <p className="text-xs text-warm-600">
+          <p className="text-xs text-warm-700">
             {deletePaymentTarget.paid_date ? fmtDate(deletePaymentTarget.paid_date) : '·'}
             {' · '}<strong className="text-warm-700">{fmtEur(deletePaymentTarget.amount_paid)}</strong>
             {deletePaymentTarget.payment_method && ` · ${METHOD_LABELS[deletePaymentTarget.payment_method] ?? deletePaymentTarget.payment_method}`}
@@ -1268,7 +1268,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         onCancel={() => setDeleteAdjTarget(null)}
       >
         {deleteAdjTarget && (
-          <p className="text-xs text-warm-600">
+          <p className="text-xs text-warm-700">
             {deleteAdjTarget.adjustment_type === 'reduction' ? 'Réduction' : deleteAdjTarget.adjustment_type === 'remboursement' ? 'Remboursement' : 'Avoir'}
             {' · '}{deleteAdjTarget.label}{' · '}<strong className="text-warm-700">{fmtEur(Math.abs(deleteAdjTarget.amount))}</strong>
           </p>
@@ -1286,7 +1286,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 type="button"
                 onClick={() => setAddingAdjustment(false)}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
               >
                 <X size={18} />
               </button>

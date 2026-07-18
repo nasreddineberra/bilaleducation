@@ -37,8 +37,8 @@ export default async function NewClassPage() {
   if (!currentYearRow) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center animate-fade-in">
-        <AlertTriangle size={36} className="text-warm-400" />
-        <p className="text-sm text-warm-500">Aucune annee scolaire en cours.</p>
+        <AlertTriangle size={36} className="text-warm-700" />
+        <p className="text-sm text-warm-700">Aucune annee scolaire en cours.</p>
       </div>
     )
   }
@@ -54,7 +54,7 @@ export default async function NewClassPage() {
 
       <Link
         href="/dashboard/classes"
-        className="inline-flex items-center gap-1.5 text-sm text-warm-500 hover:text-secondary-700 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
       >
         <ChevronLeft size={15} />
         Retour à la liste

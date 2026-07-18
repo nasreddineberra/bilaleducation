@@ -36,7 +36,7 @@ export default function AbonnementExpirePage() {
           <h1 className="text-xl font-bold text-secondary-800 mb-2">
             Accès suspendu
           </h1>
-          <p className="text-sm text-warm-500 mb-6 leading-relaxed">
+          <p className="text-sm text-warm-700 mb-6 leading-relaxed">
             L'abonnement de cet établissement est expiré ou inactif.<br />
             Veuillez contacter votre administrateur ou le support Bilal Education pour régulariser votre situation.
           </p>
@@ -50,7 +50,7 @@ export default function AbonnementExpirePage() {
             </a>
             <Link
               href="/login"
-              className="block w-full py-2.5 px-4 rounded-xl border border-warm-200 text-warm-600 text-sm font-medium hover:bg-warm-50 transition-colors"
+              className="block w-full py-2.5 px-4 rounded-xl border border-warm-200 text-warm-700 text-sm font-medium hover:bg-warm-50 transition-colors"
             >
               Retour à la connexion
             </Link>

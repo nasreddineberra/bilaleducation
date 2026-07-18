@@ -100,7 +100,7 @@ function InlineForm({
           className="flex flex-col gap-0.5"
           style={f.maxWidth ? { width: f.maxWidth, flexShrink: 0 } : { flex: '1 1 120px' }}
         >
-          <label className="text-[10px] font-semibold text-warm-400 uppercase tracking-wide px-0.5 leading-none">
+          <label className="text-[10px] font-semibold text-warm-700 uppercase tracking-wide px-0.5 leading-none">
             {f.label}
           </label>
           {f.type === 'color' ? (
@@ -220,23 +220,23 @@ function CourseRow({
       <span className="w-1.5 h-1.5 rounded-full bg-warm-300 flex-shrink-0 self-center" />
       {/* Ref */}
       {c.code && (
-        <span className="text-[10px] font-mono text-warm-400 bg-warm-100 px-1 py-px rounded flex-shrink-0">
+        <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 py-px rounded flex-shrink-0">
           <Highlight text={c.code} query={search} />
         </span>
       )}
       {/* FR · AR */}
       <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
         <span dir="auto" className="font-semibold text-secondary-700 text-sm"><Highlight text={c.nom_fr} query={search} /></span>
-        {c.nom_ar && <span className="text-warm-300 flex-shrink-0 select-none">·</span>}
+        {c.nom_ar && <span className="text-warm-700 flex-shrink-0 select-none">·</span>}
         {c.nom_ar && (
-          <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
+          <span dir="auto" className="text-sm font-bold text-warm-700" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
         )}
       </div>
       <Tooltip content="Modifier">
         <button
           onClick={() => openEdit({ kind: 'cours', item: c })}
           aria-label={`Modifier ${c.nom_fr}`}
-          className="p-1 text-warm-300 hover:text-primary-600 hover:bg-primary-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          className="p-1 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
         >
           <Pencil size={12} />
         </button>
@@ -245,7 +245,7 @@ function CourseRow({
         <button
           onClick={() => { setConfirmDelete({ kind: 'cours', id: c.id, nom: c.nom_fr }); setDeleteError(null) }}
           aria-label={`Supprimer ${c.nom_fr}`}
-          className="p-1 text-warm-300 hover:text-danger-500 hover:bg-danger-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+          className="p-1 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
         >
           <Trash2 size={12} />
         </button>
@@ -281,7 +281,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
         <button
           {...attributes}
           {...listeners}
-          className="text-warm-300 hover:text-warm-500 cursor-grab active:cursor-grabbing flex-shrink-0"
+          className="text-warm-700 hover:text-warm-700 cursor-grab active:cursor-grabbing flex-shrink-0"
           tabIndex={-1}
           aria-label="Réordonner le module"
         >
@@ -292,7 +292,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
           onClick={() => toggleModule(mod.id)}
           aria-label={modExpanded ? `Replier ${mod.nom_fr}` : `Déplier ${mod.nom_fr}`}
           aria-expanded={modExpanded}
-          className="text-warm-400 hover:text-secondary-600 transition-colors flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          className="text-warm-700 hover:text-secondary-600 transition-colors flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
         >
           {modExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
@@ -306,23 +306,23 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
           <>
             <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
               {mod.code && (
-                <span className="text-[10px] font-mono text-warm-400 bg-warm-100 px-1 py-px rounded flex-shrink-0">
+                <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 py-px rounded flex-shrink-0">
                   <Highlight text={mod.code} query={search} />
                 </span>
               )}
               <span dir="auto" className="font-semibold text-secondary-700 text-sm"><Highlight text={mod.nom_fr} query={search} /></span>
-              {mod.nom_ar && <span className="text-warm-300 flex-shrink-0 select-none">·</span>}
+              {mod.nom_ar && <span className="text-warm-700 flex-shrink-0 select-none">·</span>}
               {mod.nom_ar && (
-                <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={mod.nom_ar} query={search} /></span>
+                <span dir="auto" className="text-sm font-bold text-warm-700" style={arStyle}><Highlight text={mod.nom_ar} query={search} /></span>
               )}
             </div>
             <Tooltip content="Modifier">
-              <button onClick={() => openEdit({ kind: 'module', item: mod })} aria-label={`Modifier ${mod.nom_fr}`} className="p-1 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+              <button onClick={() => openEdit({ kind: 'module', item: mod })} aria-label={`Modifier ${mod.nom_fr}`} className="p-1 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
                 <Pencil size={12} />
               </button>
             </Tooltip>
             <Tooltip content="Supprimer">
-              <button onClick={() => { setConfirmDelete({ kind: 'module', id: mod.id, nom: mod.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${mod.nom_fr}`} className="p-1 text-warm-400 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
+              <button onClick={() => { setConfirmDelete({ kind: 'module', id: mod.id, nom: mod.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${mod.nom_fr}`} className="p-1 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
                 <Trash2 size={12} />
               </button>
             </Tooltip>
@@ -426,7 +426,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
         <button
           {...attributes}
           {...listeners}
-          className="text-warm-300 hover:text-warm-500 cursor-grab active:cursor-grabbing flex-shrink-0"
+          className="text-warm-700 hover:text-warm-700 cursor-grab active:cursor-grabbing flex-shrink-0"
           tabIndex={-1}
           aria-label="Réordonner l'unité d'enseignement"
         >
@@ -444,7 +444,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
           onClick={() => toggleUE(ue.id)}
           aria-label={ueExpanded ? `Replier ${ue.nom_fr}` : `Déplier ${ue.nom_fr}`}
           aria-expanded={ueExpanded}
-          className="text-warm-500 hover:text-secondary-700 transition-colors flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          className="text-warm-700 hover:text-secondary-700 transition-colors flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
         >
           {ueExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>
@@ -459,21 +459,21 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
             {/* REF - FR - AR sur une ligne */}
             <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
               {ue.code && (
-                <span className="text-xs font-mono text-warm-400 bg-warm-100 px-1.5 py-px rounded flex-shrink-0"><Highlight text={ue.code} query={search} /></span>
+                <span className="text-xs font-mono text-warm-700 bg-warm-100 px-1.5 py-px rounded flex-shrink-0"><Highlight text={ue.code} query={search} /></span>
               )}
               <span dir="auto" className="font-bold text-secondary-800 text-sm"><Highlight text={ue.nom_fr} query={search} /></span>
-              {ue.nom_ar && <span className="text-warm-300 flex-shrink-0 select-none">·</span>}
+              {ue.nom_ar && <span className="text-warm-700 flex-shrink-0 select-none">·</span>}
               {ue.nom_ar && (
-                <span dir="auto" className="text-sm font-bold text-warm-500" style={arStyle}><Highlight text={ue.nom_ar} query={search} /></span>
+                <span dir="auto" className="text-sm font-bold text-warm-700" style={arStyle}><Highlight text={ue.nom_ar} query={search} /></span>
               )}
             </div>
             <Tooltip content="Modifier">
-              <button onClick={() => openEdit({ kind: 'ue', item: ue })} aria-label={`Modifier ${ue.nom_fr}`} className="p-0.5 text-warm-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+              <button onClick={() => openEdit({ kind: 'ue', item: ue })} aria-label={`Modifier ${ue.nom_fr}`} className="p-0.5 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
                 <Pencil size={12} />
               </button>
             </Tooltip>
             <Tooltip content="Supprimer">
-              <button onClick={() => { setConfirmDelete({ kind: 'ue', id: ue.id, nom: ue.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${ue.nom_fr}`} className="p-0.5 text-warm-400 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
+              <button onClick={() => { setConfirmDelete({ kind: 'ue', id: ue.id, nom: ue.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${ue.nom_fr}`} className="p-0.5 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
                 <Trash2 size={12} />
               </button>
             </Tooltip>
@@ -509,7 +509,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
           {/* Cours directs */}
           {(directCours.length > 0 || (adding?.kind === 'cours' && adding.moduleId === null && adding.ueId === ue.id)) && (
             <div className="mt-px ml-5">
-              <p className="text-xs text-warm-400 uppercase tracking-widest mb-px">── Cours directs ──</p>
+              <p className="text-xs text-warm-700 uppercase tracking-widest mb-px">── Cours directs ──</p>
               {directCours.map(c => (
                 <CourseRow
                   key={c.id} c={c} editing={editing}
@@ -887,7 +887,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
       {/* Formulaire ajout UE */}
       {adding?.kind === 'ue' && (
         <div className="card p-3 mt-4">
-          <p className="text-xs font-semibold text-warm-500 uppercase tracking-wide mb-2">Nouvelle Unité d&apos;Enseignement</p>
+          <p className="text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">Nouvelle Unité d&apos;Enseignement</p>
           {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
           <InlineForm fields={ueFields} onSubmit={handleAddUE} onCancel={cancel} submitting={submitting} />
         </div>
@@ -895,7 +895,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
 
       {/* État vide */}
       {filteredUEs.length === 0 && (
-        <div className="card p-12 text-center text-warm-400 mt-4">
+        <div className="card p-12 text-center text-warm-700 mt-4">
           <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">
             {search ? 'Aucun résultat' : 'Aucune unité d\'enseignement configurée'}
@@ -936,13 +936,13 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
                 type="button"
                 onClick={() => { setConfirmDelete(null); setDeleteError(null) }}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-400 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="px-6 pt-2 pb-6">
-            <p className="text-sm text-warm-500 mb-1">
+            <p className="text-sm text-warm-700 mb-1">
               Supprimer <span dir="auto" className="font-semibold text-secondary-700">&ldquo;{confirmDelete.nom}&rdquo;</span> ?
             </p>
             {confirmDelete.kind !== 'cours' && (

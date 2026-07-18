@@ -178,7 +178,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
       <div className="max-w-lg mx-auto mt-8">
         <div className="card p-6 space-y-4">
           <h2 className="text-lg font-bold text-secondary-800">Enseignant et compte utilisateur créés</h2>
-          <p className="text-sm text-warm-600">
+          <p className="text-sm text-warm-700">
             Un compte utilisateur a été créé automatiquement pour{' '}
             <span className="font-semibold">{form.first_name} {form.last_name}</span> ({form.email}).
           </p>
@@ -221,7 +221,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
         {/* ── Identité ── */}
         <div className="card p-3 space-y-4">
           <div className="flex items-center">
-            <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
               Identité de l'enseignant
             </h2>
             <div className="flex-1 flex justify-center">
@@ -250,7 +250,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           </div>
 
           {isEditing && (
-            <p className={`text-[11px] ${form.is_active ? 'text-warm-400' : 'text-amber-600'}`}>
+            <p className={`text-[11px] ${form.is_active ? 'text-warm-700' : 'text-amber-600'}`}>
               {form.is_active
                 ? 'Statut actif : le compte de connexion de l’enseignant est activé.'
                 : 'Statut inactif : le compte de connexion sera désactivé, l’enseignant ne pourra plus se connecter.'}
@@ -321,7 +321,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
         {/* ── Contact & Spécialisation ── */}
         <div className="card p-3 space-y-4">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
             Contact & Spécialisation
           </h2>
 
@@ -360,7 +360,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
         {/* ── Remarques ── */}
         <div className="card p-3 space-y-4">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
             Remarques
           </h2>
           <FloatTextarea

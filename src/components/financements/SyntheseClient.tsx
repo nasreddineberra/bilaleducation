@@ -70,7 +70,7 @@ function Breakdown({ slices, ariaLabel }: { slices: Slice[]; ariaLabel: string }
       {/* Libelles en MAJUSCULES via CSS : la donnee reste intacte en base. */}
       <ul className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
         {slices.map(s => (
-          <li key={s.label} className="flex items-center gap-1 text-[9px] font-semibold text-warm-600 uppercase tracking-wide">
+          <li key={s.label} className="flex items-center gap-1 text-[9px] font-semibold text-warm-700 uppercase tracking-wide">
             <span className="w-1.5 h-1.5 rounded-sm shrink-0" style={{ background: s.color }} aria-hidden="true" />
             {s.label} <span className="tabular-nums">{Math.round(s.pct)} %</span>
           </li>
@@ -123,7 +123,7 @@ function FormModal({ title, onClose, children, footer }: {
           <h2 id={titleId} className="text-base font-bold text-secondary-800">{title}</h2>
           <button
             type="button" onClick={onClose} aria-label="Fermer"
-            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
           >
             <X size={16} />
           </button>
@@ -300,7 +300,7 @@ export default function SyntheseClient({
                 <p className="stat-label">Facturé</p>
                 <p className="text-sm font-bold text-secondary-800">{fmt(cotisations.totalDue)}</p>
               </div>
-              <span className="text-[9px] text-warm-400">{cotisations.familyCount} dossiers</span>
+              <span className="text-[9px] text-warm-700">{cotisations.familyCount} dossiers</span>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2">
               <div>
@@ -355,7 +355,7 @@ export default function SyntheseClient({
               celui des 2 autres cartes, quel que soit le nombre de lignes. */}
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll">
             {teachingCosts.byMonth.length === 0 ? (
-              <p className="text-[10px] text-warm-400 italic text-center py-3">Aucune donnée</p>
+              <p className="text-[10px] text-warm-700 italic text-center py-3">Aucune donnée</p>
             ) : (
               <table className="w-full text-xs" aria-label={`Coût enseignement par mois, année ${yearLabel}`}>
                 <tbody className="divide-y divide-warm-50">
@@ -379,7 +379,7 @@ export default function SyntheseClient({
 
           <div className="shrink-0 border-t border-warm-200 bg-warm-50">
             <div className="flex items-center justify-between px-2 py-1.5 text-xs font-bold">
-              <span className="text-warm-600">TOTAL</span>
+              <span className="text-warm-700">TOTAL</span>
               <span className="text-red-600 tabular-nums">{fmt(teachingCosts.total)}</span>
             </div>
             <Breakdown slices={teachingSlices} ariaLabel="Répartition du coût enseignement par type de présence" />
@@ -396,13 +396,13 @@ export default function SyntheseClient({
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll">
           {expenses.length === 0 ? (
-            <p className="text-[10px] text-warm-400 italic text-center py-3">Aucune dépense</p>
+            <p className="text-[10px] text-warm-700 italic text-center py-3">Aucune dépense</p>
           ) : (
             <table className="w-full text-xs" aria-label={`Dépenses de l'année ${yearLabel}`}>
               <tbody className="divide-y divide-warm-50">
                 {expenses.map(e => (
                   <tr key={e.id} className="hover:bg-warm-50">
-                    <td className="px-2 py-[2px] text-warm-500 whitespace-nowrap w-0">{fmtDate(e.expense_date)}</td>
+                    <td className="px-2 py-[2px] text-warm-700 whitespace-nowrap w-0">{fmtDate(e.expense_date)}</td>
                     <td className="px-2 py-[2px] text-left">
                       {e.notes ? (
                         <Tooltip content={e.notes}>
@@ -433,7 +433,7 @@ export default function SyntheseClient({
                             aria-label={`Modifier la dépense ${e.label}`}
                             className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                           >
-                            <Pencil size={11} className="text-warm-400" />
+                            <Pencil size={11} className="text-warm-700" />
                           </button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
@@ -442,7 +442,7 @@ export default function SyntheseClient({
                             aria-label={`Supprimer la dépense ${e.label}`}
                             className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                           >
-                            <Trash2 size={11} className="text-warm-400" />
+                            <Trash2 size={11} className="text-warm-700" />
                           </button>
                         </Tooltip>
                       </span>
@@ -456,7 +456,7 @@ export default function SyntheseClient({
 
           <div className="shrink-0 border-t border-warm-200 bg-warm-50">
             <div className="flex items-center justify-between px-2 py-1.5 text-xs font-bold">
-              <span className="text-warm-600">TOTAL</span>
+              <span className="text-warm-700">TOTAL</span>
               <span className="text-red-600 tabular-nums">{fmt(totalExp)}</span>
             </div>
             <Breakdown slices={expenseSlices} ariaLabel="Répartition des dépenses par catégorie" />
@@ -473,13 +473,13 @@ export default function SyntheseClient({
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll">
           {revenues.length === 0 ? (
-            <p className="text-[10px] text-warm-400 italic text-center py-3">Aucun revenu</p>
+            <p className="text-[10px] text-warm-700 italic text-center py-3">Aucun revenu</p>
           ) : (
             <table className="w-full text-xs" aria-label={`Revenus autres de l'année ${yearLabel}`}>
               <tbody className="divide-y divide-warm-50">
                 {revenues.map(r => (
                   <tr key={r.id} className="hover:bg-warm-50">
-                    <td className="px-2 py-[2px] text-warm-500 whitespace-nowrap w-0">{fmtDate(r.revenue_date)}</td>
+                    <td className="px-2 py-[2px] text-warm-700 whitespace-nowrap w-0">{fmtDate(r.revenue_date)}</td>
                     <td className="px-2 py-[2px] text-left">
                       {r.notes ? (
                         <Tooltip content={r.notes}>
@@ -498,7 +498,7 @@ export default function SyntheseClient({
                             aria-label={`Modifier le revenu ${r.label}`}
                             className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                           >
-                            <Pencil size={11} className="text-warm-400" />
+                            <Pencil size={11} className="text-warm-700" />
                           </button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
@@ -507,7 +507,7 @@ export default function SyntheseClient({
                             aria-label={`Supprimer le revenu ${r.label}`}
                             className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                           >
-                            <Trash2 size={11} className="text-warm-400" />
+                            <Trash2 size={11} className="text-warm-700" />
                           </button>
                         </Tooltip>
                       </span>
@@ -521,7 +521,7 @@ export default function SyntheseClient({
 
           <div className="shrink-0 border-t border-warm-200 bg-warm-50">
             <div className="flex items-center justify-between px-2 py-1.5 text-xs font-bold">
-              <span className="text-warm-600">TOTAL</span>
+              <span className="text-warm-700">TOTAL</span>
               <span className="text-primary-600 tabular-nums">{fmt(totalRev)}</span>
             </div>
             <Breakdown slices={revenueSlices} ariaLabel="Répartition des revenus par source" />
@@ -558,13 +558,13 @@ export default function SyntheseClient({
       >
         {deleteTarget && (
           <div className="text-xs text-secondary-700 space-y-0.5">
-            <p><span className="text-warm-500">Libellé :</span> <span className="font-semibold">{deleteTarget.row.label}</span></p>
-            <p><span className="text-warm-500">Date :</span> {fmtDate(
+            <p><span className="text-warm-700">Libellé :</span> <span className="font-semibold">{deleteTarget.row.label}</span></p>
+            <p><span className="text-warm-700">Date :</span> {fmtDate(
               deleteTarget.type === 'expense' ? deleteTarget.row.expense_date : deleteTarget.row.revenue_date
             )}</p>
-            <p><span className="text-warm-500">Montant :</span> <span className="font-semibold tabular-nums">{fmt(Number(deleteTarget.row.amount))}</span></p>
+            <p><span className="text-warm-700">Montant :</span> <span className="font-semibold tabular-nums">{fmt(Number(deleteTarget.row.amount))}</span></p>
             {deleteTarget.type === 'expense' && deleteTarget.row.document_path && (
-              <p className="text-warm-500">Le justificatif joint sera également supprimé.</p>
+              <p className="text-warm-700">Le justificatif joint sera également supprimé.</p>
             )}
           </div>
         )}
@@ -734,7 +734,7 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
           </FloatSelect>
           <FloatTextarea label="Notes" placeholder="Remarque optionnelle..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
           <div>
-            <label className="block text-xs font-semibold text-warm-500 uppercase tracking-wide mb-1">Document</label>
+            <label className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-1">Document</label>
             <div className="flex items-center gap-2">
               <label className="btn-secondary text-xs px-3 py-1.5 cursor-pointer flex items-center gap-1">
                 <Upload size={12} aria-hidden="true" />

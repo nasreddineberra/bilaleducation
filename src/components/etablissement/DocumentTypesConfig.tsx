@@ -162,7 +162,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
     <div className="space-y-3">
       <div>
         <h2 className="text-sm font-bold text-warm-700">Documents requis par dossier</h2>
-        <p className="text-xs text-warm-500 mt-0.5">
+        <p className="text-xs text-warm-700 mt-0.5">
           Configurez les types de documents attendus pour chaque élève.
         </p>
       </div>
@@ -173,7 +173,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
           return (
             <div key={cat.key} className="card">
               <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-warm-600 uppercase tracking-wide">{cat.label}</h3>
+                <h3 className="text-[11px] font-semibold text-warm-700 uppercase tracking-wide">{cat.label}</h3>
                 <button
                   onClick={() => { setAdding(cat.key); setNewLabel(''); setNewRequired(false) }}
                   className="text-[11px] text-primary-700 hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-40"
@@ -185,7 +185,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
 
               {items.length === 0 && adding !== cat.key && (
                 <div className="px-3 py-2 flex items-center justify-between">
-                  <p className="text-[11px] text-warm-500 italic">Aucun document réclamé.</p>
+                  <p className="text-[11px] text-warm-700 italic">Aucun document réclamé.</p>
                   {DEFAULT_TYPES.some(d => d.category === cat.key) && (
                     <button
                       onClick={() => handleInitCategory(cat.key)}
@@ -212,7 +212,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                         'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                         d.is_required
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-warm-100 text-warm-500 hover:bg-warm-200'
+                          : 'bg-warm-100 text-warm-700 hover:bg-warm-200'
                       )}
                     >
                       {d.is_required ? 'Requis' : 'Optionnel'}
@@ -222,14 +222,14 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                     {confirmDelete === d.id ? (
                       <div className="flex items-center gap-1 text-[11px]">
                         <button onClick={() => handleDelete(d.id)} className="text-red-600 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Oui</button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-warm-500 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Non</button>
+                        <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Non</button>
                       </div>
                     ) : (
                       <Tooltip content="Supprimer">
                         <button
                           onClick={() => setConfirmDelete(d.id)}
                           aria-label={`Supprimer ${d.label}`}
-                          className="text-warm-300 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                          className="text-warm-700 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -251,7 +251,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                       onKeyDown={e => e.key === 'Enter' && handleAdd(cat.key)}
                       autoFocus
                     />
-                    <label className="flex items-center gap-0.5 text-[11px] text-warm-500 whitespace-nowrap cursor-pointer">
+                    <label className="flex items-center gap-0.5 text-[11px] text-warm-700 whitespace-nowrap cursor-pointer">
                       <input
                         type="checkbox"
                         checked={newRequired}
@@ -274,7 +274,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                       <button
                         onClick={() => setAdding(null)}
                         aria-label="Annuler"
-                        className="text-warm-500 hover:text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
+                        className="text-warm-700 hover:text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
                       >
                         <X size={14} />
                       </button>

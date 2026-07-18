@@ -352,7 +352,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
     <div className="space-y-4">
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-warm-500">Année <span className="font-semibold text-secondary-700">{currentYear.label}</span></p>
+        <p className="text-sm text-warm-700">Année <span className="font-semibold text-secondary-700">{currentYear.label}</span></p>
         {!editing && (
           <div className="flex items-center gap-2">
             {previousYear && (
@@ -424,7 +424,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                       'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
                       row.is_active
                         ? 'bg-success-50 text-success-700'
-                        : 'bg-warm-100 text-warm-500'
+                        : 'bg-warm-100 text-warm-700'
                     )}>
                       {row.is_active ? 'Actif' : 'Inactif'}
                     </span>
@@ -433,7 +433,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                     {row.reserved_kind ? (
                       <div className="flex items-center justify-end gap-1">
                         <Tooltip content="Type réservé : reconduit chaque année, non supprimable, libellé et code verrouillés (l'emploi du temps s'y rattache). Seule la couleur est modifiable.">
-                          <span className="text-[10px] text-warm-500 italic">Réservé</span>
+                          <span className="text-[10px] text-warm-700 italic">Réservé</span>
                         </Tooltip>
                         <Tooltip content="Modifier la couleur">
                           <button
@@ -442,7 +442,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             aria-label={`Modifier la couleur de ${row.label}`}
                             className={clsx(
                               'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
-                              editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100'
+                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100'
                             )}
                           >
                             <Pencil size={15} />
@@ -460,7 +460,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs text-warm-500 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
+                          className="text-xs text-warm-700 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
                         >
                           Annuler
                         </button>
@@ -474,7 +474,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             aria-label={`Modifier ${row.label}`}
                             className={clsx(
                               'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
-                              editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-secondary-700 hover:bg-warm-100'
+                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100'
                             )}
                           >
                             <Pencil size={15} />
@@ -487,7 +487,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             aria-label={`Supprimer ${row.label}`}
                             className={clsx(
                               'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger-400/60',
-                              editing ? 'text-warm-300 cursor-not-allowed' : 'text-warm-400 hover:text-danger-600 hover:bg-danger-50'
+                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-danger-600 hover:bg-danger-50'
                             )}
                           >
                             <Trash2 size={15} />
@@ -505,7 +505,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
 
             {sortedRows.length === 0 && !editing && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-warm-400">
+                <td colSpan={5} className="px-4 py-12 text-center text-sm text-warm-700">
                   Aucun type de présence configuré.
                 </td>
               </tr>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import ParentsTable from './ParentsTable'
@@ -51,14 +51,14 @@ function PaginationBar({ page, totalPages, onNavigate }: {
       <button
         onClick={() => onNavigate(page - 1)}
         disabled={page === 1}
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronLeft size={15} />
       </button>
 
       {getPages().map((p, i) =>
         p === '...' ? (
-          <span key={`e${i}`} className="px-1 text-warm-400 text-sm select-none">…</span>
+          <span key={`e${i}`} className="px-1 text-warm-700 text-sm select-none">…</span>
         ) : (
           <button
             key={p}
@@ -77,7 +77,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
       <button
         onClick={() => onNavigate(page + 1)}
         disabled={page === totalPages}
-        className="p-1.5 rounded-lg text-warm-400 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
       >
         <ChevronRight size={15} />
       </button>
@@ -153,8 +153,7 @@ export default function ParentsClient({
         />
 
         {/* Ajouter */}
-        <Link href="/dashboard/parents/new" className="inline-flex items-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap">
-          <Plus size={16} />
+        <Link href="/dashboard/parents/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap">
           Ajouter
         </Link>
       </div>
@@ -164,7 +163,7 @@ export default function ParentsClient({
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-warm-400">
+        <span className="text-xs text-warm-700">
           {filteredCount} fiche{filteredCount > 1 ? 's' : ''}
           {q.trim()
             ? ` trouvée${filteredCount > 1 ? 's' : ''} pour « ${q} »`

@@ -58,7 +58,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
   return (
     <div className="card p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Utilisateurs</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
         <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors">
           <Plus className="w-3.5 h-3.5" /> Ajouter
         </button>
@@ -77,7 +77,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
             </select>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} placeholder="Mot de passe (10+ car.)" value={newUser.password} onChange={e => setField('password', e.target.value)} className="input text-sm py-1.5 pr-8 w-full" />
-              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-400">
+              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-700">
                 {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
             </div>
@@ -93,19 +93,19 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
       )}
 
       {profiles.length === 0 ? (
-        <p className="text-sm text-warm-400 text-center py-4">Aucun utilisateur</p>
+        <p className="text-sm text-warm-700 text-center py-4">Aucun utilisateur</p>
       ) : (
         <div className="space-y-1">
           {profiles.map(p => (
             <div key={p.id} className={clsx('flex items-center justify-between px-3 py-2 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-secondary-800 leading-tight">{p.last_name} {p.first_name}</p>
-                <p className="text-xs text-warm-400 leading-tight mt-0.5">{p.email}</p>
+                <p className="text-xs text-warm-700 leading-tight mt-0.5">{p.email}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                <span className="text-xs text-warm-500 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
+                <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
                 <button onClick={() => handleToggle(p)} disabled={togglingId === p.id} title={p.is_active ? 'Désactiver' : 'Activer'}
-                  className={clsx('p-1 rounded-lg transition-colors', p.is_active ? 'text-warm-400 hover:text-danger-500 hover:bg-danger-50' : 'text-green-500 hover:bg-green-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}>
+                  className={clsx('p-1 rounded-lg transition-colors', p.is_active ? 'text-warm-700 hover:text-danger-500 hover:bg-danger-50' : 'text-green-500 hover:bg-green-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}>
                   {p.is_active ? <UserX size={15} /> : <UserCheck size={15} />}
                 </button>
               </div>

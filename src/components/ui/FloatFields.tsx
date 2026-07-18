@@ -49,10 +49,10 @@ export function FloatInput({ label, required, error, locked, compact, className,
           ? 'peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:top-1 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase'
           : 'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase',
         locked
-          ? 'text-warm-400'
+          ? 'text-warm-700'
           : error
             ? 'text-red-500 peer-focus:text-red-500'
-            : 'text-warm-400 peer-focus:text-primary-600 peer-[&:not(:placeholder-shown)]:text-warm-500',
+            : 'text-warm-700 peer-focus:text-primary-600 peer-[&:not(:placeholder-shown)]:text-warm-700',
       ].join(' ')}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -92,7 +92,7 @@ export function FloatSelect({ label, required, error, children, className, wrapp
         {children}
       </select>
       {/* Flèche custom */}
-      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-400">
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-warm-700">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -108,8 +108,8 @@ export function FloatSelect({ label, required, error, children, className, wrapp
         error
           ? 'text-red-500'
           : hasValue
-            ? 'text-warm-500'
-            : 'text-warm-400 peer-focus:text-primary-600',
+            ? 'text-warm-700'
+            : 'text-warm-700 peer-focus:text-primary-600',
       ].join(' ')}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -158,8 +158,8 @@ export function FloatTextarea({ label, required, error, className, placeholder, 
         error
           ? 'text-red-500'
           : labelUp
-            ? focused ? 'text-primary-600' : 'text-warm-500'
-            : 'text-warm-400',
+            ? focused ? 'text-primary-600' : 'text-warm-700'
+            : 'text-warm-700',
       ].join(' ')}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -267,7 +267,7 @@ export function FloatCheckbox({
           onChange={e => onChange(e.target.checked)}
           className="sr-only"
         />
-        {label && <span className="text-xs text-warm-400 select-none">{label}</span>}
+        {label && <span className="text-xs text-warm-700 select-none">{label}</span>}
       </label>
     )
   }
@@ -288,7 +288,7 @@ export function FloatCheckbox({
         <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only" />
         <span className="text-sm font-medium text-secondary-700">{label}</span>
         {hint && (
-          <span title={hint} className="ml-auto inline-flex items-center justify-center w-4 h-4 rounded-full bg-warm-200 text-warm-500 text-[10px] font-bold cursor-help">?</span>
+          <span title={hint} className="ml-auto inline-flex items-center justify-center w-4 h-4 rounded-full bg-warm-200 text-warm-700 text-[10px] font-bold cursor-help">?</span>
         )}
       </label>
     )
@@ -309,7 +309,7 @@ export function FloatCheckbox({
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only" />
       <div>
         <span className="text-sm font-medium text-secondary-700">{label}</span>
-        {hint && <p className="text-xs text-warm-400 mt-0.5">{hint}</p>}
+        {hint && <p className="text-xs text-warm-700 mt-0.5">{hint}</p>}
       </div>
     </label>
   )
@@ -366,7 +366,7 @@ export interface SearchFieldProps {
 export function SearchField({ value, onChange, placeholder = 'Rechercher…', className, onFocus, ariaLabel }: SearchFieldProps) {
   return (
     <div className={['relative flex items-center', className ?? 'w-64'].join(' ')}>
-      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-400 pointer-events-none" />
+      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-700 pointer-events-none" />
       <input
         type="text"
         value={value}
@@ -376,7 +376,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
         aria-label={ariaLabel ?? placeholder}
         className={[
           'pl-8 py-2 text-sm rounded-lg border w-full',
-          'bg-white text-secondary-800 placeholder:text-warm-400',
+          'bg-white text-secondary-800 placeholder:text-warm-700',
           'border-warm-300 transition-all duration-200',
           'focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400',
           value ? 'pr-8' : 'pr-3',
@@ -386,7 +386,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
         <button
           type="button"
           onClick={() => onChange('')}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-400 hover:text-secondary-600 transition-colors"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors"
           aria-label="Effacer"
         >
           <X size={13} />

@@ -19,7 +19,7 @@ const isValidSlug  = (v: string) => /^[a-z0-9-]+$/.test(v)
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-500 uppercase tracking-wide">{label}</label>
+      <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">{label}</label>
       {children}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
@@ -34,7 +34,7 @@ function PasswordChecklist({ password, firstName, lastName }: { password: string
       {rules.map(rule => {
         const ok = rule.test(password, firstName, lastName)
         return (
-          <li key={rule.key} className={clsx('flex items-center gap-1.5 text-xs', ok ? 'text-green-600' : 'text-warm-400')}>
+          <li key={rule.key} className={clsx('flex items-center gap-1.5 text-xs', ok ? 'text-green-600' : 'text-warm-700')}>
             {ok ? <Check size={11} className="flex-shrink-0" /> : <X size={11} className="flex-shrink-0" />}
             {rule.label}
           </li>
@@ -104,18 +104,18 @@ export default function NewEcolePage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <nav className="text-xs text-warm-400 mb-2">
-          <Link href="/superadmin" className="hover:text-warm-600">Établissements</Link>
+        <nav className="text-xs text-warm-700 mb-2">
+          <Link href="/superadmin" className="hover:text-warm-700">Établissements</Link>
           <span className="mx-1.5">/</span>
           <span className="text-secondary-700">Nouveau</span>
         </nav>
         <h1 className="text-2xl font-bold text-secondary-800">Nouvel établissement</h1>
-        <p className="text-warm-500 text-sm mt-1">Créer un nouveau tenant avec son directeur initial</p>
+        <p className="text-warm-700 text-sm mt-1">Créer un nouveau tenant avec son directeur initial</p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-2xl">
         <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Établissement</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Établissement</h2>
 
           <Field label="Slug (sous-domaine) *" error={touched.has('slug') && v.slug ? 'Lettres minuscules, chiffres et tirets uniquement (min. 2 car.).' : undefined}>
             <div className="flex items-center input gap-0 p-0 overflow-hidden">
@@ -127,7 +127,7 @@ export default function NewEcolePage() {
                 placeholder="al-kindi"
                 className={clsx('flex-1 px-3 py-2 outline-none bg-transparent text-sm', touched.has('slug') && v.slug && 'text-red-600')}
               />
-              <span className="px-3 text-warm-400 text-xs border-l border-warm-200 bg-warm-50 py-2 whitespace-nowrap">.bilaleducation.fr</span>
+              <span className="px-3 text-warm-700 text-xs border-l border-warm-200 bg-warm-50 py-2 whitespace-nowrap">.bilaleducation.fr</span>
             </div>
           </Field>
 
@@ -146,7 +146,7 @@ export default function NewEcolePage() {
         </div>
 
         <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-500 uppercase tracking-widest">Directeur initial</h2>
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Directeur initial</h2>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Nom *" error={touched.has('last_name') && v.last_name ? 'Obligatoire.' : undefined}>
@@ -171,7 +171,7 @@ export default function NewEcolePage() {
                 className={clsx(inputCls('password'), 'pr-10')}
                 placeholder="10 caractères minimum"
               />
-              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-400 hover:text-warm-600">
+              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700">
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
