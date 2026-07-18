@@ -18,13 +18,29 @@ const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 const HW_TYPE: Record<string, { label: string; color: string; icon: any }> = {
   exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
   lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
-  expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
+  expose:   { label: 'Exposé',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
   autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-700', icon: FileText },
 }
 
 function teacherLabelOf(t: any): string {
   if (!t) return ''
   return `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
+}
+const DAY_STR: Record<string, string> = {
+  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi', thursday: 'Jeudi',
+  friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
+}
+// Info classe : cotisation · Niveau (si) · horaires.
+function classInfoOf(c: any): string {
+  if (!c) return ''
+  const parts: string[] = []
+  if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
+  if (c.level) parts.push(`Niveau ${c.level}`)
+  if (c.day_of_week && c.start_time) {
+    const day = DAY_STR[c.day_of_week] ?? c.day_of_week
+    parts.push(`${day} ${c.start_time.slice(0, 5)}${c.end_time ? `-${c.end_time.slice(0, 5)}` : ''}`)
+  }
+  return parts.join(' · ')
 }
 function formatDate(d: string): string {
   return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
@@ -207,10 +223,8 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
               {homework.subject && homework.subject !== 'General' && (
                 <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
               )}
-              <span className={clsx('inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold', typeInfo.color)}>
-                <TypeIcon size={11} />{typeInfo.label}
-              </span>
               <span>{teacherLabel}</span>
+              {classInfoOf(homework.classes) && <span>· {classInfoOf(homework.classes)}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -223,6 +237,13 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
 
         {/* Body */}
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
+          {/* Type de devoir (juste au-dessus des consignes) */}
+          <div>
+            <span className={clsx('inline-flex items-center gap-1.5 px-2 py-1 rounded font-bold text-xs', typeInfo.color)}>
+              <TypeIcon size={13} />{typeInfo.label}
+            </span>
+          </div>
+
           {/* Consignes */}
           {homework.description_html && sanitize(homework.description_html).trim() && (
             <div>

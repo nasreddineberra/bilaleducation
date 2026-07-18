@@ -1497,7 +1497,7 @@ export default function EmploiDuTempsClient({
             aria-pressed={viewType === 'week'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'week' ? 'bg-warm-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
+              viewType === 'week' ? 'bg-secondary-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Semaine
@@ -1507,7 +1507,7 @@ export default function EmploiDuTempsClient({
             aria-pressed={viewType === 'month'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'month' ? 'bg-warm-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
+              viewType === 'month' ? 'bg-secondary-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Mois

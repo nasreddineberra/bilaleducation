@@ -121,7 +121,7 @@ export default async function CahierTextePage() {
   if (classIds.length > 0) {
     const { data } = await supabase
       .from('class_journal')
-      .select('*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name)')
+      .select('*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))')
       .in('class_id', classIds)
       .order('session_date', { ascending: false })
       .limit(100)
@@ -134,7 +134,7 @@ export default async function CahierTextePage() {
   if (classIds.length > 0) {
     const { data } = await supabase
       .from('homework')
-      .select('*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name)')
+      .select('*, teachers:teacher_id(first_name, last_name, civilite), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label))')
       .in('class_id', classIds)
       .order('due_date', { ascending: false })
       .limit(100)

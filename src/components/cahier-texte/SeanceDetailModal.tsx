@@ -13,6 +13,22 @@ function teacherLabelOf(t: any): string {
   if (!t) return ''
   return `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
 }
+const DAY_STR: Record<string, string> = {
+  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi', thursday: 'Jeudi',
+  friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
+}
+// Info classe : cotisation · Niveau (si) · horaires.
+function classInfoOf(c: any): string {
+  if (!c) return ''
+  const parts: string[] = []
+  if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
+  if (c.level) parts.push(`Niveau ${c.level}`)
+  if (c.day_of_week && c.start_time) {
+    const day = DAY_STR[c.day_of_week] ?? c.day_of_week
+    parts.push(`${day} ${c.start_time.slice(0, 5)}${c.end_time ? `-${c.end_time.slice(0, 5)}` : ''}`)
+  }
+  return parts.join(' · ')
+}
 function formatDate(d: string): string {
   return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
@@ -56,6 +72,7 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
               <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold">{journal.classes?.name}</span>
               {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
               <span>{teacherLabel}</span>
+              {classInfoOf(journal.classes) && <span>· {classInfoOf(journal.classes)}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
