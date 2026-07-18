@@ -483,9 +483,17 @@ export default function NewMessageClient({
                   onChange={e => setSelectedClassId(e.target.value || null)}
                 >
                   <option value="" disabled hidden></option>
-                  {classes.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {classes.map(c => {
+                    // Regle d'affichage select classe : CODE · Civilite NOM Prenom · COTISATION.
+                    const teacher = c.main_teacher_name
+                      ? [c.main_teacher_civilite, c.main_teacher_name].filter(Boolean).join(' ')
+                      : null
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {[c.name, teacher, c.cotisation_label].filter(Boolean).join(' · ')}
+                      </option>
+                    )
+                  })}
                 </FloatSelect>
                 {selectedClass && (
                   <dl className="text-xs space-y-0.5">

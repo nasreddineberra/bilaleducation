@@ -93,7 +93,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
   }, [hydrated, search, filterType, filterClassId])
 
   // Classes reellement presentes dans les messages « Parents d'une classe ».
-  // Meme libelle que « Affectations apprenants » : « Nom · Civilite NOM Prenom ».
+  // Regle d'affichage select classe : « CODE · Civilite NOM Prenom · COTISATION ».
   const classOptions = useMemo(() => {
     const map = new Map<string, string>()
     for (const m of messages) {
@@ -102,7 +102,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
       const teacher = main?.teachers
         ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
         : null
-      map.set(m.target_class_id, [m.classes.name, teacher].filter(Boolean).join(' · '))
+      map.set(m.target_class_id, [m.classes.name, teacher, (m.classes as any).cotisation_types?.label].filter(Boolean).join(' · '))
     }
     return [...map.entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label))
   }, [messages])

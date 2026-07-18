@@ -654,7 +654,7 @@ export default function BulletinsClient({
                 : ''
               const btn = (
                 <FloatButton
-                  variant="print"
+                  variant="secondary"
                   type="button"
                   onClick={handleDownloadAll}
                   disabled={generating !== null || !allComplete || isArchived}
