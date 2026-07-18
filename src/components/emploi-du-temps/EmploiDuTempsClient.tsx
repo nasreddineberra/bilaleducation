@@ -197,12 +197,22 @@ function teacherLabel(p: { first_name: string; last_name: string; civilite?: str
   return `${civ} ${p.last_name} ${p.first_name}`
 }
 
+// Jour de la classe = string DB (monday…) — DAY_LABELS est indexe par nombre.
+const DAY_STR_LABELS: Record<string, string> = {
+  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi', thursday: 'Jeudi',
+  friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
+}
+
+// Info affichee apres le select : cotisation · Niveau (si renseigne) · horaires.
+// PAS l'enseignant (deja affiche dans le select classe) — doublon.
 function classInfoLine(c: ClassData): string {
-  const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
   const parts: string[] = []
-  if (mainT?.teachers) parts.push(teacherLabel(mainT.teachers))
   if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
   if (c.level) parts.push(`Niveau ${c.level}`)
+  if (c.day_of_week && c.start_time) {
+    const day = DAY_STR_LABELS[c.day_of_week] ?? c.day_of_week
+    parts.push(`${day} ${c.start_time.slice(0, 5)}${c.end_time ? `-${c.end_time.slice(0, 5)}` : ''}`)
+  }
   return parts.join(' · ')
 }
 
@@ -1382,7 +1392,7 @@ export default function EmploiDuTempsClient({
               aria-haspopup="listbox"
               aria-expanded={classDropOpen}
               aria-label="Sélectionner une classe"
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-400 transition-colors whitespace-nowrap"
             >
               {selectedClassId ? (() => {
                 const cls = classes.find(c => c.id === selectedClassId)
@@ -1437,7 +1447,7 @@ export default function EmploiDuTempsClient({
               aria-haspopup="listbox"
               aria-expanded={teacherDropOpen}
               aria-label="Sélectionner un enseignant"
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-300 transition-colors whitespace-nowrap"
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-400 transition-colors whitespace-nowrap"
             >
               {selectedTeacher ? (
                 <span className="font-semibold text-secondary-800">
