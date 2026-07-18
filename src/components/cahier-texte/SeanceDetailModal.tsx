@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, CalendarDays, BookOpenText } from 'lucide-react'
+import { X, CalendarDays } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { FloatButton } from '@/components/ui/FloatFields'
 import SeanceForm from './SeanceForm'
@@ -67,8 +67,6 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
           <div className="min-w-0">
             <h3 id="seance-detail-title" className="text-sm font-bold text-secondary-800 truncate">{journal.title}</h3>
             <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
-              <CalendarDays size={12} />
-              <span>{formatDate(journal.session_date)}</span>
               <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold">{journal.classes?.name}</span>
               {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
               <span>{teacherLabel}</span>
@@ -85,9 +83,12 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
 
         {/* Body */}
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-          <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-            <BookOpenText size={14} className="text-primary-500" /> Contenu de la seance
-          </h4>
+          <div className="flex items-center gap-3 flex-wrap mb-3">
+            <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Contenu de la seance</h4>
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-warm-700">
+              <CalendarDays size={14} /> {formatDate(journal.session_date)}
+            </span>
+          </div>
           <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(journal.content_html) }} />
         </div>
 

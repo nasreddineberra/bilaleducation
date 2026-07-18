@@ -78,7 +78,6 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
   const trackingLabel = isAdult ? 'Suivi des participants' : 'Suivi des familles'
 
   const typeInfo = HW_TYPE[homework.homework_type] ?? HW_TYPE.autre
-  const TypeIcon = typeInfo.icon
   const isPast = new Date(homework.due_date) < new Date(new Date().toDateString())
 
   useEffect(() => { setMounted(true) }, [])
@@ -217,8 +216,6 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           <div className="min-w-0">
             <h3 id="devoir-detail-title" className="text-sm font-bold text-secondary-800 truncate">{homework.title}</h3>
             <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
-              <CalendarDays size={12} />
-              <span className={clsx('font-medium', isPast ? 'text-warm-700' : 'text-red-600')}>A rendre le {formatDate(homework.due_date)}</span>
               <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold">{homework.classes?.name}</span>
               {homework.subject && homework.subject !== 'General' && (
                 <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
@@ -237,22 +234,25 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
 
         {/* Body */}
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
-          {/* Type de devoir (juste au-dessus des consignes) */}
+          {/* Type de devoir + date de rendu (juste au-dessus des consignes) */}
           <div>
-            <span className={clsx('inline-flex items-center gap-1.5 px-2 py-1 rounded font-bold text-xs', typeInfo.color)}>
-              <TypeIcon size={13} />{typeInfo.label}
-            </span>
-          </div>
-
-          {/* Consignes */}
-          {homework.description_html && sanitize(homework.description_html).trim() && (
-            <div>
-              <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                <ClipboardList size={14} className="text-primary-500" /> Consignes
-              </h4>
-              <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(homework.description_html) }} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={clsx('inline-flex items-center px-3 py-1.5 rounded-md font-bold text-sm uppercase tracking-wide', typeInfo.color)}>
+                {typeInfo.label}
+              </span>
+              <span className={clsx('inline-flex items-center gap-1.5 text-sm font-medium', isPast ? 'text-warm-700' : 'text-red-600')}>
+                <CalendarDays size={14} /> A rendre le {formatDate(homework.due_date)}
+              </span>
             </div>
-          )}
+
+            {/* Consignes (sans icone) */}
+            {homework.description_html && sanitize(homework.description_html).trim() && (
+              <div className="mt-2">
+                <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide mb-2">Consignes</h4>
+                <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(homework.description_html) }} />
+              </div>
+            )}
+          </div>
 
           {/* Mon pointage (parent / participant adulte) */}
           {myKeys.length > 0 && (

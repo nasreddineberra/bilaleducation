@@ -1121,6 +1121,20 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
 - **Temps de presence — boutons TYPE** : `flex flex-wrap` (largeurs inegales, libelles debordants) →
   **grille 2 colonnes** (boutons de largeur identique, `truncate`).
 
+#### 19 juillet 2026 — Modales cahier de texte + refonte destinataires Communication Staff
+- **Modales detail seance/devoir** (`SeanceDetailModal`/`DevoirDetailModal`) : date de rendu/seance
+  **deplacee** du header vers le corps (a cote du badge type pour le devoir, sur la ligne
+  « CONTENU DE LA SEANCE » pour la seance) ; badge type de devoir en **MAJUSCULES sans icone**,
+  place juste au-dessus des consignes, espace reduit ; icones retirees des titres CONTENU/CONSIGNES ;
+  accent « Exposé ».
+- **Communication Staff — selection destinataires simplifiee** (`StaffMessageClient`) : suppression
+  du double niveau (raccourcis groupes Tous/Staff/Enseignants + rôles) qui creait un **doublon
+  « Enseignants »/« Enseignant »**. Desormais **une seule rangee** : bouton **« Tous »** (coche/decoche
+  tous les roles) + chips de rôle. Etat `group` retire cote client (`group: null` au serveur, qui
+  resout par roles — inchange). **Libelles des chips = SERVICE/groupe** (plusieurs personnes possibles) :
+  Enseignants / Comptabilite / Secretariat (map `CHIP_LABELS`), tandis que le **badge d'un membre**
+  garde son rôle au singulier (`ROLE_LABELS`).
+
 ## Prochaine etape
 - **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact` ci-dessus.
 - **Verifier visuellement** la passe de lisibilite module par module (surtout les etats inactifs

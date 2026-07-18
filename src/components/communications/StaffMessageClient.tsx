@@ -37,6 +37,15 @@ const ROLE_LABELS: Record<string, string> = {
   comptable: 'Comptable',
 }
 
+// Libelles des CHIPS de filtre = groupe/service (plusieurs personnes possibles),
+// distincts du role d'un membre (badge, au singulier). Repli sur ROLE_LABELS.
+const CHIP_LABELS: Record<string, string> = {
+  enseignant: 'Enseignants',
+  comptable: 'Comptabilité',
+  secretaire: 'Secrétariat',
+}
+const chipLabel = (r: string) => CHIP_LABELS[r] ?? ROLE_LABELS[r] ?? r
+
 // Memes couleurs que la colonne « Role » de la liste des utilisateurs.
 const ROLE_COLORS: Record<string, string> = {
   super_admin:             'bg-violet-100 text-violet-700',
@@ -103,7 +112,6 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 export default function StaffMessageClient({ role, staffMembers, etablissementId, smtpConfigured, signatureHtml }: Props) {
   const toast = useToast()
   const [channel, setChannel] = useState<StaffChannel>('notification')
-  const [group, setGroup] = useState<'all' | 'staff' | 'teachers' | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [subject, setSubject] = useState('')
@@ -134,20 +142,14 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
     return sortedStaff.filter(s => norm(`${s.last_name} ${s.first_name}`).includes(q))
   }, [sortedStaff, staffSearch])
 
-  // Resolution des destinataires : reproduit exactement l'union du serveur.
+  // Destinataires = union des roles coches + des membres coches individuellement.
   const recipients = useMemo(() => {
     const chosen = new Map<string, StaffMember>()
     const add = (m: StaffMember) => chosen.set(m.id, m)
-    if (group === 'all') {
-      staffMembers.forEach(add)
-    } else {
-      if (group === 'staff')    staffMembers.filter(m => m.role !== 'enseignant').forEach(add)
-      if (group === 'teachers') staffMembers.filter(m => m.role === 'enseignant').forEach(add)
-      staffMembers.filter(m => selectedRoles.has(m.role)).forEach(add)
-      staffMembers.filter(m => selectedIds.has(m.id)).forEach(add)
-    }
+    staffMembers.filter(m => selectedRoles.has(m.role)).forEach(add)
+    staffMembers.filter(m => selectedIds.has(m.id)).forEach(add)
     return [...chosen.values()]
-  }, [group, selectedRoles, selectedIds, staffMembers])
+  }, [selectedRoles, selectedIds, staffMembers])
 
   const recipientIds = useMemo(() => new Set(recipients.map(r => r.id)), [recipients])
   const withoutEmail = useMemo(() => recipients.filter(r => !r.email), [recipients])
@@ -160,7 +162,6 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
   const canSend = !blockingReason && !!subject.trim() && !!bodyHtml.trim() && recipients.length > 0
 
   const toggleRole = (r: string) => {
-    setGroup(null)
     setSelectedRoles(prev => {
       const next = new Set(prev)
       next.has(r) ? next.delete(r) : next.add(r)
@@ -168,18 +169,15 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
     })
   }
   const toggleMember = (id: string) => {
-    setGroup(null)
     setSelectedIds(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }
-  const toggleGroup = (g: 'all' | 'staff' | 'teachers') => {
-    setSelectedRoles(new Set())
-    setSelectedIds(new Set())
-    setGroup(prev => prev === g ? null : g)
-  }
+  // « Tous » = tous les roles coches / decoches d'un clic.
+  const allRolesSelected = availableRoles.length > 0 && availableRoles.every(r => selectedRoles.has(r))
+  const toggleAllRoles = () => setSelectedRoles(allRolesSelected ? new Set() : new Set(availableRoles))
 
   const handleFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const added = e.target.files ? Array.from(e.target.files) : []
@@ -218,7 +216,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
 
       const result = await sendStaffMessage({
         channel,
-        group,
+        group:      null,
         roles:      [...selectedRoles],
         profileIds: [...selectedIds],
         subject,
@@ -240,7 +238,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
       else               toast.success(base)
 
       setSubject(''); setBodyHtml(''); setAttachments([])
-      setGroup(null); setSelectedRoles(new Set()); setSelectedIds(new Set())
+      setSelectedRoles(new Set()); setSelectedIds(new Set())
     } catch (err: any) {
       toast.error(err.message ?? "Erreur lors de l'envoi")
     } finally {
@@ -353,26 +351,19 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
           <div className="card p-4 space-y-3">
             <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Destinataires</h2>
 
-            {/* Raccourcis : un clic = tout le groupe, sans cocher un par un. */}
+            {/* Un seul niveau : on coche des roles. « Tous » = tout cocher/decocher. */}
             <div className="flex flex-wrap gap-1.5">
-              {([['all', 'Tous'], ['staff', 'Staff'], ['teachers', 'Enseignants']] as const).map(([g, label]) => (
-                <button
-                  key={g}
-                  type="button"
-                  aria-pressed={group === g}
-                  onClick={() => toggleGroup(g)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                    group === g ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Par role */}
-            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                aria-pressed={allRolesSelected}
+                onClick={toggleAllRoles}
+                className={clsx(
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+                  allRolesSelected ? 'border-primary-400 bg-primary-500 text-white' : 'border-warm-300 text-secondary-700 bg-white hover:bg-warm-50',
+                )}
+              >
+                Tous
+              </button>
               {availableRoles.map(r => (
                 <button
                   key={r}
@@ -380,11 +371,12 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
                   aria-pressed={selectedRoles.has(r)}
                   onClick={() => toggleRole(r)}
                   className={clsx(
-                    'px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
                     selectedRoles.has(r) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
                   )}
                 >
-                  {ROLE_LABELS[r] ?? r}
+                  {/* Chip = groupe/service (le badge d'un membre garde son role au singulier). */}
+                  {chipLabel(r)}
                 </button>
               ))}
             </div>
@@ -394,7 +386,7 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => { setGroup(null); setSelectedRoles(new Set()); setSelectedIds(new Set()) }}
+                  onClick={() => { setSelectedRoles(new Set()); setSelectedIds(new Set()) }}
                   disabled={recipients.length === 0}
                   className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                 >
