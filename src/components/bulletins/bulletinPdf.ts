@@ -105,39 +105,46 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   doc.roundedRect(margin, y, contentWidth, 27, 2, 2, 'F')
 
   doc.setFontSize(9)
+  // Valeurs alignees verticalement dans chaque colonne : un x FIXE par colonne
+  // (aligne sur le label le plus large), au lieu de « juste apres le label ».
+  const leftLabelX  = margin + 4
+  const leftValueX  = margin + (data.isAdult ? 32 : 36)   // « N° matricule : » = le plus large
+  const rightLabelX = margin + contentWidth / 2
+  const rightValueX = margin + contentWidth / 2 + 28       // « Enseignant : » = le plus large
+
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
-  doc.text(data.isAdult ? 'Participant :' : 'Élève :', margin + 4, y + 6)
+  doc.text(data.isAdult ? 'Participant :' : 'Élève :', leftLabelX, y + 6)
   doc.setFont('helvetica', 'normal')
-  doc.text(`${data.student.last_name} ${data.student.first_name}`, margin + (data.isAdult ? 32 : 22), y + 6)
+  doc.text(`${data.student.last_name} ${data.student.first_name}`, leftValueX, y + 6)
 
   // N° matricule : uniquement pour les élèves (les adultes n'en ont pas)
   if (!data.isAdult && data.student.student_number) {
     doc.setFont('helvetica', 'bold')
-    doc.text('N° matricule :', margin + 4, y + 13)
+    doc.text('N° matricule :', leftLabelX, y + 13)
     doc.setFont('helvetica', 'normal')
-    doc.text(data.student.student_number, margin + 36, y + 13)
+    doc.text(data.student.student_number, leftValueX, y + 13)
   }
 
   // Colonne droite
   doc.setFont('helvetica', 'bold')
-  doc.text('Classe :', margin + contentWidth / 2, y + 6)
+  doc.text('Classe :', rightLabelX, y + 6)
   doc.setFont('helvetica', 'normal')
   const classInfo = data.classSchedule
     ? `${data.className} ${data.classSchedule}`
     : data.className
-  doc.text(classInfo, margin + contentWidth / 2 + 20, y + 6)
+  doc.text(classInfo, rightValueX, y + 6)
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Scolarité :', margin + contentWidth / 2, y + 13)
+  doc.text('Scolarité :', rightLabelX, y + 13)
   doc.setFont('helvetica', 'normal')
   const scolariteInfo = [data.cotisationLabel, data.classLevel ? `Niveau ${data.classLevel}` : null].filter(Boolean).join(' ')
-  doc.text(scolariteInfo, margin + contentWidth / 2 + 26, y + 13)
+  doc.text(scolariteInfo, rightValueX, y + 13)
 
   doc.setFont('helvetica', 'bold')
-  doc.text('Enseignant :', margin + contentWidth / 2, y + 20)
+  doc.text('Enseignant :', rightLabelX, y + 20)
   doc.setFont('helvetica', 'normal')
-  doc.text(data.teacherName || '·', margin + contentWidth / 2 + 28, y + 20)
+  doc.text(data.teacherName || '·', rightValueX, y + 20)
 
   y += 32
 

@@ -315,7 +315,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
               : null
             return (
               <option key={c.id} value={c.id}>
-                {[c.name, teacher].filter(Boolean).join(' · ')}
+                {[c.name, teacher, c.cotisation_types?.label].filter(Boolean).join(' · ')}
               </option>
             )
           })}
