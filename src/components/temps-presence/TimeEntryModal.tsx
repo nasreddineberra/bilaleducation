@@ -197,11 +197,14 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           {/* Type (choisi en premier : conditionne la liste des membres) */}
           <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
             <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">Type<span className="text-red-400 ml-0.5">*</span></span>
-            <div className="flex flex-wrap gap-2">
+            {/* Grille 2 colonnes : tous les boutons de largeur identique, label
+                sur une ligne (le flex-wrap etirait les rangees differemment et
+                faisait deborder les libelles longs comme « ADMINISTRATIF »). */}
+            <div className="grid grid-cols-2 gap-2">
               {presenceTypes.map(pt => {
                 const selected = entryType.toUpperCase() === pt.code.toUpperCase()
                 return (
-                  <label key={pt.id} className="flex-1 min-w-[80px]">
+                  <label key={pt.id} className="block">
                     <input
                       type="radio"
                       name="entry_type"
@@ -216,7 +219,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                       className="sr-only"
                     />
                     <span
-                      className={`block text-center text-xs font-semibold py-1.5 rounded-md border cursor-pointer transition-all ${!selected ? 'bg-white border-warm-300 text-warm-700 hover:border-warm-400' : ''}`}
+                      className={`block text-center text-xs font-semibold py-1.5 px-2 rounded-md border cursor-pointer transition-all truncate ${!selected ? 'bg-white border-warm-300 text-warm-700 hover:border-warm-400' : ''}`}
                       style={selected ? { backgroundColor: pt.color, color: '#fff', borderColor: pt.color } : undefined}
                     >
                       {pt.label}

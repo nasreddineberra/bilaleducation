@@ -455,22 +455,15 @@ export default function AffectationClient({ classes, students, enrollments, curr
     const parts = [
       teacherName,
       cotisationLabel,
-      selectedClass.level ? `Niveau ${selectedClass.level}` : undefined,
-      day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
+      selectedClass.level?.trim() ? `Niveau ${selectedClass.level}` : undefined,
+      day && start ? `${day} ${start}${end ? `-${end}` : ''}` : day,
     ].filter(Boolean)
 
     if (parts.length === 0) return null
 
-    return (
-      <div className="flex items-center gap-2 text-xs text-warm-700 flex-wrap">
-        {parts.map((p, i) => (
-          <span key={i} className="flex items-center gap-2">
-            {i > 0 && <span className="text-warm-700">·</span>}
-            {p}
-          </span>
-        ))}
-      </div>
-    )
+    // Une seule ligne serree (comme le bloc frere/sœur et le client adultes) :
+    // le rendu segment-par-segment doublait l'espacement autour des « · ».
+    return <p className="text-xs text-warm-700">{parts.join(' · ')}</p>
   }
 
   const isFull = selectedClass ? roster.length >= selectedClass.max_students : false
@@ -568,7 +561,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
                   const badgeStart           = fmtTime(badgeClass?.start_time ?? null)
                   const badgeEnd             = fmtTime(badgeClass?.end_time   ?? null)
                   const badgeSchedule        = badgeDay
-                    ? `${badgeDay}${badgeStart ? ` ${badgeStart}${badgeEnd ? `–${badgeEnd}` : ''}` : ''}`
+                    ? `${badgeDay}${badgeStart ? ` ${badgeStart}${badgeEnd ? `-${badgeEnd}` : ''}` : ''}`
                     : undefined
                   const badgeInfo = badgeClass ? {
                     teacher: badgeTeacherName,
@@ -594,7 +587,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
               {poolTotalPages > 1 && (
                 <div className="flex-shrink-0 flex items-center justify-between pt-2 border-t border-warm-100">
                   <span className="text-[11px] text-warm-700">
-                    {(poolCurPage - 1) * POOL_PAGE_SIZE + 1}–{Math.min(poolCurPage * POOL_PAGE_SIZE, poolStudents.length)} / {poolStudents.length}
+                    {(poolCurPage - 1) * POOL_PAGE_SIZE + 1}-{Math.min(poolCurPage * POOL_PAGE_SIZE, poolStudents.length)} / {poolStudents.length}
                   </span>
                   <div className="flex items-center gap-1">
                     <button

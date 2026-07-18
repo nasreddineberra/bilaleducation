@@ -89,7 +89,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text(`${data.periodLabel} – ${data.yearLabel}`, pageWidth - margin, y + 11, { align: 'right' })
+  doc.text(`${data.periodLabel} · ${data.yearLabel}`, pageWidth - margin, y + 11, { align: 'right' })
 
   y += 25
 
@@ -137,7 +137,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   doc.setFont('helvetica', 'bold')
   doc.text('Enseignant :', margin + contentWidth / 2, y + 20)
   doc.setFont('helvetica', 'normal')
-  doc.text(data.teacherName || '–', margin + contentWidth / 2 + 28, y + 20)
+  doc.text(data.teacherName || '·', margin + contentWidth / 2 + 28, y + 20)
 
   y += 32
 
@@ -178,7 +178,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
           styles: { fillColor: COLORS.ueBg, halign: 'center', fontSize: 7, textColor: COLORS.gray }
         },
         {
-          content: block.classMin != null && block.classMax != null ? `${block.classMin.toFixed(1)} / ${block.classMax.toFixed(1)}` : '–',
+          content: block.classMin != null && block.classMax != null ? `${block.classMin.toFixed(1)} / ${block.classMax.toFixed(1)}` : '·',
           styles: { fillColor: COLORS.ueBg, halign: 'center', fontSize: 7, textColor: COLORS.gray }
         },
       ])
@@ -191,13 +191,13 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
 
     // Lignes de cours
     for (const line of block.lines) {
-      let noteDisplay = '–'
+      let noteDisplay = '·'
       if (line.isAbsent) {
         noteDisplay = 'ABS'
       } else if (line.evalKind === 'diagnostic') {
-        noteDisplay = line.diagnosticLabel ?? '–'
+        noteDisplay = line.diagnosticLabel ?? '·'
       } else if (line.evalKind === 'stars') {
-        noteDisplay = line.starsScore != null ? '★'.repeat(line.starsScore) + '☆'.repeat(Math.max(0, 5 - line.starsScore)) : '–'
+        noteDisplay = line.starsScore != null ? '★'.repeat(line.starsScore) + '☆'.repeat(Math.max(0, 5 - line.starsScore)) : '·'
       } else if (line.score != null) {
         noteDisplay = `${line.score}/${line.maxScore ?? 20}`
       }
@@ -321,7 +321,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
     doc.text(`${data.generalAvg.toFixed(2)} / 20`, margin + 50, y + 8)
   } else {
     doc.setTextColor(...COLORS.gray)
-    doc.text('–', margin + 50, y + 8)
+    doc.text('·', margin + 50, y + 8)
   }
 
   // Moyennes classe
@@ -329,7 +329,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.secondary)
   doc.text(
-    `Classe – Moy : ${data.classGeneralAvg?.toFixed(2) ?? '–'} | Min : ${data.classGeneralMin?.toFixed(2) ?? '–'} | Max : ${data.classGeneralMax?.toFixed(2) ?? '–'}`,
+    `Classe · Moy : ${data.classGeneralAvg?.toFixed(2) ?? '·'} | Min : ${data.classGeneralMin?.toFixed(2) ?? '·'} | Max : ${data.classGeneralMax?.toFixed(2) ?? '·'}`,
     margin + 4, y + 16
   )
 
@@ -349,7 +349,7 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   doc.setFontSize(7)
   doc.setTextColor(...COLORS.lightGray)
   doc.text(
-    `BULLETIN D'\u00C9VALUATION ${data.periodLabel} – ${data.yearLabel}`,
+    `BULLETIN D'\u00C9VALUATION ${data.periodLabel} · ${data.yearLabel}`,
     pageWidth / 2,
     doc.internal.pageSize.getHeight() - 8,
     { align: 'center' }

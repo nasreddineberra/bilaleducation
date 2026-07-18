@@ -665,7 +665,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         collapsed ? 'py-2 flex justify-center items-center' : 'px-4 py-2.5'
       )}>
         {collapsed ? (
-          <SidebarTooltip label="© 2026 Bilal Education — v1.0">
+          <SidebarTooltip label="© 2026 Bilal Education · v1.0">
             <div className="flex justify-center cursor-default">
               <span className="text-secondary-400 text-sm font-medium leading-none">©</span>
             </div>

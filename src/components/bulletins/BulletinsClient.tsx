@@ -686,7 +686,7 @@ export default function BulletinsClient({
                   : null
                 const day = selectedClass.day_of_week ? (DAYS[selectedClass.day_of_week] ?? selectedClass.day_of_week) : null
                 const schedule = day && selectedClass.start_time
-                  ? `${day} ${selectedClass.start_time.slice(0, 5)}${selectedClass.end_time ? `–${selectedClass.end_time.slice(0, 5)}` : ''}`
+                  ? `${day} ${selectedClass.start_time.slice(0, 5)}${selectedClass.end_time ? `-${selectedClass.end_time.slice(0, 5)}` : ''}`
                   : day
                 const parts = [
                   teacherName,
@@ -694,12 +694,8 @@ export default function BulletinsClient({
                   selectedClass.level ? `Niveau ${selectedClass.level}` : null,
                   schedule,
                 ].filter(Boolean)
-                return parts.map((p, i) => (
-                  <span key={i}>
-                    {i > 0 && <span className="text-warm-700 mx-1">·</span>}
-                    {p}
-                  </span>
-                ))
+                // Un seul span joint (le gap-4 du conteneur + le mx-1 du · doublaient l'espacement).
+                return <span>{parts.join(' · ')}</span>
               })()}
             </div>
 
@@ -832,7 +828,7 @@ export default function BulletinsClient({
                           {avg.toFixed(2)}/20
                         </span>
                       ) : (
-                        <span className="text-warm-700">–</span>
+                        <span className="text-warm-700">-</span>
                       )}
                     </td>
                     <td className="py-2 px-4 text-center">
@@ -866,7 +862,7 @@ export default function BulletinsClient({
                             </a>
                           </Tooltip>
                         ) : (
-                          <span className="text-xs text-warm-700">–</span>
+                          <span className="text-xs text-warm-700">-</span>
                         )
                       ) : (
                         <Tooltip content={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : 'Télécharger le PDF'}>
@@ -939,7 +935,7 @@ function AppreciationCell({
   if (disabled) {
     return value
       ? <span className="text-xs text-warm-700 line-clamp-1">{value}</span>
-      : <span className="text-xs text-warm-700">–</span>
+      : <span className="text-xs text-warm-700">-</span>
   }
 
   if (!editing) {

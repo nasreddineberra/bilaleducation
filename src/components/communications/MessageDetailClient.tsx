@@ -107,7 +107,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
 
   const cls = message.classes
   const schedule = cls?.day_of_week && cls.start_time && cls.end_time
-    ? `${cls.day_of_week} ${cls.start_time.slice(0, 5)}–${cls.end_time.slice(0, 5)}`
+    ? `${cls.day_of_week} ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}`
     : null
   const teacherLabel = classTeacher
     ? [classTeacher.civilite, classTeacher.name].filter(Boolean).join(' ')

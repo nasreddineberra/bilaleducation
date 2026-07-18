@@ -208,7 +208,7 @@ export default function StudentsClient({
           {filteredCount} élève{filteredCount > 1 ? 's' : ''}
           {q.trim()
             ? ` trouvé${filteredCount > 1 ? 's' : ''} pour « ${q} »`
-            : totalPages > 1 ? ` — page ${page} / ${totalPages}` : ''
+            : totalPages > 1 ? ` · page ${page} / ${totalPages}` : ''
           }
         </span>
         <PaginationBar page={page} totalPages={totalPages} onNavigate={p => navigate(p, q, activeFilter)} />

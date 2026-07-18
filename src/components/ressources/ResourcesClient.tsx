@@ -343,11 +343,11 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                     <td className="list-td text-secondary-600 whitespace-nowrap">
                       {ROOM_TYPE_LABELS[r.room_type]}
                       {r.room_type === 'autre' && r.description && (
-                        <span className="text-warm-700 font-normal"> — {r.description.length > 40 ? r.description.slice(0, 40) + '…' : r.description}</span>
+                        <span className="text-warm-700 font-normal"> · {r.description.length > 40 ? r.description.slice(0, 40) + '…' : r.description}</span>
                       )}
                     </td>
-                    <td className="list-td text-center text-secondary-600">{r.capacity ?? <span className="text-warm-700">—</span>}</td>
-                    <td className="list-td text-secondary-600 whitespace-nowrap">{r.floor || <span className="text-warm-700">—</span>}</td>
+                    <td className="list-td text-center text-secondary-600">{r.capacity ?? <span className="text-warm-700">·</span>}</td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">{r.floor || <span className="text-warm-700">·</span>}</td>
                     <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
                         {confirmDeleteRoom === r.id ? (
@@ -491,7 +491,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                     <td className="list-td whitespace-nowrap">
                       <span className={clsx('text-[10px] rounded px-1.5 py-0.5 font-medium', CONDITION_COLORS[m.condition])}>{CONDITION_LABELS[m.condition]}</span>
                     </td>
-                    <td className="list-td text-secondary-600 whitespace-nowrap">{m.rooms?.name || <span className="text-warm-700">—</span>}</td>
+                    <td className="list-td text-secondary-600 whitespace-nowrap">{m.rooms?.name || <span className="text-warm-700">·</span>}</td>
                     <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
                         {confirmDeleteMat === m.id ? (

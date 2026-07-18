@@ -1105,10 +1105,26 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
   du bloc frere/sœur corrige (**classe · enseignant · horaires**) ; « Niveau » masque si vide
   (onglet Scolarite) ; icone `+` retiree de « Ajouter » (Apprenants + Parents).
 
+#### 18 juillet 2026 (suite) — Tirets bannis, ordre enseignant, ergonomie EDT / temps de presence
+- **AUCUN tiret long dans l'UI** (regle durcie) : ni quadratin `—` ni demi-cadratin `–` (le `–` etait
+  tolere pour les horaires, il ne l'est plus). Sweep : **0 `–` restant** (22 fichiers ; plages → `-`,
+  separateurs → `·`), **64 `—` UI corriges** (31 fichiers ; classifieur non-commentaire — les `—` en
+  **commentaires** restent, non visibles). Voir memoire `dropdown-simple-dash`.
+- **Enseignant = `Civilite NOM Prenom`** (memoire `name-before-firstname`) : ~13 constructeurs faisaient
+  `${civ} ${first_name} ${last_name}` → corriges (cahier de texte, bulletins, absences, evaluations,
+  notes, EDT, affectation, parents, notif devoir). Un `.select()` SQL n'est pas un affichage.
+- **EDT** : en-tete de jour agrandi (abrev `text-sm`, date `text-xs`/opacite 80) ; horaire de la capsule
+  `text-[8px] opacity-50` → **`text-[10px] font-bold`** (meme police/taille que le nom de classe).
+- **Espacement des sous-titres de classe** (affectation, bulletins) : le rendu segment-par-segment
+  (flex `gap` + `·` en `mx-1`) doublait l'espacement → un seul span `parts.join(' · ')`. « Niveau »
+  masque si vide (affectation).
+- **Temps de presence — boutons TYPE** : `flex flex-wrap` (largeurs inegales, libelles debordants) →
+  **grille 2 colonnes** (boutons de largeur identique, `truncate`).
+
 ## Prochaine etape
 - **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact` ci-dessus.
 - **Verifier visuellement** la passe de lisibilite module par module (surtout les etats inactifs
-  et les modales) ; nettoyage des quadratins `—` restants = passe de fin de V1.
+  et les modales).
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,

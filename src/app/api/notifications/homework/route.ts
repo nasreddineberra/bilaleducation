@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const className = (hw.classes as any)?.name ?? ''
     const teacherInfo = hw.teachers as any
     const teacherLabel = teacherInfo
-      ? `${teacherInfo.civilite ? teacherInfo.civilite + ' ' : ''}${teacherInfo.first_name} ${teacherInfo.last_name}`
+      ? `${teacherInfo.civilite ? teacherInfo.civilite + ' ' : ''}${teacherInfo.last_name} ${teacherInfo.first_name}`
       : ''
     const dueFormatted = new Date(hw.due_date).toLocaleDateString('fr-FR', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     }
     const typeLabel = HW_TYPE_LABELS[hw.homework_type] ?? 'Devoir'
 
-    const title = `Nouveau devoir — ${className}`
-    const body = `${hw.title} (${typeLabel}) — A rendre le ${dueFormatted}`
+    const title = `Nouveau devoir · ${className}`
+    const body = `${hw.title} (${typeLabel}) · A rendre le ${dueFormatted}`
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
           </tr>
         </table>
         ${hw.description_html ? `<div style="margin-top: 12px; padding: 12px; background: #f7fafc; border-radius: 6px;">${hw.description_html}</div>` : ''}
-        <p style="color: #718096; font-size: 12px; margin-top: 24px;">Bilal Education — Notification automatique</p>
+        <p style="color: #718096; font-size: 12px; margin-top: 24px;">Bilal Education · Notification automatique</p>
       </div>
     `
 

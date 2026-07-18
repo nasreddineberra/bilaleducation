@@ -72,14 +72,14 @@ export async function POST(req: NextRequest) {
           ? `Retard de ${student.first_name} ${student.last_name}`
           : `Absence de ${student.first_name} ${student.last_name}`
 
-        const body = `${student.first_name} ${student.last_name} a été marqué(e) ${typeLabel} le ${dateFormatted}${className ? ` — Classe ${className}` : ''}.`
+        const body = `${student.first_name} ${student.last_name} a été marqué(e) ${typeLabel} le ${dateFormatted}${className ? ` · Classe ${className}` : ''}.`
 
         const emailHtml = `
           <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
             <h2 style="color: #1a1a1a;">${title}</h2>
             <p style="color: #444; line-height: 1.6;">${body}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">Bilal Education — Notification automatique</p>
+            <p style="color: #999; font-size: 12px;">Bilal Education · Notification automatique</p>
           </div>
         `
 

@@ -194,7 +194,7 @@ function timeToMinutes(t: string): number {
 function teacherLabel(p: { first_name: string; last_name: string; civilite?: string } | undefined): string {
   if (!p) return ''
   const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
-  return `${civ} ${p.first_name} ${p.last_name}`
+  return `${civ} ${p.last_name} ${p.first_name}`
 }
 
 function classInfoLine(c: ClassData): string {
@@ -713,7 +713,7 @@ export default function EmploiDuTempsClient({
       .map(ct => {
         // Parse UE info from subject string and ueList
         const subjectStr = ct.subject ?? ''
-        const codeMatch = subjectStr.match(/^([^ ]+) — /)
+        const codeMatch = subjectStr.match(/^([^ ]+) · /)
         const ueCode = codeMatch?.[1] ?? null
         const ue = ueList.find(u => u.code === ueCode) ?? ueList.find(u => subjectStr.includes(u.nom_fr))
         return {
@@ -832,7 +832,7 @@ export default function EmploiDuTempsClient({
           entityType: 'schedule_slots',
           description: `Nouveau créneau ${subject.ueName} le ${DAY_LABELS[dayOfWeek]} à ${startTime} pour ${selectedClass?.name}`,
         })
-        toast.success(`Créneau ${subject.ueName} créé (${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime})`)
+        toast.success(`Créneau ${subject.ueName} créé (${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime})`)
         await refreshData()
       } catch (err) {
         console.error('[EmploiDuTemps] Erreur lors de la création du créneau:', err)
@@ -863,9 +863,9 @@ export default function EmploiDuTempsClient({
           action: 'UPDATE',
           entityType: 'schedule_slots',
           entityId: slot.sourceSlotId,
-          description: `Créneau déplacé vers ${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime}`,
+          description: `Créneau déplacé vers ${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime}`,
         })
-        toast.success(`Créneau déplacé (${DAY_LABELS[dayOfWeek]} ${startTime}–${endTime})`)
+        toast.success(`Créneau déplacé (${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime})`)
         await refreshData()
       } catch (err) {
         console.error('[EmploiDuTemps] Erreur lors du déplacement du créneau:', err)
@@ -981,7 +981,7 @@ export default function EmploiDuTempsClient({
         action: 'UPDATE',
         entityType: 'schedule_slots',
         entityId: data.id,
-        description: `Modification créneau EDT pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}–${data.end_time}, à partir du ${new Date(pivotDate + 'T00:00:00').toLocaleDateString('fr-FR')}`,
+        description: `Modification créneau EDT pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}-${data.end_time}, à partir du ${new Date(pivotDate + 'T00:00:00').toLocaleDateString('fr-FR')}`,
       })
 
     } else if (data.id) {
@@ -996,7 +996,7 @@ export default function EmploiDuTempsClient({
         action: 'UPDATE',
         entityType: 'schedule_slots',
         entityId: data.id,
-        description: `Modification créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}–${data.end_time}${dateInfo}`,
+        description: `Modification créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}-${data.end_time}${dateInfo}`,
       })
 
     } else {
@@ -1016,7 +1016,7 @@ export default function EmploiDuTempsClient({
       logAudit(supabase, {
         action: 'INSERT',
         entityType: 'schedule_slots',
-        description: `Nouveau créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}–${data.end_time}${dateInfo}${fromInfo}`,
+        description: `Nouveau créneau ${data.is_recurring ? 'récurrent' : 'ponctuel'} pour ${cls?.name ?? 'classe'} : ${dayLabel} ${data.start_time}-${data.end_time}${dateInfo}${fromInfo}`,
       })
     }
 
@@ -1079,7 +1079,7 @@ export default function EmploiDuTempsClient({
     logAudit(supabase, {
       action: existing ? 'UPDATE' : 'INSERT',
       entityType: 'schedule_exceptions',
-      description: `Modification ponctuelle créneau ${cls?.name ?? 'classe'} du ${dateStr} : ${data.start_time}–${data.end_time}`,
+      description: `Modification ponctuelle créneau ${cls?.name ?? 'classe'} du ${dateStr} : ${data.start_time}-${data.end_time}`,
     })
 
     await refreshData()
@@ -1121,7 +1121,7 @@ export default function EmploiDuTempsClient({
         action: 'DELETE',
         entityType: 'schedule_slots',
         entityId: slotId,
-        description: `Suppression créneau EDT pour ${className} (${dayLabel} ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)})${pivotInfo}. Fiche classe réinitialisée.`,
+        description: `Suppression créneau EDT pour ${className} (${dayLabel} ${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)})${pivotInfo}. Fiche classe réinitialisée.`,
       })
 
       await refreshData()
@@ -1232,7 +1232,7 @@ export default function EmploiDuTempsClient({
     }
 
     setPendingConfirm({
-      message: `Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}–${resolved.end_time.slice(0, 5)}) ?`,
+      message: `Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`,
       confirmLabel: 'Valider',
       onConfirm: doValidate,
     })
@@ -1584,7 +1584,7 @@ export default function EmploiDuTempsClient({
                 aria-pressed={selectedDay === d}
                 aria-label={`Filtrer sur ${DAY_LABELS[d]}`}
                 className={clsx(
-                  'p-2 text-center text-xs font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
+                  'p-2 text-center text-sm font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
                   selectedDay === d
                     ? 'text-white'
                     : d === todayDow ? 'text-amber-600 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-700 hover:bg-warm-50'
@@ -1592,7 +1592,7 @@ export default function EmploiDuTempsClient({
                 style={selectedDay === d ? { backgroundColor: SIDEBAR_COLOR } : undefined}
               >
                 {selectedDay !== null ? DAY_LABELS[d] : DAY_LABELS_SHORT[d]}
-                <span className="text-[10px] font-normal opacity-60 ml-1">{dayDatesDisplay[d]}</span>
+                <span className="text-xs font-medium opacity-80 ml-1">{dayDatesDisplay[d]}</span>
               </button>
             ))}
           </div>
@@ -1667,7 +1667,7 @@ export default function EmploiDuTempsClient({
                 className="w-3 h-3 rounded-full border border-black/10"
                 style={{ backgroundColor: draggedSubject.color ?? '#94a3b8' }}
               />
-              {draggedSubject.ueCode ? `${draggedSubject.ueCode} — ` : ''}{draggedSubject.ueName}
+              {draggedSubject.ueCode ? `${draggedSubject.ueCode} · ` : ''}{draggedSubject.ueName}
             </div>
           )}
           {draggedSlot && (
@@ -1681,7 +1681,7 @@ export default function EmploiDuTempsClient({
               }}
             >
               <span className="font-bold text-[10px] truncate">{draggedSlot.cours?.nom_fr ?? draggedSlot.slot_type}</span>
-              <span className="text-[9px] opacity-70">{draggedSlot.start_time.slice(0, 5)}–{draggedSlot.end_time.slice(0, 5)}</span>
+              <span className="text-[9px] opacity-70">{draggedSlot.start_time.slice(0, 5)}-{draggedSlot.end_time.slice(0, 5)}</span>
             </div>
           )}
         </DragOverlay>

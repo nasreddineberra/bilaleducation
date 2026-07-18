@@ -225,7 +225,7 @@ export default function AbsencesClient({
       infoParts.push(cls.main_teacher_civilite ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name)
     }
     if (cls.level) infoParts.push(`Niveau ${cls.level}`)
-    const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+    const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('·')
     const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
     if (schedule) infoParts.push(schedule)
     doc.text(infoParts.join(' · '), margin + 4, y + 14)
@@ -278,7 +278,7 @@ export default function AbsencesClient({
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(180, 180, 180)
       doc.text(
-        `FEUILLE D'APPEL – ${cls.name} – ${yearLabel ?? ''}`,
+        `FEUILLE D'APPEL · ${cls.name} · ${yearLabel ?? ''}`,
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 8,
         { align: 'center' }
@@ -391,7 +391,7 @@ export default function AbsencesClient({
           }
           if (cls.cotisation_label) parts.push(cls.cotisation_label)
           if (cls.level) parts.push(`Niveau ${cls.level}`)
-          const timeStr  = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+          const timeStr  = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('·')
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
           if (schedule) parts.push(schedule)
           if (parts.length === 0) return null
@@ -568,10 +568,10 @@ function StudentRow({
           {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {student.last_name} {student.first_name}
         </td>
-        <td className="text-center py-1 px-2">{counts.abs || '–'}</td>
-        <td className={clsx('text-center py-1 px-2 font-semibold', counts.absNJ > 0 && 'text-red-600')}>{counts.absNJ || '–'}</td>
-        <td className="text-center py-1 px-2">{counts.ret || '–'}</td>
-        <td className="text-center py-1 px-2 font-semibold">{total || '–'}</td>
+        <td className="text-center py-1 px-2">{counts.abs || '·'}</td>
+        <td className={clsx('text-center py-1 px-2 font-semibold', counts.absNJ > 0 && 'text-red-600')}>{counts.absNJ || '·'}</td>
+        <td className="text-center py-1 px-2">{counts.ret || '·'}</td>
+        <td className="text-center py-1 px-2 font-semibold">{total || '·'}</td>
         <td className="text-center py-1 px-2">
           {hasAlert && <AlertTriangle size={12} className="text-amber-500 mx-auto" />}
         </td>
@@ -985,7 +985,7 @@ function SaisieModal({
       infoParts.push(classInfo.main_teacher_civilite ? `${classInfo.main_teacher_civilite} ${classInfo.main_teacher_name}` : classInfo.main_teacher_name)
     }
     if (classInfo.level) infoParts.push(`Niveau ${classInfo.level}`)
-    const timeStr = [classInfo.start_time, classInfo.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+    const timeStr = [classInfo.start_time, classInfo.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('·')
     const schedule = [classInfo.day_of_week, timeStr].filter(Boolean).join(' ')
     if (schedule) infoParts.push(schedule)
     doc.text(infoParts.join(' · '), margin + 4, y + 14)
@@ -1059,7 +1059,7 @@ function SaisieModal({
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(180, 180, 180)
       doc.text(
-        `FEUILLE D'APPEL – ${classInfo.name} – ${dateLabel}`,
+        `FEUILLE D'APPEL · ${classInfo.name} · ${dateLabel}`,
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 8,
         { align: 'center' }

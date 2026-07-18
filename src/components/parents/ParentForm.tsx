@@ -370,7 +370,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
           {/* Infos tuteur 1 */}
           <div className="card p-3 space-y-2">
             <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-              Tuteur 1 — Responsable principal
+              Tuteur 1 · Responsable principal
             </h2>
 
             <div className="grid grid-cols-2 gap-2">
@@ -467,7 +467,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
             <div className="flex items-center gap-2">
               <FloatCheckbox
                 variant="compact"
-                label="Tuteur 2 — Responsable secondaire"
+                label="Tuteur 2 · Responsable secondaire"
                 checked={showTutor2}
                 onChange={setShowTutor2}
               />

@@ -505,7 +505,7 @@ export default function NewMessageClient({
                       <dt className="text-warm-700 shrink-0">Horaire</dt>
                       <dd className="text-warm-700 truncate">
                         {selectedClass.day_of_week && selectedClass.start_time && selectedClass.end_time
-                          ? `${selectedClass.day_of_week} ${selectedClass.start_time.slice(0, 5)}–${selectedClass.end_time.slice(0, 5)}`
+                          ? `${selectedClass.day_of_week} ${selectedClass.start_time.slice(0, 5)}-${selectedClass.end_time.slice(0, 5)}`
                           : 'Non renseigné'}
                       </dd>
                     </div>

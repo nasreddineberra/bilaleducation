@@ -58,7 +58,7 @@ export default function AbonnementExpirePage() {
         </div>
 
         <p className="mt-6 text-white/60 text-xs">
-          Bilal <span className="text-amber-400">Education</span> — Gestion Administrative &amp; Pédagogique
+          Bilal <span className="text-amber-400">Education</span> · Gestion Administrative &amp; Pédagogique
         </p>
       </div>
     </div>

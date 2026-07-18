@@ -339,7 +339,7 @@ export default function ClassForm({
     const conflict = others.find(s => slotsOverlap(s, draft))
     if (conflict) {
       setSlotOverlapErr(
-        `Chevauchement avec le créneau ${conflict.day_of_week} ${conflict.start_time}–${conflict.end_time} (${conflict.effective_from ? fmtDate(conflict.effective_from) : '…'} → ${conflict.effective_until ? fmtDate(conflict.effective_until) : 'ouvert'})`
+        `Chevauchement avec le créneau ${conflict.day_of_week} ${conflict.start_time}-${conflict.end_time} (${conflict.effective_from ? fmtDate(conflict.effective_from) : '…'} → ${conflict.effective_until ? fmtDate(conflict.effective_until) : 'ouvert'})`
       )
       return
     }
@@ -361,7 +361,7 @@ export default function ClassForm({
 
   const handleDeleteSlot = (idx: number) => {
     const slot = slots[idx]
-    const label = `${slot.day_of_week} ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)}`
+    const label = `${slot.day_of_week} ${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`
     setPendingConfirm({
       title: 'Supprimer le créneau',
       message: `Confirmer la suppression du créneau ${label} ?`,
@@ -526,7 +526,7 @@ export default function ClassForm({
           effective_from:  slot.effective_from  || null,
           effective_until: slot.effective_until || null,
         }).eq('id', slot.id!)
-        logAudit(supabase, { action: 'UPDATE', entityType: 'schedule_slots', entityId: slot.id, description: `Modification créneau ${slot.day_of_week} ${slot.start_time}–${slot.end_time} pour ${form.name.trim()}` })
+        logAudit(supabase, { action: 'UPDATE', entityType: 'schedule_slots', entityId: slot.id, description: `Modification créneau ${slot.day_of_week} ${slot.start_time}-${slot.end_time} pour ${form.name.trim()}` })
       }
 
       // 3. Insérer les nouveaux slots
@@ -548,7 +548,7 @@ export default function ClassForm({
             effective_until: slot.effective_until || null,
           })
           if (slotErr) throw slotErr
-          logAudit(supabase, { action: 'INSERT', entityType: 'schedule_slots', description: `Nouveau créneau ${slot.day_of_week} ${slot.start_time}–${slot.end_time} pour ${form.name.trim()} à partir du ${slot.effective_from || '?'}` })
+          logAudit(supabase, { action: 'INSERT', entityType: 'schedule_slots', description: `Nouveau créneau ${slot.day_of_week} ${slot.start_time}-${slot.end_time} pour ${form.name.trim()} à partir du ${slot.effective_from || '?'}` })
         }
       }
 
@@ -587,7 +587,7 @@ export default function ClassForm({
           />
           <FloatInput
             label="Année scolaire"
-            value={currentYear ? `${currentYear.label} (en cours)` : '—'}
+            value={currentYear ? `${currentYear.label} (en cours)` : '·'}
             locked
             onChange={() => {}}
           />
@@ -721,7 +721,7 @@ export default function ClassForm({
                         <div key={`ft-${realIdx}`} className="group flex items-center justify-between text-[11px] text-warm-700 pl-3 pr-1">
                           <span>Ancien titulaire : <span className="text-secondary-500">{a.teacher_name}</span></span>
                           <span className="flex items-center gap-1.5 whitespace-nowrap">
-                            <span>{a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : ''}</span>
+                            <span>{a.effective_from ? fmtDate(a.effective_from) : 'Début'} · {a.effective_until ? fmtDate(a.effective_until) : ''}</span>
                             <Tooltip content="Corriger les dates">
                               <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
                                 className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
@@ -819,7 +819,7 @@ export default function ClassForm({
                             <tr key={`pastsub-${realIdx}`} className="group bg-warm-50/30">
                               <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">{a.teacher_name}</td>
                               <td className="px-3 py-1.5 text-[10px] text-warm-700 whitespace-nowrap text-right">
-                                {a.effective_from ? fmtDate(a.effective_from) : 'Début'} — {a.effective_until ? fmtDate(a.effective_until) : ''}
+                                {a.effective_from ? fmtDate(a.effective_from) : 'Début'} · {a.effective_until ? fmtDate(a.effective_until) : ''}
                               </td>
                               <td className="px-2 py-1.5 w-12">
                                 <div className="flex items-center gap-1 justify-end">
@@ -896,10 +896,10 @@ export default function ClassForm({
                         {isActive && <span className="ml-1.5 text-[9px] text-primary-500 font-semibold uppercase">actif</span>}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 whitespace-nowrap font-mono text-xs">
-                        {slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                        {slot.start_time.slice(0, 5)} · {slot.end_time.slice(0, 5)}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
-                        {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">—</span>}
+                        {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">·</span>}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
                         {slot.effective_until ? fmtDate(slot.effective_until) : <span className="text-warm-700 italic">ouvert</span>}

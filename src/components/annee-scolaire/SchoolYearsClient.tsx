@@ -35,7 +35,7 @@ function fmtDate(iso: string) {
 const EVAL_LABELS: Record<string, { label: string; detail: string }> = {
   diagnostic: { label: 'Diagnostique', detail: 'AC · EC · NA' },
   scored:     { label: 'Notée',        detail: '' },
-  stars:      { label: 'Étoilée',      detail: '0–5 ★' },
+  stars:      { label: 'Étoilée',      detail: '0-5 ★' },
 }
 
 function EvalBadge({ config }: { config: EvalTypeConfig }) {
@@ -151,12 +151,12 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
 
                     {/* Rentrée */}
                     <td className="list-td text-xs text-warm-700 whitespace-nowrap">
-                      {year.start_date ? fmtDate(year.start_date) : '—'}
+                      {year.start_date ? fmtDate(year.start_date) : '·'}
                     </td>
 
                     {/* Fin */}
                     <td className="list-td text-xs text-warm-700 whitespace-nowrap">
-                      {year.end_date ? fmtDate(year.end_date) : '—'}
+                      {year.end_date ? fmtDate(year.end_date) : '·'}
                     </td>
 
                     {/* Répartition + Périodes */}

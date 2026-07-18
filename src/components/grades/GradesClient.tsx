@@ -434,7 +434,7 @@ export default function GradesClient({
           }
           if (cls.cotisation_label) parts.push(cls.cotisation_label)
           if (cls.level) parts.push(`Niveau ${cls.level}`)
-          const timeStr  = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+          const timeStr  = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('·')
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
           if (schedule) parts.push(schedule)
           if (parts.length === 0) return null

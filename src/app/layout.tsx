@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     default: 'Bilal Education',
     template: '%s | Bilal Education',
   },
-  description: 'Bilal Education — Plateforme de gestion administrative et pédagogique pour école arabe et islamique. Suivi des élèves, enseignants, absences, cotisations et bulletins.',
+  description: 'Bilal Education · Plateforme de gestion administrative et pédagogique pour école arabe et islamique. Suivi des élèves, enseignants, absences, cotisations et bulletins.',
   keywords: ['école arabe', 'école islamique', 'gestion scolaire', 'ERP scolaire', 'Bilal Education', 'suivi élèves', 'gestion pédagogique', 'administration école'],
   openGraph: {
     title: 'Bilal Education',

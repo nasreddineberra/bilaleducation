@@ -29,7 +29,7 @@ export async function requireRole(allowedRoles: UserRole[]) {
     return {
       user: null,
       error: NextResponse.json(
-        { error: 'Accès refusé — rôle non autorisé' },
+        { error: 'Accès refusé · rôle non autorisé' },
         { status: 403 }
       ),
     }

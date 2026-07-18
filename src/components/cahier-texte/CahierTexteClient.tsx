@@ -43,7 +43,7 @@ function stripHtml(html: string): string {
 function teacherName(t: { civilite?: string | null; first_name: string; last_name: string } | null): string {
   if (!t) return ''
   const civ = t.civilite ? `${t.civilite} ` : ''
-  return `${civ}${t.first_name} ${t.last_name}`
+  return `${civ}${t.last_name} ${t.first_name}`
 }
 
 // Valeur spéciale du filtre Classe (staff) : afficher toutes les classes.
@@ -84,14 +84,14 @@ export default function CahierTexteClient({
   const isStaff = ['admin', 'direction', 'responsable_pedagogique'].includes(role)
   const isAllClasses = filterClass === ALL_CLASSES
 
-  // Ligne de bas de carte : « Enseignant · Cotisation · Jour HH:MM–HH:MM »
+  // Ligne de bas de carte : « Enseignant · Cotisation · Jour HH:MM-HH:MM »
   const classById = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes])
   const subjectsForClass = (classId: string) =>
     [...new Set(((classById.get(classId)?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort()
   const entryMeta = (entry: any) => {
     const c = classById.get(entry.class_id)
     const schedule = c?.day_of_week
-      ? `${c.day_of_week}${c.start_time && c.end_time ? ` ${c.start_time.slice(0, 5)}–${c.end_time.slice(0, 5)}` : ''}`
+      ? `${c.day_of_week}${c.start_time && c.end_time ? ` ${c.start_time.slice(0, 5)}-${c.end_time.slice(0, 5)}` : ''}`
       : null
     return [teacherName(entry.teachers), c?.cotisation_types?.label, schedule].filter(Boolean).join(' · ')
   }
@@ -166,7 +166,7 @@ export default function CahierTexteClient({
           {classes.map(c => {
             const main = c.class_teachers?.find(t => t.is_main_teacher)
             const teacher = main?.teachers
-              ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ')
+              ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ')
               : null
             return (
               <option key={c.id} value={c.id}>
@@ -197,9 +197,9 @@ export default function CahierTexteClient({
         <div className="flex items-center gap-3 ml-auto">
           {selectedClass && (() => {
             const main = selectedClass.class_teachers?.find(t => t.is_main_teacher)
-            const teacher = main?.teachers ? [main.teachers.civilite, main.teachers.first_name, main.teachers.last_name].filter(Boolean).join(' ') : null
+            const teacher = main?.teachers ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ') : null
             const schedule = selectedClass.day_of_week
-              ? `${selectedClass.day_of_week}${selectedClass.start_time && selectedClass.end_time ? ` ${selectedClass.start_time.slice(0, 5)}–${selectedClass.end_time.slice(0, 5)}` : ''}`
+              ? `${selectedClass.day_of_week}${selectedClass.start_time && selectedClass.end_time ? ` ${selectedClass.start_time.slice(0, 5)}-${selectedClass.end_time.slice(0, 5)}` : ''}`
               : null
             const parts = [teacher, selectedClass.cotisation_types?.label, selectedClass.level ? `Niveau ${selectedClass.level}` : null, schedule].filter(Boolean)
             return parts.length > 0 ? (

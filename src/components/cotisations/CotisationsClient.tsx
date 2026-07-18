@@ -221,7 +221,7 @@ export default function CotisationsClient({
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-secondary-800">Types de cotisations — {currentYear.label}</h2>
+              <h2 className="text-sm font-bold text-secondary-800">Types de cotisations · {currentYear.label}</h2>
               <p className="text-xs text-warm-700 mt-0.5">Utilisés pour le calcul du coût dans le financement des cotisations</p>
             </div>
             {!editing && (
@@ -328,7 +328,7 @@ export default function CotisationsClient({
             </div>
           )}
 
-          <table className="w-full text-left text-xs" aria-label={`Types de cotisations — ${currentYear.label}`}>
+          <table className="w-full text-left text-xs" aria-label={`Types de cotisations · ${currentYear.label}`}>
             <thead>
               <tr className="border-b border-warm-100">
                 <th className="list-th">Type</th>
@@ -349,7 +349,7 @@ export default function CotisationsClient({
                     </span>
                   </td>
                   <td className="list-td text-right text-secondary-700 tabular-nums">{fmtEur(row.amount)}</td>
-                  <td className="list-td text-right text-secondary-700 tabular-nums">{row.registration_fee > 0 ? fmtEur(row.registration_fee) : <span className="text-warm-700">—</span>}</td>
+                  <td className="list-td text-right text-secondary-700 tabular-nums">{row.registration_fee > 0 ? fmtEur(row.registration_fee) : <span className="text-warm-700">·</span>}</td>
                   <td className="list-td text-right text-secondary-700 tabular-nums">
                     {row.sibling_discount > 0 ? (
                       <span className="inline-flex items-center gap-1 justify-end">
@@ -358,7 +358,7 @@ export default function CotisationsClient({
                           {row.sibling_discount_same_type ? '=type' : 'tous'}
                         </span>
                       </span>
-                    ) : <span className="text-warm-700">—</span>}
+                    ) : <span className="text-warm-700">·</span>}
                   </td>
                   <td className="list-td text-center text-warm-700">{row.max_installments === 1 ? 'Comptant' : `${row.max_installments}x`}</td>
                   <td className="list-td">
@@ -417,8 +417,8 @@ export default function CotisationsClient({
                           <tr key={c.id}>
                             <td className="px-2 py-1 text-secondary-800 whitespace-nowrap">{c.label}{c.is_adult ? <span className="ml-1 text-violet-600 font-semibold">·A</span> : null}</td>
                             <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{fmtEur(c.amount)}</td>
-                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.registration_fee > 0 ? fmtEur(c.registration_fee) : <span className="text-warm-700">—</span>}</td>
-                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.sibling_discount > 0 ? `-${fmtEur(c.sibling_discount)}` : <span className="text-warm-700">—</span>}</td>
+                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.registration_fee > 0 ? fmtEur(c.registration_fee) : <span className="text-warm-700">·</span>}</td>
+                            <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.sibling_discount > 0 ? `-${fmtEur(c.sibling_discount)}` : <span className="text-warm-700">·</span>}</td>
                             <td className="px-2 py-1 text-center text-warm-700 whitespace-nowrap">{c.max_installments === 1 ? 'Comptant' : `${c.max_installments}x`}</td>
                           </tr>
                         )) : (
@@ -445,7 +445,7 @@ export default function CotisationsClient({
         {/* ── Encadré 2 : Taux horaires ── */}
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-warm-100 bg-warm-50">
-            <h2 className="text-sm font-bold text-secondary-800">Taux horaires généralisés — {currentYear.label}</h2>
+            <h2 className="text-sm font-bold text-secondary-800">Taux horaires généralisés · {currentYear.label}</h2>
             <p className="text-xs text-warm-700 mt-0.5">Utilisés pour le calcul du coût dans le temps de présence</p>
           </div>
 

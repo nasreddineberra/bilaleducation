@@ -102,12 +102,12 @@ export default async function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
-                        <Users className="w-3.5 h-3.5" />{s?.users ?? '—'}
+                        <Users className="w-3.5 h-3.5" />{s?.users ?? '·'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
-                        <GraduationCap className="w-3.5 h-3.5" />{s?.students ?? '—'}
+                        <GraduationCap className="w-3.5 h-3.5" />{s?.students ?? '·'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">

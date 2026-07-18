@@ -339,7 +339,7 @@ export default function StudentDiscipline({
                       {new Date(a.absence_date).toLocaleDateString('fr-FR')}
                     </td>
                     <td className="px-3 py-1 whitespace-nowrap text-warm-700">
-                      {periodMap.get(a.period_id) ?? '–'}
+                      {periodMap.get(a.period_id) ?? '·'}
                     </td>
                     <td className="px-3 py-1">
                       <span className={clsx(
@@ -361,7 +361,7 @@ export default function StudentDiscipline({
                       )}
                     </td>
                     <td className="px-3 py-1 text-warm-700 max-w-[200px] truncate">
-                      {a.comment || '–'}
+                      {a.comment || '·'}
                     </td>
                   </tr>
                 ))}
@@ -542,7 +542,7 @@ export default function StudentDiscipline({
                         {new Date(w.warning_date).toLocaleDateString('fr-FR')}
                       </span>
                       <span className="text-[11px] text-warm-700">
-                        {periodMap.get(w.period_id) ?? '–'}
+                        {periodMap.get(w.period_id) ?? '·'}
                       </span>
                       <span className={clsx(
                         'text-[10px] font-medium px-1.5 py-0.5 rounded-full',

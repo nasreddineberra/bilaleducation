@@ -8,7 +8,7 @@ export type StudentStatusRow = {
   id:           string
   name:         string
   className:    string | null   // classe de l'année en cours si affecté
-  classTooltip: string | null   // « Mme Djamila BELAÏD · MATERNELLE · Samedi 09:00–12:00 »
+  classTooltip: string | null   // « Mme Djamila BELAÏD · MATERNELLE · Samedi 09:00-12:00 »
   enrolled:     boolean         // inscrit dans une classe de l'année en cours
   is_active:    boolean
 }
@@ -54,7 +54,7 @@ async function currentYearEnrollment(supabase: Awaited<ReturnType<typeof createC
     if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
     if (c.level) parts.push(c.level)
     if (c.day_of_week && c.start_time && c.end_time) {
-      parts.push(`${c.day_of_week} ${String(c.start_time).slice(0, 5)}–${String(c.end_time).slice(0, 5)}`)
+      parts.push(`${c.day_of_week} ${String(c.start_time).slice(0, 5)}-${String(c.end_time).slice(0, 5)}`)
     } else if (c.day_of_week) {
       parts.push(c.day_of_week)
     }

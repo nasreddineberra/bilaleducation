@@ -88,7 +88,7 @@ function GenderBadge({ gender }: { gender: 'male' | 'female' | null }) {
   return null
 }
 
-// Libellé classe une ligne : « Prof · Cotisation · Niveau · Jour HH:MM–HH:MM »
+// Libellé classe une ligne : « Prof · Cotisation · Niveau · Jour HH:MM-HH:MM »
 function classInfoLine(cls: ClassRow): string {
   const main = cls.class_teachers.find(t => t.is_main_teacher)
   const teacher = main?.teachers
@@ -97,7 +97,7 @@ function classInfoLine(cls: ClassRow): string {
   const day   = cls.day_of_week ? (DAYS[cls.day_of_week] ?? cls.day_of_week) : null
   const start = fmtTime(cls.start_time)
   const end   = fmtTime(cls.end_time)
-  const schedule = day ? `${day}${start ? ` ${start}${end ? `–${end}` : ''}` : ''}` : undefined
+  const schedule = day ? `${day}${start ? ` ${start}${end ? `-${end}` : ''}` : ''}` : undefined
   return [teacher, cls.cotisation_types?.label, cls.level || undefined, schedule].filter(Boolean).join(' · ')
 }
 
@@ -390,7 +390,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
               {poolTotalPages > 1 && (
                 <div className="flex-shrink-0 flex items-center justify-between pt-2 border-t border-warm-100">
                   <span className="text-[11px] text-warm-700">
-                    {(poolCurPage - 1) * POOL_PAGE_SIZE + 1}–{Math.min(poolCurPage * POOL_PAGE_SIZE, poolTutors.length)} / {poolTutors.length}
+                    {(poolCurPage - 1) * POOL_PAGE_SIZE + 1}-{Math.min(poolCurPage * POOL_PAGE_SIZE, poolTutors.length)} / {poolTutors.length}
                   </span>
                   <div className="flex items-center gap-1">
                     <button

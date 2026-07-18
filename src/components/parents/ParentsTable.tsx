@@ -73,7 +73,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
             if (!cls) continue
             const mainTeacher = cls.class_teachers?.find((ct: any) => ct.is_main_teacher)?.teachers
             const teacherLabel = mainTeacher
-              ? `${mainTeacher.civilite ? mainTeacher.civilite + ' ' : ''}${mainTeacher.first_name} ${mainTeacher.last_name}`
+              ? `${mainTeacher.civilite ? mainTeacher.civilite + ' ' : ''}${mainTeacher.last_name} ${mainTeacher.first_name}`
               : null
             enrollmentMap[e.student_id] = { className: cls.name, teacherLabel }
           }
@@ -313,7 +313,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                           {childrenMap[parent.id]?.map(student => {
                             const isEnrolled = !!student.enrollment_class
                             const statusTooltip = isEnrolled
-                              ? `Classe : ${student.enrollment_class}${student.enrollment_teacher ? ' — ' + student.enrollment_teacher : ''}`
+                              ? `Classe : ${student.enrollment_class}${student.enrollment_teacher ? ' · ' + student.enrollment_teacher : ''}`
                               : student.is_active ? 'Cliquer pour rendre inactif' : 'Cliquer pour rendre actif'
 
                             return (
@@ -335,10 +335,10 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                     disabled={isEnrolled || togglingStudentId === student.id}
                                     aria-label={
                                       isEnrolled
-                                        ? `${student.first_name} ${student.last_name} — inscrit en classe`
+                                        ? `${student.first_name} ${student.last_name} · inscrit en classe`
                                         : student.is_active
-                                          ? `${student.first_name} ${student.last_name} — actif, cliquer pour rendre inactif`
-                                          : `${student.first_name} ${student.last_name} — inactif, cliquer pour rendre actif`
+                                          ? `${student.first_name} ${student.last_name} · actif, cliquer pour rendre inactif`
+                                          : `${student.first_name} ${student.last_name} · inactif, cliquer pour rendre actif`
                                     }
                                     className="flex-shrink-0 p-1.5 -m-1.5 rounded-full cursor-pointer disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 group/dot"
                                   >

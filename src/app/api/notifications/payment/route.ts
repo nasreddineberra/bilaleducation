@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       : new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
     const methodLabel = METHOD_LABELS[method] ?? method ?? ''
-    const title = `Paiement enregistré — ${fmtEur(amount)}`
+    const title = `Paiement enregistré · ${fmtEur(amount)}`
     const body = `Votre paiement de ${fmtEur(amount)} par ${methodLabel} du ${dateFormatted} a bien été enregistré.${receipt ? ` Réf : ${receipt}.` : ''}`
 
     const emailHtml = `
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
           ${receipt ? `<tr><td style="padding: 4px 12px 4px 0; font-weight: bold;">Référence</td><td>${receipt}</td></tr>` : ''}
         </table>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="color: #999; font-size: 12px;">Bilal Education — Notification automatique</p>
+        <p style="color: #999; font-size: 12px;">Bilal Education · Notification automatique</p>
       </div>
     `
 

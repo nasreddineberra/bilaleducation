@@ -79,7 +79,7 @@ export default async function StudentsPage({
     }
   }
 
-  // Tooltip classe : « Prof principal · Cotisation · Niveau · Jour HH:MM–HH:MM » (parties présentes)
+  // Tooltip classe : « Prof principal · Cotisation · Niveau · Jour HH:MM-HH:MM » (parties présentes)
   const buildClassTooltip = (c: any): string => {
     const parts: string[] = []
     const ct = Array.isArray(c?.class_teachers)
@@ -90,7 +90,7 @@ export default async function StudentsPage({
     if (c?.cotisation_types?.label) parts.push(c.cotisation_types.label)
     if (c?.level) parts.push(c.level)
     if (c?.day_of_week && c?.start_time && c?.end_time) {
-      parts.push(`${c.day_of_week} ${String(c.start_time).slice(0, 5)}–${String(c.end_time).slice(0, 5)}`)
+      parts.push(`${c.day_of_week} ${String(c.start_time).slice(0, 5)}-${String(c.end_time).slice(0, 5)}`)
     } else if (c?.day_of_week) {
       parts.push(c.day_of_week)
     }

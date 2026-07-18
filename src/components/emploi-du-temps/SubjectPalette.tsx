@@ -53,7 +53,7 @@ function DraggableSubject({ item }: { item: PaletteSubject }) {
       {/* Subject info */}
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-secondary-800 truncate">
-          {item.ueCode ? `${item.ueCode} — ` : ''}{item.ueName}
+          {item.ueCode ? `${item.ueCode} · ` : ''}{item.ueName}
         </p>
         <p className="text-[10px] text-warm-700 truncate">
           {item.teacherName || 'Non affecté'}

@@ -167,7 +167,7 @@ export default function ParentsClient({
           {filteredCount} fiche{filteredCount > 1 ? 's' : ''}
           {q.trim()
             ? ` trouvée${filteredCount > 1 ? 's' : ''} pour « ${q} »`
-            : totalPages > 1 ? ` — page ${page} / ${totalPages}` : ''
+            : totalPages > 1 ? ` · page ${page} / ${totalPages}` : ''
           }
         </span>
         <PaginationBar page={page} totalPages={totalPages} onNavigate={p => navigate(p, q, activeFilter)} />

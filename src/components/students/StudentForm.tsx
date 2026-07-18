@@ -532,7 +532,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                         ? `${mt.teachers.civilite ? mt.teachers.civilite + ' ' : ''}${mt.teachers.last_name} ${mt.teachers.first_name}`
                         : null
                       const schedule = cls?.day_of_week
-                        ? [cls.day_of_week, cls.start_time && cls.end_time ? `${cls.start_time.slice(0,5)}–${cls.end_time.slice(0,5)}` : null].filter(Boolean).join(' ')
+                        ? [cls.day_of_week, cls.start_time && cls.end_time ? `${cls.start_time.slice(0,5)}-${cls.end_time.slice(0,5)}` : null].filter(Boolean).join(' ')
                         : null
                       return (
                         <div key={sib.id} className={`border rounded-lg px-3 py-2 ${sib.is_active ? 'bg-warm-50 border-warm-100' : 'bg-warm-50/60 border-warm-100'}`}>
@@ -552,7 +552,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                             ) : sib.gender === 'female' ? (
                               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-pink-100 text-pink-500 text-[10px] font-bold leading-none">F</span>
                             ) : (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-700 text-[10px] font-bold leading-none">—</span>
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-warm-100 text-warm-700 text-[10px] font-bold leading-none">·</span>
                             )}
                           </div>
                           {cls?.name && (

@@ -24,7 +24,7 @@ export async function requireRoleServer(allowedRoles: UserRole[]): Promise<{ err
     .single()
 
   if (!profile || !allowedRoles.includes(profile.role as UserRole)) {
-    return { error: 'Accès refusé — votre rôle ne permet pas cette action.' }
+    return { error: 'Accès refusé · votre rôle ne permet pas cette action.' }
   }
 
   return {}

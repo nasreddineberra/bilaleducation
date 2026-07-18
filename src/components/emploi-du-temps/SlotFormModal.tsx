@@ -67,7 +67,7 @@ const SIDEBAR_COLOR = '#2e4550'
 
 function teacherLabel(p: { first_name: string; last_name: string; civilite?: string }): string {
   const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
-  return `${civ} ${p.first_name} ${p.last_name}`
+  return `${civ} ${p.last_name} ${p.first_name}`
 }
 
 interface Props {
@@ -245,7 +245,7 @@ export default function SlotFormModal({
       const overlaps = s.start_time < endTime && s.end_time > startTime
 
       if (overlaps && s.class_id === classId) {
-        msgs.push(`Conflit classe : ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}`)
+        msgs.push(`Conflit classe : ${s.start_time.slice(0, 5)}-${s.end_time.slice(0, 5)}`)
       }
       if (overlaps && s.teacher_id === teacherId && teacherId) {
         msgs.push(`Conflit enseignant : même créneau`)
@@ -302,7 +302,7 @@ export default function SlotFormModal({
     if (isEditingAll && hasChanges) {
       const day = DAY_OPTIONS.find(d => d.value === dayOfWeek)?.label ?? ''
       setPendingConfirm({
-        message: `Tous les créneaux récurrents seront modifiés à partir d'aujourd'hui.\nLa fiche classe sera mise à jour avec : ${day} ${startTime}–${endTime}.\n\nContinuer ?`,
+        message: `Tous les créneaux récurrents seront modifiés à partir d'aujourd'hui.\nLa fiche classe sera mise à jour avec : ${day} ${startTime}-${endTime}.\n\nContinuer ?`,
         onConfirm: doSave,
       })
       return

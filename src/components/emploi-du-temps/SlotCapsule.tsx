@@ -124,10 +124,10 @@ export default function SlotCapsule({
           </div>
         )}
 
-        {/* Time range */}
-        <div className="text-[8px] leading-tight opacity-50 mt-auto flex items-center gap-0.5">
-          {!slot.isRecurring && <CalendarDays size={7} className="opacity-60" />}
-          {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
+        {/* Time range — meme police que le nom de classe (ligne titre). */}
+        <div className="text-[10px] font-bold leading-tight mt-auto flex items-center gap-0.5">
+          {!slot.isRecurring && <CalendarDays size={9} className="opacity-70" />}
+          {slot.start_time.slice(0, 5)}-{slot.end_time.slice(0, 5)}
         </div>
       </div>
 

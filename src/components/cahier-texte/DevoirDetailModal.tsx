@@ -24,7 +24,7 @@ const HW_TYPE: Record<string, { label: string; color: string; icon: any }> = {
 
 function teacherLabelOf(t: any): string {
   if (!t) return ''
-  return `${t.civilite ? t.civilite + ' ' : ''}${t.first_name} ${t.last_name}`
+  return `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
 }
 function formatDate(d: string): string {
   return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })

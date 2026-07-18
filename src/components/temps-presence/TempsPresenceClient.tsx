@@ -587,7 +587,7 @@ export default function TempsPresenceClient({
         const wk = getWeekDays(currentDate)
         const d1 = wk[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
         const d2 = wk[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-        return `${d1} – ${d2}`
+        return `${d1} · ${d2}`
       })()
 
   const selectedDayLabel = new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -943,7 +943,7 @@ export default function TempsPresenceClient({
               {isAbs ? (
                 <Row label="Période">{PERIOD_LABEL[entry.absence_period] ?? 'Journée'}{entry.absence_reason ? ` · ${entry.absence_reason}` : ''}</Row>
               ) : (
-                <Row label="Horaire">{fmtTime(entry.start_time)}–{fmtTime(entry.end_time)} ({fmtDuration(entry.duration_minutes)})</Row>
+                <Row label="Horaire">{fmtTime(entry.start_time)}-{fmtTime(entry.end_time)} ({fmtDuration(entry.duration_minutes)})</Row>
               )}
               {entry.is_replacement && rs && <Row label="Remplacement">Remplace {rs.last_name} {rs.first_name}</Row>}
             </div>

@@ -119,7 +119,7 @@ export default function StudentScolarite({
     const map = new Map<string, string>()
     for (const ct of mainTeachers) {
       if (ct.teachers) {
-        const parts = [ct.teachers.civilite, ct.teachers.first_name, ct.teachers.last_name].filter(Boolean)
+        const parts = [ct.teachers.civilite, ct.teachers.last_name, ct.teachers.first_name].filter(Boolean)
         map.set(ct.class_id, parts.join(' '))
       }
     }
@@ -251,7 +251,7 @@ export default function StudentScolarite({
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-bold text-secondary-800">
-                          {cls.name}{cls.level ? ` – ${cls.level}` : ''}
+                          {cls.name}{cls.level ? ` · ${cls.level}` : ''}
                         </p>
                         <span className={clsx(
                           'text-[10px] font-medium px-1.5 py-0.5 rounded-full',
@@ -267,7 +267,7 @@ export default function StudentScolarite({
                         {cls.day_of_week && (
                           <>
                             {cls.day_of_week}
-                            {cls.start_time && cls.end_time && ` ${cls.start_time.slice(0, 5)}–${cls.end_time.slice(0, 5)}`}
+                            {cls.start_time && cls.end_time && ` ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}`}
                             {' · '}
                           </>
                         )}
@@ -326,7 +326,7 @@ export default function StudentScolarite({
                                 Bulletin
                               </a>
                             ) : (
-                              <span className="text-[11px] text-warm-700 italic">—</span>
+                              <span className="text-[11px] text-warm-700 italic">·</span>
                             )}
 
                             {(absTotal > 0 || retards > 0) && (

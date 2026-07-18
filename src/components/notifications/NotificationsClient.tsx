@@ -68,7 +68,7 @@ const AUTO_TYPE_LABELS: Record<string, { label: string; icon: any; color: string
 }
 
 function formatDate(d: string | null): string {
-  if (!d) return '—'
+  if (!d) return '·'
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -190,7 +190,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             const isRead = n.is_read || readIds.has(n.id)
 
             if (n.source === 'auto') {
-              const typeInfo = AUTO_TYPE_LABELS[n.type] ?? { label: '—', icon: Bell, color: 'bg-warm-100 text-warm-700' }
+              const typeInfo = AUTO_TYPE_LABELS[n.type] ?? { label: '·', icon: Bell, color: 'bg-warm-100 text-warm-700' }
               const TypeIcon = typeInfo.icon
 
               return (
@@ -234,7 +234,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             // Announcement notification
             const ann = n.announcements
             if (!ann) return null
-            const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '—', icon: Mail, color: 'bg-warm-100 text-warm-700' }
+            const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '·', icon: Mail, color: 'bg-warm-100 text-warm-700' }
             const TypeIcon = typeInfo.icon
             const preview = stripHtml(ann.body_html ?? ann.content ?? '').slice(0, 120)
 

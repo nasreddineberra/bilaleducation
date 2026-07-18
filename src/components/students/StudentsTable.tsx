@@ -24,7 +24,7 @@ function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
     parts.push(<span key="r" className="text-amber-700 whitespace-nowrap">{discipline.retards} {discipline.retards > 1 ? 'retards' : 'retard'}</span>)
   if (discipline.avertissements > 0)
     parts.push(<span key="w" className="text-purple-600 whitespace-nowrap">{discipline.avertissements} avert.</span>)
-  if (parts.length === 0) return <span className="text-xs text-warm-700">—</span>
+  if (parts.length === 0) return <span className="text-xs text-warm-700">·</span>
   return (
     <span className="text-xs">
       {parts.map((node, i) => (
@@ -53,7 +53,7 @@ function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firs
 }
 
 function formatDate(dateStr: string): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '·'
   const d = new Date(dateStr)
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }

@@ -308,9 +308,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   // Badge affiché sur le type verrouillé
   const lockBadge = (type: FormEvalType) => {
     if (gradedEvalTypes.includes(type))
-      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Notes saisies — verrouillé</span>
+      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Notes saisies · verrouillé</span>
     if (usedEvalTypes.includes(type))
-      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Utilisé dans gabarit — verrouillé</span>
+      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Utilisé dans gabarit · verrouillé</span>
     return null
   }
 
@@ -560,7 +560,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                             </td>
                             <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right">
-                              {fmtShort(start)}–{fmtShort(end)}
+                              {fmtShort(start)}-{fmtShort(end)}
                             </td>
                             <td className="px-2 py-1 text-warm-700 text-right whitespace-nowrap">
                               {nbWeeks} sem.
@@ -611,7 +611,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                   Répartition <span className="text-red-400">*</span>
                 </h2>
-                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies — verrouillé</span>}
+                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies · verrouillé</span>}
               </div>
             <div className="flex gap-2">
               {([
@@ -902,7 +902,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               >
                                 <span className="font-semibold">S{w.weekNum}</span>
                                 <span className="opacity-70">
-                                  {fmtShort(w.monday)}–{fmtShort(w.sunday)}
+                                  {fmtShort(w.monday)}-{fmtShort(w.sunday)}
                                 </span>
                               </button>
                             )
@@ -927,7 +927,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     if (isEditingThis) {
                       return (
                         <div key={v.start_date} className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                          <span className="text-xs text-warm-700 whitespace-nowrap">{fmtShort(start)}–{fmtShort(end)}</span>
+                          <span className="text-xs text-warm-700 whitespace-nowrap">{fmtShort(start)}-{fmtShort(end)}</span>
                           <input
                             type="text"
                             value={vacLabelDraft}
@@ -951,7 +951,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                         <span className="text-xs font-medium text-amber-800 flex-1">
                           {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                         </span>
-                        <span className="text-[11px] text-warm-700">{fmtShort(start)}–{fmtShort(end)}</span>
+                        <span className="text-[11px] text-warm-700">{fmtShort(start)}-{fmtShort(end)}</span>
                         <Tooltip content="Renommer">
                           <button
                             type="button"

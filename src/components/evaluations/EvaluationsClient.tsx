@@ -573,7 +573,7 @@ export default function EvaluationsClient({
         {/* Alerte pas d'année scolaire */}
         {noSchoolYear && (
           <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-            Aucune année scolaire active — configurez-en une dans Paramètres &gt; Année scolaire.
+            Aucune année scolaire active · configurez-en une dans Paramètres &gt; Année scolaire.
           </p>
         )}
         {!noSchoolYear && noEvalTypes && (
@@ -592,7 +592,7 @@ export default function EvaluationsClient({
           }
           if (cls.cotisation_label) parts.push(cls.cotisation_label)
           if (cls.level) parts.push(`Niveau ${cls.level}`)
-          const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('–')
+          const timeStr = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('·')
           const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
           if (schedule) parts.push(schedule)
           if (parts.length === 0) return null

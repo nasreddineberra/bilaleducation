@@ -207,7 +207,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                     <button
                       onClick={() => toggleRequired(d.id, d.is_required)}
                       aria-pressed={d.is_required}
-                      aria-label={`${d.label} : ${d.is_required ? 'requis' : 'optionnel'} — cliquer pour basculer`}
+                      aria-label={`${d.label} : ${d.is_required ? 'requis' : 'optionnel'} · cliquer pour basculer`}
                       className={clsx(
                         'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                         d.is_required

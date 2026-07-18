@@ -150,7 +150,7 @@ function buildClassTooltip(cls: any): string | null {
     teacherName,
     cotisLabel,
     cls?.level ? `Niveau ${cls.level}` : null,
-    day && start ? `${day} ${start}${end ? `–${end}` : ''}` : day,
+    day && start ? `${day} ${start}${end ? `-${end}` : ''}` : day,
   ].filter(Boolean)
   return parts.length ? parts.join(' · ') : null
 }

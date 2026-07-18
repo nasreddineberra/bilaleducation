@@ -99,7 +99,7 @@ export default function SuperAdminLoginPage() {
           <div className="p-8">
             <h2 className="text-base font-bold text-white mb-0.5">Connexion administration</h2>
             <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
-              Accès restreint — personnel autorisé uniquement
+              Accès restreint · personnel autorisé uniquement
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>

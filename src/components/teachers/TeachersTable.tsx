@@ -162,7 +162,7 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                 {/* Spécialisation */}
                 <td className="list-td hidden lg:table-cell">
                   <span className="text-xs text-warm-700">
-                    {teacher.specialization || <span className="text-warm-700">—</span>}
+                    {teacher.specialization || <span className="text-warm-700">·</span>}
                   </span>
                 </td>
 

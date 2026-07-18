@@ -155,7 +155,7 @@ export default async function BulletinsPage() {
       (mainTeacherRows ?? []).map(ct => [
         ct.class_id,
         ct.teachers
-          ? { name: `${ct.teachers.first_name} ${ct.teachers.last_name}`, civilite: ct.teachers.civilite }
+          ? { name: `${ct.teachers.last_name} ${ct.teachers.first_name}`, civilite: ct.teachers.civilite }
           : null,
       ])
     )

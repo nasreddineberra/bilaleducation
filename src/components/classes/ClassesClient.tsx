@@ -221,10 +221,10 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                       )}
                     </td>
                     <td className="list-td text-secondary-600">
-                      {cls.level || <span className="text-warm-700">—</span>}
+                      {cls.level || <span className="text-warm-700">·</span>}
                     </td>
                     <td className="list-td text-secondary-600">
-                      {cls.room_number || <span className="text-warm-700">—</span>}
+                      {cls.room_number || <span className="text-warm-700">·</span>}
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">
                       {cls.day_of_week ? (
@@ -235,7 +235,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           )}
                         </span>
                       ) : (
-                        <span className="text-warm-700">—</span>
+                        <span className="text-warm-700">·</span>
                       )}
                     </td>
                     <td className="list-td text-center text-secondary-600">{cls.max_students}</td>
@@ -253,7 +253,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                             <span key={i} className="text-xs text-secondary-600 whitespace-nowrap">
                               {t.teachers ? `${t.teachers.last_name} ${t.teachers.first_name}` : ''}
                               <span className="ml-1 text-[10px] text-warm-700">
-                                {t.effective_from ? fmtD(t.effective_from) : 'Début'} — {t.effective_until ? fmtD(t.effective_until) : 'en cours'}
+                                {t.effective_from ? fmtD(t.effective_from) : 'Début'} · {t.effective_until ? fmtD(t.effective_until) : 'en cours'}
                               </span>
                             </span>
                           ))}

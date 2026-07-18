@@ -194,7 +194,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}
-        <p className="text-[11px] text-warm-700">Formats acceptés : PDF, image… — 1 Mo maximum.</p>
+        <p className="text-[11px] text-warm-700">Formats acceptés : PDF, image… · 1 Mo maximum.</p>
         <p className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</p>
       </div>
 
@@ -225,7 +225,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                     <td className="list-td text-secondary-700 whitespace-nowrap">{categoryLabel}</td>
                     <td className="list-td">
                       <span className="list-name text-secondary-800 truncate">
-                        {doc.label || <span className="text-warm-700">—</span>}
+                        {doc.label || <span className="text-warm-700">·</span>}
                       </span>
                     </td>
                     <td className="list-td">
@@ -244,7 +244,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                         )}>
                           {exp === 'expired' ? 'Expiré' : `Exp. ${formatDate(doc.expires_at)}`}
                         </span>
-                      ) : <span className="text-warm-700">—</span>}
+                      ) : <span className="text-warm-700">·</span>}
                     </td>
                     <td className="list-td">
                       <div className="flex items-center justify-end gap-1">
