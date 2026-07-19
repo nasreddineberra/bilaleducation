@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCachedCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
+import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import DashboardAdmin from '@/components/dashboard/DashboardAdmin'
 import DashboardComptable from '@/components/dashboard/DashboardComptable'
 import DashboardPedago from '@/components/dashboard/DashboardPedago'
@@ -21,6 +22,11 @@ const roleLabel: Record<string, string> = {
   enseignant: 'Enseignant',
   secretaire: 'Secrétaire',
   parent: 'Parent',
+}
+
+const todayKey = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default async function DashboardPage() {
@@ -48,15 +54,15 @@ export default async function DashboardPage() {
   const role = profile?.role ?? 'parent'
 
   // ── Periode courante ─────────────────────────────────────────────────
-  const { data: currentPeriod } = currentYear
+  // Le flag `is_current` (feature « periode en cours ») prime ; repli sur la 1re.
+  const { data: periodRows } = currentYear
     ? await supabase
         .from('periods')
-        .select('id, label')
+        .select('id, label, is_current, order_index')
         .eq('school_year_id', currentYear.id)
         .order('order_index', { ascending: true })
-        .limit(1)
-        .maybeSingle()
     : { data: null }
+  const currentPeriod = (periodRows ?? []).find((p: any) => p.is_current) ?? (periodRows ?? [])[0] ?? null
 
   // ── Notifications non lues ───────────────────────────────────────────
   // « email seul » exclu de la cloche in-app (jointure inner + filtre canal).
@@ -112,94 +118,35 @@ export default async function DashboardPage() {
   //  ADMIN / DIRECTION
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'admin' || role === 'direction') {
-    // Stats compteurs — données cachées (TTL 5 min)
-    const cachedStats = await getCachedAdminStats(profile?.etablissement_id ?? '')
+    const etablissementId = profile?.etablissement_id ?? ''
 
-    // Données détaillées — pas cachées (calcul complexe, données fraîches)
-    const results = await Promise.allSettled([
-      supabase.from('classes').select('id, name, max_students, enrollments:enrollments(count)').order('name'),
-      supabase.from('family_fees').select('id, status, fee_installments(amount_paid), fee_adjustments(amount)'),
-      supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
-      // 3 compteurs en une seule requête (au lieu de 3 séparées)
-      supabase.from('announcement_recipients').select('id, is_read'),
-      supabase.from('parents').select(`id, students!inner ( id, is_active, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type ) ) ) )`).eq('students.is_active', true).eq('students.enrollments.status', 'active').eq('students.enrollments.classes.academic_year', currentYear?.label ?? ''),
-      supabase.from('parent_class_enrollments').select(`parent_id, classes ( cotisation_types ( id, amount, registration_fee ) )`).eq('status', 'active'),
+    // Annee complete (bornes) pour le calcul financier partage.
+    const { data: yearFull } = currentYear
+      ? await supabase.from('school_years').select('id, label, start_date, end_date').eq('id', currentYear.id).maybeSingle()
+      : { data: null }
+
+    // Tendance des absences : 30 derniers jours.
+    const trendFrom = new Date()
+    trendFrom.setDate(trendFrom.getDate() - 29)
+    const trendFromKey = `${trendFrom.getFullYear()}-${String(trendFrom.getMonth() + 1).padStart(2, '0')}-${String(trendFrom.getDate()).padStart(2, '0')}`
+
+    const [cachedStats, financials, results] = await Promise.all([
+      getCachedAdminStats(etablissementId),
+      yearFull ? getFamilyFinancials(supabase, yearFull) : Promise.resolve(null),
+      Promise.allSettled([
+        supabase.from('classes').select('id, name, max_students, enrollments:enrollments(count)').order('name'),
+        supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(id, first_name, last_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
+        supabase.from('absences').select('absence_date, is_justified').neq('absence_type', 'retard').gte('absence_date', trendFromKey),
+      ]),
     ])
 
-    // Extraire les données avec gestion d'erreurs partielles
     const classesList = results[0].status === 'fulfilled' ? results[0].value.data : []
-    const familyFees = results[1].status === 'fulfilled' ? results[1].value.data : []
-    const recentAbsences = results[2].status === 'fulfilled' ? results[2].value.data : []
-    const announcementStats = results[3].status === 'fulfilled' ? results[3].value.data : []
-    const parentsWithEnrollments = results[4].status === 'fulfilled' ? results[4].value.data : []
-    const adultEnrollments = results[5].status === 'fulfilled' ? results[5].value.data : []
+    const recentAbsences = results[1].status === 'fulfilled' ? results[1].value.data : []
+    const trendAbs = results[2].status === 'fulfilled' ? results[2].value.data : []
 
-    // Log des échecs partiels (ne pas bloquer le rendu)
-    for (const [i, result] of results.entries()) {
-      if (result.status === 'rejected') {
-        console.error(`[dashboard/page admin] Échec requête ${i}:`, result.reason)
-      }
+    for (const [i, r] of results.entries()) {
+      if (r.status === 'rejected') console.error(`[dashboard admin] requête ${i}:`, r.reason)
     }
-
-    // Calculer les stats d'annonces côté client (au lieu de 3 requêtes séparées)
-    const msgReadCount = (announcementStats ?? []).filter((r: any) => r.is_read).length
-    const msgTotalRecipients = (announcementStats ?? []).length
-
-    // Calcul total du reel a partir des inscriptions
-    const adultByParent: Record<string, any[]> = {}
-    for (const ae of (adultEnrollments ?? []) as any[]) {
-      if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
-      adultByParent[ae.parent_id].push(ae)
-    }
-
-    const allParentIds = new Set<string>()
-    for (const p of (parentsWithEnrollments ?? []) as any[]) allParentIds.add(p.id)
-    for (const ae of (adultEnrollments ?? []) as any[]) allParentIds.add(ae.parent_id)
-
-    let totalDue = 0
-    for (const parentId of allParentIds) {
-      const pData = ((parentsWithEnrollments ?? []) as any[]).find((p: any) => p.id === parentId)
-      const students = pData?.students ?? []
-      const indexByType: Record<string, number> = {}
-      let globalIndex = 0
-      let familyDue = 0
-      for (const s of students) {
-        const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-        if (!ct) continue
-        const ctId = ct.id ?? ''
-        const sameTypeOnly = ct.sibling_discount_same_type ?? false
-        let discount = 0
-        if (ct.sibling_discount > 0) {
-          if (sameTypeOnly) {
-            const typeIdx = indexByType[ctId] ?? 0
-            if (typeIdx > 0) discount = Number(ct.sibling_discount)
-            indexByType[ctId] = typeIdx + 1
-          } else {
-            if (globalIndex > 0) discount = Number(ct.sibling_discount)
-          }
-        } else {
-          if (sameTypeOnly) indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
-        }
-        globalIndex++
-        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0) - discount
-      }
-      for (const ae of (adultByParent[parentId] ?? [])) {
-        const ct = ae.classes?.cotisation_types
-        if (!ct) continue
-        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0)
-      }
-      totalDue += familyDue
-    }
-
-    // Calcul total percu
-    const fees = (familyFees ?? []) as any[]
-    const totalPercu = fees.reduce((s: number, f: any) => {
-      const paid = (f.fee_installments ?? []).reduce((p: number, i: any) => p + Number(i.amount_paid || 0), 0)
-      const adj = (f.fee_adjustments ?? []).reduce((p: number, a: any) => p + Number(a.amount || 0), 0)
-      return s + paid + adj
-    }, 0)
-    const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0 }
-    fees.forEach((f: any) => { if (f.status in feesByStatus) (feesByStatus as any)[f.status]++ })
 
     // Effectifs par classe
     const classCapacity = (classesList ?? []).map((c: any) => ({
@@ -207,6 +154,26 @@ export default async function DashboardPage() {
       enrolled: c.enrollments?.[0]?.count ?? 0,
       max: c.max_students ?? 30,
     }))
+
+    // Serie de tendance : 30 jours consecutifs, justifiees vs non.
+    const byDay: Record<string, { justified: number; unjustified: number }> = {}
+    for (const a of (trendAbs ?? []) as any[]) {
+      const k = String(a.absence_date).slice(0, 10)
+      if (!byDay[k]) byDay[k] = { justified: 0, unjustified: 0 }
+      if (a.is_justified) byDay[k].justified++
+      else byDay[k].unjustified++
+    }
+    const absenceTrend: { label: string; justified: number; unjustified: number }[] = []
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(trendFrom)
+      d.setDate(trendFrom.getDate() + i)
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const b = byDay[k] ?? { justified: 0, unjustified: 0 }
+      absenceTrend.push({ label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, ...b })
+    }
+
+    const kpi = financials?.kpi ?? { billed: 0, collected: 0, outstanding: 0, overpaid: 0, counts: { pending: 0, partial: 0, paid: 0, overpaid: 0 }, rate: 0 }
+    const debtorFamilies = (financials?.rows ?? []).filter(r => r.remaining > 0).length
 
     return (
       <DashboardAdmin
@@ -217,16 +184,21 @@ export default async function DashboardPage() {
           teachersActive: cachedStats.teachersActive,
           classesCount: cachedStats.classesCount,
           enrollmentsActive: cachedStats.enrollmentsActive,
-          parentsCount: cachedStats.parentsCount,
           absencesThisMonth: cachedStats.absencesMonth,
           absencesUnjustified: cachedStats.absencesUnjustified,
-          totalDue,
-          totalPercu,
-          feesByStatus,
+          billed: kpi.billed,
+          collected: kpi.collected,
+          outstanding: kpi.outstanding,
+          rate: kpi.rate,
+          statusCounts: kpi.counts,
           classCapacity,
+          absenceTrend,
           recentAbsences: (recentAbsences ?? []) as any[],
-          msgSentThisMonth: cachedStats.announcementsMonth,
-          msgReadRate: msgTotalRecipients ? Math.round(((msgReadCount ?? 0) / msgTotalRecipients) * 100) : 0,
+          todo: {
+            debtorFamilies,
+            unjustifiedAbsences: cachedStats.absencesUnjustified,
+            unreadNotifs,
+          },
         }}
       />
     )
@@ -236,85 +208,36 @@ export default async function DashboardPage() {
   //  COMPTABLE
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'comptable') {
-    const [
-      { data: familyFees },
-      { data: recentPayments },
-      { data: cParentsEnroll },
-      { data: cAdultEnroll },
-    ] = await Promise.all([
-      supabase.from('family_fees').select('id, status, parent_id, parents:parent_id(tutor1_last_name, tutor1_first_name), fee_installments(amount_paid), fee_adjustments(amount)'),
-      supabase.from('fee_installments').select('id, amount_paid, paid_date, payment_method, family_fees:family_fee_id(parents:parent_id(tutor1_last_name, tutor1_first_name))').eq('status', 'paid').order('paid_date', { ascending: false }).limit(5),
-      supabase.from('parents').select(`id, students!inner ( id, is_active, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type ) ) ) )`).eq('students.is_active', true).eq('students.enrollments.status', 'active').eq('students.enrollments.classes.academic_year', currentYear?.label ?? ''),
-      supabase.from('parent_class_enrollments').select(`parent_id, classes ( cotisation_types ( id, amount, registration_fee ) )`).eq('status', 'active'),
+    const { data: yearFull } = currentYear
+      ? await supabase.from('school_years').select('id, label, start_date, end_date').eq('id', currentYear.id).maybeSingle()
+      : { data: null }
+
+    const [financials, { data: recentPayments }] = await Promise.all([
+      yearFull ? getFamilyFinancials(supabase, yearFull) : Promise.resolve(null),
+      supabase.from('fee_installments').select('id, amount_paid, paid_date, payment_method, family_fees:family_fee_id(parents:parent_id(tutor1_last_name, tutor1_first_name))').eq('status', 'paid').order('paid_date', { ascending: false }).limit(6),
     ])
 
-    // Total du reel
-    const cAdultByParent: Record<string, any[]> = {}
-    for (const ae of (cAdultEnroll ?? []) as any[]) {
-      if (!cAdultByParent[ae.parent_id]) cAdultByParent[ae.parent_id] = []
-      cAdultByParent[ae.parent_id].push(ae)
-    }
-    const cAllParents = new Set<string>()
-    for (const p of (cParentsEnroll ?? []) as any[]) cAllParents.add(p.id)
-    for (const ae of (cAdultEnroll ?? []) as any[]) cAllParents.add(ae.parent_id)
-
-    let totalDue = 0
-    for (const parentId of cAllParents) {
-      const pData = ((cParentsEnroll ?? []) as any[]).find((p: any) => p.id === parentId)
-      const students = pData?.students ?? []
-      const indexByType: Record<string, number> = {}
-      let globalIndex = 0
-      let familyDue = 0
-      for (const s of students) {
-        const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-        if (!ct) continue
-        const ctId = ct.id ?? ''
-        const sameTypeOnly = ct.sibling_discount_same_type ?? false
-        let discount = 0
-        if (ct.sibling_discount > 0) {
-          if (sameTypeOnly) {
-            const typeIdx = indexByType[ctId] ?? 0
-            if (typeIdx > 0) discount = Number(ct.sibling_discount)
-            indexByType[ctId] = typeIdx + 1
-          } else {
-            if (globalIndex > 0) discount = Number(ct.sibling_discount)
-          }
-        } else {
-          if (sameTypeOnly) indexByType[ctId] = (indexByType[ctId] ?? 0) + 1
-        }
-        globalIndex++
-        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0) - discount
-      }
-      for (const ae of (cAdultByParent[parentId] ?? [])) {
-        const ct = ae.classes?.cotisation_types
-        if (!ct) continue
-        familyDue += Number(ct.amount ?? 0) + Number(ct.registration_fee ?? 0)
-      }
-      totalDue += familyDue
-    }
-
-    const fees = (familyFees ?? []) as any[]
-    const totalCollected = fees.reduce((s: number, f: any) => {
-      const paid = (f.fee_installments ?? []).reduce((p: number, i: any) => p + Number(i.amount_paid || 0), 0)
-      const adj = (f.fee_adjustments ?? []).reduce((p: number, a: any) => p + Number(a.amount || 0), 0)
-      return s + paid + adj
-    }, 0)
-    const feesByStatus = { pending: 0, partial: 0, paid: 0, overdue: 0 }
-    fees.forEach((f: any) => { if (f.status in feesByStatus) (feesByStatus as any)[f.status]++ })
-    const overdueFamilies = fees.filter((f: any) => f.status === 'overdue')
+    const kpi = financials?.kpi ?? { billed: 0, collected: 0, outstanding: 0, overpaid: 0, counts: { pending: 0, partial: 0, paid: 0, overpaid: 0 }, rate: 0 }
+    const topDebtors = (financials?.rows ?? [])
+      .filter(r => r.remaining > 0)
+      .sort((a, b) => b.remaining - a.remaining)
+      .slice(0, 8)
 
     return (
       <DashboardComptable
         {...common}
         stats={{
-          totalDue,
-          totalCollected,
-          remaining: totalDue - totalCollected,
-          familiesOverdue: overdueFamilies.length,
-          feesByStatus,
-          totalFamilies: fees.length,
+          billed: kpi.billed,
+          collected: kpi.collected,
+          outstanding: kpi.outstanding,
+          overpaidCount: kpi.counts.overpaid,
+          overpaidAmount: kpi.overpaid,
+          rate: kpi.rate,
+          totalFamilies: (financials?.rows ?? []).length,
+          monthly: financials?.monthly ?? [],
+          byMethod: financials?.byMethod ?? {},
+          topDebtors,
           recentPayments: (recentPayments ?? []) as any[],
-          overdueFamilies: overdueFamilies.slice(0, 5) as any[],
         }}
       />
     )
@@ -324,17 +247,38 @@ export default async function DashboardPage() {
   //  RESPONSABLE PEDAGOGIQUE
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'responsable_pedagogique') {
+    const yearPeriodIds = (periodRows ?? []).map((p: any) => p.id)
+    const currentPeriodId = currentPeriod?.id ?? null
+
     const [
       { count: classesCount },
       { count: evalsCount },
       { count: bulletinsCount },
       { data: recentEvals },
+      { data: periodEvals },
     ] = await Promise.all([
       supabase.from('classes').select('id', { count: 'exact', head: true }),
-      supabase.from('evaluations').select('id', { count: 'exact', head: true }),
-      supabase.from('bulletin_archives').select('id', { count: 'exact', head: true }),
+      yearPeriodIds.length > 0
+        ? supabase.from('evaluations').select('id', { count: 'exact', head: true }).in('period_id', yearPeriodIds)
+        : Promise.resolve({ count: 0 }),
+      yearPeriodIds.length > 0
+        ? supabase.from('bulletin_archives').select('id', { count: 'exact', head: true }).in('period_id', yearPeriodIds)
+        : Promise.resolve({ count: 0 }),
       supabase.from('evaluations').select('id, title, evaluation_date, classes:class_id(name)').order('evaluation_date', { ascending: false }).limit(5),
+      currentPeriodId
+        ? supabase.from('evaluations').select('id, title, classes:class_id(name)').eq('period_id', currentPeriodId)
+        : Promise.resolve({ data: [] }),
     ])
+
+    // « A finaliser » : evaluations de la periode en cours SANS aucune note.
+    const pEvals = (((periodEvals as any).data ?? []) as any[])
+    let evalsWithoutGrades: any[] = []
+    if (pEvals.length > 0) {
+      const ids = pEvals.map(e => e.id)
+      const { data: gradeRows } = await supabase.from('grades').select('evaluation_id').in('evaluation_id', ids)
+      const graded = new Set((gradeRows ?? []).map((g: any) => g.evaluation_id))
+      evalsWithoutGrades = pEvals.filter(e => !graded.has(e.id))
+    }
 
     return (
       <DashboardPedago
@@ -344,6 +288,7 @@ export default async function DashboardPage() {
           evalsCount: evalsCount ?? 0,
           bulletinsCount: bulletinsCount ?? 0,
           recentEvals: (recentEvals ?? []) as any[],
+          evalsWithoutGrades: evalsWithoutGrades as any[],
         }}
       />
     )
@@ -353,55 +298,78 @@ export default async function DashboardPage() {
   //  ENSEIGNANT
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'enseignant') {
-    // Trouver le teacher_id correspondant au profil
+    // Resolution FIABLE : par user_id (et non par email, qui peut diverger).
     const { data: teacher } = await supabase
       .from('teachers')
       .select('id')
-      .eq('email', profile?.email)
+      .eq('user_id', userId)
       .eq('is_active', true)
       .maybeSingle()
 
     const teacherId = teacher?.id
+    const today = todayKey()
+    const todayDow = new Date().getDay() // 0=dimanche … 6=samedi (comme schedule_slots)
 
     let myClasses: any[] = []
     let myStudentsCount = 0
     let absencesToday = 0
     let recentAbsences: any[] = []
+    let todaySlots: any[] = []
 
     if (teacherId) {
-      const [
-        { data: classTeachers },
-        { data: absToday },
-        { data: recentAbs },
-      ] = await Promise.all([
-        supabase.from('class_teachers').select('class_id, is_main_teacher, classes:class_id(id, name, level, schedules:schedules(day_of_week, start_time, end_time), enrollments:enrollments(count))').eq('teacher_id', teacherId),
-        supabase.from('absences').select('id', { count: 'exact', head: true }).neq('absence_type', 'retard').eq('absence_date', new Date().toISOString().slice(0, 10)),
-        supabase.from('absences').select('id, absence_date, absence_type, students:student_id(first_name, last_name), classes:class_id(name)').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
-      ])
+      // Classes ou je suis affecte AUJOURD'HUI (titulaire ou remplacant).
+      const { data: classTeachers } = await supabase
+        .from('class_teachers')
+        .select('class_id, is_main_teacher, effective_from, effective_until, classes:class_id(id, name, level, enrollments:enrollments(count))')
+        .eq('teacher_id', teacherId)
 
-      myClasses = (classTeachers ?? []).map((ct: any) => ({
+      const activeCt = (classTeachers ?? []).filter((ct: any) =>
+        (!ct.effective_from || ct.effective_from <= today) &&
+        (!ct.effective_until || ct.effective_until >= today)
+      )
+      const myClassIds = [...new Set(activeCt.map((ct: any) => ct.class_id).filter(Boolean))]
+
+      myClasses = activeCt.map((ct: any) => ({
         id: ct.classes?.id,
         name: ct.classes?.name,
         level: ct.classes?.level,
         isMain: ct.is_main_teacher,
         enrolled: ct.classes?.enrollments?.[0]?.count ?? 0,
-        schedule: ct.classes?.schedules?.[0] ?? null,
       }))
-
       myStudentsCount = myClasses.reduce((s, c) => s + c.enrolled, 0)
-      absencesToday = absToday?.length ?? 0
-      recentAbsences = (recentAbs ?? []) as any[]
+
+      if (myClassIds.length > 0) {
+        const [{ data: slots }, { count: absToday }, { data: recentAbs }] = await Promise.all([
+          // Emploi du temps du JOUR (creneaux recurrents de mes classes).
+          supabase.from('schedule_slots')
+            .select('id, class_id, start_time, end_time, slot_type, effective_from, effective_until, classes:class_id(name)')
+            .in('class_id', myClassIds)
+            .eq('day_of_week', todayDow)
+            .eq('is_active', true)
+            .eq('is_recurring', true)
+            .order('start_time'),
+          supabase.from('absences').select('id', { count: 'exact', head: true })
+            .neq('absence_type', 'retard').eq('absence_date', today).in('class_id', myClassIds),
+          supabase.from('absences').select('id, absence_date, absence_type, students:student_id(id, first_name, last_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
+            .neq('absence_type', 'retard').in('class_id', myClassIds).order('absence_date', { ascending: false }).limit(5),
+        ])
+
+        // Fenetre d'effet filtree cote JS : null = borne ouverte (from <= today <= until).
+        todaySlots = ((slots ?? []) as any[])
+          .filter((s: any) => (!s.effective_from || s.effective_from <= today) && (!s.effective_until || s.effective_until >= today))
+          .map((s: any) => ({
+            id: s.id, classId: s.class_id, className: s.classes?.name,
+            start: s.start_time, end: s.end_time, slotType: s.slot_type,
+          }))
+        absencesToday = absToday ?? 0
+        recentAbsences = (recentAbs ?? []) as any[]
+      }
     }
 
     return (
       <DashboardEnseignant
         {...common}
-        stats={{
-          myClasses,
-          myStudentsCount,
-          absencesToday,
-          recentAbsences,
-        }}
+        stats={{ myClasses, myStudentsCount, absencesToday, recentAbsences, todaySlots }}
       />
     )
   }
@@ -423,7 +391,7 @@ export default async function DashboardPage() {
       supabase.from('parents').select('id', { count: 'exact', head: true }),
       supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', thisMonth),
-      supabase.from('students').select('id, first_name, last_name, student_number, created_at').eq('is_active', true).order('created_at', { ascending: false }).limit(5),
+      supabase.from('students').select('id, first_name, last_name, student_number, created_at').eq('is_active', true).order('created_at', { ascending: false }).limit(6),
     ])
 
     return (
@@ -441,10 +409,8 @@ export default async function DashboardPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  //  PARENT
+  //  PARENT (dormant en V1) ou fallback
   // ══════════════════════════════════════════════════════════════════════
-  // role === 'parent' ou fallback
-
   let children: any[] = []
   let childGrades: any[] = []
   let childAbsences: any[] = []
@@ -458,9 +424,7 @@ export default async function DashboardPage() {
       { data: fee },
     ] = await Promise.all([
       supabase.from('students').select('id, first_name, last_name, gender, photo_url, enrollments:enrollments(class_id, classes:class_id(name))').eq('parent_id', parentLink.id).eq('is_active', true),
-      // Jointure directe : grades → students → parent_id (plus besoin de requête séparée pour les IDs)
       supabase.from('grades').select('id, score, evaluations:evaluation_id(title, max_score, evaluation_date), students:student_id(first_name, last_name)').eq('students.parent_id', parentLink.id).order('created_at', { ascending: false }).limit(5),
-      // Idem pour les absences
       supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(first_name, last_name)').neq('absence_type', 'retard').eq('students.parent_id', parentLink.id).order('absence_date', { ascending: false }).limit(5),
       supabase.from('family_fees').select('id, total_due, status').eq('parent_id', parentLink.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
@@ -471,12 +435,11 @@ export default async function DashboardPage() {
     familyFee = fee
   }
 
-  // Devoirs à venir pour les enfants
   let upcomingHomework: any[] = []
   if (children.length > 0) {
     const childClassIds = [...new Set(children.flatMap((c: any) => c.enrollments?.map((e: any) => e.class_id) ?? []))]
     if (childClassIds.length > 0) {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayKey()
       const { data: hw } = await supabase
         .from('homework')
         .select('id, title, homework_type, due_date, subject, classes:class_id(name)')

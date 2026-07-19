@@ -6,7 +6,7 @@ import { clsx } from 'clsx'
 import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import PushSubscribeButton from './PushSubscribeButton'
-import { SearchField } from '@/components/ui/FloatFields'
+import { SearchField, FloatSelect } from '@/components/ui/FloatFields'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,14 +49,16 @@ interface Props {
   notifications: NotifRow[]
   role: string
   parentId?: string
+  /** Annee en cours : nomme le ciblage « Parents {annee} » (aligne sur l'historique). */
+  yearLabel: string | null
 }
 
 const ANNOUNCEMENT_TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
-  all_active:     { label: 'Tous (actifs)',   icon: Users,     color: 'bg-blue-100 text-blue-700' },
-  all_registered: { label: 'Tous (base)',     icon: Globe,     color: 'bg-purple-100 text-purple-700' },
-  class:          { label: 'Classe',          icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
-  selected:       { label: 'Sélection',       icon: UserCheck, color: 'bg-green-100 text-green-700' },
-  staff:          { label: 'Staff interne',   icon: Users,     color: 'bg-warm-100 text-warm-700' },
+  all_active:     { label: 'Parents (élèves inscrits)', icon: Users,     color: 'bg-blue-100 text-blue-700' },
+  all_registered: { label: 'Tous les contacts',        icon: Globe,     color: 'bg-purple-100 text-purple-700' },
+  class:          { label: "Parents d'une classe",     icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
+  selected:       { label: 'Parents choisis',          icon: UserCheck, color: 'bg-green-100 text-green-700' },
+  staff:          { label: 'Staff interne',            icon: Users,     color: 'bg-warm-100 text-warm-700' },
 }
 
 const AUTO_TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
@@ -78,10 +80,11 @@ function stripHtml(html: string): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function NotificationsClient({ notifications, role, parentId }: Props) {
+export default function NotificationsClient({ notifications, role, parentId, yearLabel }: Props) {
   const [search, setSearch] = useState('')
-  const [filterRead, setFilterRead] = useState<'' | 'unread' | 'read'>('')
-  const [filterType, setFilterType] = useState<string>('')
+  // Valeur « all » non vide : sinon le label flottant du FloatSelect chevauche l'option.
+  const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all')
+  const [filterType, setFilterType] = useState<string>('all')
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
   const filtered = useMemo(() => {
@@ -99,7 +102,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
     }
     if (filterRead === 'unread') list = list.filter(n => !n.is_read && !readIds.has(n.id))
     if (filterRead === 'read') list = list.filter(n => n.is_read || readIds.has(n.id))
-    if (filterType) {
+    if (filterType && filterType !== 'all') {
       list = list.filter(n => {
         if (n.source === 'auto') return n.type === filterType
         return filterType === 'announcement'
@@ -147,33 +150,40 @@ export default function NotificationsClient({ notifications, role, parentId }: P
 
       {/* Filtres */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <select
+        <FloatSelect
+          label="Statut"
+          compact
+          aria-label="Filtrer par statut de lecture"
+          wrapperClassName="w-40"
           value={filterRead}
           onChange={e => setFilterRead(e.target.value as any)}
-          className="border border-warm-300 rounded-lg text-sm px-3 py-2 bg-white text-warm-700 focus:outline-none focus:ring-2 focus:ring-primary-400/20 focus:border-primary-400 transition-all"
         >
-          <option value="">Toutes</option>
+          <option value="all">Toutes</option>
           <option value="unread">Non lues</option>
           <option value="read">Lues</option>
-        </select>
+        </FloatSelect>
         {isParent && (
-          <select
+          <FloatSelect
+            label="Type"
+            compact
+            aria-label="Filtrer par type de notification"
+            wrapperClassName="w-44"
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            className="border border-warm-300 rounded-lg text-sm px-3 py-2 bg-white text-warm-700 focus:outline-none focus:ring-2 focus:ring-primary-400/20 focus:border-primary-400 transition-all"
           >
-            <option value="">Tous types</option>
+            <option value="all">Tous types</option>
             <option value="absence">Absences</option>
             <option value="retard">Retards</option>
             <option value="payment">Paiements</option>
             <option value="announcement">Annonces</option>
             <option value="homework">Devoirs</option>
-          </select>
+          </FloatSelect>
         )}
         <SearchField
           value={search}
           onChange={setSearch}
           placeholder="Rechercher…"
+          ariaLabel="Rechercher une notification"
           className="max-w-xs"
         />
       </div>
@@ -204,9 +214,9 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                 >
                   <div className="mt-1 flex-shrink-0">
                     {isRead ? (
-                      <Eye size={16} className="text-warm-700" />
+                      <Eye size={16} className="text-warm-700" aria-label="Lu" />
                     ) : (
-                      <EyeOff size={16} className="text-primary-500" />
+                      <EyeOff size={16} className="text-primary-500" aria-label="Non lu" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -236,6 +246,10 @@ export default function NotificationsClient({ notifications, role, parentId }: P
             if (!ann) return null
             const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '·', icon: Mail, color: 'bg-warm-100 text-warm-700' }
             const TypeIcon = typeInfo.icon
+            // « Parents {annee} » si une annee est en cours (aligne sur l'historique).
+            const typeText = ann.announcement_type === 'all_active' && yearLabel
+              ? `Parents ${yearLabel}`
+              : typeInfo.label
             const preview = stripHtml(ann.body_html ?? ann.content ?? '').slice(0, 120)
 
             return (
@@ -250,9 +264,9 @@ export default function NotificationsClient({ notifications, role, parentId }: P
               >
                 <div className="mt-1 flex-shrink-0">
                   {isRead ? (
-                    <Eye size={16} className="text-warm-700" />
+                    <Eye size={16} className="text-warm-700" aria-label="Lu" />
                   ) : (
-                    <EyeOff size={16} className="text-primary-500" />
+                    <EyeOff size={16} className="text-primary-500" aria-label="Non lu" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -265,7 +279,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                     </h3>
                     <span className={clsx('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0', typeInfo.color)}>
                       <TypeIcon size={9} />
-                      {typeInfo.label}
+                      {typeText}
                     </span>
                   </div>
                   {preview && (
@@ -274,7 +288,7 @@ export default function NotificationsClient({ notifications, role, parentId }: P
                   <div className="flex items-center gap-3 mt-1 text-[11px] text-warm-700">
                     <span>{formatDate(ann.sent_at ?? ann.published_at)}</span>
                     {ann.profiles && (
-                      <span>de {ann.profiles.first_name} {ann.profiles.last_name}</span>
+                      <span>de {ann.profiles.last_name} {ann.profiles.first_name}</span>
                     )}
                   </div>
                 </div>

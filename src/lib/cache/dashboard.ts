@@ -73,7 +73,7 @@ export const getCachedAdminStats = unstable_cache(
       absencesUnjustified,
       announcementsMonth,
     ] = await Promise.all([
-      supabase.from('students').select('*', { count: 'exact', head: true }).eq('status', 'active').eq('etablissement_id', etablissementId),
+      supabase.from('students').select('*', { count: 'exact', head: true }).eq('is_active', true).eq('etablissement_id', etablissementId),
       supabase.from('students').select('*', { count: 'exact', head: true }).eq('etablissement_id', etablissementId),
       supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true).eq('etablissement_id', etablissementId),
       supabase.from('classes').select('*', { count: 'exact', head: true }).eq('etablissement_id', etablissementId),

@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { clsx } from 'clsx'
 import { Bell, BellOff } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 
 export default function PushSubscribeButton() {
   const [supported, setSupported] = useState(false)
@@ -77,19 +79,24 @@ export default function PushSubscribeButton() {
   }
 
   return (
-    <button
-      onClick={handleToggle}
-      disabled={loading}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-        subscribed
-          ? 'bg-success-100 text-success-700 hover:bg-success-200'
-          : 'bg-primary-100 text-primary-700 hover:bg-primary-200'
-      }`}
-      title={subscribed ? 'Désactiver les notifications push' : 'Activer les notifications push'}
-    >
-      {subscribed ? <Bell size={14} /> : <BellOff size={14} />}
-      {loading ? '...' : subscribed ? 'Notifications activées' : 'Activer les notifications'}
-    </button>
+    <Tooltip content={subscribed ? 'Désactiver les notifications push' : 'Activer les notifications push'}>
+      <button
+        onClick={handleToggle}
+        disabled={loading}
+        aria-pressed={subscribed}
+        aria-label={subscribed ? 'Désactiver les notifications push' : 'Activer les notifications push'}
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors outline-none',
+          'focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50',
+          subscribed
+            ? 'bg-primary-100 text-primary-700 hover:bg-primary-200'
+            : 'bg-warm-100 text-warm-700 hover:bg-warm-200',
+        )}
+      >
+        {subscribed ? <Bell size={14} /> : <BellOff size={14} />}
+        {loading ? '...' : subscribed ? 'Notifications activées' : 'Activer les notifications'}
+      </button>
+    </Tooltip>
   )
 }
 

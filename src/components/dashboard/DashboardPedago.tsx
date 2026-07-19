@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { BookOpen, ClipboardList, FileText, Award } from 'lucide-react'
+import { BookOpen, ClipboardList, Award } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import StatCard from './StatCard'
 
@@ -19,67 +19,81 @@ interface Props {
     evalsCount: number
     bulletinsCount: number
     recentEvals: { id: string; title: string; evaluation_date: string | null; classes: { name: string } | null }[]
+    evalsWithoutGrades: { id: string; title: string; classes: { name: string } | null }[]
   }
 }
 
+const RACCOURCIS = [
+  { href: '/dashboard/evaluations', label: 'Évaluations' },
+  { href: '/dashboard/grades', label: 'Saisie des notes' },
+  { href: '/dashboard/bulletins', label: 'Bulletins' },
+  { href: '/dashboard/cours', label: 'Référentiel cours' },
+]
+
 export default function DashboardPedago({ stats, ...headerProps }: Props) {
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <DashboardHeader {...headerProps} />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <StatCard title="Classes" value={stats.classesCount} icon={BookOpen} iconBg="bg-success-100" iconColor="text-success-600" accentBar="bg-success-500" />
-        <StatCard title="Évaluations créées" value={stats.evalsCount} icon={ClipboardList} iconBg="bg-blue-100" iconColor="text-blue-600" accentBar="bg-blue-500" />
-        <StatCard title="Bulletins archivés" value={stats.bulletinsCount} icon={Award} iconBg="bg-amber-100" iconColor="text-amber-600" accentBar="bg-amber-500" />
+      {/* Raccourcis */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {RACCOURCIS.map(r => (
+          <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
+        ))}
       </div>
 
-      {/* Evaluations recentes */}
-      <div className="card space-y-3">
+      {/* KPIs (bornes a l'annee en cours) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <StatCard title="Classes" value={stats.classesCount} icon={BookOpen} tone="amber" />
+        <StatCard title={`Évaluations · ${headerProps.yearLabel}`} value={stats.evalsCount} icon={ClipboardList} tone="ardoise" />
+        <StatCard title={`Bulletins · ${headerProps.yearLabel}`} value={stats.bulletinsCount} subtitle="archivés" icon={Award} tone="orange" />
+      </div>
+
+      {/* A finaliser : evals de la periode en cours sans note */}
+      <section className="card p-3 space-y-2">
+        <div className="flex items-baseline justify-between">
+          <h3 className="stat-label">À finaliser · {headerProps.periodLabel || 'période en cours'}</h3>
+          <Link href="/dashboard/grades" className="text-xs text-primary-600 hover:text-primary-700">Saisir les notes</Link>
+        </div>
+        {stats.evalsWithoutGrades.length === 0 ? (
+          <p className="text-xs text-warm-700 italic py-3 text-center">Toutes les évaluations de la période sont notées.</p>
+        ) : (
+          <div className="space-y-1">
+            {stats.evalsWithoutGrades.map(e => (
+              <div key={e.id} className="flex items-center gap-2 bg-orange-50 rounded-lg px-3 py-1.5 text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0" />
+                <span className="font-medium text-warm-700 truncate flex-1">{e.title}</span>
+                <span className="text-warm-700 flex-shrink-0">{e.classes?.name}</span>
+                <span className="text-orange-700 font-semibold flex-shrink-0">à noter</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Dernieres evaluations */}
+      <section className="card p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-            <ClipboardList size={14} className="text-blue-500" /> Dernières évaluations
-          </h3>
-          <Link href="/dashboard/evaluations" className="text-xs text-primary-600 hover:text-primary-800">Voir tout</Link>
+          <h3 className="stat-label">Dernières évaluations</h3>
+          <Link href="/dashboard/evaluations" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>
         </div>
         {stats.recentEvals.length === 0 ? (
-          <p className="text-xs text-warm-700 italic py-4 text-center">Aucune évaluation récente</p>
+          <p className="text-xs text-warm-700 italic py-4 text-center">Aucune évaluation récente.</p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {stats.recentEvals.map(e => (
               <div key={e.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
                 <span className="font-medium text-warm-700 truncate flex-1">{e.title}</span>
                 <span className="text-warm-700 flex-shrink-0">{e.classes?.name}</span>
                 {e.evaluation_date && (
-                  <span className="text-warm-700 flex-shrink-0">
-                    {new Date(e.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
-                  </span>
+                  <span className="text-warm-700 flex-shrink-0 tabular-nums">{new Date(e.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Raccourcis */}
-      <div className="card space-y-3">
-        <h3 className="text-sm font-bold text-secondary-800">Raccourcis</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Link href="/dashboard/evaluations" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
-            <ClipboardList size={14} /> Évaluations
-          </Link>
-          <Link href="/dashboard/grades" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
-            <FileText size={14} /> Saisie notes
-          </Link>
-          <Link href="/dashboard/bulletins" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
-            <Award size={14} /> Bulletins
-          </Link>
-          <Link href="/dashboard/cours" className="btn-secondary text-xs py-2 flex items-center justify-center gap-1.5">
-            <BookOpen size={14} /> Ref. cours
-          </Link>
-        </div>
-      </div>
+      </section>
     </div>
   )
 }

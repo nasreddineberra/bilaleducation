@@ -1,8 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { clsx } from 'clsx'
-import { ArrowLeft, Paperclip, Mail, Users, UserCheck, Globe } from 'lucide-react'
+import { Paperclip } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,20 +21,23 @@ type MessageRow = {
 
 type Attachment = {
   id: string
-  file_url: string
   file_name: string
   file_size: number | null
+  /** URL signee generee a la consultation (bucket prive). Null si illisible. */
+  url: string | null
 }
 
 interface Props {
   message: MessageRow
   attachments: Attachment[]
+  /** Annee en cours : nomme le ciblage « Parents {annee} » (aligne sur l'historique). */
+  yearLabel: string | null
 }
 
 const TYPE_LABELS: Record<string, string> = {
-  all_active: 'Tous les parents (actifs)',
-  all_registered: 'Tous les parents (base)',
-  class: 'Parents d\'une classe',
+  all_active: 'Parents (élèves inscrits)',
+  all_registered: 'Tous les contacts',
+  class: "Parents d'une classe",
   selected: 'Parents choisis',
   staff: 'Staff interne',
 }
@@ -47,17 +49,14 @@ function formatDate(d: string | null): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function NotificationDetailClient({ message, attachments }: Props) {
+export default function NotificationDetailClient({ message, attachments, yearLabel }: Props) {
+  // « Parents {annee} » si une annee est en cours, sinon repli (aligne sur l'historique).
+  const typeLabel = message.announcement_type === 'all_active'
+    ? (yearLabel ? `Parents ${yearLabel}` : TYPE_LABELS.all_active)
+    : (TYPE_LABELS[message.announcement_type ?? ''] ?? message.announcement_type)
+
   return (
     <div className="space-y-5">
-
-      {/* Retour */}
-      <Link
-        href="/dashboard/notifications"
-        className="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-800 transition-colors"
-      >
-        <ArrowLeft size={14} /> Retour aux notifications
-      </Link>
 
       {/* Titre */}
       <div className="card p-4">
@@ -66,11 +65,11 @@ export default function NotificationDetailClient({ message, attachments }: Props
           <span>{formatDate(message.sent_at ?? message.published_at)}</span>
           {message.profiles && (
             <span>
-              de <span className="font-medium text-warm-700">{message.profiles.first_name} {message.profiles.last_name}</span>
+              de <span className="font-medium text-warm-700">{message.profiles.last_name} {message.profiles.first_name}</span>
             </span>
           )}
           <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warm-100 text-warm-700">
-            {TYPE_LABELS[message.announcement_type ?? ''] ?? message.announcement_type}
+            {typeLabel}
           </span>
           <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-600">
             {message.channel === 'both' ? 'Email + Notification' : message.channel === 'notification' ? 'Notification' : 'Email'}
@@ -89,15 +88,19 @@ export default function NotificationDetailClient({ message, attachments }: Props
       {/* Pieces jointes */}
       {attachments.length > 0 && (
         <div className="card p-4 space-y-2">
-          <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Pieces jointes</h3>
+          <h3 className="stat-label">Pièces jointes</h3>
           <div className="space-y-1">
             {attachments.map(a => (
               <a
                 key={a.id}
-                href={a.file_url}
+                href={a.url ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs hover:bg-warm-100 transition-colors"
+                aria-disabled={!a.url}
+                className={clsx(
+                  'flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs transition-colors',
+                  a.url ? 'hover:bg-warm-100' : 'opacity-50 pointer-events-none',
+                )}
               >
                 <Paperclip size={12} className="text-warm-700" />
                 <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>

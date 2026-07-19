@@ -18,6 +18,14 @@ export default async function NotificationsPage() {
 
   const role = profile?.role ?? 'enseignant'
 
+  // Annee en cours : nomme le ciblage « Parents {annee} » (aligne sur l'historique).
+  const { data: currentYear } = await supabase
+    .from('school_years')
+    .select('label')
+    .eq('etablissement_id', etablissementId)
+    .eq('is_current', true)
+    .maybeSingle()
+
   // Notifications staff (le user est destinataire). Les messages « email seul »
   // (channel = 'email') ne s'affichent pas dans la cloche : jointure inner +
   // filtre sur le canal.
@@ -80,7 +88,7 @@ export default async function NotificationsPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <NotificationsClient notifications={allNotifs} role={role} parentId={parentLink?.id} />
+      <NotificationsClient notifications={allNotifs} role={role} parentId={parentLink?.id} yearLabel={currentYear?.label ?? null} />
     </div>
   )
 }
