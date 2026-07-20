@@ -96,10 +96,13 @@ type FormData = {
 interface ParentFormProps {
   parent?: Parent
   onClose?: () => void
+  /** Tuteur inscrit a une classe adulte → case « Inscrit aux cours adultes » grisee. */
+  tutor1AdultEnrolled?: boolean
+  tutor2AdultEnrolled?: boolean
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function ParentForm({ parent, onClose }: ParentFormProps) {
+export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = false, tutor2AdultEnrolled = false }: ParentFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!parent
@@ -431,6 +434,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
               variant="compact"
               label="Inscrit aux cours adultes"
               checked={form.tutor1_adult_courses}
+              disabled={tutor1AdultEnrolled}
               onChange={val => setForm(prev => ({ ...prev, tutor1_adult_courses: val }))}
             />
           </div>
@@ -533,6 +537,7 @@ export default function ParentForm({ parent, onClose }: ParentFormProps) {
                   variant="compact"
                   label="Inscrit aux cours adultes"
                   checked={form.tutor2_adult_courses}
+                  disabled={tutor2AdultEnrolled}
                   onChange={val => setForm(prev => ({ ...prev, tutor2_adult_courses: val }))}
                 />
               </>

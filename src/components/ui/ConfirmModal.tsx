@@ -13,6 +13,8 @@ export interface ConfirmModalProps {
   cancelLabel?:   string
   variant?:       'danger' | 'warning'
   confirmColor?:  'red' | 'amber'
+  /** Surcharge la couleur du bouton Confirmer (defaut : danger si destructif, sinon edit/amber). */
+  confirmVariant?: 'submit' | 'edit' | 'danger' | 'secondary' | 'print'
   confirmDisabled?: boolean
   onConfirm:      () => void
   onCancel:       () => void
@@ -20,7 +22,7 @@ export interface ConfirmModalProps {
 
 export default function ConfirmModal({
   open = true, message, children, title, confirmLabel = 'Confirmer', cancelLabel = 'Annuler',
-  variant, confirmColor, confirmDisabled = false, onConfirm, onCancel,
+  variant, confirmColor, confirmVariant, confirmDisabled = false, onConfirm, onCancel,
 }: ConfirmModalProps) {
   // Fermer sur Escape
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function ConfirmModal({
             {cancelLabel}
           </FloatButton>
           <FloatButton
-            variant={isDanger ? 'danger' : 'edit'}
+            variant={confirmVariant ?? (isDanger ? 'danger' : 'edit')}
             type="button"
             onClick={() => { onConfirm() }}
             disabled={confirmDisabled}

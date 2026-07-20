@@ -254,9 +254,12 @@ export default function GradesClient({
 
   // ── Complétion par évaluation ────────────────────────────────────────────────
   const getCompletion = useCallback((evalId: string) => {
+    // Restreint aux participants ACTUELS : une note orpheline (participant plus
+    // inscrit) ne doit pas gonfler le compteur (bug « 13/2 »).
+    const keys   = new Set(classStudents.map(s => s.student_id))
     const total  = classStudents.length
     const graded = gradesList.filter(g =>
-      g.evaluation_id === evalId && (g.score !== null || g.comment !== null || g.is_absent)
+      g.evaluation_id === evalId && keys.has(g.student_id) && (g.score !== null || g.comment !== null || g.is_absent)
     ).length
     return { total, graded }
   }, [gradesList, classStudents])

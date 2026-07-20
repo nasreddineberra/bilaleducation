@@ -37,7 +37,7 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed z-[9999] pointer-events-none"
+          className="fixed z-[10050] pointer-events-none"
           style={{
             top:       pos.top,
             left:      pos.left,

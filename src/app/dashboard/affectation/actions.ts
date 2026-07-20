@@ -29,6 +29,25 @@ export async function saveStudentEnrollments(
   }
 
   if (toRemove.length > 0) {
+    // Garde : on ne retire pas un eleve tant qu'il reste des donnees sur le duo
+    // eleve/classe (notes, absences, appreciations, bulletins). Message nomme.
+    const blocked = new Set<string>()
+    const { data: evals } = await supabase.from('evaluations').select('id').eq('class_id', classId)
+    const evalIds = (evals ?? []).map((e: any) => e.id)
+    if (evalIds.length > 0) {
+      const { data } = await supabase.from('grades').select('student_id').in('student_id', toRemove).in('evaluation_id', evalIds)
+      for (const r of (data ?? []) as any[]) blocked.add(r.student_id)
+    }
+    for (const tbl of ['absences', 'bulletin_appreciations', 'bulletin_archives']) {
+      const { data } = await supabase.from(tbl).select('student_id').eq('class_id', classId).in('student_id', toRemove)
+      for (const r of (data ?? []) as any[]) blocked.add(r.student_id)
+    }
+    if (blocked.size > 0) {
+      const { data: st } = await supabase.from('students').select('last_name, first_name').in('id', [...blocked])
+      const names = (st ?? []).map((s: any) => `${s.last_name} ${s.first_name}`).join(', ')
+      return { error: `Impossible de retirer : ${names}. Des notes, absences ou bulletins existent pour cette classe — supprimez-les d'abord.` }
+    }
+
     const { error } = await supabase
       .from('enrollments')
       .delete()
@@ -70,6 +89,33 @@ export async function saveParentEnrollments(
   const today = new Date().toISOString().slice(0, 10)
 
   if (toRemove.length > 0) {
+    // Garde : idem adultes — pas de retrait tant qu'il reste des donnees sur le duo.
+    const removeSet = new Set(toRemove)
+    const parentIds = [...new Set(toRemove.map(id => parseTutorId(id).parent_id))]
+    const blocked = new Set<string>() // cles composites `parent-tutor`
+    const { data: evals } = await supabase.from('evaluations').select('id').eq('class_id', classId)
+    const evalIds = (evals ?? []).map((e: any) => e.id)
+    if (evalIds.length > 0) {
+      const { data } = await supabase.from('adult_grades').select('parent_id, tutor_number').in('parent_id', parentIds).in('evaluation_id', evalIds)
+      for (const r of (data ?? []) as any[]) { const k = `${r.parent_id}-${r.tutor_number}`; if (removeSet.has(k)) blocked.add(k) }
+    }
+    for (const tbl of ['adult_bulletin_appreciations', 'adult_bulletin_archives']) {
+      const { data } = await supabase.from(tbl).select('parent_id, tutor_number').eq('class_id', classId).in('parent_id', parentIds)
+      for (const r of (data ?? []) as any[]) { const k = `${r.parent_id}-${r.tutor_number}`; if (removeSet.has(k)) blocked.add(k) }
+    }
+    if (blocked.size > 0) {
+      const bParentIds = [...new Set([...blocked].map(k => parseTutorId(k).parent_id))]
+      const { data: ps } = await supabase.from('parents').select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name').in('id', bParentIds)
+      const pmap = new Map((ps ?? []).map((p: any) => [p.id, p]))
+      const names = [...blocked].map(k => {
+        const { parent_id, tutor_number } = parseTutorId(k)
+        const p: any = pmap.get(parent_id)
+        if (!p) return k
+        return tutor_number === 2 ? `${p.tutor2_last_name} ${p.tutor2_first_name}` : `${p.tutor1_last_name} ${p.tutor1_first_name}`
+      }).join(', ')
+      return { error: `Impossible de retirer : ${names}. Des notes ou bulletins existent pour cette classe — supprimez-les d'abord.` }
+    }
+
     for (const id of toRemove) {
       const { parent_id, tutor_number } = parseTutorId(id)
       const { error } = await supabase

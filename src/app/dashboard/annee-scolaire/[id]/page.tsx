@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
 import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
+import ClotureClient from '@/components/annee-scolaire/ClotureClient'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -103,6 +104,38 @@ export default async function EditAnneeScolairePage({ params }: Props) {
     }
   }
 
+  // Cloture d'annee : affichee en colonne droite pour l'annee EN COURS (admin/direction).
+  let closure: any = null
+  let closureSteps: any[] = []
+  const showClosure = isAdminDir && !!schoolYear.is_current
+  if (showClosure) {
+    const { data: c } = await supabase
+      .from('year_closure').select('*').eq('school_year_id', schoolYear.id).maybeSingle()
+    closure = c
+    if (c) {
+      const { data: s } = await supabase
+        .from('year_closure_steps').select('*').eq('closure_id', c.id).order('order_index')
+      closureSteps = s ?? []
+    }
+  }
+
+  const formEl = (
+    <SchoolYearForm
+      schoolYear={schoolYear}
+      weekStartDay={etablissement?.week_start_day ?? 1}
+      gradedEvalTypes={gradedEvalTypes}
+      usedEvalTypes={usedEvalTypes}
+      anotherYearIsCurrent={anotherYearIsCurrent}
+      currentPeriodSlot={
+        <CurrentPeriodCard
+          schoolYearId={schoolYear.id}
+          periods={schoolYear.periods ?? []}
+          canEdit={canEditPeriod}
+        />
+      }
+    />
+  )
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -114,20 +147,16 @@ export default async function EditAnneeScolairePage({ params }: Props) {
         Retour à la liste
       </Link>
 
-      <SchoolYearForm
-        schoolYear={schoolYear}
-        weekStartDay={etablissement?.week_start_day ?? 1}
-        gradedEvalTypes={gradedEvalTypes}
-        usedEvalTypes={usedEvalTypes}
-        anotherYearIsCurrent={anotherYearIsCurrent}
-        currentPeriodSlot={
-          <CurrentPeriodCard
-            schoolYearId={schoolYear.id}
-            periods={schoolYear.periods ?? []}
-            canEdit={canEditPeriod}
-          />
-        }
-      />
+      {showClosure ? (
+        <div className="flex flex-col xl:flex-row gap-6 items-start">
+          <div className="w-full xl:w-auto xl:flex-shrink-0">{formEl}</div>
+          <div className="w-full xl:flex-1 xl:min-w-0">
+            <ClotureClient yearLabel={schoolYear.label} closure={closure} steps={closureSteps} />
+          </div>
+        </div>
+      ) : (
+        formEl
+      )}
 
     </div>
   )

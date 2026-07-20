@@ -221,6 +221,27 @@ export async function updateParentRecord(
   const rawPayload = payload as Record<string, unknown>
   const cleanPayload = sanitizeParentPayload(rawPayload) as UpdateParentPayload
 
+  // Garde : on ne peut pas DÉCOCHER « Inscrit aux cours adultes » d'un tuteur
+  // encore inscrit a une classe adulte (retirer d'abord de la classe → qui a
+  // elle-meme sa propre garde notes/bulletins). Coherence flag ↔ inscription.
+  if (cleanPayload.tutor1_adult_courses === false || cleanPayload.tutor2_adult_courses === false) {
+    const { data: current } = await supabase
+      .from('parents').select('tutor1_adult_courses, tutor2_adult_courses').eq('id', parentId).single()
+    const check: number[] = []
+    if (current?.tutor1_adult_courses && cleanPayload.tutor1_adult_courses === false) check.push(1)
+    if (current?.tutor2_adult_courses && cleanPayload.tutor2_adult_courses === false) check.push(2)
+    if (check.length > 0) {
+      const { data: enr } = await supabase
+        .from('parent_class_enrollments')
+        .select('tutor_number, classes!inner(cotisation_types:cotisation_type_id(is_adult))')
+        .eq('parent_id', parentId).eq('status', 'active').in('tutor_number', check)
+      const stillEnrolled = (enr ?? []).some((r: any) => r.classes?.cotisation_types?.is_adult)
+      if (stillEnrolled) {
+        return { error: 'Ce tuteur est inscrit à un cours adulte. Retirez-le d’abord de la classe avant de décocher « Inscrit aux cours adultes ».' }
+      }
+    }
+  }
+
   const { error } = await supabase
     .from('parents')
     .update(cleanPayload)

@@ -20,6 +20,16 @@ export default async function EditParentPage({ params }: Props) {
 
   if (!parent) notFound()
 
+  // Tuteurs inscrits a une classe adulte → la case « Inscrit aux cours adultes »
+  // est grisee (on ne peut pas la decocher tant qu'inscrit).
+  const { data: adultEnr } = await supabase
+    .from('parent_class_enrollments')
+    .select('tutor_number, classes!inner(cotisation_types:cotisation_type_id(is_adult))')
+    .eq('parent_id', id).eq('status', 'active')
+  const enrolledTutors = new Set(
+    (adultEnr ?? []).filter((r: any) => r.classes?.cotisation_types?.is_adult).map((r: any) => r.tutor_number)
+  )
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -31,7 +41,11 @@ export default async function EditParentPage({ params }: Props) {
         Retour à la liste
       </Link>
 
-      <ParentForm parent={parent} />
+      <ParentForm
+        parent={parent}
+        tutor1AdultEnrolled={enrolledTutors.has(1)}
+        tutor2AdultEnrolled={enrolledTutors.has(2)}
+      />
 
     </div>
   )
