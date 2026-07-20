@@ -217,7 +217,7 @@ export default function ClotureClient({ yearLabel, closure, steps }: Props) {
                   {isClosed ? (
                     <FloatButton type="button" variant="secondary" loading={busy === def.key} disabled={busy !== null}
                       onClick={() => run(def.key, () => reopenStep(closure.id, def.key))} className="!py-1.5 text-xs">
-                      Rouvrir
+                      Réinitialiser
                     </FloatButton>
                   ) : closeReason ? (
                     <Tooltip content={closeReason}>
