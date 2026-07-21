@@ -10,7 +10,7 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
-import { startClosure, closeStep, reopenStep, runAudit } from '@/app/dashboard/annee-scolaire/cloture/actions'
+import { startClosure, closeStep, reopenStep, runAudit, archiveYear } from '@/app/dashboard/annee-scolaire/cloture/actions'
 
 interface StepRow {
   id: string
@@ -23,8 +23,12 @@ interface StepRow {
 
 interface Props {
   yearLabel: string | null
-  closure: { id: string; status: 'in_progress' | 'closed' } | null
+  closure: { id: string; status: 'in_progress' | 'closed'; archived_at: string | null } | null
   steps: StepRow[]
+}
+
+function fmtDateTime(d: string): string {
+  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 export default function ClotureClient({ yearLabel, closure, steps }: Props) {
@@ -33,6 +37,7 @@ export default function ClotureClient({ yearLabel, closure, steps }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [confirmStart, setConfirmStart] = useState(false)
   const [openDetail, setOpenDetail] = useState<string | null>(null) // détail affiché en modale (fermeture par X uniquement)
+  const [confirmArchive, setConfirmArchive] = useState(false)
 
   const run = async (key: string, fn: () => Promise<{ error?: string }>) => {
     setBusy(key); setError(null)
@@ -236,17 +241,50 @@ export default function ClotureClient({ yearLabel, closure, steps }: Props) {
         })}
       </ol>
 
-      {/* Fin : prêt à archiver (Phase 3) */}
+      {/* Fin : archivage (Phase 3) */}
       {allClosed && (
-        <div className="card p-4 flex items-center justify-between border-primary-200 bg-primary-50/40">
-          <div>
-            <h3 className="text-sm font-bold text-secondary-800">Toutes les étapes sont clôturées</h3>
-            <p className="text-xs text-warm-700 mt-0.5">L’archivage des données (Phase 3) sera disponible ici.</p>
+        closure.archived_at ? (
+          <div className="card p-4 border-primary-200 bg-primary-50/40">
+            <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
+              <CheckCircle2 size={16} className="text-primary-600" /> Année archivée
+            </h3>
+            <p className="text-xs text-warm-700 mt-0.5">
+              Archivé le {fmtDateTime(closure.archived_at)}. Les données des participants et des foyers sont conservées pour l’historique.
+            </p>
+            <FloatButton type="button" variant="secondary" loading={busy === 'archive'} disabled={busy !== null}
+              onClick={() => setConfirmArchive(true)} className="!py-1.5 text-xs mt-2">
+              Régénérer l’archive
+            </FloatButton>
           </div>
-          <Tooltip content="Archivage disponible en Phase 3.">
-            <span><FloatButton type="button" variant="submit" disabled>Archiver l’année</FloatButton></span>
-          </Tooltip>
-        </div>
+        ) : (
+          <div className="card p-4 flex items-center justify-between border-primary-200 bg-primary-50/40">
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-secondary-800">Toutes les étapes sont clôturées</h3>
+              <p className="text-xs text-warm-700 mt-0.5">Générez l’archive (participants + foyers) pour l’historique année après année.</p>
+            </div>
+            <FloatButton type="button" variant="submit" loading={busy === 'archive'} disabled={busy !== null}
+              onClick={() => setConfirmArchive(true)}>
+              Archiver l’année
+            </FloatButton>
+          </div>
+        )
+      )}
+
+      {/* Confirmation d'archivage */}
+      {confirmArchive && (
+        <ConfirmModal
+          title={`Archiver l’année ${yearLabel} ?`}
+          confirmLabel="Archiver"
+          cancelLabel="Annuler"
+          confirmVariant="submit"
+          onCancel={() => setConfirmArchive(false)}
+          onConfirm={() => { setConfirmArchive(false); run('archive', () => archiveYear(closure.id)) }}
+        >
+          <div className="space-y-2 text-left text-xs text-warm-700">
+            <p>Génère un instantané des données de l’année : <strong>historique par participant</strong> (classe, moyenne, absences, bulletins, situation financière) et <strong>historique financier par foyer</strong> (détail des règlements).</p>
+            <p>Opération <strong>idempotente</strong> : relancer régénère l’archive sans doublon.</p>
+          </div>
+        </ConfirmModal>
       )}
 
       {/* Modale de détail des anomalies (portée dans <body> pour éviter d'allonger la page) */}

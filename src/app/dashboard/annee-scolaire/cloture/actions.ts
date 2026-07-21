@@ -7,6 +7,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
 import { runAuditFor, type YearCtx, type AuditResult } from '@/lib/closure/audits'
+import { generateArchive } from '@/lib/closure/archive'
 
 // Contexte annee (pour les audits) — partage par runAudit et closeStep.
 async function getYearCtx(supabase: any, etablissementId: string): Promise<YearCtx | null> {
@@ -194,8 +195,9 @@ export async function reopenStep(closureId: string, stepKey: string): Promise<{ 
     .gte('order_index', target.order_index)
   if (error) return { error: error.message }
 
+  // L'annee repasse en cours ET l'archive devient obsolete → archived_at remis a null.
   await supabase.from('year_closure')
-    .update({ status: 'in_progress', closed_by: null, closed_at: null })
+    .update({ status: 'in_progress', closed_by: null, closed_at: null, archived_at: null })
     .eq('id', closureId)
 
   try {
@@ -204,4 +206,54 @@ export async function reopenStep(closureId: string, stepKey: string): Promise<{ 
 
   revalidatePath('/dashboard/annee-scolaire', 'layout')
   return {}
+}
+
+/**
+ * Archive l'annee (Phase 3) : genere les snapshots student_year_history +
+ * family_year_finance (idempotent : delete + insert), pose `archived_at`.
+ * Requiert que la cloture soit `closed` (les 6 etapes clôturees).
+ */
+export async function archiveYear(closureId: string): Promise<{ error?: string; students?: number; families?: number }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+  const h = await headers()
+  const etablissementId = h.get('x-etablissement-id') ?? ''
+
+  const { data: closure } = await supabase
+    .from('year_closure').select('id, status').eq('id', closureId).maybeSingle()
+  if (!closure) return { error: 'Clôture introuvable.' }
+  if (closure.status !== 'closed') return { error: 'Toutes les étapes doivent être clôturées avant d’archiver.' }
+
+  const ctx = await getYearCtx(supabase, etablissementId)
+  if (!ctx) return { error: 'Aucune année scolaire en cours.' }
+
+  const { studentRows, familyRows } = await generateArchive(supabase, ctx)
+
+  // Idempotent : on repart de zero pour cette annee.
+  await supabase.from('student_year_history').delete().eq('school_year_id', ctx.yearId)
+  await supabase.from('family_year_finance').delete().eq('school_year_id', ctx.yearId)
+
+  if (studentRows.length > 0) {
+    const { error } = await supabase.from('student_year_history').insert(studentRows)
+    if (error) return { error: `Archivage participants : ${error.message}` }
+  }
+  if (familyRows.length > 0) {
+    const { error } = await supabase.from('family_year_finance').insert(familyRows)
+    if (error) return { error: `Archivage foyers : ${error.message}` }
+  }
+
+  const now = new Date().toISOString()
+  await supabase.from('year_closure').update({ archived_at: now }).eq('id', closureId)
+
+  try {
+    await logAudit(supabase, {
+      action: 'UPDATE', entityType: 'year_closure', entityId: closureId,
+      description: `Année ${ctx.yearLabel} archivée (${studentRows.length} participant(s), ${familyRows.length} foyer(s))`,
+    })
+  } catch { /* non bloquant */ }
+
+  revalidatePath('/dashboard/annee-scolaire', 'layout')
+  return { students: studentRows.length, families: familyRows.length }
 }
