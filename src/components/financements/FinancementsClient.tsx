@@ -70,6 +70,8 @@ interface Props {
   familyFees: any[]
   communications: any[]
   etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null; contact: string | null } | null
+  /** Historique des paiements par foyer (années précédentes : vif si dispo, sinon archive). */
+  familyHistory?: Record<string, { yearLabel: string; totalDue: number; totalPaid: number; remaining: number; status: string; installments: any[] }[]>
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -243,7 +245,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId }: Props & { initialParentId?: string }) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId, familyHistory = {} }: Props & { initialParentId?: string }) {
   const supabase = createClient()
   const toast = useToast()
 
@@ -934,6 +936,41 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </ul>
               )}
             </div>
+
+            {/* Historique des paiements (années précédentes) : vif si dispo, sinon archive */}
+            {(familyHistory[selectedParentId]?.length ?? 0) > 0 && (
+              <div className="card overflow-hidden">
+                <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
+                  <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Historique des paiements</h3>
+                </div>
+                <ul className="divide-y divide-warm-50" aria-label="Historique des paiements des années précédentes">
+                  {familyHistory[selectedParentId].map(y => (
+                    <li key={y.yearLabel} className="px-3 py-2 text-xs space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-secondary-800 tabular-nums">{y.yearLabel}</span>
+                        <span className="tabular-nums">
+                          <span className="text-primary-600 font-semibold">{fmtEur(y.totalPaid)}</span>
+                          <span className="text-warm-700"> / {fmtEur(y.totalDue)}</span>
+                          {y.remaining > 0 && <span className="text-orange-700 font-semibold"> · reste {fmtEur(y.remaining)}</span>}
+                        </span>
+                      </div>
+                      {y.installments?.length > 0 && (
+                        <ul className="pl-2 space-y-0.5">
+                          {y.installments.map((i: any, j: number) => (
+                            <li key={j} className="flex items-center gap-2 text-warm-700">
+                              <span className="tabular-nums w-16 shrink-0">{i.date ? fmtDate(i.date) : '·'}</span>
+                              <span className="tabular-nums font-medium text-secondary-700">{fmtEur(Number(i.montant))}</span>
+                              <span>{i.moyen ? (METHOD_LABELS[i.moyen] ?? i.moyen) : '·'}</span>
+                              {i.reference && <span className="text-warm-700 truncate">· {i.reference}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
           </div>
 

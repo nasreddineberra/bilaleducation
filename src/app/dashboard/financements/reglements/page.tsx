@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import FinancementsClient from '@/components/financements/FinancementsClient'
+import ReglementsShell from '@/components/financements/ReglementsShell'
 import { isFinanceRole } from '@/lib/financements/roles'
+import { feeStatus } from '@/lib/financements/compute'
 import { AlertTriangle } from 'lucide-react'
 
 export default async function FinancementsPage({ searchParams }: { searchParams: Promise<{ parent?: string }> }) {
@@ -139,9 +140,63 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     .select('nom, logo_url, adresse, telephone, contact')
     .single()
 
+  // ── 6c : années PASSÉES ──────────────────────────────────────────────────
+  // Dettes vives (family_fees != année en cours) + archive (family_year_finance).
+  // Règle : on ne paie jamais dans l'archive ; les impayés restent vifs et payables.
+  const [{ data: pastFeesRaw }, { data: archiveFin }] = await Promise.all([
+    supabase.from('family_fees')
+      .select('id, parent_id, school_year_id, total_due, fee_installments(amount_paid, paid_date, payment_method, receipt_number), school_years:school_year_id(label), parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
+      .neq('school_year_id', currentYear.id),
+    supabase.from('family_year_finance').select('parent_id, year_label, total_due, total_paid, remaining, status, installments_json'),
+  ])
+
+  const nom = (p: any) => [p?.tutor1_last_name, p?.tutor1_first_name].filter(Boolean).join(' ')
+    + (p?.tutor2_last_name ? ` / ${[p.tutor2_last_name, p.tutor2_first_name].filter(Boolean).join(' ')}` : '')
+
+  // Dettes vives par foyer+année (source de vérité)
+  type YearEntry = { yearLabel: string; totalDue: number; totalPaid: number; remaining: number; status: string; installments: any[] }
+  const liveByKey = new Map<string, { feeId: string; yearId: string; parentLabel: string } & YearEntry>()
+  const pastDebts: any[] = []
+  for (const f of (pastFeesRaw ?? []) as any[]) {
+    const insts = (f.fee_installments ?? [])
+    const paid = insts.reduce((s: number, i: any) => s + Number(i.amount_paid || 0), 0)
+    const totalDue = Number(f.total_due || 0)
+    const remaining = totalDue - paid
+    const yearLabel = f.school_years?.label ?? '?'
+    const parentLabel = nom(f.parents)
+    const installments = insts.filter((i: any) => Number(i.amount_paid) > 0)
+      .map((i: any) => ({ date: i.paid_date, montant: Number(i.amount_paid), moyen: i.payment_method, reference: i.receipt_number }))
+    liveByKey.set(`${f.parent_id}|${yearLabel}`, { feeId: f.id, yearId: f.school_year_id, parentLabel, yearLabel, totalDue, totalPaid: paid, remaining, status: feeStatus(paid, totalDue), installments })
+    if (remaining > 0) {
+      pastDebts.push({
+        feeId: f.id, parentId: f.parent_id, parentLabel, yearId: f.school_year_id, yearLabel,
+        totalDue, totalPaid: paid, remaining, installmentCount: insts.length,
+      })
+    }
+  }
+  pastDebts.sort((a, b) => (b.yearLabel).localeCompare(a.yearLabel) || b.remaining - a.remaining)
+
+  // Historique par foyer (vif si dispo, sinon archive)
+  const familyHistory: Record<string, YearEntry[]> = {}
+  const pushEntry = (pid: string, e: YearEntry) => { (familyHistory[pid] ??= []).push(e) }
+  const seen = new Set<string>()
+  for (const [key, v] of liveByKey) {
+    const pid = key.split('|')[0]
+    pushEntry(pid, v); seen.add(key)
+  }
+  for (const a of (archiveFin ?? []) as any[]) {
+    const key = `${a.parent_id}|${a.year_label}`
+    if (seen.has(key)) continue // le vif prime
+    pushEntry(a.parent_id, {
+      yearLabel: a.year_label, totalDue: Number(a.total_due || 0), totalPaid: Number(a.total_paid || 0),
+      remaining: Number(a.remaining || 0), status: a.status ?? 'pending', installments: a.installments_json ?? [],
+    })
+  }
+  for (const pid of Object.keys(familyHistory)) familyHistory[pid].sort((x, y) => y.yearLabel.localeCompare(x.yearLabel))
+
   return (
     <div className="h-full animate-fade-in">
-      <FinancementsClient
+      <ReglementsShell
         currentYear={currentYear}
         parents={allParents as any[]}
         adultEnrollments={(adultEnrollments ?? []) as any[]}
@@ -149,6 +204,8 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         communications={(communications ?? []) as any[]}
         etablissement={(etablissement ?? null) as any}
         initialParentId={initialParentId}
+        familyHistory={familyHistory}
+        pastDebts={pastDebts}
       />
     </div>
   )
