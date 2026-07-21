@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import ParentForm from '@/components/parents/ParentForm'
+import ParentDetail from '@/components/parents/ParentDetail'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -30,6 +30,14 @@ export default async function EditParentPage({ params }: Props) {
     (adultEnr ?? []).filter((r: any) => r.classes?.cotisation_types?.is_adult).map((r: any) => r.tutor_number)
   )
 
+  // Historique « scolarité adulte » (snapshots de clôture), plus récent en premier.
+  const { data: adultHistory } = await supabase
+    .from('student_year_history')
+    .select('*')
+    .eq('parent_id', id)
+    .eq('participant_type', 'adult')
+    .order('year_label', { ascending: false })
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -41,10 +49,11 @@ export default async function EditParentPage({ params }: Props) {
         Retour à la liste
       </Link>
 
-      <ParentForm
+      <ParentDetail
         parent={parent}
         tutor1AdultEnrolled={enrolledTutors.has(1)}
         tutor2AdultEnrolled={enrolledTutors.has(2)}
+        adultHistory={(adultHistory ?? []) as any[]}
       />
 
     </div>

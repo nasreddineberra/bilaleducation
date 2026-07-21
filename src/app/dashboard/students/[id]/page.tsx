@@ -139,9 +139,11 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   const currentYearLabel = currentYear?.label ?? ''
 
   // Documents administratifs (onglet Documents)
-  const [{ data: docTypeConfigs }, { data: studentDocs }] = await Promise.all([
+  const [{ data: docTypeConfigs }, { data: studentDocs }, { data: history }] = await Promise.all([
     supabase.from('document_type_configs').select('id, category, doc_key, label, is_required, order_index').order('order_index'),
     supabase.from('student_documents').select('id, doc_type_key, category, file_url, file_name, expires_at, created_at').eq('student_id', id),
+    // Historique archivé (snapshots de clôture d'année), plus récent en premier.
+    supabase.from('student_year_history').select('*').eq('student_id', id).order('year_label', { ascending: false }),
   ])
 
   return (
@@ -173,6 +175,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         studentDocuments={(studentDocs ?? []) as any[]}
         siblings={siblings as any[]}
         currentYearLabel={currentYearLabel}
+        history={(history ?? []) as any[]}
       />
 
     </div>

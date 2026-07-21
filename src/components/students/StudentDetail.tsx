@@ -3,11 +3,12 @@
 import { useState, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
-import { User, GraduationCap, ShieldAlert, FileText } from 'lucide-react'
+import { User, GraduationCap, ShieldAlert, FileText, Clock } from 'lucide-react'
 import StudentForm from './StudentForm'
 import StudentScolarite from './StudentScolarite'
 import StudentDiscipline from './StudentDiscipline'
 import StudentDocuments from './StudentDocuments'
+import StudentHistory from './StudentHistory'
 import type { Student } from '@/types/database'
 
 interface ParentOption {
@@ -48,6 +49,7 @@ interface Props {
   studentDocuments: any[]
   siblings: any[]
   currentYearLabel: string
+  history: any[]
 }
 
 const TABS = [
@@ -55,13 +57,14 @@ const TABS = [
   { key: 'scolarite',  label: 'Scolarité',  icon: GraduationCap },
   { key: 'discipline', label: 'Discipline', icon: ShieldAlert },
   { key: 'documents',  label: 'Documents',  icon: FileText },
+  { key: 'historique', label: 'Historique', icon: Clock },
 ] as const
 
 type TabKey = typeof TABS[number]['key']
 
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
-  enrollments, evaluations, grades, periods, absences, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel,
+  enrollments, evaluations, grades, periods, absences, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel, history,
 }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
@@ -212,6 +215,12 @@ export default function StudentDetail({
             docTypes={docTypeConfigs}
             documents={studentDocuments}
           />
+        </div>
+      )}
+
+      {activeTab === 'historique' && (
+        <div role="tabpanel" id="panel-historique" aria-labelledby="tab-historique">
+          <StudentHistory history={history} />
         </div>
       )}
     </div>
