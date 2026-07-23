@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
 import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
 import ClotureClient from '@/components/annee-scolaire/ClotureClient'
+import PrepareNextYearButton from '@/components/annee-scolaire/PrepareNextYearButton'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -139,13 +140,19 @@ export default async function EditAnneeScolairePage({ params }: Props) {
   return (
     <div className="space-y-6 animate-fade-in">
 
-      <Link
-        href="/dashboard/annee-scolaire"
-        className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
-      >
-        <ChevronLeft size={15} />
-        Retour à la liste
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href="/dashboard/annee-scolaire"
+          className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
+        >
+          <ChevronLeft size={15} />
+          Retour à la liste
+        </Link>
+
+        {isAdminDir && schoolYear.is_current && (
+          <PrepareNextYearButton currentYearId={schoolYear.id} yearLabel={schoolYear.label} />
+        )}
+      </div>
 
       {showClosure ? (
         <div className="flex flex-col xl:flex-row gap-6 items-start">
