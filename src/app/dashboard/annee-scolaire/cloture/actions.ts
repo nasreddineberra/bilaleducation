@@ -172,6 +172,42 @@ export async function closeStep(closureId: string, stepKey: string): Promise<{ e
 }
 
 /**
+ * PURGE (Phase 5, destructif) : supprime les lignes transactionnelles d'une annee
+ * ARCHIVEE et NON courante (foyers soldes uniquement). Confirmation par saisie du
+ * libelle. Appelle la RPC atomique `purge_school_year`. Trace UNE fois.
+ */
+export async function purgeYear(yearId: string, typedLabel: string): Promise<{ error?: string; summary?: any }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  const { data: year } = await supabase
+    .from('school_years').select('id, label, is_current').eq('id', yearId).single()
+  if (!year) return { error: 'Année introuvable.' }
+  if (year.is_current) return { error: 'Impossible de purger l’année en cours. Basculez d’abord sur l’année suivante.' }
+
+  const { data: closure } = await supabase
+    .from('year_closure').select('archived_at, purged_at').eq('school_year_id', yearId).maybeSingle()
+  if (!closure?.archived_at) return { error: 'Année non archivée : purge interdite.' }
+
+  if (typedLabel.trim() !== year.label) return { error: 'Le libellé saisi ne correspond pas à l’année.' }
+
+  const { data, error } = await supabase.rpc('purge_school_year', { p_year_id: yearId })
+  if (error) return { error: error.message }
+
+  try {
+    await logAudit(supabase, {
+      action: 'DELETE', entityType: 'school_years', entityId: yearId,
+      description: `Année ${year.label} purgée (${data?.notes ?? 0} notes, ${data?.absences ?? 0} absences, ${data?.fees_paid ?? 0} foyer(s) soldé(s))`,
+    })
+  } catch { /* non bloquant */ }
+
+  revalidatePath('/dashboard/annee-scolaire', 'layout')
+  return { summary: data }
+}
+
+/**
  * Rouvre une etape ET reverrouille toute l'aval (les etapes suivantes closes
  * repassent en `pending`) : on ne garde pas une cloture aval sur une base amont
  * modifiee. L'annee repasse en `in_progress`.

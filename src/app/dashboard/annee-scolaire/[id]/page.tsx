@@ -6,6 +6,7 @@ import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
 import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
 import ClotureClient from '@/components/annee-scolaire/ClotureClient'
 import PrepareNextYearButton from '@/components/annee-scolaire/PrepareNextYearButton'
+import PurgeYearCard from '@/components/annee-scolaire/PurgeYearCard'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -120,6 +121,15 @@ export default async function EditAnneeScolairePage({ params }: Props) {
     }
   }
 
+  // Purge (Phase 5) : disponible sur une année ARCHIVÉE et NON courante.
+  let purgeClosure: { archived_at: string | null; purged_at: string | null } | null = null
+  if (isAdminDir && !schoolYear.is_current) {
+    const { data } = await supabase
+      .from('year_closure').select('archived_at, purged_at').eq('school_year_id', schoolYear.id).maybeSingle()
+    purgeClosure = data
+  }
+  const showPurge = isAdminDir && !schoolYear.is_current && !!purgeClosure?.archived_at
+
   const formEl = (
     <SchoolYearForm
       schoolYear={schoolYear}
@@ -162,7 +172,14 @@ export default async function EditAnneeScolairePage({ params }: Props) {
           </div>
         </div>
       ) : (
-        formEl
+        <div className="space-y-4">
+          {formEl}
+          {showPurge && (
+            <div className="max-w-2xl">
+              <PurgeYearCard yearId={schoolYear.id} yearLabel={schoolYear.label} purgedAt={purgeClosure!.purged_at} />
+            </div>
+          )}
+        </div>
       )}
 
     </div>
