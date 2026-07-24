@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import ParentsTable from './ParentsTable'
+import ParentsAdultSyncModal from './ParentsAdultSyncModal'
 import type { Parent } from '@/types/database'
 
 const PAGE_SIZE = 20
@@ -95,6 +96,7 @@ export default function ParentsClient({
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [inputValue, setInputValue] = useState(q)
+  const [showAdult, setShowAdult] = useState(false)
   const activeFilter = (filter || '') as StatFilter
 
   const totalPages = Math.ceil(filteredCount / PAGE_SIZE)
@@ -152,11 +154,22 @@ export default function ParentsClient({
           placeholder="Nom ou prénom du tuteur…"
         />
 
+        {/* Cours adultes en lot */}
+        <button
+          type="button"
+          onClick={() => setShowAdult(true)}
+          className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 transition-all duration-200 whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-secondary-300"
+        >
+          Cours adultes en lot
+        </button>
+
         {/* Ajouter */}
         <Link href="/dashboard/parents/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap">
           Ajouter
         </Link>
       </div>
+
+      {showAdult && <ParentsAdultSyncModal onClose={() => setShowAdult(false)} />}
 
       {/* Tableau */}
       <ParentsTable parents={parents} parentsWithChildren={parentsWithChildren} parentsWithPAI={parentsWithPAI} />

@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { logAudit } from '@/lib/audit'
+import { classInfoOf } from '@/components/dashboard/classInfo'
 import { CreateParentSchema, UpdateParentSchema, validateInput } from '@/lib/validation/schemas'
 
 // ─── Types strictes pour les payloads ─────────────────────────────────────────
@@ -314,4 +316,95 @@ async function cleanupTutorAccount(
       console.error(`[cleanupTutorAccount] Erreur RPC/auth ${i}:`, result.value.error)
     }
   }
+}
+
+// ─── Mise à jour en lot des inscriptions « cours adultes » (une famille/ligne) ──
+
+export interface ParentAdultRow {
+  id:              string
+  tutor1Name:      string
+  tutor1Adult:     boolean
+  tutor1Locked:    boolean          // inscrit à une classe adulte → non modifiable
+  tutor1ClassInfo: string | null    // libellé de la classe adulte (tooltip)
+  tutor2Name:      string | null
+  tutor2Adult:     boolean
+  tutor2Locked:    boolean
+  tutor2ClassInfo: string | null
+}
+
+/** Map `parentId-tutorNumber` → infos de la classe ADULTE où le tuteur est inscrit
+ *  (verrouillé). Le libellé sert de tooltip (nom de classe + infos standard). */
+async function adultEnrolledMap(supabase: Awaited<ReturnType<typeof createClient>>): Promise<Map<string, string>> {
+  const { data } = await supabase
+    .from('parent_class_enrollments')
+    .select('parent_id, tutor_number, classes!inner(name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
+    .eq('status', 'active')
+  const m = new Map<string, string>()
+  for (const r of (data ?? []) as any[]) {
+    if (!r.classes?.cotisation_types?.is_adult) continue
+    const info = [r.classes.name, classInfoOf(r.classes)].filter(Boolean).join(' · ')
+    m.set(`${r.parent_id}-${r.tutor_number}`, info)
+  }
+  return m
+}
+
+export async function getParentsForAdultModal(): Promise<{ error?: string; families?: ParentAdultRow[] }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  if (roleError) return { error: roleError }
+  const supabase = await createClient()
+
+  const [{ data: parents }, enrolled] = await Promise.all([
+    supabase.from('parents')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor1_adult_courses, tutor2_last_name, tutor2_first_name, tutor2_adult_courses')
+      .order('tutor1_last_name').order('tutor1_first_name'),
+    adultEnrolledMap(supabase),
+  ])
+
+  const families: ParentAdultRow[] = (parents ?? []).map((p: any) => ({
+    id:              p.id,
+    tutor1Name:      `${p.tutor1_last_name ?? ''} ${p.tutor1_first_name ?? ''}`.trim(),
+    tutor1Adult:     !!p.tutor1_adult_courses,
+    tutor1Locked:    enrolled.has(`${p.id}-1`),
+    tutor1ClassInfo: enrolled.get(`${p.id}-1`) ?? null,
+    tutor2Name:      p.tutor2_last_name ? `${p.tutor2_last_name} ${p.tutor2_first_name ?? ''}`.trim() : null,
+    tutor2Adult:     !!p.tutor2_adult_courses,
+    tutor2Locked:    enrolled.has(`${p.id}-2`),
+    tutor2ClassInfo: enrolled.get(`${p.id}-2`) ?? null,
+  }))
+
+  return { families }
+}
+
+/** Enregistre les cases « cours adultes » modifiées. Garde : on ne peut pas
+ *  décocher un tuteur inscrit à une classe adulte (forcé à true par sécurité). */
+export async function saveParentsAdultCourses(
+  updates: { id: string; tutor1_adult_courses: boolean; tutor2_adult_courses: boolean }[],
+): Promise<{ error?: string; updated?: number }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  if (roleError) return { error: roleError }
+  if (!updates || updates.length === 0) return { updated: 0 }
+
+  const supabase = await createClient()
+  const enrolled = await adultEnrolledMap(supabase)
+
+  let updated = 0
+  for (const u of updates) {
+    const t1 = u.tutor1_adult_courses === false && enrolled.has(`${u.id}-1`) ? true : u.tutor1_adult_courses
+    const t2 = u.tutor2_adult_courses === false && enrolled.has(`${u.id}-2`) ? true : u.tutor2_adult_courses
+    const { error } = await supabase
+      .from('parents')
+      .update({ tutor1_adult_courses: t1, tutor2_adult_courses: t2 })
+      .eq('id', u.id)
+    if (error) return { error: 'Erreur lors de la mise à jour des inscriptions cours adultes.' }
+    updated++
+  }
+
+  try {
+    await logAudit(supabase, {
+      action: 'UPDATE', entityType: 'parents',
+      description: `Mise à jour en lot des inscriptions cours adultes : ${updated} famille(s).`,
+    })
+  } catch { /* non bloquant */ }
+
+  return { updated }
 }
