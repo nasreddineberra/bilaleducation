@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import Image from 'next/image'
-import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
 
 export default function TotpChallengePage() {
@@ -53,9 +53,9 @@ export default function TotpChallengePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!factorId || otp.length !== 6) return
+  // Validation automatique dès que les 6 chiffres sont saisis (OtpInput.onComplete).
+  const verify = async (code: string) => {
+    if (!factorId || code.length !== 6 || isSubmitting) return
 
     setIsSubmitting(true)
     setError(null)
@@ -73,7 +73,7 @@ export default function TotpChallengePage() {
       const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId,
         challengeId: challengeData.id,
-        code: otp,
+        code,
       })
       if (verifyError) throw verifyError
 
@@ -83,7 +83,7 @@ export default function TotpChallengePage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? ''
       setError(msg || 'Code incorrect. Vérifiez que votre application est synchronisée.')
-      setOtp('')
+      setOtp('')  // réinitialise les cases → refocus auto sur la 1re
     } finally {
       setIsSubmitting(false)
     }
@@ -100,7 +100,7 @@ export default function TotpChallengePage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center py-12 px-4"
-      style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #0c5b51 0%, #063a33 100%)' }}
     >
       {/* Cercles décoratifs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -111,9 +111,9 @@ export default function TotpChallengePage() {
 
       <div className="relative w-full max-w-md">
 
-        {/* Logo + nom établissement */}
+        {/* Logo dans une carte claire (contraste sur le fond teal profond) + nom */}
         <div className="flex flex-col items-center mb-8">
-          <div className="mb-4">
+          <div className="mb-4 inline-flex items-center justify-center bg-white rounded-2xl p-4 shadow-lg">
             {logoUrl ? (
               <Image
                 src={logoUrl}
@@ -124,10 +124,7 @@ export default function TotpChallengePage() {
                 unoptimized
               />
             ) : (
-              <div
-                className="w-32 h-32 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg select-none"
-                style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
-              >
+              <div className="w-32 h-32 rounded-xl flex items-center justify-center font-bold text-4xl text-primary-600 select-none">
                 {initiales || 'BE'}
               </div>
             )}
@@ -159,37 +156,25 @@ export default function TotpChallengePage() {
               <p className="text-sm text-warm-700 mt-3">Chargement…</p>
             </div>
           ) : (
-            <form onSubmit={handleVerify} noValidate className="space-y-4">
+            <form onSubmit={e => { e.preventDefault(); verify(otp) }} noValidate className="space-y-4">
               {error && (
-                <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm">
+                <div role="alert" className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm">
                   {error}
                 </div>
               )}
 
-              <FloatInput
-                label="Code à 6 chiffres"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
+              <OtpInput
                 value={otp}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                  setOtp(v)
-                }}
-                className="text-center text-xl tracking-widest font-mono"
-                placeholder="• • • • • •"
-                autoFocus
+                onChange={setOtp}
+                onComplete={verify}
                 disabled={isSubmitting}
+                error={!!error}
+                ariaLabel="Code à 6 chiffres de votre application d'authentification"
               />
 
-              <FloatButton
-                variant="submit"
-                className="w-full justify-center"
-                disabled={isSubmitting || otp.length !== 6}
-                loading={isSubmitting}
-              >
-                Valider
-              </FloatButton>
+              <p role="status" className="h-5 text-center text-sm text-warm-700 flex items-center justify-center gap-2">
+                {isSubmitting && <><Loader2 size={14} className="animate-spin text-primary-500" /> Vérification…</>}
+              </p>
             </form>
           )}
 

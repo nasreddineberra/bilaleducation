@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, ShieldCheck, ScanLine, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton } from '@/components/ui/FloatFields'
+import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
 import QRCode from 'qrcode'
 
@@ -136,9 +137,9 @@ export default function EnrollTotpPage() {
     }
   }
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (otp.length !== 6) return
+  // Validation automatique dès que les 6 chiffres sont saisis.
+  const verify = async (code: string) => {
+    if (code.length !== 6 || isSubmitting) return
 
     setIsSubmitting(true)
     setError(null)
@@ -156,7 +157,7 @@ export default function EnrollTotpPage() {
       const { error: verifyError } = await supabase.auth.mfa.verify({
         factorId,
         challengeId: challengeData.id,
-        code: otp,
+        code,
       })
       if (verifyError) throw verifyError
 
@@ -173,7 +174,7 @@ export default function EnrollTotpPage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center py-12 px-4"
-      style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #0c5b51 0%, #063a33 100%)' }}
     >
       {/* Cercles décoratifs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -216,7 +217,7 @@ export default function EnrollTotpPage() {
 
               <div className="text-center">
                 <FloatButton
-                  variant="submit"
+                  variant="primary"
                   className="w-full justify-center"
                   disabled={isSubmitting}
                   loading={isSubmitting}
@@ -269,32 +270,20 @@ export default function EnrollTotpPage() {
                   </p>
                 </div>
 
-                {/* Formulaire OTP */}
-                <form onSubmit={handleVerify} noValidate className="space-y-4">
-                  <FloatInput
-                    label="Code à 6 chiffres"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
+                {/* Saisie OTP — validation auto au 6e chiffre */}
+                <form onSubmit={e => { e.preventDefault(); verify(otp) }} noValidate className="space-y-4">
+                  <OtpInput
                     value={otp}
-                    onChange={e => {
-                      const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                      setOtp(v)
-                    }}
-                    className="text-center text-xl tracking-widest font-mono"
-                    placeholder="• • • • • •"
-                    autoFocus
+                    onChange={setOtp}
+                    onComplete={verify}
                     disabled={isSubmitting}
+                    error={!!error}
+                    ariaLabel="Code à 6 chiffres de votre application d'authentification"
                   />
 
-                  <FloatButton
-                    variant="submit"
-                    className="w-full justify-center"
-                    disabled={isSubmitting || otp.length !== 6}
-                    loading={isSubmitting}
-                  >
-                    Confirmer le code
-                  </FloatButton>
+                  <p role="status" className="h-5 text-center text-sm text-warm-700 flex items-center justify-center gap-2">
+                    {isSubmitting && <><Loader2 size={14} className="animate-spin text-primary-500" /> Vérification…</>}
+                  </p>
                 </form>
               </div>
             </>
@@ -312,7 +301,7 @@ export default function EnrollTotpPage() {
                 Un code à 6 chiffres vous sera demandé à chaque connexion.
               </p>
               <FloatButton
-                variant="submit"
+                variant="primary"
                 className="w-full justify-center"
                 onClick={() => router.push('/dashboard')}
               >

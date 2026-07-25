@@ -159,7 +159,7 @@ export default function LoginPage() {
       {/* ── Panneau gauche : illustration ───────────────────────────────────── */}
       <div
         className="hidden lg:flex lg:w-1/2 xl:w-[55%] flex-col items-center justify-center p-12 relative overflow-hidden"
-        style={{ background: 'linear-gradient(145deg, #507583 0%, #18aa99 100%)' }}
+        style={{ background: 'linear-gradient(145deg, #0c5b51 0%, #063a33 100%)' }}
       >
         {/* Motif de fond subtil */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -215,7 +215,7 @@ export default function LoginPage() {
               ) : (
                 <div
                   className="w-32 h-32 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg select-none"
-                  style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, #12887a 0%, #0a504a 100%)' }}
                 >
                   {initiales || 'BE'}
                 </div>
@@ -294,7 +294,7 @@ export default function LoginPage() {
 
               {/* Bouton */}
               <FloatButton
-                variant="submit"
+                variant="brand"
                 className="w-full justify-center"
                 disabled={loading || !email || !password}
                 loading={loading}

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
+import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
 
 export default function MfaChallengePage() {
@@ -90,9 +91,9 @@ export default function MfaChallengePage() {
     }
   }
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!factorId || !challengeId || otp.length !== 6) return
+  // Validation automatique dès que les 6 chiffres sont saisis.
+  const verify = async (code: string) => {
+    if (!factorId || !challengeId || code.length !== 6 || isSubmitting) return
 
     setIsSubmitting(true)
     setError(null)
@@ -102,7 +103,7 @@ export default function MfaChallengePage() {
       const { error } = await supabase.auth.mfa.verify({
         factorId,
         challengeId,
-        code: otp,
+        code,
       })
       if (error) throw error
       router.push('/dashboard')
@@ -119,7 +120,7 @@ export default function MfaChallengePage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center py-12 px-4"
-      style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #0c5b51 0%, #063a33 100%)' }}
     >
       {/* Cercles décoratifs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -169,48 +170,25 @@ export default function MfaChallengePage() {
               <p className="text-sm text-warm-700 mt-3">Envoi du SMS…</p>
             </div>
           ) : (
-            <form onSubmit={handleVerify} noValidate className="space-y-4">
+            <form onSubmit={e => { e.preventDefault(); verify(otp) }} noValidate className="space-y-4">
               {error && (
-                <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm">
+                <div role="alert" className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm">
                   {error}
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-secondary-700 mb-1.5">
-                  Code à 6 chiffres
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                    setOtp(v)
-                  }}
-                  className="input text-center text-xl tracking-widest font-mono"
-                  placeholder="• • • • • •"
-                  autoFocus
-                  disabled={isSubmitting}
-                />
-              </div>
+              <OtpInput
+                value={otp}
+                onChange={setOtp}
+                onComplete={verify}
+                disabled={isSubmitting}
+                error={!!error}
+                ariaLabel="Code à 6 chiffres reçu par SMS"
+              />
 
-              <button
-                type="submit"
-                disabled={isSubmitting || otp.length !== 6}
-                className="w-full btn btn-primary py-3 text-base disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Vérification…
-                  </span>
-                ) : 'Valider'}
-              </button>
+              <p role="status" className="h-5 text-center text-sm text-warm-700 flex items-center justify-center gap-2">
+                {isSubmitting && <><Loader2 size={14} className="animate-spin text-primary-500" /> Vérification…</>}
+              </p>
 
               <div className="text-center">
                 <button
