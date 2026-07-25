@@ -283,23 +283,23 @@ export default async function BulletinsPage() {
   }
 
   // 9. Archives de bulletins existantes : bulletin_archives (élèves) + adult_bulletin_archives (adultes)
-  type ArchiveRow = { id: string; student_id: string; class_id: string; period_id: string; file_url: string; archived_at: string }
+  type ArchiveRow = { id: string; student_id: string; class_id: string; period_id: string; file_path: string; archived_at: string }
   const archives: ArchiveRow[] = []
   if (studentClassIds.length > 0) {
     const { data } = await supabase
       .from('bulletin_archives')
-      .select('id, student_id, class_id, period_id, file_url, archived_at')
+      .select('id, student_id, class_id, period_id, file_path, archived_at')
       .in('class_id', studentClassIds)
     archives.push(...((data ?? []) as ArchiveRow[]))
   }
   if (adultClassIds.length > 0) {
     const { data } = await supabase
       .from('adult_bulletin_archives')
-      .select('id, parent_id, tutor_number, class_id, period_id, file_url, archived_at')
+      .select('id, parent_id, tutor_number, class_id, period_id, file_path, archived_at')
       .in('class_id', adultClassIds)
     archives.push(...((data ?? []) as any[]).map(a => ({
       id: a.id, student_id: `${a.parent_id}-${a.tutor_number}`,
-      class_id: a.class_id, period_id: a.period_id, file_url: a.file_url, archived_at: a.archived_at,
+      class_id: a.class_id, period_id: a.period_id, file_path: a.file_path, archived_at: a.archived_at,
     })))
   }
 

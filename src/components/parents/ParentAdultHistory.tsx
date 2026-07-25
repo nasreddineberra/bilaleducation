@@ -34,7 +34,13 @@ function fmtEur(n: number | null): string {
 
 export default function ParentAdultHistory({ rows }: { rows: AdultRow[] }) {
   const supabase = createClient()
-  const pdfUrl = (fp: string) => supabase.storage.from('bulletins').getPublicUrl(fp).data.publicUrl
+  // Bucket privé : URL signée à la demande. Onglet ouvert AVANT l'await (popup), puis redirigé.
+  const openBulletin = async (fp: string) => {
+    const w = window.open('', '_blank')
+    const { data, error } = await supabase.storage.from('bulletins').createSignedUrl(fp, 60)
+    if (error || !data?.signedUrl) { w?.close(); return }
+    w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
+  }
 
   if (rows.length === 0) {
     return (
@@ -93,15 +99,14 @@ export default function ParentAdultHistory({ rows }: { rows: AdultRow[] }) {
                 <p className="stat-label mb-1">Bulletins</p>
                 <div className="flex flex-wrap gap-1.5">
                   {h.bulletin_refs.map(b => (
-                    <a
+                    <button
                       key={b.archive_id}
-                      href={pdfUrl(b.file_path)}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      type="button"
+                      onClick={() => openBulletin(b.file_path)}
                       className="inline-flex items-center gap-1 bg-warm-50 hover:bg-warm-100 rounded-lg px-2.5 py-1 text-xs text-primary-600 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                     >
                       <FileText size={12} /> {b.period_label}
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>

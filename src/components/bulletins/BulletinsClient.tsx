@@ -54,7 +54,7 @@ type EtablissementInfo = {
 
 type ArchiveRow = {
   id: string; student_id: string; class_id: string; period_id: string
-  file_url: string; archived_at: string
+  file_path: string; archived_at: string
 }
 
 type AppreciationRow = {
@@ -224,12 +224,24 @@ export default function BulletinsClient({
   )
   const isArchived = currentArchives.length > 0
 
-  // Map student_id -> archive file_url
-  const archiveUrlMap = useMemo(() => {
+  // Map student_id -> archive file_path (bucket privé → URL signée à la demande)
+  const archivePathMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const a of currentArchives) map.set(a.student_id, a.file_url)
+    for (const a of currentArchives) map.set(a.student_id, a.file_path)
     return map
   }, [currentArchives])
+
+  // Ouvre un bulletin archivé via une URL signée (bucket privé). L'onglet est
+  // ouvert AVANT l'await (sinon bloqué comme popup), puis redirigé.
+  const handleViewArchive = useCallback(async (studentId: string) => {
+    const path = archivePathMap.get(studentId)
+    if (!path) return
+    const w = window.open('', '_blank')
+    const supabase = createClient()
+    const { data, error } = await supabase.storage.from('bulletins').createSignedUrl(path, 60)
+    if (error || !data?.signedUrl) { w?.close(); setArchiveError('Impossible d’ouvrir le bulletin archivé.'); return }
+    w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
+  }, [archivePathMap])
 
   // Appréciations pour la classe+période sélectionnée
   const appreciationMap = useMemo(() => {
@@ -453,8 +465,8 @@ export default function BulletinsClient({
           .upload(filePath, blob, { upsert: true, contentType: 'application/pdf' })
         if (uploadError) throw uploadError
 
-        const { data: { publicUrl } } = supabase.storage.from('bulletins').getPublicUrl(filePath)
-
+        // Bucket privé : on ne persiste plus d'URL publique, seulement le chemin
+        // (URL signée générée à la consultation).
         let insertPayload: Record<string, unknown>
         if (isAdultClass) {
           const sep = student.student_id.lastIndexOf('-')
@@ -463,13 +475,13 @@ export default function BulletinsClient({
             parent_id:    student.student_id.slice(0, sep),
             tutor_number: parseInt(student.student_id.slice(sep + 1), 10),
             class_id: selectedClassId, period_id: selectedPeriodId,
-            file_path: filePath, file_url: publicUrl,
+            file_path: filePath,
           }
         } else {
           insertPayload = {
             etablissement_id: etablissementId, student_id: student.student_id,
             class_id: selectedClassId, period_id: selectedPeriodId,
-            file_path: filePath, file_url: publicUrl,
+            file_path: filePath,
           }
         }
 
@@ -477,8 +489,8 @@ export default function BulletinsClient({
           .from(isAdultClass ? 'adult_bulletin_archives' : 'bulletin_archives')
           .insert(insertPayload)
           .select(isAdultClass
-            ? 'id, parent_id, tutor_number, class_id, period_id, file_url, archived_at'
-            : 'id, student_id, class_id, period_id, file_url, archived_at')
+            ? 'id, parent_id, tutor_number, class_id, period_id, file_path, archived_at'
+            : 'id, student_id, class_id, period_id, file_path, archived_at')
           .single()
         if (insertError) throw insertError
         if (row) {
@@ -486,7 +498,7 @@ export default function BulletinsClient({
           newArchives.push({
             id: r.id,
             student_id: isAdultClass ? `${r.parent_id}-${r.tutor_number}` : r.student_id,
-            class_id: r.class_id, period_id: r.period_id, file_url: r.file_url, archived_at: r.archived_at,
+            class_id: r.class_id, period_id: r.period_id, file_path: r.file_path, archived_at: r.archived_at,
           } as ArchiveRow)
         }
       }
@@ -507,13 +519,8 @@ export default function BulletinsClient({
     try {
       const supabase = createClient()
 
-      // Supprimer les fichiers du storage
-      const filePaths = currentArchives.map(a => {
-        // Extraire le path depuis l'URL
-        const url = new URL(a.file_url)
-        const parts = url.pathname.split('/bulletins/')
-        return parts.length > 1 ? parts[1] : ''
-      }).filter(Boolean)
+      // Supprimer les fichiers du storage (chemin stocké directement).
+      const filePaths = currentArchives.map(a => a.file_path).filter(Boolean)
 
       if (filePaths.length > 0) {
         await supabase.storage.from('bulletins').remove(filePaths)
@@ -849,17 +856,16 @@ export default function BulletinsClient({
                     </td>
                     <td className="py-2 px-4 text-center">
                       {isArchived ? (
-                        archiveUrlMap.has(s.student_id) ? (
+                        archivePathMap.has(s.student_id) ? (
                           <Tooltip content="Voir le bulletin archivé">
-                            <a
-                              href={archiveUrlMap.get(s.student_id)!}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={() => handleViewArchive(s.student_id)}
                               aria-label={`Voir le bulletin archivé de ${s.last_name} ${s.first_name}`}
                               className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
                             >
                               <FileText className="w-3.5 h-3.5" />
-                            </a>
+                            </button>
                           </Tooltip>
                         ) : (
                           <span className="text-xs text-warm-700">-</span>

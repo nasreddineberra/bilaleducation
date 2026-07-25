@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { clsx } from 'clsx'
 import { BookOpen, AlertTriangle, FileText, Download, ShieldAlert, Clock } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ type AbsenceRow = {
 type BulletinArchiveRow = {
   class_id: string
   period_id: string
-  file_url: string
+  file_path: string
 }
 
 type MainTeacherRow = {
@@ -107,12 +108,20 @@ export default function StudentScolarite({
   studentId, enrollments, evaluations, grades, periods, absences, bulletinArchives, mainTeachers, warnings,
 }: Props) {
 
-  // Index bulletins archivés par class_id:period_id
+  // Index bulletins archivés par class_id:period_id → file_path (bucket privé)
   const bulletinMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const a of bulletinArchives) map.set(`${a.class_id}:${a.period_id}`, a.file_url)
+    for (const a of bulletinArchives) map.set(`${a.class_id}:${a.period_id}`, a.file_path)
     return map
   }, [bulletinArchives])
+
+  // Ouvre un bulletin via URL signée (onglet ouvert AVANT l'await pour éviter le blocage popup).
+  const openBulletin = async (fp: string) => {
+    const w = window.open('', '_blank')
+    const { data, error } = await createClient().storage.from('bulletins').createSignedUrl(fp, 60)
+    if (error || !data?.signedUrl) { w?.close(); return }
+    w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
+  }
 
   // Index professeur principal par class_id
   const teacherMap = useMemo(() => {
@@ -280,7 +289,7 @@ export default function StudentScolarite({
                   {yearPeriods.length > 0 ? (
                     <div className="divide-y divide-warm-100">
                       {yearPeriods.map(period => {
-                        const bulletinUrl = bulletinMap.get(`${enrollment.class_id}:${period.id}`)
+                        const bulletinPath = bulletinMap.get(`${enrollment.class_id}:${period.id}`)
                         const periodEvals = classEvals.filter(e => e.period_id === period.id)
                         const scoredEvals = periodEvals.filter(e => e.eval_kind === 'scored')
 
@@ -315,16 +324,15 @@ export default function StudentScolarite({
                               </span>
                             )}
 
-                            {bulletinUrl ? (
-                              <a
-                                href={bulletinUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            {bulletinPath ? (
+                              <button
+                                type="button"
+                                onClick={() => openBulletin(bulletinPath)}
                                 className="flex items-center gap-1 text-[11px] text-primary-600 hover:text-primary-700 font-medium"
                               >
                                 <Download size={11} />
                                 Bulletin
-                              </a>
+                              </button>
                             ) : (
                               <span className="text-[11px] text-warm-700 italic">·</span>
                             )}

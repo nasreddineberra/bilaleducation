@@ -127,7 +127,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   // Bulletins archivés
   const { data: bulletinArchives } = await supabase
     .from('bulletin_archives')
-    .select('class_id, period_id, file_url')
+    .select('class_id, period_id, file_path')
     .eq('student_id', id)
 
   // Année scolaire en cours (pour filtrer onglet Discipline)
