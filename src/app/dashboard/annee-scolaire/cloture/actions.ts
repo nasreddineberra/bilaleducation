@@ -208,6 +208,38 @@ export async function purgeYear(yearId: string, typedLabel: string): Promise<{ e
 }
 
 /**
+ * Enregistre le CHOIX « épurer la base ou non » fait en fin d'assistant
+ * (année encore courante, après l'archivage). Simple drapeau : la purge reste
+ * destructive et manuelle. Exige que l'année soit archivee (le choix n'a de
+ * sens qu'apres archivage).
+ */
+export async function setPurgeIntent(closureId: string, intent: 'purge' | 'keep'): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  const { data: closure } = await supabase
+    .from('year_closure').select('id, archived_at, school_year_id').eq('id', closureId).maybeSingle()
+  if (!closure) return { error: 'Clôture introuvable.' }
+  if (!closure.archived_at) return { error: 'Archivez l’année avant de choisir l’épuration.' }
+
+  const { error } = await supabase
+    .from('year_closure').update({ purge_intent: intent }).eq('id', closureId)
+  if (error) return { error: error.message }
+
+  try {
+    await logAudit(supabase, {
+      action: 'UPDATE', entityType: 'year_closure', entityId: closureId,
+      description: `Choix de fin de clôture : ${intent === 'purge' ? 'épurer la base après la bascule' : 'conserver toutes les données'}`,
+    })
+  } catch { /* non bloquant */ }
+
+  revalidatePath('/dashboard/annee-scolaire', 'layout')
+  return {}
+}
+
+/**
  * Rouvre une etape ET reverrouille toute l'aval (les etapes suivantes closes
  * repassent en `pending`) : on ne garde pas une cloture aval sur une base amont
  * modifiee. L'annee repasse en `in_progress`.
@@ -232,9 +264,18 @@ export async function reopenStep(closureId: string, stepKey: string): Promise<{ 
   if (error) return { error: error.message }
 
   // L'annee repasse en cours ET l'archive devient obsolete → archived_at remis a null.
+  const { data: cl } = await supabase
+    .from('year_closure').select('school_year_id').eq('id', closureId).maybeSingle()
   await supabase.from('year_closure')
     .update({ status: 'in_progress', closed_by: null, closed_at: null, archived_at: null })
     .eq('id', closureId)
+
+  // L'archive est obsolete → on retire aussi les snapshots (regeneres au prochain
+  // archivage). Evite d'afficher un historique perime pour une annee redevenue en cours.
+  if (cl?.school_year_id) {
+    await supabase.from('student_year_history').delete().eq('school_year_id', cl.school_year_id)
+    await supabase.from('family_year_finance').delete().eq('school_year_id', cl.school_year_id)
+  }
 
   try {
     await logAudit(supabase, { action: 'UPDATE', entityType: 'year_closure_steps', entityId: target.id, description: `Étape « ${stepKey} » rouverte (aval reverrouillé)` })

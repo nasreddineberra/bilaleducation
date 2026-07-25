@@ -3,7 +3,8 @@
 -- ----------------------------------------------------------------------------
 -- Allège la BDD en supprimant les lignes TRANSACTIONNELLES d'une année, une fois
 -- celle-ci ARCHIVÉE. RPC atomique (tout ou rien), SECURITY DEFINER, garde
--- admin/direction, prérequis `archived_at` posé.
+-- admin/direction + garde d'établissement (cloisonnement multi-locataire, la
+-- fonction contourne la RLS), prérequis `archived_at` posé.
 --
 -- ON CONSERVE (jamais purgé) :
 --   - PDF bulletins : bulletin_archives / adult_bulletin_archives (+ bucket)
@@ -41,6 +42,7 @@ DECLARE
   v_purged   timestamptz;
   v_periods  uuid[];
   v_classes  uuid[];
+  v_paidfees uuid[];
   n_notes    int := 0;
   n_absences int := 0;
   n_fees     int := 0;
@@ -56,6 +58,13 @@ BEGIN
   FROM school_years WHERE id = p_year_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Année introuvable.';
+  END IF;
+
+  -- Cloisonnement multi-établissement (la RPC est SECURITY DEFINER → pas de RLS) :
+  -- interdit de purger l'année d'un autre établissement, même via appel RPC direct.
+  -- IS DISTINCT FROM couvre le cas NULL (ex. super_admin sans établissement → refusé).
+  IF v_etab IS DISTINCT FROM current_etablissement_id() THEN
+    RAISE EXCEPTION 'Accès refusé : année d''un autre établissement.' USING ERRCODE = '42501';
   END IF;
 
   -- Prérequis ABSOLU : année archivée
@@ -107,9 +116,20 @@ BEGIN
   DELETE FROM class_journal WHERE class_id = ANY(v_classes);
 
   -- ── Finance : foyers SOLDÉS uniquement (impayés conservés, vifs) ──
-  DELETE FROM fee_installments WHERE family_fee_id IN (SELECT id FROM family_fees WHERE school_year_id = p_year_id AND status = 'paid');
-  DELETE FROM fee_adjustments  WHERE family_fee_id IN (SELECT id FROM family_fees WHERE school_year_id = p_year_id AND status = 'paid');
-  DELETE FROM family_fees WHERE school_year_id = p_year_id AND status = 'paid';
+  -- Critère = RESTE RECALCULÉ (dû - perçu) <= 0, et NON le libellé `status`
+  -- (dénormalisé, risque de désync → une dette marquée 'paid' à tort serait
+  -- effacée). Tolérance centimes (0.005) : dans le doute, on NE supprime pas.
+  SELECT coalesce(array_agg(ff.id), '{}')
+    INTO v_paidfees
+  FROM family_fees ff
+  WHERE ff.school_year_id = p_year_id
+    AND ff.total_due - coalesce(
+          (SELECT sum(fi.amount_paid) FROM fee_installments fi WHERE fi.family_fee_id = ff.id), 0
+        ) <= 0.005;
+
+  DELETE FROM fee_installments WHERE family_fee_id = ANY(v_paidfees);
+  DELETE FROM fee_adjustments  WHERE family_fee_id = ANY(v_paidfees);
+  DELETE FROM family_fees      WHERE id = ANY(v_paidfees);
   GET DIAGNOSTICS n_fees = ROW_COUNT;
 
   -- Réactivation des triggers d'audit

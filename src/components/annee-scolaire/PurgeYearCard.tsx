@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
@@ -12,12 +12,21 @@ function fmt(d: string) {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function PurgeYearCard({ yearId, yearLabel, purgedAt }: { yearId: string; yearLabel: string; purgedAt: string | null }) {
+export default function PurgeYearCard({
+  yearId, yearLabel, purgedAt, purgeIntent,
+}: {
+  yearId: string
+  yearLabel: string
+  purgedAt: string | null
+  purgeIntent: 'purge' | 'keep' | null
+}) {
   const router = useRouter()
   const toast  = useToast()
-  const [open, setOpen]   = useState(false)
-  const [typed, setTyped] = useState('')
-  const [busy, setBusy]   = useState(false)
+  const [open, setOpen]         = useState(false)
+  const [typed, setTyped]       = useState('')
+  const [busy, setBusy]         = useState(false)
+  // Choix « conserver » : la purge reste possible mais volontairement discrète.
+  const [revealed, setRevealed] = useState(false)
 
   if (purgedAt) {
     return (
@@ -46,11 +55,35 @@ export default function PurgeYearCard({ yearId, yearLabel, purgedAt }: { yearId:
     }
   }
 
+  // Choix « conserver » en fin de clôture : carte neutre, purge repliée derrière un lien discret.
+  if (purgeIntent === 'keep' && !revealed) {
+    return (
+      <div className="card p-4 space-y-1">
+        <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
+          <CheckCircle2 size={15} className="text-primary-600" /> Données conservées
+        </h3>
+        <p className="text-xs text-warm-700">
+          Vous avez choisi de conserver toutes les données de {yearLabel} lors de la clôture. Rien n’a été supprimé.
+        </p>
+        <button
+          type="button"
+          onClick={() => setRevealed(true)}
+          className="text-[11px] text-warm-700 underline decoration-dotted underline-offset-2 hover:text-red-600 outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
+        >
+          Épurer quand même
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="card p-4 space-y-2 border-red-200 bg-red-50/30">
       <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
         <AlertTriangle size={15} className="text-red-500" /> Purge de l’année
       </h3>
+      {purgeIntent === 'purge' && (
+        <p className="text-[11px] font-medium text-red-700">Épuration demandée lors de la clôture de l’année.</p>
+      )}
       <p className="text-xs text-warm-700">
         Supprime définitivement les données transactionnelles de {yearLabel} (notes, absences, temps de présence, EDT,
         cahier de texte, et finances des foyers <strong>soldés</strong>). Les <strong>bulletins PDF</strong>, les

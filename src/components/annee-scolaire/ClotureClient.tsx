@@ -10,7 +10,7 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
-import { startClosure, closeStep, reopenStep, runAudit, archiveYear } from '@/app/dashboard/annee-scolaire/cloture/actions'
+import { startClosure, closeStep, reopenStep, runAudit, archiveYear, setPurgeIntent } from '@/app/dashboard/annee-scolaire/cloture/actions'
 
 interface StepRow {
   id: string
@@ -23,7 +23,7 @@ interface StepRow {
 
 interface Props {
   yearLabel: string | null
-  closure: { id: string; status: 'in_progress' | 'closed'; archived_at: string | null } | null
+  closure: { id: string; status: 'in_progress' | 'closed'; archived_at: string | null; purge_intent: 'purge' | 'keep' | null } | null
   steps: StepRow[]
 }
 
@@ -268,6 +268,59 @@ export default function ClotureClient({ yearLabel, closure, steps }: Props) {
             </FloatButton>
           </div>
         )
+      )}
+
+      {/* Dernière étape : choix d'épuration (après archivage) */}
+      {allClosed && closure.archived_at && (
+        <div className="card p-4 space-y-2">
+          <h3 className="text-sm font-bold text-secondary-800">Dernière étape : alléger la base ?</h3>
+          <p className="text-xs text-warm-700">
+            Vous pouvez épurer les données transactionnelles de {yearLabel} (notes, absences, temps de présence, EDT,
+            cahier de texte, finances des foyers soldés). Les <strong>bulletins PDF</strong>, l’<strong>historique</strong>
+            et les <strong>impayés</strong> sont toujours conservés. L’épuration s’exécute <strong>après la bascule</strong>
+            sur l’année suivante, sur la fiche de {yearLabel}, et reste confirmée manuellement.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            {([
+              { val: 'purge', title: 'Épurer la base', desc: 'Supprimer les données transactionnelles après la bascule (recommandé pour alléger la BDD).' },
+              { val: 'keep',  title: 'Conserver toutes les données', desc: 'Ne rien supprimer : toutes les données de l’année restent en base.' },
+            ] as const).map(opt => {
+              const selected = closure.purge_intent === opt.val
+              return (
+                <button
+                  key={opt.val}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={busy !== null}
+                  onClick={() => run('purge-intent', () => setPurgeIntent(closure.id, opt.val))}
+                  className={clsx(
+                    'text-left rounded-lg border p-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400 disabled:opacity-60',
+                    selected
+                      ? (opt.val === 'purge' ? 'border-red-300 bg-red-50/50' : 'border-primary-300 bg-primary-50/50')
+                      : 'border-warm-200 hover:bg-warm-50',
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={clsx('w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
+                      selected ? (opt.val === 'purge' ? 'border-red-500' : 'border-primary-500') : 'border-warm-400')}>
+                      {selected && <span className={clsx('w-1.5 h-1.5 rounded-full', opt.val === 'purge' ? 'bg-red-500' : 'bg-primary-500')} />}
+                    </span>
+                    <span className="text-xs font-bold text-secondary-800">{opt.title}</span>
+                  </div>
+                  <p className="text-[11px] text-warm-700 mt-1 pl-[22px]">{opt.desc}</p>
+                </button>
+              )
+            })}
+          </div>
+          {closure.purge_intent && (
+            <p className="text-[11px] text-warm-700 italic">
+              {closure.purge_intent === 'purge'
+                ? 'Choix enregistré : la base sera proposée à l’épuration après la bascule sur l’année suivante.'
+                : 'Choix enregistré : toutes les données de l’année seront conservées.'}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Confirmation d'archivage */}

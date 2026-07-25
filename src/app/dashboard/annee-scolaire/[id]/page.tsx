@@ -122,10 +122,10 @@ export default async function EditAnneeScolairePage({ params }: Props) {
   }
 
   // Purge (Phase 5) : disponible sur une année ARCHIVÉE et NON courante.
-  let purgeClosure: { archived_at: string | null; purged_at: string | null } | null = null
+  let purgeClosure: { archived_at: string | null; purged_at: string | null; purge_intent: 'purge' | 'keep' | null } | null = null
   if (isAdminDir && !schoolYear.is_current) {
     const { data } = await supabase
-      .from('year_closure').select('archived_at, purged_at').eq('school_year_id', schoolYear.id).maybeSingle()
+      .from('year_closure').select('archived_at, purged_at, purge_intent').eq('school_year_id', schoolYear.id).maybeSingle()
     purgeClosure = data
   }
   const showPurge = isAdminDir && !schoolYear.is_current && !!purgeClosure?.archived_at
@@ -176,7 +176,7 @@ export default async function EditAnneeScolairePage({ params }: Props) {
           {formEl}
           {showPurge && (
             <div className="max-w-2xl">
-              <PurgeYearCard yearId={schoolYear.id} yearLabel={schoolYear.label} purgedAt={purgeClosure!.purged_at} />
+              <PurgeYearCard yearId={schoolYear.id} yearLabel={schoolYear.label} purgedAt={purgeClosure!.purged_at} purgeIntent={purgeClosure!.purge_intent} />
             </div>
           )}
         </div>

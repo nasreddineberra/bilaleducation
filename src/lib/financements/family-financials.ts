@@ -80,11 +80,15 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     .order('tutor1_last_name')
     .order('tutor1_first_name')
 
-  // Inscriptions adultes
+  // Inscriptions adultes — BORNÉES À L'ANNÉE (symétrique au côté élèves) : les
+  // parent_class_enrollments sont conservées d'une année sur l'autre, il faut
+  // donc filtrer sur l'année de la classe, sinon les cotisations adultes des
+  // années passées gonflent le sous-total de l'année en cours.
   const { data: adultEnrollments } = await supabase
     .from('parent_class_enrollments')
-    .select(`parent_id, tutor_number, classes ( cotisation_types ( id, label, is_adult, amount, registration_fee ) )`)
+    .select(`parent_id, tutor_number, classes!inner ( academic_year, cotisation_types ( id, label, is_adult, amount, registration_fee ) )`)
     .eq('status', 'active')
+    .eq('classes.academic_year', currentYear.label)
 
   // Parents adultes sans eleve
   const existingParentIds = new Set((parents ?? []).map((p: any) => p.id))
