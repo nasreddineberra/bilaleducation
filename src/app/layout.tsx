@@ -57,7 +57,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/* Thème avant le rendu (anti-FOUC). Uniquement sur /dashboard : login + 2FA
+            restent toujours clairs, quel que soit le choix fait dans l'app. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var d=location.pathname.indexOf('/dashboard')===0;var t=d&&localStorage.getItem('theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','light')}`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${amiri.variable}`}>
         <ToastProvider>
           {children}

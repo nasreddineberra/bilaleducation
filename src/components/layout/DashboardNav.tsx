@@ -2,9 +2,11 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, Bell, ChevronRight } from 'lucide-react'
+import { LogOut, Bell, ChevronRight, Sun, Moon } from 'lucide-react'
+import { clsx } from 'clsx'
 
 import { useSidebar } from './SidebarContext'
+import { useTheme } from './ThemeContext'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { Profile } from '@/types/database'
@@ -211,6 +213,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
   const router    = useRouter()
   const pathname  = usePathname()
   const { collapsed } = useSidebar()
+  const { theme, toggle } = useTheme()
 
   const doLogout = async (reason?: 'inactivity') => {
     try {
@@ -227,7 +230,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
   useInactivityLogout(() => doLogout('inactivity'))
 
   return (
-    <nav className="bg-white shadow-nav px-6 py-3 sticky top-0 z-30">
+    <nav className="bg-white dark:bg-[#131c20] dark:border-b dark:border-[#243139] shadow-nav dark:shadow-none px-6 py-3 sticky top-0 z-30">
       <div className="flex items-center justify-between">
 
         {/* Titre + Breadcrumb */}
@@ -240,29 +243,67 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
                   <nav className="flex items-center gap-1 mb-0.5">
                     {crumbs.map((crumb, i) => (
                       <span key={i} className="flex items-center gap-1">
-                        {i > 0 && <ChevronRight size={11} className="text-warm-700 flex-shrink-0" />}
-                        <span className={i === crumbs.length - 1 ? 'text-xs text-warm-700' : 'text-xs text-warm-700'}>
+                        {i > 0 && <ChevronRight size={11} className="text-warm-700 dark:text-[#8b9aa0] flex-shrink-0" />}
+                        <span className={i === crumbs.length - 1 ? 'text-xs text-warm-700 dark:text-[#8b9aa0]' : 'text-xs text-warm-700 dark:text-[#8b9aa0]'}>
                           {crumb.label}
                         </span>
                       </span>
                     ))}
                   </nav>
-                  <h1 className="text-lg font-bold text-secondary-800 leading-tight">{getPageTitle(pathname)}</h1>
+                  <h1 className="text-lg font-bold text-secondary-800 dark:text-[#e7eef0] leading-tight">{getPageTitle(pathname)}</h1>
                 </>
               ) : (
-                <h1 className="text-xl font-bold text-secondary-800">{getPageTitle(pathname)}</h1>
+                <h1 className="text-xl font-bold text-secondary-800 dark:text-[#e7eef0]">{getPageTitle(pathname)}</h1>
               )
             })()
           ) : (
-            <h1 className="text-xl font-bold text-secondary-800">{getPageTitle(pathname)}</h1>
+            <h1 className="text-xl font-bold text-secondary-800 dark:text-[#e7eef0]">{getPageTitle(pathname)}</h1>
           )}
         </div>
 
         <div className="flex items-center gap-3 ml-auto">
+          {/* Bascule thème clair / sombre — sélecteur segmenté */}
+          <div
+            role="group"
+            aria-label="Thème de l'interface"
+            className="flex items-center gap-0.5 p-0.5 rounded-full bg-warm-100 dark:bg-white/5 border border-warm-200 dark:border-white/10"
+          >
+            <button
+              type="button"
+              onClick={() => { if (theme !== 'light') toggle() }}
+              aria-label="Thème clair"
+              aria-pressed={theme === 'light'}
+              title="Thème clair"
+              className={clsx(
+                'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                theme === 'light'
+                  ? 'bg-white text-primary-600 shadow-sm'
+                  : 'text-secondary-400 dark:text-[#8b9aa0] hover:text-secondary-600 dark:hover:text-white',
+              )}
+            >
+              <Sun className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (theme !== 'dark') toggle() }}
+              aria-label="Thème sombre"
+              aria-pressed={theme === 'dark'}
+              title="Thème sombre"
+              className={clsx(
+                'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                theme === 'dark'
+                  ? 'bg-[#0e1418] text-[var(--brand-accent)] shadow-sm'
+                  : 'text-secondary-400 hover:text-secondary-600',
+              )}
+            >
+              <Moon className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Notifications */}
           <Link
             href="/dashboard/notifications"
-            className="relative p-2 text-secondary-400 hover:text-secondary-600 hover:bg-warm-100 rounded-xl transition-all duration-200"
+            className="relative p-2 text-secondary-400 hover:text-secondary-600 hover:bg-warm-100 dark:text-[#8b9aa0] dark:hover:text-white dark:hover:bg-white/10 rounded-xl transition-all duration-200"
             title="Notifications"
             aria-label={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'}
           >
@@ -275,7 +316,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
           </Link>
 
           {/* Séparateur */}
-          <div className="w-px h-6 bg-warm-200" />
+          <div className="w-px h-6 bg-warm-200 dark:bg-[#243139]" />
 
           {/* Profil utilisateur → Mon compte */}
           <Link
@@ -284,10 +325,10 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
             className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <div className="hidden md:block text-right">
-              <p className="text-sm font-semibold text-secondary-800 leading-tight">
+              <p className="text-sm font-semibold text-secondary-800 dark:text-[#e7eef0] leading-tight">
                 {profile?.first_name} {profile?.last_name}
               </p>
-              <p className="text-xs text-warm-700 capitalize leading-tight mt-0.5">
+              <p className="text-xs text-warm-700 dark:text-[#8b9aa0] capitalize leading-tight mt-0.5">
                 {profile?.role?.replace('_', ' ')}
               </p>
             </div>
@@ -309,7 +350,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
           {/* Déconnexion */}
           <button
             onClick={handleLogout}
-            className="p-2 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded-xl transition-all duration-200"
+            className="p-2 text-warm-700 dark:text-[#8b9aa0] hover:text-danger-500 hover:bg-danger-50 rounded-xl transition-all duration-200"
             title="Déconnexion"
             aria-label="Déconnexion"
           >

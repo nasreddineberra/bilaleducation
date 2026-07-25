@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
 import {
@@ -15,7 +15,6 @@ import {
   FileText,
   MessageSquare,
   DollarSign,
-  Settings,
   ClipboardList,
   Building2,
   UserCog,
@@ -251,81 +250,106 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  // ── Section PARAMÈTRES (entrées de 1er niveau ; visibilité admin/direction,
+  //    identique à l'ancien groupe « Paramètres » qui les englobait) ──
   {
-    name:  'Paramètres',
-    icon:  Settings,
+    name:  'Année scolaire',
+    href:  '/dashboard/annee-scolaire',
+    icon:  CalendarDays,
+    roles: ['admin', 'direction'],
+  },
+  {
+    // NB : item « Pédagogie » (sous Paramètres) — à ne pas confondre avec la SECTION Pédagogie.
+    name:  'Pédagogie',
+    icon:  School,
     roles: ['admin', 'direction'],
     children: [
       {
-        name:  'Année scolaire',
-        href:  '/dashboard/annee-scolaire',
-        icon:  CalendarDays,
+        name:  'Param. Classes',
+        href:  '/dashboard/classes',
+        icon:  BookOpen,
         roles: ['admin', 'direction'],
       },
       {
-        name:  'Pédagogie',
-        icon:  School,
-        roles: ['admin', 'direction', 'responsable_pedagogique'],
-        children: [
-          {
-            name:  'Param. Classes',
-            href:  '/dashboard/classes',
-            icon:  BookOpen,
-            roles: ['admin', 'direction', 'responsable_pedagogique'],
-          },
-          {
-            name:  'Référentiel Cours',
-            href:  '/dashboard/cours',
-            icon:  BookOpen,
-            roles: ['admin', 'direction', 'responsable_pedagogique'],
-          },
-        ],
-      },
-      {
-        name:  'Enseignants',
-        href:  '/dashboard/teachers',
-        icon:  GraduationCap,
-        roles: ['admin', 'direction'],
-      },
-      {
-        name:  'Utilisateurs',
-        href:  '/dashboard/utilisateurs',
-        icon:  UserCog,
-        roles: ['admin', 'direction'],
-      },
-      {
-        name:  'Financiers',
-        href:  '/dashboard/cotisations',
-        icon:  Wallet,
-        roles: ['admin', 'direction', 'comptable'],
-      },
-      {
-        name:  'Types de présence',
-        href:  '/dashboard/types-presence',
-        icon:  Clock,
-        roles: ['admin', 'direction'],
-      },
-      {
-        name:  'Ressources',
-        href:  '/dashboard/ressources',
-        icon:  Boxes,
-        roles: ['admin', 'direction', 'secretaire'],
-      },
-      {
-        name:  'Journal d\'activité',
-        href:  '/dashboard/logs',
-        icon:  ScrollText,
-        roles: ['admin', 'direction'],
-      },
-      {
-        name:  'Établissement',
-        href:  '/dashboard/etablissement',
-        icon:  Building2,
+        name:  'Référentiel Cours',
+        href:  '/dashboard/cours',
+        icon:  BookOpen,
         roles: ['admin', 'direction'],
       },
     ],
   },
+  {
+    name:  'Enseignants',
+    href:  '/dashboard/teachers',
+    icon:  GraduationCap,
+    roles: ['admin', 'direction'],
+  },
+  {
+    name:  'Utilisateurs',
+    href:  '/dashboard/utilisateurs',
+    icon:  UserCog,
+    roles: ['admin', 'direction'],
+  },
+  {
+    name:  'Financiers',
+    href:  '/dashboard/cotisations',
+    icon:  Wallet,
+    roles: ['admin', 'direction'],
+  },
+  {
+    name:  'Types de présence',
+    href:  '/dashboard/types-presence',
+    icon:  Clock,
+    roles: ['admin', 'direction'],
+  },
+  {
+    name:  'Ressources',
+    href:  '/dashboard/ressources',
+    icon:  Boxes,
+    roles: ['admin', 'direction'],
+  },
+  {
+    name:  'Journal d\'activité',
+    href:  '/dashboard/logs',
+    icon:  ScrollText,
+    roles: ['admin', 'direction'],
+  },
+  {
+    name:  'Établissement',
+    href:  '/dashboard/etablissement',
+    icon:  Building2,
+    roles: ['admin', 'direction'],
+  },
 ]
+
+// ─── Sections repliables (regroupement des items, mapping validé) ──────────────
+
+const SECTION_ORDER = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Paramètres'] as const
+
+const SECTION_OF: Record<string, string> = {
+  'Tableau de bord':    'Principal',
+  'Notifications':      'Principal',
+  'Temps de presence':  'Principal',
+  'Apprenants':         'Vie scolaire',
+  'Parents':            'Vie scolaire',
+  'Affectations':       'Vie scolaire',
+  "Feuille d'appel":    'Vie scolaire',
+  'Évaluations':        'Pédagogie',
+  'Emploi du temps':    'Pédagogie',
+  'Cahier de texte':    'Pédagogie',
+  'Communications':     'Gestion',
+  'Financements':       'Gestion',
+  // Section Paramètres
+  'Année scolaire':     'Paramètres',
+  'Pédagogie':          'Paramètres',   // item (Param. Classes / Référentiel Cours)
+  'Enseignants':        'Paramètres',
+  'Utilisateurs':       'Paramètres',
+  'Financiers':         'Paramètres',
+  'Types de présence':  'Paramètres',
+  'Ressources':         'Paramètres',
+  "Journal d'activité": 'Paramètres',
+  'Établissement':      'Paramètres',
+}
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
@@ -378,6 +402,30 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   const [openGroup,    setOpenGroup]    = useState<string | null>(activeGroup)
   const [openSubGroup, setOpenSubGroup] = useState<string | null>(activeSubGroup)
 
+  // Section de la route courante (après login → 'Principal').
+  const activeTopName =
+    activeGroup ??
+    navItems.find(i => !!i.href && isRouteActive(i.href))?.name ??
+    null
+  const activeSection = (activeTopName && SECTION_OF[activeTopName]) || 'Principal'
+
+  // Accordéon de sections : UNE SEULE ouverte à la fois. Par défaut = section de la
+  // route ; se met à jour à la navigation ; le clic sur un en-tête bascule (les
+  // autres se referment).
+  const [openSection, setOpenSection] = useState<string | null>(activeSection)
+  useEffect(() => { setOpenSection(activeSection) }, [activeSection])
+  // Clic sur une section : elle s'ouvre (les autres se ferment) et tous les
+  // menus / sous-menus déroulés se replient. La SÉLECTION n'est jamais effacée :
+  // elle correspond toujours à la page affichée (route).
+  const toggleSection = (label: string) => {
+    // En revenant sur la section de la page affichée, on rouvre le chemin qui y
+    // mène (menu + sous-menu) ; sur une autre section, tout est replié.
+    const onActive = label === activeSection
+    setOpenGroup(onActive ? activeGroup : null)
+    setOpenSubGroup(onActive ? activeSubGroup : null)
+    setOpenSection(prev => (prev === label ? null : label))
+  }
+
   const toggleGroup = (groupName: string) => {
     setOpenSubGroup(null)
     setOpenGroup(prev => (prev === groupName ? null : groupName))
@@ -427,7 +475,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         'transition-[width] duration-200 ease-in-out motion-reduce:transition-none',
         collapsed ? 'w-16' : 'w-64'
       )}
-      style={{ background: 'linear-gradient(180deg, #2e4550 0%, #1f2e35 100%)' }}
+      style={{ background: 'linear-gradient(180deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
     >
 
       {/* ── En-tête ──────────────────────────────────────────────────────────── */}
@@ -435,14 +483,13 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         'border-b border-white/10 flex-shrink-0 flex',
         collapsed
           ? 'flex-col items-center gap-2 py-3 px-2'
-          : 'items-start gap-3 px-4 py-4'
+          : 'items-start gap-3 px-4 py-3'
       )}>
 
         <Link
           href="/dashboard"
-          title="Tableau de bord"
           className={clsx(
-            'flex min-w-0 rounded-lg outline-none transition-opacity hover:opacity-90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/70',
+            'flex min-w-0 rounded-lg outline-none transition-opacity hover:opacity-90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
             collapsed ? 'justify-center' : 'items-start gap-3 flex-1'
           )}
         >
@@ -472,11 +519,11 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         {/* Textes (cachés en mode réduit) */}
         {!collapsed && (
           <div className="flex-1 min-w-0 pt-0.5">
-            <p className="text-white font-bold text-sm leading-tight truncate">
+            <p className="text-white font-bold text-sm leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
               {etablissementNom ?? 'Bilal Education'}
             </p>
             {anneeCourante && (
-              <p className="text-secondary-400 text-xs leading-tight mt-0.5 truncate">
+              <p className="text-[var(--brand-muted)] text-xs leading-tight mt-0.5 truncate">
                 {anneeCourante}
               </p>
             )}
@@ -490,7 +537,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           title={collapsed ? 'Développer' : 'Réduire'}
           aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
           className={clsx(
-            'flex-shrink-0 rounded-lg flex items-center justify-center min-w-[32px] min-h-[32px] text-secondary-400 hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/70',
+            'flex-shrink-0 rounded-lg flex items-center justify-center min-w-[32px] min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
             collapsed ? 'mt-0' : 'mt-0.5'
           )}
         >
@@ -500,8 +547,26 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
       {/* ── Navigation ───────────────────────────────────────────────────────── */}
       <nav aria-label="Navigation principale" className="flex-1 py-2 overflow-y-auto overflow-x-hidden sidebar-scroll">
-        <div className="space-y-0.5">
-          {filteredItems.map((item) => {
+        {SECTION_ORDER.map(sectionLabel => {
+          const sectionItems = filteredItems.filter(i => SECTION_OF[i.name] === sectionLabel)
+          if (sectionItems.length === 0) return null
+          const isSecOpen = openSection === sectionLabel
+          return (
+          <div key={sectionLabel}>
+            {!collapsed && (
+              <button
+                type="button"
+                onClick={() => toggleSection(sectionLabel)}
+                aria-expanded={isSecOpen}
+                className="sidebar-section"
+              >
+                <span>{sectionLabel}</span>
+              </button>
+            )}
+            <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', (collapsed || isSecOpen) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+              <div className="overflow-hidden" inert={!collapsed && !isSecOpen}>
+                <div className="space-y-0.5 pb-0.5">
+          {sectionItems.map((item) => {
             const Icon = item.icon
 
             // ── Item avec sous-menu ─────────────────────────────────────────
@@ -523,18 +588,18 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                   aria-expanded={isOpen}
                   className={clsx(
                     'sidebar-item',
-                    collapsed && isGroupActive ? 'sidebar-item-active' : 'sidebar-item-default',
+                    isGroupActive ? 'sidebar-item-active' : isOpen ? 'sidebar-item-open' : 'sidebar-item-default',
                     collapsed && 'justify-center'
                   )}
                 >
-                  <Icon size={18} className={clsx('flex-shrink-0', isGroupActive && collapsed ? 'text-amber-400' : 'text-secondary-300')} />
+                  <Icon size={18} className={clsx('flex-shrink-0', isGroupActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
                   {!collapsed && (
                     <>
                       <span className="flex-1 text-left">{item.name}</span>
                       <ChevronDown
                         size={14}
                         className={clsx(
-                          'transition-transform duration-200 motion-reduce:transition-none flex-shrink-0 text-secondary-400',
+                          'transition-transform duration-200 motion-reduce:transition-none flex-shrink-0 text-[var(--brand-muted)]',
                           isOpen && 'rotate-180'
                         )}
                       />
@@ -552,15 +617,15 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
                   <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                     <div className="overflow-hidden" inert={!isOpen}>
-                    <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                    <div className="mt-0.5 ml-[26px] pl-3 border-l border-white/10 space-y-0.5">
                       {visibleChildren.map(child => {
-                        const ChildIcon = child.icon
-
                         // Sous-groupe niveau 2
                         if (child.children) {
                           const visibleLeaves = child.children.filter(gc => role && gc.roles.includes(role))
                           if (visibleLeaves.length === 0) return null
                           const isSubOpen = openSubGroup === child.name
+                          // Le sous-groupe est actif si une de ses feuilles est la route courante.
+                          const isSubActive = visibleLeaves.some(gc => isRouteActive(gc.href))
 
                           return (
                             <div key={child.name}>
@@ -568,14 +633,13 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                 onClick={() => toggleSubGroup(child.name)}
                                 aria-label={child.name}
                                 aria-expanded={isSubOpen}
-                                className="sidebar-item sidebar-item-default w-full"
+                                className={clsx('sidebar-item w-full', isSubActive ? 'sidebar-item-active sidebar-item-active-sub' : isSubOpen ? 'sidebar-item-open' : 'sidebar-item-default')}
                               >
-                                <ChildIcon size={16} className="flex-shrink-0 text-secondary-300" />
                                 <span className="flex-1 text-left text-sm">{child.name}</span>
                                 <ChevronDown
                                   size={12}
                                   className={clsx(
-                                    'transition-transform duration-200 motion-reduce:transition-none flex-shrink-0 text-secondary-400',
+                                    'transition-transform duration-200 motion-reduce:transition-none flex-shrink-0 text-[var(--brand-muted)]',
                                     isSubOpen && 'rotate-180'
                                   )}
                                 />
@@ -583,9 +647,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
                               <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', isSubOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                                 <div className="overflow-hidden" inert={!isSubOpen}>
-                                <div className="mt-0.5 ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                                <div className="mt-0.5 ml-[26px] pl-3 border-l border-white/10 space-y-0.5">
                                   {visibleLeaves.map(leaf => {
-                                    const LeafIcon = leaf.icon
                                     const isActive  = isRouteActive(leaf.href)
                                     return (
                                       <Link
@@ -593,9 +656,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                         href={leaf.href}
                                         onClick={handleLeafClick}
                                         aria-current={isActive ? 'page' : undefined}
-                                        className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
+                                        className={clsx('sidebar-item', isActive ? 'sidebar-item-active sidebar-item-active-sub' : 'sidebar-item-default')}
                                       >
-                                        <LeafIcon size={14} className={clsx('flex-shrink-0', isActive ? 'text-amber-400' : 'text-secondary-300')} />
                                         <span className="text-sm">{leaf.name}</span>
                                       </Link>
                                     )
@@ -615,9 +677,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                             href={child.href!}
                             onClick={() => { setOpenSubGroup(null); handleLeafClick() }}
                             aria-current={isActive ? 'page' : undefined}
-                            className={clsx('sidebar-item', isActive ? 'sidebar-item-active' : 'sidebar-item-default')}
+                            className={clsx('sidebar-item', isActive ? 'sidebar-item-active sidebar-item-active-sub' : 'sidebar-item-default')}
                           >
-                            <ChildIcon size={16} className={clsx('flex-shrink-0', isActive ? 'text-amber-400' : 'text-secondary-300')} />
                             <span className="text-sm">{child.name}</span>
                           </Link>
                         )
@@ -642,7 +703,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                   collapsed && 'justify-center'
                 )}
               >
-                <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-amber-400' : 'text-secondary-300')} />
+                <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
                 {!collapsed && <span>{item.name}</span>}
               </Link>
             )
@@ -656,7 +717,12 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
               </div>
             )
           })}
-        </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          )
+        })}
       </nav>
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
@@ -667,16 +733,16 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         {collapsed ? (
           <SidebarTooltip label="© 2026 Bilal Education · v1.0">
             <div className="flex justify-center cursor-default">
-              <span className="text-secondary-400 text-sm font-medium leading-none">©</span>
+              <span className="text-[var(--brand-muted)] text-sm font-medium leading-none">©</span>
             </div>
           </SidebarTooltip>
         ) : (
           <div className="space-y-0.5">
             <div className="flex items-center justify-between">
-              <p className="text-secondary-400 text-xs">© 2026 Bilal Education</p>
-              <span className="text-[11px] text-secondary-300 font-mono bg-white/10 px-1.5 py-0.5 rounded">v1.0</span>
+              <p className="text-[var(--brand-muted)] text-xs">© 2026 Bilal Education</p>
+              <span className="text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-0.5 rounded">v1.0</span>
             </div>
-            <p className="text-secondary-500 text-[11px]">Tous droits réservés</p>
+            <p className="text-[var(--brand-muted)] text-[11px]">Tous droits réservés</p>
           </div>
         )}
       </div>

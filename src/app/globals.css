@@ -55,6 +55,31 @@
   :root {
     --font-inter: 'Inter', sans-serif;
     --font-amiri: 'Amiri', serif;
+
+    /* ── Tokens de thème — surfaces de MARQUE (sidebar / shell / panneau login) ──
+       Défauts = thème clair (A « Marque profonde »). Surcharge sombre plus bas.
+       Consommés par le chantier sidebar/header ; `primary`/`secondary` Tailwind
+       (boutons, focus, badges) restent inchangés. */
+    --brand-surface:    #0c5b51;
+    --brand-surface-2:  #063a33;
+    --brand-accent:     #4bd6c4;
+    --brand-on-surface: #d7efe9;
+    --brand-label:      #4f978b;   /* libellés de section dans la sidebar */
+    --brand-text:       #d7efe9;   /* texte des items */
+    --brand-icon:       #8fc9be;   /* icônes des items */
+    --brand-muted:      #6fb0a5;   /* textes secondaires (année, chevrons, pied) */
+  }
+
+  /* Thème foncé (B « Ardoise premium ») — activé via data-theme sur <html>. */
+  :root[data-theme="dark"] {
+    --brand-surface:    #18242a;
+    --brand-surface-2:  #0d151a;
+    --brand-accent:     #22c9b6;
+    --brand-on-surface: #c8d4d9;
+    --brand-label:      #566a73;
+    --brand-text:       #c8d4d9;
+    --brand-icon:       #8497a0;
+    --brand-muted:      #7a8e98;
   }
 
   html {
@@ -237,23 +262,56 @@
 
   /* ── Sidebar items ── */
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-1.5 mx-2 rounded-lg
-           font-medium text-sm
+    @apply relative flex items-center gap-[11px] px-[11px] py-2 mx-2.5 my-0.5 rounded-[9px]
+           font-medium text-[13.5px]
            transition-[background-color,color,box-shadow,border-color] duration-200 cursor-pointer
-           outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/70;
+           outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70;
   }
   @media (prefers-reduced-motion: reduce) {
     .sidebar-item { transition: none; }
   }
 
   .sidebar-item-default {
-    @apply text-secondary-200 hover:bg-white/10 hover:text-white;
+    @apply text-[var(--brand-text)] hover:bg-white/[0.08] hover:text-white;
   }
 
+  /* Menu déroulé (mais pas la page courante) : fond discret, sans barre d'accent. */
+  .sidebar-item-open {
+    @apply bg-white/[0.06] text-white hover:bg-white/[0.09];
+  }
+
+  /* Actif = pastille pleine + barre d'accent détachée à gauche (maquette). */
   .sidebar-item-active {
-    @apply bg-white/12 text-white
-           border-l-[3px] border-amber-400 pl-[13px]
+    @apply bg-white/12 text-white font-semibold
            shadow-[inset_0_1px_0_rgba(255,255,255,0.06)];
+  }
+  .sidebar-item-active::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    border-radius: 0 3px 3px 0;
+    background: var(--brand-accent);
+  }
+  /* Sous-menu : la barre se pose sur le filet vertical du groupe. */
+  .sidebar-item-active-sub::before {
+    left: -22px;   /* mx-2.5 (10px) + pl-3 (12px) → pile sur le filet du groupe */
+  }
+
+  /* En-tête de section repliable dans la sidebar */
+  .sidebar-section {
+    @apply w-full flex items-center gap-2
+           px-4 pt-3 pb-1
+           text-xs font-bold uppercase tracking-wider
+           text-[var(--brand-label)] hover:text-secondary-200
+           transition-colors duration-200 cursor-pointer select-none
+           outline-none rounded focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-section { transition: none; }
   }
 }
 

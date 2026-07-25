@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
+import { ThemeProvider } from '@/components/layout/ThemeContext'
 import { getCachedProfile, getCachedEtablissement, getCachedCurrentYear } from '@/lib/cache/dashboard'
 
 
@@ -72,6 +73,7 @@ export default async function DashboardLayout({
   const unreadNotifCount = (staffUnread ?? 0) + parentUnread
 
   return (
+    <ThemeProvider>
     <SidebarProvider>
       <a
         href="#main-content"
@@ -79,7 +81,7 @@ export default async function DashboardLayout({
       >
         Aller au contenu
       </a>
-      <div className="h-screen overflow-hidden bg-warm-50 flex">
+      <div className="h-screen overflow-hidden bg-warm-50 dark:bg-[#0e1418] flex">
         {/* Sidebar fixe à gauche */}
         <DashboardSidebar
           role={profile?.role}
@@ -97,5 +99,6 @@ export default async function DashboardLayout({
         </div>
       </div>
     </SidebarProvider>
+    </ThemeProvider>
   )
 }
