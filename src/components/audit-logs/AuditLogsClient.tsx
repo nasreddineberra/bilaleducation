@@ -320,7 +320,7 @@ export default function AuditLogsClient({
       {showPurge && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => !purging && setShowPurge(false)}
+          
         >
           <div
             ref={dialogRef}

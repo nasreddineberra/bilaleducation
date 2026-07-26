@@ -50,18 +50,22 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
               : position === 'top-right' ? 'translate(-100%, -100%)' : 'translate(-50%, -100%)',
           }}
         >
-          {/* Flèche au-dessus quand la bulle est en dessous du déclencheur */}
+          {/* Flèche au-dessus quand la bulle est en dessous du déclencheur.
+              Deux triangles superposés : le plus grand (accent, sombre uniquement)
+              dépasse de 1px → contour sur les obliques et la pointe. */}
           {position === 'bottom' && (
-            <div className="flex justify-center -mb-px">
-              <span className="border-[5px] border-transparent border-b-[var(--brand-surface)]" />
+            <div className="relative h-[5px] -mb-px">
+              <span className="hidden dark:block absolute bottom-0 left-1/2 -translate-x-1/2 border-x-[6px] border-b-[6px] border-x-transparent border-b-[var(--brand-accent)]" />
+              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 border-x-[5px] border-b-[5px] border-x-transparent border-b-[var(--brand-surface)]" />
             </div>
           )}
-          <div className={`bg-[var(--brand-surface)] text-white rounded-xl shadow-xl px-3 py-2 text-xs leading-relaxed ${maxWidth}`}>
+          <div className={`bg-[var(--brand-surface)] text-white rounded-xl shadow-xl px-3 py-2 text-xs leading-relaxed dark:border dark:border-[var(--brand-accent)] ${maxWidth}`}>
             {content}
           </div>
           {position !== 'bottom' && (
-            <div className={`flex -mt-px ${position === 'top-right' ? 'justify-end pr-2' : 'justify-center'}`}>
-              <span className="border-[5px] border-transparent border-t-[var(--brand-surface)]" />
+            <div className="relative h-[5px] -mt-px">
+              <span className={`hidden dark:block absolute top-0 border-x-[6px] border-t-[6px] border-x-transparent border-t-[var(--brand-accent)] ${position === 'top-right' ? 'right-2' : 'left-1/2 -translate-x-1/2'}`} />
+              <span className={`absolute top-0 border-x-[5px] border-t-[5px] border-x-transparent border-t-[var(--brand-surface)] ${position === 'top-right' ? 'right-2' : 'left-1/2 -translate-x-1/2'}`} />
             </div>
           )}
         </div>,

@@ -921,7 +921,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
       {confirmDelete && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-          onClick={() => { if (!submitting) { setConfirmDelete(null); setDeleteError(null) } }}
+          
         >
           <div
             role="dialog"

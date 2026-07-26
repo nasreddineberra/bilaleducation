@@ -81,7 +81,7 @@ export default async function DashboardLayout({
       >
         Aller au contenu
       </a>
-      <div className="h-screen overflow-hidden bg-warm-50 dark:bg-[#0e1418] flex">
+      <div className="h-screen overflow-hidden bg-[var(--surface-page)] flex">
         {/* Sidebar fixe à gauche */}
         <DashboardSidebar
           role={profile?.role}

@@ -39,6 +39,8 @@ export default function ConfirmModal({
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
       <div
+        role="dialog"
+        aria-modal="true"
         className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-fade-in"
         onClick={e => e.stopPropagation()}
       >

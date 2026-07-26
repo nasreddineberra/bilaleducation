@@ -871,7 +871,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       {showVacModal && weeks.length > 0 && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowVacModal(false)}
+          
         >
           <div
             role="dialog"

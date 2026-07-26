@@ -317,7 +317,7 @@ export default function SlotFormModal({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" >
       <div
         role="dialog"
         aria-modal="true"

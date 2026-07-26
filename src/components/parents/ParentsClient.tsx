@@ -164,7 +164,7 @@ export default function ParentsClient({
         </button>
 
         {/* Ajouter */}
-        <Link href="/dashboard/parents/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap">
+        <Link href="/dashboard/parents/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] transition-all duration-200 whitespace-nowrap">
           Ajouter
         </Link>
       </div>

@@ -89,8 +89,11 @@ function SidebarTooltip({ children, label, className = 'w-full' }: { children: R
           className="fixed z-[9999] pointer-events-none flex items-center"
           style={{ top: pos.top, left: pos.left, transform: 'translateY(-50%)' }}
         >
-          <span className="border-[5px] border-transparent border-r-[var(--brand-surface)] -mr-px" />
-          <div className="bg-[var(--brand-surface)] text-white rounded-xl shadow-xl px-3 py-2 text-xs whitespace-nowrap">
+          <span className="relative w-[5px] h-[12px] -mr-px flex-shrink-0">
+            <span className="hidden dark:block absolute right-0 top-1/2 -translate-y-1/2 border-y-[6px] border-r-[6px] border-y-transparent border-r-[var(--brand-accent)]" />
+            <span className="absolute right-0 top-1/2 -translate-y-1/2 border-y-[5px] border-r-[5px] border-y-transparent border-r-[var(--brand-surface)]" />
+          </span>
+          <div className="bg-[var(--brand-surface)] text-white rounded-xl shadow-xl px-3 py-2 text-xs whitespace-nowrap dark:border dark:border-[var(--brand-accent)]">
             {label}
           </div>
         </div>,
@@ -555,9 +558,9 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           <button
             onClick={handleToggle}
             aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
-            className="rounded-lg flex items-center justify-center min-w-[32px] min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70"
+            className="rounded-lg flex items-center justify-center w-5 min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70"
           >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
         </SidebarTooltip>
       </div>
@@ -587,11 +590,11 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                         className={clsx(
                           'w-9 h-9 rounded-[9px] flex items-center justify-center transition-colors duration-200 motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
                           isActive
-                            ? 'bg-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                            ? 'bg-white/12 ring-1 ring-[var(--brand-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                             : 'hover:bg-white/[0.08]',
                         )}
                       >
-                        <DIcon size={18} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                        <DIcon size={18} className="flex-shrink-0 text-[var(--brand-icon)]" />
                       </Link>
                     </SidebarTooltip>
                   )

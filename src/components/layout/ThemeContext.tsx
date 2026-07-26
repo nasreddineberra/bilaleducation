@@ -37,14 +37,17 @@ export function ThemeProvider({
     setTheme(initialTheme)
   }, [initialTheme])
 
+  // Les effets de bord (DOM, stockage, server action) sont faits DANS le
+  // gestionnaire d'événement, jamais dans l'updater de setState — celui-ci est
+  // exécuté pendant le rendu (et deux fois en dev), ce qui déclenchait l'action
+  // en double et l'avertissement « setState in render ».
   const toggle = () => {
-    setTheme(prev => {
-      const next: Theme = prev === 'dark' ? 'light' : 'dark'
-      document.documentElement.setAttribute('data-theme', next)
-      try { localStorage.setItem('theme', next) } catch { /* stockage indispo */ }
-      // Persistance sur le profil (non bloquant : l'affichage a déjà basculé).
-      void setOwnTheme(next)
-      return next
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    document.documentElement.setAttribute('data-theme', next)
+    try { localStorage.setItem('theme', next) } catch { /* stockage indispo */ }
+    setOwnTheme(next).then(res => {
+      if (res?.error) console.error('[theme] persistance échouée :', res.error)
     })
   }
 

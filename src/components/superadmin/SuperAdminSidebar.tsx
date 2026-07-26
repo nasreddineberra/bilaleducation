@@ -73,7 +73,7 @@ export default function SuperAdminSidebar({ email }: SuperAdminSidebarProps) {
           <button
             onClick={handleLogout}
             className="p-1.5 text-white/40 hover:text-danger-400 hover:bg-white/10 rounded-lg transition-all duration-150"
-            title="Déconnexion"
+            aria-label="Déconnexion"
           >
             <LogOut className="w-4 h-4" />
           </button>

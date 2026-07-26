@@ -29,6 +29,23 @@ export default function TotpChallengePage() {
       .catch((err) => console.error('[TOTP] Échec chargement infos établissement:', err))
   }, [])
 
+  // Thème de l'utilisateur : dès la 2FA il est identifié, on applique sa
+  // préférence (et on l'amorce dans localStorage → dashboard sans flash).
+  useEffect(() => {
+    const applyTheme = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data: prof } = await supabase.from('profiles').select('theme').eq('id', user.id).maybeSingle()
+        const t = prof?.theme === 'dark' ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', t)
+        localStorage.setItem('theme', t)
+      } catch { /* thème indisponible : on reste en clair */ }
+    }
+    applyTheme()
+  }, [])
+
   // Au chargement : trouver le facteur TOTP
   useEffect(() => {
     const init = async () => {
@@ -100,7 +117,7 @@ export default function TotpChallengePage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center py-12 px-4"
-      style={{ background: 'linear-gradient(135deg, #0c5b51 0%, #063a33 100%)' }}
+      style={{ background: 'linear-gradient(135deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
     >
       {/* Cercles décoratifs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -135,16 +152,16 @@ export default function TotpChallengePage() {
 
         {/* Carte */}
         <div
-          className="bg-white rounded-3xl p-8 animate-fade-in"
+          className="bg-white dark:bg-[#161f24] rounded-3xl p-8 animate-fade-in"
           style={{ boxShadow: '0 24px 64px rgba(17,28,33,0.22), 0 8px 24px rgba(17,28,33,0.12)' }}
         >
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-500/15 flex items-center justify-center flex-shrink-0">
               <ShieldCheck size={18} className="text-amber-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-secondary-800 leading-tight">Vérification en deux étapes</h2>
-              <p className="text-xs text-warm-700 mt-0.5">
+              <h2 className="text-xl font-bold text-secondary-800 dark:text-[#e7eef0] leading-tight">Vérification en deux étapes</h2>
+              <p className="text-xs text-warm-700 dark:text-[#93a2a8] mt-0.5">
                 Saisissez le code de votre application d'authentification.
               </p>
             </div>
@@ -153,7 +170,7 @@ export default function TotpChallengePage() {
           {!isReady ? (
             <div className="text-center py-8">
               <Loader2 size={32} className="animate-spin text-primary-500 mx-auto" />
-              <p className="text-sm text-warm-700 mt-3">Chargement…</p>
+              <p className="text-sm text-warm-700 dark:text-[#93a2a8] mt-3">Chargement…</p>
             </div>
           ) : (
             <form onSubmit={e => { e.preventDefault(); verify(otp) }} noValidate className="space-y-4">
@@ -172,14 +189,14 @@ export default function TotpChallengePage() {
                 ariaLabel="Code à 6 chiffres de votre application d'authentification"
               />
 
-              <p role="status" className="h-5 text-center text-sm text-warm-700 flex items-center justify-center gap-2">
+              <p role="status" className="h-5 text-center text-sm text-warm-700 dark:text-[#93a2a8] flex items-center justify-center gap-2">
                 {isSubmitting && <><Loader2 size={14} className="animate-spin text-primary-500" /> Vérification…</>}
               </p>
             </form>
           )}
 
           {/* Retour au login */}
-          <div className="mt-5 pt-4 border-t border-warm-100 text-center">
+          <div className="mt-5 pt-4 border-t border-warm-100 dark:border-[#243139] text-center">
             <button
               type="button"
               onClick={() => { window.location.href = '/login' }}

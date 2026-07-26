@@ -981,7 +981,7 @@ export default function ClassForm({
     {pendingAssignAction && (
       <div
         className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
-        onClick={() => setPendingAssignAction(null)}
+        
       >
         <div
           ref={assignModalRef}
@@ -1043,7 +1043,7 @@ export default function ClassForm({
     {editRow && (
       <div
         className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
-        onClick={() => setEditRow(null)}
+        
       >
         <div
           role="dialog"
@@ -1147,7 +1147,7 @@ function SlotFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30" onClick={onCancel}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30" >
       <div
         ref={panelRef}
         role="dialog"

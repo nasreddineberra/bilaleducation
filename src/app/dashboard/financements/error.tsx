@@ -39,7 +39,7 @@ export default function FinancementsError({
       <div className="flex gap-3">
         <button
           onClick={handleRetry}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-secondary-700 text-white hover:bg-secondary-800 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 transition-colors shadow-sm"
         >
           <RefreshCw size={15} />
           Réessayer

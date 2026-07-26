@@ -209,7 +209,7 @@ export default function NotificationsClient({ notifications, role, parentId, yea
                   onClick={() => markAsRead(n)}
                   className={clsx(
                     'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all w-full text-left',
-                    !isRead && 'border-l-3 border-l-primary-500 bg-primary-50/30'
+                    !isRead && 'border-l-3 border-l-primary-500 bg-primary-50/30 dark:bg-primary-500/10'
                   )}
                 >
                   <div className="mt-1 flex-shrink-0">
@@ -259,7 +259,7 @@ export default function NotificationsClient({ notifications, role, parentId, yea
                 onClick={() => markAsRead(n)}
                 className={clsx(
                   'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group',
-                  !isRead && 'border-l-3 border-l-primary-500 bg-primary-50/30'
+                  !isRead && 'border-l-3 border-l-primary-500 bg-primary-50/30 dark:bg-primary-500/10'
                 )}
               >
                 <div className="mt-1 flex-shrink-0">

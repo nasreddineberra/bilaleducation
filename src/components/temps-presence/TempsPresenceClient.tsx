@@ -352,13 +352,8 @@ export default function TempsPresenceClient({
 
   useEffect(() => { fetchYearEntries() }, [fetchYearEntries])
 
-  // Fermeture de la modale recapitulatif sur Echap (lecture seule → fermable).
-  useEffect(() => {
-    if (!recapModal) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setRecapModal(null) }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [recapModal])
+  // Regle projet : AUCUNE modale ne se ferme sur Echap ni sur un clic hors
+  // fenetre — uniquement par X / Annuler. (Pas de handler clavier ici.)
 
   // ── Navigation ──────────────────────────────────────────────────────
   const prev = () => {
@@ -597,11 +592,11 @@ export default function TempsPresenceClient({
 
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 bg-warm-100 rounded-lg p-0.5" role="group" aria-label="Mode d'affichage">
-          <button onClick={() => setViewMode('month')} aria-pressed={viewMode === 'month'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'month' ? 'bg-white shadow text-secondary-800' : 'text-warm-700')}>
+        <div className="flex items-center gap-1 bg-warm-100 dark:bg-black/25 rounded-lg p-0.5" role="group" aria-label="Mode d'affichage">
+          <button onClick={() => setViewMode('month')} aria-pressed={viewMode === 'month'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'month' ? 'bg-white dark:bg-[var(--surface-sunken)] shadow text-secondary-800' : 'text-warm-700')}>
             Mois
           </button>
-          <button onClick={() => setViewMode('week')} aria-pressed={viewMode === 'week'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'week' ? 'bg-white shadow text-secondary-800' : 'text-warm-700')}>
+          <button onClick={() => setViewMode('week')} aria-pressed={viewMode === 'week'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'week' ? 'bg-white dark:bg-[var(--surface-sunken)] shadow text-secondary-800' : 'text-warm-700')}>
             Semaine
           </button>
         </div>
@@ -653,7 +648,7 @@ export default function TempsPresenceClient({
 
       {/* ── Garde : annee / types de presence manquants ──────────────── */}
       {addBlockReason && (
-        <div role="status" className="card px-4 py-3 flex items-start gap-2.5 bg-amber-50 border-amber-200 text-amber-800">
+        <div role="status" className="card px-4 py-3 flex items-start gap-2.5 bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-200">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" />
           <p className="text-xs">
             {!schoolYearId ? (
@@ -734,7 +729,7 @@ export default function TempsPresenceClient({
                 className={clsx(
                   'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                   canAdd
-                    ? 'bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
+                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]'
                     : 'bg-warm-200 text-warm-700 cursor-not-allowed'
                 )}
               >
@@ -845,16 +840,12 @@ export default function TempsPresenceClient({
         const recap = isMonth ? monthlyRecap : annualRecap
         const emptyMsg = isMonth ? 'Aucune saisie ce mois' : 'Aucune saisie cette année'
         return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-            onClick={() => setRecapModal(null)}
-          >
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
             <div
               role="dialog"
               aria-modal="true"
               aria-labelledby="recap-modal-title"
               className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
-              onClick={e => e.stopPropagation()}
             >
               {/* En-tete : titre + export + fermer */}
               <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-warm-100 shrink-0">
@@ -865,7 +856,7 @@ export default function TempsPresenceClient({
                       <button
                         onClick={() => handleExportPdf(isMonth ? 'month' : 'year')}
                         disabled={exporting}
-                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary-700 text-white hover:bg-secondary-800 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                       >
                         {exporting ? 'Export…' : 'Exporter PDF'}
                       </button>

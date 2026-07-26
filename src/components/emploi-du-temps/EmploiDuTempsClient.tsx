@@ -1497,7 +1497,7 @@ export default function EmploiDuTempsClient({
             aria-pressed={viewType === 'week'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'week' ? 'bg-secondary-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
+              viewType === 'week' ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Semaine
@@ -1507,7 +1507,7 @@ export default function EmploiDuTempsClient({
             aria-pressed={viewType === 'month'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'month' ? 'bg-secondary-700 text-white' : 'bg-white text-warm-700 hover:bg-warm-50',
+              viewType === 'month' ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Mois
@@ -1560,7 +1560,7 @@ export default function EmploiDuTempsClient({
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
               viewType === 'week' && isFullWeekVacation
                 ? 'bg-warm-200 text-warm-700 cursor-not-allowed'
-                : 'bg-secondary-700 hover:bg-secondary-800 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]'
+                : 'bg-[var(--brand-surface)] hover:bg-[var(--brand-surface-2)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]'
             )}
           >
             Ajouter

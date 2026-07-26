@@ -327,7 +327,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                       type="button"
                       onClick={() => setAbsencePeriod(p)}
                       aria-pressed={selected}
-                      className={`flex-1 text-center text-xs font-semibold py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${selected ? 'bg-secondary-700 text-white border-secondary-700' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
+                      className={`flex-1 text-center text-xs font-semibold py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${selected ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
                     >
                       {label}
                     </button>

@@ -89,7 +89,7 @@ const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').to
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   if (typeof document === 'undefined') return null
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" >
       <div
         role="dialog" aria-modal="true" aria-label={title}
         className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"

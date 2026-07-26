@@ -166,7 +166,7 @@ export default function SlotCapsule({
         <Tooltip content="Actions du créneau" className="absolute top-0.5 right-0.5">
           <button
             className={clsx(
-              'p-0.5 rounded bg-secondary-700 text-white group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity',
+              'p-0.5 rounded bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity',
               menuActive ? 'opacity-100' : 'opacity-0',
             )}
             onClick={(e) => { e.stopPropagation(); onKeyMenu((e.currentTarget as HTMLElement).getBoundingClientRect()) }}

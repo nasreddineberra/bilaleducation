@@ -410,7 +410,7 @@ export default function GradesClient({
                 className={clsx(
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   selectedPeriodId === p.id
-                    ? 'bg-secondary-700 text-white shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:bg-secondary-800'
+                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90'
                     : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
                 )}
               >

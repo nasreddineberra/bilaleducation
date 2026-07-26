@@ -8,6 +8,7 @@ import Color from '@tiptap/extension-color'
 import TextAlign from '@tiptap/extension-text-align'
 import Link from '@tiptap/extension-link'
 import { clsx } from 'clsx'
+import Tooltip from './Tooltip'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight,
@@ -51,10 +52,11 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
   if (!editor) return null
 
   const Btn = ({ active, onClick, children, title }: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
+    <Tooltip content={title}>
     <button
       type="button"
       onClick={onClick}
-      title={title}
+      aria-label={title}
       className={clsx(
         'p-1.5 rounded transition-colors',
         active ? 'bg-primary-100 text-primary-700' : 'text-warm-700 hover:bg-warm-100'
@@ -62,6 +64,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
     >
       {children}
     </button>
+    </Tooltip>
   )
 
   const handleLink = () => {
@@ -119,9 +122,11 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
 
         {/* Color picker */}
         <div className="relative group">
-          <button type="button" className="p-1.5 rounded text-warm-700 hover:bg-warm-100" title="Couleur du texte">
-            <Palette size={14} />
-          </button>
+          <Tooltip content="Couleur du texte">
+            <button type="button" aria-label="Couleur du texte" className="p-1.5 rounded text-warm-700 hover:bg-warm-100">
+              <Palette size={14} />
+            </button>
+          </Tooltip>
           <div className="absolute top-full left-0 mt-1 hidden group-hover:grid grid-cols-5 gap-1 p-2 bg-white border border-warm-200 rounded-lg shadow-lg z-50">
             {COLORS.map(color => (
               <button

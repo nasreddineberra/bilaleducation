@@ -68,6 +68,21 @@
     --brand-text:       #d7efe9;   /* texte des items */
     --brand-icon:       #8fc9be;   /* icônes des items */
     --brand-muted:      #6fb0a5;   /* textes secondaires (année, chevrons, pied) */
+
+    /* ── Tokens de CONTENU (pages, cartes, tableaux) ── */
+    --surface-page:   #faf8f6;   /* fond de page (warm-50) */
+    --surface-card:   #ffffff;   /* cartes, champs */
+    --surface-sunken: #faf8f6;   /* en-tête de tableau, lignes au survol */
+    --ink:            #1f2e35;   /* texte principal */
+    --ink-muted:      #786d64;   /* texte secondaire (warm-700) */
+    --line:           #f0ece8;   /* bordures douces (warm-100) */
+    --line-strong:    #d0c6ba;   /* bordures de champ (warm-300) */
+    --card-shadow:    0 2px 8px rgba(47,69,80,.08), 0 1px 3px rgba(47,69,80,.04);
+
+    /* Widgets NATIFS (icône d'horloge de <input type="time">, calendrier,
+       liste déroulante d'un <select>, ascenseurs) : dessinés par le navigateur,
+       inaccessibles à notre CSS. Seul `color-scheme` les fait basculer. */
+    color-scheme: light;
   }
 
   /* Thème foncé (B « Ardoise premium ») — activé via data-theme sur <html>. */
@@ -80,6 +95,17 @@
     --brand-text:       #c8d4d9;
     --brand-icon:       #8497a0;
     --brand-muted:      #7a8e98;
+
+    /* Contenu — famille ARDOISE, cohérente avec la sidebar du thème sombre */
+    --surface-page:   #0e1418;
+    --surface-card:   #161f24;
+    --surface-sunken: #1a252b;
+    --ink:            #e7eef0;
+    --ink-muted:      #93a2a8;
+    --line:           #243139;
+    --line-strong:    #2c3a42;
+    --card-shadow:    0 2px 10px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.25);
+    color-scheme: dark;
   }
 
   html {
@@ -87,7 +113,7 @@
   }
 
   body {
-    @apply bg-warm-50 text-gray-900;
+    @apply bg-[var(--surface-page)] text-[var(--ink)];
   }
 
   * {
@@ -141,8 +167,8 @@
   /* ── Inputs ── */
   .input {
     @apply w-full px-4 py-2.5
-           border border-warm-300 rounded-lg
-           bg-white text-gray-800 placeholder-warm-400
+           border border-[var(--line-strong)] rounded-lg
+           bg-[var(--surface-card)] text-[var(--ink)] placeholder-warm-400
            transition-all duration-200
            focus:outline-none
            focus:border-primary-400
@@ -156,9 +182,9 @@
 
   /* ── Cards ── */
   .card {
-    @apply bg-white rounded-lg p-6
-           border border-warm-100
-           shadow-[0_2px_8px_rgba(47,69,80,0.08),0_1px_3px_rgba(47,69,80,0.04)];
+    @apply bg-[var(--surface-card)] rounded-lg p-6
+           border border-[var(--line)]
+           shadow-[var(--card-shadow)];
   }
 
   /* ── Listes globales : densité/typo partagées (tables paginées) ── */
@@ -166,7 +192,7 @@
      warm-700 (5,04:1 sur blanc) et non warm-500 (2,34:1) : du petit texte
      demande 4,5:1 (WCAG AA) — le 3:1 ne vaut que pour du texte ≥ 24 px. */
   .list-th {
-    @apply text-left px-4 py-1.5 text-[11px] font-semibold text-warm-700 uppercase tracking-wider;
+    @apply text-left px-4 py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] uppercase tracking-wider;
   }
   /* Cellule de ligne (espacement vertical compact). */
   .list-td {
@@ -181,14 +207,14 @@
      fin aux 3 variantes concurrentes (9px/warm-400, 10px/tracking-widest,
      11px/warm-500). L'interlettrage aide la lecture des majuscules. */
   .stat-label {
-    @apply text-[10px] font-bold text-warm-700 uppercase tracking-wide;
+    @apply text-[10px] font-bold text-[var(--ink-muted)] uppercase tracking-wide;
   }
 
   /* Card sans padding interne (pour les composants qui gèrent leur propre layout) */
   .card-flush {
-    @apply bg-white rounded-lg
-           border border-warm-100
-           shadow-[0_2px_8px_rgba(47,69,80,0.08),0_1px_3px_rgba(47,69,80,0.04)];
+    @apply bg-[var(--surface-card)] rounded-lg
+           border border-[var(--line)]
+           shadow-[var(--card-shadow)];
   }
 
   .card-hover {
@@ -325,6 +351,12 @@
     animation: fadeIn 0.25s ease-out both;
   }
 
+  /* Le keyframe final ne déclare PAS `transform` : avec `fill: both`, l'élément
+     conserverait sinon `transform: translateY(0)` et deviendrait le bloc
+     conteneur de tout `position: fixed` descendant — les modales se caleraient
+     sur lui (sous le header) au lieu du viewport. Sans transform à 100 %, la
+     valeur retenue est `none` : plus de bloc conteneur, le mouvement d'entrée
+     est conservé. */
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -332,7 +364,6 @@
     }
     to {
       opacity: 1;
-      transform: translateY(0);
     }
   }
 
@@ -346,3 +377,141 @@
     to   { width: 0%; }
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PONT DE THÈME SOMBRE — transitoire
+   --------------------------------------------------------------------------
+   Les pages portent encore des couleurs EN DUR (bg-white, text-secondary-800,
+   text-warm-700…). Ce pont les remappe sur les tokens du thème pour que le
+   contenu soit lisible en sombre dès maintenant, sans réécrire les 20 modules
+   d'un coup.
+
+   Volontairement limité à `#main-content` : la sidebar, le header, le login et
+   la 2FA sont thématisés explicitement (le fond blanc du logo, par exemple, ne
+   doit PAS être remappé).
+
+   Au fil de la reprise d'un module, on remplace la classe en dur par le token
+   (`bg-[var(--surface-card)]`, `text-[var(--ink)]`…) : cette classe ne figure
+   pas dans le pont, donc aucun conflit. Ce bloc pourra disparaître à la fin.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-white { background-color: var(--surface-card); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50 { background-color: var(--surface-sunken); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-100:hover { background-color: var(--surface-sunken); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-100 { background-color: var(--line-strong); }
+
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-gray-900,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-gray-800,
+/* warm-800 est une couleur d'EMPHASE (titres non lus…) → --ink, pas --ink-muted. */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-secondary-800,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-secondary-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-warm-800 { color: var(--ink); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-secondary-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-warm-700 { color: var(--ink-muted); }
+
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-200 { border-color: var(--line); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-300 { border-color: var(--line-strong); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .divide-warm-50 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .divide-warm-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--line); }
+
+/* Variantes avec opacité (bg-warm-50/50, /60…) : ce sont des classes DISTINCTES,
+   non captées par les sélecteurs ci-dessus. Fréquentes dans les listes et
+   calendriers (fonds de ligne discrets) → même remappage. */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-100\/60 { background-color: var(--surface-sunken); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-100\/60:hover { background-color: var(--surface-sunken); }
+
+/* warm-200 : filets, pistes de barres de progression, séparateurs. */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-200 { background-color: var(--line-strong); }
+
+/* ── Modales en thème sombre : bordure accent ──────────────────────────────
+   Une seule règle pour TOUTES les modales : le panneau porte `role="dialog"`
+   (convention respectée partout, ConfirmModal inclus). Sur fond sombre le
+   panneau (surface) se confondrait avec le voile ; le liseré turquoise le
+   détache. Hors #main-content à dessein : les modales sont portées dans <body>. */
+:root[data-theme="dark"] [role="dialog"] {
+  background-color: var(--surface-card);
+  color: var(--ink);
+  border: 1px solid var(--brand-accent);
+}
+
+/* ── Couleurs SÉMANTIQUES en thème sombre ──────────────────────────────────
+   Pastilles et encadrés teintés (compteurs de discipline, bandeaux d'alerte,
+   badges de statut) : les pastels -50/-100 sont pensés pour un fond blanc et
+   « brillent » sur carte sombre. On les remplace par une TEINTE TRANSLUCIDE de
+   la même couleur et on éclaircit le texte (-600/-700/-800 → clair) pour garder
+   le contraste. Le sens (rouge = alerte, ambre = attention…) est préservé.
+   NB : sélecteurs PLATS — la chaîne PostCSS du projet ne résout pas
+   l'imbrication CSS (tailwindcss + autoprefixer uniquement). */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100:hover { background-color: rgb(239 68 68 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-red-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-red-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-red-800 { color: #fca5a5; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-300 { border-color: rgb(239 68 68 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50:hover { background-color: rgb(249 115 22 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100:hover { background-color: rgb(249 115 22 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-orange-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-orange-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-orange-800 { color: #fdba74; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-300 { border-color: rgb(249 115 22 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50:hover { background-color: rgb(255 162 0 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100:hover { background-color: rgb(255 162 0 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-amber-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-amber-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-amber-800 { color: #ffd966; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-300 { border-color: rgb(255 162 0 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50:hover { background-color: rgb(34 197 94 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100:hover { background-color: rgb(34 197 94 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-green-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-green-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-green-800 { color: #86efac; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-300 { border-color: rgb(34 197 94 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50:hover { background-color: rgb(59 130 246 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100:hover { background-color: rgb(59 130 246 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-blue-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-blue-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-blue-800 { color: #93c5fd; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-300 { border-color: rgb(59 130 246 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50:hover { background-color: rgb(168 85 247 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100:hover { background-color: rgb(168 85 247 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-purple-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-purple-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-purple-800 { color: #d8b4fe; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-300 { border-color: rgb(168 85 247 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50:hover { background-color: rgb(24 170 153 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100:hover { background-color: rgb(24 170 153 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-800 { color: #65d9cf; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-300 { border-color: rgb(24 170 153 / .35); }

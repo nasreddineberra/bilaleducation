@@ -217,7 +217,7 @@ export default function EnrollTotpPage() {
 
               <div className="text-center">
                 <FloatButton
-                  variant="primary"
+                  variant="submit"
                   className="w-full justify-center"
                   disabled={isSubmitting}
                   loading={isSubmitting}
@@ -301,7 +301,7 @@ export default function EnrollTotpPage() {
                 Un code à 6 chiffres vous sera demandé à chaque connexion.
               </p>
               <FloatButton
-                variant="primary"
+                variant="submit"
                 className="w-full justify-center"
                 onClick={() => router.push('/dashboard')}
               >

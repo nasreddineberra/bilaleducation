@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Loader2, Search, X } from 'lucide-react'
+import Tooltip from './Tooltip'
 
 // ─── FloatInput ───────────────────────────────────────────────────────────────
 
@@ -288,7 +289,9 @@ export function FloatCheckbox({
         <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="sr-only" />
         <span className="text-sm font-medium text-secondary-700">{label}</span>
         {hint && (
-          <span title={hint} className="ml-auto inline-flex items-center justify-center w-4 h-4 rounded-full bg-warm-200 text-warm-700 text-[10px] font-bold cursor-help">?</span>
+          <Tooltip content={hint} className="ml-auto">
+            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-warm-200 text-warm-700 text-[10px] font-bold cursor-help">?</span>
+          </Tooltip>
         )}
       </label>
     )
@@ -412,9 +415,16 @@ export interface FloatButtonProps extends React.ButtonHTMLAttributes<HTMLButtonE
 }
 
 const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
-  submit:    'bg-secondary-700 text-white hover:bg-secondary-800 focus:ring-secondary-500 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)]',
-  secondary: 'bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 focus:ring-secondary-300',
-  edit:      'bg-amber-500 text-white hover:bg-amber-600 focus:ring-amber-400 shadow-[0_2px_6px_rgba(255,162,0,0.30)] hover:shadow-[0_4px_12px_rgba(255,162,0,0.40)]',
+  // Action de validation = couleur de MARQUE du thème.
+  // Clair : surface teal profond + texte blanc (accord avec la sidebar).
+  // Sombre : la surface (#18242a) serait invisible sur une carte (#161f24) →
+  // on passe à l'ACCENT turquoise avec un texte très foncé.
+  submit:    'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-primary-400 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 dark:shadow-none',
+  secondary: 'bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 focus:ring-secondary-300 dark:bg-[var(--surface-sunken)] dark:text-[var(--ink)] dark:border-[var(--line-strong)] dark:hover:bg-[var(--line-strong)]',
+  // « Modifier » = CONTOUR de marque (l'ambre est abandonné) : Valider est plein,
+  // Modifier est en contour → hiérarchie lisible sans introduire de teinte
+  // supplémentaire. Bordure et texte suivent le thème (teal clair / accent sombre).
+  edit:      'bg-transparent text-[var(--brand-surface)] border border-[var(--brand-surface)] hover:bg-[var(--brand-surface)] hover:text-white focus:ring-primary-400 dark:text-[var(--brand-accent)] dark:border-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)] dark:hover:text-[var(--brand-surface-2)]',
   danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-400 shadow-[0_2px_6px_rgba(220,38,38,0.25)] hover:shadow-[0_4px_12px_rgba(220,38,38,0.35)]',
   print:     'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-[0_2px_6px_rgba(24,170,153,0.30)] hover:shadow-[0_4px_12px_rgba(24,170,153,0.40)]',
   primary:   'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-[0_2px_6px_rgba(24,170,153,0.30)] hover:shadow-[0_4px_12px_rgba(24,170,153,0.40)]',

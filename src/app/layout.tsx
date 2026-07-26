@@ -59,11 +59,12 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
-        {/* Thème avant le rendu (anti-FOUC). Uniquement sur /dashboard : login + 2FA
-            restent toujours clairs, quel que soit le choix fait dans l'app. */}
+        {/* Thème avant le rendu (anti-FOUC). Appliqué sur /dashboard ET /auth (2FA) :
+            dès la 2FA l'utilisateur est identifié, donc son thème s'applique.
+            /login reste toujours clair (on ne sait pas encore qui se connecte). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var d=location.pathname.indexOf('/dashboard')===0;var t=d&&localStorage.getItem('theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','light')}`,
+            __html: `try{var p=location.pathname;var a=p.indexOf('/dashboard')===0||p.indexOf('/auth')===0;var t=a&&localStorage.getItem('theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','light')}`,
           }}
         />
       </head>

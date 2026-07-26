@@ -48,8 +48,19 @@ export async function setOwnTheme(theme: 'light' | 'dark'): Promise<{ error?: st
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié.' }
 
-  const { error } = await supabase.from('profiles').update({ theme }).eq('id', user.id)
-  if (error) return { error: 'Erreur lors de l’enregistrement du thème.' }
+  // `.select()` est indispensable : un UPDATE filtré par la RLS ne renvoie AUCUNE
+  // erreur, il modifie simplement 0 ligne. Sans ça, l'échec passe inaperçu.
+  const { data, error } = await supabase
+    .from('profiles').update({ theme }).eq('id', user.id).select('id')
+
+  if (error) {
+    console.error('[setOwnTheme] échec update:', error.message)
+    return { error: 'Erreur lors de l’enregistrement du thème.' }
+  }
+  if (!data || data.length === 0) {
+    console.error('[setOwnTheme] 0 ligne modifiée (RLS) pour', user.id)
+    return { error: 'Thème non enregistré (droits insuffisants).' }
+  }
 
   updateTag('profile')
   return {}
