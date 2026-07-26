@@ -856,7 +856,7 @@ export default function TempsPresenceClient({
                       <button
                         onClick={() => handleExportPdf(isMonth ? 'month' : 'year')}
                         disabled={exporting}
-                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 dark:bg-[var(--surface-sunken)] dark:text-[var(--ink)] dark:border-[var(--line-strong)] dark:hover:bg-[var(--line-strong)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                       >
                         {exporting ? 'Export…' : 'Exporter PDF'}
                       </button>

@@ -82,6 +82,10 @@
     /* Widgets NATIFS (icône d'horloge de <input type="time">, calendrier,
        liste déroulante d'un <select>, ascenseurs) : dessinés par le navigateur,
        inaccessibles à notre CSS. Seul `color-scheme` les fait basculer. */
+    /* Teinte des silhouettes d'avatar (trombinoscope). Une seule valeur : les
+       silhouettes sont pleines et sans fond, elles se détachent sur la carte. */
+    --silhouette-ink: #555b5e;
+
     color-scheme: light;
   }
 
@@ -105,6 +109,8 @@
     --line:           #243139;
     --line-strong:    #2c3a42;
     --card-shadow:    0 2px 10px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.25);
+    --silhouette-ink: #8d9aa1;
+
     color-scheme: dark;
   }
 
@@ -413,7 +419,9 @@
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-100,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-100\/60,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-200 { border-color: var(--line); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-300 { border-color: var(--line-strong); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-300,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-warm-400,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:border-warm-400:hover { border-color: var(--line-strong); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .divide-warm-50 > :not([hidden]) ~ :not([hidden]),
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .divide-warm-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--line); }
 
@@ -453,95 +461,298 @@
 }
 
 /* ── Couleurs SÉMANTIQUES en thème sombre ──────────────────────────────────
-   Pastilles et encadrés teintés (compteurs de discipline, bandeaux d'alerte,
-   badges de statut) : les pastels -50/-100 sont pensés pour un fond blanc et
+   Pastilles et encadrés teintés (compteurs, bandeaux d'alerte, badges de statut,
+   badges de genre) : les pastels -50/-100 sont pensés pour un fond blanc et
    « brillent » sur carte sombre. On les remplace par une TEINTE TRANSLUCIDE de
-   la même couleur et on éclaircit le texte (-600/-700/-800 → clair) pour garder
-   le contraste. Le sens (rouge = alerte, ambre = attention…) est préservé.
-   NB : sélecteurs PLATS — la chaîne PostCSS du projet ne résout pas
-   l'imbrication CSS (tailwindcss + autoprefixer uniquement). */
+   la même couleur et on éclaircit le texte pour garder le contraste. Le sens
+   (rouge = alerte, ambre = attention, rose/bleu = genre…) est préservé.
+   Les variantes d'OPACITÉ sont des classes DISTINCTES : elles doivent être
+   énumérées, sinon un fond reste clair sous un texte grisé (illisible).
+   Sélecteurs PLATS : PostCSS du projet (tailwind + autoprefixer) ne résout pas
+   l'imbrication CSS — un bloc imbriqué serait silencieusement ignoré. */
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50:hover { background-color: rgb(239 68 68 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-50\/70:hover { background-color: rgb(239 68 68 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100:hover { background-color: rgb(239 68 68 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-red-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-red-100\/70:hover { background-color: rgb(239 68 68 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-red-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-red-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-red-800 { color: #fca5a5; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-100 { border-color: rgb(239 68 68 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-300 { border-color: rgb(239 68 68 / .35); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50:hover { background-color: rgb(249 115 22 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-50\/70:hover { background-color: rgb(249 115 22 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100:hover { background-color: rgb(249 115 22 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-orange-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-orange-100\/70:hover { background-color: rgb(249 115 22 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-orange-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-orange-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-orange-800 { color: #fdba74; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-100 { border-color: rgb(249 115 22 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-300 { border-color: rgb(249 115 22 / .35); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50:hover { background-color: rgb(255 162 0 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-50\/70:hover { background-color: rgb(255 162 0 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100:hover { background-color: rgb(255 162 0 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-amber-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-amber-100\/70:hover { background-color: rgb(255 162 0 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-amber-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-amber-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-amber-800 { color: #ffd966; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-100 { border-color: rgb(255 162 0 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-300 { border-color: rgb(255 162 0 / .35); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50:hover { background-color: rgb(34 197 94 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-50\/70:hover { background-color: rgb(34 197 94 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100:hover { background-color: rgb(34 197 94 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-green-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-green-100\/70:hover { background-color: rgb(34 197 94 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-green-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-green-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-green-800 { color: #86efac; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-100 { border-color: rgb(34 197 94 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-300 { border-color: rgb(34 197 94 / .35); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50:hover { background-color: rgb(59 130 246 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-50\/70:hover { background-color: rgb(59 130 246 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100:hover { background-color: rgb(59 130 246 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-blue-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-blue-100\/70:hover { background-color: rgb(59 130 246 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-blue-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-blue-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-blue-800 { color: #93c5fd; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-100 { border-color: rgb(59 130 246 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-300 { border-color: rgb(59 130 246 / .35); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50:hover { background-color: rgb(168 85 247 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-50\/70:hover { background-color: rgb(168 85 247 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100:hover { background-color: rgb(168 85 247 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-purple-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-purple-100\/70:hover { background-color: rgb(168 85 247 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-purple-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-purple-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-purple-800 { color: #d8b4fe; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-100 { border-color: rgb(168 85 247 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-300 { border-color: rgb(168 85 247 / .35); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50:hover { background-color: rgb(24 170 153 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-50\/70:hover { background-color: rgb(24 170 153 / .12); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100:hover { background-color: rgb(24 170 153 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-primary-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-primary-100\/70:hover { background-color: rgb(24 170 153 / .20); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-600,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-700,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-800 { color: #65d9cf; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-100 { border-color: rgb(24 170 153 / .28); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-300 { border-color: rgb(24 170 153 / .35); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-50\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-50\/70:hover { background-color: rgb(236 72 153 / .12); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100\/20,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100\/30,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100\/40,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-pink-100\/70,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100\/30:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100\/40:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-pink-100\/70:hover { background-color: rgb(236 72 153 / .20); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-pink-600,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-pink-700,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-pink-800 { color: #f9a8d4; }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-pink-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-pink-100 { border-color: rgb(236 72 153 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-pink-200,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-pink-300 { border-color: rgb(236 72 153 / .35); }
 
 /* Chips ardoise (`bg-secondary-100 text-secondary-700`, 8 fichiers) : le pont
    éclaircit le TEXTE (→ --ink), il faut donc aussi assombrir le FOND, sinon on
    obtient du clair sur clair. Idem pour les pistes `bg-warm-300`. */
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-secondary-100 { background-color: var(--line-strong); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-300      { background-color: var(--line-strong); }
-
-/* Bordures teintées -50 / -100 (les -200/-300 sont traitées plus haut). */
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-100 { border-color: rgb(239 68 68 / .28); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-100 { border-color: rgb(249 115 22 / .28); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-100 { border-color: rgb(255 162 0 / .28); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-100 { border-color: rgb(34 197 94 / .28); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-100 { border-color: rgb(59 130 246 / .28); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-100 { border-color: rgb(168 85 247 / .28); }
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-50,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-100 { border-color: rgb(24 170 153 / .28); }

@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { ChevronRight, ChevronDown, FileCheck, AlertTriangle, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import type { Period, Absence, AbsenceType } from '@/types/database'
 
@@ -285,7 +286,14 @@ export default function AbsencesClient({
       )
     }
 
-    doc.save(`Feuille_appel_${cls.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`)
+    // Nom distinct de la feuille RENSEIGNEE (imprimee depuis la modale de saisie) :
+    // les deux portaient `Feuille_appel_{classe}_{date}` et se confondaient des que
+    // la date saisie etait celle du jour.
+    // Date en composantes LOCALES : `toISOString()` est en UTC → a minuit en UTC+,
+    // le fichier prenait la date de la veille.
+    const d = new Date()
+    const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    doc.save(`Feuille_appel_vierge_${cls.name.replace(/\s+/g, '_')}_${jour}.pdf`)
   }
 
   // Callback après saisie (ajouts, mises à jour, suppressions)
@@ -421,14 +429,16 @@ export default function AbsencesClient({
                 >
                   Ajouter
                 </FloatButton>
-                <FloatButton
-                  variant="print"
-                  type="button"
-                  onClick={handlePrintPdf}
-                  className="text-xs px-2.5 py-1"
-                >
-                  Imprimer
-                </FloatButton>
+                <Tooltip content="Imprimer une feuille d'appel vierge, à remplir à la main">
+                  <FloatButton
+                    variant="secondary"
+                    type="button"
+                    onClick={handlePrintPdf}
+                    className="text-xs px-2.5 py-1"
+                  >
+                    Feuille vierge
+                  </FloatButton>
+                </Tooltip>
               </div>
               <div className="flex items-center gap-4 text-xs text-warm-700">
                 <span>{summary.abs} absence{summary.abs > 1 ? 's' : ''} <span className="text-red-500 font-semibold">({summary.absNJ} NJ)</span></span>
@@ -599,7 +609,7 @@ function StudentRow({
                     <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                       {a.is_justified ? (
                         <span className="flex items-center gap-1.5">
-                          <span className="flex items-center gap-1 text-green-600">
+                          <span className="flex items-center gap-1 text-primary-600">
                             <FileCheck size={12} /> Justifié
                             {a.justification_date && <span className="text-warm-700">({fmtDate(a.justification_date)})</span>}
                           </span>
@@ -727,7 +737,7 @@ function StudentPhoto({ student, size = 'md' }: { student: StudentRow; size?: 's
 const STATUS_CYCLE: ('present' | 'absence' | 'retard')[] = ['present', 'absence', 'retard']
 
 const STATUS_STYLE = {
-  present: { border: 'border-green-400', bg: 'bg-green-50/50', badge: 'bg-green-500', label: 'Present' },
+  present: { border: 'border-primary-400', bg: 'bg-primary-50/50', badge: 'bg-primary-500', label: 'Present' },
   absence: { border: 'border-red-400',   bg: 'bg-red-50/50',   badge: 'bg-red-500',   label: 'Absent' },
   retard:  { border: 'border-amber-400', bg: 'bg-amber-50/50', badge: 'bg-amber-500', label: 'Retard' },
 }
@@ -759,12 +769,7 @@ function SaisieModal({
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [isSaved,      setIsSaved]      = useState(false)
 
-  // Fermeture sur Échap
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [onClose])
+  // Regle projet : fermeture par X / Annuler uniquement (ni Echap, ni clic hors fenetre).
 
   // Fetch fresh absences on mount pour avoir les données à jour (évite le cache stale)
   useEffect(() => {
@@ -784,6 +789,9 @@ function SaisieModal({
   const handleDateChange = (newDate: string) => {
     setDate(newDate)
     setEntries(buildEntries(classStudents, localAbsences, newDate))
+    // `isSaved` concerne la date qu'on quitte : le garder autoriserait l'impression
+    // d'une date vierge. L'etat « deja en base » de la nouvelle date vient d'`isEditMode`.
+    setIsSaved(false)
   }
 
   const cycleStatus = (idx: number) => {
@@ -821,13 +829,26 @@ function SaisieModal({
   const hasChanges = toInsert.length > 0 || toUpdate.length > 0 || toDelete.length > 0
   const isEditMode = entries.some(e => e.existingId) || validatedDates.has(date)
 
+  // On n'imprime QUE ce qui est enregistre : une feuille imprimee avant validation
+  // ne correspondrait pas a la base (document papier faux, et confusion ensuite).
+  // NB : apres un enregistrement, `entries` ne recoit pas les nouveaux `existingId`,
+  // donc `hasChanges` reste vrai — d'ou le test sur `isSaved` en premier.
+  const canPrint = (isSaved || isEditMode) && !hasChanges
+  const printBlockedReason = !canPrint
+    ? (hasChanges
+        ? "Enregistrez vos modifications avant d'imprimer"
+        : 'Aucune saisie enregistrée pour cette date')
+    : null
+  // Rien a perdre : « Fermer ». Modifications en attente : « Annuler ».
+  const closeLabel = !hasChanges && (isSaved || isEditMode) ? 'Fermer' : 'Annuler'
+
   // Absents + retards pour le recap
   const nonPresent = entries
     .map((e, idx) => ({ ...e, idx, student: classStudents[idx] }))
     .filter(e => e.status !== 'present')
 
   const handleSubmit = async () => {
-    if (!hasChanges) { onClose(); return }
+    if (!hasChanges) return
     setIsSubmitting(true)
     setError(null)
 
@@ -886,14 +907,19 @@ function SaisieModal({
         }).catch((err) => console.error('[Absences] Échec notification absence:', err))
       }
 
-      // Mettre à jour localAbsences pour refléter les nouvelles données
-      setLocalAbsences(prev => {
-        const afterDelete = prev.filter(a => !deletedIds.includes(a.id))
+      // Refleter les nouvelles donnees ET reconstruire les lignes de saisie : sans ce
+      // rebuild, les lignes inserees gardent `existingId: null` et comptent eternellement
+      // comme des ajouts en attente (le diff ne redescend jamais a zero).
+      const nextAbsences = (() => {
+        const afterDelete = localAbsences.filter(a => !deletedIds.includes(a.id))
         const afterUpdate = afterDelete.map(a => { const u = updated.find(u => u.id === a.id); return u ?? a })
         return [...afterUpdate, ...added]
-      })
+      })()
+      setLocalAbsences(nextAbsences)
+      setEntries(buildEntries(classStudents, nextAbsences, date))
       onComplete(added, updated, deletedIds, date)
       setIsSaved(true)
+      setIsSubmitting(false)
     } catch (err: any) {
       setError(err?.message ?? 'Erreur lors de l\'enregistrement.')
       setIsSubmitting(false)
@@ -1096,7 +1122,7 @@ function SaisieModal({
             {/* Compteurs */}
             <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-primary-500" />
                 <span className="text-warm-700">{counts.present}</span>
               </span>
               <span className="flex items-center gap-1">
@@ -1207,7 +1233,7 @@ function SaisieModal({
                         <button
                           type="button"
                           onClick={() => setEntry(idx, 'present')}
-                          className="text-[10px] text-green-600 hover:text-green-800 font-medium"
+                          className="text-[10px] text-primary-600 hover:text-primary-800 font-medium"
                         >
                           Present
                         </button>
@@ -1287,23 +1313,30 @@ function SaisieModal({
             }
           </span>
           <div className="flex gap-2">
-            <FloatButton variant="print" type="button" onClick={handlePrintSaisie}>
-              Imprimer
-            </FloatButton>
+            <Tooltip content={printBlockedReason ?? "Imprimer la feuille d'appel enregistrée de cette date"}>
+              <span>
+                <FloatButton
+                  variant="secondary"
+                  type="button"
+                  onClick={handlePrintSaisie}
+                  disabled={!canPrint}
+                >
+                  Imprimer la saisie
+                </FloatButton>
+              </span>
+            </Tooltip>
             <FloatButton variant="secondary" type="button" onClick={onClose}>
-              {isSaved ? 'Fermer' : 'Annuler'}
+              {closeLabel}
             </FloatButton>
-            {!isSaved && (
-              <FloatButton
-                variant={isEditMode ? 'edit' : 'submit'}
-                type="button"
-                onClick={handleSubmit}
-                disabled={isEditMode ? !hasChanges : counts.absence === 0 && counts.retard === 0}
-                loading={isSubmitting}
-              >
-                {isEditMode ? 'Modifier' : 'Valider'}
-              </FloatButton>
-            )}
+            <FloatButton
+              variant={isEditMode ? 'edit' : 'submit'}
+              type="button"
+              onClick={handleSubmit}
+              disabled={isEditMode ? !hasChanges : counts.absence === 0 && counts.retard === 0}
+              loading={isSubmitting}
+            >
+              {isEditMode ? 'Modifier' : 'Valider'}
+            </FloatButton>
           </div>
         </div>
       </div>
@@ -1330,12 +1363,7 @@ function JustificationModal({
   const [error,       setError]       = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // Fermeture sur Échap
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [onClose])
+  // Regle projet : fermeture par X / Annuler uniquement (ni Echap, ni clic hors fenetre).
 
   // Validation du justificatif (PDF ou image, max 5 Mo)
   const handleFileSelect = (f: File | null) => {

@@ -86,12 +86,21 @@ function StudentAvatar({ lastName, firstName, gender, size = 'sm' }: {
   lastName: string; firstName: string; gender: string | null; size?: 'sm' | 'md'
 }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
-  const dim = size === 'sm' ? 'w-5 h-5 text-[9px] rounded' : 'w-6 h-6 text-[10px] rounded-md'
-  if (gender === 'male')
-    return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 bg-blue-600 text-white ${dim}`}>{initiales}</span>
-  if (gender === 'female')
-    return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 bg-pink-500 text-white ${dim}`}>{initiales}</span>
-  return <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 border border-warm-300 text-warm-700 ${dim}`}>{initiales}</span>
+  // Même traitement que la liste Apprenants : fond neutre (gris beige), rond,
+  // le genre indiqué par un LISERÉ pâle — et non par un aplat coloré.
+  // Vivier calibré pour ~20 lignes SANS scroll (py-0.5) : on reste à 20px et
+  // sans marge verticale, sinon une barre de défilement apparaît.
+  const dim = size === 'sm' ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[9px]'
+  const ring = gender === 'male'
+    ? 'ring-2 ring-blue-300'
+    : gender === 'female'
+      ? 'ring-2 ring-pink-300'
+      : 'ring-1 ring-warm-200'
+  return (
+    <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 select-none rounded-full bg-warm-100 text-warm-700 ${dim} ${ring}`}>
+      {initiales}
+    </span>
+  )
 }
 
 // ─── Tooltip identité (fixed, hors du conteneur scrollable) ──────────────────

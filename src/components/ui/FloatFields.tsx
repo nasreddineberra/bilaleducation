@@ -404,12 +404,11 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
 // variant "secondary" : blanc + bordure — Annuler
 // variant "edit"      : orange doré (amber) — Modifier
 // variant "danger"    : rouge — Supprimer
-// variant "print"     : turquoise (primary-500) — Imprimer
 // variant "primary"   : turquoise (couleur principale du thème) — action de validation phare (login…)
 // variant "brand"     : surface de marque (--brand-surface = teal profond #0c5b51) — CTA sur pages de marque (login)
 
 export interface FloatButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?:  'submit' | 'secondary' | 'edit' | 'danger' | 'print' | 'primary' | 'brand'
+  variant?:  'submit' | 'secondary' | 'edit' | 'danger' | 'primary' | 'brand'
   loading?:  boolean
   children:  React.ReactNode
 }
@@ -426,7 +425,6 @@ const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
   // supplémentaire. Bordure et texte suivent le thème (teal clair / accent sombre).
   edit:      'bg-transparent text-[var(--brand-surface)] border border-[var(--brand-surface)] hover:bg-[var(--brand-surface)] hover:text-white focus:ring-primary-400 dark:text-[var(--brand-accent)] dark:border-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)] dark:hover:text-[var(--brand-surface-2)]',
   danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-400 shadow-[0_2px_6px_rgba(220,38,38,0.25)] hover:shadow-[0_4px_12px_rgba(220,38,38,0.35)]',
-  print:     'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-[0_2px_6px_rgba(24,170,153,0.30)] hover:shadow-[0_4px_12px_rgba(24,170,153,0.40)]',
   primary:   'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-[0_2px_6px_rgba(24,170,153,0.30)] hover:shadow-[0_4px_12px_rgba(24,170,153,0.40)]',
   brand:     'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-primary-400 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]',
 }

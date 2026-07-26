@@ -1160,8 +1160,79 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
   **pluriel** (« Années scolaires » ; la fiche reste au singulier) ; badge de **periode en cours**
   colore en turquoise **uniquement** sur l'annee en cours (les autres restent en badge normal).
 
+#### 25-26 juillet 2026 — Theme clair/sombre (choix utilisateur) + sidebar/header + passe modules
+- **Bucket `bulletins` prive** (migration `secure-bulletins-bucket.sql`, jouee) : bucket prive, **1 Mo**,
+  `application/pdf` seul, policies storage cloisonnees par `(storage.foldername(name))[1] = current_etablissement_id()`.
+  **Lecture = 5 roles** (admin/direction/secretaire/responsable_pedagogique/enseignant), **comptable exclu**
+  (decision utilisateur) ; ecriture admin/direction. `file_url` rendue nullable (URL signee a la consultation).
+- **Revue securite des 6 phases de cloture d'annee** (corrigee point par point) : `purge_school_year` a recu une
+  **garde de tenant** (`SECURITY DEFINER` contourne la RLS → l'annee d'un autre etablissement etait purgeable) et
+  la purge finance **recalcule le reste du** au lieu de se fier a `status` ; `family-financials` borne desormais les
+  inscriptions adultes a l'annee (`classes.academic_year`) ; `reopenStep` supprime les 2 tables de snapshot.
+  Nouvelle colonne `year_closure.purge_intent` (`purge`|`keep`, migration `add-purge-intent.sql`) : **carte de choix
+  en fin d'assistant** — l'utilisateur decide d'epurer ou non.
+- **THEME CLAIR / SOMBRE, choix utilisateur** (clair = « Marque profonde » teal, sombre = « Ardoise premium ») :
+  attribut `data-theme` sur `<html>`, `darkMode: ['selector', '[data-theme="dark"]']`, script anti-FOUC dans le
+  layout racine (scope `/dashboard` + `/auth`). **Persiste par utilisateur** : colonne `profiles.theme`
+  (migration `add-profile-theme.sql`) + `setOwnTheme` (avec `.select('id')` pour detecter un UPDATE filtre par RLS)
+  + `updateTag('profile')` ; `ThemeContext` initialise depuis le profil et miroir `localStorage`. Le theme
+  s'applique **des l'ecran 2FA** (pas seulement dans le dashboard).
+  - **Tokens de contenu** dans `globals.css` : `--surface-page/-card/-sunken`, `--ink`, `--ink-muted`, `--line`,
+    `--line-strong`, `--card-shadow`, `--brand-surface/-2/-accent/-text/-label/-icon/-muted`, `--silhouette-ink`.
+  - **« PONT » theme sombre** : plutot que de retoucher 100+ fichiers, un jeu de selecteurs **plats** scopes
+    `:root[data-theme="dark"] :is(#main-content, [role="dialog"])` remappe les classes Tailwind existantes
+    (bg-white, warm-50/100/200/300 **avec toutes leurs variantes d'opacite et de hover**, textes secondary/warm,
+    bordures, `divide-*`, et **8 teintes semantiques** red/orange/amber/green/blue/purple/primary/**pink**).
+  - **PIEGES PAYES (a retenir)** : (1) le pipeline PostCSS = `tailwindcss` + `autoprefixer` **sans plugin de
+    nesting** → tout bloc **imbrique est ignore en silence** : ecrire **plat** et **verifier le CSS SERVI**
+    (curl du chunk). (2) Une utilitaire `hover:` **sans prefixe `dark:`** deborde sur le theme sombre (meme
+    specificite, emise apres) → il faut un `dark:hover:*` explicite. (3) Les variantes d'opacite sont des
+    **classes distinctes** (`bg-warm-100/70` != `bg-warm-100`) → la liste du pont doit etre exhaustive (grep).
+    (4) `color-scheme` est le **seul** moyen de theminger les widgets natifs (icone de `input[type=time]`,
+    pickers, `select`, scrollbars).
+  - **`animate-fade-in` corrige a la racine** : le `transform` du keyframe final + `fill: both` faisait de
+    l'element un **bloc conteneur pour `position: fixed`** → le haut des modales passait sous le header.
+- **Sidebar + header refondus** : 5 sections **repliables** (Principal / Vie scolaire / Pedagogie / Gestion /
+  Parametres), pastille active pleine + barre d'accent detachee, mode reduit en **grille d'icones 2 colonnes par
+  section** (titre de section rappele sous chaque filet, tuile active = `ring` accent, icone non accentuee),
+  sous-menus reprenant l'icone du parent, **tooltip sur chaque icone** au format `menu - sous-menu`.
+  Header `h-[61px]` aligne sur le filet de la sidebar, fond `--brand-surface-2` en sombre (pour que les tooltips
+  restent lisibles), bascule de theme segmentee (soleil/lune), ordre theme → notifications → **logout** (`Power`,
+  copie conforme du style de la cloche) → separateur → avatar (rond, fond surface, anneau accent).
+  `Tooltip` gagne `position="bottom"` + fleche a bordure accent.
+- **2FA en 6 cases** : nouveau `ui/OtpInput.tsx` (6 caracteres, avance auto, Backspace, fleches, collage,
+  **validation automatique a la 6e saisie**), propage a tous les ecrans 2FA.
+- **Boutons** (`FloatFields`) : `submit` = surface marque (accent en sombre) avec `dark:hover:*` explicite ;
+  **`edit` passe en contour marque** (l'ambre est abandonne) ; variante `print` **supprimee** ; le `?` des hints
+  passe par `Tooltip`.
+- **Passe theme sombre + ergonomie module par module** (methode : script d'audit → inventaire couleurs →
+  extension du **pont partage** plutot que patch fichier par fichier → re-audit a 0 → verif du CSS servi) :
+  **2 sections COMPLETES de la sidebar** : **Principal** (Tableau de bord, Notifications, Temps de presence)
+  et **Vie scolaire** (Apprenants, Parents, Affectations apprenants + adultes, Feuille d'appel). Cartes **« Non affectes »** ajoutees (Apprenants + Parents) et **« Alertes discipline »**
+  (Apprenants) : ensembles calcules **cote serveur** puis reutilises pour le filtrage (sentinelle UUID
+  obligatoire pour un `.in()` sur tableau vide, sinon PostgREST renvoie tout).
+- **Silhouettes d'avatar refaites** (`absences/AvatarSilhouette.tsx`) : silhouette **pleine d'une seule teinte**
+  (`--silhouette-ink`, qui bascule avec le theme), sans rectangle de fond. Variante masculine validee = tete +
+  cheveux en **un seul trace** (empiler un croissant de cheveux sur une ellipse donnait un rendu casse).
+- **Feuille d'appel — impression fiabilisee** : (1) le meme nom de PDF servait a **deux documents differents**
+  (feuille du jour vs periode) → renommes, et la feuille vierge datait en **UTC** (`toISOString`) donc pouvait
+  afficher la veille → date **locale**. (2) Libelles clarifies : « Feuille vierge » / « Imprimer la saisie ».
+  (3) **On n'imprime que ce qui est en base** : `canPrint = (isSaved || isEditMode) && !hasChanges`.
+  **Cause reelle corrigee** : apres l'`insert`, `entries` gardait `existingId: null` sur les lignes creees, donc
+  le diff comptait des « ajouts en attente » a vie — le code compensait en **masquant** le bouton via `isSaved`,
+  ce qui **empechait toute correction** apres enregistrement. `entries` est desormais **reconstruit**
+  (`buildEntries`) depuis la liste fraiche : le bouton Modifier reste visible et grise selon `hasChanges`,
+  Imprimer se grise des qu'une modification est en attente, `setIsSubmitting(false)` ajoute au chemin de succes,
+  et `isSaved` est **reinitialise au changement de date** (sinon impression d'une date vierge autorisee).
+  Vert/`green-*` remplaces par le turquoise `primary` (present/justifie) ; 2 ecouteurs `Escape` retires des modales.
+
 ## Prochaine etape
-- **Pages a traiter** : **Notifications** puis **Dashboard**.
+- **Passe theme sombre / ergonomie — les 3 DERNIERES SECTIONS de la sidebar** (les 2 premieres, Principal et
+  Vie scolaire, sont terminees) : **Pedagogie** (Evaluations, Emploi du temps, Cahier de texte), **Gestion**
+  (Communications, Financements), **Parametres** (Annee scolaire, Pedagogie, Enseignants, Utilisateurs,
+  Financiers, Types de presence, Ressources, Journal d'activite, Etablissement).
+- **Choix de police** : creer une page locale de test (2 themes x plusieurs polices), a supprimer apres le choix.
+- Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
   puis **reset table par table** pour repartir sur une nouvelle annee — objectif : garder la **BDD la plus
   legere possible**. Voir memoire `year-rollover-archiving`.

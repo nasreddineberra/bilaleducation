@@ -83,7 +83,7 @@ function GenderBadge({ gender }: { gender: 'male' | 'female' | null }) {
     <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-600 text-[9px] font-bold flex-shrink-0">M</span>
   )
   if (gender === 'female') return (
-    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-pink-100 text-pink-500 text-[9px] font-bold flex-shrink-0">F</span>
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-pink-100 text-pink-600 text-[9px] font-bold flex-shrink-0">F</span>
   )
   return null
 }

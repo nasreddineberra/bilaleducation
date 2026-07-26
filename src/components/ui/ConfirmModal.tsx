@@ -14,7 +14,7 @@ export interface ConfirmModalProps {
   variant?:       'danger' | 'warning'
   confirmColor?:  'red' | 'amber'
   /** Surcharge la couleur du bouton Confirmer (defaut : danger si destructif, sinon edit/amber). */
-  confirmVariant?: 'submit' | 'edit' | 'danger' | 'secondary' | 'print'
+  confirmVariant?: 'submit' | 'edit' | 'danger' | 'secondary'
   confirmDisabled?: boolean
   onConfirm:      () => void
   onCancel:       () => void

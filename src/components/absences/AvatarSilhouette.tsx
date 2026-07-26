@@ -1,36 +1,48 @@
-// Avatar silhouette moderne — style épuré, profil M/F
+// Silhouettes d'avatar du trombinoscope — affichées quand l'apprenant n'a pas de photo.
+//
+// Style : silhouette PLEINE d'une seule teinte, tête + épaules coupées par le bas du
+// cadre, SANS rectangle de fond (la carte reste visible derrière).
+// La teinte vient de `--silhouette-ink`, qui bascule avec le thème : l'ancienne version
+// avait des fonds clairs en dur (#eef2f7, #f5eef7) qui « brillaient » sur carte sombre,
+// et des teintes bleu-gris / violet hors charte.
 
+const SVG_PROPS = {
+  viewBox: '0 0 150 200',
+  xmlns: 'http://www.w3.org/2000/svg',
+  fill: 'var(--silhouette-ink)',
+  style: { display: 'block', width: '100%', height: '100%' },
+  'aria-hidden': true,
+} as const
+
+// Cheveux courts au dessus légèrement ondulé + oreilles dégagées.
 export function MaleAvatar({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 150 200" fill="none" className={className} xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
-      <rect width="150" height="200" fill="#eef2f7" />
-      <circle cx="75" cy="68" r="30" fill="#b0bec5" />
-      <path d="M45 64 C45 44 58 32 75 32 C92 32 105 44 105 64 C105 54 94 46 75 46 C56 46 45 54 45 64Z" fill="#9aa8b2" />
-      <rect x="64" y="94" width="22" height="14" rx="4" fill="#b0bec5" />
-      <path d="M75 108 C38 108 10 140 10 178 L10 200 L140 200 L140 178 C140 140 112 108 75 108Z" fill="#b0bec5" />
+    <svg {...SVG_PROPS} className={className}>
+      <ellipse cx="39" cy="86" rx="6" ry="9" />
+      <ellipse cx="111" cy="86" rx="6" ry="9" />
+      <path d="M40 84C39 70 39 56 42 46C45 34 51 26 59 24C63 19 69 18 75 21C81 18 87 19 91 24C99 26 105 34 108 46C111 56 111 70 110 84C108 100 99 112 88 118C84 120 79 121 75 121C71 121 66 120 62 118C51 112 42 100 40 84Z" />
+      <path d="M64 114H86V140C86 148 64 148 64 140Z" />
+      <path d="M75 138C40 138 8 165 8 200H142C142 165 110 138 75 138Z" />
     </svg>
   )
 }
 
+// Masse de cheveux longs ondulés : un seul tracé, ni oreilles ni cou visibles.
 export function FemaleAvatar({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 150 200" fill="none" className={className} xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
-      <rect width="150" height="200" fill="#f5eef7" />
-      <path d="M30 70 C30 36 50 22 75 22 C100 22 120 36 120 70 L120 116 C120 122 116 126 112 126 L38 126 C34 126 30 122 30 116Z" fill="#c5a8ce" />
-      <circle cx="75" cy="68" r="28" fill="#c9b2d1" />
-      <rect x="65" y="92" width="20" height="14" rx="4" fill="#c9b2d1" />
-      <path d="M75 106 C38 106 10 138 10 174 L10 200 L140 200 L140 174 C140 138 112 106 75 106Z" fill="#c5a8ce" />
+    <svg {...SVG_PROPS} className={className}>
+      <path d="M75 20C49 20 32 41 32 78C32 97 29 113 25 129C21 145 23 159 29 169C22 180 19 191 19 200H131C131 191 128 180 121 169C127 159 129 145 125 129C121 113 118 97 118 78C118 41 101 20 75 20Z" />
     </svg>
   )
 }
 
+// Genre non renseigné : mêmes proportions, crâne lisse et sans oreilles.
 export function DefaultAvatar({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 150 200" fill="none" className={className} xmlns="http://www.w3.org/2000/svg" style={{ display: 'block', width: '100%', height: '100%' }}>
-      <rect width="150" height="200" fill="#f0f0f0" />
-      <circle cx="75" cy="68" r="28" fill="#b8b8b8" />
-      <rect x="65" y="92" width="20" height="14" rx="4" fill="#b8b8b8" />
-      <path d="M75 106 C38 106 10 138 10 174 L10 200 L140 200 L140 174 C140 138 112 106 75 106Z" fill="#b8b8b8" />
+    <svg {...SVG_PROPS} className={className}>
+      <path d="M40 84C39 70 39 56 42 46C46 32 58 22 75 22C92 22 104 32 108 46C111 56 111 70 110 84C108 100 99 112 88 118C84 120 79 121 75 121C71 121 66 120 62 118C51 112 42 100 40 84Z" />
+      <path d="M64 114H86V140C86 148 64 148 64 140Z" />
+      <path d="M75 138C40 138 8 165 8 200H142C142 165 110 138 75 138Z" />
     </svg>
   )
 }
