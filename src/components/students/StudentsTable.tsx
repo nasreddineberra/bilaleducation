@@ -36,15 +36,18 @@ function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
 
 function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firstName: string; gender: string | null | undefined }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
-  // Avatar neutre (gris beige) ; le genre est indiqué par un liseré coloré
+  // Avatar neutre (gris beige) ; le genre est indiqué par un liseré coloré PÂLE
+  // (les teintes -500 étaient trop saturées dans une liste dense).
   const ring = gender === 'male'
-    ? 'ring-2 ring-blue-500'
+    ? 'ring-2 ring-blue-300'
     : gender === 'female'
-      ? 'ring-2 ring-pink-500'
+      ? 'ring-2 ring-pink-300'
       : 'ring-1 ring-warm-200'
+  // 24px + liseré : les lignes sont très compactes (.list-td py-[2px]), les
+  // avatars se touchaient en 28px.
   return (
     <div className={clsx(
-      'w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none bg-warm-100 text-warm-700',
+      'w-6 h-6 my-0.5 rounded-full flex items-center justify-center font-bold text-[9px] flex-shrink-0 select-none bg-warm-100 text-warm-700',
       ring
     )}>
       {initiales}

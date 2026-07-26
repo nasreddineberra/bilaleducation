@@ -11,6 +11,7 @@ import type { Area } from 'react-easy-crop'
 import ParentForm from '@/components/parents/ParentForm'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatRadioCard, FloatButton } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
 import type { Student, Parent } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -68,6 +69,10 @@ interface StudentFormProps {
   siblings?: SiblingRow[]
   mainTeachers?: MainTeacherRow[]
   hasActiveEnrollment?: boolean
+  /** Classe de l'inscription active (annee en cours) — pour l'infobulle du switch. */
+  activeClassName?: string | null
+  /** « Civilite NOM Prenom · Cotisation · Niveau · Jour HH:MM-HH:MM » */
+  activeClassInfo?: string
 }
 
 type FormData = {
@@ -96,7 +101,7 @@ const normalizeNom = (s: string) =>
   s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false }: StudentFormProps) {
+export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false, activeClassName = null, activeClassInfo = '' }: StudentFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!student
@@ -302,7 +307,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               )}
             </div>
             {/* Switch dans un conteneur de largeur fixe pour stabiliser le layout */}
-            <div className="flex-shrink-0 w-24 flex justify-end relative group/active">
+            <div className="flex-shrink-0 w-24 flex justify-end relative">
               <FloatCheckbox
                 label={form.is_active ? 'ACTIF' : 'INACTIF'}
                 checked={form.is_active}
@@ -311,10 +316,19 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                 disabled={hasActiveEnrollment}
               />
               {hasActiveEnrollment && (
-                <span className="pointer-events-none absolute top-full right-0 mt-1.5 px-3 py-2 text-xs bg-secondary-800 text-white rounded-xl whitespace-nowrap opacity-0 group-hover/active:opacity-100 transition-opacity z-20 shadow-xl">
-                  <span className="absolute bottom-full right-4 border-4 border-transparent border-b-secondary-800" />
-                  Inscrit dans une classe
-                </span>
+                <Tooltip
+                  position="bottom"
+                  maxWidth="max-w-none"
+                  className="absolute inset-0"
+                  content={
+                    <span className="whitespace-nowrap">
+                      Inscrit dans {activeClassName ?? 'une classe'}
+                      {activeClassInfo ? ` · ${activeClassInfo}` : ''}
+                    </span>
+                  }
+                >
+                  <span className="w-full h-full" aria-hidden="true" />
+                </Tooltip>
               )}
             </div>
           </div>

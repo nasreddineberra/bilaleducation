@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 import { SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import StudentsTable from './StudentsTable'
@@ -15,7 +16,7 @@ const PAGE_SIZE = 20
 export type Discipline = { absences: number; retards: number; avertissements: number }
 export type StudentWithClass = Student & { class_name: string | null; class_tooltip: string | null; discipline: Discipline | null }
 
-type StatFilter = '' | 'active' | 'no_parent'
+type StatFilter = '' | 'active' | 'no_parent' | 'unassigned' | 'discipline'
 
 interface StudentsClientProps {
   students:      StudentWithClass[]
@@ -26,6 +27,10 @@ interface StudentsClientProps {
   totalAll:      number
   totalActive:   number
   totalNoParent: number
+  /** Actifs sans classe de l'annee en cours. */
+  totalUnassigned: number
+  /** Actifs avec au moins une absence / retard / avertissement cette annee. */
+  totalDiscipline: number
   maxStudents?:  number | null
 }
 
@@ -93,7 +98,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 
 export default function StudentsClient({
   students, filteredCount, page, q, filter,
-  totalAll, totalActive, totalNoParent, maxStudents,
+  totalAll, totalActive, totalNoParent, totalUnassigned, totalDiscipline, maxStudents,
 }: StudentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -147,6 +152,22 @@ export default function StudentsClient({
           active={activeFilter === 'active'}
           onClick={() => toggleFilter('active')}
         />
+        <ListStatCard
+          value={totalUnassigned}
+          label={<>non<br/>affectés</>}
+          valueColor="text-orange-600"
+          activeRing="ring-orange-600"
+          active={activeFilter === 'unassigned'}
+          onClick={() => toggleFilter('unassigned')}
+        />
+        <ListStatCard
+          value={totalDiscipline}
+          label={<>alertes<br/>discipline</>}
+          valueColor="text-amber-600"
+          activeRing="ring-amber-600"
+          active={activeFilter === 'discipline'}
+          onClick={() => toggleFilter('discipline')}
+        />
         {totalNoParent > 0 && (
           <ListStatCard
             value={totalNoParent}
@@ -186,14 +207,15 @@ export default function StudentsClient({
 
         {/* Ajouter */}
         {limitReached ? (
+          <Tooltip content={`Limite de ${maxStudents} élèves atteinte`}>
           <span
-            className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white opacity-40 cursor-not-allowed whitespace-nowrap"
-            title={`Limite de ${maxStudents} élèves atteinte`}
+            className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] opacity-40 cursor-not-allowed whitespace-nowrap"
           >
             Limite atteinte
           </span>
+          </Tooltip>
         ) : (
-          <Link href="/dashboard/students/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-secondary-700 text-white hover:bg-secondary-800 shadow-[0_2px_6px_rgba(47,69,80,0.30)] hover:shadow-[0_4px_12px_rgba(47,69,80,0.40)] transition-all duration-200 whitespace-nowrap">
+          <Link href="/dashboard/students/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] transition-all duration-200 whitespace-nowrap">
             Ajouter
           </Link>
         )}

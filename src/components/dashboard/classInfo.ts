@@ -25,10 +25,13 @@ function mainTeacherLabel(c: any): string {
   return `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`.trim()
 }
 
-export function classInfoOf(c: any): string {
+/**
+ * Meme libelle, mais avec le titulaire fourni a part — utile quand il ne vient
+ * pas de `class_teachers` imbrique (ex. fiche eleve : prop `mainTeachers`).
+ */
+export function classInfoWithTeacher(c: any, teacher: string): string {
   if (!c) return ''
   const parts: string[] = []
-  const teacher = mainTeacherLabel(c)
   if (teacher) parts.push(teacher)
   if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
   if (c.level) parts.push(`Niveau ${c.level}`)
@@ -37,4 +40,8 @@ export function classInfoOf(c: any): string {
     parts.push(`${day} ${String(c.start_time).slice(0, 5)}${c.end_time ? `-${String(c.end_time).slice(0, 5)}` : ''}`)
   }
   return parts.join(' · ')
+}
+
+export function classInfoOf(c: any): string {
+  return classInfoWithTeacher(c, mainTeacherLabel(c))
 }

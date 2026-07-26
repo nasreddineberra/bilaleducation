@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { X, RotateCcw, ToggleRight, ToggleLeft } from 'lucide-react'
@@ -58,11 +59,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
 
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose() }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [saving, onClose])
+  // Regle projet : fermeture par X / Annuler uniquement (ni Echap, ni clic hors fenetre).
 
   const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
   const filtered = useMemo(() => {
@@ -93,7 +90,12 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
     onClose()
   }
 
-  return (
+  // PORTAIL obligatoire : le parent (StudentsClient) porte `animate-fade-in`, qui
+  // conserve un `transform` → il devient le bloc conteneur du `position: fixed`,
+  // et la modale se cale sur lui (donc sous le header) au lieu du viewport.
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
       <div
         role="dialog" aria-modal="true" aria-labelledby="status-title"
@@ -221,6 +223,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
           </FloatButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

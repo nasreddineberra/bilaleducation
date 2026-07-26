@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import StudentsClient from '@/components/students/StudentsClient'
+import { classInfoOf } from '@/components/dashboard/classInfo'
 
 export const metadata: Metadata = {
   title: 'Élèves',
 }
 
 const PAGE_SIZE = 20
+// Sentinelle pour un `.in()` sur un ensemble vide (sinon PostgREST renvoie tout).
+const NONE = '00000000-0000-0000-0000-000000000000'
 
 export default async function StudentsPage({
   searchParams,
@@ -20,9 +23,44 @@ export default async function StudentsPage({
 
   const supabase = await createClient()
 
+  // ── 1. Contexte de l'année + ensembles globaux (compteurs ET filtres) ──────
+  const [{ data: curYear }, { data: currentPeriods }, { data: activeRows }] = await Promise.all([
+    supabase.from('school_years').select('label').eq('is_current', true).maybeSingle(),
+    supabase.from('periods').select('id, school_years!inner(is_current)').eq('school_years.is_current', true),
+    supabase.from('students').select('id').eq('is_active', true),
+  ])
+  const yearLabel = curYear?.label ?? null
+  const periodIds = (currentPeriods ?? []).map((p) => p.id)
+  const activeIds = new Set((activeRows ?? []).map((r) => r.id))
+
+  // Élèves ACTIFS affectés à une classe de l'année en cours.
+  let assignedIds = new Set<string>()
+  if (yearLabel) {
+    const { data } = await supabase
+      .from('enrollments')
+      .select('student_id, classes!inner(academic_year)')
+      .eq('status', 'active')
+      .eq('classes.academic_year', yearLabel)
+    assignedIds = new Set((data ?? []).map((e: { student_id: string }) => e.student_id))
+  }
+  const unassignedIds = [...activeIds].filter((id) => !assignedIds.has(id))
+
+  // Élèves ACTIFS avec au moins une alerte de discipline sur l'année en cours.
+  const flaggedIds = new Set<string>()
+  if (periodIds.length) {
+    const [{ data: absAll }, { data: warnAll }] = await Promise.all([
+      supabase.from('absences').select('student_id').in('period_id', periodIds),
+      supabase.from('student_warnings').select('student_id').in('period_id', periodIds),
+    ])
+    for (const r of [...(absAll ?? []), ...(warnAll ?? [])] as { student_id: string }[]) {
+      if (activeIds.has(r.student_id)) flaggedIds.add(r.student_id)
+    }
+  }
+
+  // ── 2. Liste paginée ──────────────────────────────────────────────────────
   let studentsQuery = supabase
     .from('students')
-    .select('*, enrollments(status, classes(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_until, teachers(civilite, first_name, last_name))))', { count: 'exact' })
+    .select('*, enrollments(status, classes(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))))', { count: 'exact' })
     .order('last_name')
     .order('first_name')
     .range(from, to)
@@ -33,40 +71,37 @@ export default async function StudentsPage({
     )
   }
 
-  if (filter === 'active') studentsQuery = studentsQuery.eq('is_active', true)
-  if (filter === 'no_parent') studentsQuery = studentsQuery.is('parent_id', null)
+  if (filter === 'active')     studentsQuery = studentsQuery.eq('is_active', true)
+  if (filter === 'no_parent')  studentsQuery = studentsQuery.is('parent_id', null)
+  if (filter === 'unassigned') studentsQuery = studentsQuery.in('id', unassignedIds.length ? unassignedIds : [NONE])
+  if (filter === 'discipline') studentsQuery = studentsQuery.in('id', flaggedIds.size ? [...flaggedIds] : [NONE])
 
   const [
     { data: students, count: filteredCount },
     { data: etablissement },
     { count: totalAll },
-    { count: totalActive },
     { count: totalNoParent },
-    { data: currentPeriods },
   ] = await Promise.all([
     studentsQuery,
     supabase.from('etablissements').select('max_students').single(),
     supabase.from('students').select('*', { count: 'exact', head: true }),
-    supabase.from('students').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('students').select('*', { count: 'exact', head: true }).is('parent_id', null),
-    supabase.from('periods').select('id, school_years!inner(is_current)').eq('school_years.is_current', true),
   ])
 
-  // Discipline (annee en cours) : uniquement pour les eleves actifs de la page
-  const periodIds = (currentPeriods ?? []).map((p) => p.id)
-  const activeIds = (students ?? []).filter((s) => s.is_active).map((s) => s.id)
+  // Discipline détaillée : uniquement pour les élèves actifs de la page affichée.
+  const pageActiveIds = (students ?? []).filter((s) => s.is_active).map((s) => s.id)
   const disciplineMap = new Map<string, { absences: number; retards: number; avertissements: number }>()
 
-  if (activeIds.length) {
-    let absQ = supabase.from('absences').select('student_id, absence_type').in('student_id', activeIds)
-    let warnQ = supabase.from('student_warnings').select('student_id').in('student_id', activeIds)
+  if (pageActiveIds.length) {
+    let absQ = supabase.from('absences').select('student_id, absence_type').in('student_id', pageActiveIds)
+    let warnQ = supabase.from('student_warnings').select('student_id').in('student_id', pageActiveIds)
     if (periodIds.length) {
       absQ = absQ.in('period_id', periodIds)
       warnQ = warnQ.in('period_id', periodIds)
     }
     const [{ data: absData }, { data: warnData }] = await Promise.all([absQ, warnQ])
 
-    for (const id of activeIds) disciplineMap.set(id, { absences: 0, retards: 0, avertissements: 0 })
+    for (const id of pageActiveIds) disciplineMap.set(id, { absences: 0, retards: 0, avertissements: 0 })
     for (const a of (absData ?? []) as { student_id: string; absence_type: string }[]) {
       const d = disciplineMap.get(a.student_id)
       if (!d) continue
@@ -79,25 +114,9 @@ export default async function StudentsPage({
     }
   }
 
-  // Tooltip classe : « Prof principal · Cotisation · Niveau · Jour HH:MM-HH:MM » (parties présentes)
-  const buildClassTooltip = (c: any): string => {
-    const parts: string[] = []
-    const ct = Array.isArray(c?.class_teachers)
-      ? c.class_teachers.find((x: any) => x.is_main_teacher && !x.effective_until)
-      : null
-    const t = ct?.teachers
-    if (t) parts.push(`${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`.trim())
-    if (c?.cotisation_types?.label) parts.push(c.cotisation_types.label)
-    if (c?.level) parts.push(c.level)
-    if (c?.day_of_week && c?.start_time && c?.end_time) {
-      parts.push(`${c.day_of_week} ${String(c.start_time).slice(0, 5)}-${String(c.end_time).slice(0, 5)}`)
-    } else if (c?.day_of_week) {
-      parts.push(c.day_of_week)
-    }
-    return parts.join(' · ')
-  }
-
-  // Rattacher la classe active + la discipline (actifs uniquement) à chaque élève
+  // Rattacher la classe active + la discipline (actifs uniquement) à chaque élève.
+  // Le libellé de classe passe par le helper PARTAGÉ `classInfoOf` (un seul format
+  // dans l'app, et le jour est traduit — l'ancienne copie locale affichait « monday »).
   const studentsWithClass = (students ?? []).map((s) => {
     const { enrollments, ...rest } = s as typeof s & {
       enrollments?: { status: string; classes?: any | null }[]
@@ -108,7 +127,7 @@ export default async function StudentsPage({
     return {
       ...rest,
       class_name:    active?.classes?.name ?? null,
-      class_tooltip: active?.classes ? (buildClassTooltip(active.classes) || null) : null,
+      class_tooltip: active?.classes ? (classInfoOf(active.classes) || null) : null,
       discipline: rest.is_active ? (disciplineMap.get(rest.id) ?? { absences: 0, retards: 0, avertissements: 0 }) : null,
     }
   })
@@ -121,8 +140,10 @@ export default async function StudentsPage({
       q={q}
       filter={filter}
       totalAll={totalAll ?? 0}
-      totalActive={totalActive ?? 0}
+      totalActive={activeIds.size}
       totalNoParent={totalNoParent ?? 0}
+      totalUnassigned={unassignedIds.length}
+      totalDiscipline={flaggedIds.size}
       maxStudents={etablissement?.max_students ?? null}
     />
   )

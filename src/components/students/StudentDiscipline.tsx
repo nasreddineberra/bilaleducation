@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { AlertTriangle, Clock, Plus, Trash2, Paperclip, X, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, Clock, Trash2, Paperclip, X, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WarningSeverity } from '@/types/database'
 import { FloatSelect, FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -381,10 +381,9 @@ export default function StudentDiscipline({
           <FloatButton
             variant="submit"
             onClick={() => { setShowForm(true); setError(null) }}
-            className="ml-auto text-xs flex items-center gap-1"
+            className="ml-auto text-xs"
             disabled={showForm}
           >
-            <Plus size={12} />
             Ajouter
           </FloatButton>
         </div>

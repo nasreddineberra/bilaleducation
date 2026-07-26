@@ -10,6 +10,7 @@ import StudentDiscipline from './StudentDiscipline'
 import StudentDocuments from './StudentDocuments'
 import StudentHistory from './StudentHistory'
 import type { Student } from '@/types/database'
+import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 
 interface ParentOption {
   id: string
@@ -101,6 +102,17 @@ export default function StudentDetail({
       ? 'ring-2 ring-pink-500'
       : 'ring-1 ring-warm-200'
 
+  // Inscription active de l'annee en cours : bloque le switch ACTIF/INACTIF.
+  // On construit le libelle complet de la classe pour l'infobulle (format standard).
+  const activeEnrollment = (enrollments as any[]).find(
+    (e: any) => e.status === 'active' && e.classes?.academic_year === currentYearLabel
+  )
+  const activeTeacher = (() => {
+    const tt = (mainTeachers as any[]).find((m: any) => m.class_id === activeEnrollment?.class_id)?.teachers
+    return tt ? `${tt.civilite ? tt.civilite + ' ' : ''}${tt.last_name} ${tt.first_name}`.trim() : ''
+  })()
+  const activeClassInfo = activeEnrollment ? classInfoWithTeacher(activeEnrollment.classes, activeTeacher) : ''
+
   return (
     <div className="space-y-4">
 
@@ -172,7 +184,9 @@ export default function StudentDetail({
             etablissementId={etablissementId}
             siblings={siblings}
             mainTeachers={mainTeachers}
-            hasActiveEnrollment={enrollments.some((e: any) => e.status === 'active' && e.classes?.academic_year === currentYearLabel)}
+            hasActiveEnrollment={!!activeEnrollment}
+            activeClassName={activeEnrollment?.classes?.name ?? null}
+            activeClassInfo={activeClassInfo}
           />
         </div>
       )}
