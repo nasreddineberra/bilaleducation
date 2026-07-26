@@ -335,27 +335,27 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                     disabled={isEnrolled || togglingStudentId === student.id}
                                     aria-label={
                                       isEnrolled
-                                        ? `${student.first_name} ${student.last_name} · inscrit en classe`
+                                        ? `${student.last_name} ${student.first_name} · inscrit en classe`
                                         : student.is_active
-                                          ? `${student.first_name} ${student.last_name} · actif, cliquer pour rendre inactif`
-                                          : `${student.first_name} ${student.last_name} · inactif, cliquer pour rendre actif`
+                                          ? `${student.last_name} ${student.first_name} · actif, cliquer pour rendre inactif`
+                                          : `${student.last_name} ${student.first_name} · inactif, cliquer pour rendre actif`
                                     }
                                     className="flex-shrink-0 p-1.5 -m-1.5 rounded-full cursor-pointer disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 group/dot"
                                   >
                                     <span className={clsx(
                                       'block w-2.5 h-2.5 rounded-full transition-all ring-2 ring-offset-1',
                                       isEnrolled
-                                        ? 'bg-green-400 ring-green-200'
+                                        ? 'bg-primary-400 ring-primary-200'
                                         : student.is_active
-                                          ? 'bg-green-500 ring-green-200 group-hover/dot:bg-red-400 group-hover/dot:ring-red-200 group-hover/dot:scale-110'
-                                          : 'bg-warm-300 ring-warm-200 group-hover/dot:bg-green-400 group-hover/dot:ring-green-200 group-hover/dot:scale-110'
+                                          ? 'bg-primary-500 ring-primary-200 group-hover/dot:bg-red-400 group-hover/dot:ring-red-200 group-hover/dot:scale-110'
+                                          : 'bg-warm-300 ring-warm-200 group-hover/dot:bg-primary-400 group-hover/dot:ring-primary-200 group-hover/dot:scale-110'
                                     )} />
                                   </button>
                                 </Tooltip>
 
                                 <button
                                   onClick={() => router.push(`/dashboard/students/${student.id}?from=parents`)}
-                                  aria-label={`Ouvrir la fiche de ${student.first_name} ${student.last_name}`}
+                                  aria-label={`Ouvrir la fiche de ${student.last_name} ${student.first_name}`}
                                   className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                                 >
                                   <span className="font-mono text-xs text-warm-700">{student.student_number}</span>
@@ -371,12 +371,12 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                                 )}
                                 {student.exit_authorization && (
                                   <Tooltip content="Autorisation de sortie accordée">
-                                    <LogOut size={12} className="text-green-500 flex-shrink-0" />
+                                    <LogOut size={12} className="text-primary-600 flex-shrink-0" />
                                   </Tooltip>
                                 )}
                                 {student.media_authorization && (
                                   <Tooltip content="Autorisation média accordée">
-                                    <Camera size={12} className="text-green-500 flex-shrink-0" />
+                                    <Camera size={12} className="text-primary-600 flex-shrink-0" />
                                   </Tooltip>
                                 )}
                               </div>

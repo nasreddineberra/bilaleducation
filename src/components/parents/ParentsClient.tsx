@@ -12,7 +12,7 @@ import type { Parent } from '@/types/database'
 
 const PAGE_SIZE = 20
 
-type StatFilter = '' | 'adult_courses'
+type StatFilter = '' | 'adult_courses' | 'unassigned'
 
 interface ParentsClientProps {
   parents:             Parent[]
@@ -21,6 +21,8 @@ interface ParentsClientProps {
   q:                   string
   filter:              string
   totalAll:            number
+  /** Tuteurs inscrits aux cours adultes SANS classe de l'annee en cours. */
+  totalUnassigned: number
   totalAdultCourses:   number
   parentsWithChildren: Set<string>
   parentsWithPAI:      Set<string>
@@ -90,7 +92,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 
 export default function ParentsClient({
   parents, filteredCount, page, q, filter,
-  totalAll, totalAdultCourses,
+  totalAll, totalAdultCourses, totalUnassigned,
   parentsWithChildren, parentsWithPAI,
 }: ParentsClientProps) {
   const router      = useRouter()
@@ -143,6 +145,14 @@ export default function ParentsClient({
           activeRing="ring-primary-600"
           active={activeFilter === 'adult_courses'}
           onClick={() => toggleFilter('adult_courses')}
+        />
+        <ListStatCard
+          value={totalUnassigned}
+          label={<>non<br/>affectés</>}
+          valueColor="text-orange-600"
+          activeRing="ring-orange-600"
+          active={activeFilter === 'unassigned'}
+          onClick={() => toggleFilter('unassigned')}
         />
 
         <div className="flex-1" />

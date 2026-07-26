@@ -417,18 +417,26 @@
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .divide-warm-50 > :not([hidden]) ~ :not([hidden]),
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .divide-warm-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--line); }
 
-/* Variantes avec opacité (bg-warm-50/50, /60…) : ce sont des classes DISTINCTES,
-   non captées par les sélecteurs ci-dessus. Fréquentes dans les listes et
-   calendriers (fonds de ligne discrets) → même remappage. */
+/* Variantes avec OPACITÉ (bg-warm-50/40, bg-warm-100/70…) : chacune est une
+   classe DISTINCTE, non captée par les sélecteurs sans suffixe. Liste tenue
+   exhaustive (relevé par grep) — un oubli laisse un fond clair sous un texte
+   grisé, donc illisible (cas des puces « enfant inactif »). */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/20,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/30,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/40,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/50,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-50\/60,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-100\/60 { background-color: var(--surface-sunken); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-100\/50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-100\/60,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-100\/70 { background-color: var(--surface-sunken); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/20:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/30:hover,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/40:hover,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/50:hover,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-50\/60:hover,
-:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-100\/60:hover { background-color: var(--surface-sunken); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-100\/50:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-100\/60:hover,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .hover\:bg-warm-100\/70:hover { background-color: var(--surface-sunken); }
 
 /* warm-200 : filets, pistes de barres de progression, séparateurs. */
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-200 { background-color: var(--line-strong); }
@@ -515,3 +523,25 @@
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .text-primary-800 { color: #65d9cf; }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-200,
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-300 { border-color: rgb(24 170 153 / .35); }
+
+/* Chips ardoise (`bg-secondary-100 text-secondary-700`, 8 fichiers) : le pont
+   éclaircit le TEXTE (→ --ink), il faut donc aussi assombrir le FOND, sinon on
+   obtient du clair sur clair. Idem pour les pistes `bg-warm-300`. */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-secondary-100 { background-color: var(--line-strong); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-300      { background-color: var(--line-strong); }
+
+/* Bordures teintées -50 / -100 (les -200/-300 sont traitées plus haut). */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-red-100 { border-color: rgb(239 68 68 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-orange-100 { border-color: rgb(249 115 22 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-amber-100 { border-color: rgb(255 162 0 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-green-100 { border-color: rgb(34 197 94 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-blue-100 { border-color: rgb(59 130 246 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-purple-100 { border-color: rgb(168 85 247 / .28); }
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-50,
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .border-primary-100 { border-color: rgb(24 170 153 / .28); }

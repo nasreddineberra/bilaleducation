@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { X, RotateCcw, ToggleRight, ToggleLeft } from 'lucide-react'
@@ -18,7 +19,7 @@ function Toggle({ active, disabled, onChange, label }: {
       disabled={disabled} onClick={onChange}
       className={clsx(
         'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-        active ? 'bg-primary-500' : 'bg-warm-300',
+        active ? 'bg-primary-500' : 'bg-warm-300 dark:bg-[var(--line-strong)]',
         disabled && 'opacity-50 cursor-not-allowed',
       )}
     >
@@ -55,11 +56,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
   }, [])
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose() }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [saving, onClose])
+  // Regle projet : fermeture par X / Annuler uniquement (ni Echap, ni clic hors fenetre).
 
   const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
   const filtered = useMemo(() => {
@@ -115,14 +112,18 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
             {active ? 'Inscrit' : 'Non inscrit'}
           </span>
           {locked
-            ? <Tooltip content={<span className="whitespace-nowrap">{classInfo ?? 'Inscrit à un cours adulte — désinscrivez-le d’abord.'}</span>} maxWidth="max-w-none">{tgl}</Tooltip>
+            ? <Tooltip content={<span className="whitespace-nowrap">{classInfo ?? 'Inscrit à un cours adulte : désinscrivez-le d’abord.'}</span>} maxWidth="max-w-none">{tgl}</Tooltip>
             : tgl}
         </div>
       </div>
     )
   }
 
-  return (
+  // PORTAIL : le parent (ParentsClient) porte `animate-fade-in` ; son transform
+  // ferait du conteneur le bloc de reference du `position: fixed`.
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
       <div role="dialog" aria-modal="true" aria-labelledby="adult-title"
         className="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 animate-fade-in max-h-[88vh] flex flex-col">
@@ -188,7 +189,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
                     <td className="list-td">
                       {f.tutor2Name
                         ? <TutorCell name={f.tutor2Name} k={`${f.id}-2`} locked={f.tutor2Locked} classInfo={f.tutor2ClassInfo} />
-                        : <span className="text-warm-400">·</span>}
+                        : <span className="text-warm-700">·</span>}
                     </td>
                   </tr>
                 ))}
@@ -212,6 +213,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
           </FloatButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
