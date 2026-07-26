@@ -1,5 +1,6 @@
 'use server'
 
+import { updateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -33,6 +34,24 @@ export async function updateOwnProfile(data: {
     .eq('id', user.id)
 
   if (error) return { error: 'Erreur lors de la mise à jour du profil.' }
+  return {}
+}
+
+// Préférence de thème (clair/sombre) de l'utilisateur connecté.
+// Client SESSION → RLS « update own profile ». `updateTag('profile')` est
+// INDISPENSABLE : le profil est mis en cache sans expiration (getCachedProfile),
+// sans invalidation le thème reviendrait en arrière à la navigation suivante.
+export async function setOwnTheme(theme: 'light' | 'dark'): Promise<{ error?: string }> {
+  if (theme !== 'light' && theme !== 'dark') return { error: 'Thème invalide.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié.' }
+
+  const { error } = await supabase.from('profiles').update({ theme }).eq('id', user.id)
+  if (error) return { error: 'Erreur lors de l’enregistrement du thème.' }
+
+  updateTag('profile')
   return {}
 }
 

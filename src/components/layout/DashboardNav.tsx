@@ -2,11 +2,12 @@
 
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LogOut, Bell, ChevronRight, Sun, Moon } from 'lucide-react'
+import { Power, Bell, ChevronRight, Sun, Moon } from 'lucide-react'
 import { clsx } from 'clsx'
 
 import { useSidebar } from './SidebarContext'
 import { useTheme } from './ThemeContext'
+import Tooltip from '@/components/ui/Tooltip'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { Profile } from '@/types/database'
@@ -51,24 +52,6 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/cahier-texte':      'Cahier de texte',
   '/dashboard/cahier-texte/new':  'Nouvelle séance',
   '/dashboard/mon-compte':        'Mon compte',
-}
-
-// Couleur dérivée du nom (stable pour une même personne)
-const AVATAR_COLORS: [string, string][] = [
-  ['#3b6cb7', '#1a3a6b'], // bleu
-  ['#18aa99', '#0e6b60'], // teal
-  ['#e85d04', '#b84a03'], // orange
-  ['#7c3aed', '#4c1d95'], // violet
-  ['#0891b2', '#0e4f6b'], // cyan
-  ['#16a34a', '#14532d'], // vert
-  ['#dc2626', '#7f1d1d'], // rouge
-  ['#d97706', '#78350f'], // ambre
-]
-
-function getAvatarColor(name: string): [string, string] {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
 function getInitiales(firstName?: string | null, lastName?: string | null): string {
@@ -230,8 +213,8 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
   useInactivityLogout(() => doLogout('inactivity'))
 
   return (
-    <nav className="bg-white dark:bg-[#131c20] dark:border-b dark:border-[#243139] shadow-nav dark:shadow-none px-6 py-3 sticky top-0 z-30">
-      <div className="flex items-center justify-between">
+    <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none px-6 sticky top-0 z-30">
+      <div className="w-full flex items-center justify-between">
 
         {/* Titre + Breadcrumb */}
         <div className="hidden md:flex flex-col justify-center">
@@ -268,43 +251,45 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
             aria-label="Thème de l'interface"
             className="flex items-center gap-0.5 p-0.5 rounded-full bg-warm-100 dark:bg-white/5 border border-warm-200 dark:border-white/10"
           >
+            <Tooltip content="Thème clair" position="bottom">
             <button
               type="button"
               onClick={() => { if (theme !== 'light') toggle() }}
               aria-label="Thème clair"
               aria-pressed={theme === 'light'}
-              title="Thème clair"
               className={clsx(
                 'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                 theme === 'light'
-                  ? 'bg-white text-primary-600 shadow-sm'
+                  ? 'bg-white text-[var(--brand-surface)] shadow-sm'
                   : 'text-secondary-400 dark:text-[#8b9aa0] hover:text-secondary-600 dark:hover:text-white',
               )}
             >
               <Sun className="w-3.5 h-3.5" />
             </button>
+            </Tooltip>
+            <Tooltip content="Thème sombre" position="bottom">
             <button
               type="button"
               onClick={() => { if (theme !== 'dark') toggle() }}
               aria-label="Thème sombre"
               aria-pressed={theme === 'dark'}
-              title="Thème sombre"
               className={clsx(
                 'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                 theme === 'dark'
                   ? 'bg-[#0e1418] text-[var(--brand-accent)] shadow-sm'
-                  : 'text-secondary-400 hover:text-secondary-600',
+                  : 'text-[var(--brand-surface)] hover:text-[var(--brand-surface-2)]',
               )}
             >
               <Moon className="w-3.5 h-3.5" />
             </button>
+            </Tooltip>
           </div>
 
           {/* Notifications */}
+          <Tooltip content={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'} position="bottom">
           <Link
             href="/dashboard/notifications"
-            className="relative p-2 text-secondary-400 hover:text-secondary-600 hover:bg-warm-100 dark:text-[#8b9aa0] dark:hover:text-white dark:hover:bg-white/10 rounded-xl transition-all duration-200"
-            title="Notifications"
+            className="relative p-2 text-[var(--brand-surface)] hover:text-[var(--brand-surface-2)] hover:bg-warm-100 dark:text-[#8b9aa0] dark:hover:text-white dark:hover:bg-white/10 rounded-xl transition-all duration-200"
             aria-label={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'}
           >
             <Bell className="w-5 h-5" />
@@ -314,11 +299,24 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
               </span>
             )}
           </Link>
+          </Tooltip>
+
+          {/* Déconnexion — juste après les notifications */}
+          <Tooltip content="Déconnexion" position="bottom">
+          <button
+            onClick={handleLogout}
+            className="relative p-2 text-[var(--brand-surface)] hover:text-[var(--brand-surface-2)] hover:bg-warm-100 dark:text-[#8b9aa0] dark:hover:text-white dark:hover:bg-white/10 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            aria-label="Déconnexion"
+          >
+            <Power className="w-5 h-5" />
+          </button>
+          </Tooltip>
 
           {/* Séparateur */}
           <div className="w-px h-6 bg-warm-200 dark:bg-[#243139]" />
 
           {/* Profil utilisateur → Mon compte */}
+          <Tooltip content="Mon compte" position="bottom">
           <Link
             href="/dashboard/mon-compte"
             aria-label="Mon compte"
@@ -332,30 +330,12 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
                 {profile?.role?.replace('_', ' ')}
               </p>
             </div>
-            {(() => {
-              const initiales = getInitiales(profile?.first_name, profile?.last_name)
-              const fullName  = `${profile?.first_name ?? ''}${profile?.last_name ?? ''}`
-              const [bg, ring] = getAvatarColor(fullName)
-              return (
-                <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center shadow-sm font-bold text-sm text-white select-none flex-shrink-0"
-                  style={{ background: bg, boxShadow: `0 0 0 2px ${ring}40` }}
-                >
-                  {initiales}
-                </div>
-              )
-            })()}
+            {/* Avatar rond : fond = 1re couleur du thème, bord = 3e (accent) */}
+            <div className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm font-bold text-sm text-white select-none flex-shrink-0 bg-[var(--brand-surface)] ring-2 ring-[var(--brand-accent)]">
+              {getInitiales(profile?.first_name, profile?.last_name)}
+            </div>
           </Link>
-
-          {/* Déconnexion */}
-          <button
-            onClick={handleLogout}
-            className="p-2 text-warm-700 dark:text-[#8b9aa0] hover:text-danger-500 hover:bg-danger-50 rounded-xl transition-all duration-200"
-            title="Déconnexion"
-            aria-label="Déconnexion"
-          >
-            <LogOut className="w-5 h-5" />
-          </button>
+          </Tooltip>
         </div>
       </div>
     </nav>

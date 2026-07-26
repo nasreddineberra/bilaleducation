@@ -68,8 +68,8 @@ interface NavItem {
 // ─── SidebarTooltip ───────────────────────────────────────────────────────────
 // Tooltip positionné à droite — même style visuel que components/ui/Tooltip.tsx
 
-function SidebarTooltip({ children, label }: { children: React.ReactNode; label: string }) {
-  const ref = useRef<HTMLDivElement>(null)
+function SidebarTooltip({ children, label, className = 'w-full' }: { children: React.ReactNode; label: string; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
   const show = useCallback(() => {
@@ -82,21 +82,21 @@ function SidebarTooltip({ children, label }: { children: React.ReactNode; label:
   const hide = useCallback(() => setPos(null), [])
 
   return (
-    <div ref={ref} className="w-full" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+    <span ref={ref} className={clsx('inline-flex', className)} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed z-[9999] pointer-events-none flex items-center"
           style={{ top: pos.top, left: pos.left, transform: 'translateY(-50%)' }}
         >
-          <span className="border-[5px] border-transparent border-r-secondary-800 -mr-px" />
-          <div className="bg-secondary-800 text-white rounded-xl shadow-xl px-3 py-2 text-xs whitespace-nowrap">
+          <span className="border-[5px] border-transparent border-r-[var(--brand-surface)] -mr-px" />
+          <div className="bg-[var(--brand-surface)] text-white rounded-xl shadow-xl px-3 py-2 text-xs whitespace-nowrap">
             {label}
           </div>
         </div>,
         document.body,
       )}
-    </div>
+    </span>
   )
 }
 
@@ -466,6 +466,25 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   }
 
   const filteredItems = navItems.filter(item => role && item.roles.includes(role))
+
+  // Mode RÉDUIT : toutes les destinations d'une section, à plat, en icônes.
+  // L'icône d'un sous-menu = celle de SON MENU (le libellé vit dans le tooltip).
+  type Dest = { href: string; label: string; icon: any }
+  const destsOfSection = (sectionLabel: string): Dest[] =>
+    filteredItems
+      .filter(it => SECTION_OF[it.name] === sectionLabel)
+      .flatMap<Dest>(it => {
+        if (!it.children) return it.href ? [{ href: it.href, label: it.name, icon: it.icon }] : []
+        return it.children
+          .filter(c => role && c.roles.includes(role))
+          .flatMap<Dest>(c => {
+            // Libellé du tooltip : « menu - sous-menu »
+            if (!c.children) return c.href ? [{ href: c.href, label: `${it.name} - ${c.name}`, icon: it.icon }] : []
+            return c.children
+              .filter(gc => role && gc.roles.includes(role))
+              .map(gc => ({ href: gc.href, label: `${c.name} - ${gc.name}`, icon: c.icon }))
+          })
+      })
   const initiales     = getInitiales(etablissementNom ?? 'Bilal Education')
 
   return (
@@ -473,7 +492,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
       className={clsx(
         'h-full flex flex-col shadow-sidebar flex-shrink-0 overflow-x-hidden',
         'transition-[width] duration-200 ease-in-out motion-reduce:transition-none',
-        collapsed ? 'w-16' : 'w-64'
+        collapsed ? 'w-[92px]' : 'w-64'
       )}
       style={{ background: 'linear-gradient(180deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
     >
@@ -482,8 +501,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
       <div className={clsx(
         'border-b border-white/10 flex-shrink-0 flex',
         collapsed
-          ? 'flex-col items-center gap-2 py-3 px-2'
-          : 'items-start gap-3 px-4 py-3'
+          ? 'items-center justify-center gap-1 px-1.5 h-[61px]'
+          : 'items-center gap-3 px-4 h-[61px]'
       )}>
 
         <Link
@@ -518,7 +537,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
         {/* Textes (cachés en mode réduit) */}
         {!collapsed && (
-          <div className="flex-1 min-w-0 pt-0.5">
+          <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-sm leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
               {etablissementNom ?? 'Bilal Education'}
             </p>
@@ -531,23 +550,59 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         )}
         </Link>
 
-        {/* Bouton toggle */}
-        <button
-          onClick={handleToggle}
-          title={collapsed ? 'Développer' : 'Réduire'}
-          aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
-          className={clsx(
-            'flex-shrink-0 rounded-lg flex items-center justify-center min-w-[32px] min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
-            collapsed ? 'mt-0' : 'mt-0.5'
-          )}
-        >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
+        {/* Bouton toggle — tooltip standard (jamais de title= natif) */}
+        <SidebarTooltip label={collapsed ? 'Développer' : 'Réduire'} className="w-auto flex-shrink-0">
+          <button
+            onClick={handleToggle}
+            aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
+            className="rounded-lg flex items-center justify-center min-w-[32px] min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70"
+          >
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </SidebarTooltip>
       </div>
 
       {/* ── Navigation ───────────────────────────────────────────────────────── */}
       <nav aria-label="Navigation principale" className="flex-1 py-2 overflow-y-auto overflow-x-hidden sidebar-scroll">
-        {SECTION_ORDER.map(sectionLabel => {
+        {/* ── Mode RÉDUIT : icônes groupées par section, sur 2 colonnes ───────── */}
+        {collapsed && SECTION_ORDER.map((sectionLabel, si) => {
+          const dests = destsOfSection(sectionLabel)
+          if (dests.length === 0) return null
+          return (
+            <div key={sectionLabel} className={clsx('mx-2', si > 0 && 'mt-1.5 pt-1.5 border-t border-white/10')}>
+              {/* Rappel du titre de section sous le filet */}
+              <p className="pb-1 text-[9px] font-bold uppercase tracking-wide text-center text-[var(--brand-label)] truncate">
+                {sectionLabel}
+              </p>
+              <div className="grid grid-cols-2 gap-1 justify-items-center">
+                {dests.map(d => {
+                  const DIcon = d.icon
+                  const isActive = isRouteActive(d.href)
+                  return (
+                    <SidebarTooltip key={d.href} label={d.label} className="w-auto">
+                      <Link
+                        href={d.href}
+                        aria-label={d.label}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={clsx(
+                          'w-9 h-9 rounded-[9px] flex items-center justify-center transition-colors duration-200 motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
+                          isActive
+                            ? 'bg-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                            : 'hover:bg-white/[0.08]',
+                        )}
+                      >
+                        <DIcon size={18} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                      </Link>
+                    </SidebarTooltip>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* ── Mode DÉPLOYÉ : sections repliables ─────────────────────────────── */}
+        {!collapsed && SECTION_ORDER.map(sectionLabel => {
           const sectionItems = filteredItems.filter(i => SECTION_OF[i.name] === sectionLabel)
           if (sectionItems.length === 0) return null
           const isSecOpen = openSection === sectionLabel
@@ -592,7 +647,11 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                     collapsed && 'justify-center'
                   )}
                 >
-                  <Icon size={18} className={clsx('flex-shrink-0', isGroupActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                  {collapsed
+                    ? <Icon size={18} className={clsx('flex-shrink-0', isGroupActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                    : <SidebarTooltip label={item.name} className="w-auto">
+                        <Icon size={18} className={clsx('flex-shrink-0', isGroupActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                      </SidebarTooltip>}
                   {!collapsed && (
                     <>
                       <span className="flex-1 text-left">{item.name}</span>
@@ -635,6 +694,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                 aria-expanded={isSubOpen}
                                 className={clsx('sidebar-item w-full', isSubActive ? 'sidebar-item-active sidebar-item-active-sub' : isSubOpen ? 'sidebar-item-open' : 'sidebar-item-default')}
                               >
+                                {/* Icône du MENU parent (les sous-menus partagent son symbole) */}
+                                <SidebarTooltip label={`${item.name} - ${child.name}`} className="w-auto">
+                                  <Icon size={16} className={clsx('flex-shrink-0', isSubActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                                </SidebarTooltip>
                                 <span className="flex-1 text-left text-sm">{child.name}</span>
                                 <ChevronDown
                                   size={12}
@@ -650,6 +713,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                 <div className="mt-0.5 ml-[26px] pl-3 border-l border-white/10 space-y-0.5">
                                   {visibleLeaves.map(leaf => {
                                     const isActive  = isRouteActive(leaf.href)
+                                    const SubIcon   = child.icon   // icône du sous-menu parent
                                     return (
                                       <Link
                                         key={leaf.href}
@@ -658,6 +722,9 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                         aria-current={isActive ? 'page' : undefined}
                                         className={clsx('sidebar-item', isActive ? 'sidebar-item-active sidebar-item-active-sub' : 'sidebar-item-default')}
                                       >
+                                        <SidebarTooltip label={`${child.name} - ${leaf.name}`} className="w-auto">
+                                          <SubIcon size={14} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                                        </SidebarTooltip>
                                         <span className="text-sm">{leaf.name}</span>
                                       </Link>
                                     )
@@ -679,6 +746,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                             aria-current={isActive ? 'page' : undefined}
                             className={clsx('sidebar-item', isActive ? 'sidebar-item-active sidebar-item-active-sub' : 'sidebar-item-default')}
                           >
+                            {/* Icône du MENU parent */}
+                            <SidebarTooltip label={`${item.name} - ${child.name}`} className="w-auto">
+                              <Icon size={14} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                            </SidebarTooltip>
                             <span className="text-sm">{child.name}</span>
                           </Link>
                         )
@@ -703,8 +774,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                   collapsed && 'justify-center'
                 )}
               >
-                <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
-                {!collapsed && <span>{item.name}</span>}
+                <SidebarTooltip label={item.name} className="w-auto">
+                  <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
+                </SidebarTooltip>
+                <span>{item.name}</span>
               </Link>
             )
 
@@ -731,10 +804,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         collapsed ? 'py-2 flex justify-center items-center' : 'px-4 py-2.5'
       )}>
         {collapsed ? (
-          <SidebarTooltip label="© 2026 Bilal Education · v1.0">
-            <div className="flex justify-center cursor-default">
-              <span className="text-[var(--brand-muted)] text-sm font-medium leading-none">©</span>
-            </div>
+          <SidebarTooltip label="© 2026 Bilal Education · v1.0" className="w-full justify-center">
+            <span className="text-[var(--brand-muted)] text-lg font-semibold leading-none cursor-default">©</span>
           </SidebarTooltip>
         ) : (
           <div className="space-y-0.5">

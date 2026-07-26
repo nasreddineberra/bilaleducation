@@ -73,7 +73,7 @@ export default async function DashboardLayout({
   const unreadNotifCount = (staffUnread ?? 0) + parentUnread
 
   return (
-    <ThemeProvider>
+    <ThemeProvider initialTheme={profile?.theme === 'dark' ? 'dark' : 'light'}>
     <SidebarProvider>
       <a
         href="#main-content"

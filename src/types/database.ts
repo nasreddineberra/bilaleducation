@@ -111,6 +111,8 @@ export interface Profile {
   is_active: boolean
   /** Remarques internes — pour les roles sans fiche metier (direction, comptable, secretaire, resp. pedago). */
   notes?: string | null
+  /** Preference d'interface : 'light' | 'dark'. NULL = clair (defaut). */
+  theme?: 'light' | 'dark' | null
   created_at: string
   updated_at: string
 }
