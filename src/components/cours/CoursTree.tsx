@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   ChevronRight, ChevronDown, BookOpen,
@@ -24,6 +25,7 @@ import { CSS } from '@dnd-kit/utilities'
 type FieldDef = {
   label: string; value: string; onChange: (v: string) => void
   placeholder?: string; type?: string; dir?: string
+  style?: React.CSSProperties
   maxWidth?: string  // largeur fixe pour les champs courts (ex. Ref)
 }
 
@@ -116,11 +118,12 @@ function InlineForm({
             <input
               type={f.type ?? 'text'}
               dir={f.dir ?? 'auto'}
+              style={f.style}
               value={f.value}
               onChange={e => f.onChange(e.target.value)}
               placeholder={f.placeholder ?? ''}
               aria-label={f.label}
-              className="input text-sm py-1 w-full"
+              className="input text-sm py-1 w-full h-8"
               disabled={submitting}
               autoFocus={i === 0}
             />
@@ -143,7 +146,16 @@ function InlineForm({
 
 // ─── Helper : nom en arabe ────────────────────────────────────────────────────
 
-const arStyle: React.CSSProperties = { fontFamily: "'Amiri Typewriter', serif" }
+// Police arabe du projet (Noto Sans Arabic), chargee par next/font dans
+// layout.tsx et exposee en variable CSS. Taille portee a 18 px : une sans arabe
+// a une hauteur de caracteres plus faible que le latin, il lui faut un cran de
+// plus pour peser autant a l'ecran.
+const arStyle: React.CSSProperties = { fontFamily: 'var(--font-arabic), sans-serif', fontSize: '18px', lineHeight: 1.4 }
+
+// Meme police et meme grossissement dans les CHAMPS, mais interlignage fige a
+// celui de text-sm : sans ca, agrandir la police agrandit la hauteur de
+// l'input, qui se desaligne des champs voisins (Ref, Nom FR).
+const arInputStyle: React.CSSProperties = { ...arStyle, lineHeight: '1.25rem' }
 
 // Réf en MAJUSCULES ; Nom (FR) : 1re lettre en majuscule
 const toRef    = (v: string) => v.toUpperCase()
@@ -229,7 +241,7 @@ function CourseRow({
         <span dir="auto" className="font-semibold text-secondary-700 text-sm"><Highlight text={c.nom_fr} query={search} /></span>
         {c.nom_ar && <span className="text-warm-700 flex-shrink-0 select-none">·</span>}
         {c.nom_ar && (
-          <span dir="auto" className="text-sm font-bold text-warm-700" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
+          <span dir="auto" className="text-sm text-warm-700" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
         )}
       </div>
       <Tooltip content="Modifier">
@@ -313,7 +325,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
               <span dir="auto" className="font-semibold text-secondary-700 text-sm"><Highlight text={mod.nom_fr} query={search} /></span>
               {mod.nom_ar && <span className="text-warm-700 flex-shrink-0 select-none">·</span>}
               {mod.nom_ar && (
-                <span dir="auto" className="text-sm font-bold text-warm-700" style={arStyle}><Highlight text={mod.nom_ar} query={search} /></span>
+                <span dir="auto" className="text-sm text-warm-700" style={arStyle}><Highlight text={mod.nom_ar} query={search} /></span>
               )}
             </div>
             <Tooltip content="Modifier">
@@ -436,7 +448,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
         {/* Pastille couleur (avant le chevron) */}
         <span
           className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10"
-          style={{ backgroundColor: ue.color ?? '#d1d5db' }}
+          style={{ backgroundColor: ue.color ?? 'var(--line-strong)' }}
         />
 
         {/* Flèche expand/collapse */}
@@ -464,7 +476,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
               <span dir="auto" className="font-bold text-secondary-800 text-sm"><Highlight text={ue.nom_fr} query={search} /></span>
               {ue.nom_ar && <span className="text-warm-700 flex-shrink-0 select-none">·</span>}
               {ue.nom_ar && (
-                <span dir="auto" className="text-sm font-bold text-warm-700" style={arStyle}><Highlight text={ue.nom_ar} query={search} /></span>
+                <span dir="auto" className="text-sm text-warm-700" style={arStyle}><Highlight text={ue.nom_ar} query={search} /></span>
               )}
             </div>
             <Tooltip content="Modifier">
@@ -574,7 +586,8 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   // Synchroniser si les props changent (après router.refresh())
   useEffect(() => { setOrderedUEs(ues) }, [ues])
 
-  // Modale de suppression : fermeture Échap
+  // Modale de suppression : fermeture Échap CONSERVEE — c'est une confirmation
+  // sans champ, il n'y a aucune saisie a perdre (meme regle que ConfirmModal).
   useEffect(() => {
     if (!confirmDelete) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setConfirmDelete(null); setDeleteError(null) } }
@@ -835,20 +848,20 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   const ueFields: FieldDef[] = [
     { label: 'Réf',      value: fCode,  onChange: v => setFCode(toRef(v)),    maxWidth: '80px' },
     { label: 'Nom (FR)', value: fNomFr, onChange: v => setFNomFr(capFirst(v)) },
-    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
+    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'rtl', style: arInputStyle },
     { label: 'Couleur',  value: fColor, onChange: setFColor, type: 'color', maxWidth: '60px' },
   ]
   // Module : Réf réduit, Nom FR, Nom AR
   const moduleFields: FieldDef[] = [
     { label: 'Réf',      value: fRef,   onChange: v => setFRef(toRef(v)),     maxWidth: '80px' },
     { label: 'Nom (FR)', value: fNomFr, onChange: v => setFNomFr(capFirst(v)) },
-    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
+    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'rtl', style: arInputStyle },
   ]
   // Cours : Réf réduit, Nom FR, Nom AR
   const coursFields: FieldDef[] = [
     { label: 'Réf',      value: fRef,   onChange: v => setFRef(toRef(v)),     maxWidth: '80px' },
     { label: 'Nom (FR)', value: fNomFr, onChange: v => setFNomFr(capFirst(v)) },
-    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'auto' },
+    { label: 'Nom (AR)', value: fNomAr, onChange: setFNomAr, dir: 'rtl', style: arInputStyle },
   ]
 
   // Props partagées pour toutes les cartes UE
@@ -917,8 +930,10 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
         </DndContext>
       </div>
 
-      {/* Modal confirmation suppression */}
-      {confirmDelete && (
+      {/* Modale de confirmation, portée dans body : animate-fade-in garde un
+          transform qui capturerait le position fixed et rognerait la modale.
+          Échap conservé ici (confirmation sans champ, rien à perdre). */}
+      {confirmDelete && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
           
@@ -963,7 +978,8 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
             </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

@@ -28,11 +28,6 @@ const DAY_LABELS_SHORT: Record<number, string> = {
   4: 'JEU', 5: 'VEN', 6: 'SAM',
 }
 
-const SLOT_COLORS: Record<string, string> = {
-  cours: 'bg-blue-100 border-blue-300 text-blue-800',
-  activite: 'bg-emerald-100 border-emerald-300 text-emerald-800',
-}
-
 const DEFAULT_START = 7
 const DEFAULT_END = 19
 
@@ -42,8 +37,6 @@ function buildDayOrder(startDay: number): number[] {
   for (let i = 0; i < 7; i++) days.push((startDay + i) % 7)
   return days
 }
-
-const SIDEBAR_COLOR = '#2e4550'
 
 const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
@@ -1373,10 +1366,9 @@ export default function EmploiDuTempsClient({
               className={clsx(
                 'px-3 py-1.5 transition-colors',
                 viewMode === v
-                  ? 'text-white'
+                  ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
                   : 'bg-white text-warm-700 hover:bg-warm-50'
               )}
-              style={viewMode === v ? { backgroundColor: SIDEBAR_COLOR } : undefined}
             >
               {v === 'global' ? 'Globale' : v === 'class' ? 'Par classe' : 'Par enseignant'}
             </button>
@@ -1596,10 +1588,9 @@ export default function EmploiDuTempsClient({
                 className={clsx(
                   'p-2 text-center text-sm font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
                   selectedDay === d
-                    ? 'text-white'
+                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
                     : d === todayDow ? 'text-amber-600 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-700 hover:bg-warm-50'
                 )}
-                style={selectedDay === d ? { backgroundColor: SIDEBAR_COLOR } : undefined}
               >
                 {selectedDay !== null ? DAY_LABELS[d] : DAY_LABELS_SHORT[d]}
                 <span className="text-xs font-medium opacity-80 ml-1">{dayDatesDisplay[d]}</span>

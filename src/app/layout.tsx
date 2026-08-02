@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Amiri } from 'next/font/google'
+import { Inter, Noto_Sans_Arabic } from 'next/font/google'
 import './globals.css'
 import { ToastProvider } from '@/lib/toast-context'
 import { ToastContainer } from '@/components/ui/Toast'
@@ -17,10 +17,13 @@ const inter = Inter({
   display: 'swap',
 })
 
-const amiri = Amiri({
-  subsets: ['arabic', 'latin'],
+// Noto Sans Arabic : sans arabe de reference (Android, ChromeOS, Windows),
+// proportions proches d'Inter. Pas de sous-ensemble latin : le latin reste
+// rendu par Inter, on ne charge donc que l'arabe.
+const arabic = Noto_Sans_Arabic({
+  subsets: ['arabic'],
   weight: ['400', '700'],
-  variable: '--font-amiri',
+  variable: '--font-arabic',
   display: 'swap',
 })
 
@@ -68,7 +71,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.variable} ${amiri.variable}`}>
+      <body className={`${inter.variable} ${arabic.variable}`}>
         <ToastProvider>
           {children}
           <ToastContainer />

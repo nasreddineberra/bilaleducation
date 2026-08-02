@@ -86,6 +86,9 @@ interface Props {
   orderConfigs: OrderConfigRow[]
 }
 
+// 1re lettre en majuscule à la frappe (même motif que le référentiel des cours).
+const capFirst = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v)
+
 const PERIOD_LABELS: Record<string, string> = {
   S1: 'Semestre 1', S2: 'Semestre 2', T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
 }
@@ -750,7 +753,14 @@ export default function BulletinsClient({
       </div>
 
       {/* ── Tableau des élèves ─────────────────────────────────────────────────── */}
-      {currentEvals.length === 0 ? (
+      {/* Deux situations distinctes : pas encore de classe choisie (la période, elle,
+          est présélectionnée sur l'année en cours) vs classe choisie mais vide. */}
+      {!selectedClassId ? (
+        <div className="bg-white rounded-2xl shadow-card p-8 text-center text-warm-700">
+          <AlertCircle className="w-10 h-10 mx-auto mb-2 text-warm-700" />
+          <p className="font-medium">Sélectionnez une classe</p>
+        </div>
+      ) : currentEvals.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-card p-8 text-center text-warm-700">
           <AlertCircle className="w-10 h-10 mx-auto mb-2 text-warm-700" />
           <p className="font-medium">Aucune évaluation pour cette période</p>
@@ -814,13 +824,13 @@ export default function BulletinsClient({
                     <td className="py-2 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         {isComplete ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          <CheckCircle2 className="w-4 h-4 text-primary-600" />
                         ) : (
                           <div className="w-16 h-1.5 bg-warm-200 rounded-full overflow-hidden">
                             <div
                               className={clsx(
                                 'h-full rounded-full',
-                                pct >= 80 ? 'bg-green-400' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'
+                                pct >= 80 ? 'bg-primary-400' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'
                               )}
                               style={{ width: `${pct}%` }}
                             />
@@ -968,7 +978,7 @@ function AppreciationCell({
       <textarea
         ref={inputRef}
         value={text}
-        onChange={e => setText(e.target.value)}
+        onChange={e => setText(capFirst(e.target.value))}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() } if (e.key === 'Escape') { setText(value); setEditing(false) } }}
         rows={2}
         aria-label="Appréciation de l'élève"

@@ -11,7 +11,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
-import { sendRelance, logAttestation, type FinancementCommunication } from '@/app/dashboard/financements/actions'
+import { sendRelance, logAttestation, deleteFinancementCommunication, type FinancementCommunication } from '@/app/dashboard/financements/actions'
 import { generateAttestationPdfBase64 } from './attestationPdf'
 import {
   computeFamilyFinancials, feeStatus, siblingDiscounts, lineTotal,
@@ -69,6 +69,8 @@ interface Props {
   adultEnrollments: any[]
   familyFees: any[]
   communications: any[]
+  /** Suppression du journal comptable : admin/direction seuls (policy fin_comm_delete). */
+  canDeleteComms?: boolean
   etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null; contact: string | null } | null
   /** Historique des paiements par foyer (années précédentes : vif si dispo, sinon archive). */
   familyHistory?: Record<string, { yearLabel: string; totalDue: number; totalPaid: number; remaining: number; status: string; installments: any[] }[]>
@@ -245,7 +247,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId, familyHistory = {} }: Props & { initialParentId?: string }) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId, familyHistory = {}, canDeleteComms = false }: Props & { initialParentId?: string }) {
   const supabase = createClient()
   const toast = useToast()
 
@@ -268,6 +270,9 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const [deleteAdjTarget, setDeleteAdjTarget] = useState<FeeAdjustment | null>(null)
   // Communication comptable (relance)
   const [communications, setCommunications] = useState<FinancementCommunication[]>(initialComms)
+  // Confirmation EN LIGNE de suppression (id de la ligne armee), motif de
+  // « Documents requis par dossier » dans la fiche etablissement.
+  const [confirmDeleteComm, setConfirmDeleteComm] = useState<string | null>(null)
   const [relanceOpen, setRelanceOpen] = useState(false)
   const [relanceSubject, setRelanceSubject] = useState('')
   const [relanceBody, setRelanceBody] = useState('')
@@ -531,6 +536,17 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   }
 
   // ── Relance d'impayes ─────────────────────────────────────────────────────
+  /** Supprime une ligne du journal comptable (admin/direction). L'action serveur
+   *  trace la suppression dans audit_logs avant d'effacer : on ne remplace pas
+   *  une trace par un trou. */
+  const handleDeleteComm = async (id: string) => {
+    setConfirmDeleteComm(null)
+    const res = await deleteFinancementCommunication(id)
+    if (res?.error) { toast.error(res.error); return }
+    setCommunications(prev => prev.filter(c => c.id !== id))
+    toast.success('Ligne supprimée du journal.')
+  }
+
   const openRelance = () => {
     if (!selectedParent) return
     // Pluriel selon le nombre de cotisations du recap (lignes eleves + adultes).
@@ -777,8 +793,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           </ul>
         </aside>
 
-        {/* Détail de la famille sélectionnée */}
-        <div className="flex-1 min-w-0 overflow-y-auto list-scroll space-y-3">
+        {/* Détail de la famille sélectionnée : en-tete FIGE + contenu defilant.
+            Le bandeau ne doit pas vivre dans la zone de defilement, sinon son
+            avatar (plus haut que le texte) se fait rogner des le premier pixel
+            de scroll. */}
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
 
       {!selectedParent && (
         <div className="h-full flex flex-col items-center justify-center gap-2 text-center py-20">
@@ -788,9 +807,9 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       )}
 
       {selectedParent && (<>
-        {/* En-tete : quelle famille (calque de la fiche parent) */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
+        {/* En-tete : quelle famille (calque de la fiche parent) — hors defilement */}
+        <div className="flex items-center gap-3 shrink-0 px-0.5 pb-3">
+          <div className="w-10 h-10 my-0.5 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0 select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
             {`${(selectedParent.tutor1_last_name[0] ?? '').toUpperCase()}${(selectedParent.tutor1_first_name[0] ?? '').toUpperCase()}`}
           </div>
           <div className="min-w-0">
@@ -821,6 +840,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           </div>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto list-scroll px-0.5">
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start">
 
           {/* ── Colonne gauche ── */}
@@ -872,7 +892,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   {selectedParent.adultLines.length > 0 && (
                     <>
                       <tr className="bg-violet-50/40 border-b border-warm-100">
-                        <td colSpan={6} className="px-2 py-1.5 text-[10px] font-bold text-violet-500 uppercase tracking-widest">Cours adultes</td>
+                        <td colSpan={6} className="px-2 py-1.5 text-[10px] font-bold text-violet-700 uppercase tracking-widest">Cours adultes</td>
                       </tr>
                       {selectedParent.adultLines.map(a => (
                         <tr key={a.id} className="border-b border-warm-50">
@@ -923,7 +943,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               ) : (
                 <ul className="divide-y divide-warm-50" aria-label="Communications comptables">
                   {familyComms.map(c => (
-                    <li key={c.id} className="px-3 py-1.5 flex items-center gap-2 text-xs">
+                    <li key={c.id} className="group px-3 py-1.5 flex items-center gap-2 text-xs">
                       <span className="text-warm-700 whitespace-nowrap tabular-nums">{fmtDate(c.sent_at)}</span>
                       <span className={clsx('px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase shrink-0',
                         c.type === 'relance' ? 'bg-orange-50 text-orange-700' : 'bg-primary-50 text-primary-700')}>
@@ -931,6 +951,26 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       </span>
                       <span className="flex-1 truncate text-secondary-700">{c.subject}</span>
                       {c.status === 'failed' && <span className="text-red-500 shrink-0">Échec</span>}
+
+                      {/* Suppression (admin/direction) — confirmation en ligne */}
+                      {canDeleteComms && (
+                        confirmDeleteComm === c.id ? (
+                          <div className="flex items-center gap-1 text-[11px] shrink-0">
+                            <button onClick={() => handleDeleteComm(c.id)} className="text-red-600 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Oui</button>
+                            <button onClick={() => setConfirmDeleteComm(null)} className="text-warm-700 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Non</button>
+                          </div>
+                        ) : (
+                          <Tooltip content="Supprimer">
+                            <button
+                              onClick={() => setConfirmDeleteComm(c.id)}
+                              aria-label={`Supprimer : ${c.subject}`}
+                              className="shrink-0 p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                            >
+                              <Trash2 size={14} aria-hidden="true" />
+                            </button>
+                          </Tooltip>
+                        )
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1196,6 +1236,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             </div>
           </div>
         </div>
+        </div>{/* zone defilante */}
       </>)}
 
         </div>{/* detail pane */}

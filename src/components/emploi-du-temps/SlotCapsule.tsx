@@ -7,12 +7,12 @@ import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 
+// Couleurs définies dans globals.css (palette de marque, aplats opaques dans
+// les deux thèmes) — voir « Créneaux de l'emploi du temps ».
 const SLOT_COLORS: Record<string, string> = {
-  cours: 'bg-blue-100 border-blue-200 text-blue-900',
-  activite: 'bg-emerald-100 border-emerald-200 text-emerald-900',
+  cours:    'edt-slot-cours',
+  activite: 'edt-slot-activite',
 }
-
-const VALIDATED_COLORS = 'bg-green-100 border-green-300 text-green-900'
 const MODIFIED_BORDER = 'border-amber-400 border-dashed'
 
 type ViewMode = 'global' | 'class' | 'teacher'
@@ -27,6 +27,8 @@ interface Props {
   isTeacher: boolean
   isOwnSlot?: boolean
   validated: boolean
+  /** Nombre de créneaux se partageant la largeur : pilote la densité d'affichage. */
+  groupSize?: number
   draggable?: boolean
   menuActive?: boolean
   onValidate: () => void
@@ -45,7 +47,7 @@ function teacherShort(p: { first_name: string; last_name: string; civilite?: str
 
 export default function SlotCapsule({
   slot, style, viewMode, canEdit, isToday, canValidate, isTeacher, isOwnSlot = false,
-  validated, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onClick, onContextMenu, onKeyMenu, onDelete,
+  validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onClick, onContextMenu, onKeyMenu, onDelete,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `slot-${slot.sourceSlotId}`,
@@ -54,7 +56,20 @@ export default function SlotCapsule({
   })
 
   const noTeacher = !slot.teacher_id
-  const colorClass = validated ? VALIDATED_COLORS : (SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)
+
+  // Densité : la capsule perd des lignes à mesure qu'elle rétrécit, au lieu de
+  // les tronquer toutes à deux caractères. Le détail reste accessible en
+  // infobulle (et dans l'`aria-label`, inchangé).
+  //   1-2 créneaux : tout        3-4 : sans salle ni horaire        5+ : nom seul
+  const dense   = groupSize >= 3
+  const minimal = groupSize >= 5
+  // La validation ne remplace plus la couleur : elle s'ajoute (la teinte reste
+  // celle de la catégorie, sinon un cours validé et une activité validée
+  // deviendraient identiques).
+  const colorClass = clsx(
+    SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours,
+    validated && 'edt-slot-validated',
+  )
   // Validation : le personnel gestionnaire (canEdit) peut valider tout créneau ;
   // un enseignant ne peut valider que SON propre créneau.
   const showValidation = (canEdit || (isTeacher && isOwnSlot)) && canValidate && slot.slot_type !== 'pause'
@@ -74,7 +89,11 @@ export default function SlotCapsule({
       data-slot
       style={{ ...style, zIndex: isDragging ? 50 : menuActive ? 30 : 10 }}
       className={clsx(
-        'rounded-lg border overflow-hidden transition-shadow group',
+        // `flex` : le contenu est enveloppé dans le wrapper INLINE du Tooltip.
+        // En contexte inline, la ligne réserve la place du jambage sous la
+        // ligne de base — le contenu descendait donc de quelques pixels et
+        // l'horaire sortait du cadre. En flex, ce décalage n'existe pas.
+        'rounded-lg border overflow-hidden transition-shadow group flex',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1',
         menuActive && 'ring-2 ring-secondary-600 ring-offset-1 shadow-lg',
         colorClass,
@@ -91,50 +110,63 @@ export default function SlotCapsule({
       aria-label={ariaLabel}
       {...(isDraggableEnabled ? { ...listeners, ...attributes } : {})}
     >
-      <div className="px-1.5 py-0.5 h-full flex flex-col overflow-hidden">
-        {/* Course name or type */}
-        <div className="text-[10px] font-bold leading-tight truncate">
-          {slot.cours?.nom_fr ?? slot.slot_type}
-        </div>
-
-        {/* Class name (in global/teacher view) */}
-        {viewMode !== 'class' && slot.classes && (
-          <div className="text-[9px] font-medium leading-tight truncate opacity-80">
-            {slot.classes.name}
+      {/* En densité réduite, le détail retiré de la capsule reste accessible au
+          survol. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
+          contenu ne remplirait pas la capsule. */}
+      <Tooltip
+        content={dense ? ariaLabel : ''}
+        className={clsx('h-full w-full align-bottom', !dense && 'pointer-events-none')}
+        maxWidth="max-w-none"
+      >
+        <div className={clsx('h-full flex flex-col overflow-hidden', minimal ? 'px-1 py-0.5' : 'px-1.5 py-0.5')}>
+          {/* Cours (ou type de créneau) */}
+          <div className={clsx('font-bold leading-tight', minimal ? 'text-[9px] line-clamp-2' : 'text-[10px] truncate')}>
+            {slot.cours?.nom_fr ?? slot.slot_type}
           </div>
-        )}
 
-        {/* Teacher (in global/class view) */}
-        {viewMode !== 'teacher' && (
-          noTeacher ? (
-            <div className="text-[9px] leading-tight truncate text-orange-500 font-medium">
-              Prof non affecté
+          {/* Classe (vues globale / enseignant) */}
+          {viewMode !== 'class' && slot.classes && (
+            <div className={clsx('font-medium leading-tight truncate opacity-80', minimal ? 'text-[8px]' : 'text-[9px]')}>
+              {slot.classes.name}
             </div>
-          ) : slot.teachers ? (
-            <div className="text-[9px] leading-tight truncate opacity-70">
-              {teacherShort(slot.teachers)}
+          )}
+
+          {/* Enseignant (vues globale / classe) — « Prof non affecté » reste
+              affiché même en densité minimale : c'est une anomalie à voir. */}
+          {viewMode !== 'teacher' && (
+            noTeacher ? (
+              <div className={clsx('leading-tight truncate text-orange-500 font-medium', minimal ? 'text-[8px]' : 'text-[9px]')}>
+                {minimal ? 'Sans prof' : 'Prof non affecté'}
+              </div>
+            ) : slot.teachers && !minimal ? (
+              <div className="text-[9px] leading-tight truncate opacity-70">
+                {teacherShort(slot.teachers)}
+              </div>
+            ) : null
+          )}
+
+          {/* Salle — première ligne sacrifiée quand la place manque */}
+          {slot.rooms && !dense && (
+            <div className="text-[9px] leading-tight truncate opacity-60">
+              {slot.rooms.name}
             </div>
-          ) : null
-        )}
+          )}
 
-        {/* Room */}
-        {slot.rooms && (
-          <div className="text-[9px] leading-tight truncate opacity-60">
-            {slot.rooms.name}
-          </div>
-        )}
-
-        {/* Time range — meme police que le nom de classe (ligne titre). */}
-        <div className="text-[10px] font-bold leading-tight mt-auto flex items-center gap-0.5">
-          {!slot.isRecurring && <CalendarDays size={9} className="opacity-70" />}
-          {slot.start_time.slice(0, 5)}-{slot.end_time.slice(0, 5)}
+          {/* Horaire — même police que la ligne titre. Retiré en densité minimale :
+              tous les créneaux du groupe partagent le même horaire. */}
+          {!minimal && (
+            <div className="text-[10px] font-bold leading-tight mt-auto flex items-center gap-0.5">
+              {!slot.isRecurring && <CalendarDays size={9} className="opacity-70" />}
+              {slot.start_time.slice(0, 5)}-{slot.end_time.slice(0, 5)}
+            </div>
+          )}
         </div>
-      </div>
+      </Tooltip>
 
       {/* Validation button for teacher */}
       {showValidation && (
         <div
-          className="absolute bottom-0.5 right-0.5 flex gap-0.5"
+          className="absolute bottom-1 right-1 flex gap-0.5"
           onClick={e => e.stopPropagation()}
         >
           {validated ? (
@@ -142,19 +174,23 @@ export default function SlotCapsule({
               <button
                 onClick={onCancelValidation}
                 aria-label={`Annuler la validation de présence : ${ariaLabel}`}
-                className="p-0.5 rounded bg-green-500 text-white hover:bg-red-500 transition-colors"
+                aria-pressed
+                className="w-[15px] h-[15px] rounded bg-primary-500 text-white hover:bg-red-500 transition-colors flex items-center justify-center"
               >
-                <Check size={10} />
+                <Check size={11} strokeWidth={3} />
               </button>
             </Tooltip>
           ) : (
+            /* Non validé = case VIDE. Un ✓ plein, même ambre, se lit « fait » :
+               l'état à cocher ne doit pas porter la marque de l'état coché. */
             <Tooltip content="Valider ma présence">
               <button
                 onClick={onValidate}
                 aria-label={`Valider ma présence : ${ariaLabel}`}
-                className="p-0.5 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                aria-pressed={false}
+                className="w-[15px] h-[15px] rounded border-2 border-amber-500 bg-transparent hover:bg-amber-500 hover:text-white text-transparent transition-colors flex items-center justify-center"
               >
-                <Check size={10} />
+                <Check size={9} />
               </button>
             </Tooltip>
           )}

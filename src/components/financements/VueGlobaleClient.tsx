@@ -1,5 +1,6 @@
 'use client'
 
+import { useTheme } from '@/components/layout/ThemeContext'
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
@@ -34,22 +35,37 @@ interface Props {
 // Les rampes `secondary` (ardoise) et `warm` (beige) de la charte tombent sous le
 // plancher de chroma : inutilisables comme couleurs categorielles (elles lisent
 // gris). D'ou marque en tete (turquoise + ambre) puis emprunts separables.
-const SERIES = {
-  encaisse: '#18aa99',   // primary-500 — couleur positive de l'app
-  reste:    '#f97316',   // orange-500 — orange de la charte
-}
-
-// Moyens de paiement : 5 slots, palette validee (CVD + normal-vision OK).
-const METHOD_COLORS = ['#18aa99', '#cc8200', '#2a78d6', '#e87ba4', '#4a3aa7']
-
-// Statut = palette d'ETAT (reservee), alignee sur les pastilles de Reglements.
-// Jamais la couleur seule : toujours accompagnee de son libelle.
-const STATUS_COLOR: Record<FeeStatus, string> = {
-  pending:  '#d0c6ba',   // warm-300
-  partial:  '#fb923c',   // orange-400
-  paid:     '#18aa99',   // primary-500
-  overpaid: '#ef4444',   // red-500
-}
+// Le SVG de Recharts porte ses couleurs EN LIGNE : le pont de theme sombre
+// (qui remappe des classes) ne l'atteint pas. Chaque valeur est donc declinee
+// par theme, et le mode sombre est CHOISI puis revalide — pas un simple
+// eclaircissement automatique du mode clair.
+//
+// Palette sombre : verifiee sur la surface de carte #161f24. Sur ce fond, le
+// rose #e87ba4 sortait de la bande de clarte (trop clair) et le violet #4a3aa7
+// tombait a 1,95:1 de contraste ; les deux ont ete recales, les trois autres
+// teintes sont inchangees.
+const VIZ = {
+  light: {
+    surface: '#ffffff',
+    series:  { encaisse: '#18aa99', reste: '#f97316' },
+    method:  ['#18aa99', '#cc8200', '#2a78d6', '#e87ba4', '#4a3aa7'],
+    status:  { pending: '#d0c6ba', partial: '#fb923c', paid: '#18aa99', overpaid: '#ef4444' },
+    ink:     { muted: '#898781', grid: '#e1e0d9', axis: '#c3c2b7' },
+  },
+  dark: {
+    surface: '#161f24',                                    // --surface-card
+    series:  { encaisse: '#2ec4ba', reste: '#fb923c' },    // primary-400 / orange-400
+    method:  ['#18aa99', '#cc8200', '#2a78d6', '#d9628f', '#7d6bd0'],
+    status:  { pending: '#7a8e98', partial: '#fb923c', paid: '#2ec4ba', overpaid: '#ef4444' },
+    ink:     { muted: '#93a2a8', grid: '#243139', axis: '#2c3a42' }, // --ink-muted / --line / --line-strong
+  },
+} as const satisfies Record<'light' | 'dark', {
+  surface: string
+  series:  { encaisse: string; reste: string }
+  method:  readonly string[]
+  status:  Record<FeeStatus, string>
+  ink:     { muted: string; grid: string; axis: string }
+}>
 
 const STATUS_LABELS: Record<FeeStatus, string> = {
   pending:  'En attente',
@@ -61,9 +77,6 @@ const STATUS_LABELS: Record<FeeStatus, string> = {
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
 }
-
-// Chrome des graphiques (ink recessif, jamais la couleur de serie sur le texte).
-const INK = { muted: '#898781', grid: '#e1e0d9', axis: '#c3c2b7' }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -136,6 +149,10 @@ function VizLegend({ items }: { items: { label: string; color: string; value?: s
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, byCotisation }: Props) {
+  // Chrome et palettes suivent le theme actif (voir VIZ ci-dessus).
+  const { theme } = useTheme()
+  const viz = VIZ[theme]
+  const { series: SERIES, method: METHOD_COLORS, status: STATUS_COLOR, ink: INK } = viz
   const router = useRouter()
 
   // ── Agregats (identiques au bandeau de Reglements) ──────────────────────────
@@ -163,7 +180,9 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
     () => (['paid', 'partial', 'pending', 'overpaid'] as FeeStatus[])
       .filter(s => kpi.counts[s] > 0)
       .map(s => ({ name: STATUS_LABELS[s], value: kpi.counts[s], fill: STATUS_COLOR[s] })),
-    [kpi.counts]
+    // STATUS_COLOR depend du theme : sans lui en dependance, les parts gardent
+    // les couleurs du theme precedent apres une bascule.
+    [kpi.counts, STATUS_COLOR]
   )
 
   // Moyens de paiement : au-dela de 4, on replie sur « Autres » (jamais de teinte generee).
@@ -177,7 +196,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
     const head = all.slice(0, METHOD_COLORS.length - 1)
     const rest = all.slice(METHOD_COLORS.length - 1).reduce((s, d) => s + d.value, 0)
     return [...head, { name: 'Autres', value: rest }].map((d, i) => ({ ...d, fill: METHOD_COLORS[i] }))
-  }, [byMethod])
+  }, [byMethod, METHOD_COLORS])
 
   const methodTotal = useMemo(() => methodData.reduce((s, d) => s + d.value, 0), [methodData])
 
@@ -255,7 +274,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
                   <PieChart>
                     <Pie
                       data={statusData} dataKey="value" nameKey="name"
-                      innerRadius="52%" outerRadius="82%" paddingAngle={2} stroke="#ffffff" strokeWidth={2}
+                      innerRadius="52%" outerRadius="82%" paddingAngle={2} stroke={viz.surface} strokeWidth={2}
                       isAnimationActive={false}
                     >
                       {statusData.map(d => <Cell key={d.name} fill={d.fill} />)}
@@ -279,7 +298,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
                       <PieChart>
                         <Pie
                           data={methodData} dataKey="value" nameKey="name"
-                          innerRadius="52%" outerRadius="82%" paddingAngle={2} stroke="#ffffff" strokeWidth={2}
+                          innerRadius="52%" outerRadius="82%" paddingAngle={2} stroke={viz.surface} strokeWidth={2}
                           isAnimationActive={false}
                         >
                           {methodData.map(d => <Cell key={d.name} fill={d.fill} />)}

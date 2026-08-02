@@ -197,13 +197,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   const [vacLabelDraft, setVacLabelDraft]     = useState('')
   const [showVacModal, setShowVacModal]       = useState(false)
 
-  // Modale vacances : fermeture Échap (sauf pendant l'édition d'un libellé)
-  useEffect(() => {
-    if (!showVacModal) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !editingVacLabel) setShowVacModal(false) }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [showVacModal, editingVacLabel])
+  // Regle projet : la modale vacances se ferme par X / Annuler uniquement.
+  // Pas d'Echap : on y saisit des periodes, une touche reflexe ne doit pas
+  // faire perdre la saisie. (L'Echap qui annule l'edition EN LIGNE d'un
+  // libelle, plus bas, est conserve : il ne ferme rien.)
 
   // Semaines entre rentrée et fin
   const weeks = useMemo(() => getWeeksBetween(form.start_date, form.end_date, wsd), [form.start_date, form.end_date, wsd])

@@ -5,6 +5,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { sendNotificationEmail, hasSmtpConfig } from '@/lib/email'
 import { sanitize } from '@/lib/security/sanitize'
 import { FINANCE_ROLES } from '@/lib/financements/roles'
+import { logAudit } from '@/lib/audit'
 
 export interface FinancementCommunication {
   id: string
@@ -175,4 +176,54 @@ export async function logAttestation(payload: LogAttestationPayload): Promise<Se
 
   if (insError) return { error: "L'attestation n'a pas pu être tracée." }
   return { communication: comm as FinancementCommunication }
+}
+
+/** Supprime une ligne du journal des communications comptables.
+ *
+ *  Ouverte aux ROLES FINANCE (policy `fin_comm_delete`), comme la lecture et
+ *  l'ecriture. La suppression est elle-meme TRACEE dans audit_logs avec le
+ *  contenu supprime : c'est la trace d'audit, et non l'immuabilite de la table,
+ *  qui porte la valeur probante.
+ *
+ *  Ecriture via le client SESSION : le client admin n'a pas de `auth.uid()`,
+ *  l'acteur serait perdu.
+ */
+export async function deleteFinancementCommunication(id: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  // Relire la ligne AVANT suppression : elle alimente la trace d'audit.
+  const { data: row } = await supabase
+    .from('financement_communications')
+    .select('id, parent_id, type, subject, recipients, sent_at, status')
+    .eq('id', id)
+    .single()
+  if (!row) return { error: 'Communication introuvable.' }
+
+  await logAudit(supabase, {
+    action:      'DELETE',
+    entityType:  'financement_communications',
+    entityId:    id,
+    description: `Suppression d'une ${row.type} du journal comptable : « ${row.subject} »`,
+    oldData:     row as Record<string, unknown>,
+  })
+
+  // `.select()` : une suppression filtree par la RLS ne renvoie PAS d'erreur,
+  // elle supprime simplement 0 ligne. Sans ce controle, on afficherait un
+  // succes alors que rien n'a ete supprime.
+  const { data: deleted, error: delError } = await supabase
+    .from('financement_communications')
+    .delete()
+    .eq('id', id)
+    .select('id')
+
+  if (delError) return { error: 'La suppression a échoué.' }
+  if (!deleted || deleted.length === 0) {
+    // Le role a deja ete valide plus haut : si rien n'est supprime, c'est la RLS
+    // qui a filtre — en pratique, la policy DELETE absente de la base.
+    return { error: "Suppression refusée par la base : la policy de suppression n'est pas en place (migration add-financement-communications-delete.sql à jouer)." }
+  }
+  return {}
 }

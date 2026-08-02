@@ -1226,12 +1226,116 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
   et `isSaved` est **reinitialise au changement de date** (sinon impression d'une date vierge autorisee).
   Vert/`green-*` remplaces par le turquoise `primary` (present/justifie) ; 2 ecouteurs `Escape` retires des modales.
 
+#### 2-3 aout 2026 — Sections Pedagogie, Gestion et debut Parametres + police arabe
+- **Methode** : audit script (lecture seule) module par module, correction apres go, re-audit a 0,
+  et **verification du CSS SERVI** (le fichier source ne prouve rien : le pont a ete casse deux fois).
+
+**Section PEDAGOGIE (Evaluations / Notes / Bulletins, EDT, Cahier de texte)**
+- **Pont sombre etendu** : teinte **`emerald`** complete (categorie « activite » de l'EDT), **`violet`**
+  complete (badges de role Utilisateurs + Communication Staff, bandeau « Cours adultes »), `text-secondary-400`,
+  et surtout les **textes colores en `-900`** (`text-blue-900` des capsules EDT) que le pont s'arretait a `-800`.
+  \+ **106 `hover:text-*`** dans toute l'app : en clair le survol FONCE le texte, en sombre il devait
+  l'eclaircir — sans mapping, l'icone survolee disparaissait.
+- **EDT** : `SIDEBAR_COLOR = '#2e4550'` (couleur figee d'avant les themes) remplacee par les tokens de
+  marque sur toutes les bascules ; `SlotFormModal` portalisee + Echap retire ; **creneaux repeints sur la
+  palette de MARQUE** (choix utilisateur) en **aplats opaques** — cours = famille turquoise, activite =
+  famille ardoise — via des classes dediees `.edt-slot-*` dans globals.css (les 3 definitions dupliquees de
+  `SLOT_COLORS` sont supprimees, dont une **morte**) ; **validation** = liseré accent en ombre INTERNE et non
+  plus un repeint complet (sinon la categorie serait perdue) ; **lignes de grille** `.edt-line-hour/half/quarter`
+  (la hierarchie etait INVERSEE en sombre : `border-warm-100/60` et `/80` n'etaient pas dans le pont) ;
+  **case de validation** = case VIDE quand non valide (un ✓ plein se lit « fait ») ; **densite adaptative**
+  des capsules (1-2 : tout · 3-4 : sans salle · 5+ : cours + classe, detail en infobulle).
+  - **PIEGES** : (1) les regles `.edt-slot-*` sont en **`:where()`** (specificite nulle) — sinon elles
+    ecrasaient `border-orange-400` (prof non affecte) et `border-amber-400` (modifie), utilitaires de meme
+    poids emis plus haut. (2) Le wrapper du `Tooltip` est **inline** : il reserve la place du jambage sous la
+    ligne de base et decalait le contenu de la capsule → capsule passee en `flex`.
+- **Verts d'ETAT → turquoise `primary`** (12 endroits) : badge « Notee », barres de progression, creneau
+  valide, « Effectue » du cahier de texte. Les verts de **CATEGORIE** sont conserves (emerald « activite »,
+  vert « Lecon ») : une categorie n'est pas un etat.
+
+**Evaluations / Notes / Bulletins — corrections fonctionnelles**
+- **Date du gabarit OBLIGATOIRE** (pre-remplie a aujourd'hui en LOCAL, Valider grise si vide) : c'est le
+  prerequis du point suivant. Les gabarits sans date ont ete **supprimes en base** par l'utilisateur.
+- **Absent automatique a la saisie des notes** : requete d'absences **ciblee** (`absence_type='absence'` ×
+  classes eleves × **dates reellement portees par un gabarit**, aucune requete sans date). Case **cochee et
+  verrouillee**, champ de note desactive, tooltip « Absent le JJ/MM (feuille d'appel) ».
+  - **Conflit appel / note** : si une note est DEJA enregistree, le report est **suspendu** — on n'ecrase
+    rien. Ligne en fond ambre + icone + bandeau ; l'utilisateur tranche (corriger l'appel, ou cocher
+    l'absence, ce qui efface la note **parce qu'il l'a decide**). Sans ce garde-fou, pointer une absence
+    apres coup **detruisait la note en silence**.
+  - **Message honnete** : les absences reportees ne s'annoncent plus « Modifications non enregistrees »
+    (l'utilisateur n'a rien saisi) mais « N absences reportees de la feuille d'appel · a enregistrer », et
+    le garde-fou de navigation ne se declenche que sur de VRAIES saisies (marqueur `auto` sur l'entree).
+  - **Compteurs vivants** : `getCompletion` compte l'ECRAN pour l'evaluation ouverte, et **base + absences
+    connues** pour les autres (sinon l'arbre annonçait « 0/4 » alors qu'il ne restait que 2 notes).
+    Moyenne et badge « Saisie complete » alignes sur la meme source.
+  - **« Reinitialiser » renomme** « Supprimer toutes les notes » (c'est un DELETE definitif, pas un retour
+    a l'etat initial) + `ConfirmModal` annonçant le volume ; la reinitialisation **respecte l'appel**.
+- **Bulletins** : etat vide distinct « Selectionnez une classe » (la periode, elle, est presaisie) ;
+  majuscule initiale sur l'appreciation.
+
+**Section GESTION (Communications + Financements)**
+- **Graphiques Recharts adaptes au theme** (charte `dataviz` chargee) : le SVG porte ses couleurs EN LIGNE,
+  le pont ne l'atteint pas → tout est decline par theme (`VIZ` / `RAMPS`). **Le mode sombre est CHOISI puis
+  REVALIDE** : le script a montre que la palette validee sur blanc **echoue** sur ardoise (rose hors bande,
+  violet a 1,95:1). Palette sombre validee (5 controles) = `#18aa99 · #cc8200 · #2a78d6 · #d9628f · #7d6bd0`
+  (seuls rose et violet bougent). Rampes ordinales **inversees en sombre** (clair → fonce) : sinon le poste
+  le PLUS important, peint du pas le plus fonce, devenait invisible. Liseres de donut sur la surface,
+  grille/axes/encre sur les tokens. Les memos de couleur ont reçu la palette **en dependance**.
+- **Journal des communications comptables** : la table etait **append-only** ; ouverture de la suppression
+  ligne par ligne (migration `add-financement-communications-delete.sql`, policy `fin_comm_delete`
+  **roles finance**), confirmation **en ligne Oui/Non** (motif de « Documents requis par dossier »).
+  La suppression est **tracee dans audit_logs AVANT** d'effacer : la valeur probante repose desormais sur
+  l'audit, plus sur l'immuabilite. `.select()` apres DELETE — une suppression filtree par la RLS ne renvoie
+  **pas d'erreur**, elle supprime 0 ligne.
+- **Divers** : `bg-blue-50/40` des sous-encadres de paiement → neutre (le bleu n'est pas dans la charte et
+  le pont en faisait un bloc franchement bleu) ; « bientot » en `bg-warm-400`+texte blanc = **2,06:1**,
+  illisible dans les DEUX themes ; Echap retire de `FormModal`.
+- **Avatar du bandeau famille rogne — 4 hypotheses fausses avant la bonne** : ce n'etait ni la marge, ni
+  l'anneau, ni les tokens, mais le **defilement** : le bandeau etait le premier enfant du panneau
+  `overflow-y-auto`, et l'avatar (40 px) depasse le texte (~20 px centre) — lui seul se faisait couper.
+  Bandeau **sorti de la zone de defilement** (en-tete fige). L'anneau `ring-1 ring-warm-200` de la fiche
+  parent est conserve **a l'identique**.
+  - **Piege de tokens** : `bg-warm-100` → `--line-strong` et `border-warm-200` → `--line` : en sombre, la
+    bordure devient **plus sombre que le fond qu'elle entoure**, donc invisible. Deux classes beiges voisines
+    peuvent etre rapprochees ou inversees par le pont.
+
+**Section PARAMETRES (en cours)**
+- **Annee scolaire** : 2 tirets longs (dont un dans un `aria-label`, lu par les lecteurs d'ecran), Echap
+  retire de la modale des vacances.
+- **Pedagogie (Classes + Referentiel)** : 4 modales portalisees, Echap retire des 2 modales de saisie de
+  `ClassForm`, gris de repli d'une UE sans couleur → token.
+- **DOCTRINE VALIDEE — Echap** : **oui sur les modales de CONFIRMATION** (sans champ, rien a perdre, c'est
+  le comportement de `ConfirmModal`), **jamais sur une modale de SAISIE**. Leve la contradiction entre la
+  regle generale et le composant partage.
+
+**POLICE ARABE (referentiel + evaluations + notes)**
+- **Amiri abandonnee au profit de Noto Sans Arabic** : Amiri est une **naskh d'imprime** (traits fins,
+  petite hauteur de caracteres), inadaptee aux tailles d'interface. Noto Sans Arabic est la sans arabe de
+  reference et s'accorde a Inter. Variable renommee **`--font-arabic`** (`--font-amiri` devenait mensonger),
+  repli `sans-serif`, sous-ensemble latin retire (Inter s'en charge).
+  - **Bug de fond** : `CoursTree` demandait `'Amiri Typewriter'`, **une famille chargee nulle part** — le
+    texte arabe retombait sur le serif systeme, et les CHAMPS n'avaient aucune police arabe.
+  - **`dir="rtl"` et non `"auto"`** sur les champs : `auto` deduit la direction du CONTENU, or un champ vide
+    n'en a pas → curseur a gauche.
+  - Hauteur des champs figee (`h-8`) : sinon la taille de police pilote la hauteur de la boite et le champ
+    AR depasse ses voisins. **Gras retire** de l'arabe (il compensait la finesse d'Amiri).
+- **Affichage bilingue** : helper partage `refLabel()` (ligne « Nom FR · Nom AR », tronquee) + `refTooltip()`
+  (les deux noms en entier, **une seule ligne** → `maxWidth="max-w-none"`, la bulle est bornee a `max-w-xs`
+  par defaut). Applique aux **arbres du referentiel** (Gabarits + Saisie notes), a l'**encadre Evaluations**
+  (ou les codes UE/module/cours etaient rendus de **3 façons differentes**) et a l'**en-tete de saisie**.
+  Colonne « Referentiel des cours » elargie de 50 % (`w-72` → `w-[27rem]`).
+- **Page de test `src/app/test-polices/`** : comparaison de 5 polices arabes dans les 2 themes.
+  **TEMPORAIRE — a supprimer.**
+
 ## Prochaine etape
-- **Passe theme sombre / ergonomie — les 3 DERNIERES SECTIONS de la sidebar** (les 2 premieres, Principal et
-  Vie scolaire, sont terminees) : **Pedagogie** (Evaluations, Emploi du temps, Cahier de texte), **Gestion**
-  (Communications, Financements), **Parametres** (Annee scolaire, Pedagogie, Enseignants, Utilisateurs,
-  Financiers, Types de presence, Ressources, Journal d'activite, Etablissement).
-- **Choix de police** : creer une page locale de test (2 themes x plusieurs polices), a supprimer apres le choix.
+- **Passe theme sombre / ergonomie — section PARAMETRES, modules restants** : **Enseignants**, Utilisateurs,
+  Financiers, Types de presence, Ressources, Journal d'activite, Etablissement.
+  (Faites : Principal, Vie scolaire, Pedagogie, Gestion, puis Annee scolaire et Pedagogie des Parametres.)
+- **Bulletin PDF bilingue FR/AR** — decide, a ouvrir APRES l'ergonomie : police TTF embarquee + reshaper
+  (dependance validee sur le principe) + colonnes RTL dans jspdf-autotable. Voir memoire `bulletins-pdf-arabic`.
+- **Supprimer `src/app/test-polices/`** (page de comparaison des polices arabes) une fois Noto Sans Arabic confirmee.
+- **Choix de police LATINE** : reste a faire (la page de test ne couvre que l'arabe).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
   puis **reset table par table** pour repartir sur une nouvelle annee — objectif : garder la **BDD la plus
@@ -1429,6 +1533,8 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-etablissement-smtp.sql` (table `etablissement_smtp` : config SMTP par
   etablissement, RLS sans policy + privileges revoques = serveur uniquement).
 - [x] Executer `supabase/migrations/create-financement-communications.sql` (historique relance/attestation).
+- [x] Executer `supabase/migrations/add-financement-communications-delete.sql` (policy `fin_comm_delete` :
+  suppression du journal comptable ouverte aux roles finance ; verifiee en base par `pg_policies`).
 - [x] Executer `supabase/migrations/secure-financements-situation.sql` (RLS finance sur `expenses`/
   `other_revenues`, bucket `documents-expenses` prive 2 Mo cloisonne, `document_url` → `document_path`).
   **Verifie en base** : bucket `public: false` / 2 Mo / 4 types, `document_path` presente, `document_url` absente,

@@ -56,6 +56,12 @@ type GradeRow = {
   is_absent: boolean
 }
 
+type AbsenceDayRow = {
+  student_id: string
+  class_id: string
+  absence_date: string
+}
+
 export default async function GradesPage() {
   const supabase        = await createClient()
   const h               = await headers()
@@ -189,10 +195,28 @@ export default async function GradesPage() {
     evaluations = (data ?? []) as EvaluationRow[]
   }
 
+  // Absences des JOURS d'évaluation : on ne demande que ce qui peut correspondre
+  // (classes élèves x dates réellement portées par un gabarit) — quelques lignes
+  // au lieu de toutes les absences de l'année, et aucune requête sans date.
+  // Un RETARD ne compte pas : l'élève était présent.
+  // Les classes adultes n'ont pas d'absences (la table est indexée sur students).
+
   // Séparer classes élèves / classes adultes (selon cotisation.is_adult)
   const studentClassIds = classes.filter(c => !c.is_adult).map(c => c.id)
   const adultClassIds   = classes.filter(c =>  c.is_adult).map(c => c.id)
   const adultClassSet   = new Set(adultClassIds)
+
+  let absenceDays: AbsenceDayRow[] = []
+  const evalDates = [...new Set(evaluations.map(e => e.evaluation_date).filter(Boolean))] as string[]
+  if (studentClassIds.length > 0 && evalDates.length > 0) {
+    const { data } = await supabase
+      .from('absences')
+      .select('student_id, class_id, absence_date')
+      .eq('absence_type', 'absence')
+      .in('class_id', studentClassIds)
+      .in('absence_date', evalDates)
+    absenceDays = (data ?? []) as AbsenceDayRow[]
+  }
 
   // 6. Participants (actifs) : élèves (enrollments) + tuteurs adultes (parent_class_enrollments)
   // Clé participant unifiée : uuid élève, ou « parentId-tutorNumber » pour un adulte.
@@ -308,6 +332,7 @@ export default async function GradesPage() {
         schoolYearId={schoolYearId}
         teacherId={teacherId}
         bulletinArchives={bulletinArchives}
+        absenceDays={absenceDays}
       />
     </div>
   )

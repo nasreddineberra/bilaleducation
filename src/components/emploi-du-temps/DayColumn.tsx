@@ -119,7 +119,7 @@ export default function DayColumn({
         <div key={`h${i}`}>
           {/* Hour line */}
           <div
-            className="absolute w-full border-t border-warm-100"
+            className="absolute w-full border-t edt-line-hour"
             style={{ top: `${(i / (endHour - startHour)) * 100}%` }}
           />
           {/* 15min, 30min, 45min lines */}
@@ -128,7 +128,7 @@ export default function DayColumn({
               key={q}
               className={clsx(
                 'absolute w-full border-t',
-                q === 2 ? 'border-warm-100/60' : 'border-warm-50/80',
+                q === 2 ? 'edt-line-half' : 'edt-line-quarter',
               )}
               style={{
                 top: `${((i + q / 4) / (endHour - startHour)) * 100}%`,
@@ -164,6 +164,7 @@ export default function DayColumn({
                 width: `calc(${width}% - 4px)`,
                 minHeight: '20px',
               }}
+              groupSize={group.length}
               viewMode={viewMode}
               canEdit={canEdit}
               isToday={isToday}

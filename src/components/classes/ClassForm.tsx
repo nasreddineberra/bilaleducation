@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { X, Trash2, BookOpen, Pencil, CalendarDays } from 'lucide-react'
@@ -212,10 +213,9 @@ export default function ClassForm({
   const assignModalRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!pendingAssignAction) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setPendingAssignAction(null) }
-    document.addEventListener('keydown', handler)
+    // Pas d'Echap : cette modale porte un selecteur de date de cloture.
     assignModalRef.current?.focus()
-    return () => document.removeEventListener('keydown', handler)
+    return () => {}
   }, [pendingAssignAction])
 
   // ── Titulaire ──────────────────────────────────────────────────────────────
@@ -978,7 +978,7 @@ export default function ClassForm({
     </form>
 
     {/* Modale confirmation modification/suppression affectation en cours d'annee */}
-    {pendingAssignAction && (
+    {pendingAssignAction && typeof document !== 'undefined' && createPortal(
       <div
         className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
         
@@ -1036,11 +1036,12 @@ export default function ClassForm({
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
 
     {/* Modale correction des dates (historique / ancien titulaire) */}
-    {editRow && (
+    {editRow && typeof document !== 'undefined' && createPortal(
       <div
         className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
         
@@ -1067,7 +1068,8 @@ export default function ClassForm({
             </FloatButton>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
 
     <ConfirmModal
@@ -1111,13 +1113,13 @@ function SlotFormModal({
   const [err,            setErr]            = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // Fermer sur Escape + focus initial
+  // Focus initial. Pas de fermeture sur Echap : on saisit ici des dates d'effet,
+  // une touche reflexe ne doit pas faire perdre la saisie. (Echap reste actif
+  // sur les modales de CONFIRMATION, qui n'ont rien a perdre.)
   useEffect(() => {
     if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
-    document.addEventListener('keydown', handler)
     panelRef.current?.focus()
-    return () => document.removeEventListener('keydown', handler)
+    return () => {}
   }, [open, onCancel])
 
   if (!open) return null
@@ -1146,7 +1148,9 @@ function SlotFormModal({
     onSave({ id: initial?.id, day_of_week: dayOfWeek, start_time: startTime, end_time: endTime, effective_from: effectiveFrom, effective_until: effectiveUntil })
   }
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30" >
       <div
         ref={panelRef}
@@ -1269,6 +1273,7 @@ function SlotFormModal({
           </FloatButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

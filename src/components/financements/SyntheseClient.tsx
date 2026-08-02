@@ -9,20 +9,33 @@ import { createClient } from '@/lib/supabase/client'
 import { FloatButton, FloatInput, FloatSelect, FloatTextarea } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
+import { useTheme } from '@/components/layout/ThemeContext'
 
 /** 1re lettre en majuscule a la volee (meme motif que le referentiel des cours). */
 const capFirst = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v)
 
 // ─── Repartition par categorie / source ──────────────────────────────────────
-// Degrades d'UNE SEULE teinte, ordonnes par montant (le plus gros = le plus
-// fonce). Pourquoi pas des couleurs categorielles : elles doivent suivre
-// l'ENTITE, jamais son rang — « Loyer » changerait de couleur le jour ou
-// « Charges » le depasse. Un degrade ordinal est coherent par construction.
-// Valides par scripts/validate_palette.js --ordinal (surface #ffffff) :
-// L monotone, ecarts >= 0.06, bout clair >= 2:1, teinte unique.
-const RAMP_EXPENSE = ['#7f1d1d', '#b91c1c', '#dc2626', '#f87171']   // rouge : sortie
-const RAMP_REVENUE = ['#0a504a', '#0e6b61', '#12887a', '#2ec4ba']   // turquoise : entree
-const COLOR_OTHER  = '#d0c6ba'                                       // warm-300 : reliquat, pas une magnitude
+// Degrades d'UNE SEULE teinte, ordonnes par montant. Pourquoi pas des couleurs
+// categorielles : elles doivent suivre l'ENTITE, jamais son rang — « Loyer »
+// changerait de couleur le jour ou « Charges » le depasse. Un degrade ordinal
+// est coherent par construction.
+// Rampes ORDINALES (le rang dans le degrade porte la magnitude, pas l'identite),
+// declinees par theme : sur fond clair elles vont du fonce au clair, sur fond
+// sombre l'inverse — sinon le poste le plus important, peint du pas le plus
+// fonce, disparaitrait dans la carte. Validees avec --ordinal sur chaque surface.
+// « Autres » reste un gris NEUTRE hors degrade : un reliquat n'est pas une magnitude.
+const RAMPS = {
+  light: {
+    expense: ['#7f1d1d', '#b91c1c', '#dc2626', '#f87171'],   // rouge : sortie
+    revenue: ['#0a504a', '#0e6b61', '#12887a', '#2ec4ba'],   // turquoise : entree
+    other:   '#d0c6ba',                                       // warm-300
+  },
+  dark: {
+    expense: ['#fecaca', '#fca5a5', '#f87171', '#ef4444'],
+    revenue: ['#9fe9e1', '#65d9cf', '#2ec4ba', '#18aa99'],
+    other:   '#7a8e98',                                       // --brand-muted
+  },
+} as const
 
 const TOP_N = 4   // au-dela, on replie sur « Autres » (plafond de lisibilite)
 
@@ -30,7 +43,7 @@ interface Slice { label: string; amount: number; pct: number; color: string }
 
 /** Top N par montant + « Autres ». Les couleurs suivent le rang DANS le degrade,
  *  ce qui est le propre d'une echelle ordinale (et non d'une identite). */
-function buildSlices(rows: { key: string | null; amount: number }[], ramp: string[]): Slice[] {
+function buildSlices(rows: { key: string | null; amount: number }[], ramp: readonly string[], colorOther: string): Slice[] {
   const byKey: Record<string, number> = {}
   for (const r of rows) {
     const k = r.key?.trim() || 'Non catégorisé'
@@ -49,7 +62,7 @@ function buildSlices(rows: { key: string | null; amount: number }[], ramp: strin
   const slices: Slice[] = head.map((d, i) => ({
     ...d, pct: (d.amount / total) * 100, color: ramp[i] ?? ramp[ramp.length - 1],
   }))
-  if (rest > 0) slices.push({ label: 'Autres', amount: rest, pct: (rest / total) * 100, color: COLOR_OTHER })
+  if (rest > 0) slices.push({ label: 'Autres', amount: rest, pct: (rest / total) * 100, color: colorOther })
   return slices
 }
 
@@ -92,9 +105,9 @@ async function openDocument(supabase: ReturnType<typeof createClient>, path: str
 
 /** Coque de modale de saisie, partagee par Depense et Revenu.
  *
- *  Fermeture par X / Annuler / Echap UNIQUEMENT : pas de clic sur le fond, qui
- *  ferait perdre la saisie d'un coup de souris malheureux (meme regle que le
- *  cahier de texte et la saisie de temps de presence).
+ *  Fermeture par X / Annuler UNIQUEMENT : ni clic sur le fond, ni Echap. Une
+ *  saisie ne doit pas se perdre sur un coup de souris malheureux ou une touche
+ *  reflexe (meme regle que le cahier de texte, le temps de presence et l'EDT).
  *
  *  Portee dans <body> : `animate-fade-in` garde un `transform`, qui deviendrait
  *  le bloc conteneur du `position: fixed` et rognerait la modale. */
@@ -102,12 +115,6 @@ function FormModal({ title, onClose, children, footer }: {
   title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode
 }) {
   const titleId = useId()
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   if (typeof document === 'undefined') return null
 
@@ -209,6 +216,9 @@ export default function SyntheseClient({
   initialRevenues, totalRevenues: initTotalRev,
 }: Props) {
   const supabase = createClient()
+  // Les degrades sont peints en style INLINE : le pont de theme ne les atteint pas.
+  const { theme } = useTheme()
+  const ramps = RAMPS[theme]
 
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses)
   const [revenues, setRevenues] = useState<Revenue[]>(initialRevenues)
@@ -227,18 +237,18 @@ export default function SyntheseClient({
   // Cout enseignement : meme degrade rouge que les depenses — convention de la
   // ligne de cartes, rouge = sortie d'argent, turquoise = entree.
   const teachingSlices = useMemo(
-    () => buildSlices(teachingCosts.byType.map(t => ({ key: t.label, amount: t.cost })), RAMP_EXPENSE),
-    [teachingCosts.byType]
+    () => buildSlices(teachingCosts.byType.map(t => ({ key: t.label, amount: t.cost })), ramps.expense, ramps.other),
+    [teachingCosts.byType, ramps]
   )
 
   // Repartitions : derivees de l'etat local, donc a jour apres ajout/suppression.
   const expenseSlices = useMemo(
-    () => buildSlices(expenses.map(e => ({ key: e.category, amount: Number(e.amount) })), RAMP_EXPENSE),
-    [expenses]
+    () => buildSlices(expenses.map(e => ({ key: e.category, amount: Number(e.amount) })), ramps.expense, ramps.other),
+    [expenses, ramps]
   )
   const revenueSlices = useMemo(
-    () => buildSlices(revenues.map(r => ({ key: r.source_type, amount: Number(r.amount) })), RAMP_REVENUE),
-    [revenues]
+    () => buildSlices(revenues.map(r => ({ key: r.source_type, amount: Number(r.amount) })), ramps.revenue, ramps.other),
+    [revenues, ramps]
   )
 
   // Situation financiere

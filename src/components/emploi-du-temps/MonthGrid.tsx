@@ -168,9 +168,10 @@ export default function MonthGrid({
 
 // ─── Mini capsule for month view ─────────────────────────────────────────────
 
+// Mêmes classes que la vue semaine (globals.css).
 const SLOT_COLORS: Record<string, string> = {
-  cours: 'bg-blue-100 text-blue-800',
-  activite: 'bg-emerald-100 text-emerald-800',
+  cours:    'edt-slot-cours',
+  activite: 'edt-slot-activite',
 }
 
 function MonthSlotCapsule({

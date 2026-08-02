@@ -343,7 +343,7 @@ export default function ClotureClient({ yearLabel, closure, steps }: Props) {
       {/* Modale de détail des anomalies (portée dans <body> pour éviter d'allonger la page) */}
       {openDetail && detailRow && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40">
-          <div role="dialog" aria-modal="true" aria-label={`Détail — ${detailRow.def.label}`}
+          <div role="dialog" aria-modal="true" aria-label={`Détail · ${detailRow.def.label}`}
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-fade-in">
             <div className="px-5 py-3 border-b border-warm-100 flex items-start justify-between gap-3 flex-shrink-0">
               <div className="min-w-0">

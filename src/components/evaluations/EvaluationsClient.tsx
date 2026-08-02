@@ -91,7 +91,7 @@ function evalOptionLabel(c: EvalTypeConfig): string {
 
 const EVAL_BADGE: Record<string, { label: string; cls: string }> = {
   diagnostic: { label: 'Diagnostique', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  scored:     { label: 'Notée',        cls: 'bg-green-50 text-green-700 border-green-200' },
+  scored:     { label: 'Notée',        cls: 'bg-primary-50 text-primary-700 border-primary-200' },
   stars:      { label: 'Étoilée ★',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 }
 
@@ -108,8 +108,8 @@ function CoursRefRow({
       {c.code && (
         <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 rounded flex-shrink-0">{c.code}</span>
       )}
-      <Tooltip content={c.nom_fr} className="flex-1 min-w-0">
-        <span className="block w-full text-xs text-secondary-700 truncate text-left">{c.nom_fr}</span>
+      <Tooltip content={refTooltip(c)} maxWidth="max-w-none" className="flex-1 min-w-0">
+        <span className="block w-full text-xs text-secondary-700 truncate text-left">{refLabel(c)}</span>
       </Tooltip>
       {isMarked ? (
         <Check size={12} className="text-primary-500 flex-shrink-0" />
@@ -186,7 +186,8 @@ function InlineEvalForm({
 
       {/* Date */}
       <FloatInput
-        label="Date (optionnelle)"
+        label="Date"
+        required
         type="date"
         value={date}
         onChange={e => setDate(e.target.value)}
@@ -199,7 +200,7 @@ function InlineEvalForm({
         variant={isEdit ? 'edit' : 'submit'}
         type="button"
         onClick={onSave}
-        disabled={submitting || (isEdit && hasChanges === false)}
+        disabled={submitting || !date || (isEdit && hasChanges === false)}
         loading={submitting}
       >
         {isEdit ? 'Modifier' : 'Valider'}
@@ -213,6 +214,42 @@ function InlineEvalForm({
         Annuler
       </FloatButton>
     </div>
+  )
+}
+
+
+// Nom arabe : police du projet, taille RELATIVE — sans ca il retomberait sur la
+// fallback systeme, et une taille fixe desequilibrerait des lignes en text-xs.
+const AR_INLINE: React.CSSProperties = { fontFamily: 'var(--font-arabic), sans-serif', fontSize: '1.45em' }
+
+/** Libelle affiche dans l'arbre : « Nom FR · Nom AR ». Rendu inline pour que la
+ *  troncature du conteneur porte sur l'ensemble. */
+function refLabel(item: { nom_fr?: string | null; nom_ar?: string | null } | null | undefined) {
+  const fr = item?.nom_fr?.trim() ?? ''
+  const ar = item?.nom_ar?.trim()
+  if (!ar) return fr
+  return (
+    <>
+      {fr}
+      {fr && <span aria-hidden="true" className="mx-1 text-warm-700">·</span>}
+      <span dir="rtl" className="font-normal" style={AR_INLINE}>{ar}</span>
+    </>
+  )
+}
+
+/** Meme libelle pour l'infobulle, mais sans troncature : c'est elle qui donne
+ *  le nom complet quand la ligne est coupee. */
+function refTooltip(item: { nom_fr?: string | null; nom_ar?: string | null } | null | undefined) {
+  const fr = item?.nom_fr?.trim()
+  const ar = item?.nom_ar?.trim()
+  if (!fr && !ar) return ''
+  if (!ar) return fr as string
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      {fr && <span>{fr}</span>}
+      {fr && <span aria-hidden="true">·</span>}
+      <span dir="rtl" style={{ fontFamily: 'var(--font-arabic), sans-serif', fontSize: '15px' }}>{ar}</span>
+    </span>
   )
 }
 
@@ -335,12 +372,19 @@ export default function EvaluationsClient({
   }, [ues, rightUEIds, ueOrder])
 
   // ── Helpers formulaire ───────────────────────────────────────────────────────
+  // Date du jour en composantes LOCALES : toISOString() bascule en UTC et peut
+  // renvoyer la veille en soiree.
+  const todayLocal = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
   const getOption = () => evalOptions.find(o => o.configId === formConfigId)
 
   const openAdd = (coursId: string) => {
     setAdding(coursId); setEditing(null); setConfirmDelete(null)
     setFormConfigId(evalOptions[0]?.configId ?? '')
-    setFormCoefficient('1'); setFormDate(''); setError(null)
+    setFormCoefficient('1'); setFormDate(todayLocal()); setError(null)
   }
 
   const openEdit = async (ev: EvaluationRow) => {
@@ -388,7 +432,7 @@ export default function EvaluationsClient({
         eval_kind:         option.evalKind,
         max_score:         option.maxScore,
         coefficient:       option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1,
-        evaluation_date:   formDate || null,
+        evaluation_date:   formDate,
         title:             coursItem.nom_fr,
         display_ue_id:     coursItem.unite_enseignement_id,
         display_module_id: coursItem.module_id ?? null,
@@ -414,13 +458,13 @@ export default function EvaluationsClient({
         eval_kind:       option.evalKind,
         max_score:       option.maxScore,
         coefficient:     option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1,
-        evaluation_date: formDate || null,
+        evaluation_date: formDate,
       })
       .eq('id', editing)
 
     if (err) { setError(err.message); setSubmitting(false); return }
     setEvalsList(prev => prev.map(e => e.id === editing
-      ? { ...e, eval_kind: option.evalKind, max_score: option.maxScore, coefficient: option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1, evaluation_date: formDate || null }
+      ? { ...e, eval_kind: option.evalKind, max_score: option.maxScore, coefficient: option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1, evaluation_date: formDate }
       : e
     ))
     setEditing(null); setSubmitting(false)
@@ -608,7 +652,7 @@ export default function EvaluationsClient({
       <div className="flex gap-3 flex-1 min-h-0">
 
         {/* ── Gauche : Référentiel ── */}
-        <div className="w-72 flex-shrink-0 flex flex-col min-h-0">
+        <div className="w-[27rem] flex-shrink-0 flex flex-col min-h-0">
           <div className="card p-3 flex flex-col gap-2 h-full min-h-0">
             <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-shrink-0">
               Référentiel des cours
@@ -655,7 +699,9 @@ export default function EvaluationsClient({
                           {ue.code}
                         </span>
                       )}
-                      <span className="text-xs font-bold text-secondary-700 truncate">{ue.nom_fr}</span>
+                      <Tooltip content={refTooltip(ue)} maxWidth="max-w-none" className="min-w-0">
+                        <span className="text-xs font-bold text-secondary-700 truncate">{refLabel(ue)}</span>
+                      </Tooltip>
                     </button>
 
                     {/* Cours de l'UE */}
@@ -681,8 +727,10 @@ export default function EvaluationsClient({
                           return (
                             <div key={mod.id} className="mt-0.5 ml-4">
                               <p className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
-                                {mod.code && <span className="font-mono">{mod.code}</span>}
-                                {mod.nom_fr}
+                                {mod.code && <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case">{mod.code}</span>}
+                                <Tooltip content={refTooltip(mod)} maxWidth="max-w-none" className="min-w-0">
+                                  <span className="truncate">{refLabel(mod)}</span>
+                                </Tooltip>
                               </p>
                               <div className="pl-6 pr-2">
                                 {modCours.map(c => (
@@ -849,14 +897,9 @@ export default function EvaluationsClient({
                         </div>
                         <div className="flex-1 min-w-0">
                           {coursItem?.code && (
-                            <span className="font-mono text-[10px] text-warm-700 mr-1.5 bg-warm-100 px-1 py-px rounded">
-                              {coursItem.code}
-                            </span>
+                            <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case mr-1.5">{coursItem.code}</span>
                           )}
-                          <span className="text-xs text-secondary-700">{coursItem?.nom_fr ?? 'Cours introuvable'}</span>
-                          {coursItem?.nom_ar && (
-                            <span className="text-xs text-warm-700 ml-2">{coursItem.nom_ar}</span>
-                          )}
+                          <span className="text-xs text-secondary-700">{coursItem ? refLabel(coursItem) : 'Cours introuvable'}</span>
                         </div>
                         <span className={clsx(
                           'text-[10px] font-semibold border px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0',
@@ -970,12 +1013,9 @@ export default function EvaluationsClient({
                         </div>
                         <span className="flex-1">
                           {ue.code && (
-                            <span className="font-mono text-warm-700 mr-1.5 normal-case">[{ue.code}]</span>
+                            <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case mr-1.5">{ue.code}</span>
                           )}
-                          {ue.nom_fr}
-                          {ue.nom_ar && (
-                            <span className="font-normal normal-case text-warm-700 ml-2">{ue.nom_ar}</span>
-                          )}
+                          {refLabel(ue)}
                         </span>
                       </div>
 
@@ -1020,11 +1060,8 @@ export default function EvaluationsClient({
                                   )}
                                 </div>
                                 <span className="flex-1">
-                                  {mod.code && <span className="font-mono">{mod.code}</span>}
-                                  {mod.nom_fr}
-                                  {mod.nom_ar && (
-                                    <span className="normal-case font-normal text-warm-700 ml-2">{mod.nom_ar}</span>
-                                  )}
+                                  {mod.code && <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case mr-1.5">{mod.code}</span>}
+                                  {refLabel(mod)}
                                 </span>
                               </div>
                               <div className="pl-4">

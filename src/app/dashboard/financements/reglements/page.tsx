@@ -205,6 +205,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         etablissement={(etablissement ?? null) as any}
         initialParentId={initialParentId}
         familyHistory={familyHistory}
+        canDeleteComms={isFinanceRole(me?.role)}
         pastDebts={pastDebts}
       />
     </div>

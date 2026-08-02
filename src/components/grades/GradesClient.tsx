@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Check, ChevronRight, ChevronDown, ChevronLeft,
-  BookOpen, AlertCircle, RotateCcw, Lock,
+  BookOpen, AlertCircle, AlertTriangle, RotateCcw, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -50,6 +50,9 @@ type PendingEntry = {
   comment:    string
   is_absent:  boolean
   dirty:      boolean
+  /** Ligne « sale » posee par l'APPLICATION (absence reportee de la feuille
+   *  d'appel), pas par une saisie de l'utilisateur. */
+  auto?:      boolean
 }
 
 type BulletinArchiveRow = {
@@ -79,13 +82,15 @@ interface Props {
   schoolYearId:    string | null
   teacherId:       string | null
   bulletinArchives: BulletinArchiveRow[]
+  /** Absences (type « absence » seul) tombant un jour d'évaluation. */
+  absenceDays:      { student_id: string; class_id: string; absence_date: string }[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const EVAL_BADGE: Record<string, { label: string; cls: string }> = {
   diagnostic: { label: 'Diagnostique', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  scored:     { label: 'Notée',        cls: 'bg-green-50 text-green-700 border-green-200' },
+  scored:     { label: 'Notée',        cls: 'bg-primary-50 text-primary-700 border-primary-200' },
   stars:      { label: 'Étoilée',      cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 }
 
@@ -93,10 +98,50 @@ const PERIOD_LABELS: Record<string, string> = {
   S1: 'Semestre 1', S2: 'Semestre 2', T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
 }
 
+// « 2026-03-12 » → « 12/03 ». Le T00:00 évite le décalage UTC d'un `new Date('…')`.
+const fmtShortDate = (d: string | null) =>
+  d ? new Date(d + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
+
 function getInitialScoreValue(grade: GradeRow | undefined, evalKind: string | null): string {
   if (!grade) return ''
   if (evalKind === 'diagnostic') return grade.comment ?? ''
   return grade.score != null ? String(grade.score) : ''
+}
+
+
+// Nom arabe : police du projet, taille RELATIVE — sans ca il retomberait sur la
+// fallback systeme, et une taille fixe desequilibrerait des lignes en text-xs.
+const AR_INLINE: React.CSSProperties = { fontFamily: 'var(--font-arabic), sans-serif', fontSize: '1.45em' }
+
+/** Libelle affiche dans l'arbre : « Nom FR · Nom AR ». Rendu inline pour que la
+ *  troncature du conteneur porte sur l'ensemble. */
+function refLabel(item: { nom_fr?: string | null; nom_ar?: string | null } | null | undefined) {
+  const fr = item?.nom_fr?.trim() ?? ''
+  const ar = item?.nom_ar?.trim()
+  if (!ar) return fr
+  return (
+    <>
+      {fr}
+      {fr && <span aria-hidden="true" className="mx-1 text-warm-700">·</span>}
+      <span dir="rtl" className="font-normal" style={AR_INLINE}>{ar}</span>
+    </>
+  )
+}
+
+/** Meme libelle pour l'infobulle, mais sans troncature : c'est elle qui donne
+ *  le nom complet quand la ligne est coupee. */
+function refTooltip(item: { nom_fr?: string | null; nom_ar?: string | null } | null | undefined) {
+  const fr = item?.nom_fr?.trim()
+  const ar = item?.nom_ar?.trim()
+  if (!fr && !ar) return ''
+  if (!ar) return fr as string
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      {fr && <span>{fr}</span>}
+      {fr && <span aria-hidden="true">·</span>}
+      <span dir="rtl" style={{ fontFamily: 'var(--font-arabic), sans-serif', fontSize: '15px' }}>{ar}</span>
+    </span>
+  )
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -104,7 +149,7 @@ function getInitialScoreValue(grade: GradeRow | undefined, evalKind: string | nu
 export default function GradesClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
   evaluations, evalOrderConfigs, students, initialGrades,
-  etablissementId, schoolYearId, teacherId, bulletinArchives,
+  etablissementId, schoolYearId, teacherId, bulletinArchives, absenceDays,
 }: Props) {
 
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
@@ -207,6 +252,37 @@ export default function GradesClient({
     return (raw as unknown[]).map(parseDiagnosticOption)
   }, [evalTypeConfigs])
 
+  // ── Absences du jour de l'évaluation ────────────────────────────────────────
+  // La feuille d'appel fait foi : un élève absent le jour J est coché « absent »
+  // d'office, case et champ de note verrouillés. Ne concerne que les classes
+  // élèves (les participants adultes n'ont pas d'absences) et les gabarits datés.
+  const absentKeys = useMemo(
+    () => new Set(absenceDays.map(a => `${a.student_id}|${a.absence_date}`)),
+    [absenceDays]
+  )
+  const isForcedAbsent = useCallback(
+    (studentId: string, evalDate: string | null | undefined) =>
+      !!evalDate && absentKeys.has(`${studentId}|${evalDate}`),
+    [absentKeys]
+  )
+
+  // ── Conflits appel / note ───────────────────────────────────────────────────
+  // Une note enregistrée ET une absence le même jour sont incompatibles, mais on
+  // ne peut pas savoir laquelle des deux saisies est fausse. On n'écrase donc
+  // RIEN : la ligne est signalée et laissée modifiable, à l'utilisateur de
+  // trancher (corriger l'appel, ou cocher l'absence lui-même). Sans ce garde-fou,
+  // le report d'absence effacerait la note en silence.
+  const hasSavedMark = useCallback((studentId: string, evalId: string | null) => {
+    const g = gradesList.find(x => x.evaluation_id === evalId && x.student_id === studentId)
+    return !!g && !g.is_absent && (g.score !== null || g.comment !== null)
+  }, [gradesList])
+
+  const isConflicted = useCallback(
+    (studentId: string, evalId: string | null, evalDate: string | null | undefined) =>
+      isForcedAbsent(studentId, evalDate) && hasSavedMark(studentId, evalId),
+    [isForcedAbsent, hasSavedMark]
+  )
+
   // ── Réinitialisation des pending lors du changement d'évaluation ─────────────
   useEffect(() => {
     if (!selectedEvalId) { setPending({}); return }
@@ -214,11 +290,19 @@ export default function GradesClient({
     const init: Record<string, PendingEntry> = {}
     for (const s of classStudents) {
       const existing = gradesList.find(g => g.evaluation_id === selectedEvalId && g.student_id === s.student_id)
+      // En conflit (note enregistrée + absence le même jour), le report est SUSPENDU :
+      // on conserve la note telle quelle et on laisse la ligne modifiable.
+      const forced   = isForcedAbsent(s.student_id, ev?.evaluation_date)
+                       && !hasSavedMark(s.student_id, selectedEvalId)
       init[s.student_id] = {
-        scoreValue: getInitialScoreValue(existing, ev?.eval_kind ?? null),
+        scoreValue: forced ? '' : getInitialScoreValue(existing, ev?.eval_kind ?? null),
         comment:    ev?.eval_kind !== 'diagnostic' ? (existing?.comment ?? '') : '',
-        is_absent:  existing?.is_absent ?? false,
-        dirty:      false,
+        is_absent:  forced || (existing?.is_absent ?? false),
+        // L'absence relevée à l'appel doit finir en base (bulletin, complétion) :
+        // tant qu'elle n'y est pas, la ligne est « à enregistrer ». Une fois
+        // sauvegardée, `existing.is_absent` est vrai et le dirty ne revient pas.
+        dirty:      forced && !existing?.is_absent,
+        auto:       forced && !existing?.is_absent,
       }
     }
     setPending(init)
@@ -232,7 +316,15 @@ export default function GradesClient({
   }, [selectedClassId, selectedPeriodId])
 
   // ── Dirty flag global ────────────────────────────────────────────────────────
-  const hasDirty    = Object.values(pending).some(e => e.dirty)
+  // hasDirty pilote l'ENREGISTREMENT (tout ce qui doit partir en base).
+  // hasUserChanges pilote les AVERTISSEMENTS : on n'alerte pas quelqu'un pour
+  // un report automatique qu'il n'a pas saisi.
+  const conflictCount   = classStudents.filter(
+    s => isConflicted(s.student_id, selectedEvalId, selectedEval?.evaluation_date)
+  ).length
+  const hasDirty        = Object.values(pending).some(e => e.dirty)
+  const hasUserChanges  = Object.values(pending).some(e => e.dirty && !e.auto)
+  const autoAbsences    = Object.values(pending).filter(e => e.dirty && e.auto).length
   const isEditMode  = selectedEvalId ? gradesList.some(g => g.evaluation_id === selectedEvalId) : false
 
   // ── Garde anti-perte de saisie ───────────────────────────────────────────────
@@ -244,7 +336,7 @@ export default function GradesClient({
     else                               setSelectedEvalId(intent.value)
   }
   const navigate = (intent: NavIntent) => {
-    if (hasDirty) setPendingNav(intent)
+    if (hasUserChanges) setPendingNav(intent)
     else          applyNav(intent)
   }
 
@@ -253,20 +345,43 @@ export default function GradesClient({
   const isAdultClass  = selectedClass?.is_adult ?? false
 
   // ── Complétion par évaluation ────────────────────────────────────────────────
+  // Une ligne compte comme « saisie » si elle porte une note, un commentaire ou
+  // une absence — même règle que la lecture en base, appliquée à l'écran.
+  const isFilled = (e: PendingEntry | undefined) =>
+    !!e && (e.is_absent || e.scoreValue !== '' || e.comment.trim() !== '')
+
   const getCompletion = useCallback((evalId: string) => {
     // Restreint aux participants ACTUELS : une note orpheline (participant plus
     // inscrit) ne doit pas gonfler le compteur (bug « 13/2 »).
-    const keys   = new Set(classStudents.map(s => s.student_id))
-    const total  = classStudents.length
-    const graded = gradesList.filter(g =>
-      g.evaluation_id === evalId && keys.has(g.student_id) && (g.score !== null || g.comment !== null || g.is_absent)
+    const total = classStudents.length
+
+    // Évaluation ouverte : on compte ce qui est À L'ÉCRAN, pas ce qui est en base.
+    // Sinon une absence reportée de la feuille d'appel (pas encore enregistrée)
+    // ou une note en cours de frappe n'apparaîtrait pas au compteur.
+    if (evalId === selectedEvalId && Object.keys(pending).length > 0) {
+      return { total, graded: classStudents.filter(s => isFilled(pending[s.student_id])).length }
+    }
+
+    // Évaluations NON ouvertes : base + absences déjà connues de la feuille d'appel.
+    // Elles seront reportées à l'ouverture, autant que le compteur le dise tout de
+    // suite — sinon l'arbre annonce « reste 4 notes » alors qu'il n'en reste que 2.
+    const evalDate = evaluations.find(e => e.id === evalId)?.evaluation_date ?? null
+    const filled = new Set(
+      gradesList
+        .filter(g => g.evaluation_id === evalId && (g.score !== null || g.comment !== null || g.is_absent))
+        .map(g => g.student_id)
+    )
+    // Restreint aux participants ACTUELS : une note orpheline (participant plus
+    // inscrit) ne doit pas gonfler le compteur (bug « 13/2 »).
+    const graded = classStudents.filter(
+      s => filled.has(s.student_id) || isForcedAbsent(s.student_id, evalDate)
     ).length
     return { total, graded }
-  }, [gradesList, classStudents])
+  }, [gradesList, classStudents, pending, selectedEvalId, evaluations, isForcedAbsent])
 
   // ── Mise à jour d'une entrée pending ────────────────────────────────────────
   const updatePending = (studentId: string, update: Partial<PendingEntry>) =>
-    setPending(prev => ({ ...prev, [studentId]: { ...prev[studentId], ...update, dirty: true } }))
+    setPending(prev => ({ ...prev, [studentId]: { ...prev[studentId], ...update, dirty: true, auto: false } }))
 
   // ── Sauvegarde ──────────────────────────────────────────────────────────────
   // Valeurs de note communes selon le type d'évaluation.
@@ -340,10 +455,18 @@ export default function GradesClient({
       .from(isAdultClass ? 'adult_grades' : 'grades')
       .delete()
       .eq('evaluation_id', selectedEvalId)
-    if (err) { setError(err.message); setSaving(false); return }
+    // En cas d'échec on referme aussi : le message d'erreur s'affiche derrière la
+    // modale, il resterait invisible.
+    if (err) { setError(err.message); setConfirmReset(false); setSaving(false); return }
     setGradesList(prev => prev.filter(g => g.evaluation_id !== selectedEvalId))
+    // Remettre à blanc SAUF les absences relevées à l'appel : elles ne sont pas une
+    // saisie de l'utilisateur, elles ne se réinitialisent donc pas. Les notes venant
+    // d'être supprimées en base, une absence forcée redevient « à enregistrer ».
     setPending(prev => Object.fromEntries(
-      Object.entries(prev).map(([k]) => [k, { scoreValue: '', comment: '', is_absent: false, dirty: false }])
+      Object.entries(prev).map(([k]) => {
+        const forced = isForcedAbsent(k, selectedEval?.evaluation_date)
+        return [k, { scoreValue: '', comment: '', is_absent: forced, dirty: forced, auto: forced }]
+      })
     ))
     setConfirmReset(false)
     setSaving(false)
@@ -457,7 +580,7 @@ export default function GradesClient({
       <div className="flex gap-3 flex-1 min-h-0">
 
         {/* ── Gauche : Gabarit (lecture seule) ── */}
-        <div className="w-72 flex-shrink-0 flex flex-col min-h-0">
+        <div className="w-[27rem] flex-shrink-0 flex flex-col min-h-0">
           <div className="card p-3 flex flex-col gap-2 h-full min-h-0">
             <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-shrink-0">Gabarit</p>
 
@@ -502,7 +625,9 @@ export default function GradesClient({
                             {ue.code}
                           </span>
                         )}
-                        <span className="text-xs font-bold text-secondary-700 truncate">{ue.nom_fr}</span>
+                        <Tooltip content={refTooltip(ue)} maxWidth="max-w-none" className="min-w-0">
+                          <span className="text-xs font-bold text-secondary-700 truncate">{refLabel(ue)}</span>
+                        </Tooltip>
                       </button>
 
                       {/* Évaluations de l'UE */}
@@ -526,9 +651,11 @@ export default function GradesClient({
                             const modEvals = ueEvals.filter(e => getEffModId(e) === mod.id)
                             return (
                               <div key={mod.id} className="mt-0.5 ml-4">
-                                <p className="text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
-                                  {mod.code && <span className="font-mono mr-1">{mod.code}</span>}
-                                  {mod.nom_fr}
+                                <p className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pt-1.5 pb-0.5 border-l-2 border-warm-100">
+                                  {mod.code && <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case">{mod.code}</span>}
+                                  <Tooltip content={refTooltip(mod)} maxWidth="max-w-none" className="min-w-0">
+                                    <span className="truncate">{refLabel(mod)}</span>
+                                  </Tooltip>
                                 </p>
                                 <div className="pl-2">
                                   {modEvals.map(ev => (
@@ -570,10 +697,7 @@ export default function GradesClient({
                 <div className="flex items-start gap-3 mb-3 pb-2 border-b border-warm-100 flex-shrink-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-secondary-800">
-                      {selectedCours?.nom_fr ?? 'Cours introuvable'}
-                      {selectedCours?.nom_ar && (
-                        <span className="text-warm-700 font-normal ml-2">{selectedCours.nom_ar}</span>
-                      )}
+                      {selectedCours ? refLabel(selectedCours) : 'Cours introuvable'}
                     </p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {(() => {
@@ -604,9 +728,18 @@ export default function GradesClient({
                     const { graded, total } = getCompletion(selectedEvalId!)
                     const kind = selectedEval.eval_kind
                     const showAvg = (kind === 'scored' || kind === 'stars')
-                    const scores = gradesList
-                      .filter(g => g.evaluation_id === selectedEvalId && !g.is_absent && g.score !== null)
-                      .map(g => g.score as number)
+                    // Moyenne calculée sur l'ÉCRAN, comme le compteur : sinon le badge
+                    // « Saisie complète » (piloté par `graded`) apparaîtrait à côté
+                    // d'une moyenne encore calculée sur les anciennes valeurs en base.
+                    // Repli sur la base tant que `pending` n'est pas initialisé.
+                    const scores = Object.keys(pending).length > 0
+                      ? classStudents
+                          .map(s => pending[s.student_id])
+                          .filter(e => e && !e.is_absent && e.scoreValue !== '' && !Number.isNaN(parseFloat(e.scoreValue)))
+                          .map(e => parseFloat(e!.scoreValue))
+                      : gradesList
+                          .filter(g => g.evaluation_id === selectedEvalId && !g.is_absent && g.score !== null)
+                          .map(g => g.score as number)
                     const avg = scores.length > 0
                       ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(kind === 'scored' ? 2 : 1)
                       : null
@@ -614,7 +747,7 @@ export default function GradesClient({
                     return (
                       <div className="flex-shrink-0 flex flex-col items-end gap-0.5">
                         {total > 0 && graded >= total && (
-                          <span className="text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200 px-2 py-0.5 rounded-full">
                             Saisie complète
                           </span>
                         )}
@@ -636,6 +769,19 @@ export default function GradesClient({
                   <div role="alert" className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
                     <AlertCircle size={13} className="flex-shrink-0" />
                     {error}
+                  </div>
+                )}
+
+                {/* Conflits appel / note : on signale, on ne corrige jamais d'office */}
+                {conflictCount > 0 && (
+                  <div role="alert" className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
+                    <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+                    <span>
+                      {conflictCount === 1
+                        ? '1 note enregistrée porte sur un participant absent ce jour-là selon la feuille d\'appel.'
+                        : `${conflictCount} notes enregistrées portent sur des participants absents ce jour-là selon la feuille d'appel.`}
+                      {' '}Corrigez la feuille d'appel, ou cochez l'absence ici pour effacer la note.
+                    </span>
                   </div>
                 )}
 
@@ -662,14 +808,22 @@ export default function GradesClient({
                       <tbody>
                         {classStudents.map((student, idx) => {
                           const entry    = pending[student.student_id] ?? { scoreValue: '', comment: '', is_absent: false, dirty: false }
-                          const isAbsent = entry.is_absent
+                          const conflicted   = isConflicted(student.student_id, selectedEvalId, selectedEval.evaluation_date)
+                          // En conflit, aucun verrou : la ligne doit rester corrigeable.
+                          const forcedAbsent = !conflicted && isForcedAbsent(student.student_id, selectedEval.evaluation_date)
+                          // `|| forcedAbsent` : le verrou d'affichage ne dépend jamais de
+                          // l'état de saisie — quel que soit le chemin (montage, reset,
+                          // changement de classe), un absent de l'appel reste verrouillé.
+                          const isAbsent = entry.is_absent || forcedAbsent
 
                           return (
                             <tr
                               key={student.student_id}
                               className={clsx(
                                 'border-b border-warm-50 transition-colors group',
-                                entry.dirty
+                                conflicted
+                                  ? 'bg-amber-50 hover:bg-amber-100/60 border-l-2 border-l-amber-500'
+                                  : entry.dirty
                                   ? 'bg-amber-50/40 hover:bg-amber-100/50'
                                   : idx % 2 === 0
                                   ? 'bg-white hover:bg-primary-50/40'
@@ -684,6 +838,17 @@ export default function GradesClient({
                                 <span className="font-medium text-secondary-700">{student.last_name}</span>
                                 <span className="text-secondary-500 ml-1">{student.first_name}</span>
                                 <span className="hidden sm:inline text-[10px] text-warm-700 font-mono ml-1.5">{student.student_number}</span>
+                                {conflicted && (
+                                  <Tooltip content={`Note enregistrée, mais absent le ${fmtShortDate(selectedEval.evaluation_date)} à la feuille d'appel. Corrigez l'appel ou cochez l'absence ici.`}>
+                                    <span
+                                      role="img"
+                                      aria-label="Conflit avec la feuille d'appel"
+                                      className="inline-flex align-middle ml-1.5 text-amber-600"
+                                    >
+                                      <AlertTriangle size={13} />
+                                    </span>
+                                  </Tooltip>
+                                )}
                               </td>
 
                               {/* Saisie de la note */}
@@ -725,19 +890,25 @@ export default function GradesClient({
                                 )}
                               </td>
 
-                              {/* Absent */}
+                              {/* Absent — verrouillé si l'appel du jour le déclare absent */}
                               <td className="py-1 pl-3">
-                                <FloatCheckbox
-                                  label=""
-                                  variant="compact"
-                                  checked={isAbsent}
-                                  onChange={v => updatePending(student.student_id, {
-                                    is_absent:  v,
-                                    scoreValue: v ? '' : entry.scoreValue,
-                                  })}
-                                  disabled={isArchived}
-                                  className="justify-center"
-                                />
+                                <Tooltip
+                                  content={forcedAbsent
+                                    ? `Absent le ${fmtShortDate(selectedEval.evaluation_date)} (feuille d'appel)`
+                                    : 'Absent à cette évaluation'}
+                                >
+                                  <FloatCheckbox
+                                    label=""
+                                    variant="compact"
+                                    checked={isAbsent}
+                                    onChange={v => updatePending(student.student_id, {
+                                      is_absent:  v,
+                                      scoreValue: v ? '' : entry.scoreValue,
+                                    })}
+                                    disabled={isArchived || forcedAbsent}
+                                    className="justify-center"
+                                  />
+                                </Tooltip>
                               </td>
                             </tr>
                           )
@@ -753,48 +924,49 @@ export default function GradesClient({
                   {/* Progression */}
                   {(() => {
                     const { graded, total } = getCompletion(selectedEvalId!)
-                    const absent = gradesList.filter(g => g.evaluation_id === selectedEvalId && g.is_absent).length
+                    // Absents comptés à l'écran aussi : un report d'appel non encore
+                    // enregistré doit apparaître immédiatement.
+                    const absent = classStudents.filter(s => pending[s.student_id]?.is_absent).length
                     return (
                       <p className="text-xs text-warm-700 flex-1">
                         <span className={clsx(
                           'font-semibold',
-                          graded === total && total > 0 ? 'text-green-600' : graded > 0 ? 'text-amber-600' : 'text-warm-700'
+                          graded === total && total > 0 ? 'text-primary-600' : graded > 0 ? 'text-amber-600' : 'text-warm-700'
                         )}>
                           {graded}/{total}
                         </span>
                         {' saisis'}
                         {absent > 0 && <span> · {absent} absent{absent > 1 ? 's' : ''}</span>}
-                        {hasDirty && <span className="text-amber-500 ml-2">· Modifications non enregistrées</span>}
+                        {hasUserChanges
+                          ? <span className="text-amber-500 ml-2">· Modifications non enregistrées</span>
+                          : autoAbsences > 0 && (
+                              <span className="text-warm-700 ml-2">
+                                · {autoAbsences} absence{autoAbsences > 1 ? 's' : ''} report{autoAbsences > 1 ? 'ées' : 'ée'} de la feuille d'appel · à enregistrer
+                              </span>
+                            )}
                       </p>
                     )
                   })()}
 
                   {/* Boutons */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {!isArchived && (confirmReset ? (
-                      <div role="group" aria-label="Confirmer la réinitialisation des notes" className="flex items-center gap-1.5">
-                        <span className="text-xs text-warm-700">Réinitialiser toutes les notes ?</span>
-                        <FloatButton variant="danger" type="button" onClick={handleReset} disabled={saving} loading={saving} aria-label="Confirmer la réinitialisation">
-                          Oui
-                        </FloatButton>
-                        <FloatButton variant="secondary" type="button" onClick={() => setConfirmReset(false)} autoFocus aria-label="Annuler la réinitialisation">
-                          Non
-                        </FloatButton>
-                      </div>
-                    ) : (
-                      <Tooltip content="Réinitialiser toutes les notes">
+                    {/* Ce bouton SUPPRIME les notes en base (DELETE définitif), il ne
+                        remet pas le formulaire à son état initial : le libellé et la
+                        confirmation doivent le dire. */}
+                    {!isArchived && (
+                      <Tooltip content="Supprimer toutes les notes de cette évaluation">
                         <FloatButton
                           variant="secondary"
                           type="button"
                           onClick={() => setConfirmReset(true)}
                           disabled={saving || !gradesList.some(g => g.evaluation_id === selectedEvalId)}
-                          aria-label="Réinitialiser toutes les notes"
+                          aria-label="Supprimer toutes les notes de cette évaluation"
                           className="!px-2"
                         >
                           <RotateCcw size={13} />
                         </FloatButton>
                       </Tooltip>
-                    ))}
+                    )}
                     <FloatButton
                       variant={isEditMode ? 'edit' : 'submit'}
                       type="button"
@@ -835,6 +1007,30 @@ export default function GradesClient({
           </div>
         </div>
       </div>
+
+      {confirmReset && selectedEval && (
+        <ConfirmModal
+          open
+          variant="danger"
+          title="Supprimer toutes les notes"
+          confirmLabel="Supprimer définitivement"
+          onConfirm={handleReset}
+          onCancel={() => setConfirmReset(false)}
+        >
+          <div className="text-sm text-warm-700 space-y-2">
+            <p>
+              {(() => {
+                const n = gradesList.filter(g => g.evaluation_id === selectedEvalId).length
+                return `${n} note${n > 1 ? 's' : ''} de cette évaluation ${n > 1 ? 'seront supprimées' : 'sera supprimée'} de la base.`
+              })()}
+            </p>
+            <p>
+              Le gabarit lui-même est conservé (type, coefficient, date) : la grille repart vierge.
+              Cette suppression est définitive.
+            </p>
+          </div>
+        </ConfirmModal>
+      )}
 
       {pendingNav && (
         <ConfirmModal
@@ -880,21 +1076,23 @@ function EvalRow({
       {/* Indicateur de complétion */}
       <span className={clsx(
         'w-1.5 h-1.5 rounded-full flex-shrink-0',
-        isComplete ? 'bg-green-400' : isPartial ? 'bg-amber-400' : 'bg-warm-200'
+        isComplete ? 'bg-primary-400' : isPartial ? 'bg-amber-400' : 'bg-warm-200'
       )} />
 
       {/* Nom du cours */}
-      <span className="flex-1 truncate min-w-0">
-        {coursItem?.code && (
-          <span className="font-mono text-[10px] text-warm-700 mr-1">{coursItem.code}</span>
-        )}
-        {coursItem?.nom_fr ?? 'Cours introuvable'}
-      </span>
+      <Tooltip content={refTooltip(coursItem)} maxWidth="max-w-none" className="flex-1 min-w-0">
+        <span className="flex-1 truncate min-w-0">
+          {coursItem?.code && (
+            <span className="font-mono text-[10px] text-warm-700 mr-1">{coursItem.code}</span>
+          )}
+          {coursItem ? refLabel(coursItem) : 'Cours introuvable'}
+        </span>
+      </Tooltip>
 
       {/* Compteur */}
       <span className={clsx(
         'text-[10px] font-mono flex-shrink-0',
-        isComplete ? 'text-green-500' : isPartial ? 'text-amber-500' : 'text-warm-700'
+        isComplete ? 'text-primary-600' : isPartial ? 'text-amber-500' : 'text-warm-700'
       )}>
         {graded}/{total}
       </span>

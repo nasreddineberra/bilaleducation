@@ -48,7 +48,7 @@ export default function PrepareNextYearButton({ currentYearId, yearLabel }: { cu
         >
           <div className="space-y-2 text-left text-xs text-warm-700">
             <p>Crée l’année suivante à partir de <strong>{yearLabel}</strong> : périodes, types de présence et <strong>report des cotisations</strong> (montants, frais, remises, échéances).</p>
-            <p>La nouvelle année <strong>n’est pas</strong> mise « en cours » — vous l’activerez plus tard. Les <strong>classes, l’emploi du temps et les affectations restent à faire manuellement</strong>.</p>
+            <p>La nouvelle année <strong>n’est pas</strong> mise « en cours » : vous l’activerez plus tard. Les <strong>classes, l’emploi du temps et les affectations restent à faire manuellement</strong>.</p>
           </div>
         </ConfirmModal>
       )}

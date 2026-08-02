@@ -14,6 +14,8 @@ interface Props {
   etablissement: any
   initialParentId?: string
   familyHistory: Record<string, any[]>
+  /** Suppression du journal comptable : admin/direction seuls. */
+  canDeleteComms?: boolean
   pastDebts: any[]
 }
 

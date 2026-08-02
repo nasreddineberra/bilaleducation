@@ -308,14 +308,14 @@ export default function PaymentModal({
                     className={[
                       'relative w-full px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
                       'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                      isOnline   ? 'opacity-40 cursor-not-allowed border-warm-200 text-warm-700 bg-warm-50' : '',
+                      isOnline   ? 'opacity-60 cursor-not-allowed border-warm-200 text-warm-700 bg-warm-50' : '',
                       !isOnline && isSelected  ? 'border-primary-400 bg-primary-50 text-primary-700' : '',
                       !isOnline && !isSelected ? 'border-warm-200 hover:bg-warm-100 text-secondary-600' : '',
                     ].join(' ')}
                   >
                     {m.label}
                     {isOnline && (
-                      <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-warm-400 text-white text-[9px] px-1 rounded-full whitespace-nowrap">
+                      <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-warm-200 text-warm-700 text-[9px] font-semibold px-1 rounded-full whitespace-nowrap">
                         bientôt
                       </span>
                     )}
@@ -330,7 +330,7 @@ export default function PaymentModal({
 
           {/* Champs dynamiques selon méthode */}
           {method === 'check' && (
-            <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100 space-y-3">
+            <div className="p-3 bg-warm-50 rounded-xl border border-warm-200 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <FloatInput
                   label="N° chèque"
@@ -365,7 +365,7 @@ export default function PaymentModal({
           )}
 
           {method === 'card' && (
-            <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100">
+            <div className="p-3 bg-warm-50 rounded-xl border border-warm-200">
               <FloatInput
                 label="N° transaction"
                 type="text"
@@ -378,7 +378,7 @@ export default function PaymentModal({
           )}
 
           {method === 'transfer' && (
-            <div className="p-3 bg-blue-50/40 rounded-xl border border-blue-100">
+            <div className="p-3 bg-warm-50 rounded-xl border border-warm-200">
               <FloatInput
                 label="Référence virement"
                 type="text"

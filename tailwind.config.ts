@@ -81,7 +81,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        arabic: ['var(--font-amiri)', 'serif'],
+        arabic: ['var(--font-arabic)', 'sans-serif'],
       },
       boxShadow: {
         'card':       '0 2px 8px 0 rgba(47,69,80,0.08), 0 1px 3px 0 rgba(47,69,80,0.04)',

@@ -269,7 +269,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
                       {st?.is_seen ? <Eye size={16} /> : <Circle size={16} />} Vu
                     </button>
                     <button onClick={() => toggle(key, 'is_done')} aria-pressed={!!st?.is_done}
-                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_done ? 'text-green-600' : 'text-warm-700 hover:text-green-500')}>
+                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_done ? 'text-primary-600' : 'text-warm-700 hover:text-primary-600')}>
                       {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} Effectue
                     </button>
                   </div>
@@ -310,7 +310,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
                           <td className="py-1.5 px-4 text-center">
                             {st?.is_done ? (
                               <Tooltip content={`Effectué le ${formatShortDate(st.done_at)}`}>
-                                <span className="text-green-600 text-xs" aria-label={`Effectué le ${formatShortDate(st.done_at)}`}><CheckCircle2 size={14} className="inline" /></span>
+                                <span className="text-primary-600 text-xs" aria-label={`Effectué le ${formatShortDate(st.done_at)}`}><CheckCircle2 size={14} className="inline" /></span>
                               </Tooltip>
                             ) : <span className="text-warm-700" aria-label="Non effectué">·</span>}
                           </td>

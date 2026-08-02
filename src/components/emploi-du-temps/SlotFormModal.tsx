@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
@@ -62,8 +63,6 @@ const SLOT_TYPES = [
   { value: 'cours', label: 'Cours' },
   { value: 'activite', label: 'Activité' },
 ]
-
-const SIDEBAR_COLOR = '#2e4550'
 
 function teacherLabel(p: { first_name: string; last_name: string; civilite?: string }): string {
   const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
@@ -129,12 +128,8 @@ export default function SlotFormModal({
   const [saving, setSaving] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
-  // Fermeture sur Échap (sauf si la sous-confirmation est ouverte : elle gère son propre Échap)
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !pendingConfirm) onClose() }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [onClose, pendingConfirm])
+  // Règle projet : fermeture par X / Annuler uniquement (ni Échap, ni clic hors
+  // fenêtre) — une saisie de créneau ne doit pas se perdre sur une touche.
 
   // Recurring vs Ponctuel (null = pas encore choisi)
   const isEditingAll = editMode === 'all' && !!slot
@@ -315,7 +310,7 @@ export default function SlotFormModal({
     ? `Modifier le ${new Date(editDate! + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} uniquement`
     : slot ? 'Modifier le créneau' : 'Nouveau créneau'
 
-  return (
+  return createPortal(
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" >
       <div
@@ -351,11 +346,10 @@ export default function SlotFormModal({
                         className={clsx(
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           slotType === st.value
-                            ? 'text-white border-[#2e4550]'
+                            ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]'
                             : 'bg-white text-warm-700 border-warm-200 hover:bg-warm-50',
                           isEditMode && 'opacity-60 cursor-not-allowed'
                         )}
-                        style={slotType === st.value ? { backgroundColor: SIDEBAR_COLOR } : undefined}
                       >
                         {st.label}
                       </button>
@@ -377,11 +371,10 @@ export default function SlotFormModal({
                         className={clsx(
                           'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
                           isRecurring === opt.value
-                            ? 'text-white border-[#2e4550]'
+                            ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]'
                             : 'bg-white text-warm-700 border-warm-200 hover:bg-warm-50',
                           isEditMode && 'opacity-60 cursor-not-allowed'
                         )}
-                        style={isRecurring === opt.value ? { backgroundColor: SIDEBAR_COLOR } : undefined}
                       >
                         {opt.label}
                       </button>
@@ -510,7 +503,7 @@ export default function SlotFormModal({
               <div>
                 <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Type</label>
                 <div className="flex gap-2 mt-1">
-                  <span className="px-3 py-1 rounded-lg text-xs font-medium border text-white border-[#2e4550] opacity-60" style={{ backgroundColor: SIDEBAR_COLOR }}>
+                  <span className="px-3 py-1 rounded-lg text-xs font-medium border bg-[var(--brand-surface)] text-white border-[var(--brand-surface)] opacity-60 dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:border-[var(--brand-accent)]">
                     {SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'}
                   </span>
                 </div>
@@ -518,7 +511,7 @@ export default function SlotFormModal({
               <div>
                 <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Fréquence</label>
                 <div className="flex gap-2 mt-1">
-                  <span className="px-3 py-1 rounded-lg text-xs font-medium border text-white border-[#2e4550] opacity-60" style={{ backgroundColor: SIDEBAR_COLOR }}>
+                  <span className="px-3 py-1 rounded-lg text-xs font-medium border bg-[var(--brand-surface)] text-white border-[var(--brand-surface)] opacity-60 dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:border-[var(--brand-accent)]">
                     Exception ponctuelle
                   </span>
                 </div>
@@ -586,7 +579,8 @@ export default function SlotFormModal({
       onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
       onCancel={() => setPendingConfirm(null)}
     />
-  </>
+  </>,
+  document.body
   )
 }
 
