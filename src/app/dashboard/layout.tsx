@@ -4,7 +4,7 @@ import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { ThemeProvider } from '@/components/layout/ThemeContext'
-import { getCachedProfile, getCachedEtablissement, getCachedCurrentYear } from '@/lib/cache/dashboard'
+import { getCachedProfile, getCachedEtablissement, getCurrentYear } from '@/lib/cache/dashboard'
 
 
 export default async function DashboardLayout({
@@ -24,12 +24,13 @@ export default async function DashboardLayout({
     redirect('/superadmin')
   }
 
-  // Récupérer le profil + les infos établissement + année courante en parallèle
-  // Ces requêtes sont cachées (1h pour le profil, 6h pour l'établissement, 24h pour l'année)
+  // Profil + établissement + année en cours, en parallèle.
+  // Le profil (1 h) et l'établissement (6 h) sont cachés ; l'année scolaire ne
+  // l'est PLUS — voir le commentaire de `getCurrentYear`.
   const results = await Promise.allSettled([
     getCachedProfile(user.id),
     getCachedEtablissement(),
-    getCachedCurrentYear(),
+    getCurrentYear(),
   ])
 
   const profile = results[0].status === 'fulfilled' ? results[0].value : null

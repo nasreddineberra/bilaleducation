@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { APP_VERSION } from '@/lib/app-version'
 import { usePathname } from 'next/navigation'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
@@ -807,7 +808,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         collapsed ? 'py-2 flex justify-center items-center' : 'px-4 py-2.5'
       )}>
         {collapsed ? (
-          <SidebarTooltip label="© 2026 Bilal Education · v1.0" className="w-full justify-center">
+          <SidebarTooltip label={`© 2026 Bilal Education · ${APP_VERSION}`} className="w-full justify-center">
             {/* Réduite, la sidebar n'a place que pour la marque : le logo
                 remplace le sigle © et reste le repère visuel. */}
             <Image
@@ -839,7 +840,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
             {/* `inline-flex items-center` + `leading-none` : sans cela le
                 texte se cale sur sa ligne de base et flotte haut dans la
                 pastille. La rangée, elle, est déjà en `items-center`. */}
-            <span className="inline-flex items-center leading-none text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-1 rounded flex-shrink-0 self-center">v1.0</span>
+            <span className="inline-flex items-center leading-none text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-1 rounded flex-shrink-0 self-center">{APP_VERSION}</span>
           </div>
         )}
       </div>

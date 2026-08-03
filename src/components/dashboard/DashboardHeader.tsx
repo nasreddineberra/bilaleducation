@@ -11,6 +11,9 @@ interface Props {
   recentNotifs: {
     id: string
     is_read: boolean
+    /** 'staff' ou 'parent' : les deux tables de destinataires n'ouvrent pas la
+     *  même fiche (paramètre `rt`). */
+    recipientType?: string
     announcements: { id: string; title: string; published_at: string | null; profiles: { first_name: string; last_name: string } | null } | null
   }[]
 }
@@ -61,13 +64,15 @@ export default function DashboardHeader({ firstName, roleLabel, yearLabel, perio
             </Link>
           </div>
           <div className="space-y-1">
-            {recentNotifs.filter(n => !n.is_read).slice(0, 3).map(n => {
+            {/* Le filtre `is_read` est désormais porté par la REQUÊTE : ce qui
+                arrive ici est déjà non lu. */}
+            {recentNotifs.slice(0, 3).map(n => {
               const ann = n.announcements
               if (!ann) return null
               return (
                 <Link
                   key={n.id}
-                  href={`/dashboard/notifications/${ann.id}?rid=${n.id}&rt=staff`}
+                  href={`/dashboard/notifications/${ann.id}?rid=${n.id}&rt=${n.recipientType ?? 'staff'}`}
                   className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs hover:bg-warm-100 transition-colors"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { APP_VERSION } from '@/lib/app-version'
 import Link from 'next/link'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
@@ -211,7 +212,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Panneau droit : formulaire ───────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 sm:px-12">
+      <div className="relative flex-1 flex flex-col items-center justify-center px-6 sm:px-12 pt-12 pb-24">
 
         <div className="w-full max-w-sm animate-fade-in">
 
@@ -340,10 +341,18 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* Version mobile : texte discret */}
-          <p className="mt-8 text-center text-xs text-warm-700">
-            Bilal Education · Gestion Administrative & Pédagogique
-          </p>
+        </div>
+
+        {/* Meme pied que les ecrans d'authentification, ancre en bas de page.
+            SANS le logo : celui du produit trone deja sur le panneau de gauche,
+            le repeter en petit au bas du meme ecran ferait doublon. */}
+        <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5 px-4">
+          <span className="text-xs text-warm-700">
+            &copy; Bilal Education &middot; Gestion administrative &amp; pédagogique &middot;
+          </span>
+          <span className="text-[11px] font-mono text-warm-700 bg-warm-100 px-1.5 py-0.5 rounded leading-none">
+            {APP_VERSION}
+          </span>
         </div>
       </div>
 

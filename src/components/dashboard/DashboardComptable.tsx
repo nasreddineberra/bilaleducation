@@ -38,6 +38,7 @@ interface Props {
     outstanding: number
     overpaidCount: number
     overpaidAmount: number
+    pendingFamilies: number
     rate: number
     totalFamilies: number
     monthly: { key: string; label: string; amount: number; cumul: number }[]
@@ -68,7 +69,18 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="Facturé" value={fmtEur(stats.billed)} subtitle={`${stats.totalFamilies} dossiers`} icon={Wallet} tone="ardoise" />
         <StatCard title="Encaissé" value={fmtEur(stats.collected)} subtitle={`${stats.rate}% du facturé`} icon={TrendingUp} tone="primary" />
-        <StatCard title="Reste à encaisser" value={fmtEur(stats.outstanding)} icon={TrendingDown} tone="orange" />
+        {/* Le montant restant ne dit pas OU agir : une famille qui n'a jamais
+            rien verse ne se traite pas comme une famille a jour de ses
+            echeances. Meme definition que « A traiter » cote admin. */}
+        <StatCard
+          title="Reste à encaisser"
+          value={fmtEur(stats.outstanding)}
+          subtitle={stats.pendingFamilies > 0
+            ? `${stats.pendingFamilies} famille${stats.pendingFamilies > 1 ? 's' : ''} sans aucun paiement`
+            : 'toutes les familles ont payé'}
+          icon={TrendingDown}
+          tone="orange"
+        />
         <StatCard title="Trop perçu" value={stats.overpaidCount} subtitle={stats.overpaidCount > 0 ? fmtEur(stats.overpaidAmount) : 'aucun'} icon={DollarSign} tone="red" />
       </div>
 

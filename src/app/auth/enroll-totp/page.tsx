@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+import { APP_VERSION } from '@/lib/app-version'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, ShieldCheck, ScanLine, Loader2 } from 'lucide-react'
@@ -173,16 +175,12 @@ export default function EnrollTotpPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center py-12 px-4"
-      style={{ background: 'linear-gradient(135deg, #0c5b51 0%, #063a33 100%)' }}
+      className="relative min-h-screen flex items-center justify-center px-4 pt-12 pb-24"
+      // Meme degrade que le panneau de marque de la page de connexion : memes
+      // TOKENS et meme angle (145°). Les tokens suivent le theme — teal en
+      // clair, ardoise en sombre — ce qu'une valeur en dur ne fait pas.
+      style={{ background: 'linear-gradient(145deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
     >
-      {/* Cercles décoratifs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-10 bg-white" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-10 bg-white" />
-        <div className="absolute top-1/2 left-1/4 w-48 h-48 rounded-full opacity-5 bg-amber-400" />
-      </div>
-
       <div className="relative w-full max-w-md">
 
         {/* Logo */}
@@ -311,6 +309,21 @@ export default function EnrollTotpPage() {
           )}
 
         </div>
+
+      </div>
+
+      {/* Marque du PRODUIT, ancree en BAS DE PAGE et non sous la carte : elle
+          reste au meme endroit quelle que soit la hauteur du contenu. Le haut
+          de page appartient a l'ÉTABLISSEMENT (son logo, son nom), c'est chez
+          lui que l'utilisateur entre ; l'application se signe en bas. */}
+      <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5 px-4">
+        <Image src="/icon.png" alt="" width={22} height={22} unoptimized className="opacity-80 flex-shrink-0" />
+        <span className="text-white/60 text-xs">
+          &copy; Bilal Education &middot; Gestion administrative &amp; pédagogique &middot;
+        </span>
+        <span className="text-white/50 text-[11px] font-mono bg-white/10 px-1.5 py-0.5 rounded leading-none">
+          {APP_VERSION}
+        </span>
       </div>
     </div>
   )

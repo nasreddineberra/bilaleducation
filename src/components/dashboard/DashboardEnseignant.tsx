@@ -8,8 +8,9 @@ import StatCard from './StatCard'
 import Tooltip from '@/components/ui/Tooltip'
 import { classInfoOf } from './classInfo'
 
+// La table ne connait que 'absence' et 'retard' (CHECK).
 const ABSENCE_TYPE: Record<string, string> = {
-  absence: 'Absence', retard: 'Retard', authorized_absence: 'Abs. autorisée',
+  absence: 'Absence', retard: 'Retard',
 }
 
 interface Props {

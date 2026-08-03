@@ -28,7 +28,8 @@ interface Props {
     studentsTotal: number
     teachersActive: number
     classesCount: number
-    enrollmentsActive: number
+    enrollmentsStudents: number
+    enrollmentsAdults: number
     absencesThisMonth: number
     absencesUnjustified: number
     billed: number
@@ -43,8 +44,10 @@ interface Props {
   }
 }
 
+// La table ne connait que 'absence' et 'retard' (CHECK) : « authorized_absence »
+// etait une entree morte.
 const ABSENCE_TYPE: Record<string, string> = {
-  absence: 'Absence', retard: 'Retard', authorized_absence: 'Abs. autorisée',
+  absence: 'Absence', retard: 'Retard',
 }
 
 const RACCOURCIS = [
@@ -79,7 +82,16 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="Élèves actifs" value={stats.studentsActive} subtitle={`${stats.studentsTotal} au total`} icon={Users} tone="primary" />
         <StatCard title="Enseignants" value={stats.teachersActive} subtitle="actifs" icon={GraduationCap} tone="ardoise" />
-        <StatCard title="Classes" value={stats.classesCount} subtitle={`${stats.enrollmentsActive} inscriptions`} icon={BookOpen} tone="amber" />
+        {/* Élèves et adultes comptés séparément : ils vivent dans deux tables
+            distinctes (`enrollments` / `parent_class_enrollments`) et le
+            sous-titre n'en montrait qu'une. */}
+        <StatCard
+          title="Classes"
+          value={stats.classesCount}
+          subtitle={`${stats.enrollmentsStudents} élève${stats.enrollmentsStudents > 1 ? 's' : ''} · ${stats.enrollmentsAdults} adulte${stats.enrollmentsAdults > 1 ? 's' : ''}`}
+          icon={BookOpen}
+          tone="amber"
+        />
         <StatCard title="Absences ce mois" value={stats.absencesThisMonth} subtitle={`${stats.absencesUnjustified} non justifiées`} icon={AlertTriangle} tone="orange" />
       </div>
 
@@ -131,7 +143,11 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
         <section className="card p-3">
           <h3 className="stat-label mb-2">À traiter</h3>
           <div className="space-y-1.5">
-            <TodoRow href="/dashboard/financements/reglements" label="Familles avec impayé" count={stats.todo.debtorFamilies} tone="orange" />
+            {/* Libellé aligné sur ce qui est réellement compté : les familles
+                au statut « en attente », c'est-à-dire sans aucun versement.
+                « Avec impayé » englobait aussi les paiements échelonnés en
+                cours, qui ne demandent aucune action. */}
+            <TodoRow href="/dashboard/financements/reglements" label="Familles sans aucun paiement" count={stats.todo.debtorFamilies} tone="orange" />
             <TodoRow href="/dashboard/absences" label="Absences non justifiées" count={stats.todo.unjustifiedAbsences} tone="red" />
             <TodoRow href="/dashboard/notifications" label="Notifications non lues" count={stats.todo.unreadNotifs} tone="primary" />
           </div>
@@ -145,7 +161,10 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
           {stats.classCapacity.length === 0 ? (
             <p className="text-xs text-warm-700 italic py-4 text-center">Aucune classe.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+            /* 3 colonnes et hauteur PLAFONNÉE (`.list-scroll`) : à 15 classes
+               la carte dépassait 250 px et imposait sa hauteur au graphique
+               d'en face, qui se retrouvait avec du vide sous lui. */
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 max-h-[168px] overflow-y-auto list-scroll pr-1">
               {stats.classCapacity.map(c => {
                 const pct = c.max > 0 ? Math.round((c.enrolled / c.max) * 100) : 0
                 return (

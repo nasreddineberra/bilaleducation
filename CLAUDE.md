@@ -1518,11 +1518,100 @@ Surtout, le tiers ne prend pas de la place a du vide mais **au champ de saisie**
 \+ 96 px de marges : un tiers de 1440 px laisse exactement 384 px (zero respiration), un tiers de 1280 px n'en
 laisse que 330 (la carte passe sous sa largeur naturelle).
 
+#### 4 aout 2026 — Audit complet du TABLEAU DE BORD (6 profils) + corrections
+
+Demande utilisateur : « il y a des erreurs de donnees d'affichage, controle complet + rapport ».
+Audit lecture seule des 6 tableaux de bord, **verifie en base** par scripts service-role jetables
+(supprimes), puis correction des 6 profils apres accord.
+
+**P1 — erreurs visibles**
+- **Carte « Classes » figee a « 0 inscriptions »** : `getCachedAdminStats` filtrait `enrollments` sur
+  **`etablissement_id`, colonne qui n'existe pas** sur cette table. PostgREST ne remonte pas d'erreur
+  exploitable, `count` vaut `null`, et le `?? 0` transformait l'echec en zero affiche. **10 inscriptions
+  actives en base.** Le cloisonnement est indispensable (ce cache tourne en **service-role, donc sans
+  RLS**) : il passe desormais par **`classes!inner`**, qui porte `etablissement_id` ET `academic_year`
+  → la requete gagne au passage un bornage a l'annee qu'elle n'avait pas.
+  **Regle** : dans une fonction `unstable_cache` (service-role), toute requete doit porter son propre
+  cloisonnement — colonne `etablissement_id` ou jointure `!inner` vers une table qui la porte.
+- **Eleves et adultes distingues** (demande utilisateur) : sous-titre « N eleves · N adultes ».
+  Les adultes vivent dans `parent_class_enrollments` et n'apparaissaient **nulle part**.
+- **« Absences non justifiees » comptait depuis TOUJOURS, retards inclus** — affiche en sous-titre de
+  « Absences ce mois » (0) et dans « A traiter ». Le sous-titre contredisait le titre. Desormais :
+  sous-titre **borne au meme mois**, « A traiter » borne a l'**annee en cours** (un pense-bete ne
+  s'efface pas au changement de mois). **Retards exclus** des deux (la table ne connait que
+  `absence`/`retard`, la carte s'intitule « Absences », la liste et la courbe les excluaient deja).
+- **Fenetres assumees et differentes** (choix utilisateur) : carte = **mois calendaire**,
+  courbe = **30 jours glissants**.
+- **Annee scolaire en cache 24 h JAMAIS invalidee** : le tag `school-year` n'etait appele nulle part —
+  et ne pouvait pas l'etre, l'annee etant ecrite depuis un composant **CLIENT** (`SchoolYearForm`), ou
+  aucun `updateTag` ne s'accroche. Apres un changement d'annee, tout le tableau de bord (periodes,
+  calcul financier, compteurs d'evaluations/bulletins) travaillait 24 h sur l'ancienne.
+  **Cache SUPPRIME** (requete d'UNE ligne : le cache n'economisait rien et coutait une journee de
+  chiffres faux). **Benefice second** : hors `unstable_cache`, on peut utiliser le client **SESSION**,
+  donc la RLS cloisonne l'etablissement — ce que la version service-role sans filtre ne faisait pas.
+  `getCachedCurrentYear` → **`getCurrentYear`**, renvoie aussi `start_date`/`end_date` → les 2 requetes
+  `school_years` de rappel (admin + comptable) supprimees.
+- **Bandeau « N notifications non lues » avec liste vide** : le compteur etait filtre, la liste prenait
+  les **3 plus recentes toutes confondues** puis le composant ecartait les lues. Filtre `is_read`
+  porte **dans la requete**. \+ cas **parent** (meme classe de bug) : ses notifications vivent dans
+  `announcement_recipients` (cle `parent_id`), table que la liste n'interrogeait jamais alors que le
+  compteur les additionnait → les 2 sources sont fusionnees, triees, et le lien porte le bon `rt=`.
+
+**P2 — perimetres faux (latents : 3 classes, toutes de l'annee en cours, 0 radie)**
+- **Effectifs par classe** : `enrollments(count)` etait faux DEUX fois — il ignorait le **statut** (un
+  radie restait dans l'effectif) et ne connaissait que les eleves (**classe ADULTE affichee 0/20**).
+  Remplace par un comptage explicite sur les 2 tables, `status = 'active'`, borne a l'annee.
+  **Regle** : ne jamais utiliser l'agregat imbrique `table(count)` quand un statut ou un type doit
+  filtrer — il compte TOUTES les lignes liees.
+- **Enseignant** : memes corrections d'effectif, \+ classes bornees a l'annee via `classes!inner`
+  (une affectation ancienne restee ouverte, `effective_until` nul, ramenait une classe de l'an passe).
+- **Pedagogique** : « Classes » comptait toutes les annees alors que ses 2 cartes voisines etaient
+  bornees — a la rentree suivante elle aurait double.
+- **Secretaire** : « Inscriptions ce mois » construisait sa borne avec `toISOString()`.
+- **Bornes de date** : `new Date(y, m, 1).toISOString()` produit `2026-07-31T22:00:00Z` pour « debut
+  aout » (UTC+2) — sans consequence en UTC/UTC+2 mais le 1er du mois disparait sur un fuseau **negatif**.
+  Toutes les bornes passent en **composantes locales**, \+ **borne haute** (une saisie datee dans le
+  futur comptait pour « ce mois »).
+- Cache des statistiques 5 min → **1 min** (le tag `dashboard-stats` n'est invalide nulle part non plus,
+  meme cause : ecritures depuis des composants clients).
+
+**P3**
+- **Tableau de bord PARENT — filtre ignore** : `.eq('students.parent_id', …)` **sans `!inner`** est
+  **ignore par PostgREST**. Mesure avant correction : **12 notes renvoyees au lieu de 3**, soit les
+  notes des enfants d'AUTRES familles. Idem absences. `!inner` ajoute.
+  NB : toutes les policies parent sont **commentees** dans `policies.sql` (comptes dormants en V1), donc
+  la RLS bloquait sans doute deja — mais on ne s'appuie pas sur la RLS pour rattraper une requete fausse.
+  **Regle** : un filtre sur ressource imbriquee EXIGE `!inner`.
+- `authorized_absence` retire des 2 tables de libelles : la contrainte n'autorise que `absence`/`retard`.
+- Requetes mortes supprimees du cache (`parentsCount`, `announcementsMonth` n'etaient lues nulle part).
+- **Ergonomie** « Effectifs par classe » : **3 colonnes** \+ hauteur plafonnee (`.list-scroll`) — a 15
+  classes la carte depassait 250 px et imposait sa hauteur au graphique d'en face, qui se retrouvait
+  avec du vide sous lui.
+
+**« A traiter » — definition revue (demande utilisateur)** : la ligne comptait toutes les familles avec
+`remaining > 0`, donc aussi celles qui echelonnent normalement leurs paiements et n'appellent aucune
+action. Elle compte desormais les familles au statut **`pending`** (aucun versement, cf. `feeStatus`),
+et le libelle passe de « Familles avec impaye » a **« Familles sans aucun paiement »** — un compteur
+doit dire ce qu'il compte. **Propage au COMPTABLE** (profil le plus concerne, qui n'affichait pas du
+tout l'information) : la carte « Reste a encaisser » gagne le sous-titre « N familles sans aucun
+paiement ». Le « Top familles debitrices » garde `remaining > 0` : un classement par montant du doit
+inclure les paiements partiels.
+
+**Non traite** : `getCachedEtablissement` fait toujours un `.single()` sans filtre d'etablissement
+(sans effet a 1 etablissement, leverait avec un second). Chantier multi-tenant a part.
+
+**Verifie a l'ecran** : profil admin (retour utilisateur). Les 5 autres profils demandent un compte
+de chaque role.
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
 - **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
   ils utilisent encore le motif client-only avec `ilike`. `norm_name()` (SQL) et `normalize-name.ts` sont prets.
+- **Multi-etablissement — passe globale a faire** (decide le 4 aout) : l'app est multi-tenant mais
+  plusieurs points supposent un etablissement unique — `getCachedEtablissement` (`.single()` sans
+  filtre), et plus generalement toute requete en **service-role** qui ne porte pas son propre
+  cloisonnement (la RLS ne la protege pas). A auditer dans TOUTE l'app.
 - **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,

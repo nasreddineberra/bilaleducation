@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+import { APP_VERSION } from '@/lib/app-version'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Phone, ShieldCheck } from 'lucide-react'
@@ -113,7 +115,7 @@ export default function EnrollPhonePage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center py-12 px-4"
+      className="relative min-h-screen flex items-center justify-center px-4 pt-12 pb-24"
       style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
     >
       {/* Cercles décoratifs */}
@@ -292,6 +294,21 @@ export default function EnrollPhonePage() {
           )}
 
         </div>
+
+      </div>
+
+      {/* Marque du PRODUIT, ancree en BAS DE PAGE et non sous la carte : elle
+          reste au meme endroit quelle que soit la hauteur du contenu. Le haut
+          de page appartient a l'ÉTABLISSEMENT (son logo, son nom), c'est chez
+          lui que l'utilisateur entre ; l'application se signe en bas. */}
+      <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5 px-4">
+        <Image src="/icon.png" alt="" width={22} height={22} unoptimized className="opacity-80 flex-shrink-0" />
+        <span className="text-white/60 text-xs">
+          &copy; Bilal Education &middot; Gestion administrative &amp; pédagogique &middot;
+        </span>
+        <span className="text-white/50 text-[11px] font-mono bg-white/10 px-1.5 py-0.5 rounded leading-none">
+          {APP_VERSION}
+        </span>
       </div>
     </div>
   )
