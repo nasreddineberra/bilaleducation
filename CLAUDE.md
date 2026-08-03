@@ -1325,8 +1325,8 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
   par defaut). Applique aux **arbres du referentiel** (Gabarits + Saisie notes), a l'**encadre Evaluations**
   (ou les codes UE/module/cours etaient rendus de **3 façons differentes**) et a l'**en-tete de saisie**.
   Colonne « Referentiel des cours » elargie de 50 % (`w-72` → `w-[27rem]`).
-- **Page de test `src/app/test-polices/`** : comparaison de 5 polices arabes dans les 2 themes.
-  **TEMPORAIRE — a supprimer.**
+- Page de test `src/app/test-polices/` (comparaison de 5 polices arabes) : creee puis **supprimee**
+  le 3 aout apres validation de Noto Sans Arabic.
 
 #### 3 aout 2026 (suite) — Fin de la section Parametres + doublons + suppression de comptes + bulletin bilingue
 
@@ -1453,13 +1453,77 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
   `unoptimized` (servi par la convention de metadonnees, pas depuis `/public`) et legerement attenue : c'est
   un element d'identite, il ne doit pas concurrencer la pastille de menu actif.
 
+#### 3 aout 2026 (fin, suite) — Refonte de l'ecran de connexion
+
+Point de depart : la page plaisait, l'utilisateur a demande « est-ce qu'on ne pourrait pas faire encore
+mieux ? ». Trois axes proposes, traites dans l'ordre 1 → 3 → 2.
+
+**Axe 1 — ergonomie du formulaire** (`login/page.tsx`)
+- **Focus initial** sur le champ email (`autoFocus`) : on tape sans toucher la souris.
+- **Verr. Maj** detecte (`getModifierState('CapsLock')` sur keyDown/keyUp, remis a zero au blur) et signale
+  sous le champ. C'est la cause n°1 des echecs de connexion, et **la seule que l'utilisateur ne peut pas voir**
+  puisque le champ est masque.
+- **Bouton actif meme a vide** : `disabled={loading}` seul, la validation se fait dans `handleSubmit` avec un
+  message qui NOMME ce qui manque. Un bouton grise n'explique rien.
+- **Porte de sortie** sous les erreurs : « Contactez l'administration de votre etablissement. » Mention
+  **generique, sans adresse** — la page est publique, une adresse y serait offerte aux robots. La route
+  `api/public/etablissement` n'expose donc toujours que le nom et le logo (commentaire ajoute pour que
+  personne n'y ajoute le contact par commodite).
+
+**Axe 3 — couleurs** : `#f0f5f7` (n'appartenait a aucune palette du projet) et `#0c5b51 → #063a33` (recopie
+de `--brand-surface` / `--brand-surface-2`) remplaces par les **tokens**. Une teinte de marque qui evolue doit
+entrainer cette page avec elle (piege deja paye sur l'EDT).
+
+**Axe 2 — identite du panneau de gauche**, prototype sur une page locale `src/app/test-login/` (3 variantes,
+5 fonds, champs inertes) **a la demande de l'utilisateur** : ne rien toucher a la vraie page avant arbitrage.
+Page **supprimee** apres le choix.
+- **Fond : degrade SEUL.** Les 3 cercles blancs a 4 % etaient invisibles sur la plupart des ecrans et
+  cassaient le degrade sur les autres. Motif geometrique (entrelacs a 8 branches) et logo en filigrane
+  proposes puis ecartes.
+- **`IllustrationB` supprimee** (75 lignes de SVG) : plus rien ne l'appelait. Les **points de pagination**
+  partent avec elle — ils suggeraient un carrousel pilotable, ce que l'utilisateur a explicitement refuse
+  (« je ne veux pas de carroussel mais un defilement automatique »).
+- **Bloc de marque** : le logo seul ne NOMME pas l'application → `icon.png` 104 px + **BILAL EDUCATION** sur
+  2 lignes a cote, 40 px, gras, `leading-[0.95]`. Les 2 lignes sont **strictement identiques** (meme corps,
+  meme graisse, meme interlettrage) ; la difference percue vient de la longueur des mots, pas du corps.
+- **Slogan defilant** (`SloganDefilant`) : 4 citations, rotation **15 s**, traversee horizontale de 1,2 s.
+  Distance **MESUREE** (`ResizeObserver`) et jamais ecrite en dur — une valeur fixe traverserait tout un petit
+  ecran et a peine un grand. **Trois phases** (`in`/`out`/**`pre`**) : entre la sortie et l'entree il faut
+  repositionner le texte a droite **sans transition**, sinon il traverse l'ecran a l'envers ; d'ou `pre`,
+  appliquee sur **deux `requestAnimationFrame`**. Opacite 1 / 0 / **0,15** a l'entree (a 0 le texte
+  apparaitrait d'un coup au bord droit). Hauteur reservee + `overflow-hidden` (sinon le bloc sautille).
+
+**Onde de lumiere sur le nom** — classe **`.nom-vague`** (`globals.css`), plusieurs iterations :
+- Remplissage = **les 2 teintes du panneau en sens inverse** (fond 145°, nom 325°), decoupe aux lettres via
+  `bg-clip-text` + `text-transparent`. **C'est la POSITION du degrade qui est animee, jamais ses couleurs.**
+- **Piege 1 — un degrade peint dans les couleurs du fond ne se percoit pas** : il n'a rien contre quoi se
+  reveler. C'est la vague qui rend le lettrage lisible, pas le degrade de base.
+- **Piege 2 — couture VERTICALE** (reperee par l'utilisateur : « j'ai l'impression qu'il y a deux effets ») :
+  un motif **repete** horizontalement, avec un degrade **oblique**, n'a pas la meme couleur aux deux bords a
+  une hauteur donnee → la jointure defile comme un second effet. Correctif : `background-repeat: no-repeat`
+  \+ motif **400 %** positionne en pourcentage → il couvre le bloc en permanence, plus de bord a raccorder.
+- **Boucle invisible** : les 2 **extremites du motif sont unies** (surface pleine sur 0-30 % et 70-100 %),
+  donc au raccord les deux bouts affichent la meme teinte. Corollaire : **plus on etale les couleurs, plus le
+  motif doit etre grand** (les zones unies doivent rester plus larges que la fenetre visible).
+- **Allure LINEAIRE** : un `ease-in-out` ferait ralentir la vague en bout de course et trahirait la boucle.
+- **Sens percu = INVERSE du sens de la position** : pour une vague **descendante**, la position doit
+  **remonter** (`from 100% 100%` → `to 0% 0%`).
+- Cycle **5 s**, coupe par `prefers-reduced-motion` (meme regle que la sidebar).
+- **Piege d'ecriture** : des **accents graves** dans un commentaire CSS ferment le gabarit de chaine JS qui
+  porte la feuille de style (erreur TS1005). Pas d'accent grave dans un CSS ecrit en template literal.
+
+**Proportions : 50/50 conservees.** Le 2/3 marque / 1/3 formulaire vu sur d'autres sites appartient aux
+produits **en acquisition** (la page sert de vitrine a un prospect). Ici l'outil est interne : rien a vendre.
+Surtout, le tiers ne prend pas de la place a du vide mais **au champ de saisie** — carte `max-w-sm` (384 px)
+\+ 96 px de marges : un tiers de 1440 px laisse exactement 384 px (zero respiration), un tiers de 1280 px n'en
+laisse que 330 (la carte passe sous sa largeur naturelle).
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
 - **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
   ils utilisent encore le motif client-only avec `ilike`. `norm_name()` (SQL) et `normalize-name.ts` sont prets.
-- **Supprimer `src/app/test-polices/`** (page de comparaison des polices arabes) une fois Noto Sans Arabic confirmee.
-- **Choix de police LATINE** : reste a faire (la page de test ne couvre que l'arabe).
+- **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
   puis **reset table par table** pour repartir sur une nouvelle annee — objectif : garder la **BDD la plus

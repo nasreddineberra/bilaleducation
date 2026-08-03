@@ -1142,3 +1142,55 @@
    obtient du clair sur clair. Idem pour les pistes `bg-warm-300`. */
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-secondary-100 { background-color: var(--line-strong); }
 :root[data-theme="dark"] :is(#main-content, [role="dialog"]) .bg-warm-300      { background-color: var(--line-strong); }
+
+
+/* ── Nom de marque de l'écran de connexion ─────────────────────────────────
+   Onde de lumière balayant « BILAL EDUCATION » sur le panneau de gauche.
+
+   Le remplissage reprend les DEUX teintes du panneau (--brand-surface et
+   --brand-surface-2) mais en sens inverse : le fond descend en 145°, le nom
+   remonte en 325°. On y insère une bande claire, et c'est la POSITION du
+   dégradé qui est animée, jamais ses couleurs.
+
+   Le texte doit porter `bg-clip-text text-transparent` : le dégradé est peint
+   dans le bloc puis découpé à la forme des lettres. */
+.nom-vague {
+  /* Les deux EXTRÉMITÉS sont unies (surface pleine sur 0-30 % et 70-100 %) :
+     la bande claire n'occupe que le centre du motif. C'est ce qui rend le
+     retour en boucle invisible — au raccord, les deux bouts affichent
+     exactement la même teinte unie. */
+  background-image: linear-gradient(
+    325deg,
+    var(--brand-surface) 0%,
+    var(--brand-surface) 30%,
+    var(--brand-surface-2) 40%,
+    rgba(255, 255, 255, 0.95) 50%,
+    var(--brand-surface-2) 60%,
+    var(--brand-surface) 70%,
+    var(--brand-surface) 100%
+  );
+  /* AUCUNE répétition. Un motif répété produisait une couture VERTICALE : le
+     dégradé étant oblique, ses deux bords n'ont pas la même couleur à une
+     hauteur donnée. Agrandi (400 %) et positionné en pourcentage, le motif
+     couvre le bloc en permanence — il n'y a plus de bord à raccorder. Cette
+     taille laisse aussi la place d'étaler les couleurs sur 40 % de la course
+     tout en gardant des zones unies assez larges aux extrémités. */
+  background-size: 400% 400%;
+  background-repeat: no-repeat;
+  /* Allure LINÉAIRE : un ease-in-out ferait ralentir la vague à chaque bout de
+     course, ce qui trahirait la boucle. */
+  animation: nom-vague-balayage 5s linear infinite;
+}
+
+/* Déplacement en DIAGONALE, dans l'axe du dégradé. Sens DESCENDANT : la fenêtre
+   visible remonte le motif, donc le motif — et la bande claire avec lui —
+   descend à l'écran. Le sens perçu est l'INVERSE du sens de la position. */
+@keyframes nom-vague-balayage {
+  from { background-position: 100% 100%; }
+  to   { background-position: 0% 0%; }
+}
+
+/* Une animation décorative doit pouvoir être coupée : même règle que la sidebar. */
+@media (prefers-reduced-motion: reduce) {
+  .nom-vague { animation: none; }
+}
