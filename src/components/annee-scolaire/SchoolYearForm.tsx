@@ -740,7 +740,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               type="button"
                               onClick={() => removeDiagnosticOption(i)}
                               aria-label={`Supprimer l'option ${opt.acronym || i + 1}`}
-                              className="p-1 text-warm-700 hover:text-danger-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+                              className="p-1 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                             >
                               <X size={13} />
                             </button>

@@ -656,7 +656,12 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
           {/* Backdrop non-cliquable */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Fiche du frère ou de la sœur"
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col"
+          >
 
             {/* En-tête */}
             <div className="px-6 py-4 border-b border-warm-100 flex-shrink-0 flex items-start justify-between gap-4">
@@ -947,7 +952,12 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
       {cropSrc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Recadrer la photo"
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+          >
             <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-secondary-800">Recadrer la photo</h3>
               <button
@@ -1005,7 +1015,12 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
       {showWebcam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Capture webcam"
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+          >
             <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
               <h3 className="text-sm font-bold text-secondary-800">Capture webcam</h3>
               <button

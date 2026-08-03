@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import TeachersClient from '@/components/teachers/TeachersClient'
+import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 
 export const metadata: Metadata = {
   title: 'Enseignants',
@@ -45,9 +46,48 @@ export default async function TeachersPage({
     supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('is_active', true),
   ])
 
+  // ── Classe actuelle : affectations de l'ANNEE EN COURS, actives AUJOURD'HUI.
+  // L'infobulle reprend le helper partage avec un enseignant vide : inutile de
+  // repeter le nom du prof sur sa propre ligne.
+  const teacherIds = (teachers ?? []).map(t => t.id)
+  const classesByTeacher: Record<string, { name: string; info: string; isSubstitute: boolean }[]> = {}
+
+  if (teacherIds.length > 0) {
+    const { data: year } = await supabase
+      .from('school_years')
+      .select('label')
+      .eq('is_current', true)
+      .maybeSingle()
+
+    if (year?.label) {
+      const { data: assignments } = await supabase
+        .from('class_teachers')
+        .select('teacher_id, is_main_teacher, effective_from, effective_until, classes!inner(name, level, day_of_week, start_time, end_time, academic_year, cotisation_types(label))')
+        .in('teacher_id', teacherIds)
+        .eq('classes.academic_year', year.label)
+
+      const d = new Date()
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+      for (const a of (assignments ?? []) as any[]) {
+        // Affectation cloturee ou pas encore commencee : la classe n'est pas « actuelle ».
+        if (a.effective_from && a.effective_from > today) continue
+        if (a.effective_until && a.effective_until < today) continue
+        const c = a.classes
+        if (!c) continue
+        ;(classesByTeacher[a.teacher_id] ??= []).push({
+          name: c.name,
+          info: classInfoWithTeacher(c, ''),
+          isSubstitute: !a.is_main_teacher,
+        })
+      }
+    }
+  }
+
   return (
     <TeachersClient
       teachers={teachers ?? []}
+      classesByTeacher={classesByTeacher}
       filteredCount={filteredCount ?? 0}
       page={page}
       q={q}

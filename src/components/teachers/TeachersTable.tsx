@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { clsx } from 'clsx'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
@@ -12,6 +13,7 @@ import type { Teacher } from '@/types/database'
 
 interface TeachersTableProps {
   teachers: Teacher[]
+  classesByTeacher?: Record<string, { name: string; info: string; isSubstitute: boolean }[]>
 }
 
 interface DeleteDeps {
@@ -21,7 +23,7 @@ interface DeleteDeps {
   grades:      number
 }
 
-export default function TeachersTable({ teachers }: TeachersTableProps) {
+export default function TeachersTable({ teachers, classesByTeacher }: TeachersTableProps) {
   const router = useRouter()
   const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null)
   const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
@@ -110,6 +112,9 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
               <th className="text-left list-th w-40">
                 N° emp.
               </th>
+              <th className="text-left list-th">
+                Classe actuelle
+              </th>
               <th className="text-left list-th hidden md:table-cell">
                 Email
               </th>
@@ -152,6 +157,36 @@ export default function TeachersTable({ teachers }: TeachersTableProps) {
                 {/* N° employé */}
                 <td className="list-td">
                   <span className="font-mono text-xs text-warm-700 whitespace-nowrap">{teacher.employee_number}</span>
+                </td>
+
+                {/* Classe actuelle (annee en cours) */}
+                <td className="list-td">
+                  {(() => {
+                    const rows = classesByTeacher?.[teacher.id] ?? []
+                    if (rows.length === 0) {
+                      return <span className="text-xs text-warm-700">Non affecté</span>
+                    }
+                    return (
+                      <span className="flex flex-wrap items-center gap-1">
+                        {rows.map(c => (
+                          <Tooltip
+                            key={c.name}
+                            content={`${c.name}${c.isSubstitute ? ' · Remplacement' : ''}${c.info ? ' · ' + c.info : ''}`}
+                            maxWidth="max-w-none"
+                          >
+                            <span className={clsx(
+                              'text-xs px-1.5 py-0.5 rounded whitespace-nowrap',
+                              c.isSubstitute
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : 'bg-warm-100 text-secondary-700'
+                            )}>
+                              {c.name}
+                            </span>
+                          </Tooltip>
+                        ))}
+                      </span>
+                    )
+                  })()}
                 </td>
 
                 {/* Email */}

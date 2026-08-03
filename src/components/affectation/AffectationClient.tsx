@@ -92,9 +92,9 @@ function StudentAvatar({ lastName, firstName, gender, size = 'sm' }: {
   // sans marge verticale, sinon une barre de défilement apparaît.
   const dim = size === 'sm' ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[9px]'
   const ring = gender === 'male'
-    ? 'ring-2 ring-blue-300'
+    ? 'ring-2 ring-blue-500'
     : gender === 'female'
-      ? 'ring-2 ring-pink-300'
+      ? 'ring-2 ring-pink-500'
       : 'ring-1 ring-warm-200'
   return (
     <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 select-none rounded-full bg-warm-100 text-warm-700 ${dim} ${ring}`}>

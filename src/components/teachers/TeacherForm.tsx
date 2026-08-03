@@ -8,6 +8,7 @@ import { createTeacherWithAccount, updateTeacher } from '@/app/dashboard/teacher
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import { sameName } from '@/lib/normalize-name'
 import type { Teacher } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,9 +41,6 @@ const toTitleCase = (v: string) =>
   v.split(' ').map(w => w.length > 0 ? w[0].toUpperCase() + w.slice(1) : '').join(' ')
 const clean = (v: string): string | null => v.trim() || null
 const today = new Date().toISOString().split('T')[0]
-const normalizeNom = (s: string) =>
-  s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())
 
 // ─── Composant principal ──────────────────────────────────────────────────────
@@ -114,17 +112,15 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
     setIsSubmitting(true)
     try {
-      // Vérification doublon nom + prénom (insensible casse et accents)
+      // Doublon sur le COUPLE nom + prénom, insensible à la casse ET aux accents.
+      // Pas de filtre SQL : `ilike` ignore la casse mais pas les accents, donc
+      // « BÉRRA » n'était même pas rapatrié pour être comparé à « BERRA ».
+      // La RLS borne déjà la requête à l'établissement.
       const supabase = createClient()
-      const { data: sameLastName } = await supabase
+      const { data: existing } = await supabase
         .from('teachers')
         .select('id, last_name, first_name')
-        .ilike('last_name', form.last_name.trim())
-      const normFirst = normalizeNom(form.first_name)
-      const duplicate = sameLastName?.find(t =>
-        t.id !== teacher?.id &&
-        normalizeNom(t.first_name) === normFirst
-      )
+      const duplicate = existing?.find(t => t.id !== teacher?.id && sameName(t, form))
       if (duplicate) {
         toast.error(`Un enseignant "${duplicate.last_name} ${duplicate.first_name}" existe déjà.`)
         setIsSubmitting(false)

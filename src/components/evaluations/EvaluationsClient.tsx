@@ -910,10 +910,16 @@ export default function EvaluationsClient({
                             <span> /{ev.max_score}</span>
                           )}
                         </span>
-                        <span className="text-xs text-warm-700 flex-shrink-0 font-mono">×{ev.coefficient}</span>
+                        {/* Le coefficient ne vaut que pour une évaluation NOTÉE :
+                            une diagnostique ne se pondère pas. */}
+                        {ev.eval_kind === 'scored' && (
+                          <span className="text-xs text-warm-700 flex-shrink-0 font-mono">×{ev.coefficient}</span>
+                        )}
                         {ev.evaluation_date && (
                           <span className="text-xs text-warm-700 flex-shrink-0 font-mono">
-                            {new Date(ev.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                            {/* T00:00 : sans lui, `new Date('2026-08-03')` est lu en UTC
+                                et peut afficher la veille selon le fuseau. */}
+                            {new Date(ev.evaluation_date + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </span>
                         )}
                         {isDeleting ? (
@@ -951,7 +957,7 @@ export default function EvaluationsClient({
                               <button
                                 onClick={() => { setConfirmDelete(ev.id); setAdding(null); setEditing(null) }}
                 aria-label="Supprimer l'évaluation"
-                                className="p-1 text-warm-700 hover:text-danger-500 rounded transition-colors"
+                                className="p-1 text-warm-700 hover:text-red-500 rounded transition-colors"
                               >
                                 <Trash2 size={12} />
                               </button>

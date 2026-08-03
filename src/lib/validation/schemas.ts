@@ -25,6 +25,7 @@ export const UpdateProfileSchema = z.object({
   last_name: z.string().min(2, 'Nom trop court'),
   phone: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  is_active: z.boolean().optional(),   // absent = statut inchange
 })
 
 // ─── Enseignants ────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import Image from 'next/image'
@@ -257,15 +258,12 @@ function LogoField({
     setCropSrc(null)
   }
 
-  // Modale recadrage : focus + fermeture Échap
+  // Modale recadrage : focus initial seulement. Ni Échap ni clic sur le fond —
+  // le recadrage en cours (zoom, cadrage) serait perdu sur un geste réflexe.
   useEffect(() => {
     if (!cropSrc) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !isUploading) closeCrop() }
-    document.addEventListener('keydown', onKey)
     dialogRef.current?.focus()
-    return () => document.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropSrc, isUploading])
+  }, [cropSrc])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -320,8 +318,13 @@ function LogoField({
 
   return (
     <div className="flex flex-col items-center gap-2 flex-shrink-0">
-      {/* Aperçu 160×160 */}
-      <div className="w-40 h-40 rounded-xl border border-warm-200 bg-white flex items-center justify-center overflow-hidden">
+      {/* Aperçu 160×160.
+          Plaque CLAIRE volontaire dans les deux thèmes : un logo est dessiné pour
+          un fond blanc (c'est ainsi qu'il sort sur les PDF — bulletins,
+          attestations). Sur la carte sombre, ses encres foncées deviendraient
+          illisibles. D'où un blanc EN DUR, non remappé par le pont, et une
+          bordure de thème pour le raccorder à la carte. */}
+      <div className="w-40 h-40 rounded-xl border border-warm-200 bg-[#ffffff] flex items-center justify-center overflow-hidden">
         {logoUrl
           ? <Image src={logoUrl} alt="Logo de l'établissement" width={160} height={160} className="w-full h-full object-contain p-2" unoptimized />
           : <span className="text-xs text-warm-700 text-center px-2">Aucun logo</span>
@@ -373,10 +376,10 @@ function LogoField({
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
       {/* Modale recadrage */}
-      {cropSrc && (
+      {cropSrc && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={() => !isUploading && closeCrop()}
+
         >
           <div className="absolute inset-0 bg-black/60" />
           <div
@@ -433,6 +436,8 @@ function LogoField({
             </div>
           </div>
         </div>
+        ,
+        document.body
       )}
     </div>
   )

@@ -11,6 +11,7 @@ import type { TeacherDocument } from '@/types/database'
 
 const CATEGORIES = [
   { key: 'contrat',  label: 'Contrat' },
+  { key: 'cv',       label: 'CV' },
   { key: 'diplome',  label: 'Diplôme' },
   { key: 'identite', label: "Pièce d'identité" },
   { key: 'autre',    label: 'Autre' },
@@ -55,7 +56,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
   const [error, setError]         = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  // Tri : ordre des catégories (Contrat → Diplôme → Identité → Autre) puis date desc
+  // Tri : ordre des catégories (Contrat → CV → Diplôme → Identité → Autre) puis date desc
   const sortedDocs = useMemo(() => {
     const order = new Map<string, number>(CATEGORIES.map((c, i) => [c.key, i]))
     return [...documents].sort((a, b) => {
@@ -140,10 +141,12 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
   }
 
   return (
-    <div className="space-y-4">
+    // w-fit sur le conteneur + w-full sur les encadres : les deux prennent
+    // la meme largeur, celle du plus large des contenus, sans valeur en dur.
+    <div className="space-y-4 w-fit">
 
       {/* ── Formulaire d'ajout ── */}
-      <div className="card p-3 space-y-3 max-w-5xl">
+      <div className="card p-3 space-y-3 w-full">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Ajouter un document</h2>
 
         <div className="flex flex-wrap items-end gap-2">
@@ -177,7 +180,19 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
             />
           </div>
 
-          <label className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-secondary-700 bg-warm-100 hover:bg-warm-200 rounded-lg cursor-pointer transition-colors">
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div>
+            <p className="text-xs text-warm-700">
+              <span className="font-semibold text-red-400">*</span> champs obligatoires
+            </p>
+            <p className="text-[11px] text-warm-700">Formats acceptés : PDF, image… · 1 Mo maximum.</p>
+          </div>
+
+          <label className="ml-auto flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-secondary-700 bg-warm-100 hover:bg-warm-200 rounded-lg cursor-pointer transition-colors">
             <Paperclip size={13} />
             {file ? <span className="max-w-[160px] truncate">{file.name}</span> : 'Choisir un fichier'}
             <input
@@ -192,20 +207,16 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
             {saving ? 'Ajout…' : 'Ajouter'}
           </FloatButton>
         </div>
-
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <p className="text-[11px] text-warm-700">Formats acceptés : PDF, image… · 1 Mo maximum.</p>
-        <p className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</p>
       </div>
 
       {/* ── Tableau (trié par catégorie) ── */}
       {documents.length === 0 ? (
-        <div className="card py-12 text-center max-w-3xl">
+        <div className="card py-12 text-center w-full">
           <FileText size={32} className="text-warm-700 mx-auto" />
           <p className="text-sm text-warm-700 mt-2">Aucun document pour le moment.</p>
         </div>
       ) : (
-        <div className="card p-0 overflow-hidden max-w-4xl">
+        <div className="card p-0 overflow-hidden w-full">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-warm-100">

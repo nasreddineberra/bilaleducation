@@ -415,7 +415,12 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
       {previewUrl && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-start pt-8 p-4">
           <div className="absolute inset-0 bg-black/60"  />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Aperçu du document"
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ maxHeight: 'calc(100vh - 4rem)' }}
+          >
             <div className="px-4 py-2.5 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
               <h3 className="text-xs font-bold text-secondary-800">Aperçu du document</h3>
               <button

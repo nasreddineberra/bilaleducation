@@ -805,7 +805,7 @@ export default function TempsPresenceClient({
                                 <button
                                   onClick={() => setDeleteConfirm(e.id)}
                                   aria-label="Supprimer la saisie"
-                                  className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-danger-500/50"
+                                  className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                                 >
                                   <Trash2 size={10} className="text-warm-700" />
                                 </button>

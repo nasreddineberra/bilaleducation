@@ -460,7 +460,7 @@ export default function CotisationsClient({
                   ? 'bg-amber-50 border-amber-200 text-amber-700'
                   : isRatesDirty
                     ? 'bg-blue-50 border-blue-200 text-blue-700'
-                    : 'bg-success-50 border-success-100 text-success-600'
+                    : 'bg-primary-50 border-primary-100 text-primary-600'
               )}
             >
               {!allRatesSaved ? (
@@ -534,7 +534,7 @@ export default function CotisationsClient({
                       }}>
                         {rateSaving ? 'Enregistrement...' : 'Enregistrer'}
                       </FloatButton>
-                      <span role="status" aria-live="polite" className="flex items-center gap-1 text-xs text-success-600">
+                      <span role="status" aria-live="polite" className="flex items-center gap-1 text-xs text-primary-600">
                         {rateSuccess && <><CheckCircle2 size={13} /> {rateSuccess}</>}
                       </span>
                   </div>

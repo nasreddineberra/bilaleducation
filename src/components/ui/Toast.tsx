@@ -6,28 +6,34 @@ import { useToast, type Toast } from '@/lib/toast-context'
 
 // ─── Config par type ──────────────────────────────────────────────────────────
 
+// Le conteneur des toasts vit dans le layout RACINE, hors `#main-content` :
+// le pont de theme ne le couvre pas. D'ou des variantes `dark:` explicites.
+// Semantique inchangee (vert succes / rouge erreur / ambre avertissement /
+// bleu information) ; en sombre, fond profond et texte clair au lieu de
+// l'inverse. Les icones et la barre de progression restent en nuances
+// saturees, lisibles sur les deux fonds.
 const TOAST_CONFIG = {
   success: {
     icon:      CheckCircle2,
-    container: 'bg-green-50 border-green-200 text-green-800',
+    container: 'bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-100',
     iconCls:   'text-green-500',
     bar:       'bg-green-400',
   },
   error: {
     icon:      XCircle,
-    container: 'bg-red-50 border-red-200 text-red-800',
+    container: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-100',
     iconCls:   'text-red-500',
     bar:       'bg-red-400',
   },
   warning: {
     icon:      AlertTriangle,
-    container: 'bg-amber-50 border-amber-200 text-amber-800',
+    container: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-100',
     iconCls:   'text-amber-500',
     bar:       'bg-amber-400',
   },
   info: {
     icon:      Info,
-    container: 'bg-blue-50 border-blue-200 text-blue-800',
+    container: 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-100',
     iconCls:   'text-blue-500',
     bar:       'bg-blue-400',
   },

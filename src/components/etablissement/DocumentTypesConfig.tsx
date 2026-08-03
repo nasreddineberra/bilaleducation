@@ -265,7 +265,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                         onClick={() => handleAdd(cat.key)}
                         disabled={saving || !newLabel.trim()}
                         aria-label="Valider"
-                        className="text-green-600 hover:text-green-800 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-green-500/50"
+                        className="text-primary-600 hover:text-primary-700 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                       >
                         <Check size={14} />
                       </button>

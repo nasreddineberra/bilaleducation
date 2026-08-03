@@ -358,7 +358,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
           {/* Error */}
           {error && (
-            <p role="alert" className="text-xs text-danger-600 bg-danger-50 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
         </div>
 

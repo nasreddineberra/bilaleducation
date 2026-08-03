@@ -105,6 +105,8 @@ export async function updateProfile(id: string, data: {
   last_name:  string
   phone?:     string
   notes?:     string
+  /** Statut du compte, envoye par la fiche (absent = inchange). */
+  is_active?: boolean
 }): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
@@ -117,6 +119,21 @@ export async function updateProfile(id: string, data: {
   // Requiert la policy « Admin and direction can update profiles » (fix-profiles-audit-user.sql).
   const supabase = await createClient()
 
+  // Garde anti lock-out, identique a celle de toggleActive : un compte
+  // structurant ne peut pas etre desactive, meme par un admin ou une direction.
+  // Un ENSEIGNANT non plus : sa fiche synchronise fiche metier ET compte, deux
+  // points d'entree finiraient par diverger.
+  if (data.is_active === false) {
+    const { data: target } = await supabase.from('profiles').select('role').eq('id', id).maybeSingle()
+    if (!target) return { error: 'Utilisateur introuvable.' }
+    if (target.role === 'admin' || target.role === 'super_admin') {
+      return { error: 'Ce compte est structurant : il ne peut pas être désactivé.' }
+    }
+    if (target.role === 'enseignant') {
+      return { error: "Le statut d'un enseignant se modifie depuis sa fiche enseignant." }
+    }
+  }
+
   const { error } = await supabase.from('profiles').update({
     role:       data.role,
     civilite:   data.civilite || null,
@@ -124,6 +141,7 @@ export async function updateProfile(id: string, data: {
     last_name:  data.last_name,
     phone:      data.phone || null,
     notes:      data.notes || null,
+    ...(data.is_active === undefined ? {} : { is_active: data.is_active }),
   }).eq('id', id)
 
   if (error) return { error: 'Erreur lors de la mise à jour.' }
@@ -247,5 +265,105 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
     // non bloquant : la trace ne doit pas faire echouer l'envoi
   }
 
+  return {}
+}
+
+/** Compte les dependances bloquantes d'un profil : paiements, echeances,
+ *  reductions, depenses, recettes / absences relevees, appreciations, bulletins
+ *  archives / heures de presence / fiche parents adossee au compte.
+ *
+ *  Le TYPE de retour est volontairement inline : un fichier `'use server'` ne
+ *  peut exporter que des fonctions async — un `export interface` y provoque un
+ *  500 sur toute modification (piege deja rencontre sur ce module). */
+export async function getUserDeleteDeps(id: string): Promise<{
+  finance: number; scolarite: number; presence: number; rattachement: number
+}> {
+  const supabase = await createClient()
+  const head = { count: 'exact' as const, head: true }
+
+  const [
+    payments, installments, adjustments, expenses, revenues,
+    absences, appreciations, archives,
+    timeEntries,
+    parentsT1, parentsT2,
+  ] = await Promise.all([
+    supabase.from('payments').select('id', head).eq('created_by', id),
+    supabase.from('fee_installments').select('id', head).eq('recorded_by', id),
+    supabase.from('fee_adjustments').select('id', head).eq('recorded_by', id),
+    supabase.from('expenses').select('id', head).eq('created_by', id),
+    supabase.from('other_revenues').select('id', head).eq('created_by', id),
+    supabase.from('absences').select('id', head).eq('recorded_by', id),
+    supabase.from('bulletin_appreciations').select('id', head).eq('updated_by', id),
+    supabase.from('bulletin_archives').select('id', head).eq('archived_by', id),
+    supabase.from('staff_time_entries').select('id', head).eq('profile_id', id),
+    supabase.from('parents').select('id', head).eq('tutor1_user_id', id),
+    supabase.from('parents').select('id', head).eq('tutor2_user_id', id),
+  ])
+
+  const n = (r: { count: number | null }) => r.count ?? 0
+  return {
+    finance:      n(payments) + n(installments) + n(adjustments) + n(expenses) + n(revenues),
+    scolarite:    n(absences) + n(appreciations) + n(archives),
+    presence:     n(timeEntries),
+    rattachement: n(parentsT1) + n(parentsT2),
+  }
+}
+
+/** Supprime definitivement un compte utilisateur (compte auth + profil en cascade).
+ *
+ *  Roles exclus :
+ *    - admin / super_admin : comptes structurants ;
+ *    - enseignant : passe par la liste des enseignants (fiche metier + Storage) ;
+ *    - parent : passe par la fiche parents.
+ *  On refuse aussi la suppression de SON PROPRE compte.
+ */
+export async function deleteUser(id: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()   // client SESSION → l'audit capte l'acteur
+  const admin = createAdminClient()       // suppression du compte auth
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user?.id === id) return { error: 'Vous ne pouvez pas supprimer votre propre compte.' }
+
+  const { data: target } = await supabase
+    .from('profiles')
+    .select('role, first_name, last_name, email')
+    .eq('id', id)
+    .maybeSingle()
+  if (!target) return { error: 'Utilisateur introuvable.' }
+
+  if (target.role === 'admin' || target.role === 'super_admin') {
+    return { error: 'Ce compte est structurant : il ne peut pas être supprimé.' }
+  }
+  if (target.role === 'enseignant') {
+    return { error: 'Un enseignant se supprime depuis la liste des enseignants.' }
+  }
+  if (target.role === 'parent') {
+    return { error: 'Un compte parent se gère depuis la fiche parents.' }
+  }
+
+  // Re-controle serveur : l'ecran a deja compte, mais lui seul ne protege pas
+  // d'une donnee creee entre-temps ni d'un appel hors interface.
+  const deps = await getUserDeleteDeps(id)
+  if (deps.finance + deps.scolarite + deps.presence + deps.rattachement > 0) {
+    return { error: 'Des données sont rattachées à ce compte. Rendez-le inactif plutôt que de le supprimer.' }
+  }
+
+  // Tracer AVANT d'effacer : apres coup, il n'y a plus rien a decrire.
+  await logAudit(supabase, {
+    action:      'DELETE',
+    entityType:  'profiles',
+    entityId:    id,
+    description: `Suppression du compte ${target.last_name} ${target.first_name} (${target.email})`,
+    oldData:     target as Record<string, unknown>,
+  })
+
+  // Le profil part en cascade avec le compte auth (profiles.id → auth.users).
+  const { error: authError } = await admin.auth.admin.deleteUser(id)
+  if (authError) return { error: "Erreur lors de la suppression du compte." }
+
+  revalidatePath('/dashboard/utilisateurs')
   return {}
 }

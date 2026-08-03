@@ -36,12 +36,13 @@ function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
 
 function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firstName: string; gender: string | null | undefined }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
-  // Avatar neutre (gris beige) ; le genre est indiqué par un liseré coloré PÂLE
-  // (les teintes -500 étaient trop saturées dans une liste dense).
+  // Avatar neutre (gris beige) ; le genre est indiqué par un liseré coloré.
+  // Même teinte que le bandeau de la fiche apprenant : les `ring-*` ne sont pas
+  // remappés par le pont de thème, une variante pâle se délavait sur fond sombre.
   const ring = gender === 'male'
-    ? 'ring-2 ring-blue-300'
+    ? 'ring-2 ring-blue-500'
     : gender === 'female'
-      ? 'ring-2 ring-pink-300'
+      ? 'ring-2 ring-pink-500'
       : 'ring-1 ring-warm-200'
   // 24px + liseré : les lignes sont très compactes (.list-td py-[2px]), les
   // avatars se touchaient en 28px.

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -41,11 +42,11 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 const ACTION_CONFIG: Record<AuditAction, { label: string; bg: string; text: string }> = {
-  INSERT: { label: 'Creation',     bg: 'bg-green-100', text: 'text-green-700' },
+  INSERT: { label: 'Création',     bg: 'bg-green-100', text: 'text-green-700' },
   UPDATE: { label: 'Modification', bg: 'bg-blue-100',  text: 'text-blue-700' },
   DELETE: { label: 'Suppression',  bg: 'bg-red-100',   text: 'text-red-700' },
-  LOGIN:  { label: 'Connexion',    bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  LOGOUT: { label: 'Deconnexion',  bg: 'bg-amber-100',   text: 'text-amber-700' },
+  LOGIN:  { label: 'Connexion',    bg: 'bg-secondary-100', text: 'text-secondary-700' },
+  LOGOUT: { label: 'Déconnexion',  bg: 'bg-amber-100',   text: 'text-amber-700' },
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -317,7 +318,7 @@ export default function AuditLogsClient({
       )}
 
       {/* Modale confirmation purge */}
-      {showPurge && (
+      {showPurge && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           
@@ -346,6 +347,8 @@ export default function AuditLogsClient({
             </div>
           </div>
         </div>
+        ,
+        document.body
       )}
 
       {/* Tableau */}

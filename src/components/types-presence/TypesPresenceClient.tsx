@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Pencil, Trash2, X, Check, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { deletePresenceType } from '@/app/dashboard/types-presence/actions'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 
@@ -145,51 +146,17 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
     setSaving(true)
     setError(null)
 
-    // Contrôle : type réellement utilisé dans une saisie de temps de l'année en cours ?
-    // Portée = établissement (RLS) + année en cours (bornes de dates ci-dessous).
-    // Un taux horaire simplement paramétré (mais non utilisé) ne bloque PAS la suppression.
-    const row = rows.find(r => r.id === id)
-    if (row && currentYear.start_date && currentYear.end_date) {
-      const { count } = await supabase
-        .from('staff_time_entries')
-        .select('id', { count: 'exact', head: true })
-        .eq('entry_type', row.code)
-        .gte('entry_date', currentYear.start_date)
-        .lte('entry_date', currentYear.end_date)
-
-      if (count && count > 0) {
-        setError(`Ce type est utilisé dans ${count} saisie(s) de l'année en cours et ne peut pas être supprimé.`)
-        setConfirmDeleteId(null)
-        setSaving(false)
-        return
-      }
-    }
-
-    // Supprimer d'abord le taux horaire éventuel (paramétré mais non utilisé),
-    // sinon la contrainte FK presence_type_rates bloquerait la suppression du type.
-    const { error: rateErr } = await supabase
-      .from('presence_type_rates')
-      .delete()
-      .eq('presence_type_id', id)
-
-    if (rateErr) {
-      setError('Erreur lors de la suppression du taux horaire associé.')
-      setSaving(false)
-      return
-    }
-
-    const { error: err } = await supabase
-      .from('presence_types')
-      .delete()
-      .eq('id', id)
-
+    // Tout le contrôle (type réservé, usage dans les saisies de temps, nettoyage
+    // du taux associé) est fait par la server action : lui seul est hors de portée
+    // d'un appel direct à l'API, et la base porte en plus un trigger de garde.
+    const { error: err } = await deletePresenceType(id)
     if (err) {
-      setError(err.code === '23503'
-        ? 'Ce type est référencé ailleurs et ne peut pas être supprimé.'
-        : err.message)
+      setError(err)
+      setConfirmDeleteId(null)
       setSaving(false)
       return
     }
+
     setRows(rows.filter(r => r.id !== id))
     setConfirmDeleteId(null)
     setSaving(false)
@@ -368,7 +335,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
       </div>
 
       {error && (
-        <div role="alert" aria-live="assertive" className="flex items-center gap-2 text-sm text-danger-700 bg-danger-50 border border-danger-200 rounded-xl px-4 py-2.5">
+        <div role="alert" aria-live="assertive" className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
           <X size={14} className="shrink-0" />
           {error}
         </div>
@@ -423,7 +390,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                     <span className={clsx(
                       'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
                       row.is_active
-                        ? 'bg-success-50 text-success-700'
+                        ? 'bg-primary-50 text-primary-700'
                         : 'bg-warm-100 text-warm-700'
                     )}>
                       {row.is_active ? 'Actif' : 'Inactif'}
@@ -454,7 +421,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                         <button
                           onClick={() => remove(row.id)}
                           disabled={saving}
-                          className="text-xs text-danger-600 hover:text-danger-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+                          className="text-xs text-red-600 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                         >
                           Confirmer
                         </button>
@@ -486,8 +453,8 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             disabled={!!editing}
                             aria-label={`Supprimer ${row.label}`}
                             className={clsx(
-                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger-400/60',
-                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-danger-600 hover:bg-danger-50'
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-400/60',
+                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-600 hover:bg-red-50'
                             )}
                           >
                             <Trash2 size={15} />

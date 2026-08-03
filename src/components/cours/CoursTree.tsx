@@ -257,7 +257,7 @@ function CourseRow({
         <button
           onClick={() => { setConfirmDelete({ kind: 'cours', id: c.id, nom: c.nom_fr }); setDeleteError(null) }}
           aria-label={`Supprimer ${c.nom_fr}`}
-          className="p-1 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60"
+          className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
         >
           <Trash2 size={12} />
         </button>
@@ -334,7 +334,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
               </button>
             </Tooltip>
             <Tooltip content="Supprimer">
-              <button onClick={() => { setConfirmDelete({ kind: 'module', id: mod.id, nom: mod.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${mod.nom_fr}`} className="p-1 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
+              <button onClick={() => { setConfirmDelete({ kind: 'module', id: mod.id, nom: mod.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${mod.nom_fr}`} className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-red-400/60">
                 <Trash2 size={12} />
               </button>
             </Tooltip>
@@ -485,7 +485,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
               </button>
             </Tooltip>
             <Tooltip content="Supprimer">
-              <button onClick={() => { setConfirmDelete({ kind: 'ue', id: ue.id, nom: ue.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${ue.nom_fr}`} className="p-0.5 text-warm-700 hover:text-danger-500 hover:bg-danger-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-danger-400/60">
+              <button onClick={() => { setConfirmDelete({ kind: 'ue', id: ue.id, nom: ue.nom_fr }); setDeleteError(null) }} aria-label={`Supprimer ${ue.nom_fr}`} className="p-0.5 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-red-400/60">
                 <Trash2 size={12} />
               </button>
             </Tooltip>

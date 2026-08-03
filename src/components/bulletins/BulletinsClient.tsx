@@ -102,6 +102,7 @@ const DAYS: Record<string, string> = {
 
 export type BulletinCoursLine = {
   coursName: string
+  coursNameAr: string | null
   evalKind: string | null
   score: number | null      // note de l'élève (scored)
   maxScore: number | null
@@ -114,7 +115,9 @@ export type BulletinCoursLine = {
 
 export type BulletinUEBlock = {
   ueName: string
+  ueNameAr: string | null
   moduleName: string | null
+  moduleNameAr: string | null
   lines: BulletinCoursLine[]
   studentAvg: number | null
   classAvg: number | null
@@ -295,7 +298,9 @@ export default function BulletinsClient({
       if (!ueBlocksMap.has(blockKey)) {
         ueBlocksMap.set(blockKey, {
           ueName: ue?.nom_fr ?? 'Sans UE',
+          ueNameAr: ue?.nom_ar ?? null,
           moduleName: mod?.nom_fr ?? null,
+          moduleNameAr: mod?.nom_ar ?? null,
           lines: [],
           studentAvg: null,
           classAvg: null,
@@ -316,6 +321,7 @@ export default function BulletinsClient({
 
       block.lines.push({
         coursName: c.nom_fr,
+        coursNameAr: c.nom_ar ?? null,
         evalKind: ev.eval_kind,
         score: g?.score ?? null,
         maxScore: ev.max_score,

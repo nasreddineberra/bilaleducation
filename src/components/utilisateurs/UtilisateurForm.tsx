@@ -6,7 +6,7 @@ import { CheckCircle2, Eye, EyeOff, Check, X, ShieldCheck, ShieldAlert } from 'l
 import { clsx } from 'clsx'
 import { createUser, updateProfile, updateEmail, sendPasswordReset, resetUserTwoFactor } from '@/app/dashboard/utilisateurs/actions'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatTextarea, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Profile, UserRole } from '@/types/database'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
@@ -25,6 +25,7 @@ type FormData = {
   role:       UserRole | ''   // '' = aucun role choisi (le select demarre vide)
   phone:      string
   notes:      string
+  is_active:  boolean
 }
 
 // Roles SANS fiche metier dediee : `profiles` est leur seule fiche → c'est le seul
@@ -96,6 +97,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
     role:       profile?.role       ?? '',   // select vide a la creation (regle projet)
     phone:      profile?.phone      ?? '',
     notes:      profile?.notes      ?? '',
+    is_active:  profile?.is_active  ?? true,
   })
 
   const initialForm    = useRef<FormData>({ ...form })
@@ -104,6 +106,13 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
   const [pwdFocused,   setPwdFocused]   = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resetStatus,  setResetStatus]  = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  // Le statut d'un enseignant se pilote depuis SA fiche (elle synchronise la fiche
+  // metier et le compte de connexion) ; admin et super_admin ne sont pas desactivables.
+  const canToggleActive = isEditing && !!profile
+    && profile.role !== 'enseignant'
+    && profile.role !== 'admin'
+    && profile.role !== 'super_admin'
 
   const set = (field: keyof FormData, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
@@ -159,6 +168,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
           last_name:  form.last_name.trim(),
           phone:      form.phone.trim() || undefined,
           notes:      showNotes ? (form.notes.trim() || undefined) : undefined,
+          is_active:  canToggleActive ? form.is_active : undefined,
         })
       } else {
         result = await createUser({
@@ -212,7 +222,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
               )}
               {profile.role !== 'parent' && (
                 has2fa
-                  ? <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">2FA activée</span>
+                  ? <span className="bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium">2FA activée</span>
                   : <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">2FA non configurée</span>
               )}
             </div>
@@ -222,9 +232,31 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
 
       <div className="card p-4 space-y-3">
 
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-          {isEditing ? 'Informations du compte' : 'Nouveau compte utilisateur'}
-        </h2>
+        <div className="flex items-center">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            {isEditing ? 'Informations du compte' : 'Nouveau compte utilisateur'}
+          </h2>
+          {canToggleActive && (
+            <div className="ml-auto flex-shrink-0 w-24">
+              <FloatCheckbox
+                variant="switch"
+                label=""
+                checked={form.is_active}
+                onChange={checked => setForm(prev => ({ ...prev, is_active: checked }))}
+                activeLabel="ACTIF"
+                inactiveLabel="INACTIF"
+              />
+            </div>
+          )}
+        </div>
+
+        {canToggleActive && (
+          <p className={`text-[11px] ${form.is_active ? 'text-warm-700' : 'text-amber-600'}`}>
+            {form.is_active
+              ? 'Statut actif : le compte de connexion est activé.'
+              : 'Statut inactif : le compte sera désactivé, la personne ne pourra plus se connecter.'}
+          </p>
+        )}
 
         {/* Civilité / Nom / Prénom */}
         <div className="grid grid-cols-[7rem_1fr_1fr] gap-3">
@@ -315,7 +347,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
             <div className="flex items-center gap-3 flex-shrink-0">
               <span role="status" aria-live="polite" className="text-xs">
                 {resetStatus === 'sent' && (
-                  <span className="flex items-center gap-1 text-green-600"><CheckCircle2 size={13} /> Lien envoyé.</span>
+                  <span className="flex items-center gap-1 text-primary-600"><CheckCircle2 size={13} /> Lien envoyé.</span>
                 )}
                 {resetStatus === 'error' && (
                   <span className="text-red-500">Erreur lors de l'envoi.</span>
@@ -342,7 +374,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
           <div className="flex items-center justify-between gap-4 bg-warm-50 border border-warm-200 rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
               {has2fa
-                ? <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
+                ? <ShieldCheck size={16} className="text-primary-600 flex-shrink-0" />
                 : <ShieldAlert size={16} className="text-amber-500 flex-shrink-0" />}
               <div>
                 <p className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Double authentification (2FA)</p>
@@ -473,7 +505,7 @@ function PasswordChecklist({
         return (
           <li key={rule.key} className={clsx(
             'flex items-center gap-1.5 text-xs',
-            ok ? 'text-green-600' : 'text-warm-700'
+            ok ? 'text-primary-600' : 'text-warm-700'
           )}>
             {ok
               ? <Check size={11} className="flex-shrink-0" />

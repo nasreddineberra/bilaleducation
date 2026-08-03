@@ -105,7 +105,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
                 <button onClick={() => handleToggle(p)} disabled={togglingId === p.id} title={p.is_active ? 'Désactiver' : 'Activer'}
-                  className={clsx('p-1 rounded-lg transition-colors', p.is_active ? 'text-warm-700 hover:text-danger-500 hover:bg-danger-50' : 'text-green-500 hover:bg-green-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}>
+                  className={clsx('p-1 rounded-lg transition-colors', p.is_active ? 'text-warm-700 hover:text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}>
                   {p.is_active ? <UserX size={15} /> : <UserCheck size={15} />}
                 </button>
               </div>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { sameName } from '@/lib/normalize-name'
 import { CreateTeacherSchema, UpdateTeacherSchema, validateInput } from '@/lib/validation/schemas'
 
 function generateTempPassword(): string {
@@ -38,6 +39,18 @@ export async function createTeacherWithAccount(data: {
 
   const admin = createAdminClient()          // création du compte auth (service-role obligatoire)
   const supabase = await createClient()      // écritures de tables : client SESSION → audit utilisateur tracé
+
+  // Doublon nom + prénom : contrôlé AVANT de créer le compte auth, sinon un refus
+  // laisserait un compte orphelin. Le formulaire fait déjà ce test, mais lui seul
+  // ne protège ni de deux saisies simultanées, ni d'un appel hors formulaire.
+  const { data: existingTeachers } = await supabase
+    .from('teachers')
+    .select('id, last_name, first_name')
+  const dup = existingTeachers?.find(t => sameName(t, data))
+  if (dup) {
+    return { error: `Un enseignant « ${dup.last_name} ${dup.first_name} » existe déjà.` }
+  }
+
   const tempPassword = generateTempPassword()
 
   // 1. Créer le compte auth (client admin obligatoire)

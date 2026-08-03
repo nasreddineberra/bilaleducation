@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Pencil, ToggleLeft, ToggleRight, KeyRound, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react'
+import { Pencil, Trash2, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { clsx } from 'clsx'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { toggleActive, sendPasswordReset, resetUserTwoFactor } from '@/app/dashboard/utilisateurs/actions'
+import { deleteUser, getUserDeleteDeps, toggleActive } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -37,46 +37,62 @@ interface UtilisateursTableProps {
   twoFactorUserIds?: string[]
 }
 
+type DeleteDeps = { finance: number; scolarite: number; presence: number; rattachement: number }
+
+// Roles dont le compte NE se supprime PAS depuis cet ecran :
+//  - admin / super_admin : comptes structurants ;
+//  - enseignant : passe par la liste des enseignants (fiche metier + Storage) ;
+//  - parent : passe par la fiche parents.
+const UNDELETABLE_ROLES: UserRole[] = ['admin', 'super_admin', 'enseignant', 'parent']
+
 export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: UtilisateursTableProps) {
   const router = useRouter()
   const twoFactorSet = new Set(twoFactorUserIds)
-  const [loadingId, setLoadingId] = useState<string | null>(null)
-  const [resetSentId, setResetSentId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [reset2faTarget, setReset2faTarget] = useState<Profile | null>(null)
-  const [resetting2fa, setResetting2fa] = useState(false)
-  // Actions sensibles → confirmation (desactivation = perte d'acces ; reset mdp = envoi d'email)
-  const [deactivateTarget, setDeactivateTarget] = useState<Profile | null>(null)
-  const [resetPwdTarget, setResetPwdTarget] = useState<Profile | null>(null)
 
-  const handleReset2fa = async () => {
-    if (!reset2faTarget) return
-    setResetting2fa(true)
-    setError(null)
-    const result = await resetUserTwoFactor(reset2faTarget.id)
-    setResetting2fa(false)
-    if (result.error) { setError(result.error); setReset2faTarget(null); return }
-    setReset2faTarget(null)
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
+  const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [deleteError,  setDeleteError]  = useState<string | null>(null)
+  // Etape 1 = recapitulatif ; etape 2 = saisie du nom (suppression definitive).
+  const [deleteStep,   setDeleteStep]   = useState<1 | 2>(1)
+  const [nameInput,    setNameInput]    = useState('')
+
+  // Les dependances sont comptees AVANT d'ouvrir la modale : elle annonce alors
+  // ce qui bloque, au lieu d'echouer apres coup sur une erreur de cle etrangere.
+  const startDelete = async (profile: Profile) => {
+    setDeleteError(null)
+    setDeps(await getUserDeleteDeps(profile.id))
+    setDeleteStep(1)
+    setNameInput('')
+    setDeleteTarget(profile)
+  }
+
+  const closeModal = () => {
+    setDeleteTarget(null); setDeps(null); setDeleteStep(1); setNameInput('')
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setIsProcessing(true)
+    const { error } = await deleteUser(deleteTarget.id)
+    setIsProcessing(false)
+    if (error) { setDeleteError(error); closeModal(); return }
+    closeModal()
     router.refresh()
   }
 
-  const handleToggle = async (profile: Profile) => {
-    setLoadingId(profile.id)
-    setError(null)
-    const result = await toggleActive(profile.id, !profile.is_active)
-    if (result.error) setError(result.error)
-    else router.refresh()
-    setLoadingId(null)
+  const confirmDeactivate = async () => {
+    if (!deleteTarget) return
+    setIsProcessing(true)
+    const { error } = await toggleActive(deleteTarget.id, false)
+    setIsProcessing(false)
+    if (error) { setDeleteError(error); closeModal(); return }
+    closeModal()
+    router.refresh()
   }
 
-  const handleResetPassword = async (profile: Profile) => {
-    setLoadingId(profile.id)
-    setError(null)
-    const result = await sendPasswordReset(profile.email)
-    if (result.error) setError(result.error)
-    else setResetSentId(profile.id)
-    setLoadingId(null)
-  }
+  const blocking = deps ? deps.finance + deps.scolarite + deps.presence + deps.rattachement : 0
+  const hasBlocking = blocking > 0
 
   if (profiles.length === 0) {
     return (
@@ -88,12 +104,11 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
 
   return (
     <div className="space-y-3">
-      {error && (
+      {deleteError && (
         <div role="alert" aria-live="assertive" className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          {error}
+          {deleteError}
         </div>
       )}
-
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-xs" aria-label="Utilisateurs">
           <thead>
@@ -109,15 +124,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
 
           <tbody className="divide-y divide-warm-50">
             {profiles.map(profile => {
-              const isLoading = loadingId === profile.id
-              const resetSent = resetSentId === profile.id
               const fullName = `${profile.last_name} ${profile.first_name}`
-              // Comptes structurants : jamais desactivables (garde aussi cote serveur).
-              const isCore = profile.role === 'admin' || profile.role === 'super_admin'
-              const toggleLabel = isCore
-                ? 'Ce compte est structurant : il ne peut pas être désactivé'
-                : profile.is_active ? 'Désactiver' : 'Activer'
-              const resetLabel = resetSent ? 'Email envoyé' : 'Réinitialiser le mot de passe'
 
               return (
                 <tr
@@ -162,7 +169,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                     <span className={clsx(
                       'text-xs font-medium px-2 py-0.5 rounded-full',
                       profile.is_active
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-primary-100 text-primary-700'
                         : 'bg-warm-200 text-warm-700'
                     )}>
                       {profile.is_active ? 'Actif' : 'Inactif'}
@@ -176,7 +183,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                         <span className="text-warm-700">·</span>
                       </Tooltip>
                     ) : twoFactorSet.has(profile.id) ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary-700">
                         <ShieldCheck size={13} className="flex-shrink-0" /> Activée
                       </span>
                     ) : (
@@ -195,70 +202,24 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                           onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
                           aria-label={`Modifier ${fullName}`}
                           className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
-                          disabled={isLoading}
                         >
                           <Pencil size={14} />
                         </button>
                       </Tooltip>
 
-                      {/* Activer / Désactiver (comptes structurants non modifiables) */}
-                      <Tooltip content={toggleLabel}>
-                        <button
-                          onClick={() => profile.is_active ? setDeactivateTarget(profile) : handleToggle(profile)}
-                          disabled={isLoading || isCore}
-                          aria-label={toggleLabel}
-                          className={clsx(
-                            'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
-                            isCore
-                              ? 'text-warm-200 cursor-not-allowed'
-                              : profile.is_active
-                                ? 'text-warm-700 hover:text-amber-600 hover:bg-amber-50'
-                                : 'text-warm-700 hover:text-green-600 hover:bg-green-50',
-                            isLoading && 'opacity-40 cursor-wait'
-                          )}
-                        >
-                          {profile.is_active
-                            ? <ToggleRight size={16} />
-                            : <ToggleLeft size={16} />
-                          }
-                        </button>
-                      </Tooltip>
-
-                      {/* Réinitialiser mot de passe */}
-                      <Tooltip content={resetLabel}>
-                        <button
-                          onClick={() => setResetPwdTarget(profile)}
-                          disabled={isLoading || resetSent}
-                          aria-label={resetLabel}
-                          className={clsx(
-                            'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
-                            resetSent
-                              ? 'text-green-500 bg-green-50 cursor-default'
-                              : 'text-warm-700 hover:text-primary-600 hover:bg-primary-50',
-                            isLoading && 'opacity-40 cursor-wait'
-                          )}
-                        >
-                          <KeyRound size={14} />
-                        </button>
-                      </Tooltip>
-
-                      {/* Réinitialiser la 2FA (déblocage admin) — si activée */}
-                      {profile.role !== 'parent' && twoFactorSet.has(profile.id) && (
-                        <Tooltip content="Réinitialiser la 2FA">
+                      {/* Supprimer — masque pour les roles geres ailleurs */}
+                      {!UNDELETABLE_ROLES.includes(profile.role) && (
+                        <Tooltip content="Supprimer">
                           <button
-                            onClick={() => { setReset2faTarget(profile); setError(null) }}
-                            disabled={isLoading}
-                            aria-label={`Réinitialiser la 2FA de ${fullName}`}
-                            className={clsx(
-                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50',
-                              'text-warm-700 hover:text-red-600 hover:bg-red-50',
-                              isLoading && 'opacity-40 cursor-wait'
-                            )}
+                            onClick={() => startDelete(profile)}
+                            aria-label={`Supprimer ${fullName}`}
+                            className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                           >
-                            <ShieldX size={14} />
+                            <Trash2 size={14} />
                           </button>
                         </Tooltip>
                       )}
+
                     </div>
                   </td>
                 </tr>
@@ -268,41 +229,85 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
         </table>
       </div>
 
-      {deactivateTarget && (
+      {/* Etape 1 : recapitulatif (ou desactivation si des donnees bloquent) */}
+      {deleteTarget && deps && deleteStep === 1 && (
         <ConfirmModal
-          variant="warning"
-          title="Désactiver ce compte ?"
-          message={`${deactivateTarget.last_name} ${deactivateTarget.first_name} ne pourra plus se connecter à l'application. Le compte reste conservé et peut être réactivé à tout moment.`}
-          confirmLabel="Désactiver"
-          cancelLabel="Annuler"
-          onConfirm={() => { const p = deactivateTarget; setDeactivateTarget(null); handleToggle(p) }}
-          onCancel={() => setDeactivateTarget(null)}
-        />
+          title={hasBlocking
+            ? 'Suppression impossible'
+            : `Supprimer « ${deleteTarget.last_name} ${deleteTarget.first_name} » ?`}
+          confirmLabel={hasBlocking
+            ? (isProcessing ? '…' : 'Rendre inactif')
+            : 'Continuer'}
+          confirmColor={hasBlocking ? 'amber' : 'red'}
+          confirmDisabled={isProcessing}
+          onConfirm={hasBlocking ? confirmDeactivate : () => setDeleteStep(2)}
+          onCancel={closeModal}
+        >
+          {hasBlocking ? (
+            <div className="space-y-3">
+              <p className="text-sm text-secondary-700">
+                <strong>{deleteTarget.last_name} {deleteTarget.first_name}</strong> ne peut pas être
+                supprimé : des données lui sont rattachées.
+              </p>
+              <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
+                {deps.finance > 0 && (
+                  <li><strong>{deps.finance}</strong> écriture{deps.finance > 1 ? 's' : ''} financière{deps.finance > 1 ? 's' : ''}</li>
+                )}
+                {deps.scolarite > 0 && (
+                  <li><strong>{deps.scolarite}</strong> élément{deps.scolarite > 1 ? 's' : ''} de scolarité (appel, bulletins)</li>
+                )}
+                {deps.presence > 0 && (
+                  <li><strong>{deps.presence}</strong> saisie{deps.presence > 1 ? 's' : ''} de temps de présence</li>
+                )}
+                {deps.rattachement > 0 && (
+                  <li>compte rattaché à une <strong>fiche parents</strong></li>
+                )}
+              </ul>
+              <p className="text-xs text-warm-700">
+                Vous pouvez le <strong>rendre inactif</strong> : l&apos;historique est conservé et la
+                personne ne peut plus se connecter.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-secondary-700">
+              Aucune donnée n&apos;est rattachée à ce compte. Le <strong>compte de connexion et le
+              profil</strong> seront supprimés définitivement. Cette action est irréversible.
+            </p>
+          )}
+        </ConfirmModal>
       )}
 
-      {resetPwdTarget && (
+      {/* Etape 2 : confirmation finale par saisie du nom */}
+      {deleteTarget && deleteStep === 2 && (
         <ConfirmModal
-          variant="warning"
-          title="Réinitialiser le mot de passe ?"
-          message={`Un email de réinitialisation sera envoyé à ${resetPwdTarget.email}. La personne devra suivre le lien pour définir un nouveau mot de passe.`}
-          confirmLabel="Envoyer le lien"
-          cancelLabel="Annuler"
-          onConfirm={() => { const p = resetPwdTarget; setResetPwdTarget(null); handleResetPassword(p) }}
-          onCancel={() => setResetPwdTarget(null)}
-        />
-      )}
-
-      {reset2faTarget && (
-        <ConfirmModal
-          title="Réinitialiser la double authentification ?"
-          message={`L'authentificateur 2FA de ${reset2faTarget.last_name} ${reset2faTarget.first_name} sera supprimé. La personne devra en configurer un nouveau à sa prochaine connexion.`}
-          confirmLabel={resetting2fa ? 'Réinitialisation…' : 'Réinitialiser'}
+          title="Confirmation finale"
+          confirmLabel={isProcessing ? 'Suppression…' : 'Supprimer définitivement'}
           confirmColor="red"
-          confirmDisabled={resetting2fa}
-          onConfirm={handleReset2fa}
-          onCancel={() => setReset2faTarget(null)}
-        />
+          confirmDisabled={
+            isProcessing ||
+            nameInput.trim().toLowerCase() !== deleteTarget.last_name.trim().toLowerCase()
+          }
+          onConfirm={confirmDelete}
+          onCancel={closeModal}
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-secondary-700">
+              Saisissez le nom <strong>{deleteTarget.last_name}</strong> pour confirmer la
+              suppression définitive de ce compte :
+            </p>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              placeholder={deleteTarget.last_name}
+              aria-label={`Saisir le nom ${deleteTarget.last_name} pour confirmer`}
+              className="w-full px-3 py-2 text-sm border border-warm-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+              autoFocus
+            />
+          </div>
+        </ConfirmModal>
       )}
+
     </div>
   )
 }

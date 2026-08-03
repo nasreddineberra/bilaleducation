@@ -1328,12 +1328,117 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
 - **Page de test `src/app/test-polices/`** : comparaison de 5 polices arabes dans les 2 themes.
   **TEMPORAIRE — a supprimer.**
 
+#### 3 aout 2026 (suite) — Fin de la section Parametres + doublons + suppression de comptes + bulletin bilingue
+
+**Section PARAMETRES terminee** (les 5 sections de la sidebar sont donc traitees)
+- **Enseignants** : icone `Plus` retiree du bouton « Ajouter » (le `<Link>` stylé a la main est le motif
+  delibere d'Apprenants/Parents — `FloatButton` rend un `<button>`, il ne peut pas porter de `href`).
+  **Colonne « Classe actuelle »** : classes de l'annee en cours dont l'affectation est active AUJOURD'HUI
+  (requete `class_teachers` + `classes!inner` filtree sur `academic_year`, jamais de `.in()` sur tableau vide) ;
+  titulaire en pastille neutre, **remplacant** en pastille ambre ; infobulle via le helper partage
+  `classInfoWithTeacher(c, '')` (enseignant omis : inutile de repeter son nom sur sa propre ligne).
+  Categorie de document **« CV »** (migration `add-teacher-document-category-cv.sql` : le CHECK etait ferme,
+  l'ajout cote app seul aurait ete rejete en 23514). Onglet Documents : les 2 boutons descendent sur la ligne
+  du « * champs obligatoires », largeurs figees (`max-w-5xl/4xl/3xl`) remplacees par `w-fit` + `w-full` — les
+  deux encadres prennent AUTOMATIQUEMENT la meme largeur.
+- **Utilisateurs** : 8 verts d'etat → turquoise (l'app melangeait `green` ET `emerald` pour la meme idee) ;
+  **interrupteur ACTIF/INACTIF sur la fiche**, calque de la fiche enseignant (dans le formulaire, enregistre
+  avec Valider) — masque pour enseignant (sa fiche synchronise fiche + compte), admin et super_admin ;
+  `updateProfile` accepte `is_active` avec les memes gardes que `toggleActive`.
+  **Liste allegee** : activer/desactiver, reinitialiser le mot de passe et reinitialiser la 2FA retires
+  (tout est sur la fiche) → 271 lignes ramenees a 160, etats/handlers/modales devenus inatteignables supprimes.
+- **Financiers** : 0 signalement.
+- **Types de presence** : les 12 hex sont le NUANCIER stocke en base (faux positifs).
+- **Ressources** : l'echelle d'etat du materiel (neuf/bon/usage/HS) est conservee ; en revanche **`sky`
+  manquait au pont** (badge « Bon » clair-sur-clair en sombre).
+- **Journal d'activite** : « Connexion » passe d'`emerald` a `secondary` (indiscernable du vert de
+  « Creation » dans la meme colonne, ou la couleur est le seul repere) ; accents « Creation »/« Deconnexion » ;
+  modale de purge portalisee.
+- **Etablissement** : modale de recadrage portalisee, **fond cliquable ET Echap retires** (c'est une saisie) ;
+  bouton Valider au turquoise ; **plaque BLANCHE volontaire** derriere le logo dans les deux themes
+  (`bg-[#ffffff]` et non `bg-white`, que le pont remapperait) — un logo est dessine pour un fond blanc.
+
+**SUPPRESSION DE COMPTES UTILISATEURS** (n'existait pas)
+- Aucune action de suppression n'existait pour les roles hors enseignant, et **une quinzaine de tables
+  referencent `profiles.id` SANS clause ON DELETE** : une corbeille naive aurait produit une erreur 23503 brute.
+- `getUserDeleteDeps` + `deleteUser` (`utilisateurs/actions.ts`) : comptage des dependances (finance /
+  scolarite / presence / rattachement parents), refus des roles geres ailleurs (admin, super_admin,
+  enseignant, parent) et de SON PROPRE compte, trace `logAudit` AVANT effacement, compte auth supprime
+  (profil en cascade). **Double confirmation** : recapitulatif puis **saisie du NOM** (motif de la
+  suppression de classe). Si des donnees bloquent → « Rendre inactif » a la place.
+- **Piege** : le type de retour de `getUserDeleteDeps` est declare EN LIGNE — un fichier `'use server'` ne
+  peut exporter que des fonctions async, un `export interface` y provoque un 500 (deja paye sur ce module).
+
+**DOUBLONS ENSEIGNANTS — les 3 niveaux**
+- Le controle etait **client seul**, et son `ilike` sur le nom ignorait la casse mais **pas les accents** :
+  « BERRA » et « BÉRRA » n'etaient meme pas rapproches.
+- Nouveau `src/lib/normalize-name.ts` (`normalizeNom`, `sameName`), **pendant exact** de la fonction SQL.
+- Controle refait dans `createTeacherWithAccount`, **AVANT** la creation du compte auth (sinon un refus
+  laisserait un compte orphelin).
+- Migration `add-teachers-unique-name.sql` : `norm_name()` IMMUTABLE (sans `unaccent`, qui est seulement
+  STABLE donc inutilisable en index) + index unique `(etablissement, nom, prenom)`. **Consequence assumee** :
+  deux homonymes reels doivent etre distingues. Verifie avant : 0 doublon existant.
+
+**TYPES DE PRESENCE — les 2 faiblesses**
+- Controle d'usage deplace en **server action** (`types-presence/actions.ts`) + migration
+  `guard-presence-type-delete.sql` : trigger BEFORE DELETE refusant un type utilise dans les saisies de
+  temps de son annee. Necessaire car `staff_time_entries.entry_type` est un **code texte sans FK** (l'unicite
+  cote types est composite, les saisies n'ont pas de `school_year_id`). **Sortie de secours** : si l'annee
+  n'existe plus, la garde laisse passer — sinon elle bloquerait une CASCADE legitime.
+
+**PALETTES `success` / `danger` SUPPRIMEES**
+- **Mon script d'audit ne pouvait pas les voir** : il inventoriait les couleurs avec une LISTE DE PALETTES
+  ECRITE EN DUR. Remplace par un **controle de couverture** qui compare les classes utilisees a celles que
+  le pont remappe, sans rien presupposer.
+- Ces palettes etaient des **alias exacts** de `green`/`red` mais **incompletes** (ni 200 ni 700) :
+  `text-danger-700` (10x), `border-danger-200` (9x) et `text-success-700` **ne peignaient RIEN**, dans les
+  deux themes. 60 occurrences remplacees dans 18 fichiers, palettes retirees de `tailwind.config.ts`.
+- **Incident** : j'avais exclu `globals.css`, qui contenait 5 `@apply` sur ces palettes → la compilation CSS
+  a casse et `/login` est tombe en 500. Le `type-check` ne voit rien de tout cela (TypeScript ne connait pas
+  Tailwind) : seule la verification page par page l'attrape.
+
+**PASSE GLOBALE THEME SOMBRE** (script `theme-sweep` : 3 angles morts du pont)
+- **Toasts** : rendus par le layout RACINE, donc **hors `#main-content`** — le pont ne les atteint jamais.
+  Quatre variantes en fond clair, aucune `dark:`. Variantes sombres ajoutees, semantique conservee
+  (vert succes / rouge erreur / ambre avertissement / bleu information, choix utilisateur).
+- **4 modales sans `role="dialog"`** (StudentDocuments, StudentForm x3) : elles marchaient parce qu'elles
+  sont rendues DANS `#main-content`, mais seraient devenues blanches le jour de leur portalisation.
+- **Nuance 200 ajoutee au pont** pour les 11 teintes + `bg-gray-100` / `text-gray-600-700`.
+- Liseres d'avatar de la liste apprenants et des affectations alignes sur la FICHE (`ring-*-500` au lieu de
+  `-300`) : les `ring-*` ne sont pas remappes, une variante pale se delavait sur fond sombre.
+
+**BULLETIN PDF BILINGUE FR / AR** (chantier note la veille, ouvert apres l'ergonomie)
+- **Deux des trois obstacles annonces n'existaient pas.** jsPDF 4.2 embarque **`processArabic`** (liaison
+  contextuelle) : **aucune dependance** de reshaping. Et le TTF Noto Sans Arabic **encode les formes de
+  presentation** (U+FE70–U+FEFF), ligature lam-alif comprise — verifie dans sa cmap AVANT de s'engager,
+  sinon on embarquait 188 Ko pour n'obtenir que des carres.
+- **Piege non anticipe** : la police couvre le latin accentue, le point median et les chevrons, **mais pas
+  les etoiles ★ ☆**. Elle est donc appliquee **cellule par cellule**, jamais au tableau entier.
+- **Deux graisses obligatoires** : les en-tetes d'UE sont en `fontStyle: 'bold'` ; une graisse non
+  enregistree fait retomber jsPDF sur une police absente → charabia (les lignes de cours, en normal,
+  sortaient correctement — d'ou un diagnostic trompeur).
+- Police chargee **a la demande depuis `/public`** (hors bundle), mise en cache ; repli en francais seul si
+  le chargement echoue.
+- **Presentation** : francais a GAUCHE, arabe aligne a DROITE dans la meme cellule — impossible par
+  concatenation (autoTable n'aligne qu'un bloc), donc dessine dans `didDrawCell`. Separateur **inverse**
+  cote arabe (`‹` au lieu de `›` : le chevron doit pointer dans le sens de lecture) et **indentation
+  miroir** des cours. Appreciation : texte libre, bascule sur la police arabe des qu'elle en contient.
+- **Mise en page revue** : colonne d'espacement supprimee (elle dessinait un filet vertical en theme
+  `grid`) → indentation par marge interieure ; encadre d'identite a **hauteur ajustee au contenu** ;
+  **une seule constante `GAP`** pour les 3 jointures du corps ; **un seul encadre** regroupant Appreciation
+  (en tete), Moyenne et Absences, sur une ligne chacun et **deux tailles de police** au lieu de cinq ;
+  moyenne generale **masquee** si aucune evaluation notee ; legende `ABS : Absence` a gauche et acronymes
+  a droite (au-dessus de la colonne Note).
+- **Nommage des fichiers** : individuel = `NOM_Prenom_Annee_Periode.pdf`, groupe =
+  `Annee_Periode_Classe.pdf` ; helper `fileChunk()` qui retire les caracteres interdits (`\\ / : * ? " < > |`).
+- Gabarits : coefficient masque en diagnostique ; dates **avec l'annee** sur Gabarits et Saisie notes,
+  parsees en `T00:00` (sans quoi `new Date('2026-08-03')` est lu en UTC et peut afficher la veille).
+
 ## Prochaine etape
-- **Passe theme sombre / ergonomie — section PARAMETRES, modules restants** : **Enseignants**, Utilisateurs,
-  Financiers, Types de presence, Ressources, Journal d'activite, Etablissement.
-  (Faites : Principal, Vie scolaire, Pedagogie, Gestion, puis Annee scolaire et Pedagogie des Parametres.)
-- **Bulletin PDF bilingue FR/AR** — decide, a ouvrir APRES l'ergonomie : police TTF embarquee + reshaper
-  (dependance validee sur le principe) + colonnes RTL dans jspdf-autotable. Voir memoire `bulletins-pdf-arabic`.
+- **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
+  globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
+- **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
+  ils utilisent encore le motif client-only avec `ilike`. `norm_name()` (SQL) et `normalize-name.ts` sont prets.
 - **Supprimer `src/app/test-polices/`** (page de comparaison des polices arabes) une fois Noto Sans Arabic confirmee.
 - **Choix de police LATINE** : reste a faire (la page de test ne couvre que l'arabe).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
@@ -1533,6 +1638,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-etablissement-smtp.sql` (table `etablissement_smtp` : config SMTP par
   etablissement, RLS sans policy + privileges revoques = serveur uniquement).
 - [x] Executer `supabase/migrations/create-financement-communications.sql` (historique relance/attestation).
+- [x] Executer `supabase/migrations/add-teacher-document-category-cv.sql` (categorie « CV » ; le CHECK etait ferme).
+- [x] Executer `supabase/migrations/add-teachers-unique-name.sql` (`norm_name()` IMMUTABLE + index unique
+  nom+prenom par etablissement ; 0 doublon existant verifie avant).
+- [x] Executer `supabase/migrations/guard-presence-type-delete.sql` (trigger refusant la suppression d'un
+  type de presence utilise dans les saisies de temps de son annee).
 - [x] Executer `supabase/migrations/add-financement-communications-delete.sql` (policy `fin_comm_delete` :
   suppression du journal comptable ouverte aux roles finance ; verifiee en base par `pg_policies`).
 - [x] Executer `supabase/migrations/secure-financements-situation.sql` (RLS finance sur `expenses`/

@@ -64,20 +64,10 @@ const config: Config = {
           800: '#564e47',
           900: '#332e2a',
         },
-        success: {
-          50:  '#f0fdf4',
-          100: '#dcfce7',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-        },
-        danger: {
-          50:  '#fef2f2',
-          100: '#fee2e2',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-        },
+        // Les palettes `success` et `danger` ont ete retirees le 3 aout 2026 :
+        // c'etaient des alias exacts de `green` et `red`, incomplets (pas de 200
+        // ni de 700), donc `text-danger-700` et consorts ne peignaient RIEN.
+        // Etat positif -> `primary` ; erreur -> `red`.
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],

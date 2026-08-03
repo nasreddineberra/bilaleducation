@@ -243,7 +243,7 @@ export default function LoginPage() {
 
               {/* Erreur */}
               {error && (
-                <div role="alert" className="flex items-start gap-2.5 bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
+                <div role="alert" className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm animate-fade-in">
                   <AlertCircle size={16} className="mt-0.5 shrink-0" />
                   <span>{error}</span>
                 </div>

@@ -719,7 +719,7 @@ export default function GradesClient({
                       )}
                       {selectedEval.evaluation_date && (
                         <span className="text-xs text-warm-700">
-                          {new Date(selectedEval.evaluation_date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}
+                          {new Date(selectedEval.evaluation_date + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </span>
                       )}
                     </div>
