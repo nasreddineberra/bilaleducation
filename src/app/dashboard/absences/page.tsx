@@ -182,6 +182,7 @@ export default async function AbsencesPage() {
         schoolYearId={schoolYearId}
         etablissement={etablissement ? { nom: etablissement.nom, adresse: etablissement.adresse, telephone: etablissement.telephone, logo_url: etablissement.logo_url } : null}
         yearLabel={yearLabel}
+        role={role}
       />
     </div>
   )

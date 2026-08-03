@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
+import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import type { Period, Absence, AbsenceType } from '@/types/database'
 
 // ─── Types props ─────────────────────────────────────────────────────────────
@@ -50,6 +51,8 @@ interface AbsencesClientProps {
   schoolYearId: string | null
   etablissement: EtablissementInfo | null
   yearLabel: string | null
+  /** Rôle du profil connecté : la vue globale est réservée à l'encadrement. */
+  role: string
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -60,6 +63,32 @@ const PERIOD_LABELS: Record<string, string> = {
 }
 
 const ALERT_THRESHOLD = 3 // absences NJ
+
+/** Sentinelle « toutes les classes ». Valeur NON vide volontairement : sur un
+ *  `FloatSelect`, une valeur vide fait retomber le libellé flottant par-dessus
+ *  le texte de l'option (piège déjà payé sur les communications). */
+const ALL_CLASSES = '__all__'
+
+/** Profils autorisés à la vue globale : l'encadrement. L'enseignant reste sur
+ *  ses classes une par une — il fait l'appel, il n'arbitre pas entre classes. */
+const GLOBAL_VIEW_ROLES = ['admin', 'direction', 'responsable_pedagogique', 'secretaire']
+
+/** Nombre d'élèves listés dans le palmarès des plus absents. */
+const TOP_ABSENT_LIMIT = 10
+
+/** « Civilité NOM Prénom » du titulaire, ou chaîne vide. */
+const teacherLabel = (c: ClassRow) =>
+  c.main_teacher_civilite && c.main_teacher_name
+    ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
+    : (c.main_teacher_name ?? '')
+
+/** Ligne d'infos de classe, via le helper PARTAGÉ du projet :
+ *  « Civilité NOM Prénom · Cotisation · Niveau X · Samedi 09:00-12:00 ».
+ *  Le constructeur local qui existait ici affichait la plage horaire avec un
+ *  point médian (« 09:00·12:00 ») au lieu du tiret, et omettait le niveau
+ *  différemment. Une seule implémentation, donc un seul format. */
+const classInfoLine = (c: ClassRow) =>
+  classInfoWithTeacher({ ...c, cotisation_types: { label: c.cotisation_label } }, teacherLabel(c))
 
 const fmtDate = (d: string) => {
   const [y, m, dd] = d.split('-')
@@ -77,7 +106,10 @@ export default function AbsencesClient({
   schoolYearId,
   etablissement,
   yearLabel,
+  role,
 }: AbsencesClientProps) {
+  // Inutile de proposer une vue « toutes les classes » quand il n'y en a qu'une.
+  const canSeeAllClasses = GLOBAL_VIEW_ROLES.includes(role) && classes.length > 1
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>((periods.find(p => p.is_current) ?? periods[0])?.id ?? null)
   const [absences,         setAbsences]         = useState<Absence[]>(initialAbsences)
@@ -87,16 +119,20 @@ export default function AbsencesClient({
   const [validatedDates,   setValidatedDates]   = useState<Set<string>>(new Set())
 
 
-  // Élèves de la classe sélectionnée
+  const isAllClasses = selectedClassId === ALL_CLASSES
+
+  // Élèves de la classe sélectionnée — ou de toutes en vue globale.
   const classStudents = useMemo(
-    () => students.filter(s => s.class_id === selectedClassId),
-    [students, selectedClassId]
+    () => isAllClasses ? students : students.filter(s => s.class_id === selectedClassId),
+    [students, selectedClassId, isAllClasses]
   )
 
-  // Absences de la classe + période
+  // Absences de la classe + période — ou de la période seule en vue globale.
   const periodAbsences = useMemo(
-    () => absences.filter(a => a.class_id === selectedClassId && a.period_id === selectedPeriodId),
-    [absences, selectedClassId, selectedPeriodId]
+    () => absences.filter(a =>
+      a.period_id === selectedPeriodId && (isAllClasses || a.class_id === selectedClassId)
+    ),
+    [absences, selectedClassId, selectedPeriodId, isAllClasses]
   )
 
   // Compteurs par élève
@@ -118,14 +154,68 @@ export default function AbsencesClient({
     return map
   }, [classStudents, periodAbsences])
 
-  // Résumé global
+  // Résumé global — calculé sur les ABSENCES elles-mêmes, et non en sommant les
+  // compteurs par élève. Ces derniers ne portent que sur les élèves ACTUELLEMENT
+  // inscrits : les absences d'un élève désinscrit en cours d'année en sortaient,
+  // alors que le tableau par classe les compte — deux totaux contradictoires sur
+  // le même écran.
   const summary = useMemo(() => {
     let abs = 0, absNJ = 0, ret = 0
-    for (const c of countsByStudent.values()) {
-      abs += c.abs; absNJ += c.absNJ; ret += c.ret
+    for (const a of periodAbsences) {
+      if (a.absence_type === 'absence') {
+        abs++
+        if (!a.is_justified) absNJ++
+      } else {
+        ret++
+      }
     }
     return { abs, absNJ, ret }
-  }, [countsByStudent])
+  }, [periodAbsences])
+
+  // ─── Vue globale : agrégats par CLASSE ────────────────────────────────────
+  // Aucune requête supplémentaire : la page charge déjà les élèves et les
+  // absences de TOUTES les classes, seul le filtrage était restrictif.
+  const classStats = useMemo(() => {
+    if (!isAllClasses) return []
+    const base = new Map(classes.map(c => [c.id, { cls: c, effectif: 0, abs: 0, absNJ: 0, ret: 0 }]))
+    for (const s of students) base.get(s.class_id) && base.get(s.class_id)!.effectif++
+    for (const a of periodAbsences) {
+      const row = base.get(a.class_id)
+      if (!row) continue
+      if (a.absence_type === 'absence') {
+        row.abs++
+        if (!a.is_justified) row.absNJ++
+      } else {
+        row.ret++
+      }
+    }
+    // Tri par absences décroissantes (choix utilisateur) : la lecture répond à
+    // « où agir ? ». Départages successifs pour un ordre stable.
+    return [...base.values()].sort((a, b) =>
+      b.abs - a.abs || b.absNJ - a.absNJ || b.ret - a.ret || a.cls.name.localeCompare(b.cls.name)
+    )
+  }, [isAllClasses, classes, students, periodAbsences])
+
+  // ─── Vue globale : élèves les plus absents, tous cours confondus ──────────
+  const topAbsentStudents = useMemo(() => {
+    if (!isAllClasses) return []
+    // Un élève n'est inscrit que dans UNE classe à la fois : `students` ne
+    // contient donc qu'une ligne par élève, sans dédoublonnage à faire.
+    const classById = new Map(classes.map(c => [c.id, c]))
+    return students
+      .map(s => {
+        const c = countsByStudent.get(s.student_id) ?? { abs: 0, absNJ: 0, ret: 0 }
+        // La classe entière est conservée, pas seulement son nom : l'infobulle
+        // affiche la même ligne d'infos que partout ailleurs.
+        return { student: s, cls: classById.get(s.class_id) ?? null, ...c }
+      })
+      .filter(r => r.abs + r.ret > 0)
+      .sort((a, b) =>
+        b.absNJ - a.absNJ || b.abs - a.abs || b.ret - a.ret ||
+        a.student.last_name.localeCompare(b.student.last_name)
+      )
+      .slice(0, TOP_ABSENT_LIMIT)
+  }, [isAllClasses, students, classes, countsByStudent])
 
   // Infos classe
   const noSchoolYear    = !schoolYearId
@@ -354,6 +444,9 @@ export default function AbsencesClient({
           wrapperClassName="w-fit"
         >
           <option value=""></option>
+          {/* Vue globale en tête : réservée à l'encadrement, et sans objet
+              quand l'utilisateur n'a qu'une classe. */}
+          {canSeeAllClasses && <option value={ALL_CLASSES}>Toutes les classes</option>}
           {classes.map(c => {
             const teacher = c.main_teacher_civilite && c.main_teacher_name
               ? `${c.main_teacher_civilite} ${c.main_teacher_name}`
@@ -390,20 +483,11 @@ export default function AbsencesClient({
         )}
 
         {/* Infos classe — à droite */}
-        {selectedClassId && (() => {
+        {selectedClassId && !isAllClasses && (() => {
           const cls = classes.find(c => c.id === selectedClassId)
-          if (!cls) return null
-          const parts: string[] = []
-          if (cls.main_teacher_name) {
-            parts.push(cls.main_teacher_civilite ? `${cls.main_teacher_civilite} ${cls.main_teacher_name}` : cls.main_teacher_name)
-          }
-          if (cls.cotisation_label) parts.push(cls.cotisation_label)
-          if (cls.level) parts.push(`Niveau ${cls.level}`)
-          const timeStr  = [cls.start_time, cls.end_time].filter(Boolean).map(t => t!.slice(0, 5)).join('·')
-          const schedule = [cls.day_of_week, timeStr].filter(Boolean).join(' ')
-          if (schedule) parts.push(schedule)
-          if (parts.length === 0) return null
-          return <span className="ml-auto text-sm font-medium text-warm-700 whitespace-nowrap">{parts.join(' · ')}</span>
+          const info = cls ? classInfoLine(cls) : ''
+          if (!info) return null
+          return <span className="ml-auto text-sm font-medium text-warm-700 whitespace-nowrap">{info}</span>
         })()}
       </div>
 
@@ -421,19 +505,23 @@ export default function AbsencesClient({
             {/* Barre résumé + bouton saisie */}
             <div className="px-3 py-1.5 flex items-center justify-between border-b border-warm-100 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <FloatButton
-                  variant="submit"
-                  type="button"
-                  onClick={() => setShowSaisie(true)}
-                  className="text-xs px-2.5 py-1"
-                >
-                  Ajouter
-                </FloatButton>
-                <Tooltip content="Imprimer une feuille d'appel vierge, à remplir à la main">
+                <Tooltip content={isAllClasses ? 'Choisissez une classe pour saisir un appel' : "Saisir l'appel d'une séance"}>
+                  <FloatButton
+                    variant="submit"
+                    type="button"
+                    onClick={() => setShowSaisie(true)}
+                    disabled={isAllClasses}
+                    className="text-xs px-2.5 py-1"
+                  >
+                    Ajouter
+                  </FloatButton>
+                </Tooltip>
+                <Tooltip content={isAllClasses ? 'Choisissez une classe pour imprimer sa feuille' : "Imprimer une feuille d'appel vierge, à remplir à la main"}>
                   <FloatButton
                     variant="secondary"
                     type="button"
                     onClick={handlePrintPdf}
+                    disabled={isAllClasses}
                     className="text-xs px-2.5 py-1"
                   >
                     Feuille vierge
@@ -448,7 +536,104 @@ export default function AbsencesClient({
 
             {/* Tableau */}
             <div className="flex-1 overflow-y-auto">
-              {classStudents.length === 0 ? (
+              {isAllClasses ? (
+                <div className="p-3 space-y-3">
+                  {/* ── Comparaison des classes ───────────────────────────── */}
+                  <table aria-label="Absences et retards par classe sur la période" className="w-full text-xs">
+                    <thead className="bg-warm-50">
+                      <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
+                        <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">Classe</th>
+                        <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Élèves</th>
+                        <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
+                        <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Abs NJ</th>
+                        <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Ret</th>
+                        <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {classStats.map(({ cls, effectif, abs, absNJ, ret }) => {
+                        const info = classInfoLine(cls)
+                        return (
+                          /* Ligne cliquable : descente du global vers le détail
+                             de la classe, règle de liste du projet. */
+                          <tr
+                            key={cls.id}
+                            onClick={() => { setSelectedClassId(cls.id); setExpandedStudent(null) }}
+                            tabIndex={0}
+                            role="button"
+                            aria-label={`Ouvrir la classe ${cls.name}`}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setSelectedClassId(cls.id)
+                                setExpandedStudent(null)
+                              }
+                            }}
+                            className="border-b border-warm-100 cursor-pointer hover:bg-warm-50 outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                          >
+                            <td className="py-1.5 px-2 pl-3">
+                              <span className="font-semibold text-secondary-800">{cls.name}</span>
+                              {info && <span className="text-warm-700"> · {info}</span>}
+                            </td>
+                            <td className="text-center py-1.5 px-2 tabular-nums text-warm-700">{effectif}</td>
+                            <td className="text-center py-1.5 px-2 tabular-nums font-semibold text-secondary-800">{abs}</td>
+                            <td className={clsx('text-center py-1.5 px-2 tabular-nums font-semibold', absNJ > 0 ? 'text-red-600' : 'text-warm-700')}>{absNJ}</td>
+                            <td className="text-center py-1.5 px-2 tabular-nums text-amber-700">{ret}</td>
+                            <td className="text-center py-1.5 px-2 tabular-nums font-bold text-secondary-800">{abs + ret}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* ── Élèves les plus absents, tous cours confondus ──────── */}
+                  <section>
+                    <h3 className="stat-label mb-1.5">Élèves les plus absents · tous cours</h3>
+                    {topAbsentStudents.length === 0 ? (
+                      <p className="text-xs text-warm-700 italic py-3 text-center">Aucune absence sur la période.</p>
+                    ) : (
+                      <table aria-label="Élèves les plus absents sur la période" className="w-full text-xs">
+                        <thead className="bg-warm-50">
+                          <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
+                            <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">Élève</th>
+                            <th scope="col" className="text-left py-1 px-2 font-semibold">Classe</th>
+                            <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
+                            <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Abs NJ</th>
+                            <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Ret</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {topAbsentStudents.map(r => (
+                            <tr key={r.student.student_id} className="border-b border-warm-100">
+                              <td className="py-1.5 px-2 pl-3 font-semibold text-secondary-800">
+                                {r.student.last_name} {r.student.first_name}
+                                {r.absNJ >= ALERT_THRESHOLD && (
+                                  <Tooltip content={`${r.absNJ} absences non justifiées`}>
+                                    <AlertTriangle size={12} className="inline ml-1 text-red-500 align-[-1px]" aria-label="Seuil d'alerte atteint" />
+                                  </Tooltip>
+                                )}
+                              </td>
+                              <td className="py-1.5 px-2 text-warm-700">
+                                {r.cls && (() => {
+                                  const info = classInfoLine(r.cls)
+                                  return info ? (
+                                    <Tooltip content={info} maxWidth="max-w-none">
+                                      <span className="cursor-help underline decoration-dotted decoration-warm-300 underline-offset-2">{r.cls.name}</span>
+                                    </Tooltip>
+                                  ) : <span>{r.cls.name}</span>
+                                })()}
+                              </td>
+                              <td className="text-center py-1.5 px-2 tabular-nums font-semibold text-secondary-800">{r.abs}</td>
+                              <td className={clsx('text-center py-1.5 px-2 tabular-nums font-semibold', r.absNJ > 0 ? 'text-red-600' : 'text-warm-700')}>{r.absNJ}</td>
+                              <td className="text-center py-1.5 px-2 tabular-nums text-amber-700">{r.ret}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </section>
+                </div>
+              ) : classStudents.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-sm text-warm-700">Aucun élève inscrit dans cette classe.</p>
                 </div>
@@ -457,10 +642,10 @@ export default function AbsencesClient({
                   <thead className="sticky top-0 bg-warm-50 z-10">
                     <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
                       <th className="text-left py-1 px-2 pl-3 font-semibold">Élèves</th>
-                      <th className="text-center py-1 px-2 font-semibold w-14">Abs</th>
-                      <th className="text-center py-1 px-2 font-semibold w-14">Abs NJ</th>
-                      <th className="text-center py-1 px-2 font-semibold w-14">Ret</th>
-                      <th className="text-center py-1 px-2 font-semibold w-14">Total</th>
+                      <th className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
+                      <th className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Abs NJ</th>
+                      <th className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Ret</th>
+                      <th className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Total</th>
                       <th className="text-center py-1 px-2 font-semibold w-8"></th>
                     </tr>
                   </thead>
@@ -499,7 +684,7 @@ export default function AbsencesClient({
       </div>
 
       {/* ── Modale Saisie ── */}
-      {showSaisie && selectedClassId && selectedPeriodId && (
+      {showSaisie && selectedClassId && !isAllClasses && selectedPeriodId && (
         <SaisieModal
           classStudents={classStudents}
           classInfo={classes.find(c => c.id === selectedClassId)!}

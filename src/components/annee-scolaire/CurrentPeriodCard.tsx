@@ -30,7 +30,11 @@ export default function CurrentPeriodCard({ schoolYearId, periods, canEdit }: Pr
   const sorted = useMemo(() => [...periods].sort((a, b) => a.order_index - b.order_index), [periods])
   const initialId = sorted.find(p => p.is_current)?.id ?? ''
 
-  const [selected, setSelected] = useState(initialId)
+  // Aucune période en cours — cas de l'année qu'on vient d'activer : on
+  // PRÉ-SÉLECTIONNE la première, il ne reste qu'à valider. Le bouton s'active
+  // de lui-même, la sélection différant de ce qui est enregistré (chaîne vide).
+  // Rien n'est écrit sans un clic : la pré-sélection est une suggestion.
+  const [selected, setSelected] = useState(initialId || (sorted[0]?.id ?? ''))
   const [saving, setSaving] = useState(false)
 
   const changed = selected !== initialId
@@ -52,7 +56,9 @@ export default function CurrentPeriodCard({ schoolYearId, periods, canEdit }: Pr
       <div>
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Période en cours</h2>
         {!initialId && (
-          <p className="text-[11px] text-warm-700 mt-0.5">Aucune période en cours définie pour le moment.</p>
+          <p role="alert" className="text-[11px] font-semibold text-red-600 mt-0.5">
+            Aucune période en cours définie. La première est présélectionnée : validez pour l&apos;enregistrer.
+          </p>
         )}
       </div>
 

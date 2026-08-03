@@ -1603,6 +1603,60 @@ inclure les paiements partiels.
 **Verifie a l'ecran** : profil admin (retour utilisateur). Les 5 autres profils demandent un compte
 de chaque role.
 
+#### 4 aout 2026 (suite) — Feuille d'appel « toutes les classes » + rappel de bascule de periode
+
+**FEUILLE D'APPEL — vue globale** (`AbsencesClient`, prop `role` ajoutee par `page.tsx`)
+- Option **« Toutes les classes »** en tete du select (sentinelle **`__all__`**, valeur NON vide : sur un
+  `FloatSelect` une valeur vide fait retomber le libelle flottant par-dessus le texte de l'option).
+  **Visible pour l'ENCADREMENT seul** (admin/direction/resp. pedago/secretaire, `GLOBAL_VIEW_ROLES`) et
+  seulement s'il y a plus d'une classe — l'enseignant fait l'appel, il n'arbitre pas entre classes.
+- **Aucune requete ajoutee** : la page chargeait deja eleves et absences de TOUTES les classes, seul le
+  filtrage etait restrictif.
+- Contenu : **tableau par classe** (enseignant, effectif, Abs, Abs NJ, Ret, Total) **trie par absences
+  decroissantes** (choix utilisateur : la lecture repond a « ou agir ? »), **lignes cliquables** (clavier
+  inclus) vers le detail de la classe ; puis **« Eleves les plus absents · tous cours »** (top 10, tries
+  par absences NJ, icone d'alerte au seuil, infobulle de classe).
+- **Ajouter** et **Feuille vierge** sont **grises** (pas masques — un bouton qui disparait se lit comme un
+  bug) avec une infobulle qui dit pourquoi ; garde ajoutee sur la modale de saisie (la sentinelle n'est
+  pas un id de classe).
+- **Infos de classe** : le constructeur inline local est remplace par le helper PARTAGE
+  `classInfoWithTeacher`. Il ecrivait la plage horaire avec un point median (« 09:00·12:00 ») au lieu du
+  tiret et gerait le niveau autrement — deux formats concurrents dans la meme app.
+- **Bug corrige (introduit puis rattrape)** : la barre de resume sommait les compteurs PAR ELEVE, donc
+  limitee aux inscrits actuels, alors que le nouveau tableau par classe compte les absences directement.
+  Un eleve desinscrit en cours d'annee aurait produit **deux totaux contradictoires sur le meme ecran**.
+  Le resume derive desormais des absences elles-memes.
+- `whitespace-nowrap` \+ `w-16` sur « Abs NJ » (et les autres en-tetes numeriques) : la colonne `w-14`
+  repliait le libelle sur deux lignes.
+- **Note metier (utilisateur)** : un eleve n'est **jamais inscrit dans deux classes a la fois** — le
+  dedoublonnage defensif du palmares a ete retire. **Mais aucune contrainte ne l'impose en base** (pas
+  d'index unique sur `enrollments`) : un index unique partiel sur `student_id WHERE status='active'`
+  reste a arbitrer.
+
+**RAPPEL DE BASCULE DE PERIODE** (`src/lib/school-year/current-period-hint.ts`)
+- **Decision prealable** : l'idee de **griser les periodes** dans les ecrans de saisie a ete etudiee puis
+  **abandonnee**. Griser le selecteur bloquerait la CONSULTATION des periodes passees en meme temps que
+  l'ecriture ; et une variante « griser seulement les periodes superieures » n'interdisait que l'erreur
+  improbable (saisir dans le futur) en laissant passer la courante (saisir dans le passe apres bascule).
+  Retenu : **aucun blocage**, seulement un **rappel** a admin/direction. L'action reste manuelle.
+- **Decoupage (en dur** — les periodes n'ont pas de dates en base, c'est pourquoi le choix est manuel) :
+  T1 sept.-dec. / T2 janv.-mars / T3 avril-juin ; S1 sept.-janv. / S2 fevr.-aout. Juillet-aout hors
+  trimestres = aucun rappel (intersaison). Decoupage deduit du NOMBRE de periodes (2 ou 3).
+- **Declenchement** : des le **dernier mois** de la periode en cours, et maintenu tant que la periode
+  enregistree ne correspond pas au mois. Message : « Période en cours : X, pensez à passer en Y. »
+  En cas de retard de plusieurs periodes, Y = la periode **attendue** (pas la suivante).
+- **TOLERANCE indispensable** : pendant le dernier mois d'une periode, la **suivante est acceptee en
+  silence**. Sans elle, basculer en decembre (ce que le message demande) redeclenchait le rappel — on
+  aurait puni celui qui obeit.
+- **Affichage** : bandeau ambre **en tete du bloc « A traiter »** du tableau de bord admin/direction,
+  cliquable vers l'annee scolaire. Pas de compteur : ca ne se compte pas, ca se lit.
+- **Fiche annee scolaire** (`CurrentPeriodCard`) : quand **aucune periode n'est en cours** (cas de l'annee
+  qu'on vient d'activer), la **premiere est PRE-SELECTIONNEE** et le message passe en **rouge**
+  (« validez pour l'enregistrer »). Le bouton s'active seul, la selection differant de la valeur
+  enregistree. Rien n'est ecrit sans clic.
+- **13 cas de logique testes** (script jetable) : dernier mois, bascule anticipee, retard d'une et de deux
+  periodes, avance, fin d'annee sans suite, intersaison, aucune periode.
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
@@ -1612,6 +1666,9 @@ de chaque role.
   plusieurs points supposent un etablissement unique — `getCachedEtablissement` (`.single()` sans
   filtre), et plus generalement toute requete en **service-role** qui ne porte pas son propre
   cloisonnement (la RLS ne la protege pas). A auditer dans TOUTE l'app.
+- **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
+  imposee en base** — aucun index unique sur `enrollments`. Un index partiel sur `student_id`
+  `WHERE status = 'active'` la rendrait impossible plutot qu'improbable. A arbitrer.
 - **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,

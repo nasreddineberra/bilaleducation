@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
+import { getPeriodHint } from '@/lib/school-year/current-period-hint'
 import DashboardAdmin from '@/components/dashboard/DashboardAdmin'
 import DashboardComptable from '@/components/dashboard/DashboardComptable'
 import DashboardPedago from '@/components/dashboard/DashboardPedago'
@@ -243,6 +244,9 @@ export default async function DashboardPage() {
           classCapacity,
           absenceTrend,
           recentAbsences: (recentAbsences ?? []) as any[],
+          // Rappel de bascule de periode — encadrement uniquement, l'action
+          // reste manuelle (rien n'est bloque ailleurs dans l'application).
+          periodHint: getPeriodHint((periodRows ?? []) as any[]),
           todo: {
             debtorFamilies,
             // Borne a l'ANNEE (et non au mois) : un pense-bete ne s'efface pas

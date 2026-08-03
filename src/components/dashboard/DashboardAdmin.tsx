@@ -40,6 +40,8 @@ interface Props {
     classCapacity: { name: string; enrolled: number; max: number }[]
     absenceTrend: { label: string; justified: number; unjustified: number }[]
     recentAbsences: { id: string; absence_date: string; absence_type: string; is_justified: boolean; students: { id: string; first_name: string; last_name: string } | null; classes: any | null }[]
+    /** Rappel de bascule de période, ou null s'il n'y a rien à signaler. */
+    periodHint: { message: string; missing: boolean } | null
     todo: { debtorFamilies: number; unjustifiedAbsences: number; unreadNotifs: number }
   }
 }
@@ -143,6 +145,19 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
         <section className="card p-3">
           <h3 className="stat-label mb-2">À traiter</h3>
           <div className="space-y-1.5">
+            {/* Rappel de bascule de période, en TÊTE de liste : il ne se compte
+                pas, il se lit — d'où un bandeau pleine largeur plutôt qu'une
+                ligne à compteur. Simple rappel : rien n'est bloqué ailleurs,
+                la bascule reste une action manuelle de la direction. */}
+            {stats.periodHint && (
+              <Link
+                href="/dashboard/annee-scolaire"
+                className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs hover:bg-amber-100 transition-colors animate-fade-in"
+              >
+                <AlertTriangle size={14} className="shrink-0" />
+                <span className="font-medium">{stats.periodHint.message}</span>
+              </Link>
+            )}
             {/* Libellé aligné sur ce qui est réellement compté : les familles
                 au statut « en attente », c'est-à-dire sans aucun versement.
                 « Avec impayé » englobait aussi les paiements échelonnés en
