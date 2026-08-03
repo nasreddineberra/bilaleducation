@@ -1,11 +1,6 @@
-import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import StudentsClient from '@/components/students/StudentsClient'
 import { classInfoOf } from '@/components/dashboard/classInfo'
-
-export const metadata: Metadata = {
-  title: 'Élèves',
-}
 
 const PAGE_SIZE = 20
 // Sentinelle pour un `.in()` sur un ensemble vide (sinon PostgREST renvoie tout).

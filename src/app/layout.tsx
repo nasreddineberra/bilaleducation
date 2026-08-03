@@ -28,10 +28,10 @@ const arabic = Noto_Sans_Arabic({
 })
 
 export const metadata: Metadata = {
-  title: {
-    default: 'Bilal Education',
-    template: '%s | Bilal Education',
-  },
+  // Titre UNIQUE pour toute l'application : l'onglet affiche toujours
+  // « Bilal Education », jamais le nom de la page. Ne pas réintroduire de
+  // `template` ni de `title` dans une page : ils repasseraient devant.
+  title: 'Bilal Education',
   description: 'Bilal Education · Plateforme de gestion administrative et pédagogique pour école arabe et islamique. Suivi des élèves, enseignants, absences, cotisations et bulletins.',
   keywords: ['école arabe', 'école islamique', 'gestion scolaire', 'ERP scolaire', 'Bilal Education', 'suivi élèves', 'gestion pédagogique', 'administration école'],
   openGraph: {

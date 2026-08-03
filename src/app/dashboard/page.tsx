@@ -1,4 +1,3 @@
-import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCachedCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
@@ -9,10 +8,6 @@ import DashboardPedago from '@/components/dashboard/DashboardPedago'
 import DashboardEnseignant from '@/components/dashboard/DashboardEnseignant'
 import DashboardSecretaire from '@/components/dashboard/DashboardSecretaire'
 import DashboardParent from '@/components/dashboard/DashboardParent'
-
-export const metadata: Metadata = {
-  title: 'Tableau de bord',
-}
 
 const roleLabel: Record<string, string> = {
   admin: 'Administrateur',

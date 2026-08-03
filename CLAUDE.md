@@ -1434,6 +1434,25 @@ pour du texte ≥ 24 px) → les intitules etaient a **moins de la moitie du min
 - Gabarits : coefficient masque en diagnostique ; dates **avec l'annee** sur Gabarits et Saisie notes,
   parsees en `T00:00` (sans quoi `new Date('2026-08-03')` est lu en UTC et peut afficher la veille).
 
+#### 3 aout 2026 (fin) — Identite de l'application : titre d'onglet, icone, manifeste
+
+- **Titre d'onglet unifie** : le gabarit `'%s | Bilal Education'` de la racine est remplace par un titre
+  ABSOLU `'Bilal Education'`, et les 4 titres de page sont retires (Tableau de bord, Eleves, Enseignants,
+  Connexion). `src/app/login/layout.tsx` supprime : il n'existait que pour porter ce titre.
+  **Regle** : ne pas reintroduire de `template` ni de `title` dans une page, ils repasseraient devant.
+- **Icone d'application** (l'app n'en avait AUCUNE) — convention de fichiers Next, aucun code de cablage :
+  - `src/app/icon.png` : logo 512x512 **avec transparence** → s'adapte au fond de l'onglet dans les 2 themes ;
+  - `src/app/apple-icon.png` : 180x180 genere avec `sharp`, **aplati sur BLANC**. iOS ne gere pas la
+    transparence et remplirait de NOIR ; choix mesure et non devine (luminosite moyenne du dessin 128/255,
+    couverture 30 % de la surface → il se lit mieux sur clair).
+  - `src/app/manifest.ts` : l'application devient **installable** sur telephone — pertinent, le service
+    worker et les notifications push existent deja. `theme_color` = surface de marque du theme clair (le
+    manifeste ne connait qu'une valeur ; la bascule interne reste pilotee par `data-theme`).
+- **Logo en pied de sidebar** (`DashboardSidebar`) : 32 px en mode deploye (texte centre entre le logo et le
+  badge de version, qui tient le bord droit), 28 px en mode reduit **a la place du sigle ©**. Rendu en
+  `unoptimized` (servi par la convention de metadonnees, pas depuis `/public`) et legerement attenue : c'est
+  un element d'identite, il ne doit pas concurrencer la pastille de menu actif.
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.

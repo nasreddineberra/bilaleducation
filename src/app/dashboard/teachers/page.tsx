@@ -1,11 +1,6 @@
-import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import TeachersClient from '@/components/teachers/TeachersClient'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
-
-export const metadata: Metadata = {
-  title: 'Enseignants',
-}
 
 const PAGE_SIZE = 20
 

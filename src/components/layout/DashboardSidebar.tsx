@@ -808,15 +808,38 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
       )}>
         {collapsed ? (
           <SidebarTooltip label="© 2026 Bilal Education · v1.0" className="w-full justify-center">
-            <span className="text-[var(--brand-muted)] text-lg font-semibold leading-none cursor-default">©</span>
+            {/* Réduite, la sidebar n'a place que pour la marque : le logo
+                remplace le sigle © et reste le repère visuel. */}
+            <Image
+              src="/icon.png"
+              alt="Bilal Education"
+              width={28}
+              height={28}
+              className="opacity-80"
+              unoptimized
+            />
           </SidebarTooltip>
         ) : (
-          <div className="space-y-0.5">
-            <div className="flex items-center justify-between">
-              <p className="text-[var(--brand-muted)] text-xs">© 2026 Bilal Education</p>
-              <span className="text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-0.5 rounded">v1.0</span>
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/icon.png"
+              alt="Bilal Education"
+              width={32}
+              height={32}
+              className="flex-shrink-0 opacity-90"
+              unoptimized
+            />
+            {/* Le texte occupe l'espace RESTANT et s'y centre : le logo et le
+                badge de version tiennent les deux bords, la mention flotte
+                entre eux. */}
+            <div className="flex-1 min-w-0 text-center space-y-0.5">
+              <p className="text-[var(--brand-muted)] text-xs truncate">© 2026 Bilal Education</p>
+              <p className="text-[var(--brand-muted)] text-[11px]">Tous droits réservés</p>
             </div>
-            <p className="text-[var(--brand-muted)] text-[11px]">Tous droits réservés</p>
+            {/* `inline-flex items-center` + `leading-none` : sans cela le
+                texte se cale sur sa ligne de base et flotte haut dans la
+                pastille. La rangée, elle, est déjà en `items-center`. */}
+            <span className="inline-flex items-center leading-none text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-1 rounded flex-shrink-0 self-center">v1.0</span>
           </div>
         )}
       </div>
