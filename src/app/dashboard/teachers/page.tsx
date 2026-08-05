@@ -16,6 +16,15 @@ export default async function TeachersPage({
 
   const supabase = await createClient()
 
+  // Role du profil connecte : la SUPPRESSION d'un enseignant reste reservee a
+  // admin et direction (elle entraine le compte de connexion et les fichiers).
+  // La secretaire cree et modifie, elle ne supprime pas.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profileRow } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const canDelete = ['admin', 'direction'].includes(profileRow?.role ?? '')
+
   let teachersQuery = supabase
     .from('teachers')
     .select('*', { count: 'exact' })
@@ -81,6 +90,7 @@ export default async function TeachersPage({
 
   return (
     <TeachersClient
+      canDelete={canDelete}
       teachers={teachers ?? []}
       classesByTeacher={classesByTeacher}
       filteredCount={filteredCount ?? 0}

@@ -13,6 +13,8 @@ import type { Teacher } from '@/types/database'
 
 interface TeachersTableProps {
   teachers: Teacher[]
+  /** Suppression autorisee (admin / direction seuls). */
+  canDelete?: boolean
   classesByTeacher?: Record<string, { name: string; info: string; isSubstitute: boolean }[]>
 }
 
@@ -23,7 +25,7 @@ interface DeleteDeps {
   grades:      number
 }
 
-export default function TeachersTable({ teachers, classesByTeacher }: TeachersTableProps) {
+export default function TeachersTable({ teachers, classesByTeacher, canDelete = true }: TeachersTableProps) {
   const router = useRouter()
   const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null)
   const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
@@ -38,20 +40,18 @@ export default function TeachersTable({ teachers, classesByTeacher }: TeachersTa
       { count: classes },
       { count: slots },
       { count: exceptions },
-      { count: schedules },
       { count: evaluations },
       { count: grades },
     ] = await Promise.all([
       supabase.from('class_teachers').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
       supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
       supabase.from('schedule_exceptions').select('id', { count: 'exact', head: true }).eq('override_teacher_id', teacher.id),
-      supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
       supabase.from('evaluations').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
       supabase.from('grades').select('id', { count: 'exact', head: true }).eq('graded_by', teacher.id),
     ])
     setDeps({
       classes:     classes ?? 0,
-      edt:         (slots ?? 0) + (exceptions ?? 0) + (schedules ?? 0),
+      edt:         (slots ?? 0) + (exceptions ?? 0),
       evaluations: evaluations ?? 0,
       grades:      grades ?? 0,
     })
@@ -220,15 +220,20 @@ export default function TeachersTable({ teachers, classesByTeacher }: TeachersTa
                         <Pencil size={14} />
                       </button>
                     </Tooltip>
-                    <Tooltip content="Supprimer">
-                      <button
-                        onClick={() => startDelete(teacher)}
-                        aria-label="Supprimer l'enseignant"
-                        className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </Tooltip>
+                    {/* Masque plutot que grise : la secretaire n'a AUCUN cas
+                        ou supprimer serait possible, un bouton inerte ne ferait
+                        que poser une question sans reponse. */}
+                    {canDelete && (
+                      <Tooltip content="Supprimer">
+                        <button
+                          onClick={() => startDelete(teacher)}
+                          aria-label="Supprimer l'enseignant"
+                          className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
+                    )}
                   </div>
                 </td>
 

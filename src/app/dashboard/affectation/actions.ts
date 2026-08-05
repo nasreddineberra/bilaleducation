@@ -10,7 +10,7 @@ export async function saveStudentEnrollments(
   toAdd: string[],
   toRemove: string[],
 ): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   if (!classId) return { error: 'Classe non spécifiée.' }
 
@@ -81,7 +81,7 @@ export async function saveParentEnrollments(
   toAdd: string[],
   toRemove: string[],
 ): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   if (!classId) return { error: 'Classe non spécifiée.' }
 

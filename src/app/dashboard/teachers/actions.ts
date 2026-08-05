@@ -26,7 +26,7 @@ export async function createTeacherWithAccount(data: {
   is_active:       boolean
   notes:           string | null
 }): Promise<{ error?: string; tempPassword?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
   if (roleError) return { error: roleError }
 
   // Validation côté serveur
@@ -127,7 +127,7 @@ export async function updateTeacher(
     notes:           string | null
   }
 ): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
   if (roleError) return { error: roleError }
 
   // Validation côté serveur
@@ -176,7 +176,7 @@ export async function setTeacherActive(
   teacherId: string,
   active: boolean,
 ): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
   if (roleError) return { error: roleError }
 
   const supabase = await createClient() // client SESSION → audit tracé
@@ -197,6 +197,9 @@ export async function setTeacherActive(
 // Uniquement si aucune donnée liée ne le référence.
 
 export async function deleteTeacher(teacherId: string): Promise<{ error?: string }> {
+  // Suppression NON ouverte a la secretaire (decision du 5 aout) : elle entraine
+  // le compte de connexion et les fichiers Storage. La RLS l'interdit aussi
+  // (policy `teachers_delete`), cette garde n'est que la premiere barriere.
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
@@ -208,20 +211,18 @@ export async function deleteTeacher(teacherId: string): Promise<{ error?: string
     { count: classesCount },
     { count: slotsCount },
     { count: exceptionsCount },
-    { count: schedulesCount },
     { count: evaluationsCount },
     { count: gradesCount },
   ] = await Promise.all([
     supabase.from('class_teachers').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
     supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
     supabase.from('schedule_exceptions').select('id', { count: 'exact', head: true }).eq('override_teacher_id', teacherId),
-    supabase.from('schedules').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
     supabase.from('evaluations').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
     supabase.from('grades').select('id', { count: 'exact', head: true }).eq('graded_by', teacherId),
   ])
 
   const total = (classesCount ?? 0) + (slotsCount ?? 0) + (exceptionsCount ?? 0)
-    + (schedulesCount ?? 0) + (evaluationsCount ?? 0) + (gradesCount ?? 0)
+    + (evaluationsCount ?? 0) + (gradesCount ?? 0)
   if (total > 0) {
     return { error: 'Des données sont rattachées à cet enseignant. Rendez-le inactif plutôt que de le supprimer.' }
   }

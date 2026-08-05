@@ -1657,15 +1657,113 @@ de chaque role.
 - **13 cas de logique testes** (script jetable) : dernier mois, bascule anticipee, retard d'une et de deux
   periodes, avance, fin d'annee sans suite, intersaison, aucune periode.
 
+#### 5 aout 2026 — Securite RLS : le controle de ROLE manquait sur les tables centrales
+
+Chantier ouvert comme « passe multi-etablissement ». L'audit a montre que le cloisonnement
+tenant etait SAIN et que le vrai trou etait ailleurs.
+
+**METHODE — le depot mentait.** `supabase/policies.sql` montrait des policies de ROLE sans
+tenant. La base montrait l'inverse : des policies `*_tenant` sans role. **Le fichier du depot
+est perime depuis longtemps** ; seule `pg_policies` fait foi. Toute conclusion sur la RLS doit
+partir d'une requete en base, jamais du depot.
+
+**CONSTAT** : les 10 tables centrales n'avaient qu'UNE policy, en `FOR ALL`, pour `{public}`,
+dont l'unique condition etait l'etablissement. Le cloisonnement avait **remplace** le controle
+de role au lieu de s'y ajouter → tout compte authentifie de l'etablissement avait les 4 droits.
+Un enseignant pouvait supprimer un eleve ou reecrire les notes d'une autre classe ; un compte
+parent aussi. Les gardes de l'application (sidebar, server actions) ne protegent rien : le
+navigateur detient un jeton valide et peut appeler l'API REST directement.
+C'est le defaut deja corrige le 17/07 sur `expenses`/`other_revenues`, jamais etendu au reste.
+
+**AUCUNE page du dashboard n'a de garde de role.** Les `['admin','direction',...].includes(role)`
+qu'on y trouve sont des **selecteurs de perimetre** (l'encadrement voit toutes les classes,
+l'enseignant les siennes), pas des gardes. Les seuls controles reels sont la sidebar (qui masque
+des liens) et les server actions qui portent `requireRoleServer`.
+
+**Migrations executees (3)**
+- `harden-security-definer-functions.sql` : `get_user_role()` passe **VOLATILE → STABLE** et
+  plpgsql → sql (donc **inlinable** ; une fonction volatile dans une policy est rejouee A CHAQUE
+  LIGNE) ; `search_path` fixe sur les deux fonctions (vecteur classique d'elevation sur un
+  SECURITY DEFINER) ; et surtout **leurs definitions entrent enfin dans le depot** —
+  `current_etablissement_id()` pilote 81 policies et n'existait nulle part dans le code.
+- `add-role-checks-to-core-rls.sql` : 2 policies par table (`_select` / `_write` FOR ALL) portant
+  tenant ET role. Matrice **decidee par l'utilisateur**. 3 fonctions de perimetre enseignant :
+  `teaches_class` (respecte la fenetre `effective_from/until`), `teaches_student`, `teaches_parent`.
+  Toutes en `STABLE SECURITY DEFINER` — sans l'elevation, la policy de `students` s'appellerait
+  elle-meme.
+- `drop-dead-tables-payments-schedules.sql` : les 2 tables etaient **vides et sans chemin
+  d'ecriture** (remplacees par `fee_installments` et `schedule_slots`). `DROP` **sans CASCADE**
+  volontairement : il echoue au lieu d'emporter une dependance.
+
+**Matrice retenue** (lecture / ecriture) : `students`, `parents` = staff sauf enseignant (limite
+a SES eleves) / admin+direction+resp.pedago+secretaire. `teachers` = idem / admin+direction+
+secretaire. `classes` = tout le staff / admin+direction+resp.pedago+secretaire. `enrollments`,
+`evaluations`, `grades`, `absences` = encadrement + enseignant sur SES CLASSES, ecriture idem
+\+ secretaire. **`parent` absent de toutes les listes** (comptes suspendus V1 — la policy
+`*_tenant` leur donnait pourtant les 4 droits).
+
+**EXCEPTION assumee** : la matrice n'accordait pas la lecture de `teachers` a l'enseignant. Or
+l'EDT resout l'utilisateur par `teachers.find(t => t.user_id === currentUserId)` : sans acces a
+SA PROPRE ligne, `ownTeacherId` reste indefini et **son planning s'affiche vide** (bug deja paye
+le 10/07). Il lit donc sa seule ligne.
+
+**Alignement applicatif** (un droit sans ecran ne sert a rien, un ecran sans droit echoue en
+silence) : ecrans ouverts au resp. pedagogique (Apprenants, Parents, Param. Classes) et a la
+secretaire (Enseignants, Param. Classes, Evaluations, Saisie notes, Affectations) ; gardes de
+server actions alignees (students, parents, teachers, affectation) ; **selecteurs de perimetre**
+de `grades`/`evaluations` elargis a la secretaire, sans quoi elle serait tombee dans la branche
+« enseignant » et aurait vu **zero classe**.
+
+**PIEGE PostgREST (2e fois en 3 jours)** : sur un comptage `{ head: true }`, une requete
+impossible — table supprimee, colonne inexistante — renvoie **204 / `count: null` / `error: null`**.
+Le champ `error` reste VIDE. Mon script de verification a conclu « tables toujours presentes »
+alors qu'elles etaient bien supprimees. **Regle : sur un comptage `head`, le signal est
+`count === null`, jamais `error`.** Meme cause que le « 0 inscriptions » du tableau de bord
+(4 aout), ou le `?? 0` transformait l'echec en zero affiche.
+
+**Correctifs du meme jour** (`fix-teacher-delete-and-referentiel-rls.sql`, executee) :
+- **`FOR ALL` designe les COMMANDES, pas les personnes** (SELECT+INSERT+UPDATE+DELETE). La policy
+  `teachers_write` ecrite « pour l'ecriture » donnait donc aussi le DELETE a la secretaire.
+  Eclatee en **une policy par commande** : INSERT/UPDATE = admin+direction+secretaire,
+  **DELETE = admin+direction** (elle entraine le compte auth et les fichiers Storage).
+  Aligne cote app : garde de `deleteTeacher` + **bouton masque** dans la liste (prop `canDelete`
+  descendue page → client → table). Masque et non grise : la secretaire n'a AUCUN cas ou la
+  suppression serait possible.
+  - NB : la colonne `roles` de `pg_policies` affiche `{public}` = tous les roles BDD (`anon`,
+    `authenticated`), valeur par defaut faute de clause `TO`. Ce n'est pas un trou : la condition
+    exige `current_etablissement_id()`/`get_user_role()`, donc un `auth.uid()` nul ne passe pas.
+- **Referentiel des cours** (`unites_enseignement`, `cours_modules`, `cours`) : defaut INVERSE des
+  tables centrales — **le role sans le tenant**. Les policies d'origine (`get_user_role() IN (...)`)
+  n'avaient aucun filtre d'etablissement alors que `unites_enseignement` porte la colonne. Corrige,
+  cloisonnement en cascade pour les deux autres via `unite_enseignement_id`.
+  - **Bug prealable revele** : l'enseignant n'avait AUCUN acces a ces tables, alors que Gabarits et
+    Saisie des notes chargent l'arbre du referentiel avec le client SESSION → **son arbre etait
+    vide**. Lecture ouverte a tout le personnel.
+  - Ecriture (admin/direction/resp. pedago) inchangee : les policies l'autorisaient deja, seule la
+    **sidebar** fermait l'ecran au responsable pedagogique. Ouverte.
+
+**Reste du chantier multi-etablissement** (les chemins qui ne passent PAS par la RLS) :
+le middleware ne verifie pas que l'utilisateur appartient au tenant du sous-domaine ; les
+operations sur les comptes `auth` (email, 2FA, reinitialisation) n'ont aucune garde
+d'etablissement ; les 3 routes `/api/notifications/*` recoivent `etablissement_id` **du corps de
+la requete** ; `getCachedEtablissement` et `/api/public/etablissement` font un `.single()` sans
+filtre (leveront au 2e etablissement).
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
 - **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
   ils utilisent encore le motif client-only avec `ilike`. `norm_name()` (SQL) et `normalize-name.ts` sont prets.
-- **Multi-etablissement — passe globale a faire** (decide le 4 aout) : l'app est multi-tenant mais
-  plusieurs points supposent un etablissement unique — `getCachedEtablissement` (`.single()` sans
-  filtre), et plus generalement toute requete en **service-role** qui ne porte pas son propre
-  cloisonnement (la RLS ne la protege pas). A auditer dans TOUTE l'app.
+- **Multi-etablissement — 2e moitie du chantier** (RLS traitee le 5 aout ; restent les chemins
+  qui ne passent pas par elle) : (1) le **middleware** resout le tenant depuis le SOUS-DOMAINE et
+  ne verifie jamais que l'utilisateur connecte lui appartient ; (2) les operations sur les comptes
+  **auth** (`updateEmail`, `resetUserTwoFactor`, `sendPasswordReset`) s'executent en service-role
+  sans garde d'etablissement — `deleteUser` donne le bon motif : il lit d'abord la cible avec le
+  client SESSION, donc la RLS filtre ; (3) les 3 routes `/api/notifications/*` lisent
+  `etablissement_id` **dans le corps de la requete** ; (4) `getCachedEtablissement` et
+  `/api/public/etablissement` font un `.single()` sans filtre.
+- **Tester un compte de CHAQUE ROLE** apres la passe RLS du 5 aout : une policy trop stricte ne
+  leve pas d'erreur, elle renvoie zero ligne et l'ecran se vide en silence.
 - **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
   imposee en base** — aucun index unique sur `enrollments`. Un index partiel sur `student_id`
   `WHERE status = 'active'` la rendrait impossible plutot qu'improbable. A arbitrer.
@@ -1834,6 +1932,15 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/harden-security-definer-functions.sql` (`get_user_role()` STABLE
+  + `search_path` fixe ; definitions des 2 fonctions de RLS versees dans le depot).
+- [x] Executer `supabase/migrations/add-role-checks-to-core-rls.sql` (controle de ROLE ajoute aux
+  8 tables centrales + fonctions de perimetre enseignant). **Verifie** : 16 policies, 2 par table.
+- [x] Executer `supabase/migrations/drop-dead-tables-payments-schedules.sql` (tables vides et sans
+  chemin d'ecriture).
+- [x] Executer `supabase/migrations/fix-teacher-delete-and-referentiel-rls.sql` (DELETE enseignant
+  reserve admin/direction ; referentiel cloisonne par etablissement et ouvert en lecture au staff).
+  **Verifie** : teachers = 4 policies (1 par commande), referentiel = 2 par table.
 
 - [x] Executer `supabase/migrations/fix-student-numbers-add-month.sql` dans Supabase SQL Editor
 - [x] Executer `supabase/seed-teachers-demo.sql` dans Supabase SQL Editor

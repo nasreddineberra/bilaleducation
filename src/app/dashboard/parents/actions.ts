@@ -120,7 +120,7 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
   parentId?: string
   accounts?: TutorAccountResult[]
 }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
 
   // Validation côté serveur
@@ -208,7 +208,7 @@ export async function updateParentRecord(
   parentId: string,
   payload: UpdateParentPayload
 ): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
 
   // Validation côté serveur
@@ -349,7 +349,7 @@ async function adultEnrolledMap(supabase: Awaited<ReturnType<typeof createClient
 }
 
 export async function getParentsForAdultModal(): Promise<{ error?: string; families?: ParentAdultRow[] }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   const supabase = await createClient()
 
@@ -380,7 +380,7 @@ export async function getParentsForAdultModal(): Promise<{ error?: string; famil
 export async function saveParentsAdultCourses(
   updates: { id: string; tutor1_adult_courses: boolean; tutor2_adult_courses: boolean }[],
 ): Promise<{ error?: string; updated?: number }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   if (!updates || updates.length === 0) return { updated: 0 }
 

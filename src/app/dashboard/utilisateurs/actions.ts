@@ -281,13 +281,14 @@ export async function getUserDeleteDeps(id: string): Promise<{
   const supabase = await createClient()
   const head = { count: 'exact' as const, head: true }
 
+  // `payments` a disparu de cette liste : table morte, remplacee par
+  // `fee_installments` (voir drop-dead-tables-payments-schedules.sql).
   const [
-    payments, installments, adjustments, expenses, revenues,
+    installments, adjustments, expenses, revenues,
     absences, appreciations, archives,
     timeEntries,
     parentsT1, parentsT2,
   ] = await Promise.all([
-    supabase.from('payments').select('id', head).eq('created_by', id),
     supabase.from('fee_installments').select('id', head).eq('recorded_by', id),
     supabase.from('fee_adjustments').select('id', head).eq('recorded_by', id),
     supabase.from('expenses').select('id', head).eq('created_by', id),
@@ -302,7 +303,7 @@ export async function getUserDeleteDeps(id: string): Promise<{
 
   const n = (r: { count: number | null }) => r.count ?? 0
   return {
-    finance:      n(payments) + n(installments) + n(adjustments) + n(expenses) + n(revenues),
+    finance:      n(installments) + n(adjustments) + n(expenses) + n(revenues),
     scolarite:    n(absences) + n(appreciations) + n(archives),
     presence:     n(timeEntries),
     rattachement: n(parentsT1) + n(parentsT2),

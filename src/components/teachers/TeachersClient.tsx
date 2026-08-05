@@ -15,6 +15,8 @@ type StatFilter = '' | 'active'
 
 interface TeachersClientProps {
   teachers: Teacher[]
+  /** Suppression autorisee (admin / direction seuls). */
+  canDelete: boolean
   /** Classes de l'annee en cours par enseignant (affectations actives ce jour). */
   classesByTeacher?: Record<string, { name: string; info: string; isSubstitute: boolean }[]>
   filteredCount: number
@@ -87,7 +89,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function TeachersClient({ teachers, filteredCount, page, q, filter, totalCount, totalActive, classesByTeacher }: TeachersClientProps) {
+export default function TeachersClient({ teachers, canDelete, filteredCount, page, q, filter, totalCount, totalActive, classesByTeacher }: TeachersClientProps) {
   const router = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [inputValue, setInputValue] = useState(q)
@@ -158,7 +160,7 @@ export default function TeachersClient({ teachers, filteredCount, page, q, filte
       </div>
 
       {/* Tableau */}
-      <TeachersTable teachers={teachers} classesByTeacher={classesByTeacher} />
+      <TeachersTable teachers={teachers} classesByTeacher={classesByTeacher} canDelete={canDelete} />
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">

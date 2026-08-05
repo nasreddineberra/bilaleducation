@@ -84,7 +84,7 @@ async function currentYearEnrollment(supabase: Awaited<ReturnType<typeof createC
 export async function getStudentsForStatusModal(): Promise<{
   error?: string; yearLabel?: string; students?: StudentStatusRow[]
 }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   const supabase = await createClient()
 
@@ -113,7 +113,7 @@ export async function getStudentsForStatusModal(): Promise<{
 export async function saveStudentsActive(
   updates: { id: string; is_active: boolean }[],
 ): Promise<{ error?: string; activated?: number; deactivated?: number }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
   if (roleError) return { error: roleError }
   if (!updates || updates.length === 0) return { activated: 0, deactivated: 0 }
 

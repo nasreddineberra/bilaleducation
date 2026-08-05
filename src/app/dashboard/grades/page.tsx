@@ -95,7 +95,7 @@ export default async function GradesPage() {
   let classes: ClassRow[] = []
   let teacherId: string | null = null
 
-  if (['admin', 'direction', 'responsable_pedagogique'].includes(role)) {
+  if (['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(role)) {
     const query = supabase
       .from('classes')
       .select('id, name, level, day_of_week, start_time, end_time, cotisation_types(label, is_adult)')

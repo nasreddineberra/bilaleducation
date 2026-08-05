@@ -129,30 +129,32 @@ const navItems: NavItem[] = [
     name:  'Apprenants',
     href:  '/dashboard/students',
     icon:  Users,
-    roles: ['admin', 'direction', 'enseignant', 'secretaire'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
   },
   {
     name:  'Parents',
     href:  '/dashboard/parents',
     icon:  Contact,
-    roles: ['admin', 'direction', 'secretaire'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
   },
   {
+    // La secrétaire crée l'élève et le parent : lui refuser l'affectation
+    // coupait l'inscription en deux (décision du 5 août, cf. RLS enrollments).
     name:  'Affectations',
     icon:  UserCheck,
-    roles: ['admin', 'direction', 'responsable_pedagogique'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
     children: [
       {
         name:  'Apprenants',
         href:  '/dashboard/affectation',
         icon:  Users,
-        roles: ['admin', 'direction', 'responsable_pedagogique'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
       {
         name:  'Adultes',
         href:  '/dashboard/affectation/adultes',
         icon:  UserCheck,
-        roles: ['admin', 'direction', 'responsable_pedagogique'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
     ],
   },
@@ -165,13 +167,13 @@ const navItems: NavItem[] = [
         name:  'Gabarits',
         href:  '/dashboard/evaluations',
         icon:  ClipboardList,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
       },
       {
         name:  'Saisie notes',
         href:  '/dashboard/grades',
         icon:  FileText,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
       },
       {
         name:  'Bulletins',
@@ -266,19 +268,21 @@ const navItems: NavItem[] = [
     // NB : item « Pédagogie » (sous Paramètres) — à ne pas confondre avec la SECTION Pédagogie.
     name:  'Pédagogie',
     icon:  School,
-    roles: ['admin', 'direction'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
     children: [
       {
+        // Le responsable pédagogique gère les classes (décision du 5 août,
+        // cf. RLS classes). Le référentiel des cours reste à admin/direction.
         name:  'Param. Classes',
         href:  '/dashboard/classes',
         icon:  BookOpen,
-        roles: ['admin', 'direction'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
       {
         name:  'Référentiel Cours',
         href:  '/dashboard/cours',
         icon:  BookOpen,
-        roles: ['admin', 'direction'],
+        roles: ['admin', 'direction', 'responsable_pedagogique'],
       },
     ],
   },
@@ -286,7 +290,7 @@ const navItems: NavItem[] = [
     name:  'Enseignants',
     href:  '/dashboard/teachers',
     icon:  GraduationCap,
-    roles: ['admin', 'direction'],
+    roles: ['admin', 'direction', 'secretaire'],
   },
   {
     name:  'Utilisateurs',
