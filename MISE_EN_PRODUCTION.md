@@ -9,6 +9,12 @@
 abonnement aux établissements. Un déploiement unique, une base unique, un
 sous-domaine par école, cloisonnement par RLS.
 
+> **Reprise** — prochaine action : créer le compte **Vercel** (formule Pro, l'usage
+> commercial étant exclu du gratuit) et le connecter au dépôt GitHub, branche `main`.
+> Ne pas encore toucher au domaine ni aux variables d'environnement dans Vercel :
+> les variables demandent les clés Supabase, et le DNS ne se pointe qu'une fois le
+> projet créé côté hébergeur.
+
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
 
@@ -43,10 +49,11 @@ compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
 ## Phase 1 · Domaine
 
 - [x] **Toi** — Domaine acheté, sans option.
-- [ ] **Toi** — Activer l'**authentification à deux facteurs** sur le compte registrar.
-      Qui contrôle le domaine contrôle le site, les emails, et toute réinitialisation de mot de passe.
-- [ ] **Toi** — Vérifier que le **renouvellement automatique** est actif. Un domaine
-      expiré arrête le site et la messagerie le même jour.
+- [x] **Toi** — Authentification à deux facteurs activée sur le compte Infomaniak.
+- [x] **Toi** — Renouvellement automatique actif.
+- [ ] **Toi** — Rappel agenda **début juin 2027**, deux mois avant l'échéance. C'est le
+      seul filet contre une carte bancaire expirée, que le renouvellement automatique
+      ne couvre pas.
 - [ ] **Toi** — Créer la boîte `contact@` (adresse de l'éditeur, pas d'une école).
       Peut attendre la phase 5.
 
