@@ -85,7 +85,10 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
   }
   const logoOffset = logoBase64 ? 23 : 0
 
-  doc.setFontSize(15)
+  // 12 points comme les autres documents. Ici le titre est place SOUS le nom
+  // (11 points) et non a sa droite : aucune contrainte de largeur, seule la
+  // taille s'aligne sur le reste de l'application.
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
   doc.text(input.etablissementNom, margin + logoOffset, y + 6)

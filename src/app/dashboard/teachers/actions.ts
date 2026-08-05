@@ -58,6 +58,14 @@ export async function createTeacherWithAccount(data: {
     email: data.email,
     password: tempPassword,
     email_confirm: true,
+    // `app_metadata` porte le ROLE et l'ETABLISSEMENT dans le JETON.
+    // Sans eux, le middleware lisait `app_metadata?.role ?? 'parent'` et
+    // traitait donc tout compte normal comme un parent — ce qui le faisait
+    // echapper au controle 2FA. L'etablissement, lui, rend le controle de
+    // tenant gratuit, sans requete supplementaire a chaque navigation.
+    // Ces valeurs sont un MIROIR de `profiles` : l'autorite reste la table,
+    // la RLS s'appuyant sur `get_user_role()` et non sur le jeton.
+    app_metadata: { role: 'enseignant', etablissement_id: etablissementId },
   })
 
   if (authError) {
@@ -284,6 +292,8 @@ export async function createParentAccount(data: {
     email: data.email,
     password: tempPassword,
     email_confirm: true,
+    // Miroir de `profiles` — voir le commentaire de createTeacherWithAccount.
+    app_metadata: { role: 'parent', etablissement_id: etablissementId },
   })
 
   if (authError) {

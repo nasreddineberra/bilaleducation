@@ -34,13 +34,22 @@ export const getCachedProfile = unstable_cache(
 
 // ─── Établissement (cache 6 h) ───────────────────────────────────────────────
 
+/**
+ * Établissement affiché dans la sidebar.
+ *
+ * PARAMÉTRÉE : le `.single()` sans filtre servait un établissement arbitraire —
+ * et lèverait carrément dès le deuxième, `.single()` exigeant exactement une
+ * ligne. En service-role la RLS ne rattrape rien, le filtre doit être explicite.
+ */
 export const getCachedEtablissement = unstable_cache(
-  async () => {
+  async (etablissementId: string) => {
+    if (!etablissementId) return null
     const supabase = createAdminClient()
     const { data } = await supabase
       .from('etablissements')
       .select('nom, logo_url')
-      .single()
+      .eq('id', etablissementId)
+      .maybeSingle()
     return data
   },
   ['dashboard-etablissement'],

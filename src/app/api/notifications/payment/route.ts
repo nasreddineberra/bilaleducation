@@ -29,12 +29,29 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { user, error } = await requireRole(['admin', 'direction', 'secretaire'])
+    const { user, etablissementId, error } = await requireRole(['admin', 'direction', 'secretaire'])
     if (error) return error
+    if (!etablissementId) {
+      return NextResponse.json({ error: 'Établissement non identifié.' }, { status: 403 })
+    }
 
-    const { parent_id, amount, method, receipt, paid_date, etablissement_id } = await req.json()
+    // L'établissement vient du PROFIL de l'appelant, jamais du corps de la requête.
+    const { parent_id, amount, method, receipt, paid_date } = await req.json()
     if (!parent_id || !amount) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
+    }
+
+    // Le foyer doit relever de l'établissement de l'appelant : le service-role
+    // qui suit ignore la RLS, la vérification nous incombe.
+    const admin = createAdminClient()
+    const { data: parentTenant } = await admin
+      .from('parents')
+      .select('id')
+      .eq('id', parent_id)
+      .eq('etablissement_id', etablissementId)
+      .maybeSingle()
+    if (!parentTenant) {
+      return NextResponse.json({ error: 'Famille introuvable.' }, { status: 404 })
     }
 
     const parent = await getParentWithEmails(parent_id)
@@ -63,13 +80,7 @@ export async function POST(req: NextRequest) {
       </div>
     `
 
-    // Récupérer etablissement_id depuis la table parents
-    let etabId = etablissement_id
-    if (!etabId) {
-      const supabase = createAdminClient()
-      const { data: p } = await supabase.from('parents').select('etablissement_id').eq('id', parent_id).single()
-      etabId = p?.etablissement_id
-    }
+    const etabId = etablissementId
     if (!etabId) return NextResponse.json({ ok: true })
 
     await createNotification({

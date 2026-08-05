@@ -165,6 +165,51 @@ export async function proxy(request: NextRequest) {
     return redirect
   }
 
+  // ── L'utilisateur appartient-il au tenant de l'URL ? ──────────────────────
+  //
+  // Le tenant vient du SOUS-DOMAINE, l'identité de la SESSION : rien ne
+  // garantissait qu'ils désignent le même établissement. Un utilisateur de
+  // l'école A ouvrant `ecoleB.…` recevait `x-etablissement-id` = B, et toute
+  // écriture s'appuyant sur cet en-tête partait chez B.
+  //
+  // La comparaison est GRATUITE : `app_metadata.etablissement_id` voyage dans le
+  // jeton, aucune requête n'est nécessaire. Les comptes créés avant cette
+  // mesure ont été rattrapés ; un compte sans la donnée est laissé passer plutôt
+  // que verrouillé — refuser l'accès sur une information absente ferait plus de
+  // dégâts que le risque couvert. Il est signalé en journal.
+  const tenantId = requestHeaders.get('x-etablissement-id')
+  if (user && tenantId && pathname.startsWith('/dashboard')) {
+    const userEtab = user.app_metadata?.etablissement_id as string | undefined
+    const isSuperAdmin = user.app_metadata?.role === 'super_admin'
+
+    if (!userEtab) {
+      console.warn(`[proxy] Compte sans etablissement_id dans le jeton : ${user.id}`)
+    } else if (!isSuperAdmin && userEtab !== tenantId) {
+      // Déconnexion franche : rester connecté sur le domaine d'une autre école
+      // n'a aucun sens, et l'écran afficherait les données de A sous l'identité
+      // visuelle de B.
+      const redirect = NextResponse.redirect(new URL('/login?reason=etablissement', request.url))
+      const supabaseForSignOut = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() { return request.cookies.getAll() },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                redirect.cookies.set(name, value, options)
+              )
+            },
+          },
+        }
+      )
+      await supabaseForSignOut.auth.signOut()
+      redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+      redirect.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
+      return redirect
+    }
+  }
+
   // ── Gestion inactivité (1h) + durée max (24h) ──────────────────────────────
   if (user && pathname.startsWith('/dashboard')) {
     const now = Math.floor(Date.now() / 1000)

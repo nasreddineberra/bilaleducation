@@ -262,7 +262,8 @@ export default function AbsencesClient({
     const logoOffset = etablissement?.logo_url ? 25 : 0
 
     // Nom établissement
-    doc.setFontSize(16)
+    // En-tete a 12 points, aligne sur le titre (voir bulletinPdf.ts).
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.secondary)
     doc.text(etablissement?.nom ?? '', margin + logoOffset, y + 7)
@@ -279,16 +280,16 @@ export default function AbsencesClient({
     })
 
     // Titre à droite
-    doc.setFontSize(14)
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.primary)
-    doc.text("FEUILLE D'APPEL", pageWidth - margin, y + 5, { align: 'right' })
+    doc.text("FEUILLE D'APPEL", pageWidth - margin, y + 7, { align: 'right' })
 
     if (yearLabel) {
       doc.setFontSize(9)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(...COLORS.gray)
-      doc.text(yearLabel, pageWidth - margin, y + 11, { align: 'right' })
+      doc.text(yearLabel, pageWidth - margin, y + 12, { align: 'right' })
     }
 
     y += 25
@@ -1149,7 +1150,8 @@ function SaisieModal({
 
     const logoOffset = etablissement?.logo_url ? 25 : 0
 
-    doc.setFontSize(16)
+    // En-tete a 12 points, aligne sur le titre (voir bulletinPdf.ts).
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.secondary)
     doc.text(etablissement?.nom ?? '', margin + logoOffset, y + 7)
@@ -1162,16 +1164,16 @@ function SaisieModal({
     if (etablissement?.telephone) infoLines.push(`Tél : ${etablissement.telephone}`)
     infoLines.forEach((line, i) => { doc.text(line, margin + logoOffset, y + 12 + i * 4) })
 
-    doc.setFontSize(14)
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...COLORS.primary)
-    doc.text("FEUILLE D'APPEL", pageWidth - margin, y + 5, { align: 'right' })
+    doc.text("FEUILLE D'APPEL", pageWidth - margin, y + 7, { align: 'right' })
 
     if (yearLabel) {
       doc.setFontSize(9)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(...COLORS.gray)
-      doc.text(yearLabel, pageWidth - margin, y + 11, { align: 'right' })
+      doc.text(yearLabel, pageWidth - margin, y + 12, { align: 'right' })
     }
 
     y += 25

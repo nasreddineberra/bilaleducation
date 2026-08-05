@@ -5,11 +5,17 @@ import { requireRole } from '@/lib/auth/requireRole'
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, error } = await requireRole(['admin', 'direction', 'responsable_pedagogique', 'enseignant'])
+    const { user, etablissementId, error } = await requireRole(['admin', 'direction', 'responsable_pedagogique', 'enseignant'])
     if (error) return error
+    if (!etablissementId) {
+      return NextResponse.json({ error: 'Etablissement non identifie.' }, { status: 403 })
+    }
 
-    const { homework_id, etablissement_id } = await req.json()
-    if (!homework_id || !etablissement_id) {
+    // L'etablissement vient du PROFIL de l'appelant. Il etait auparavant fourni
+    // par le client, qui pouvait donc poster le devoir d'un AUTRE etablissement
+    // et declencher l'envoi d'emails a ses familles.
+    const { homework_id } = await req.json()
+    if (!homework_id) {
       return NextResponse.json({ error: 'Donnees manquantes' }, { status: 400 })
     }
 
@@ -20,7 +26,8 @@ export async function POST(req: NextRequest) {
       .from('homework')
       .select('*, classes:class_id(name, cotisation_types(is_adult)), teachers:teacher_id(first_name, last_name, civilite)')
       .eq('id', homework_id)
-      .single()
+      .eq('etablissement_id', etablissementId)   // le service-role ignore la RLS
+      .maybeSingle()
 
     if (!hw) return NextResponse.json({ error: 'Devoir introuvable' }, { status: 404 })
 
@@ -124,7 +131,7 @@ export async function POST(req: NextRequest) {
     let sent = 0
     for (const r of recipients) {
       await createNotification({
-        etablissement_id,
+        etablissement_id: etablissementId,
         type: 'homework',
         parent_id: r.parent_id,
         title,

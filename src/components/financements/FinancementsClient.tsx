@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
+import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 
@@ -37,6 +38,8 @@ interface StudentLine {
 interface AdultLine {
   id: string
   tutor_label: string
+  /** Prénom seul : sert à nommer les bénéficiaires dans la trace comptable. */
+  tutor_first_name: string
   class_name: string
   cotisation_label: string
   class_tooltip: string | null
@@ -213,6 +216,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
       return {
         id: `adult-${ae.parent_id}-${ae.tutor_number}-${cls?.id}`,
         tutor_label: tutorName,
+        tutor_first_name: tFirst,
         class_name: cls?.name ?? '·',
         cotisation_label: ct?.label ?? '',
         class_tooltip: buildClassTooltip(cls),
@@ -587,10 +591,19 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   }
 
   // ── Attestation de paiement ────────────────────────────────────────────────
-  const nbCotisWord = selectedParent
-    ? (selectedParent.students.length + selectedParent.adultLines.length > 1 ? 'cotisations' : 'cotisation')
-    : 'cotisation'
-
+  //
+  // Le foyer peut cumuler des cours ENFANTS et ADULTES, et l'attestation
+  // demandee ne porte parfois que sur une partie (un comite d'entreprise qui
+  // rembourse les cours des enfants, par exemple). On choisit donc les
+  // inscriptions AVANT d'editer.
+  const [attestOpen,      setAttestOpen]      = useState(false)
+  const [attestStudents,  setAttestStudents]  = useState<Set<string>>(new Set())
+  const [attestAdults,    setAttestAdults]    = useState<Set<string>>(new Set())
+  const [attestReduction, setAttestReduction] = useState(true)
+  // Tant que l'utilisateur n'a pas touche la case de reduction, elle SUIT la
+  // selection (cochee si tout est retenu). Des qu'il l'a touchee, son choix
+  // prime : « incluse si tout est coche, mais reste decochable ».
+  const [reductionTouched, setReductionTouched] = useState(false)
   // Le foyer : tuteur 1 (+ tuteur 2 si present).
   const foyerTutorNames = (): string[] => {
     if (!selectedParent) return []
@@ -602,8 +615,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const buildAttestationBase64 = async (tutorNames: string[]): Promise<string> => {
     const p = selectedParent!
     const lines = [
-      ...p.students.map(s => ({ nom: `${s.last_name.toUpperCase()} ${s.first_name}`, detail: s.class_name, montant: s.total })),
-      ...p.adultLines.map(a => ({ nom: a.tutor_label, detail: a.class_name, montant: a.total })),
+      ...p.students.filter(s => attestStudents.has(s.id))
+        .map(s => ({ nom: `${s.last_name.toUpperCase()} ${s.first_name}`, detail: s.class_name, montant: s.total })),
+      ...p.adultLines.filter(a => attestAdults.has(a.id))
+        .map(a => ({ nom: a.tutor_label, detail: a.class_name, montant: a.total })),
     ]
     return generateAttestationPdfBase64({
       etablissementNom:       etablissement?.nom ?? 'Établissement',
@@ -613,11 +628,38 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       tutorNames,
       yearLabel:  currentYear.label,
       lines,
-      reduction:  Math.abs(adjustmentsTotal),
-      total:      totalDue,
+      reduction:  reductionCochee ? Math.abs(adjustmentsTotal) : 0,
+      total:      attestTotal,
+      partial:    !attestComplete,
       dateStr:    new Date().toLocaleDateString('fr-FR'),
     })
   }
+
+  const openAttestation = () => {
+    if (!selectedParent) return
+    setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
+    setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))
+    setAttestReduction(true)
+    setReductionTouched(false)
+    setAttestOpen(true)
+  }
+
+  const nbLignesTotal    = (selectedParent?.students.length ?? 0) + (selectedParent?.adultLines.length ?? 0)
+  const nbLignesRetenues = attestStudents.size + attestAdults.size
+  const attestComplete   = nbLignesRetenues === nbLignesTotal
+  // Case de reduction : suit la selection tant qu'elle n'a pas ete touchee.
+  const reductionCochee  = reductionTouched ? attestReduction : attestComplete
+
+  // Prénoms des bénéficiaires retenus, dans l'ordre de la modale.
+  const attestBeneficiaires = [
+    ...(selectedParent?.students.filter(s => attestStudents.has(s.id)).map(s => s.first_name) ?? []),
+    ...(selectedParent?.adultLines.filter(a => attestAdults.has(a.id)).map(a => a.tutor_first_name) ?? []),
+  ]
+
+  const attestTotal =
+    (selectedParent?.students.filter(s => attestStudents.has(s.id)).reduce((a, s) => a + s.total, 0) ?? 0)
+    + (selectedParent?.adultLines.filter(a => attestAdults.has(a.id)).reduce((acc, a) => acc + a.total, 0) ?? 0)
+    - (reductionCochee ? Math.abs(adjustmentsTotal) : 0)
 
   // Genere le PDF pour le FOYER, l'ouvre dans un nouvel onglet (imprimable) et trace la delivrance.
   const issueAttestation = async () => {
@@ -640,11 +682,19 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       const res = await logAttestation({
         parentId:     selectedParent.id,
         schoolYearId: currentYear.id,
-        subject:      `Attestation de paiement · ${nbCotisWord} ${currentYear.label}`,
+        // La trace NOMME les bénéficiaires quand l'attestation est partielle :
+        // « 1/2 inscriptions » n'apprenait rien à qui relit l'historique six mois
+        // plus tard, alors que le prénom identifie immédiatement le document.
+        // Sur une attestation complète, la question ne se pose pas — elle couvre
+        // tout le foyer, l'énumération serait du bruit.
+        subject:      attestComplete
+          ? `Attestation de paiement ${currentYear.label}`
+          : `Attestation de paiement partielle ${currentYear.label} · ${attestBeneficiaires.join(' · ')}`,
         recipients:   tutorNames.join(', '),
       })
       if (res.error) { toast.error(res.error); return }
       if (res.communication) setCommunications(prev => [res.communication!, ...prev])
+      setAttestOpen(false)
       toast.success('Attestation ouverte pour impression.')
     } catch (e: any) {
       toast.error(e.message ?? "Erreur lors de la génération de l'attestation.")
@@ -835,7 +885,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <FloatButton type="button" variant="secondary" onClick={openRelance}>Relancer</FloatButton>
             )}
             {derivedStatus === 'paid' && totalDue > 0 && (
-              <FloatButton type="button" variant="submit" onClick={issueAttestation} loading={attestSending}>Attestation</FloatButton>
+              <FloatButton type="button" variant="submit" onClick={openAttestation} loading={attestSending}>Attestation</FloatButton>
             )}
           </div>
         </div>
@@ -949,7 +999,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                         c.type === 'relance' ? 'bg-orange-50 text-orange-700' : 'bg-primary-50 text-primary-700')}>
                         {c.type === 'relance' ? 'Relance' : 'Attestation'}
                       </span>
-                      <span className="flex-1 truncate text-secondary-700">{c.subject}</span>
+                      <TruncatedText text={c.subject} className="text-secondary-700" />
                       {c.status === 'failed' && <span className="text-red-500 shrink-0">Échec</span>}
 
                       {/* Suppression (admin/direction) — confirmation en ligne */}
@@ -1257,6 +1307,144 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           onClose={() => { setPaymentModalOpen(false); setEditingPayment(null) }}
           onSaved={handlePaymentSaved}
         />
+      )}
+
+      {/* Modale de choix des inscriptions a porter sur l'attestation.
+          Un foyer peut cumuler cours ENFANTS et ADULTES, et l'attestation
+          demandee ne couvre parfois qu'une partie (remboursement par un comite
+          d'entreprise, par exemple).
+          Fermeture X / Annuler uniquement, comme la modale de relance. */}
+      {attestOpen && selectedParent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="attest-modal-title" className="bg-white rounded-2xl shadow-2xl w-full max-w-xl animate-fade-in">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
+              <div>
+                <h2 id="attest-modal-title" className="text-base font-bold text-secondary-800">Attestation de paiement</h2>
+                <p className="text-xs text-warm-700 mt-0.5">
+                  Choisissez les inscriptions à faire figurer sur le document
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttestOpen(false)}
+                aria-label="Fermer"
+                className="p-1.5 rounded-lg text-warm-700 hover:bg-warm-100 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto list-scroll">
+              {/* Raccourcis : le cas d'usage courant est « les enfants seulement ». */}
+              <div className="flex flex-wrap items-center gap-2">
+                <FloatButton type="button" variant="secondary" className="text-xs px-2.5 py-1"
+                  onClick={() => {
+                    setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
+                    setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))
+                  }}>Tout</FloatButton>
+                {selectedParent.students.length > 0 && (
+                  <FloatButton type="button" variant="secondary" className="text-xs px-2.5 py-1"
+                    onClick={() => {
+                      setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
+                      setAttestAdults(new Set())
+                    }}>Élèves seulement</FloatButton>
+                )}
+                {selectedParent.adultLines.length > 0 && (
+                  <FloatButton type="button" variant="secondary" className="text-xs px-2.5 py-1"
+                    onClick={() => {
+                      setAttestStudents(new Set())
+                      setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))
+                    }}>Adultes seulement</FloatButton>
+                )}
+              </div>
+
+              <ul className="divide-y divide-warm-100 border border-warm-200 rounded-xl overflow-hidden">
+                {selectedParent.students.map(s => (
+                  <li key={s.id}>
+                    <label className="flex items-center gap-3 px-3 py-2 text-xs cursor-pointer hover:bg-warm-50">
+                      <input
+                        type="checkbox"
+                        checked={attestStudents.has(s.id)}
+                        onChange={e => setAttestStudents(prev => {
+                          const n = new Set(prev)
+                          if (e.target.checked) n.add(s.id); else n.delete(s.id)
+                          return n
+                        })}
+                        className="accent-primary-600"
+                      />
+                      <span className="font-semibold text-secondary-800 truncate">{s.last_name.toUpperCase()} {s.first_name}</span>
+                      <span className="text-warm-700 truncate">{s.class_name}</span>
+                      <span className="ml-auto tabular-nums font-semibold text-secondary-800">{fmtEur(s.total)}</span>
+                    </label>
+                  </li>
+                ))}
+                {selectedParent.adultLines.map(a => (
+                  <li key={a.id}>
+                    <label className="flex items-center gap-3 px-3 py-2 text-xs cursor-pointer hover:bg-warm-50">
+                      <input
+                        type="checkbox"
+                        checked={attestAdults.has(a.id)}
+                        onChange={e => setAttestAdults(prev => {
+                          const n = new Set(prev)
+                          if (e.target.checked) n.add(a.id); else n.delete(a.id)
+                          return n
+                        })}
+                        className="accent-primary-600"
+                      />
+                      <span className="font-semibold text-secondary-800 truncate">{a.tutor_label}</span>
+                      <span className="text-warm-700 truncate">{a.class_name}</span>
+                      <span className="ml-auto tabular-nums font-semibold text-secondary-800">{fmtEur(a.total)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+
+              {/* La reduction est enregistree au niveau du FOYER, pas par
+                  inscription : elle ne peut pas etre repartie honnetement sur une
+                  selection partielle. Cochee par defaut quand tout est retenu,
+                  decochable dans tous les cas — c'est le comptable qui connait le
+                  motif de l'avoir. */}
+              {Math.abs(adjustmentsTotal) > 0 && (
+                <label className="flex items-start gap-3 px-3 py-2 text-xs rounded-xl border border-warm-200 cursor-pointer hover:bg-warm-50">
+                  <input
+                    type="checkbox"
+                    checked={reductionCochee}
+                    onChange={e => { setReductionTouched(true); setAttestReduction(e.target.checked) }}
+                    className="mt-0.5 accent-primary-600"
+                  />
+                  <span className="flex-1">
+                    <span className="font-semibold text-secondary-800">Réduction / avoir</span>
+                    <span className="block text-warm-700 mt-0.5">
+                      Enregistrée au niveau du foyer : elle ne se rattache à aucune inscription en particulier.
+                    </span>
+                  </span>
+                  <span className="tabular-nums font-semibold text-secondary-800">- {fmtEur(Math.abs(adjustmentsTotal))}</span>
+                </label>
+              )}
+
+              <div className="flex items-baseline justify-between pt-1">
+                <span className="text-xs text-warm-700">
+                  {nbLignesRetenues} inscription{nbLignesRetenues > 1 ? 's' : ''} sur {nbLignesTotal}
+                  {!attestComplete && ' · attestation partielle'}
+                </span>
+                <span className="text-sm font-bold text-secondary-800 tabular-nums">Total : {fmtEur(attestTotal)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-warm-100">
+              <FloatButton type="button" variant="secondary" onClick={() => setAttestOpen(false)}>Annuler</FloatButton>
+              <FloatButton
+                type="button"
+                variant="submit"
+                onClick={issueAttestation}
+                loading={attestSending}
+                disabled={nbLignesRetenues === 0}
+              >
+                Éditer l&apos;attestation
+              </FloatButton>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modale de relance d'impayes (modele pre-rempli, editable).

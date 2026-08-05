@@ -21,11 +21,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { user, error } = await requireRole(['admin', 'direction', 'secretaire'])
+    const { user, etablissementId, error } = await requireRole(['admin', 'direction', 'secretaire'])
     if (error) return error
+    if (!etablissementId) {
+      return NextResponse.json({ error: 'Établissement non identifié.' }, { status: 403 })
+    }
 
-    const { absences, etablissement_id } = await req.json()
-    if (!absences?.length || !etablissement_id) {
+    // L'établissement vient du PROFIL de l'appelant, jamais du corps de la
+    // requête : il y était fourni par le client, qui pouvait donc désigner un
+    // autre établissement et déclencher des envois chez lui.
+    const { absences } = await req.json()
+    if (!absences?.length) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
     }
 
@@ -49,14 +55,16 @@ export async function POST(req: NextRequest) {
         .from('students')
         .select('first_name, last_name')
         .eq('id', studentId)
-        .single()
+        .eq('etablissement_id', etablissementId)   // le service-role ignore la RLS
+        .maybeSingle()
 
       if (!student) continue
 
       const classId = absences.find((a: any) => a.student_id === studentId)?.class_id
       let className = ''
       if (classId) {
-        const { data: cls } = await supabase.from('classes').select('name').eq('id', classId).single()
+        const { data: cls } = await supabase.from('classes').select('name')
+          .eq('id', classId).eq('etablissement_id', etablissementId).maybeSingle()
         className = cls?.name ?? ''
       }
 
@@ -84,7 +92,7 @@ export async function POST(req: NextRequest) {
         `
 
         await createNotification({
-          etablissement_id,
+          etablissement_id: etablissementId,
           type: typeNotif,
           parent_id: parent.id,
           student_id: studentId,

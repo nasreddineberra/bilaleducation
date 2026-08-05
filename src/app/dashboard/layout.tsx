@@ -29,13 +29,20 @@ export default async function DashboardLayout({
   // l'est PLUS — voir le commentaire de `getCurrentYear`.
   const results = await Promise.allSettled([
     getCachedProfile(user.id),
-    getCachedEtablissement(),
     getCurrentYear(),
   ])
 
   const profile = results[0].status === 'fulfilled' ? results[0].value : null
-  const etablissement = results[1].status === 'fulfilled' ? results[1].value : null
-  const currentYear = results[2].status === 'fulfilled' ? results[2].value : null
+  const currentYear = results[1].status === 'fulfilled' ? results[1].value : null
+
+  // L'établissement est désormais lu APRÈS le profil, qui en porte
+  // l'identifiant : `getCachedEtablissement` ne fait plus de `.single()` sans
+  // filtre. Séquentiel et non parallèle — c'est le prix du cloisonnement.
+  // L'autorité est le PROFIL de l'utilisateur, pas l'en-tête de tenant posé par
+  // le middleware, qui reflète l'URL et non l'identité.
+  const etablissement = profile?.etablissement_id
+    ? await getCachedEtablissement(profile.etablissement_id).catch(() => null)
+    : null
 
   // Log des échecs partiels (ne pas bloquer le rendu)
   for (const [i, result] of results.entries()) {

@@ -144,7 +144,16 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   const logoOffset = logoBase64 ? 25 : 0
 
   // Nom de l'établissement
-  doc.setFontSize(16)
+  // En-tete homogeneise a 12 POINTS : le nom d'etablissement et le titre du
+  // document partagent la meme taille ET la meme ligne de base (y + 7). Le nom
+  // etait en 16 et le titre en 14, sur deux hauteurs differentes.
+  //
+  // Ce n'est pas cosmetique : le nom partage sa ligne avec le titre aligne a
+  // droite, donc la LONGUEUR DU TITRE commande la place laissee au nom. A 16
+  // points, « ATTESTATION DE PAIEMENT » ne laissait que 81 mm, soit 25
+  // caracteres. A 12, il reste 91 mm pour un nom qui n'en consomme plus que 76
+  // sur 30 caracteres.
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
   doc.text(data.etablissement.nom, margin + logoOffset, y + 7)
@@ -161,15 +170,15 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
   })
 
   // Titre du bulletin (aligné à droite)
-  doc.setFontSize(14)
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.primary)
-  doc.text("BULLETIN D'\u00C9VALUATION", pageWidth - margin, y + 5, { align: 'right' })
+  doc.text("BULLETIN D'\u00C9VALUATION", pageWidth - margin, y + 7, { align: 'right' })
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text(`${data.periodLabel} · ${data.yearLabel}`, pageWidth - margin, y + 11, { align: 'right' })
+  doc.text(`${data.periodLabel} · ${data.yearLabel}`, pageWidth - margin, y + 12, { align: 'right' })
 
   y += 25
 

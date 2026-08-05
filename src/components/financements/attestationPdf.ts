@@ -24,6 +24,17 @@ export interface AttestationPdfInput {
   lines:                 AttestationLine[]
   reduction:             number     // total reductions/avoirs (valeur positive), 0 si aucune
   total:                 number     // montant net regle (= total du)
+  /**
+   * Vrai quand SEULE UNE PARTIE des inscriptions du foyer figure sur
+   * l'attestation (cas d'un remboursement par un comite d'entreprise, qui ne
+   * prend en charge que les cours des enfants, par exemple).
+   *
+   * Change la PHRASE DE CERTIFICATION : on ne peut pas attester de
+   * « l'integralite des cotisations » en n'en listant qu'une partie. Le document
+   * part a un tiers qui rembourse sur cette base — l'exactitude n'est pas
+   * cosmetique ici.
+   */
+  partial:               boolean
   dateStr:               string     // jj/mm/aaaa
 }
 
@@ -63,7 +74,16 @@ export async function generateAttestationPdfBase64(input: AttestationPdfInput): 
   }
   const logoOffset = logoBase64 ? 25 : 0
 
-  doc.setFontSize(16)
+  // En-tete homogeneise a 12 POINTS : le nom d'etablissement et le titre du
+  // document partagent la meme taille ET la meme ligne de base (y + 7). Le nom
+  // etait en 16 et le titre en 14, sur deux hauteurs differentes.
+  //
+  // Ce n'est pas cosmetique : le nom partage sa ligne avec le titre aligne a
+  // droite, donc la LONGUEUR DU TITRE commande la place laissee au nom. A 16
+  // points, « ATTESTATION DE PAIEMENT » ne laissait que 81 mm, soit 25
+  // caracteres. A 12, il reste 91 mm pour un nom qui n'en consomme plus que 76
+  // sur 30 caracteres.
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
   doc.text(input.etablissementNom, margin + logoOffset, y + 7)
@@ -76,15 +96,15 @@ export async function generateAttestationPdfBase64(input: AttestationPdfInput): 
   if (input.etablissementTelephone) infoLines.push(`Tél : ${input.etablissementTelephone}`)
   infoLines.forEach((line, i) => doc.text(line, margin + logoOffset, y + 12 + i * 4))
 
-  doc.setFontSize(14)
+  doc.setFontSize(12)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...COLORS.secondary)
-  doc.text('ATTESTATION DE PAIEMENT', pageWidth - margin, y + 5, { align: 'right' })
+  doc.text('ATTESTATION DE PAIEMENT', pageWidth - margin, y + 7, { align: 'right' })
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
-  doc.text(`Année ${input.yearLabel}`, pageWidth - margin, y + 11, { align: 'right' })
+  doc.text(`Année ${input.yearLabel}`, pageWidth - margin, y + 12, { align: 'right' })
 
   y += 25
   doc.setDrawColor(...COLORS.secondary)
@@ -101,9 +121,28 @@ export async function generateAttestationPdfBase64(input: AttestationPdfInput): 
   doc.setFontSize(11)
   doc.setTextColor(40, 40, 40)
   const aOnt = input.tutorNames.length > 1 ? 'ont' : 'a'
+  // Deux variations INDEPENDANTES dans cette phrase.
+  //
+  // 1. « l'intégralité » disparaît sur une attestation PARTIELLE : on ne peut
+  //    pas attester du tout en n'en listant qu'une partie. Le document part à un
+  //    tiers qui rembourse sur cette base.
+  // 2. Le NOMBRE de lignes retenues commande cotisation/cotisations, due/dues,
+  //    l'inscription/les inscriptions — une attestation d'une seule inscription
+  //    est un cas courant.
+  //
+  // « listées ci-dessous » ne varie PAS : l'accord se fait sur « activités
+  // culturelles et linguistiques », toujours au pluriel dans la phrase.
+  const pluriel = input.lines.length > 1
+  const cotis   = pluriel ? 'cotisations' : 'cotisation'
+  const portee  = input.partial
+    ? `${pluriel ? 'les' : 'la'} ${cotis}`
+    : `l'intégralité ${pluriel ? 'des' : 'de la'} ${cotis}`
+  const dues         = pluriel ? 'dues' : 'due'
+  const inscriptions = pluriel ? 'des inscriptions' : "de l'inscription"
+
   const intro =
-    `L'établissement mentionné ci-dessus atteste que ${qui} ${aOnt} réglé l'intégralité des cotisations ` +
-    `dues au titre des inscriptions pour des activités culturelles et linguistiques listées ci-dessous ` +
+    `L'établissement mentionné ci-dessus atteste que ${qui} ${aOnt} réglé ${portee} ` +
+    `${dues} au titre ${inscriptions} pour des activités culturelles et linguistiques listées ci-dessous ` +
     `pour l'année scolaire ${input.yearLabel}, pour un montant total de ${fmtEur(input.total)}.`
   const introLines = doc.splitTextToSize(intro, pageWidth - margin * 2)
   doc.text(introLines, margin, y)

@@ -50,6 +50,14 @@ export async function createUser(data: {
     email:          data.email,
     password:       data.password,
     email_confirm:  true,
+    // `app_metadata` porte le ROLE et l'ETABLISSEMENT dans le JETON.
+    // Sans eux, le middleware lisait `app_metadata?.role ?? 'parent'` et
+    // traitait donc tout compte normal comme un parent — ce qui le faisait
+    // echapper au controle 2FA. L'etablissement, lui, rend le controle de
+    // tenant gratuit, sans requete supplementaire a chaque navigation.
+    // Ces valeurs sont un MIROIR de `profiles` : l'autorite reste la table,
+    // la RLS s'appuyant sur `get_user_role()` et non sur le jeton.
+    app_metadata:   { role: data.role, etablissement_id: etablissementId },
   })
 
   if (authError) {
@@ -146,6 +154,18 @@ export async function updateProfile(id: string, data: {
 
   if (error) return { error: 'Erreur lors de la mise à jour.' }
 
+  // Le JETON porte une copie du role (`app_metadata`) : sans cette synchro, le
+  // controle 2FA du middleware continuerait de raisonner sur l'ancien role
+  // jusqu'au renouvellement du jeton. L'AUTORITE reste `profiles` — la RLS lit
+  // `get_user_role()`, jamais le jeton — mais la copie doit suivre.
+  // Echec non bloquant : la modification de profil, elle, a reussi.
+  try {
+    const admin = createAdminClient()
+    await admin.auth.admin.updateUserById(id, { app_metadata: { role: data.role } })
+  } catch (e) {
+    console.error('[updateProfile] Synchro app_metadata echouee:', e)
+  }
+
   revalidatePath('/dashboard/utilisateurs')
   return {}
 }
@@ -181,6 +201,14 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
+  // La cible est lue avec le client SESSION : la RLS la cloisonne a
+  // l'etablissement de l'appelant. Sans ce controle, un identifiant d'un AUTRE
+  // etablissement passait — le compte auth n'est soumis a aucune RLS. Meme
+  // motif que `deleteUser`.
+  const session = await createClient()
+  const { data: cible } = await session.from('profiles').select('id').eq('id', id).maybeSingle()
+  if (!cible) return { error: 'Utilisateur introuvable.' }
+
   const supabase = createAdminClient()
 
   const { error: authError } = await supabase.auth.admin.updateUserById(id, { email })
@@ -191,7 +219,6 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
 
   // Table via client SESSION → l'acteur est capte par le trigger d'audit
   // (le compte auth, lui, ne peut etre modifie qu'avec le service-role).
-  const session = await createClient()
   const { error: profileError } = await session.from('profiles').update({ email }).eq('id', id)
   if (profileError) return { error: "Erreur lors de la mise à jour de l'email." }
 
@@ -204,6 +231,13 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
 export async function resetUserTwoFactor(userId: string): Promise<{ error?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
+
+  // Garde d'etablissement AVANT toute action : la 2FA d'un compte se supprime
+  // en service-role, donc hors RLS. La lecture prealable par le client SESSION
+  // est ce qui cloisonne.
+  const session = await createClient()
+  const { data: cible } = await session.from('profiles').select('email').eq('id', userId).maybeSingle()
+  if (!cible) return { error: 'Utilisateur introuvable.' }
 
   const admin = createAdminClient()
 
@@ -220,13 +254,11 @@ export async function resetUserTwoFactor(userId: string): Promise<{ error?: stri
 
   // Traçabilité : client SESSION → l'acteur (admin connecté) est capté
   try {
-    const session = await createClient()
-    const { data: target } = await session.from('profiles').select('email').eq('id', userId).single()
     await logAudit(session, {
       action: 'UPDATE',
       entityType: 'auth',
       entityId: userId,
-      description: `Réinitialisation de la 2FA du compte ${target?.email ?? userId}`,
+      description: `Réinitialisation de la 2FA du compte ${cible.email ?? userId}`,
     })
   } catch {
     // non bloquant
@@ -242,6 +274,14 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
+  // L'adresse doit correspondre a un compte de MON etablissement. Sans ce
+  // controle, `resetPasswordForEmail` acceptait n'importe quelle adresse — donc
+  // celle d'un utilisateur d'un autre etablissement, a qui on envoyait un lien
+  // de reinitialisation. La lecture par le client SESSION est ce qui cloisonne.
+  const session = await createClient()
+  const { data: cible } = await session.from('profiles').select('id').eq('email', email).maybeSingle()
+  if (!cible) return { error: 'Aucun compte ne correspond a cette adresse.' }
+
   const supabase = createAdminClient()
 
   // NB : NEXT_PUBLIC_SITE_URL DOIT etre defini en production, sinon le lien du mail
@@ -255,7 +295,6 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
   // Tracabilite : action sensible declenchee par un admin/direction.
   // Client SESSION → l'acteur est capte (le client admin serait anonyme).
   try {
-    const session = await createClient()
     await logAudit(session, {
       action: 'UPDATE',
       entityType: 'auth',

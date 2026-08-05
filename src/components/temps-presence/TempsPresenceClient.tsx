@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
+import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { generateStaffTimePDF } from './staffTimePdf'
 
@@ -218,25 +219,6 @@ function buildRecap(
 }
 
 // ─── Texte tronque avec tooltip UNIQUEMENT si le texte deborde ────────────────
-function TruncatedText({ text, tooltip, className = '' }: { text: string; tooltip?: React.ReactNode; className?: string }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [truncated, setTruncated] = useState(false)
-  useEffect(() => {
-    const measure = () => {
-      const el = ref.current
-      if (el) setTruncated(el.scrollWidth > el.clientWidth + 1)
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [text])
-
-  const inner = <span ref={ref} className={`block w-full truncate ${className}`}>{text}</span>
-  return truncated
-    ? <Tooltip content={tooltip ?? text} className="flex-1 min-w-0">{inner}</Tooltip>
-    : <span className="inline-flex flex-1 min-w-0">{inner}</span>
-}
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function TempsPresenceClient({

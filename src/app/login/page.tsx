@@ -116,6 +116,8 @@ export default function LoginPage() {
     const reason = new URLSearchParams(window.location.search).get('reason')
     if (reason === 'inactivity') setNotice('Votre session a expiré pour inactivité. Veuillez vous reconnecter.')
     else if (reason === 'session') setNotice('Votre session a expiré. Veuillez vous reconnecter.')
+    // Compte rattache a un AUTRE etablissement que celui de cette adresse.
+    else if (reason === 'etablissement') setNotice("Votre compte n'appartient pas à cet établissement. Vérifiez l'adresse du site.")
   }, [])
 
   // Charger le nom et logo de l'établissement

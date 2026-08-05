@@ -1749,19 +1749,108 @@ d'etablissement ; les 3 routes `/api/notifications/*` recoivent `etablissement_i
 la requete** ; `getCachedEtablissement` et `/api/public/etablissement` font un `.single()` sans
 filtre (leveront au 2e etablissement).
 
+#### 5 aout 2026 (suite) — Multi-etablissement : les chemins hors RLS + identite dans le jeton
+
+Seconde moitie du chantier. La RLS etant saine, restaient les chemins qui ne passent PAS par elle.
+
+**DECOUVERTE — le controle 2FA du middleware etait INERTE.** Il lit
+`user.app_metadata?.role ?? 'parent'` : or **7 comptes sur 9 n'avaient AUCUNE `app_metadata`**
+(seuls le super_admin et l'admin, crees par un autre chemin, en avaient). Tous les autres etaient donc
+traites comme des parents — role absent de `rolesRequiring2FA` — et echappaient au TOTP. La liste
+contenait pourtant tous les roles staff depuis toujours : l'intention existait, elle ne s'appliquait
+pas. Meme cause que le tenant : **le jeton ne portait aucune identite fiable**.
+
+**Correctif : `app_metadata = { role, etablissement_id }`**, pose aux 4 points de creation de compte
+(utilisateurs, enseignant, tuteur, superadmin), synchronise par `updateProfile` quand le role change,
+et **rattrape sur les 9 comptes existants** (script service-role jetable). L'AUTORITE reste `profiles` :
+la RLS lit `get_user_role()`, jamais le jeton — la copie ne sert qu'au middleware.
+- **Consequence** : un changement de role ne prend effet dans le jeton qu'au renouvellement (1 h au
+  plus). Sans effet sur les droits reels, qui viennent de la RLS.
+- **Consequence immediate** : la 2FA redevient active pour les 7 comptes. Un seul (admin) a un facteur
+  configure ; les autres seront rediriges vers l'enrolement TOTP a leur prochaine connexion.
+
+**Middleware — controle d'appartenance au tenant** : le tenant vient du SOUS-DOMAINE, l'identite de la
+SESSION, et rien ne verifiait qu'ils designent le meme etablissement. La comparaison est desormais
+**gratuite** (`app_metadata.etablissement_id` voyage dans le jeton). En cas de discordance : `signOut`
++ `/login?reason=etablissement` + message dedie. Super_admin exempt. Un compte **sans** la donnee est
+**laisse passer** avec un avertissement en journal — refuser l'acces sur une information absente ferait
+plus de degats que le risque couvert.
+
+**3 routes `/api/notifications/*`** : l'etablissement venait du **corps de la requete**, donc du client.
+Il vient maintenant du PROFIL de l'appelant (`requireRole` le remonte), et **chaque ligne recuperee est
+verifiee** comme lui appartenant — le service-role ignore la RLS. `comptable` ajoute au type `UserRole`,
+qui l'oubliait depuis toujours.
+
+**3 operations sur les comptes auth** (`updateEmail`, `resetUserTwoFactor`, `sendPasswordReset`) :
+elles s'executaient en service-role, donc hors RLS, gardees par le seul role. Elles lisent desormais
+leur cible avec le **client SESSION** avant d'agir — motif de `deleteUser`. `sendPasswordReset`
+acceptait auparavant **n'importe quelle adresse**.
+
+**Les 2 `.single()` sans filtre** : `getCachedEtablissement` est parametree (le layout la lit APRES le
+profil, donc en sequentiel — prix du cloisonnement) ; `/api/public/etablissement` s'appuie sur l'en-tete
+du middleware, seule source possible puisqu'une page de connexion n'a pas de session.
+
+**EMETTEUR TOTP** (`enroll-totp`) : Google Authenticator affichait « localhost:3000: 3000 ». Cause —
+l'emetteur est deduit de l'URL du site, or le libelle d'une URI TOTP s'ecrit `emetteur:compte`, le
+deux-points etant le SEPARATEUR : un emetteur qui en contient un casse l'analyse. Correctif : `issuer`
+**explicite** (nom de l'etablissement, deux-points neutralises), lu **au moment de l'enrolement** et non
+via un etat monte au chargement — il finit grave dans le telephone de l'utilisateur. `friendlyName`
+passe de l'horodatage a l'email (etiquette interne Supabase, jamais affichee dans l'application).
+
+#### 5 aout 2026 (fin) — En-tetes PDF homogeneises + limites de saisie + attestation partielle
+
+**EN-TETES DES 4 PDF a 12 POINTS** (bulletin, feuille d'appel x2, attestation, temps de presence) :
+nom d'etablissement ET titre du document a la meme taille et sur la **meme ligne de base** (`y + 7`) ;
+la periode/annee passe de `y + 11` a `y + 12` pour s'aligner sur la ligne d'ADRESSE. Un ecart d'un
+millimetre se lit comme une erreur, un ecart franc comme une intention.
+- **Ce n'est pas cosmetique** : le nom partage sa ligne avec le titre aligne a droite, donc la LONGUEUR
+  DU TITRE commande la place. Pire cas « ATTESTATION DE PAIEMENT ». A 16 pt il ne restait que 81 mm,
+  soit 25 caracteres ; a 12 pt il reste 91 mm pour 76 mm consommes par 30 caracteres.
+- Le recapitulatif de temps de presence fait exception de FORME (titre SOUS le nom, pas a sa droite) :
+  seule la taille est alignee.
+
+**LIMITES DE SAISIE ETABLISSEMENT** (migration `add-etablissement-length-limits.sql`, executee) :
+nom **30**, adresse **80**, MESUREES sur l'en-tete des PDF.
+- Le nom est un choix EDITORIAL, il se raccourcit (« Al-Firdaws Villeurbanne »). Une adresse postale
+  abregee devient FAUSSE : la limite y est large a dessein. **60 avait ete propose puis ecarte —
+  l'adresse REELLE en base en fait deja 64.** Mesurer sur des exemples inventes ne suffit pas.
+- **Compteurs DANS le champ** (et non dessous) : `maxLength` bloque la frappe en SILENCE, il faut
+  annoncer la limite d'avance — mais deux lignes de plus faisaient apparaitre la barre de defilement du
+  navigateur, or cet ecran est concu sans. Motif du bouton oeil de la connexion : conteneur `relative`,
+  compteur en absolu, `pr-14` sur le champ. `aria-hidden` : un compteur qui change a chaque frappe
+  bavarderait au lecteur d'ecran, et `maxLength` est deja expose.
+- Contraintes CHECK en base : ce formulaire ecrit **directement depuis le navigateur**, la limite se
+  contournerait par un appel a l'API REST.
+
+**ATTESTATION DE PAIEMENT — choix des inscriptions** : un foyer peut cumuler cours ENFANTS et ADULTES,
+et l'attestation demandee ne couvre parfois qu'une partie (remboursement par un comite d'entreprise).
+Le bouton ouvre desormais une **modale** listant les inscriptions, toutes cochees, avec raccourcis
+Tout / Eleves seulement / Adultes seulement et total vivant.
+- **La phrase de certification varie sur DEUX axes** : « l'integralite » disparait sur une attestation
+  partielle (on ne peut pas attester du tout en n'en listant qu'une partie — le document part a un TIERS
+  qui rembourse sur cette base), et le NOMBRE s'accorde (« la cotisation due au titre de l'inscription »).
+  « listees ci-dessous » ne varie PAS : l'accord se fait sur « activites », toujours au pluriel.
+  NB : « due / dues » ne prend **jamais** d'accent — le circonflexe de « du » ne sert qu'a le distinguer
+  de l'article.
+- **La reduction est enregistree au niveau du FOYER**, pas par inscription : aucune repartition honnete
+  sur une selection partielle. Cochee par defaut quand tout est retenu, decochee sinon, mais **des que
+  l'utilisateur y touche son choix prime** (`reductionTouched`) — sinon l'automatisme le contredirait.
+- Ce qui rend une attestation partielle defendable : le bouton n'apparait que sur un dossier **solde**,
+  donc toutes les lignes sont reellement payees.
+- **Trace** : « Attestation de paiement partielle 2026-2027 · Adam · Yacine » — les prenoms des
+  beneficiaires, et non « 1/2 inscriptions » qui n'apprend rien six mois plus tard.
+- **`ui/TruncatedText.tsx`** extrait de `TempsPresenceClient` a son 2e usage : infobulle **uniquement
+  si le texte est reellement coupe** (mesure `scrollWidth`). Une infobulle systematique s'ouvre sur un
+  texte lisible et masque ce qui l'entoure.
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
 - **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
   ils utilisent encore le motif client-only avec `ilike`. `norm_name()` (SQL) et `normalize-name.ts` sont prets.
-- **Multi-etablissement — 2e moitie du chantier** (RLS traitee le 5 aout ; restent les chemins
-  qui ne passent pas par elle) : (1) le **middleware** resout le tenant depuis le SOUS-DOMAINE et
-  ne verifie jamais que l'utilisateur connecte lui appartient ; (2) les operations sur les comptes
-  **auth** (`updateEmail`, `resetUserTwoFactor`, `sendPasswordReset`) s'executent en service-role
-  sans garde d'etablissement — `deleteUser` donne le bon motif : il lit d'abord la cible avec le
-  client SESSION, donc la RLS filtre ; (3) les 3 routes `/api/notifications/*` lisent
-  `etablissement_id` **dans le corps de la requete** ; (4) `getCachedEtablissement` et
-  `/api/public/etablissement` font un `.single()` sans filtre.
+- **Multi-etablissement : TERMINE le 5 aout** (RLS + middleware + comptes auth + routes de
+  notification + les 2 `.single()`). Reste a valider a l'ecran, notamment l'enrolement TOTP qui
+  redevient obligatoire pour 7 comptes.
 - **Tester un compte de CHAQUE ROLE** apres la passe RLS du 5 aout : une policy trop stricte ne
   leve pas d'erreur, elle renvoie zero ligne et l'ecran se vide en silence.
 - **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
@@ -1932,6 +2021,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/add-etablissement-length-limits.sql` (nom 30 / adresse 80,
+  longueurs mesurees sur l'en-tete des PDF ; double la validation du formulaire, qui ecrit directement
+  depuis le navigateur).
 - [x] Executer `supabase/migrations/harden-security-definer-functions.sql` (`get_user_role()` STABLE
   + `search_path` fixe ; definitions des 2 fonctions de RLS versees dans le depot).
 - [x] Executer `supabase/migrations/add-role-checks-to-core-rls.sql` (controle de ROLE ajoute aux

@@ -69,11 +69,38 @@ export default function EnrollTotpPage() {
         }
       }
 
-      // 1. Enrôlement du facteur TOTP avec un nom unique
-      const friendlyName = `TOTP-${Date.now()}`
+      // 1. Enrôlement du facteur TOTP
+      //
+      // `issuer` EXPLICITE, et c'est essentiel. À défaut, Supabase le déduit de
+      // l'URL du site — soit « localhost:3000 » en développement. Or le libellé
+      // d'une URI TOTP s'écrit « émetteur:compte », le deux-points étant le
+      // SÉPARATEUR : un émetteur qui en contient un casse l'analyse, et Google
+      // Authenticator affiche alors « localhost:3000: 3000 » au lieu du compte.
+      // Conséquence concrète : plusieurs comptes de la même application
+      // devenaient indistinguables dans l'application d'authentification.
+      //
+      // Le nom est lu ICI, et attendu, plutôt que via un état alimenté au
+      // montage : il finit gravé dans le téléphone de l'utilisateur, il ne doit
+      // pas dépendre du fait qu'une requête ait eu le temps d'aboutir avant son
+      // clic. Le repli ne sert que si la route est indisponible.
+      let nomEtab = ''
+      try {
+        const r = await fetch('/api/public/etablissement')
+        const d = await r.json()
+        if (d?.nom) nomEtab = d.nom
+      } catch { /* repli ci-dessous */ }
+
+      // Tout deux-points est neutralisé : c'est le SÉPARATEUR du libellé TOTP.
+      const issuer = (nomEtab || 'Bilal Education').replace(/:/g, ' ').trim()
+
+      // `friendlyName` est l'étiquette interne à Supabase (jamais affichée dans
+      // l'application d'authentification) : l'email est plus parlant qu'un
+      // horodatage le jour où il faut identifier un facteur côté administration.
+      const friendlyName = user.email ?? `TOTP-${Date.now()}`
       const { data: enrollData, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
         friendlyName,
+        issuer,
       })
       if (enrollError) {
         console.error('[enroll-totp] Enroll error:', enrollError)

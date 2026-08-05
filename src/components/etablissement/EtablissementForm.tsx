@@ -81,6 +81,24 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
     setTouched(prev => new Set([...prev, field]))
 
   // Validation
+  // Longueurs MESUREES sur l'en-tete des PDF, qui est la contrainte la plus
+  // serree de l'application.
+  //
+  // Le NOM partage sa ligne avec le titre du document, aligne a droite : c'est
+  // donc la LONGUEUR DU TITRE qui commande la place. Le pire cas est
+  // « ATTESTATION DE PAIEMENT ». Depuis l'homogeneisation des en-tetes a
+  // 12 points, il reste 91 mm pour un nom qui n'en consomme que 76 sur
+  // 30 caracteres — contre 25 seulement quand le nom etait en 16 points.
+  //
+  // L'ADRESSE est en 8 points et dispose de 134 mm. La limite y est large A
+  // DESSEIN : un nom se raccourcit par choix editorial, une adresse postale
+  // abregee devient FAUSSE. 60 avait ete envisage puis ecarte — l'adresse
+  // REELLE de l'etablissement en fait deja 64 (« ... Saint-Germain-Au-Mont-D'Or »,
+  // c'est le nom de la commune qui est long). A 80, on occupe 110 mm des 134,
+  // et le debordement ne commence qu'au-dela de 90.
+  const NOM_MAX     = 30
+  const ADRESSE_MAX = 80
+
   const vNom          = form.nom.trim().length < 2
   const vContact      = form.contact.trim().length > 0 && !isValidEmail(form.contact.trim())
   const vWeekStartDay = weekStartDay === -1
@@ -149,21 +167,48 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
 
             {/* Droite : Champs */}
             <div className="flex-1 space-y-3 min-w-0">
-              <FloatInput
-                label="Nom de l'établissement"
-                required
-                aria-required="true"
-                value={form.nom}
-                onChange={e => set('nom', toUpperCase(e.target.value))}
-                onBlur={() => touch('nom')}
-                error={touched.has('nom') && vNom ? 'Le nom est obligatoire (2 caractères minimum).' : undefined}
-              />
+              {/* Compteur DANS le champ, et non dessous : `maxLength` bloque la
+                  frappe en silence, il faut donc annoncer la limite d'avance —
+                  mais deux lignes supplementaires faisaient deborder la page,
+                  qui est concue sans barre de defilement. Meme motif que le
+                  bouton oeil de l'ecran de connexion : conteneur `relative`,
+                  element en absolu, et une marge interne a droite sur le champ
+                  pour que le texte saisi ne passe pas dessous. */}
+              <div className="relative">
+                <FloatInput
+                  label="Nom de l'établissement"
+                  required
+                  aria-required="true"
+                  maxLength={NOM_MAX}
+                  className="pr-14"
+                  value={form.nom}
+                  onChange={e => set('nom', toUpperCase(e.target.value).slice(0, NOM_MAX))}
+                  onBlur={() => touch('nom')}
+                  error={touched.has('nom') && vNom ? 'Le nom est obligatoire (2 caractères minimum).' : undefined}
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-3 top-[1.35rem] -translate-y-1/2 text-[11px] tabular-nums text-warm-700"
+                >
+                  {form.nom.length}/{NOM_MAX}
+                </span>
+              </div>
 
-              <FloatInput
-                label="Adresse"
-                value={form.adresse}
-                onChange={e => set('adresse', e.target.value)}
-              />
+              <div className="relative">
+                <FloatInput
+                  label="Adresse"
+                  maxLength={ADRESSE_MAX}
+                  className="pr-14"
+                  value={form.adresse}
+                  onChange={e => set('adresse', e.target.value.slice(0, ADRESSE_MAX))}
+                />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-3 top-[1.35rem] -translate-y-1/2 text-[11px] tabular-nums text-warm-700"
+                >
+                  {form.adresse.length}/{ADRESSE_MAX}
+                </span>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <FloatInput

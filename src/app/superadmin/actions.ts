@@ -55,7 +55,7 @@ export async function createTenant(data: {
     email:         data.director.email,
     password:      data.director.password,
     email_confirm: true,
-    app_metadata:  { role: 'direction' },
+    app_metadata:  { role: 'direction', etablissement_id: etablissement.id },
   })
 
   if (authError) {
