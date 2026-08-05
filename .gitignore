@@ -37,3 +37,6 @@ next-env.d.ts
 
 # Claude Code (local settings, auto-memory)
 .claude/
+
+# Configuration locale d autres outils (Qwen, etc.) — comme .claude/
+.qwen/

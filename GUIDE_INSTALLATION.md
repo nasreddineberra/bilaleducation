@@ -63,7 +63,7 @@ Cette commande va télécharger toutes les bibliothèques nécessaires (Next.js,
 
 1. Dans Supabase, aller dans l'onglet "SQL Editor" (dans le menu de gauche)
 2. Cliquer sur "New query"
-3. Copier tout le contenu du fichier `supabase/schema.sql`
+3. Copier le contenu des migrations de `supabase/migrations/`, dans l'ordre chronologique
 4. Coller dans l'éditeur SQL
 5. Cliquer sur "Run" (en bas à droite)
 6. Vérifier qu'il n'y a pas d'erreurs (message de succès)
@@ -72,7 +72,7 @@ Cette commande va télécharger toutes les bibliothèques nécessaires (Next.js,
 
 1. Toujours dans "SQL Editor"
 2. Cliquer sur "New query"
-3. Copier tout le contenu du fichier `supabase/policies.sql`
+3. Les politiques RLS sont incluses dans ces mêmes migrations
 4. Coller dans l'éditeur SQL
 5. Cliquer sur "Run"
 6. Vérifier le message de succès

@@ -1843,6 +1843,36 @@ Tout / Eleves seulement / Adultes seulement et total vivant.
   si le texte est reellement coupe** (mesure `scrollWidth`). Une infobulle systematique s'ouvre sur un
   texte lisible et masque ce qui l'entoure.
 
+#### 5 aout 2026 (menage) — Suppression des fichiers perimes
+
+`src/` etait **propre** : aucun fichier mort sur 285 sources (verifie par script). Le menage
+portait sur la documentation et les scripts SQL.
+
+**Supprimes** (tout reste dans l'historique git) :
+- `supabase/policies.sql` (fige au 3 mars) et `supabase/schema.sql` (7 avril). **C'est le point
+  important** : `policies.sql` m'a fait conclure, lors de l'audit du 5 aout, que les tables centrales
+  avaient des policies de ROLE sans cloisonnement — la base disait exactement l'inverse. Une
+  documentation perimee inspire une confiance qu'elle ne merite pas ; elle est pire qu'absente.
+  **La verite est en base** (`pg_policies`, `information_schema`) et l'historique dans
+  `supabase/migrations/`.
+- 5 rapports racine gelés entre mars et avril : `QWEN.md` (2 lignes), `AUDIT_QWEN.md`,
+  `CORRECTIONS.md`, `QA_REPORT.md`, et **`PERMISSIONS.md`** — ce dernier decrivait la matrice des
+  droits d'avant la refonte du 5 aout, sur le sujet le plus sensible du projet.
+- Scripts de debogage que CLAUDE.md notait deja « a supprimer » : `delete-test-substitutes.sql`,
+  `inspect-class-teachers.sql`, `seed-teachers-bulk.sql` (documente comme abandonne).
+- Seeds de demonstration de mars, remplaces par les seeds bulk : `test-data.sql`,
+  `seed-parents-demo.sql`, `seed-students-demo.sql`, `seed-teachers-demo.sql`.
+- `.qwen/` (configuration d'un autre outil), desormais dans `.gitignore` comme `.claude/`.
+
+**Consequence a connaitre** : `README.md`, `ARCHITECTURE.md` et `GUIDE_INSTALLATION.md` demandaient
+d'executer `schema.sql` puis `policies.sql` pour installer le projet. Ils renvoient desormais vers
+`supabase/migrations/`. **Le depot ne contient donc plus d'artefact de reconstruction depuis zero** :
+il faut rejouer les migrations dans l'ordre. Si une reconstruction devient un besoin reel, la bonne
+reponse est un dump REGENERE depuis la base, date, et non un fichier reecrit a la main.
+
+**Conserves** : `clean-all-data.sql` (reset d'environnement de test), les seeds bulk et thematiques,
+`README.md`, `ARCHITECTURE.md`, `GUIDE_INSTALLATION.md`.
+
 ## Prochaine etape
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
@@ -1899,8 +1929,6 @@ src/
   components/          # Composants par domaine
   lib/                 # Utilitaires, clients Supabase, validation
 supabase/
-  schema.sql           # Schema de la base
-  policies.sql         # Politiques RLS
   migrations/          # Scripts de migration
   seed-*.sql           # Donnees de demo
 ```

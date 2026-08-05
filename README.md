@@ -50,7 +50,7 @@ npm install
 
 1. Créer un compte sur [supabase.com](https://supabase.com)
 2. Créer un nouveau projet
-3. Aller dans SQL Editor et exécuter le fichier `supabase/schema.sql`
+3. Aller dans SQL Editor et exécuter les fichiers de `supabase/migrations/`, dans l'ordre chronologique
 4. Activer l'authentification Email dans Authentication > Providers
 5. Copier les clés API depuis Settings > API
 
@@ -91,8 +91,7 @@ bilaleducation/
 │   │   └── utils/            # Fonctions utilitaires
 │   └── types/                 # Types TypeScript
 ├── supabase/                  # Configuration Supabase
-│   ├── schema.sql            # Schéma de base de données
-│   └── policies.sql          # Politiques RLS
+│   └── migrations/           # Migrations SQL (source de vérité du schéma)
 ├── public/                    # Assets statiques
 └── package.json
 ```

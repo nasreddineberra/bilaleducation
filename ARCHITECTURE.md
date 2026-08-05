@@ -83,8 +83,7 @@ bilaleducation/
 │       └── database.ts          # Types de la BDD
 │
 ├── supabase/                    # Configuration Supabase
-│   ├── schema.sql               # Schéma de base de données
-│   └── policies.sql             # Politiques RLS
+│   └── migrations/              # Migrations SQL (source de vérité du schéma)
 │
 ├── public/                      # Assets statiques
 │   ├── images/
@@ -177,7 +176,17 @@ RLS est le système de sécurité de PostgreSQL qui filtre automatiquement les d
 
 **Exemple :** Un parent ne voit que les données de ses propres enfants, même s'il fait une requête `SELECT * FROM students`.
 
-Les politiques sont définies dans `supabase/policies.sql`.
+Les politiques sont définies par les migrations de `supabase/migrations/`.
+
+> **Base de donnees.** Le schema n'existe plus sous forme d'un fichier unique :
+> il est le RESULTAT de `supabase/migrations/`, jouees dans l'ordre chronologique.
+> `schema.sql` et `policies.sql` ont ete supprimes le 5 aout 2026 — figes depuis
+> mars/avril, ils decrivaient un etat que la base avait quitte depuis longtemps, et
+> ont conduit a une conclusion fausse lors d'un audit de securite. Une documentation
+> perimee inspire une confiance qu'elle ne merite pas.
+>
+> Pour connaitre l'etat REEL : interroger la base (`pg_policies`, `information_schema`).
+> Une reconstruction depuis zero demande de rejouer les migrations dans l'ordre.
 
 ## 🎨 Conventions de code
 
