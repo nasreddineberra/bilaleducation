@@ -59,8 +59,10 @@ Aucun utilisateur réel, aucune donnée réelle.
 
 - [ ] **Toi** — Créer le compte Vercel et le connecter au dépôt GitHub.
       **Formule Pro nécessaire** : le gratuit interdit l'usage commercial.
-- [ ] **Moi** — Vérifier que le projet se construit en production (`next build`),
-      qui n'a jamais tourné depuis les dernières migrations.
+- [x] **Moi** — Build de production vérifié le 6 août 2026 : toutes les routes
+      compilent, middleware inclus. C'était le vrai risque technique de la phase —
+      le projet a déjà connu un build cassé par une dépendance mal isolée (jsdom,
+      10 juillet), invisible en développement.
 - [ ] **Toi + Moi** — Variables d'environnement sur Vercel (les 3 clés Supabase,
       `NEXT_PUBLIC_SITE_URL`, `DEFAULT_TENANT_SLUG` **absente** en production —
       elle ne sert qu'en local).
