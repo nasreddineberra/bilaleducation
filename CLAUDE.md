@@ -1874,6 +1874,12 @@ reponse est un dump REGENERE depuis la base, date, et non un fichier reecrit a l
 `README.md`, `ARCHITECTURE.md`, `GUIDE_INSTALLATION.md`.
 
 ## Prochaine etape
+
+> **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
+> (racine). Document de travail a cocher, a supprimer une fois la production stable.
+> Modele retenu : editeur logiciel, abonnement par etablissement, un sous-domaine par
+> ecole, deploiement et base uniques.
+
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
 - **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
