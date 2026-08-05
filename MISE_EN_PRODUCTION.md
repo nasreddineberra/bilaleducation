@@ -16,11 +16,16 @@ compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
 
 ## Phase 0 · Décisions — à trancher avant de commencer
 
-- [ ] **Nom de domaine et extension** — `bilaleducation.fr` ? Vérifier la disponibilité.
-      Conditionne tout le reste, y compris une valeur en dur dans le middleware.
-- [ ] **Registrar + boîte aux lettres** — Infomaniak ou OVHcloud.
-      Contrainte technique : le DNS doit accepter un enregistrement **générique**
-      (`*.bilaleducation.fr`). Les deux le permettent.
+- [x] **Nom de domaine** — `bilaleducation.fr`, acheté le 5 août 2026 chez Infomaniak,
+      6,12 € TTC la première année puis **8,40 € TTC/an** (déduit de la grille pluriannuelle,
+      le tarif de renouvellement n'étant affiché nulle part).
+- [x] **Registrar** — Infomaniak. Options écartées à l'achat : DNS Fast Anycast (gain
+      en millisecondes pour un public français), Domain Privacy (l'AFNIC masque déjà les
+      données des personnes physiques sur un `.fr`), Renewal Warranty (couvre un risque
+      qu'un renouvellement automatique supprime gratuitement). Économie : ~10 €/an.
+- [ ] **Boîte aux lettres éditeur** `contact@bilaleducation.fr` — pas urgente : aucune
+      dépendance avec le déploiement, les enregistrements MX n'entrent pas en conflit
+      avec ceux de l'hébergement.
 - [ ] **Titulaire du domaine** — la structure qui vend, pas une personne physique
       si une société existe. Un domaine se transfère mal quand il dépend d'un individu.
 
@@ -37,13 +42,13 @@ compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
 
 ## Phase 1 · Domaine
 
-- [ ] **Toi** — Acheter le domaine. **Ne prendre aucune option** proposée pendant la
-      commande : ni hébergement, ni certificat, ni protection payante. Tout est inclus ailleurs.
+- [x] **Toi** — Domaine acheté, sans option.
 - [ ] **Toi** — Activer l'**authentification à deux facteurs** sur le compte registrar.
       Qui contrôle le domaine contrôle le site, les emails, et toute réinitialisation de mot de passe.
 - [ ] **Toi** — Vérifier que le **renouvellement automatique** est actif. Un domaine
       expiré arrête le site et la messagerie le même jour.
 - [ ] **Toi** — Créer la boîte `contact@` (adresse de l'éditeur, pas d'une école).
+      Peut attendre la phase 5.
 
 ---
 
