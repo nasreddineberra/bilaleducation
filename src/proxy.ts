@@ -250,9 +250,23 @@ export async function proxy(request: NextRequest) {
     const userEtab = user.app_metadata?.etablissement_id as string | undefined
     const isSuperAdmin = user.app_metadata?.role === 'super_admin'
 
+    if (isSuperAdmin) {
+      // Le super-admin n'appartient a aucune ecole : sur ce domaine, la RLS ne
+      // lui donnerait aucune ligne, et le tableau de bord le renvoie vers
+      // `/superadmin` — que ce domaine refuse. Les deux regles, justes
+      // separement, formaient une IMPASSE : connexion, 2FA, puis retour a la
+      // page de login, ce qui ressemble a un echec d'authentification.
+      //
+      // On le renvoie donc la ou est sa place. A REVOIR quand l'acces support
+      // existera : un super-admin rattache a une ecole devra pouvoir rester sur
+      // son domaine — le rattachement vivra dans `profiles`, invisible du jeton
+      // tant qu'il n'est pas renouvele.
+      return NextResponse.redirect(new URL(`https://superadmin.${rootDomain}/superadmin`))
+    }
+
     if (!userEtab) {
       console.warn(`[proxy] Compte sans etablissement_id dans le jeton : ${user.id}`)
-    } else if (!isSuperAdmin && userEtab !== tenantId) {
+    } else if (userEtab !== tenantId) {
       // Déconnexion franche : rester connecté sur le domaine d'une autre école
       // n'a aucun sens, et l'écran afficherait les données de A sous l'identité
       // visuelle de B.
