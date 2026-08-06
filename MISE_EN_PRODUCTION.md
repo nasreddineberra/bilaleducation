@@ -9,13 +9,9 @@
 abonnement aux établissements. Un déploiement unique, une base unique, un
 sous-domaine par école, cloisonnement par RLS.
 
-> **Reprise** — ordre ajusté le 6 août : la **base de production d'abord**, l'hébergement
-> ensuite. Les variables d'environnement de Vercel doivent contenir les clés de la base
-> définitive ; déployer avant obligerait à tout reconfigurer.
->
-> Prochaine action **Toi** : créer le projet **Supabase de production** et le compte
-> **Vercel**, **tous deux en formule gratuite** (voir la règle de coût plus bas).
-> Le schéma à y appliquer est prêt dans `supabase/restore/`.
+> **Reprise** — la phase 2 est terminée : le site tourne sur `bilal-neuville.bilaleducation.fr`
+> en HTTPS, avec les données de test. Prochaine étape : les **adaptations de code de la
+> phase 4**, dont trois sont désormais motivées par ce qu'on a constaté en production.
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -81,19 +77,29 @@ semaine sans activité**.
 Objectif : le site tourne sur le vrai domaine, en HTTPS, **avec les données de test**.
 Aucun utilisateur réel, aucune donnée réelle.
 
-- [ ] **Toi** — Créer le compte Vercel et le connecter au dépôt GitHub, branche `main`.
-      **Formule gratuite** pour toute la phase de test — voir la règle de coût ci-dessus.
+- [x] **Toi** — Compte Vercel créé, dépôt connecté (accès GitHub limité au seul dépôt
+      `bilaleducation`), formule gratuite.
 - [x] **Moi** — Build de production vérifié le 6 août 2026 : toutes les routes
       compilent, middleware inclus. C'était le vrai risque technique de la phase —
       le projet a déjà connu un build cassé par une dépendance mal isolée (jsdom,
       10 juillet), invisible en développement.
-- [ ] **Toi + Moi** — Variables d'environnement sur Vercel (les 3 clés Supabase,
-      `NEXT_PUBLIC_SITE_URL`, `DEFAULT_TENANT_SLUG` **absente** en production —
-      elle ne sert qu'en local).
-- [ ] **Toi** — DNS : enregistrement **générique** `*.bilaleducation.fr` vers Vercel,
-      plus la racine. C'est ce qui fait qu'ajouter une école ne demande aucun déploiement.
-- [ ] **Vérifier** : `demo.bilaleducation.fr` affiche l'écran de connexion, en HTTPS,
-      avec le nom et le logo de l'établissement.
+- [x] **Toi + Moi** — 4 variables posées : les 3 clés Supabase et `NEXT_PUBLIC_SITE_URL`.
+      `DEFAULT_TENANT_SLUG` volontairement absente — le middleware ne la lit que dans la
+      branche locale, elle serait inerte en production et source de confusion.
+- [x] **Toi** — DNS délégué à Vercel (`ns1`/`ns2.vercel-dns.com`). Un domaine **générique**
+      impose cette délégation : le certificat HTTPS générique se valide par le DNS, donc
+      Vercel doit contrôler la zone. Infomaniak reste le registrar.
+      Conséquence : les enregistrements de la future messagerie se créeront côté Vercel.
+- [ ] **Toi** — Recréer dans la zone Vercel les deux protections perdues à la délégation :
+      TXT `@` = `v=spf1 -all` et TXT `_dmarc` = `v=DMARC1; p=reject;`. Sans elles, n'importe
+      qui peut usurper `@bilaleducation.fr`.
+- [x] **Vérifié le 6 août** en conditions réelles :
+      `bilal-neuville.bilaleducation.fr/login` répond 200 avec un certificat valide ;
+      la route publique renvoie « ÉCOLE BILAL » et son logo, prouvant que le middleware
+      résout le slug, trouve l'école et transmet son identifiant ; un sous-domaine inconnu
+      est rejeté vers `/abonnement-expire`.
+      **Toute la chaîne multi-établissement tourne** — ce que le local ne pouvait pas
+      éprouver, puisqu'il court-circuite cette résolution.
 
 > **Ce que cette phase valide et que le local ne peut pas tester** : la résolution du
 > tenant par sous-domaine (en local, elle est court-circuitée par une variable fixe),
@@ -141,6 +147,10 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
 
 - [ ] **Moi** — Le middleware reconnaît l'espace opérateur au **sous-domaine `console`**
       et non plus au domaine racine, libéré pour la vitrine (~3 lignes).
+      **Confirmé en production** : `bilaleducation.fr` redirige aujourd'hui vers `/superadmin`.
+- [ ] **Moi** — Interdire les slugs **réservés** à la création d'une école (`www`, `console`,
+      `api`, `mail`, `admin`). Rien ne l'empêche aujourd'hui, et un slug ne se modifie pas :
+      une école nommée `www` capterait l'adresse de la vitrine.
 - [ ] **Moi** — Retirer `bilaleducation.fr` en dur du middleware au profit d'une variable.
 - [ ] **Moi** — **Cookie de session valable sur les sous-domaines** (`.bilaleducation.fr`),
       sans quoi le passage de la console vers une école déconnecte.
