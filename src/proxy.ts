@@ -197,6 +197,20 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // ─── 2 bis. `/superadmin` n'existe pas sur le domaine d'une ecole ─────────
+  //
+  // La route est servie par l'application quel que soit le sous-domaine : sans
+  // ce renvoi, un parent de l'ecole tombant sur `ecole.bilaleducation.fr/superadmin`
+  // verrait l'ecran de connexion de l'EDITEUR. Ce n'est pas une faille — le
+  // layout `(protected)` verifie l'authentification ET le role — mais le
+  // domaine d'un client n'a pas a exposer la console de son fournisseur.
+  //
+  // Renvoi vers la connexion de l'ecole plutot que vers le sous-domaine
+  // operateur : sur ce domaine, cette page n'existe tout simplement pas.
+  if (pathname.startsWith('/superadmin')) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
   // ─── 3. Gestion de la session Auth (contexte école) ──────────────────────
 
   const { user, response, supabase } = await getAuthUser(requestHeaders)
