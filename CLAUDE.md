@@ -1940,6 +1940,40 @@ support. En creusant, un defaut bien plus large est apparu.
   detache modifiable **sans erreur** (0 ligne, faute d'ecole ou la ranger), profil d'un admin
   d'ecole toujours trace (1 ligne, colonnes listees). Lignes de test effacees.
 
+#### 6 aout 2026 (fin, suite) — ESCALADE INTER-ETABLISSEMENTS : un admin d'ecole pouvait devenir super-admin
+
+Question de l'utilisateur apres la livraison de l'acces support : « en terme de securite c'est safe ? ».
+Verification plutot que reassurance — et un trou reel, **exploite pour le prouver**.
+
+- **Demonstration** (psql, identite de l'admin d'une ecole simulee comme PostgREST le fait a partir de
+  son jeton : `SET LOCAL ROLE authenticated` + `request.jwt.claims`) :
+  `UPDATE profiles SET role = 'super_admin' WHERE id = <admin>` → **UPDATE 1**.
+- **Cause** : `fn_guard_profile_sensitive_columns()` autorisait `admin`/`direction` a modifier
+  `role`, `is_active` ET `etablissement_id` **sans restriction**. Defendable tant que ces colonnes ne
+  servaient qu'a administrer les employes de LEUR ecole.
+- **Ce que l'acces support a change** : `super_admin` ouvre la console, et la console permet d'entrer
+  dans **n'importe quelle** ecole. L'escalade preexistait ; sa **portee** passe de « voit la liste des
+  ecoles » a « lit et ecrit les donnees de tous les clients ». L'interface ne propose pas ce role,
+  mais le navigateur detient un jeton valide et peut appeler l'API directement.
+- **Migration `harden-profile-role-escalation.sql`** (executee) — deux interdits **absolus** hors
+  service-role : (1) `super_admin` ne s'attribue **ni ne se retire** depuis l'application (le retirer
+  serait un deni de service contre l'editeur) ; (2) `etablissement_id` ne se modifie pas — deplacer un
+  profil, c'est le mettre chez un autre client. **Verifie** : les 2 seules ecritures de cette colonne
+  sont l'entree et la sortie de support, deja en service-role.
+- **5 cas testes** (sous identite reelle, avec `SAVEPOINT` par cas — la 1re erreur avorte sinon toute
+  la transaction et les cas suivants ne prouvent RIEN) : promotion super_admin **refusee**, changement
+  de rattachement **refuse**, changement de role d'un employe **accepte**, desactivation **acceptee**,
+  enseignant modifiant son propre role **refuse**. Service-role : rattachement/detachement **ok**.
+- **2FA** : le super-admin a bien un facteur **verifie** (le perimetre de l'editeur est protege) ;
+  les 7 comptes d'ecole n'en ont toujours aucun (deja au plan de mise en production).
+- **Durcissement du layout** : le rattachement est desormais lu **en base** (client admin, une ligne)
+  et non dans le profil mis en cache. Des que les deux divergent — intervention refermee depuis un
+  autre onglet, un autre poste, ou un script — l'application affichait une coquille d'administrateur
+  au-dessus d'une base qui n'accordait plus rien, et la 1re requete de la page s'effondrait
+  (`dashboard/error.tsx`). C'est exactement ce qui est arrive a l'utilisateur : **mes scripts de test
+  ont ferme son intervention en cours**. Regle : ne jamais faire d'essais sur le compte de
+  l'utilisateur pendant qu'il utilise le site.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2125,6 +2159,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/add-superadmin-support-access.sql` (`get_user_role()` repond
   `admin` quand le super-admin est rattache ; repli OLD dans `fn_audit_log` sans quoi le detachement
   est impossible). **Verifie** : cycle rattachement/detachement complet.
+- [x] Executer `supabase/migrations/harden-profile-role-escalation.sql` (**escalade demontree** : un
+  admin d'ecole pouvait se promouvoir `super_admin` et atteindre tous les clients ; `super_admin` et
+  `etablissement_id` deviennent service-role uniquement). **Verifie sur 5 cas.**
 - [x] Executer `supabase/migrations/fix-audit-log-description.sql` (colonne `description` manquante
   → les 32 `logAudit` de l'app n'ecrivaient RIEN ; rattachement de support non audite ; trace
   abandonnee au lieu de faire echouer l'ecriture quand aucun etablissement n'est identifiable).
