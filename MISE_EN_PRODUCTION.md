@@ -13,13 +13,27 @@ sous-domaine par école, cloisonnement par RLS.
 > ensuite. Les variables d'environnement de Vercel doivent contenir les clés de la base
 > définitive ; déployer avant obligerait à tout reconfigurer.
 >
-> Prochaine action **Toi** : créer le projet **Supabase de production** (formule Pro,
-> pour les sauvegardes quotidiennes) et le compte **Vercel** (formule Pro, l'usage
-> commercial étant exclu du gratuit). Le schéma à y appliquer est prêt dans
-> `supabase/restore/`.
+> Prochaine action **Toi** : créer le projet **Supabase de production** et le compte
+> **Vercel**, **tous deux en formule gratuite** (voir la règle de coût plus bas).
+> Le schéma à y appliquer est prêt dans `supabase/restore/`.
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
+
+## Règle de coût — décidée le 6 août
+
+**Rien à payer pour la phase de test.** Les formules gratuites de Vercel et de
+Supabase conviennent exactement à cette étape : la restriction de Vercel porte sur
+l'usage *commercial*, or il n'y a aucun client ; ce qui manque au gratuit de
+Supabase, ce sont les *sauvegardes quotidiennes*, or il n'y a que des données
+factices.
+
+**Le déclencheur du passage en Pro n'est pas la mise en ligne, c'est la première
+école qui paie.** Ce jour-là deux choses changent ensemble : l'activité devient
+commerciale, et la base contient de vraies données d'enfants et de paiements.
+
+Réserve à surveiller : un projet Supabase gratuit **se met en pause après une
+semaine sans activité**.
 
 ---
 
@@ -67,8 +81,8 @@ compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
 Objectif : le site tourne sur le vrai domaine, en HTTPS, **avec les données de test**.
 Aucun utilisateur réel, aucune donnée réelle.
 
-- [ ] **Toi** — Créer le compte Vercel et le connecter au dépôt GitHub.
-      **Formule Pro nécessaire** : le gratuit interdit l'usage commercial.
+- [ ] **Toi** — Créer le compte Vercel et le connecter au dépôt GitHub, branche `main`.
+      **Formule gratuite** pour toute la phase de test — voir la règle de coût ci-dessus.
 - [x] **Moi** — Build de production vérifié le 6 août 2026 : toutes les routes
       compilent, middleware inclus. C'était le vrai risque technique de la phase —
       le projet a déjà connu un build cassé par une dépendance mal isolée (jsdom,
@@ -104,16 +118,20 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       qui paraît anodin, retirait les `GRANT`/`REVOKE` : la base restaurée aurait repris
       les droits par défaut de Supabase au lieu du régime « serveur uniquement » de
       `etablissement_smtp`.
-- [ ] **Toi** — Créer le projet Supabase de **production**. Formule Pro : la gratuite
-      met le projet en pause et **ne fait pas de sauvegardes quotidiennes**.
+- [ ] **Toi** — Créer le projet Supabase de **production**. **Formule gratuite** pour
+      la phase de test.
 - [ ] **Moi** — Appliquer le schéma exporté sur la production, puis vérifier les
       politiques RLS en base (`pg_policies`) — jamais depuis le dépôt.
 - [ ] **Moi** — Créer l'établissement réel avec son **vrai slug** (aujourd'hui `demo`,
       qui donnerait `demo.bilaleducation.fr`).
 - [ ] **Toi** — Le projet Supabase actuel devient l'environnement de **développement**.
       Ton `.env.local` pointe dessus ; la production ne connaît que Vercel.
-- [ ] **Toi** — Vérifier que les sauvegardes quotidiennes sont actives et **tester une
-      restauration**. Une sauvegarde jamais restaurée n'est pas une sauvegarde.
+- [ ] **Moi** — Mettre en place une **sauvegarde automatique locale** (`pg_dump`,
+      désormais installé). Elle ne remplace pas celles de Supabase : elle couvre la
+      période où il y aura de vraies données sans que le Pro soit encore souscrit.
+- [ ] **Toi** — Une fois en Pro : vérifier que les sauvegardes quotidiennes sont actives
+      et **tester une restauration**. Une sauvegarde jamais restaurée n'est pas une
+      sauvegarde.
 
 ---
 
@@ -186,13 +204,26 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
 
 ## Coûts récurrents
 
-| Poste | Ordre de grandeur | Note |
+### Pendant la phase de test — aujourd'hui
+
+| Poste | Coût |
+|---|---|
+| Domaine | 6,12 € payés, puis 8,40 €/an |
+| Vercel · formule gratuite | 0 € |
+| Supabase · formule gratuite | 0 € |
+| **Total** | **0 €/mois** |
+
+### À partir du premier client payant
+
+| Poste | Ordre de grandeur | Pourquoi |
 |---|---|---|
-| Domaine | ~15 €/an | |
-| Boîte `contact@` | ~2 à 6 €/mois | |
-| Vercel Pro | ~20 $/mois | Le gratuit interdit l'usage commercial |
-| Supabase Pro | ~25 $/mois | Le gratuit n'a **pas de sauvegardes quotidiennes** |
-| **Socle mensuel** | **~50 €** | Indépendant du nombre d'écoles — à couvrir avec les premiers abonnements |
+| Boîte `contact@` | ~2 à 6 €/mois | Adresse de l'éditeur |
+| Vercel Pro | ~20 $/mois | L'activité devient commerciale |
+| Supabase Pro | ~25 $/mois | Sauvegardes quotidiennes sur de vraies données |
+| **Socle mensuel** | **~50 €** | Indépendant du nombre d'écoles |
+
+**À intégrer au prix de vente** : une seule école ne couvre pas tout à fait ce socle.
+Deux le couvrent, et tout le reste est marge.
 
 ---
 
