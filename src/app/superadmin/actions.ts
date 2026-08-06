@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { validatePasswordServer } from '@/lib/validation/password'
+import { validateSlug } from '@/lib/tenant/slug'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 
 // ─── Créer un tenant complet (établissement + directeur initial) ──────────────
@@ -21,6 +22,13 @@ export async function createTenant(data: {
 }): Promise<{ error?: string; id?: string }> {
   const { error: roleError } = await requireRoleServer(['super_admin'])
   if (roleError) return { error: roleError }
+
+  // Le slug DEVIENT le sous-domaine et n'est pas modifiable ensuite : on refuse
+  // avant plutot que de corriger apres. Le formulaire fait le meme controle pour
+  // le retour immediat, mais lui seul ne protege de rien — un appel direct a
+  // l'API le contourne.
+  const slugError = validateSlug(data.slug)
+  if (slugError) return { error: slugError }
 
   const supabase = createAdminClient()
 

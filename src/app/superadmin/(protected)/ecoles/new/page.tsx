@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { createTenant } from '@/app/superadmin/actions'
+import { validateSlug, SLUG_MAX } from '@/lib/tenant/slug'
 import { Eye, EyeOff, Check, X } from 'lucide-react'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
 
@@ -14,7 +15,7 @@ type FormData = {
 }
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-const isValidSlug  = (v: string) => /^[a-z0-9-]+$/.test(v)
+// Regle unique, partagee avec la server action : `src/lib/tenant/slug.ts`.
 
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
@@ -59,7 +60,7 @@ export default function NewEcolePage() {
   const touch = (field: string) => setTouched(p => new Set([...p, field]))
 
   const v = {
-    slug:       !isValidSlug(form.slug.trim()) || form.slug.trim().length < 2,
+    slug:       validateSlug(form.slug) !== null,
     nom:        form.nom.trim().length < 2,
     first_name: form.first_name.trim().length < 2,
     last_name:  form.last_name.trim().length  < 2,
@@ -117,12 +118,13 @@ export default function NewEcolePage() {
         <div className="card p-4 space-y-3">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Établissement</h2>
 
-          <Field label="Slug (sous-domaine) *" error={touched.has('slug') && v.slug ? 'Lettres minuscules, chiffres et tirets uniquement (min. 2 car.).' : undefined}>
+          <Field label="Slug (sous-domaine) *" error={touched.has('slug') ? (validateSlug(form.slug) ?? undefined) : undefined}>
             <div className="flex items-center input gap-0 p-0 overflow-hidden">
               <input
                 type="text"
                 value={form.slug}
-                onChange={e => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                maxLength={SLUG_MAX}
+                onChange={e => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, SLUG_MAX))}
                 onBlur={() => touch('slug')}
                 placeholder="al-kindi"
                 className={clsx('flex-1 px-3 py-2 outline-none bg-transparent text-sm', touched.has('slug') && v.slug && 'text-red-600')}
