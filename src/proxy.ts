@@ -49,16 +49,36 @@ export async function proxy(request: NextRequest) {
   }
 
   // ─── 1. Contexte Super-Admin ──────────────────────────────────────────────
-  // Local : DEFAULT_TENANT_SLUG vide → mode super-admin
-  // Production : domaine racine (bilaleducation.fr, pas de sous-domaine école)
+  //
+  // L'espace opérateur vit sur son PROPRE sous-domaine, `superadmin.`, et non
+  // sur le domaine racine — que la vitrine commerciale occupera.
+  //
+  // Le sous-domaine plutôt qu'un chemin : le jour où la vitrine sera un site
+  // distinct, hébergé ailleurs, la racine pointera autre part et
+  // `bilaleducation.fr/superadmin` cesserait d'exister. Le sous-domaine survit
+  // à ce changement, et le générique `*.bilaleducation.fr` le couvre déjà —
+  // aucun DNS à créer.
+  //
+  // Le domaine racine est déduit de `NEXT_PUBLIC_SITE_URL`, déjà définie : on
+  // évite d'ajouter une variable, et surtout de réécrire le domaine en dur ici
+  // comme c'était le cas.
+  const rootDomain = (() => {
+    try { return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? '').hostname }
+    catch { return 'bilaleducation.fr' }
+  })()
 
+  const isRootDomain = host === rootDomain || host === `www.${rootDomain}`
+
+  // En LOCAL il n'y a pas de sous-domaine : on garde les deux échappatoires
+  // historiques — `DEFAULT_TENANT_SLUG` vide, ou le chemin `/superadmin`.
+  // En PRODUCTION, seul l'hôte compte : sans cela,
+  // `ecole.bilaleducation.fr/superadmin` ouvrirait la console sur le domaine
+  // d'un client, sans aucune raison.
   const isSuperAdminDomain = isLocal
-    ? !process.env.DEFAULT_TENANT_SLUG
-    : (host === 'bilaleducation.fr' || host === 'www.bilaleducation.fr')
+    ? (!process.env.DEFAULT_TENANT_SLUG || pathname.startsWith('/superadmin'))
+    : host.split('.')[0] === 'superadmin'
 
-  const isSuperAdminPath = pathname.startsWith('/superadmin')
-
-  if (isSuperAdminDomain || isSuperAdminPath) {
+  if (isSuperAdminDomain) {
     const { user, response, supabase } = await getAuthUser()
 
     // /superadmin/login : accessible sans authentification
@@ -80,6 +100,30 @@ export async function proxy(request: NextRequest) {
     }
 
     return response
+  }
+
+  // ─── 1 bis. Domaine racine : la vitrine ───────────────────────────────────
+  //
+  // La racine n'appartient à aucune école. Sans ce court-circuit, elle entrerait
+  // dans la résolution ci-dessous, y chercherait une école nommée
+  // « bilaleducation » et afficherait « accès suspendu ».
+  //
+  // RÉÉCRITURE et non redirection : l'adresse affichée reste `bilaleducation.fr`.
+  if (!isLocal && isRootDomain) {
+    if (pathname === '/') {
+      return NextResponse.rewrite(new URL('/vitrine', request.url))
+    }
+    // Une seule entrée pour la console : qui tente `/superadmin` sur la racine
+    // est renvoyé vers le sous-domaine. Deux portes pour la même pièce finissent
+    // toujours par diverger. Le layout `(protected)` garde de toute façon
+    // l'accès — il vérifie l'authentification ET le rôle — mais autant que
+    // l'adresse soit sans ambiguïté.
+    if (pathname.startsWith('/superadmin')) {
+      return NextResponse.redirect(new URL(`https://superadmin.${rootDomain}${pathname}`))
+    }
+    // Les autres chemins de la racine ne sont pas résolus en tenant : ils
+    // servent ce que Next.js trouve (icône, manifeste…), sans contexte d'école.
+    return NextResponse.next()
   }
 
   // ─── 2. Résolution du tenant (domaines école) ─────────────────────────────
