@@ -1980,6 +1980,18 @@ Verification plutot que reassurance — et un trou reel, **exploite pour le prou
 > (racine). Document de travail a cocher, a supprimer une fois la production stable.
 > Modele retenu : editeur logiciel, abonnement par etablissement, un sous-domaine par
 > ecole, deploiement et base uniques.
+>
+> **AU PROCHAIN DEMARRAGE : phase 4 bis, console super-admin.** Audit fait le 6 aout,
+> **rien de corrige**. Bloc 1 (securite) en premier — la console **n'exige aucune 2FA**
+> (double cause : la branche du sous-domaine sort du middleware avant le controle, et ce
+> controle est limite a `/dashboard`) ; boucle de redirection infinie pour tout compte non
+> super-admin ; `createTenantUser` n'ecrit pas `app_metadata` (donc 2FA contournee pour les
+> comptes crees depuis la console) ; `updateTenantUser` non cloisonnee ; aucune action
+> tracee. **Et une regression a moi** : les 8 actions de `superadmin/actions.ts` utilisent
+> `requireRoleServer(['super_admin'])`, qui compare le role EFFECTIF — donc `admin` pendant
+> une intervention : **plus aucune action de la console ne passe une fois entre dans une
+> ecole**. Elles doivent utiliser `requireEditor()` (colonne brute), comme `support-actions.ts`.
+> Puis bloc 2 (charte : la console n'a suivi AUCUNE passe de refonte) et bloc 3 (ajouts).
 
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.

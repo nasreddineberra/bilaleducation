@@ -9,13 +9,15 @@
 abonnement aux établissements. Un déploiement unique, une base unique, un
 sous-domaine par école, cloisonnement par RLS.
 
-> **Reprise** — phases 1, 2 et une partie de la 4 terminées. Le site tourne sur
+> **Reprise (6 août, fin de journée)** — phases 1, 2 et 4 terminées. Le site tourne sur
 > `bilal-neuville.bilaleducation.fr`, la vitrine occupe la racine, la console vit sur
-> `superadmin.bilaleducation.fr`.
+> `superadmin.bilaleducation.fr`. L'**accès support** est livré et vérifié en base ; il
+> reste à l'éprouver à l'écran (entrer, agir, sortir, contrôler le journal de l'école).
 >
-> Restent en phase 4 : les **slugs réservés**, le **cookie partagé entre sous-domaines**
-> et l'**accès support du super-admin** — ces deux derniers désormais testables, puisque
-> le vrai domaine répond.
+> **Le prochain chantier est la PHASE 4 BIS** : l'audit de la console super-admin, dont
+> **rien n'est encore corrigé**. Commencer par son bloc 1 (sécurité) — la console n'exige
+> aucune 2FA, et trois autres défauts s'y ajoutent, dont une régression que j'ai
+> introduite le 6 août et qui bloque toutes ses actions pendant une intervention.
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -195,6 +197,76 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       colonne `etablissement_id` : elle EST l'établissement. La suppression échouait
       elle aussi, ce qui cassait les chemins de rattrapage de la création et laissait des
       écoles orphelines. Découvert en renommant le slug, pas par un test.
+
+---
+
+## Phase 4 bis · Console super-admin — audit du 6 août, rien n'est fait
+
+Audit demandé après un constat de l'utilisateur : **la console ne lui a jamais demandé la 2FA**,
+alors que le domaine d'une école, oui. La console a été écrite avant les passes de refonte et
+**aucune ne l'a suivie depuis** — ce n'est pas une accumulation d'oublis, c'est un décalage
+cohérent. Trois blocs, dans cet ordre.
+
+### Bloc 1 · Sécurité — avant tout usage réel
+
+- [ ] **2FA absente de la console**, par DEUX causes cumulées : la branche du sous-domaine
+      `superadmin.` **sort du middleware** avant le contrôle, et ce contrôle est de toute façon
+      conditionné à `pathname.startsWith('/dashboard')`. La surface la plus privilégiée du système
+      — liste des clients, création de comptes, entrée dans n'importe quelle école — n'est protégée
+      que par un mot de passe.
+- [ ] **Boucle de redirection infinie** pour tout compte non super-admin : le middleware renvoie
+      vers `/superadmin` qui est déjà connecté et demande `/superadmin/login` ; le layout protégé
+      renvoie vers `/superadmin/login` qui n'est pas super-admin. Chacune est juste, ensemble elles
+      bouclent. Depuis que le cookie porte le domaine entier, **n'importe quel utilisateur d'école
+      connecté** qui tape l'adresse de la console la déclenche.
+- [ ] **Régression du 6 août (de moi)** : les 8 actions de `superadmin/actions.ts` sont gardées par
+      `requireRoleServer(['super_admin'])`, or cette garde compare désormais le rôle **effectif**,
+      qui vaut `admin` pendant une intervention. **Dès qu'une intervention est ouverte, aucune
+      action de la console ne fonctionne.** Elles doivent utiliser `requireEditor()` (colonne brute),
+      comme `support-actions.ts` — la règle était écrite, je ne l'ai pas appliquée à ce fichier.
+- [ ] **`createTenantUser` ne pose pas `app_metadata`** (rôle + établissement). Un compte créé
+      depuis la console est donc traité comme un **parent** par le middleware : **2FA contournée** et
+      contrôle d'appartenance au sous-domaine inopérant. `createTenant` le fait correctement : les
+      deux chemins de création divergent.
+- [ ] **`updateTenantUser` n'est pas cloisonnée** : `.eq('id', profileId)` sans vérifier que le
+      profil appartient à l'école affichée, en service-role donc sans RLS pour rattraper, et sans
+      valider le rôle transmis.
+- [ ] **Aucune action de la console n'est tracée** : créer une école, changer un abonnement,
+      désactiver un client, créer un compte. Et la page de connexion affiche « Accès surveillé et
+      journalisé », ce qui est faux aujourd'hui.
+
+### Bloc 2 · Charte et ergonomie
+
+- [ ] **Écran de connexion** : aucune des corrections du 3 août apportées à celui des écoles.
+      Pas de focus initial, pas de détection du verrouillage majuscules, bouton désactivé à vide
+      (alors qu'on a décidé qu'un bouton grisé n'explique rien), œil hors navigation clavier et sans
+      `aria-label`, erreur sans `role="alert"`.
+- [ ] **Couleurs en dur, hors charte** : `#0f1923` / `#16232f` / `#e85d04` (connexion) et le dégradé
+      `#2e4550` de la barre latérale — la valeur même que nous avons retirée de l'emploi du temps le
+      2 août au profit des jetons. L'orange de la charte est `#f97316`. La console ne suit ni le
+      thème clair/sombre ni les jetons : une évolution de la marque ne l'entraînera pas.
+- [ ] **Système de composants non utilisé** : `<input>`/`<label>` bruts au lieu des champs à libellé
+      flottant, en-têtes maison au lieu de `.list-th`, cartes en `text-2xl` au lieu de
+      `ListStatCard`, icône `Plus` sur « Ajouter ».
+- [ ] **Trois actions lourdes sans confirmation** : désactiver un établissement (coupe l'accès à
+      toute une école), retirer la date d'abonnement, retirer la limite d'élèves.
+- [ ] **Ni limite de saisie ni compteur** sur nom (30) et adresse (80), pourtant imposés en base
+      depuis le 5 août : la frappe est acceptée puis rejetée par un message générique.
+- [ ] Détails : grille en 4 colonnes pour 3 cartes, lignes de liste non cliquables (règle projet),
+      survol du fil d'Ariane de la même couleur que son état normal, `parent` proposé dans les rôles
+      alors que ces comptes sont suspendus en V1.
+
+### Bloc 3 · Ajouts fonctionnels — à arbitrer une fois le reste sain
+
+- [ ] **Journal des interventions de support** dans la console (qui, quelle école, ouverte quand,
+      fermée quand) et **expiration automatique** : aujourd'hui une intervention oubliée reste
+      ouverte indéfiniment.
+- [ ] **Vue de santé par école** : messagerie configurée ou non, dernière connexion, effectif face à
+      la limite, abonnement proche de l'échéance.
+- [ ] **Lien de réinitialisation** plutôt qu'un mot de passe saisi en clair pour le directeur
+      initial, que l'éditeur doit ensuite transmettre par un canal quelconque.
+- [ ] **Consentement et durée** de l'intervention (RGPD) : à traiter avec le contrat de
+      sous-traitance de la phase 8.
 
 ---
 
