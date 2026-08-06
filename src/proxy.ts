@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // ── Délais de session (en secondes) ──────────────────────────────────────────
-import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE } from '@/lib/session-config'
+import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE, sessionCookieDomain } from '@/lib/session-config'
 const SESSION_COOKIE = 'app-session'
 // Marqueur de session NAVIGATEUR : cookie sans maxAge/expires, supprimé par le
 // navigateur à sa fermeture. Permet de distinguer « navigateur resté ouvert »
@@ -15,6 +15,16 @@ export async function proxy(request: NextRequest) {
 
   const host    = request.headers.get('host') ?? ''
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1')
+
+  // Tous les cookies de session portent le DOMAINE, pas l'hote : sans cela,
+  // passer de la console a une ecole deconnecte. Voir `sessionCookieDomain`.
+  //
+  // Applique UNIFORMEMENT, pose comme suppression : un cookie efface sans le
+  // domaine qui a servi a le poser n'est pas reconnu par le navigateur, qui le
+  // garde. C'est ainsi qu'on se retrouve avec deux cookies de meme nom et une
+  // session fantome impossible a purger.
+  const cookieDomain = sessionCookieDomain()
+  const withDomain = <T extends object>(o: T) => (cookieDomain ? { ...o, domain: cookieDomain } : o)
 
   // ─── Helper : créer un client Supabase + récupérer l'user ─────────────────
 
@@ -37,7 +47,7 @@ export async function proxy(request: NextRequest) {
             )
             response = NextResponse.next({ request: { headers: reqHeaders ?? request.headers } })
             cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
+              response.cookies.set(name, value, withDomain(options))
             )
           },
         },
@@ -218,8 +228,8 @@ export async function proxy(request: NextRequest) {
   // Protéger /dashboard → redirection login si non authentifié
   if (!user && pathname.startsWith('/dashboard')) {
     const redirect = NextResponse.redirect(new URL('/login', request.url))
-    redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
-    redirect.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
+    redirect.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
+    redirect.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
     return redirect
   }
 
@@ -255,15 +265,15 @@ export async function proxy(request: NextRequest) {
             getAll() { return request.cookies.getAll() },
             setAll(cookiesToSet) {
               cookiesToSet.forEach(({ name, value, options }) =>
-                redirect.cookies.set(name, value, options)
+                redirect.cookies.set(name, value, withDomain(options))
               )
             },
           },
         }
       )
       await supabaseForSignOut.auth.signOut()
-      redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
-      redirect.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
+      redirect.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
+      redirect.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
       return redirect
     }
   }
@@ -307,7 +317,7 @@ export async function proxy(request: NextRequest) {
             getAll() { return request.cookies.getAll() },
             setAll(cookiesToSet) {
               cookiesToSet.forEach(({ name, value, options }) =>
-                redirect.cookies.set(name, value, options)
+                redirect.cookies.set(name, value, withDomain(options))
               )
             },
           },
@@ -315,8 +325,8 @@ export async function proxy(request: NextRequest) {
       )
       await supabaseForSignOut.auth.signOut()
 
-      redirect.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
-      redirect.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
+      redirect.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
+      redirect.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
       return redirect
     }
 
@@ -324,22 +334,22 @@ export async function proxy(request: NextRequest) {
     // maxAge long (≠ 24h) : le cookie doit survivre a une periode d'inactivite pour
     // pouvoir CONSTATER l'expiration au retour (sinon son absence = session neuve).
     const cookieValue = JSON.stringify({ loginTime, lastActivity: now })
-    response.cookies.set(SESSION_COOKIE, cookieValue, {
+    response.cookies.set(SESSION_COOKIE, cookieValue, withDomain({
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: SESSION_COOKIE_MAX_AGE,
-    })
+    }))
 
     // Marqueur de session navigateur : SANS maxAge/expires → le navigateur le
     // supprime à sa fermeture. Sa présence atteste que le navigateur est resté ouvert.
-    response.cookies.set(BROWSER_MARKER, '1', {
+    response.cookies.set(BROWSER_MARKER, '1', withDomain({
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
-    })
+    }))
   }
 
   // ── 2FA TOTP pour les rôles non-parent ────────────────────────────────────
@@ -401,8 +411,8 @@ export async function proxy(request: NextRequest) {
   // un `lastActivity` périmé. Sans ce nettoyage, la première reconnexion réussie est
   // aussitôt re-déconnectée par le contrôle d'inactivité (« double login »).
   if (pathname === '/login') {
-    response.cookies.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
-    response.cookies.set(BROWSER_MARKER, '', { maxAge: 0, path: '/' })
+    response.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
+    response.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
   }
 
   return response
