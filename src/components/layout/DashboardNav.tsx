@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import { useSidebar } from './SidebarContext'
 import { useTheme } from './ThemeContext'
 import Tooltip from '@/components/ui/Tooltip'
+import SupportBanner from './SupportBanner'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { Profile } from '@/types/database'
@@ -190,9 +191,11 @@ interface DashboardNavProps {
   user: SupabaseUser
   profile: Profile | null
   unreadNotifCount?: number
+  /** Nom de l'école pendant une intervention de support, sinon `null`. */
+  supportEcole?: string | null
 }
 
-export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: DashboardNavProps) {
+export default function DashboardNav({ user, profile, unreadNotifCount = 0, supportEcole = null }: DashboardNavProps) {
   const router    = useRouter()
   const pathname  = usePathname()
   const { collapsed } = useSidebar()
@@ -243,6 +246,10 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0 }: Da
             <h1 className="text-xl font-bold text-secondary-800 dark:text-[#e7eef0]">{getPageTitle(pathname)}</h1>
           )}
         </div>
+
+        {/* Intervention de support : au centre, entre le titre et les commandes.
+            L'espace y est libre, et le rappel ne prend rien à la zone de contenu. */}
+        {supportEcole && <SupportBanner ecole={supportEcole} />}
 
         <div className="flex items-center gap-3 ml-auto">
           {/* Bascule thème clair / sombre — sélecteur segmenté */}

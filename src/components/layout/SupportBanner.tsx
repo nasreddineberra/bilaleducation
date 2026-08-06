@@ -4,18 +4,23 @@ import { useState, useTransition } from 'react'
 import { LifeBuoy } from 'lucide-react'
 import { leaveSchool } from '@/app/superadmin/support-actions'
 import { consoleUrl } from '@/lib/tenant/console-url'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
- * Bandeau d'intervention de support.
+ * Rappel d'intervention de support, logé AU CENTRE DU HEADER.
+ *
+ * Il occupait d'abord une bande sous le header. C'était plus lisible, mais cette
+ * bande prenait sa hauteur à la zone de contenu, qui défile : chaque écran
+ * gagnait une barre de défilement pour la seule durée de l'intervention. Le
+ * header, lui, a de la place libre entre le titre et les commandes.
  *
  * PERMANENT et non refermable, volontairement : pendant une intervention,
  * l'éditeur voit l'application exactement comme l'administrateur de l'école, et
- * plus rien à l'écran ne dit chez QUI il agit. Un bandeau qu'on peut fermer
- * serait fermé au bout de trois minutes, et la garantie disparaîtrait avec lui.
+ * plus rien à l'écran ne dit chez QUI il agit. Un rappel qu'on peut fermer serait
+ * fermé au bout de trois minutes, et la garantie disparaîtrait avec lui.
  *
- * Il porte aussi la sortie : la console reste la sortie garantie — accessible
- * même après une session interrompue — mais elle est sur un autre sous-domaine,
- * et obliger à y retourner pour refermer serait un aller-retour inutile.
+ * La mention du journal passe en infobulle : elle rassure, mais elle ne mérite
+ * pas la largeur qu'elle prenait — le nom de l'école, si.
  */
 export default function SupportBanner({ ecole }: { ecole: string }) {
   const [pending, start] = useTransition()
@@ -35,14 +40,18 @@ export default function SupportBanner({ ecole }: { ecole: string }) {
   return (
     <div
       role="status"
-      className="flex items-center gap-3 px-8 py-2 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-300 dark:border-amber-500/40"
+      className="hidden lg:flex items-center gap-2 min-w-0 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/40"
     >
-      <LifeBuoy className="w-4 h-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
-      <p className="text-xs text-amber-900 dark:text-amber-200 min-w-0">
-        <span className="font-bold uppercase tracking-wide">Intervention de support</span>
-        <span className="mx-2" aria-hidden="true">·</span>
-        vous agissez sur <span className="font-bold">{ecole}</span>. Vos actions sont enregistrées au journal de cet établissement.
-      </p>
+      <Tooltip content="Vos actions sont enregistrées au journal de cet établissement.">
+        <span className="flex items-center gap-2 min-w-0">
+          <LifeBuoy className="w-3.5 h-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+          <span className="text-xs text-amber-900 dark:text-amber-200 truncate">
+            <span className="font-bold uppercase tracking-wide">Support</span>
+            <span className="mx-1.5" aria-hidden="true">·</span>
+            <span className="font-bold">{ecole}</span>
+          </span>
+        </span>
+      </Tooltip>
 
       {erreur && <span role="alert" className="text-xs font-medium text-red-700 dark:text-red-400">{erreur}</span>}
 
@@ -50,9 +59,9 @@ export default function SupportBanner({ ecole }: { ecole: string }) {
         type="button"
         onClick={quitter}
         disabled={pending}
-        className="ml-auto shrink-0 px-3 py-1 text-xs font-medium rounded-md border border-amber-400 dark:border-amber-500/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 disabled:opacity-50"
+        className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-full border border-amber-400 dark:border-amber-500/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 disabled:opacity-50"
       >
-        {pending ? 'Fermeture…' : "Quitter l'intervention"}
+        {pending ? 'Fermeture…' : 'Quitter'}
       </button>
     </div>
   )

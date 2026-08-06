@@ -7,7 +7,6 @@ import { ThemeProvider } from '@/components/layout/ThemeContext'
 import { getCachedProfile, getCachedEtablissement, getCurrentYear } from '@/lib/cache/dashboard'
 import { headers } from 'next/headers'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
-import SupportBanner from '@/components/layout/SupportBanner'
 import { consoleUrl } from '@/lib/tenant/console-url'
 
 
@@ -128,8 +127,7 @@ export default async function DashboardLayout({
 
         {/* Zone droite : navbar + contenu */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} />
-          {supportEcole && <SupportBanner ecole={supportEcole} />}
+          <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} supportEcole={supportEcole} />
           <main id="main-content" tabIndex={-1} className="flex-1 px-8 pt-5 pb-4 overflow-y-auto outline-none">
             {children}
           </main>
