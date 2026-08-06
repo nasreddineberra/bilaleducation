@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export type UserRole = 'admin' | 'direction' | 'comptable' | 'enseignant' | 'parent' | 'secretaire' | 'responsable_pedagogique'
 
@@ -27,7 +28,7 @@ export async function requireRole(allowedRoles: UserRole[]) {
     .eq('id', user.id)
     .single()
 
-  if (!profile || !allowedRoles.includes(profile.role as UserRole)) {
+  if (!profile || !allowedRoles.includes((effectiveRole(profile) ?? '') as UserRole)) {
     return {
       user: null,
       etablissementId: null,

@@ -8,6 +8,7 @@ import { sanitize } from '@/lib/security/sanitize'
 import { logger } from '@/lib/logger'
 import type { EmailAttachment } from '@/lib/email'
 import type { UserRole } from '@/types/database'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 // ─── Perimetre ───────────────────────────────────────────────────────────────
 // La communication aux parents est la voix de l'etablissement :
@@ -218,7 +219,7 @@ export async function sendParentMessage(
     .single()
 
   if (!profile?.etablissement_id) return { error: 'Établissement introuvable.' }
-  const role = profile.role as UserRole
+  const role = effectiveRole(profile) as UserRole
 
   if (payload.targetType === 'all_registered' && !ALL_REGISTERED_ROLES.includes(role)) {
     return { error: "Votre rôle ne permet pas d'écrire à tous les parents enregistrés." }

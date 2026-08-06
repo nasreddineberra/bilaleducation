@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export async function DELETE() {
   try {
@@ -16,7 +17,7 @@ export async function DELETE() {
       .eq('id', user.id)
       .single()
 
-    if (!profile || !['admin', 'direction'].includes(profile.role)) {
+    if (!profile || !['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 

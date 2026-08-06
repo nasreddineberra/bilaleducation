@@ -165,11 +165,28 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       déjà définie dans Vercel — pas de variable supplémentaire.
 - [ ] **Moi** — **Cookie de session valable sur les sous-domaines** (`.bilaleducation.fr`),
       sans quoi le passage de la console vers une école déconnecte.
-- [ ] **Moi** — **Accès support du `super_admin`** : liste des écoles dans la console,
-      rattachement à l'entrée, bandeau permanent « Vous intervenez sur X — quitter »,
-      retour à NULL en sortie. Migration de `get_user_role()`.
-- [ ] **Moi** — Vérifier que le journal attribue bien ces actions au `super_admin`
-      et non à un employé de l'école.
+- [x] **Moi** — **Accès support du `super_admin`** (6 août) : bouton « Intervenir » par
+      école dans la console, rattachement à l'entrée, bandeau permanent nommant l'école et
+      portant sa sortie, retour à NULL à la fermeture. Migration
+      `add-superadmin-support-access.sql` **exécutée et vérifiée**.
+      - Le rattachement se prend **depuis la console** et de nulle part ailleurs : ouvrir
+        une intervention est une écriture, elle doit invalider le cache du profil — ce
+        qu'un rendu de page n'a pas le droit de faire. Le layout du tableau de bord se
+        contente de vérifier que le rattachement désigne l'école du sous-domaine visité.
+      - Il est **exclusif** : entrer dans une seconde école est refusé tant que la
+        première n'est pas quittée. Un profil ne porte qu'un établissement — sans ce
+        refus, le premier onglet se mettrait silencieusement à travailler sur l'autre.
+      - **26 fichiers** lisaient le rôle en direct et auraient refusé l'éditeur : la base
+        lui aurait tout ouvert pendant que chaque enregistrement échouait — il aurait pu
+        regarder sans rien réparer, l'inverse du but. Ils passent tous par
+        `effectiveRole()`, miroir applicatif de la fonction SQL.
+      - Deux gardes restent sur la colonne **brute**, délibérément : le layout de la
+        console et les actions de support. Traduites, elles refuseraient la sortie au
+        moment précis où elle est nécessaire.
+- [ ] **Moi** — Vérifier que le journal attribue bien ces actions au `super_admin` et non
+      à un employé de l'école. La trace de fin d'intervention s'écrit **avant** le
+      détachement : `logAudit` abandonne en silence quand le profil n'a plus
+      d'établissement, et le journal montrerait des interventions jamais refermées.
 - [x] **Moi** — **L'accueil d'un client était inopérant** (corrigé le 6 août,
       `fix-audit-log-etablissements-table.sql`) : créer OU modifier une école depuis
       l'espace super-admin échouait systématiquement en 23502. Le déclencheur d'audit
@@ -203,7 +220,10 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       une politique trop stricte ne lève pas d'erreur, elle renvoie zéro ligne.
 - [ ] **Toi** — Enrôlement TOTP des 7 comptes qui y échappaient. Un seul (admin) a
       un facteur configuré. Prévoir le téléphone et du temps.
-- [ ] **Moi** — Vérifier le parcours support : entrer dans une école, agir, sortir.
+- [ ] **Toi** — **Vérifier le parcours support à l'écran** : depuis la console, entrer
+      dans l'école, constater le bandeau, agir (une modification quelconque), sortir par
+      le bandeau puis par la console. Vérifier au journal de l'école que l'acteur est bien
+      l'éditeur. Le cycle a été éprouvé en base, pas encore dans un navigateur.
 - [ ] **Moi** — Vérifier l'expiration d'abonnement (redirection vers `/abonnement-expire`).
 
 ---

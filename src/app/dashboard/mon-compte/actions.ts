@@ -3,6 +3,7 @@
 import { updateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -73,8 +74,8 @@ export async function updateOwnEmail(newEmail: string): Promise<{ error?: string
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié.' }
 
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!me || (me.role !== 'admin' && me.role !== 'direction')) {
+  const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
+  if (!['admin', 'direction'].includes(effectiveRole(me) ?? '')) {
     return { error: 'Seuls les rôles administration/direction peuvent changer eux-mêmes leur email.' }
   }
 

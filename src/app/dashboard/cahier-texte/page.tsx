@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import CahierTexteClient from '@/components/cahier-texte/CahierTexteClient'
 import { AlertTriangle } from 'lucide-react'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function CahierTextePage() {
   const supabase = await createClient()
@@ -13,11 +14,11 @@ export default async function CahierTextePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
 
   // Année scolaire courante
   const { data: schoolYear } = await supabase

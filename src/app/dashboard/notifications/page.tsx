@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import NotificationsClient from '@/components/notifications/NotificationsClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -12,11 +13,11 @@ export default async function NotificationsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
 
   // Annee en cours : nomme le ciblage « Parents {annee} » (aligne sur l'historique).
   const { data: currentYear } = await supabase

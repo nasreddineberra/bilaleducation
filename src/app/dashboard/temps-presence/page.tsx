@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import TempsPresenceClient from '@/components/temps-presence/TempsPresenceClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function TempsPresencePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: initialMonth } = await searchParams
@@ -19,11 +20,11 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, first_name, last_name')
+    .select('id, role, first_name, last_name, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
   // Gestionnaires « tout le staff » (aligne sur la RLS staff_time_entries_manage).
   // Le responsable pedagogique gere UNIQUEMENT les enseignants → traite a part cote client.
   const canManageAll = ['admin', 'direction', 'comptable', 'secretaire'].includes(role)

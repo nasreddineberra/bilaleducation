@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import dynamic from 'next/dynamic'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 const EmploiDuTempsClient = dynamic(
   () => import('@/components/emploi-du-temps/EmploiDuTempsClient'),
@@ -14,11 +15,11 @@ export default async function EmploiDuTempsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role, first_name, last_name')
+    .select('id, role, first_name, last_name, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
   const canEdit = ['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(role)
 
   // Annee scolaire courante

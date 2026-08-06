@@ -1873,6 +1873,42 @@ reponse est un dump REGENERE depuis la base, date, et non un fichier reecrit a l
 **Conserves** : `clean-all-data.sql` (reset d'environnement de test), les seeds bulk et thematiques,
 `README.md`, `ARCHITECTURE.md`, `GUIDE_INSTALLATION.md`.
 
+#### 6 aout 2026 (suite) — Acces support de l'editeur (super-admin dans une ecole)
+
+Le `super_admin` ne peut pas depanner un client : aucun ecran ne connait son role, et la RLS ne lui
+donne aucune ligne (`etablissement_id` NULL). Il se **RATTACHE** donc temporairement a l'ecole.
+
+- **Migration `add-superadmin-support-access.sql`** (executee, verifiee) : `get_user_role()` repond
+  **`admin`** quand l'appelant est super-admin ET rattache. **Une seule fonction change, aucune des
+  155 politiques n'est touchee.** Deux autres voies ecartees : changer son ROLE l'enfermerait dans
+  l'ecole si la session s'interrompait (plus d'acces a sa console pour se rattraper) ; ajouter
+  `super_admin` a toutes les policies, c'est beaucoup de surface sensible pour rien.
+  - `fn_audit_log()` gagne un repli sur l'ANCIENNE valeur (UPDATE) : sans lui, vider
+    `etablissement_id` echoue en **23502** et **le detachement devient impossible**.
+- **L'INTERRUPTEUR est le rattachement, pas le role.** La colonne `profiles.role` ne change JAMAIS :
+  c'est ce qui garantit la sortie.
+- **Ou se prend le rattachement** : **dans la console uniquement** (server action `enterSchool`).
+  C'est une ecriture, elle doit invalider le cache du profil (`updateTag`) — interdit pendant un
+  rendu de page. Le layout du tableau de bord ne fait que **verifier** que le rattachement designe
+  l'ecole du **sous-domaine**, et renvoie a la console sinon (**adresse absolue** : `/superadmin`
+  n'existe pas sur le domaine d'une ecole, le relatif rejouerait l'impasse de connexion).
+- **Exclusif** : entrer dans une 2e ecole est refuse tant que la 1re n'est pas quittee. Un profil ne
+  porte qu'un etablissement — sinon le 1er onglet travaillerait **silencieusement** sur l'autre.
+- **`src/lib/auth/effective-role.ts`** — `effectiveRole()` / `isSupportSession()`, miroir applicatif
+  de la fonction SQL. **26 fichiers** lisaient le role en direct : sans cette passe, la base ouvrait
+  tout et **chaque enregistrement echouait** — l'editeur aurait pu regarder sans rien reparer.
+  Passe appliquee a `requireRoleServer`, `requireRole`, la route de purge et 23 pages/actions.
+- **DEUX gardes restent sur la colonne BRUTE, deliberement** : le layout `(protected)` de la console
+  et `support-actions.ts` (`requireEditor`). Traduites, elles refuseraient `leaveSchool` **au moment
+  precis ou il faut sortir**. Le role en base est l'identite, le role effectif un costume.
+- **Trace de FIN d'intervention ecrite AVANT le detachement** : `logAudit` prend l'etablissement dans
+  le profil de l'appelant et **abandonne en silence** s'il est nul — le journal aurait montre des
+  interventions jamais refermees.
+- **Middleware** : la redirection super-admin → console (posee la veille pour lever l'impasse de
+  connexion) est **retiree** ; sur le domaine d'une ecole, `/` renvoie toujours `/dashboard` (y
+  diriger `/superadmin` refabriquait la boucle). Le compteur d'utilisateurs de la console **exclut**
+  le super-admin rattache.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

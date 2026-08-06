@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { Building2, Plus, Users, GraduationCap, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { EnterButton, SupportBar } from './SupportControls'
 
 function formatDate(date: string | null | undefined) {
   if (!date) return null
@@ -23,7 +25,11 @@ export default async function SuperAdminPage() {
   const stats = await Promise.all(
     (etablissements ?? []).map(async (e) => {
       const [{ count: users }, { count: students }] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('etablissement_id', e.id),
+        // Le super-admin rattaché pour une intervention porte l'établissement
+        // dans son profil : sans cette exclusion, le compteur d'utilisateurs de
+        // l'école grimperait d'un le temps du dépannage.
+        supabase.from('profiles').select('id', { count: 'exact', head: true })
+          .eq('etablissement_id', e.id).neq('role', 'super_admin'),
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('etablissement_id', e.id),
       ])
       return { id: e.id, users: users ?? 0, students: students ?? 0 }
@@ -32,8 +38,20 @@ export default async function SuperAdminPage() {
 
   const statsMap = Object.fromEntries(stats.map(s => [s.id, s]))
 
+  // Intervention en cours : l'état réel, pas le profil mis en cache — c'est lui
+  // qui décide de ce que l'on peut ouvrir.
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('etablissement_id').eq('id', user.id).single()
+    : { data: null }
+  const supportEcole = me?.etablissement_id
+    ? (etablissements ?? []).find(e => e.id === me.etablissement_id) ?? null
+    : null
+
   return (
     <div className="space-y-6 animate-fade-in">
+
+      {supportEcole && <SupportBar ecole={supportEcole.nom} slug={supportEcole.slug} />}
 
       <div className="flex items-center justify-between">
         <div>
@@ -110,10 +128,17 @@ export default async function SuperAdminPage() {
                         <GraduationCap className="w-3.5 h-3.5" />{s?.students ?? '·'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link href={`/superadmin/ecoles/${e.id}`} className="btn btn-secondary text-xs py-1.5 px-3">
-                        Gérer
-                      </Link>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <EnterButton
+                          id={e.id}
+                          slug={e.slug}
+                          disabled={Boolean(supportEcole) && supportEcole?.id !== e.id}
+                        />
+                        <Link href={`/superadmin/ecoles/${e.id}`} className="btn btn-secondary text-xs py-1.5 px-3">
+                          Gérer
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 )

@@ -4,14 +4,15 @@ import VueGlobaleClient from '@/components/financements/VueGlobaleClient'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { isFinanceRole } from '@/lib/financements/roles'
 import { AlertTriangle } from 'lucide-react'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function VueGlobalePage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!isFinanceRole(me?.role)) redirect('/dashboard')
+  const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
+  if (!isFinanceRole(effectiveRole(me))) redirect('/dashboard')
 
   const { data: currentYear } = await supabase
     .from('school_years')

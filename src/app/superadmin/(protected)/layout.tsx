@@ -15,7 +15,10 @@ export default async function SuperAdminProtectedLayout({
     redirect('/superadmin/login')
   }
 
-  // Vérifier le rôle super_admin via le profil
+  // Rôle vérifié sur la COLONNE BRUTE, et cela doit le rester : pendant une
+  // intervention de support le rôle effectif vaut `admin`, et traduire ici
+  // fermerait la console à l'éditeur au moment précis où elle est sa seule
+  // sortie. Le rôle en base est l'identité, le rôle effectif un costume.
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles')

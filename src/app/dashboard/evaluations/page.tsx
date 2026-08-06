@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import EvaluationsClient from '@/components/evaluations/EvaluationsClient'
 import { AlertTriangle } from 'lucide-react'
 import type { Period, EvalTypeConfig, UniteEnseignement, CoursModule, Cours } from '@/types/database'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 type ClassRow = {
   id: string
@@ -42,11 +43,11 @@ export default async function EvaluationsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
 
   // 2. Année scolaire courante + périodes + eval_type_configs
   const { data: schoolYear } = await supabase

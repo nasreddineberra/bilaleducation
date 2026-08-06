@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import { hasSmtpConfig } from '@/lib/email'
 import { buildSignatureHtml } from '@/lib/communications/signature'
 import NewMessageClient from '@/components/communications/NewMessageClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 // Communication aux parents = voix de l'etablissement. L'enseignant ne communique
 // que les devoirs (cahier de texte) ; le comptable passe par Financements.
@@ -19,11 +20,11 @@ export default async function NewMessagePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role')
+    .select('id, role, etablissement_id')
     .eq('id', user.id)
     .single()
 
-  const role = profile?.role ?? ''
+  const role = effectiveRole(profile) ?? ''
   if (!PARENT_COMM_ROLES.includes(role)) redirect('/dashboard/communications')
 
   // Annee scolaire en cours

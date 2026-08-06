@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import { hasSmtpConfig } from '@/lib/email'
 import { buildSignatureHtml } from '@/lib/communications/signature'
 import StaffMessageClient from '@/components/communications/StaffMessageClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 // Communication interne = encadrement (tout staff SAUF enseignant). Le comptable
 // ecrit (paie / sujets comptables) ; l'enseignant reste destinataire.
@@ -19,11 +20,11 @@ export default async function StaffMessagePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, role')
+    .select('id, role, etablissement_id')
     .eq('id', user.id)
     .single()
 
-  const role = profile?.role ?? ''
+  const role = effectiveRole(profile) ?? ''
   if (!STAFF_SEND_ROLES.includes(role)) redirect('/dashboard/communications')
 
   // Membres du staff pointables (hors soi, hors parent/super_admin).

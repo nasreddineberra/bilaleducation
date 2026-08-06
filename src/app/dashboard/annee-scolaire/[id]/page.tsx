@@ -7,6 +7,7 @@ import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
 import ClotureClient from '@/components/annee-scolaire/ClotureClient'
 import PrepareNextYearButton from '@/components/annee-scolaire/PrepareNextYearButton'
 import PurgeYearCard from '@/components/annee-scolaire/PurgeYearCard'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -37,9 +38,9 @@ export default async function EditAnneeScolairePage({ params }: Props) {
   // Role de l'utilisateur : seuls admin/direction modifient la periode en cours.
   const { data: { user } } = await supabase.auth.getUser()
   const { data: me } = user
-    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    ? await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
     : { data: null }
-  const isAdminDir = me?.role === 'admin' || me?.role === 'direction'
+  const isAdminDir = ['admin', 'direction'].includes(effectiveRole(me) ?? '')
   // La periode en cours ne se regle que sur l'annee EN COURS.
   const canEditPeriod = isAdminDir && !!schoolYear.is_current
 

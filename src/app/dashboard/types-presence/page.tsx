@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AlertTriangle } from 'lucide-react'
 import TypesPresenceClient from '@/components/types-presence/TypesPresenceClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function TypesPresencePage() {
   const supabase = await createClient()
@@ -12,11 +13,11 @@ export default async function TypesPresencePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', user.id)
     .single()
 
-  if (!['admin', 'direction'].includes(profile?.role ?? '')) {
+  if (!['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
     redirect('/dashboard')
   }
 

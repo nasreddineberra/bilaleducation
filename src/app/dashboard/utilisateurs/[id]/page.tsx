@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import UtilisateurForm from '@/components/utilisateurs/UtilisateurForm'
 import type { Profile } from '@/types/database'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -18,8 +19,8 @@ export default async function EditUtilisateurPage({ params }: Props) {
   if (!user) redirect('/login')
   if (user.id === id) redirect('/dashboard/mon-compte')
 
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!me || (me.role !== 'admin' && me.role !== 'direction')) redirect('/dashboard/mon-compte')
+  const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
+  if (!['admin', 'direction'].includes(effectiveRole(me) ?? '')) redirect('/dashboard/mon-compte')
 
   const { data: profile } = await supabase
     .from('profiles')

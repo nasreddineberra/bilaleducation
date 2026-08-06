@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import AbsencesClient from '@/components/absences/AbsencesClient'
 import { AlertTriangle } from 'lucide-react'
 import type { Period, Absence } from '@/types/database'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 type ClassRow = {
   id: string
@@ -37,11 +38,11 @@ export default async function AbsencesPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
 
   // 2. Année scolaire + périodes
   const { data: schoolYear } = await supabase

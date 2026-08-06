@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AuditLogsClient from '@/components/audit-logs/AuditLogsClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 const PAGE_SIZE = 20
 
@@ -37,11 +38,11 @@ export default async function LogsPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'direction'].includes(profile.role)) {
+  if (!['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
     redirect('/dashboard')
   }
 

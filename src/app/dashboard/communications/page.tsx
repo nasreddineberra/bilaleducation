@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import SentMessagesClient from '@/components/communications/SentMessagesClient'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function CommunicationsPage() {
   const supabase = await createClient()
@@ -13,11 +14,11 @@ export default async function CommunicationsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, etablissement_id')
     .eq('id', userId)
     .single()
 
-  const role = profile?.role ?? 'enseignant'
+  const role = effectiveRole(profile) ?? 'enseignant'
 
   // Messages envoyes
   let query = supabase

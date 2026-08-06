@@ -4,6 +4,7 @@ import SyntheseClient from '@/components/financements/SyntheseClient'
 import { isFinanceRole } from '@/lib/financements/roles'
 import { computeFamilyFinancials, siblingDiscounts, lineTotal } from '@/lib/financements/compute'
 import { AlertTriangle } from 'lucide-react'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function SynthesePage() {
   const supabase = await createClient()
@@ -13,8 +14,8 @@ export default async function SynthesePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!isFinanceRole(me?.role)) redirect('/dashboard')
+  const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
+  if (!isFinanceRole(effectiveRole(me))) redirect('/dashboard')
 
   // Annee en cours
   const { data: currentYear } = await supabase

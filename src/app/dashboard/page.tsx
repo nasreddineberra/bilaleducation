@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { getPeriodHint } from '@/lib/school-year/current-period-hint'
+import { effectiveRole } from '@/lib/auth/effective-role'
 import DashboardAdmin from '@/components/dashboard/DashboardAdmin'
 import DashboardComptable from '@/components/dashboard/DashboardComptable'
 import DashboardPedago from '@/components/dashboard/DashboardPedago'
@@ -49,7 +50,9 @@ export default async function DashboardPage() {
     console.error('[dashboard/page] Échec année scolaire:', profileResults[1].reason)
   }
 
-  const role = profile?.role ?? 'parent'
+  // `admin` pendant une intervention de support : aucune branche de cette page
+  // ne connaît `super_admin`, l'éditeur tomberait sur le tableau de bord parent.
+  const role = effectiveRole(profile) ?? 'parent'
 
   // ── Periode courante ─────────────────────────────────────────────────
   // Le flag `is_current` (feature « periode en cours ») prime ; repli sur la 1re.

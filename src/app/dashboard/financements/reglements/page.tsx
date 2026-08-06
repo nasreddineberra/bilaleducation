@@ -4,6 +4,7 @@ import ReglementsShell from '@/components/financements/ReglementsShell'
 import { isFinanceRole } from '@/lib/financements/roles'
 import { feeStatus } from '@/lib/financements/compute'
 import { AlertTriangle } from 'lucide-react'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function FinancementsPage({ searchParams }: { searchParams: Promise<{ parent?: string }> }) {
   const { parent: initialParentId } = await searchParams
@@ -11,8 +12,8 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { data: me } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!isFinanceRole(me?.role)) redirect('/dashboard')
+  const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
+  if (!isFinanceRole(effectiveRole(me))) redirect('/dashboard')
 
   // Année en cours
   const { data: currentYear } = await supabase
@@ -205,7 +206,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         etablissement={(etablissement ?? null) as any}
         initialParentId={initialParentId}
         familyHistory={familyHistory}
-        canDeleteComms={isFinanceRole(me?.role)}
+        canDeleteComms={isFinanceRole(effectiveRole(me))}
         pastDebts={pastDebts}
       />
     </div>

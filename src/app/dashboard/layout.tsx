@@ -5,6 +5,10 @@ import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { ThemeProvider } from '@/components/layout/ThemeContext'
 import { getCachedProfile, getCachedEtablissement, getCurrentYear } from '@/lib/cache/dashboard'
+import { headers } from 'next/headers'
+import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
+import SupportBanner from '@/components/layout/SupportBanner'
+import { consoleUrl } from '@/lib/tenant/console-url'
 
 
 export default async function DashboardLayout({
@@ -17,11 +21,6 @@ export default async function DashboardLayout({
 
   if (!user) {
     redirect('/login')
-  }
-
-  // Garde-fou immédiat via JWT (pas besoin de requête DB)
-  if (user.app_metadata?.role === 'super_admin') {
-    redirect('/superadmin')
   }
 
   // Profil + établissement + année en cours, en parallèle.
@@ -43,6 +42,35 @@ export default async function DashboardLayout({
   const etablissement = profile?.etablissement_id
     ? await getCachedEtablissement(profile.etablissement_id).catch(() => null)
     : null
+
+  // ── Accès support de l'éditeur ─────────────────────────────────────────────
+  //
+  // Le super-admin n'appartient à aucune école. Pour dépanner un client il s'y
+  // RATTACHE, et le rattachement se prend DEPUIS LA CONSOLE, jamais ici : ouvrir
+  // une intervention est une écriture, elle doit invalider le cache du profil
+  // (`updateTag`), ce qu'un rendu de page n'a pas le droit de faire. Sans cette
+  // invalidation, le tableau de bord travaillerait une heure sur l'état d'avant.
+  //
+  // Ce layout ne fait donc que VÉRIFIER, et il vérifie contre le sous-domaine :
+  // l'URL désigne l'école, le rattachement doit désigner la même. Tout écart —
+  // aucune intervention ouverte, ou une intervention ouverte ailleurs — renvoie
+  // à la console, seul endroit d'où l'on entre et d'où l'on sort.
+  if (user.app_metadata?.role === 'super_admin') {
+    const tenantId = (await headers()).get('x-etablissement-id')
+    if (!profile?.etablissement_id || profile.etablissement_id !== tenantId) {
+      // Adresse ABSOLUE : `/superadmin` n'existe pas sur le domaine d'une école,
+      // le middleware l'y renvoie vers `/login` — et le super-admin retomberait
+      // sur l'écran de connexion après s'être authentifié, ce qui ressemble à un
+      // échec. C'est l'impasse déjà rencontrée, sous une autre forme.
+      redirect(consoleUrl())
+    }
+  }
+
+  // Le rôle d'AFFICHAGE : `admin` pendant une intervention, sans quoi la sidebar
+  // et le tableau de bord ne connaîtraient pas `super_admin` et l'écran serait
+  // vide alors que la base, elle, aurait tout ouvert. Voir `effectiveRole`.
+  const displayRole = effectiveRole(profile)
+  const supportEcole = isSupportSession(profile) ? (etablissement?.nom ?? 'cet établissement') : null
 
   // Log des échecs partiels (ne pas bloquer le rendu)
   for (const [i, result] of results.entries()) {
@@ -92,7 +120,7 @@ export default async function DashboardLayout({
       <div className="h-screen overflow-hidden bg-[var(--surface-page)] flex">
         {/* Sidebar fixe à gauche */}
         <DashboardSidebar
-          role={profile?.role}
+          role={displayRole}
           etablissementNom={etablissement?.nom ?? null}
           etablissementLogo={etablissement?.logo_url ?? null}
           anneeCourante={currentYear?.label ?? null}
@@ -101,6 +129,7 @@ export default async function DashboardLayout({
         {/* Zone droite : navbar + contenu */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} />
+          {supportEcole && <SupportBanner ecole={supportEcole} />}
           <main id="main-content" tabIndex={-1} className="flex-1 px-8 pt-5 pb-4 overflow-y-auto outline-none">
             {children}
           </main>

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import TeachersClient from '@/components/teachers/TeachersClient'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 const PAGE_SIZE = 20
 
@@ -21,9 +22,9 @@ export default async function TeachersPage({
   // La secretaire cree et modifie, elle ne supprime pas.
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profileRow } = user
-    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    ? await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).maybeSingle()
     : { data: null }
-  const canDelete = ['admin', 'direction'].includes(profileRow?.role ?? '')
+  const canDelete = ['admin', 'direction'].includes(effectiveRole(profileRow) ?? '')
 
   let teachersQuery = supabase
     .from('teachers')

@@ -251,20 +251,18 @@ export async function proxy(request: NextRequest) {
     const isSuperAdmin = user.app_metadata?.role === 'super_admin'
 
     if (isSuperAdmin) {
-      // Le super-admin n'appartient a aucune ecole : sur ce domaine, la RLS ne
-      // lui donnerait aucune ligne, et le tableau de bord le renvoie vers
-      // `/superadmin` — que ce domaine refuse. Les deux regles, justes
-      // separement, formaient une IMPASSE : connexion, 2FA, puis retour a la
-      // page de login, ce qui ressemble a un echec d'authentification.
+      // ACCES SUPPORT. Le super-admin est le seul compte qui traverse les ecoles :
+      // il n'appartient a aucune, et son rattachement — l'interrupteur de
+      // l'intervention — vit dans `profiles`, pas dans le jeton. La comparaison
+      // ci-dessous n'a donc rien a comparer et le laisserait tomber dans la
+      // branche « compte sans etablissement », qui journaliserait une alerte a
+      // chaque page.
       //
-      // On le renvoie donc la ou est sa place. A REVOIR quand l'acces support
-      // existera : un super-admin rattache a une ecole devra pouvoir rester sur
-      // son domaine — le rattachement vivra dans `profiles`, invisible du jeton
-      // tant qu'il n'est pas renouvele.
-      return NextResponse.redirect(new URL(`https://superadmin.${rootDomain}/superadmin`))
-    }
-
-    if (!userEtab) {
+      // C'est le layout du tableau de bord qui tranche : il lit le rattachement
+      // REEL, ouvre l'intervention sur l'ecole du sous-domaine, ou renvoie a la
+      // console si une autre est deja en cours. Le middleware ne peut pas le
+      // faire — le jeton ne porte pas cette information et il ne lit pas la base.
+    } else if (!userEtab) {
       console.warn(`[proxy] Compte sans etablissement_id dans le jeton : ${user.id}`)
     } else if (userEtab !== tenantId) {
       // Déconnexion franche : rester connecté sur le domaine d'une autre école
@@ -416,8 +414,11 @@ export async function proxy(request: NextRequest) {
   if (user && !isAuthPath && pathname === '/login') {
     // Laisser l'utilisateur accéder à /login (pour changer de compte ou réessayer)
   } else if (user && !isAuthPath && pathname === '/') {
-    const isSuperAdmin = user.app_metadata?.role === 'super_admin'
-    return NextResponse.redirect(new URL(isSuperAdmin ? '/superadmin' : '/dashboard', request.url))
+    // On est ici sur le domaine d'une ECOLE : la console a sa propre racine, et
+    // `/superadmin` n'existe pas ici (section 2 bis le renvoie vers `/login`).
+    // Y diriger le super-admin fabriquerait une boucle — c'est exactement le
+    // couple de regles qui avait produit l'impasse de connexion.
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   // Purger le cookie de session applicatif sur /login : le logout par inactivité
