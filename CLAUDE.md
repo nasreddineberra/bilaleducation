@@ -1909,6 +1909,37 @@ donne aucune ligne (`etablissement_id` NULL). Il se **RATTACHE** donc temporaire
   diriger `/superadmin` refabriquait la boucle). Le compteur d'utilisateurs de la console **exclut**
   le super-admin rattache.
 
+#### 6 aout 2026 (fin) — Le journal d'activite n'enregistrait AUCUNE trace applicative
+
+Signale par l'utilisateur (« je n'ai rien modifie, seulement navigue ») : le journal affichait des
+lignes « Modification · Utilisateurs · NOM Prenom » **sans acteur**. C'etaient les entrees/sorties de
+support. En creusant, un defaut bien plus large est apparu.
+
+- **`audit_logs.description` N'EXISTAIT PAS.** `logAudit` en fournit une a chaque appel →
+  insertion rejetee → erreur **avalee par le `try/catch`** qui rend la trace « non bloquante ».
+  Les **32 appels** repartis dans 12 fichiers n'ont **jamais rien ecrit** : relances de paiement,
+  attestations, reinitialisations 2FA, purges du journal, envois de lien de mot de passe,
+  suppressions de compte, ouverture d'intervention. Seules les lignes des **declencheurs**
+  subsistaient. `AuditLogsClient` lisait deja `log.description` en priorite — c'est la base qui
+  n'avait jamais suivi ; le `select('*')` de la page masquait l'absence de colonne.
+  **Regle** : un `catch {}` silencieux sur une ecriture secondaire peut cacher une panne totale
+  pendant des mois. Verifier qu'une trace ARRIVE, pas seulement qu'elle est appelee.
+- **Migration `fix-audit-log-description.sql`** (executee, verifiee) — 3 correctifs dans
+  `fn_audit_log()` :
+  1. **colonne `description`** ajoutee (repare les 32 appels sans toucher au code) ;
+  2. **le rattachement de support ne s'audite plus** : un UPDATE de `profiles` sur un compte
+     `super_admin` ne changeant que `etablissement_id` produisait une ligne muette et trompeuse
+     (ecriture en service-role ⇒ pas d'`auth.uid()`), doublant la ligne lisible ecrite par l'app.
+     Condition **stricte** : toute autre modification d'un profil de super-admin reste tracee ;
+  3. **`v_etab_id IS NULL` ⇒ on renonce a la TRACE, jamais a l'ECRITURE.** L'insertion echouait en
+     **23502** et **faisait echouer l'operation observee**. Consequence reelle : le super-admin
+     **hors intervention** ne pouvait ni corriger son nom, ni changer de theme, ni regler son
+     compte — `profiles.etablissement_id` etant nul, le journal n'avait ou se ranger. C'est aussi
+     le piege documente pour les scripts service-role sur une table sans colonne d'etablissement.
+- **Verifie en base** (4 cas) : rattachement 0 ligne, detachement 0 ligne, profil du super-admin
+  detache modifiable **sans erreur** (0 ligne, faute d'ecole ou la ranger), profil d'un admin
+  d'ecole toujours trace (1 ligne, colonnes listees). Lignes de test effacees.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2091,6 +2122,13 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/add-superadmin-support-access.sql` (`get_user_role()` repond
+  `admin` quand le super-admin est rattache ; repli OLD dans `fn_audit_log` sans quoi le detachement
+  est impossible). **Verifie** : cycle rattachement/detachement complet.
+- [x] Executer `supabase/migrations/fix-audit-log-description.sql` (colonne `description` manquante
+  → les 32 `logAudit` de l'app n'ecrivaient RIEN ; rattachement de support non audite ; trace
+  abandonnee au lieu de faire echouer l'ecriture quand aucun etablissement n'est identifiable).
+  **Verifie en base** sur 4 cas.
 - [x] Executer `supabase/migrations/add-etablissement-length-limits.sql` (nom 30 / adresse 80,
   longueurs mesurees sur l'en-tete des PDF ; double la validation du formulaire, qui ecrit directement
   depuis le navigateur).
