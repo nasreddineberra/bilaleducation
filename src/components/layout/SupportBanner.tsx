@@ -40,7 +40,11 @@ export default function SupportBanner({ ecole }: { ecole: string }) {
   return (
     <div
       role="status"
-      className="hidden lg:flex items-center gap-2 min-w-0 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/40"
+      /* Centré sur la LARGEUR DU HEADER, donc placé en absolu : en flux, il se
+         calerait contre le titre et sa position dépendrait de la longueur de
+         celui-ci — elle changerait à chaque page. La largeur est bornée pour
+         qu'un nom d'école long n'aille pas chevaucher les commandes de droite. */
+      className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center gap-2 min-w-0 max-w-[40%] px-3 py-1 bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/40"
     >
       <Tooltip content="Vos actions sont enregistrées au journal de cet établissement.">
         <span className="flex items-center gap-2 min-w-0">
@@ -59,7 +63,7 @@ export default function SupportBanner({ ecole }: { ecole: string }) {
         type="button"
         onClick={quitter}
         disabled={pending}
-        className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-full border border-amber-400 dark:border-amber-500/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 disabled:opacity-50"
+        className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-md border border-amber-400 dark:border-amber-500/60 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-500/20 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 disabled:opacity-50"
       >
         {pending ? 'Fermeture…' : 'Quitter'}
       </button>

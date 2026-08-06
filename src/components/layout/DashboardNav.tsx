@@ -217,7 +217,8 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0, supp
 
   return (
     <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none px-6 sticky top-0 z-30">
-      <div className="w-full flex items-center justify-between">
+      {/* `relative` : ancre du rappel d'intervention, centré en absolu. */}
+      <div className="relative w-full flex items-center justify-between">
 
         {/* Titre + Breadcrumb */}
         <div className="hidden md:flex flex-col justify-center">
