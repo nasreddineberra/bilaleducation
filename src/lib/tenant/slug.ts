@@ -55,7 +55,16 @@ export function validateSlug(raw: string): string | null {
   if (!/^[a-z0-9-]+$/.test(slug)) return 'Seuls les lettres minuscules, les chiffres et le tiret sont autorisés.'
   if (slug.startsWith('-') || slug.endsWith('-')) return 'Le sous-domaine ne peut ni commencer ni finir par un tiret.'
   if (slug.startsWith('xn--')) return 'Le préfixe « xn-- » est réservé aux noms de domaine internationalisés.'
-  if ((RESERVED_SLUGS as readonly string[]).includes(slug)) {
+  // Comparaison TIRETS IGNORES : `super-admin` se ramene a `superadmin` et tombe
+  // donc aussi. Une seule ligne referme toute la famille des variantes a tirets,
+  // pour l'ensemble de la liste.
+  //
+  // On ne va pas plus loin volontairement : `www2`, `mail2` ou `api-v2`
+  // continuent de passer. Poursuivre toutes les ressemblances est un jeu sans
+  // fin qui finirait par refuser `ecole2` — et ces noms-la ne captent aucune
+  // adresse systeme.
+  const compact = slug.replace(/-/g, '')
+  if ((RESERVED_SLUGS as readonly string[]).includes(compact)) {
     return `« ${slug} » est réservé à l'infrastructure et ne peut pas être attribué à un établissement.`
   }
 
