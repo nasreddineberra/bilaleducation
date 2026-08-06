@@ -9,11 +9,14 @@
 abonnement aux établissements. Un déploiement unique, une base unique, un
 sous-domaine par école, cloisonnement par RLS.
 
-> **Reprise** — prochaine action : créer le compte **Vercel** (formule Pro, l'usage
-> commercial étant exclu du gratuit) et le connecter au dépôt GitHub, branche `main`.
-> Ne pas encore toucher au domaine ni aux variables d'environnement dans Vercel :
-> les variables demandent les clés Supabase, et le DNS ne se pointe qu'une fois le
-> projet créé côté hébergeur.
+> **Reprise** — ordre ajusté le 6 août : la **base de production d'abord**, l'hébergement
+> ensuite. Les variables d'environnement de Vercel doivent contenir les clés de la base
+> définitive ; déployer avant obligerait à tout reconfigurer.
+>
+> Prochaine action **Toi** : créer le projet **Supabase de production** (formule Pro,
+> pour les sauvegardes quotidiennes) et le compte **Vercel** (formule Pro, l'usage
+> commercial étant exclu du gratuit). Le schéma à y appliquer est prêt dans
+> `supabase/restore/`.
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -91,8 +94,16 @@ Aucun utilisateur réel, aucune donnée réelle.
 n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le réécrire
 à la main mais de l'**exporter depuis la base réelle**.
 
-- [ ] **Moi** — Générer un export du schéma depuis le projet Supabase actuel
-      (`pg_dump --schema-only`). Exact, daté, vérifiable.
+- [x] **Moi** — Export généré le 6 août 2026 dans `supabase/restore/` : 64 tables,
+      155 politiques, 31 fonctions, 92 déclencheurs, 120 index, 287 privilèges,
+      9 compartiments de stockage et 37 politiques de fichiers. Procédure et pièges
+      documentés dans son `README.md`.
+      Deux manques que `pg_dump` ne signale pas ont dû être comblés à part : il
+      **n'exporte jamais les extensions** (la restauration s'arrêtait sur la contrainte
+      GiST de l'emploi du temps) et **rien du schéma `storage`**. Et `--no-privileges`,
+      qui paraît anodin, retirait les `GRANT`/`REVOKE` : la base restaurée aurait repris
+      les droits par défaut de Supabase au lieu du régime « serveur uniquement » de
+      `etablissement_smtp`.
 - [ ] **Toi** — Créer le projet Supabase de **production**. Formule Pro : la gratuite
       met le projet en pause et **ne fait pas de sauvegardes quotidiennes**.
 - [ ] **Moi** — Appliquer le schéma exporté sur la production, puis vérifier les
