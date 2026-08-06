@@ -9,9 +9,13 @@
 abonnement aux établissements. Un déploiement unique, une base unique, un
 sous-domaine par école, cloisonnement par RLS.
 
-> **Reprise** — la phase 2 est terminée : le site tourne sur `bilal-neuville.bilaleducation.fr`
-> en HTTPS, avec les données de test. Prochaine étape : les **adaptations de code de la
-> phase 4**, dont trois sont désormais motivées par ce qu'on a constaté en production.
+> **Reprise** — phases 1, 2 et une partie de la 4 terminées. Le site tourne sur
+> `bilal-neuville.bilaleducation.fr`, la vitrine occupe la racine, la console vit sur
+> `superadmin.bilaleducation.fr`.
+>
+> Restent en phase 4 : les **slugs réservés**, le **cookie partagé entre sous-domaines**
+> et l'**accès support du super-admin** — ces deux derniers désormais testables, puisque
+> le vrai domaine répond.
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -145,13 +149,20 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
 
 ## Phase 4 · Adaptations de code exigées par la production
 
-- [ ] **Moi** — Le middleware reconnaît l'espace opérateur au **sous-domaine `console`**
-      et non plus au domaine racine, libéré pour la vitrine (~3 lignes).
-      **Confirmé en production** : `bilaleducation.fr` redirige aujourd'hui vers `/superadmin`.
+- [x] **Moi** — Espace opérateur déplacé sur **`superadmin.bilaleducation.fr`** (6 août).
+      Le sous-domaine plutôt qu'un chemin : le jour où la vitrine sera un site distinct
+      hébergé ailleurs, `bilaleducation.fr/superadmin` cesserait d'exister.
+      La racine ne pouvait pas être simplement retirée de l'espace opérateur — elle serait
+      tombée dans la résolution d'établissement et aurait affiché « accès suspendu ». Elle
+      sert donc une **page d'attente** (`/vitrine`), réécrite pour que l'adresse reste
+      inchangée, sans aucun lien de connexion.
+      `/superadmin` est refermé sur les domaines d'école : un parent y voyait l'écran de
+      connexion de l'éditeur. Vérifié en production sur les 4 adresses.
 - [ ] **Moi** — Interdire les slugs **réservés** à la création d'une école (`www`, `console`,
       `api`, `mail`, `admin`). Rien ne l'empêche aujourd'hui, et un slug ne se modifie pas :
       une école nommée `www` capterait l'adresse de la vitrine.
-- [ ] **Moi** — Retirer `bilaleducation.fr` en dur du middleware au profit d'une variable.
+- [x] **Moi** — Domaine en dur retiré du middleware, déduit de `NEXT_PUBLIC_SITE_URL`,
+      déjà définie dans Vercel — pas de variable supplémentaire.
 - [ ] **Moi** — **Cookie de session valable sur les sous-domaines** (`.bilaleducation.fr`),
       sans quoi le passage de la console vers une école déconnecte.
 - [ ] **Moi** — **Accès support du `super_admin`** : liste des écoles dans la console,
