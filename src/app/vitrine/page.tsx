@@ -30,9 +30,6 @@ export default function VitrinePage() {
 
       <p className="text-white/70 text-lg max-w-md leading-snug">
         Plateforme de gestion administrative et pédagogique
-        <span className="block mt-1 text-white/50 text-base">
-          pour les écoles arabes et islamiques
-        </span>
       </p>
 
       <p className="text-white/40 text-xs">Site en construction</p>
