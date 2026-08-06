@@ -122,8 +122,10 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       la phase de test.
 - [ ] **Moi** — Appliquer le schéma exporté sur la production, puis vérifier les
       politiques RLS en base (`pg_policies`) — jamais depuis le dépôt.
-- [ ] **Moi** — Créer l'établissement réel avec son **vrai slug** (aujourd'hui `demo`,
-      qui donnerait `demo.bilaleducation.fr`).
+- [x] **Moi** — Slug renommé `demo` → **`bilal-neuville`** le 6 août. L'adresse de
+      l'école sera donc `bilal-neuville.bilaleducation.fr`. `.env.local` aligné pour que
+      le développement local continue de résoudre la même école.
+      Ce renommage a révélé un **bug de production** : voir phase 4.
 - [ ] **Toi** — Le projet Supabase actuel devient l'environnement de **développement**.
       Ton `.env.local` pointe dessus ; la production ne connaît que Vercel.
 - [ ] **Moi** — Mettre en place une **sauvegarde automatique locale** (`pg_dump`,
@@ -147,6 +149,14 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       retour à NULL en sortie. Migration de `get_user_role()`.
 - [ ] **Moi** — Vérifier que le journal attribue bien ces actions au `super_admin`
       et non à un employé de l'école.
+- [x] **Moi** — **L'accueil d'un client était inopérant** (corrigé le 6 août,
+      `fix-audit-log-etablissements-table.sql`) : créer OU modifier une école depuis
+      l'espace super-admin échouait systématiquement en 23502. Le déclencheur d'audit
+      cherche l'établissement dans le profil de l'utilisateur connecté, or le super-admin
+      travaille en service-role — sans session — et la table `etablissements` n'a pas de
+      colonne `etablissement_id` : elle EST l'établissement. La suppression échouait
+      elle aussi, ce qui cassait les chemins de rattrapage de la création et laissait des
+      écoles orphelines. Découvert en renommant le slug, pas par un test.
 
 ---
 
