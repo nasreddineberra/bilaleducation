@@ -3,13 +3,32 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Building2, LogOut } from 'lucide-react'
+import { Building2, Activity, LogOut } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import { clsx } from 'clsx'
 
 interface SuperAdminSidebarProps {
   email?: string
+}
+
+function Item({ href, libelle, icone, actif }: {
+  href: string; libelle: string; icone: React.ReactNode; actif: boolean
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={actif ? 'page' : undefined}
+      className={clsx(
+        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+        'outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60',
+        actif ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white',
+      )}
+    >
+      {icone}
+      {libelle}
+    </Link>
+  )
 }
 
 export default function SuperAdminSidebar({ email }: SuperAdminSidebarProps) {
@@ -50,20 +69,19 @@ export default function SuperAdminSidebar({ email }: SuperAdminSidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        <Link
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Navigation de la console">
+        <Item
           href="/superadmin"
-          className={clsx(
-            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-            'outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60',
-            pathname === '/superadmin' || pathname.startsWith('/superadmin/ecoles')
-              ? 'bg-white/15 text-white'
-              : 'text-white/60 hover:bg-white/10 hover:text-white'
-          )}
-        >
-          <Building2 className="w-[18px] h-[18px] flex-shrink-0" />
-          Établissements
-        </Link>
+          libelle="Établissements"
+          icone={<Building2 className="w-[18px] h-[18px] flex-shrink-0" />}
+          actif={pathname === '/superadmin' || pathname.startsWith('/superadmin/ecoles')}
+        />
+        <Item
+          href="/superadmin/sante"
+          libelle="Santé des écoles"
+          icone={<Activity className="w-[18px] h-[18px] flex-shrink-0" />}
+          actif={pathname.startsWith('/superadmin/sante')}
+        />
       </nav>
 
       {/* Footer */}

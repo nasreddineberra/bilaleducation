@@ -38,22 +38,18 @@ export default async function SuperAdminPage() {
     .select('id, slug, nom, is_active, subscription_expires_at, logo_url')
     .order('nom', { ascending: true })
 
-  const stats = await Promise.all(
-    (etablissements ?? []).map(async (e) => {
-      const [{ count: users }, { count: students }, { count: classes }] = await Promise.all([
-        // Le super-admin rattaché pour une intervention porte l'établissement
-        // dans son profil : sans cette exclusion, le compteur d'utilisateurs de
-        // l'école grimperait d'un le temps du dépannage.
-        supabase.from('profiles').select('id', { count: 'exact', head: true })
-          .eq('etablissement_id', e.id).neq('role', 'super_admin'),
-        supabase.from('students').select('id', { count: 'exact', head: true }).eq('etablissement_id', e.id),
-        supabase.from('classes').select('id', { count: 'exact', head: true }).eq('etablissement_id', e.id),
-      ])
-      return { id: e.id, users: users ?? 0, students: students ?? 0, classes: classes ?? 0 }
-    })
-  )
+  // UN SEUL appel pour tous les comptages. Cette page en faisait trois PAR
+  // ÉCOLE, en boucle : à dix clients, trente allers-retours pour une liste.
+  // La fonction exclut le super-admin des utilisateurs — rattaché pendant une
+  // intervention, il gonflerait l'effectif de l'école qu'il dépanne.
+  const { data: sante } = await supabase.rpc('get_etablissements_sante')
 
-  const statsMap = Object.fromEntries(stats.map(s => [s.id, s]))
+  type Sante = { etablissement_id: string; users_count: number; students_count: number; classes_count: number }
+  const statsMap = Object.fromEntries(
+    ((sante ?? []) as Sante[]).map(s => [s.etablissement_id, {
+      users: s.users_count, students: s.students_count, classes: s.classes_count,
+    }])
+  )
 
   // Intervention en cours : l'état réel, pas le profil mis en cache — c'est lui
   // qui décide de ce que l'on peut ouvrir.

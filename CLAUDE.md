@@ -2231,6 +2231,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/add-etablissements-sante-rpc.sql` (sante des ecoles en UN
+  appel au lieu de 3 requetes par ecole ; derniere connexion et messagerie configuree ;
+  execution retiree aux roles de l API).
 - [x] Executer `supabase/migrations/create-support-interventions.sql` (journal des interventions
   cote EDITEUR + expiration 4 h ; regime serveur uniquement). **Verifie sur 5 cas.**
 - [x] Executer `supabase/migrations/move-etablissement-notes-to-editor-table.sql` (les notes
