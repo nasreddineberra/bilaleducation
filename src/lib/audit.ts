@@ -13,6 +13,15 @@ export async function logAudit(
     description: string
     oldData?: Record<string, unknown> | null
     newData?: Record<string, unknown> | null
+    /**
+     * Établissement concerné, quand ce n'est pas celui de l'auteur.
+     *
+     * L'éditeur n'appartient à aucune école hors intervention : sans cette
+     * précision, toute action prise depuis sa console — créer un établissement,
+     * changer un abonnement, ouvrir un compte — serait abandonnée en silence par
+     * le garde-fou ci-dessous, et n'apparaîtrait nulle part.
+     */
+    etablissementId?: string | null
   }
 ) {
   try {
@@ -25,13 +34,16 @@ export async function logAudit(
       .eq('id', user.id)
       .single()
 
-    if (!profile?.etablissement_id) return
+    // Le journal est propre à une école et sa colonne est NOT NULL : sans
+    // établissement identifiable, la trace n'a nulle part où se ranger.
+    const etablissementId = params.etablissementId ?? profile?.etablissement_id
+    if (!etablissementId) return
 
     await supabase.from('audit_logs').insert({
-      etablissement_id: profile.etablissement_id,
+      etablissement_id: etablissementId,
       user_id: user.id,
-      user_email: profile.email ?? user.email,
-      user_name: `${profile.last_name ?? ''} ${profile.first_name ?? ''}`.trim(),
+      user_email: profile?.email ?? user.email,
+      user_name: `${profile?.last_name ?? ''} ${profile?.first_name ?? ''}`.trim(),
       entity_type: params.entityType,
       entity_id: params.entityId ?? null,
       action: params.action,

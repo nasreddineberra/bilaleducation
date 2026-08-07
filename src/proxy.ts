@@ -90,12 +90,25 @@ export async function proxy(request: NextRequest) {
 
   if (isSuperAdminDomain) {
     const { user, response, supabase } = await getAuthUser()
+    const isEditeur = user?.app_metadata?.role === 'super_admin'
 
     // /superadmin/login : accessible sans authentification
     if (pathname === '/superadmin/login') {
-      if (user) {
+      // Renvoi RÉSERVÉ À L'ÉDITEUR. Renvoyer tout compte connecté fabriquait une
+      // BOUCLE INFINIE : le layout protégé renvoie vers cette page qui n'est pas
+      // super-admin, et cette règle le renvoyait aussitôt vers la console. Chacune
+      // est juste, ensemble elles tournaient — et depuis que le cookie porte le
+      // domaine entier, n'importe quel utilisateur d'école connecté qui tapait
+      // l'adresse de la console voyait une erreur de navigateur.
+      if (isEditeur) {
         return NextResponse.redirect(new URL('/superadmin', request.url))
       }
+      return response
+    }
+
+    // Les écrans d'authentification forte doivent rester atteignables, sinon la
+    // vérification ci-dessous n'aurait nulle part où envoyer.
+    if (pathname.startsWith('/auth/')) {
       return response
     }
 
@@ -107,6 +120,46 @@ export async function proxy(request: NextRequest) {
     // Toutes les autres routes /superadmin/* → authentification requise
     if (!user) {
       return NextResponse.redirect(new URL('/superadmin/login', request.url))
+    }
+
+    // Compte authentifié mais étranger à l'éditeur : on l'écarte SANS le
+    // déconnecter — sa session vaut pour son école, et la lui retirer parce
+    // qu'il a tapé une mauvaise adresse serait une punition sans rapport.
+    if (!isEditeur) {
+      return NextResponse.redirect(new URL('/superadmin/login?reason=reserve', request.url))
+    }
+
+    // ── 2FA : la console l'exigeait NULLE PART ────────────────────────────────
+    //
+    // Le contrôle existait mais restait hors d'atteinte, pour DEUX raisons
+    // cumulées : cette branche rendait la main avant lui, et il est de toute
+    // façon conditionné à `/dashboard`. La surface la plus privilégiée du
+    // système — liste des clients, création de comptes, entrée dans n'importe
+    // quelle école — n'était donc gardée que par un mot de passe.
+    //
+    // `next` ramène ici après validation : les deux écrans TOTP renvoient sinon
+    // en dur vers `/dashboard`, qui n'a aucun sens sur ce domaine.
+    const apres2FA = `?next=${encodeURIComponent(pathname)}`
+    try {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (aal) {
+        if (aal.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+          return NextResponse.redirect(new URL(`/auth/totp-challenge${apres2FA}`, request.url))
+        }
+        if (aal.nextLevel === 'aal1' && aal.currentLevel === 'aal1') {
+          const { data: factors } = await supabase.auth.mfa.listFactors()
+          const aUnTotp = factors?.all?.some(f => f.factor_type === 'totp' && f.status === 'verified')
+          if (!aUnTotp) {
+            return NextResponse.redirect(new URL(`/auth/enroll-totp${apres2FA}`, request.url))
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[proxy] Erreur verification 2FA (console):', err)
+      // En production, l'incertitude se tranche par le refus : c'est la console.
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.redirect(new URL(`/auth/totp-challenge${apres2FA}`, request.url))
+      }
     }
 
     return response

@@ -3,31 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
+import { requireEditor } from '@/lib/auth/requireEditor'
 import { updateTag } from 'next/cache'
-
-/**
- * Reconnaît l'éditeur, sur la colonne BRUTE `profiles.role`.
- *
- * `requireRoleServer` ne convient pas ici : elle compare le rôle EFFECTIF, qui
- * vaut `admin` pendant une intervention. Elle refuserait donc `leaveSchool` au
- * moment précis où il faut pouvoir sortir, et l'éditeur resterait enfermé dans
- * l'école. Le rôle en base est l'identité, le rôle effectif n'est qu'un costume.
- *
- * La lecture passe par le client de SESSION : la politique de lecture des
- * profils accorde toujours à chacun sa propre ligne (`id = auth.uid()`),
- * rattaché ou non.
- */
-async function requireEditor(): Promise<{ userId?: string; error?: string }> {
-  const session = await createClient()
-  const { data: { user } } = await session.auth.getUser()
-  if (!user) return { error: 'Non authentifié.' }
-
-  const { data } = await session.from('profiles').select('role').eq('id', user.id).single()
-  if (data?.role !== 'super_admin') {
-    return { error: 'Accès refusé · cette action est réservée à l\'éditeur.' }
-  }
-  return { userId: user.id }
-}
 
 /**
  * Accès support de l'éditeur : rattacher / détacher le super-admin d'une école.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Eye, EyeOff, AlertCircle, Lock, Shield } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 
@@ -10,6 +10,14 @@ export default function SuperAdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error,        setError]        = useState('')
   const [loading,      setLoading]      = useState(false)
+
+  // Un compte d'école qui atterrit ici : le middleware l'a écarté sans le
+  // déconnecter. Sans ce mot, il verrait un écran de connexion inexpliqué alors
+  // qu'il est déjà authentifié — et se croirait déconnecté de son école.
+  const [refus, setRefus] = useState(false)
+  useEffect(() => {
+    setRefus(new URLSearchParams(window.location.search).get('reason') === 'reserve')
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,6 +109,17 @@ export default function SuperAdminLoginPage() {
             <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
               Accès restreint · personnel autorisé uniquement
             </p>
+
+            {refus && !error && (
+              <div
+                role="status"
+                className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm mb-4"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
+              >
+                <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                <span>Cet espace est réservé à l&apos;éditeur. Votre session reste ouverte sur le site de votre établissement.</span>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
@@ -198,9 +217,14 @@ export default function SuperAdminLoginPage() {
           </div>
         </div>
 
-        {/* Mention sécurité */}
+        {/* Mention sécurité — n'affirmer que ce qui est vrai : les actions prises
+            dans une école sont bien tracées à son journal, mais la connexion à
+            cette console ne l'est nulle part (le journal est propre à un
+            établissement, et celle-ci n'en concerne aucun). Un journal côté
+            éditeur reste à construire ; d'ici là, la mention parle de ce qui
+            existe : la double authentification. */}
         <p className="mt-6 text-center text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
-          Accès surveillé et journalisé · Bilal Education Platform
+          Double authentification requise · Bilal Education Platform
         </p>
 
       </div>

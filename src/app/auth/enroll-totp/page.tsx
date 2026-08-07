@@ -6,6 +6,22 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, ShieldCheck, ScanLine, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
+
+/**
+ * Destination après validation : `next` s'il est fourni, sinon le tableau de
+ * bord. La console vit sur son propre sous-domaine et n'a rien à faire d'un
+ * renvoi vers `/dashboard` — elle passe donc sa destination en paramètre.
+ *
+ * Le contrôle « commence par / mais pas // » est un garde-fou contre la
+ * redirection ouverte : sans lui, un lien forgé enverrait l'utilisateur vers un
+ * site tiers au moment précis où il vient de s'authentifier.
+ */
+function destinationApres2FA(): string {
+  if (typeof window === 'undefined') return '/dashboard'
+  const next = new URLSearchParams(window.location.search).get('next')
+  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'
+}
+
 import { FloatButton } from '@/components/ui/FloatFields'
 import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
@@ -328,7 +344,7 @@ export default function EnrollTotpPage() {
               <FloatButton
                 variant="submit"
                 className="w-full justify-center"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push(destinationApres2FA())}
               >
                 Accéder au tableau de bord
               </FloatButton>
