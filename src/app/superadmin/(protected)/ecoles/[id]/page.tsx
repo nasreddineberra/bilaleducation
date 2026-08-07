@@ -108,7 +108,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
 
       <div className="grid grid-cols-3 gap-4 items-start">
         <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} />
-        <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} />
+        <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
       </div>
 
     </div>

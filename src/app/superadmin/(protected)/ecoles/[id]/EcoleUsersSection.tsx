@@ -59,7 +59,11 @@ function parRolePuisNom(a: Profile, b: Profile): number {
 const PAR_PAGE = 10
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
-export default function EcoleUsersSection({ profiles, etablissementId }: { profiles: Profile[]; etablissementId: string }) {
+export default function EcoleUsersSection({ profiles, etablissementId, etablissementNom }: {
+  profiles: Profile[]
+  etablissementId: string
+  etablissementNom: string
+}) {
   const [showForm,     setShowForm]     = useState(false)
   const [submitting,   setSubmitting]   = useState(false)
   const [error,        setError]        = useState<string | null>(null)
@@ -254,7 +258,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
                 <Tooltip content={p.is_active ? 'Désactiver ce compte' : 'Réactiver ce compte'}>
                   <button
                     type="button"
-                    onClick={() => (p.is_active ? setADesactiver(p) : handleToggle(p))}
+                    onClick={() => setADesactiver(p)}
                     disabled={togglingId === p.id}
                     aria-label={`${p.is_active ? 'Désactiver' : 'Réactiver'} le compte de ${p.last_name} ${p.first_name}`}
                     className={clsx('p-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', p.is_active ? 'text-warm-700 hover:text-red-500 hover:bg-red-50' : 'text-primary-600 hover:bg-primary-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}
@@ -297,15 +301,33 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
         </nav>
       )}
 
+      {/* Confirmation dans les DEUX SENS. Réactiver rend un accès : c'est une
+          décision aussi engageante que le retirer, et elle n'appartient pas
+          davantage à l'éditeur. Le texte rappelle au nom de qui l'on agit et
+          annonce la trace — laquelle existe réellement, `updateTenantUser`
+          écrivant au journal de cette école, sous le nom de l'éditeur. */}
       {aDesactiver && (
         <ConfirmModal
-          title="Désactiver ce compte ?"
-          message={`${aDesactiver.last_name} ${aDesactiver.first_name} ne pourra plus se connecter. Le compte et ses données sont conservés, l'accès se rétablit d'un clic.`}
-          confirmLabel="Désactiver"
-          variant="danger"
+          title={aDesactiver.is_active ? 'Désactiver ce compte ?' : 'Réactiver ce compte ?'}
+          confirmLabel={aDesactiver.is_active ? 'Désactiver' : 'Réactiver'}
+          variant={aDesactiver.is_active ? 'danger' : undefined}
           onConfirm={() => { const p = aDesactiver; setADesactiver(null); handleToggle(p) }}
           onCancel={() => setADesactiver(null)}
-        />
+        >
+          <div className="space-y-3 text-sm text-secondary-700">
+            <p>
+              <span className="font-semibold">{aDesactiver.last_name} {aDesactiver.first_name}</span>
+              {aDesactiver.is_active
+                ? ' ne pourra plus se connecter. Le compte et ses données sont conservés.'
+                : ' pourra de nouveau se connecter.'}
+            </p>
+            <p className="text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 leading-snug">
+              Vous intervenez <span className="font-semibold">au nom de la direction de {etablissementNom}</span>.
+              Cette action sera inscrite au <span className="font-semibold">journal d&apos;activité de
+              l&apos;établissement</span>, à votre nom : l&apos;école pourra la voir et savoir qu&apos;elle vient de vous.
+            </p>
+          </div>
+        </ConfirmModal>
       )}
     </div>
   )
