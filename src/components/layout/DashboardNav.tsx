@@ -55,10 +55,15 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/mon-compte':        'Mon compte',
 }
 
+/**
+ * Initiales de l'avatar : NOM puis prénom, dans l'ordre du nom affiché juste à
+ * côté. C'est le reste de l'application qui a raison — fiche élève, fiche
+ * utilisateur et affectations construisent toutes `last + first`.
+ */
 function getInitiales(firstName?: string | null, lastName?: string | null): string {
   const f = firstName?.[0]?.toUpperCase() ?? ''
   const l = lastName?.[0]?.toUpperCase() ?? ''
-  return f + l || '?'
+  return l + f || '?'
 }
 
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
