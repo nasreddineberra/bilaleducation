@@ -280,8 +280,22 @@ cohérent. Trois blocs, dans cet ordre.
       ouverte indéfiniment.
 - [ ] **Vue de santé par école** : messagerie configurée ou non, dernière connexion, effectif face à
       la limite, abonnement proche de l'échéance.
-- [ ] **Lien de réinitialisation** plutôt qu'un mot de passe saisi en clair pour le directeur
-      initial, que l'éditeur doit ensuite transmettre par un canal quelconque.
+- [x] **Lien de réinitialisation** (7 août) : à la création d'une école ou d'un compte, un
+      lien de définition du mot de passe part vers l'intéressé ; un bouton par utilisateur le
+      renvoie depuis la fiche. Le mot de passe généré reste en repli, affiché **une seule
+      fois** après la création — si l'email n'arrive pas, un compte sans mot de passe est un
+      compte inutilisable.
+      - **Bug corrigé au passage** : la réinitialisation déjà proposée dans l'écran Utilisateurs
+        d'une école construisait son lien avec `NEXT_PUBLIC_SITE_URL`, c'est-à-dire le domaine
+        RACINE devenu la vitrine. Le lien partait et menait hors de toute école. Il se fabrique
+        désormais depuis l'en-tête `host` de la requête, donc le sous-domaine visité.
+- [ ] **Toi** — **BLOQUANT pour ce qui précède** : créer la boîte `contact@bilaleducation.fr`,
+      puis la renseigner dans **Supabase → Project Settings → Authentication → SMTP**.
+      L'expéditeur par défaut de Supabase est limité à **2 ou 3 emails par heure** : c'est un
+      service de test, inutilisable dès la deuxième école créée dans l'heure.
+      Décision du 7 août : ce SMTP sert à l'**authentification de toutes les écoles** (création
+      de compte, mot de passe oublié) ; il ne touche PAS aux communications des écoles, qui
+      gardent leur propre configuration et leur propre expéditeur.
 - [ ] **Lien « Contacter le support » dans la barre latérale de l'ÉCOLE**, au-dessus des
       informations d'application (© et version), ouvrant un message vers l'adresse de
       l'éditeur. Réservé à la direction. Aujourd'hui l'école n'a **aucun moyen de joindre

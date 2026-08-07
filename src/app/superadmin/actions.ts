@@ -7,6 +7,26 @@ import { validateSlug } from '@/lib/tenant/slug'
 import { requireEditor } from '@/lib/auth/requireEditor'
 import { createClient } from '@/lib/supabase/server'
 import { logAudit } from '@/lib/audit'
+import { schoolUrl } from '@/lib/tenant/console-url'
+
+/**
+ * Envoie le lien de définition du mot de passe, sur le SOUS-DOMAINE de l'école.
+ *
+ * L'email part par Supabase Auth : c'est lui qui fabrique le jeton à usage
+ * unique, gère son expiration et sait le vérifier. Le reconstruire nous-mêmes
+ * n'aurait apporté que la possibilité de se tromper.
+ *
+ * NON BLOQUANT : un compte reste créé même si l'email échoue — adresse erronée,
+ * quota atteint, expéditeur non configuré. Le mot de passe temporaire sert alors
+ * de repli, et l'appelant est informé pour pouvoir le dire à l'écran.
+ */
+async function envoyerLienMotDePasse(email: string, slug: string): Promise<boolean> {
+  const { error } = await createAdminClient().auth.resetPasswordForEmail(email, {
+    redirectTo: schoolUrl(slug, '/auth/callback?next=/auth/reset-password'),
+  })
+  if (error) console.error('[superadmin] envoi du lien de mot de passe:', error)
+  return !error
+}
 
 /**
  * Toutes les actions de cette console sont gardees par `requireEditor`, qui lit
@@ -38,7 +58,7 @@ export async function createTenant(data: {
     email:      string
     password:   string
   }
-}): Promise<{ error?: string; id?: string }> {
+}): Promise<{ error?: string; id?: string; emailEnvoye?: boolean }> {
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
 
@@ -123,6 +143,8 @@ export async function createTenant(data: {
     return { error: `Erreur lors de la création du profil directeur : ${rpcError.message}` }
   }
 
+  const emailEnvoye = await envoyerLienMotDePasse(data.director.email, data.slug.trim().toLowerCase())
+
   await logAudit(await createClient(), {
     action: 'INSERT',
     entityType: 'etablissements',
@@ -132,7 +154,7 @@ export async function createTenant(data: {
   })
 
   revalidatePath('/superadmin')
-  return { id: etablissement.id }
+  return { id: etablissement.id, emailEnvoye }
 }
 
 // ─── Mettre à jour les infos d'un établissement ───────────────────────────────
@@ -372,6 +394,10 @@ export async function createTenantUser(
     return { error: `Erreur lors de la création du profil : ${rpcError.message}` }
   }
 
+  const { data: ecoleSlug } = await supabase
+    .from('etablissements').select('slug').eq('id', etablissementId).single()
+  if (ecoleSlug?.slug) await envoyerLienMotDePasse(data.email, ecoleSlug.slug)
+
   await logAudit(await createClient(), {
     action: 'INSERT',
     entityType: 'profiles',
@@ -382,6 +408,52 @@ export async function createTenantUser(
 
   revalidatePath(`/superadmin/ecoles/${etablissementId}`)
   return {}
+}
+
+// ─── Renvoyer le lien de définition du mot de passe ──────────────────────────
+
+/**
+ * Renvoie le lien à un utilisateur d'une école, depuis la console.
+ *
+ * CLOISONNÉE comme `updateTenantUser` : le compte est lu en exigeant qu'il
+ * appartienne à l'établissement affiché. Sans ce filtre, un identifiant forgé
+ * enverrait un lien de réinitialisation au compte de n'importe quel client —
+ * l'action s'exécute en service-role, aucune RLS ne la rattraperait.
+ */
+export async function resendTenantUserReset(
+  profileId: string,
+  etablissementId: string,
+): Promise<{ error?: string; email?: string }> {
+  const { error: roleError } = await requireEditor()
+  if (roleError) return { error: roleError }
+
+  const supabase = createAdminClient()
+
+  const { data: cible } = await supabase
+    .from('profiles')
+    .select('email, last_name, first_name, etablissements:etablissement_id(slug)')
+    .eq('id', profileId)
+    .eq('etablissement_id', etablissementId)
+    .maybeSingle()
+
+  if (!cible?.email) return { error: "Ce compte n'appartient pas à cet établissement." }
+
+  const slug = (cible.etablissements as unknown as { slug: string } | null)?.slug
+  if (!slug) return { error: 'Établissement introuvable.' }
+
+  if (!(await envoyerLienMotDePasse(cible.email, slug))) {
+    return { error: "L'email n'a pas pu être envoyé. Vérifiez la messagerie du projet Supabase." }
+  }
+
+  await logAudit(await createClient(), {
+    action: 'UPDATE',
+    entityType: 'auth',
+    entityId: profileId,
+    description: `Console éditeur · lien de mot de passe renvoyé à ${cible.last_name} ${cible.first_name}`,
+    etablissementId,
+  })
+
+  return { email: cible.email }
 }
 
 // ─── Modifier un utilisateur d'un établissement ──────────────────────────────

@@ -8,6 +8,7 @@ import type { UserRole } from '@/types/database'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
+import { requestOrigin } from '@/lib/tenant/request-origin'
 import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
 
 // ─── Créer un utilisateur ────────────────────────────────────────────────────
@@ -284,10 +285,11 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
 
   const supabase = createAdminClient()
 
-  // NB : NEXT_PUBLIC_SITE_URL DOIT etre defini en production, sinon le lien du mail
-  // pointe sur localhost (et l'URL doit figurer dans les Redirect URLs Supabase).
+  // Le lien ramene sur le SOUS-DOMAINE de l'ecole, jamais sur NEXT_PUBLIC_SITE_URL :
+  // cette variable vaut le domaine racine, devenu la vitrine, ou aucun
+  // etablissement n'est resolu. Le lien partait et menait nulle part.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback?next=/auth/reset-password`,
+    redirectTo: `${await requestOrigin()}/auth/callback?next=/auth/reset-password`,
   })
 
   if (error) return { error: 'Erreur lors de l\'envoi de l\'email.' }

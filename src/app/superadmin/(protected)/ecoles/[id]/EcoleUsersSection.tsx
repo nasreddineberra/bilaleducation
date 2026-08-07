@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
-import { UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
+import { UserX, UserCheck, ChevronLeft, ChevronRight, KeyRound } from 'lucide-react'
 import FormModal from '@/components/ui/FormModal'
 import TempPasswordField from '@/components/superadmin/TempPasswordField'
-import { createTenantUser, updateTenantUser } from '@/app/superadmin/actions'
+import { createTenantUser, updateTenantUser, resendTenantUserReset } from '@/app/superadmin/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
 
@@ -62,6 +62,8 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
   // Couper l'accès de quelqu'un ne demandait aucune confirmation, alors qu'on en
   // pose une pour l'école entière — la même action, à une personne près.
   const [aDesactiver,  setADesactiver]  = useState<Profile | null>(null)
+  const [envoiId,      setEnvoiId]      = useState<string | null>(null)
+  const [envoye,       setEnvoye]       = useState<string | null>(null)
   const router = useRouter()
   const [page, setPage] = useState(1)
   const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: 'direction' as UserRole })
@@ -113,6 +115,19 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
       setError('Une erreur est survenue.')
     } finally {
       setTogglingId(null)
+    }
+  }
+
+  const renvoyerLien = async (p: Profile) => {
+    setEnvoiId(p.id); setError(null); setEnvoye(null)
+    try {
+      const res = await resendTenantUserReset(p.id, etablissementId)
+      if (res.error) { setError(res.error); return }
+      setEnvoye(res.email ?? null)
+    } catch {
+      setError('Une erreur est survenue.')
+    } finally {
+      setEnvoiId(null)
     }
   }
 
@@ -186,6 +201,12 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
         <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">{error}</p>
       )}
 
+      {envoye && (
+        <p role="status" className="text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+          Lien envoyé à {envoye}.
+        </p>
+      )}
+
       {profiles.length === 0 ? (
         <p className="text-sm text-warm-700 text-center py-4">Aucun utilisateur</p>
       ) : (
@@ -198,6 +219,22 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
+                <Tooltip content="Envoyer un lien de définition du mot de passe">
+                  <button
+                    type="button"
+                    onClick={() => renvoyerLien(p)}
+                    disabled={envoiId === p.id}
+                    aria-label={`Envoyer un lien de mot de passe à ${p.last_name} ${p.first_name}`}
+                    className={clsx(
+                      'p-1 rounded-lg text-warm-700 hover:text-primary-600 hover:bg-primary-50 transition-colors',
+                      'outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                      envoiId === p.id && 'opacity-40 cursor-not-allowed',
+                    )}
+                  >
+                    <KeyRound size={15} />
+                  </button>
+                </Tooltip>
+
                 <Tooltip content={p.is_active ? 'Désactiver ce compte' : 'Réactiver ce compte'}>
                   <button
                     type="button"
