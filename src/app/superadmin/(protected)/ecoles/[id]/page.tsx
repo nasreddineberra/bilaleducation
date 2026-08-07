@@ -3,6 +3,8 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { EnterButton } from '../../SupportControls'
 import EcoleInfoForm from './EcoleInfoForm'
 import EcoleUsersSection from './EcoleUsersSection'
 
@@ -46,6 +48,12 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     supabase.from('students').select('id', { count: 'exact', head: true }).eq('etablissement_id', id),
     supabase.from('classes').select('id', { count: 'exact', head: true }).eq('etablissement_id', id),
   ])
+
+  const { data: { user } } = await (await createClient()).auth.getUser()
+  const { data: moi } = user
+    ? await supabase.from('profiles').select('etablissement_id').eq('id', user.id).single()
+    : { data: null }
+  const interventionAilleurs = Boolean(moi?.etablissement_id) && moi!.etablissement_id !== id
 
   const compteurs = [
     { label: 'Utilisateurs', value: profiles?.length ?? 0 },
@@ -103,6 +111,20 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
               <p className="stat-label mt-1">{c.label}</p>
             </div>
           ))}
+
+          {/* Entrer depuis la fiche : c'est ici qu'on constate le problème d'un
+              client, donc ici qu'on veut y aller — plutôt que de revenir à la
+              liste pour retrouver la même ligne. */}
+          <div className="ml-2">
+            <EnterButton
+              id={ecole.id}
+              slug={ecole.slug}
+              nom={ecole.nom}
+              disabled={interventionAilleurs}
+              dejaOuverte={moi?.etablissement_id === id}
+              taille="sm"
+            />
+          </div>
         </div>
       </div>
 

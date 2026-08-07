@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { INTERVENTION_MAX_HEURES } from './duree'
 
 /**
  * Interventions de support : ouverture, fermeture, expiration.
@@ -13,25 +14,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * serveur uniquement (aucune politique, aucun privilège pour les rôles de l'API).
  */
 
-/**
- * Durée au-delà de laquelle une intervention se referme d'office.
- *
- * UNE HEURE — décision de l'éditeur, et elle se tient : c'est exactement le
- * délai d'inactivité des sessions (`INACTIVITY_SECONDS`). Les deux protections
- * expirent donc ensemble, au lieu de laisser un rattachement survivre trois
- * heures à la session qui l'utilisait.
- *
- * Le compteur part de l'OUVERTURE, pas de la dernière action : c'est une durée
- * d'AUTORISATION, pas une inactivité. Un dépannage plus long n'est pas bloqué —
- * il se rouvre depuis la console, en un clic, et cette réouverture laisse une
- * trace de plus, ce qui est le comportement souhaitable pour un accès aux
- * données d'un client.
- *
- * L'inactivité, elle, ne referme PAS le rattachement, qui survit à la session :
- * c'est ce qui garantit de pouvoir sortir après un plantage, et c'est aussi le
- * trou que ce délai comble.
- */
-export const INTERVENTION_MAX_HEURES = 1
+// La valeur vit dans `duree.ts`, sans dépendance serveur : les composants
+// CLIENT qui l'affichent ne doivent pas entraîner ce fichier — ni le client
+// d'administration qu'il importe — dans le bundle du navigateur.
+export { INTERVENTION_MAX_HEURES } from './duree'
 
 export type Intervention = {
   id: string

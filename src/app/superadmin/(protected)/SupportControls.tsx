@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import { LifeBuoy } from 'lucide-react'
 import { enterSchool, leaveSchool } from '@/app/superadmin/support-actions'
 import { schoolUrl } from '@/lib/tenant/console-url'
+import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 /**
  * Entrée dans une école depuis la console.
@@ -13,11 +15,25 @@ import { schoolUrl } from '@/lib/tenant/console-url'
  * le droit de faire. Le layout du tableau de bord se contente de vérifier que le
  * rattachement correspond au sous-domaine visité.
  */
-export function EnterButton({ id, slug, disabled }: { id: string; slug: string; disabled: boolean }) {
+export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, taille = 'xs' }: {
+  id: string
+  slug: string
+  nom: string
+  disabled: boolean
+  /** L'intervention en cours porte DÉJÀ sur cette école. */
+  dejaOuverte?: boolean
+  taille?: 'xs' | 'sm'
+}) {
   const [pending, start] = useTransition()
   const [erreur, setErreur] = useState<string | null>(null)
+  const [aConfirmer, setAConfirmer] = useState(false)
+
+  const classe = taille === 'sm'
+    ? 'btn btn-secondary text-sm py-1.5 px-3'
+    : 'btn btn-secondary text-xs py-1.5 px-3'
 
   const entrer = () => {
+    setAConfirmer(false)
     setErreur(null)
     start(async () => {
       const res = await enterSchool(id)
@@ -26,18 +42,53 @@ export function EnterButton({ id, slug, disabled }: { id: string; slug: string; 
     })
   }
 
+  // Déjà dedans : entrer une seconde fois n'aurait aucun sens, et l'action est
+  // de toute façon sans effet. On propose ce qu'on veut réellement faire.
+  if (dejaOuverte) {
+    return (
+      <a href={schoolUrl(slug)} className={classe}>Ouvrir l&apos;école</a>
+    )
+  }
+
   return (
     <>
       <button
         type="button"
-        onClick={entrer}
+        onClick={() => setAConfirmer(true)}
         disabled={pending || disabled}
         title={disabled ? 'Une intervention est déjà en cours sur une autre école.' : undefined}
-        className="btn btn-secondary text-xs py-1.5 px-3 disabled:opacity-40 disabled:cursor-not-allowed"
+        className={`${classe} disabled:opacity-40 disabled:cursor-not-allowed`}
       >
         {pending ? 'Ouverture…' : 'Intervenir'}
       </button>
       {erreur && <p role="alert" className="text-xs text-red-600 mt-1">{erreur}</p>}
+
+      {/* Entrer chez un client n'est jamais anodin : on le confirme, et on dit
+          ce que cela implique. La trace annoncée existe réellement —
+          `enterSchool` écrit « Ouverture d'une intervention » dans le journal de
+          cette école, sous le nom de l'éditeur. */}
+      {aConfirmer && (
+        <ConfirmModal
+          title={`Intervenir sur ${nom} ?`}
+          confirmLabel="Ouvrir l'intervention"
+          onConfirm={entrer}
+          onCancel={() => setAConfirmer(false)}
+        >
+          <div className="space-y-3 text-sm text-secondary-700">
+            <p>
+              Vous allez agir <span className="font-semibold">au nom de la direction
+              de {nom}</span>, avec les mêmes droits qu&apos;elle : ses élèves, ses
+              familles, ses paiements.
+            </p>
+            <p className="text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 leading-snug">
+              L&apos;ouverture et chacune de vos actions seront inscrites au
+              <span className="font-semibold"> journal d&apos;activité de l&apos;établissement</span>,
+              à votre nom. L&apos;intervention se referme d&apos;elle-même au bout
+              d&apos;{INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}.
+            </p>
+          </div>
+        </ConfirmModal>
+      )}
     </>
   )
 }

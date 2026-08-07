@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Building2, Users, GraduationCap, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
-import { INTERVENTION_MAX_HEURES } from '@/lib/support/intervention'
+import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 
 function formatDate(date: string | null | undefined) {
   if (!date) return null
@@ -198,7 +198,9 @@ export default async function SuperAdminPage() {
                         <EnterButton
                           id={e.id}
                           slug={e.slug}
+                          nom={e.nom}
                           disabled={Boolean(supportEcole) && supportEcole?.id !== e.id}
+                          dejaOuverte={supportEcole?.id === e.id}
                         />
                       </div>
                     </td>
