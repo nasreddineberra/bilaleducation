@@ -219,41 +219,70 @@ export default async function SuperAdminPage() {
           la pleine largeur permettait une ligne. Encadré toujours affiché, même
           vide : masqué faute de lignes, il laissait croire que la fonctionnalité
           n'existait pas. */}
-      <div className="card p-4 space-y-2 col-span-1">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-          Interventions de support
-        </h2>
-        <p className="text-xs text-warm-700 leading-snug">
-          Refermée d&apos;elle-même au bout d&apos;
-          {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}.
-        </p>
-
-        {!interventions?.length ? (
-          <p className="text-xs text-warm-700 py-2 leading-snug">
-            Aucune intervention enregistrée. L&apos;historique démarre au premier
-            «&nbsp;Intervenir&nbsp;».
+      <div className="col-span-1 space-y-2">
+        <div className="flex flex-col">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            Interventions de support
+          </h2>
+          <p className="text-xs text-warm-700 leading-snug mt-1">
+            Refermée d&apos;elle-même au bout d&apos;
+            {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}.
           </p>
-        ) : (
-          <ul className="divide-y divide-warm-100">
-            {interventions.map(i => (
-              <li key={i.id} className="py-2 text-xs">
-                <p className="font-semibold text-secondary-800 truncate">
-                  {nomEcole[i.etablissement_id] ?? 'Établissement supprimé'}
-                </p>
-                <p className="text-warm-700 mt-0.5">{formatDateHeure(i.opened_at)}</p>
-                <p className="mt-0.5">
-                  {!i.closed_at ? (
-                    <span className="text-amber-700 font-medium">En cours</span>
-                  ) : i.closed_reason === 'expiration' ? (
-                    <span className="text-warm-700">Refermée d&apos;office · {duree(i.opened_at, i.closed_at)}</span>
-                  ) : (
-                    <span className="text-warm-700">Terminée · {duree(i.opened_at, i.closed_at)}</span>
-                  )}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
+        </div>
+
+        {/* `card p-0` : un tableau de liste ne prend pas le retrait de 24 px.
+            Padding réduit à `px-2` — sur un quart de largeur, les 16 px de
+            `.list-th` mangeraient un cinquième de la place utile. */}
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-xs" aria-label="Interventions de support">
+            <thead>
+              <tr>
+                <th scope="col" className="list-th px-2 text-left">Établissement</th>
+                <th scope="col" className="list-th px-2 text-left">Date</th>
+                <th scope="col" className="list-th px-2 text-left">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-warm-100">
+              {!interventions?.length ? (
+                <tr>
+                  <td colSpan={3} className="px-2 py-3 text-xs text-warm-700 leading-snug">
+                    Aucune intervention enregistrée. L&apos;historique démarre au
+                    premier «&nbsp;Intervenir&nbsp;».
+                  </td>
+                </tr>
+              ) : (
+                interventions.map(i => (
+                  <tr key={i.id}>
+                    <td className="list-td px-2">
+                      <span className="list-name block truncate">
+                        {nomEcole[i.etablissement_id] ?? 'Établissement supprimé'}
+                      </span>
+                    </td>
+                    <td className="list-td px-2 text-warm-700 whitespace-nowrap">
+                      {formatDateHeure(i.opened_at)}
+                    </td>
+                    <td className="list-td px-2">
+                      {!i.closed_at ? (
+                        <span className="text-amber-700 font-medium whitespace-nowrap">En cours</span>
+                      ) : (
+                        <>
+                          <span className="text-warm-700 whitespace-nowrap">
+                            {i.closed_reason === 'expiration' ? 'Refermée' : 'Terminée'}
+                          </span>
+                          {/* La durée sous le statut : elle dit ce que la date ne
+                              dit pas — combien de temps l'accès est resté ouvert. */}
+                          <span className="block text-warm-700 whitespace-nowrap">
+                            {duree(i.opened_at, i.closed_at)}
+                          </span>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       </div>{/* fin grille */}
