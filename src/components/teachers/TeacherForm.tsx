@@ -176,7 +176,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           <h2 className="text-lg font-bold text-secondary-800">Enseignant et compte utilisateur créés</h2>
           <p className="text-sm text-warm-700">
             Un compte utilisateur a été créé automatiquement pour{' '}
-            <span className="font-semibold">{form.first_name} {form.last_name}</span> ({form.email}).
+            <span className="font-semibold">{form.last_name} {form.first_name}</span> ({form.email}).
           </p>
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Mot de passe temporaire</p>

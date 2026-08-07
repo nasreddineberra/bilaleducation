@@ -332,7 +332,9 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0, supp
           >
             <div className="hidden md:block text-right">
               <p className="text-sm font-semibold text-secondary-800 dark:text-[#e7eef0] leading-tight">
-                {profile?.first_name} {profile?.last_name}
+                {/* NOM avant Prénom, règle du projet — le nommage des colonnes
+                    invite au piège inverse. */}
+                {profile?.last_name} {profile?.first_name}
               </p>
               <p className="text-xs text-warm-700 dark:text-[#8b9aa0] capitalize leading-tight mt-0.5">
                 {profile?.role?.replace('_', ' ')}

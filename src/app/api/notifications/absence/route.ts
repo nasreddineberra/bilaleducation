@@ -77,10 +77,10 @@ export async function POST(req: NextRequest) {
         })
 
         const title = isRetard
-          ? `Retard de ${student.first_name} ${student.last_name}`
-          : `Absence de ${student.first_name} ${student.last_name}`
+          ? `Retard de ${student.last_name} ${student.first_name}`
+          : `Absence de ${student.last_name} ${student.first_name}`
 
-        const body = `${student.first_name} ${student.last_name} a été marqué(e) ${typeLabel} le ${dateFormatted}${className ? ` · Classe ${className}` : ''}.`
+        const body = `${student.last_name} ${student.first_name} a été marqué(e) ${typeLabel} le ${dateFormatted}${className ? ` · Classe ${className}` : ''}.`
 
         const emailHtml = `
           <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
