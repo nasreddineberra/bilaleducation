@@ -1974,6 +1974,69 @@ Verification plutot que reassurance — et un trou reel, **exploite pour le prou
   ont ferme son intervention en cours**. Regle : ne jamais faire d'essais sur le compte de
   l'utilisateur pendant qu'il utilise le site.
 
+#### 7 aout 2026 — REGRESSION MAJEURE : un declencheur generique cassait TOUTE ecriture
+
+Signale par l'utilisateur (« erreur lors de la maj de la date d'expiration »). Le message etait
+visible **grace au correctif du jour meme** — la veille, il aurait ete avale en silence.
+
+- **Cause** : la garde ajoutee la veille dans `fn_audit_log()` (ne pas auditer le rattachement de
+  support) etait ecrite `IF TG_TABLE_NAME = 'profiles' AND ... AND OLD.role = 'super_admin' ...`.
+  Le raisonnement — « la 1re condition ecarte les autres tables avant qu'on ne touche a `OLD.role` »
+  — est **FAUX**. **PL/pgSQL compile l'expression ENTIERE en une seule requete SQL** et lui passe
+  `OLD` en parametre : tous les champs cites doivent exister, quelle que soit la table. Le
+  court-circuit du `AND` n'intervient qu'a l'execution, bien apres la resolution des noms.
+- **Portee** : **37 des 38 tables auditees n'ont pas de colonne `role`** → toute ecriture echouait en
+  **42703 « record "old" has no field "role" »**. Eleves, classes, notes, absences, paiements, EDT,
+  etablissements. **L'application entiere, pendant une soiree.**
+- **Correctif** (`fix-audit-log-old-role-reference.sql`, executee) : lire par
+  **`to_jsonb(OLD)->>'role'`**, qui vaut NULL sur une table sans la colonne au lieu de lever. C'est
+  deja la forme employee plus bas dans la meme fonction pour `etablissement_id`.
+- **REGLE** : dans un declencheur **generique** monte sur des dizaines de tables, **ne jamais citer
+  une colonne par son nom** — passer par `to_jsonb`. Et **eprouver la garde sur une table QUI N'A PAS
+  la colonne** : je ne l'avais testee que sur `profiles`, la seule ou elle ne pouvait pas echouer.
+- **Piege de mesure** : compter les lignes d'audit par fenetre `created_at >= t0` capture la ligne de
+  l'operation PRECEDENTE et fait conclure a tort (« garde inoperante »). Compter le **total avant/
+  apres** chaque operation.
+- **Diagnostic** : les server actions renvoyaient un message generique **sans journaliser la cause**
+  — il a fallu rejouer la requete a la main pour voir le 42703. Les 5 actions de la console
+  `console.error` desormais l'erreur reelle.
+
+#### 7 aout 2026 — Console super-admin, blocs 1 et 2 de l'audit
+
+- **Bloc 1 (securite)** : **2FA absente de la console** — le controle existait mais restait hors
+  d'atteinte pour DEUX raisons cumulees (la branche du sous-domaine rendait la main avant lui, et il
+  etait conditionne a `/dashboard`). Il court desormais sur `/superadmin/*`, et les 2 ecrans TOTP
+  acceptent une **destination** (`?next=`, gardee contre la redirection ouverte) au lieu du
+  `/dashboard` en dur. **Boucle de redirection infinie** fermee (le renvoi depuis `/superadmin/login`
+  est reserve a l'editeur ; les autres sont ecartes **sans etre deconnectes** de leur ecole).
+  **`requireEditor()`** extrait dans `src/lib/auth/requireEditor.ts` et applique aux 7 actions de la
+  console — `requireRoleServer` compare le role EFFECTIF et les bloquait toutes pendant une
+  intervention. **`createTenantUser`** pose enfin `app_metadata` (sans quoi le compte passait pour un
+  parent, donc **dispense de 2FA**) et valide le role contre une liste excluant `super_admin`/`admin`.
+  **`updateTenantUser`** cloisonnee a l'etablissement affiche + « 0 ligne » n'est plus un succes.
+  **Tracabilite** : les 7 actions ecrivent au journal de l'ecole, `logAudit` acceptant un
+  `etablissementId` explicite (l'editeur n'appartient a aucune ecole hors intervention).
+  La mention « acces surveille et journalise » de l'ecran de connexion etait **fausse** et a ete
+  remplacee : une connexion a la console ne concerne aucun etablissement, donc aucun journal.
+- **Bloc 2 (charte)** : ecran de connexion repris sur celui des ecoles (focus initial, Verr. Maj,
+  bouton actif a vide, oeil accessible, `role=alert`) ; **couleurs inventees** (`#0f1923`, `#16232f`,
+  `#e85d04`) et degrade fige `#2e4550` remplaces par les **jetons de marque** + orange de la charte ;
+  `.list-th`/`.list-td`/`.stat-label`, `card p-0`, icone retiree du bouton ; **lignes cliquables**
+  via `ClickableRow` — la page etant un composant SERVEUR, ses cellules ne peuvent pas porter de
+  `stopPropagation` : on **inverse** la logique (`data-no-row-nav` + `closest()`) ; **3 confirmations**
+  (couper l'acces d'une ecole, retirer l'echeance, retirer la limite) ; **compteurs de saisie** nom/
+  adresse, limites partagees avec la fiche etablissement (`src/lib/tenant/limites.ts`) ; role `parent`
+  retire des roles creables.
+- **Fiche ecole — « certains boutons ne fonctionnent pas »** : ils agissaient **en base**, mais la
+  fiche est rendue **cote serveur** (proprietes figees) et aucun ne faisait `router.refresh()` :
+  « Desactiver » restait « Desactiver » apres avoir desactive. **Et leur valeur de retour etait
+  jetee** — depuis le cloisonnement, un refus ressemblait exactement a un succes. Chemin unique
+  `agir()` : erreur lue, succes confirme, ecran rafraichi ; les 2 boutons « Aucune » des modales le
+  contournaient encore. Desactiver un COMPTE demande desormais confirmation (comme l'ecole).
+  Mise en page : **bandeau d'identite** des fiches (logo en avatar, nom en `h1`), compteurs en
+  pastilles, corps en **3 colonnes**, liste des comptes **bornee en hauteur** (sinon la page
+  redeborde au 10e compte).
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2168,6 +2231,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/fix-audit-log-old-role-reference.sql` (**URGENT** : la garde
+  ajoutee la veille citait `OLD.role`, or PL/pgSQL compile l'expression ENTIERE — 37 des 38 tables
+  auditees n'ont pas cette colonne, **toute ecriture echouait en 42703**). **Verifie sur 6 cas.**
 - [x] Executer `supabase/migrations/add-superadmin-support-access.sql` (`get_user_role()` repond
   `admin` quand le super-admin est rattache ; repli OLD dans `fn_audit_log` sans quoi le detachement
   est impossible). **Verifie** : cycle rattachement/detachement complet.

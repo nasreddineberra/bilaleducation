@@ -145,7 +145,10 @@ export async function updateEtablissement(id: string, data: {
     notes:     data.notes?.trim()     || null,
   }).eq('id', id)
 
-  if (error) return { error: 'Erreur lors de la mise à jour.' }
+  if (error) {
+    console.error('[superadmin] updateEtablissement:', error)
+    return { error: 'Erreur lors de la mise à jour.' }
+  }
 
   await logAudit(await createClient(), {
     action: 'UPDATE',
@@ -176,7 +179,10 @@ export async function toggleEtablissementActive(
     .update({ is_active })
     .eq('id', id)
 
-  if (error) return { error: 'Erreur lors de la mise à jour du statut.' }
+  if (error) {
+    console.error('[superadmin] toggleEtablissementActive:', error)
+    return { error: 'Erreur lors de la mise à jour du statut.' }
+  }
 
   await logAudit(await createClient(), {
     action: 'UPDATE',
@@ -207,7 +213,10 @@ export async function updateMaxStudents(
     .update({ max_students })
     .eq('id', id)
 
-  if (error) return { error: 'Erreur lors de la mise à jour.' }
+  if (error) {
+    console.error('[superadmin] updateMaxStudents:', error)
+    return { error: 'Erreur lors de la mise à jour.' }
+  }
 
   await logAudit(await createClient(), {
     action: 'UPDATE',
@@ -237,7 +246,14 @@ export async function updateSubscription(
     .update({ subscription_expires_at: expires_at })
     .eq('id', id)
 
-  if (error) return { error: 'Erreur lors de la mise à jour de l\'abonnement.' }
+  if (error) {
+    // Le message affiché reste générique — on n'expose pas le détail d'une
+    // erreur de base à l'écran. Mais il était AUSSI perdu côté serveur : cet
+    // échec-ci a demandé de rejouer la requête à la main pour découvrir un
+    // 42703. La cause part désormais dans les journaux.
+    console.error('[superadmin] updateSubscription:', error)
+    return { error: 'Erreur lors de la mise à jour de l\'abonnement.' }
+  }
 
   await logAudit(await createClient(), {
     action: 'UPDATE',
@@ -369,7 +385,10 @@ export async function updateTenantUser(
     .eq('etablissement_id', etablissementId)
     .select('id, role, is_active, last_name, first_name')
 
-  if (error) return { error: 'Erreur lors de la mise à jour.' }
+  if (error) {
+    console.error('[superadmin] updateTenantUser:', error)
+    return { error: 'Erreur lors de la mise à jour.' }
+  }
   // Zéro ligne n'est PAS une erreur pour PostgREST : sans ce contrôle, une cible
   // hors de l'école passerait pour un succès.
   if (!modifie?.length) return { error: "Ce compte n'appartient pas à cet établissement." }
