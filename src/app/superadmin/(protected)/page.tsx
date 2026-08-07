@@ -220,15 +220,13 @@ export default async function SuperAdminPage() {
           vide : masqué faute de lignes, il laissait croire que la fonctionnalité
           n'existait pas. */}
       <div className="col-span-1 space-y-2">
-        <div className="flex flex-col">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-            Interventions de support
-          </h2>
-          <p className="text-xs text-warm-700 leading-snug mt-1">
-            Refermée d&apos;elle-même au bout d&apos;
-            {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}.
-          </p>
-        </div>
+        {/* Le délai vit dans le titre : sur une colonne étroite, une phrase
+            d'explication coûtait deux lignes pour une information qui tient en
+            trois mots. La valeur reste tirée de la constante — la changer ne doit
+            pas laisser un libellé qui ment. */}
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          Interventions de support (exp. session {INTERVENTION_MAX_HEURES}h)
+        </h2>
 
         {/* `card p-0` : un tableau de liste ne prend pas le retrait de 24 px.
             Padding réduit à `px-2` — sur un quart de largeur, les 16 px de
