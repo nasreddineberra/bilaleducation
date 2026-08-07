@@ -14,10 +14,13 @@ sous-domaine par école, cloisonnement par RLS.
 > `superadmin.bilaleducation.fr`. L'**accès support** est livré et vérifié en base ; il
 > reste à l'éprouver à l'écran (entrer, agir, sortir, contrôler le journal de l'école).
 >
-> **Le prochain chantier est la PHASE 4 BIS** : l'audit de la console super-admin, dont
-> **rien n'est encore corrigé**. Commencer par son bloc 1 (sécurité) — la console n'exige
-> aucune 2FA, et trois autres défauts s'y ajoutent, dont une régression que j'ai
-> introduite le 6 août et qui bloque toutes ses actions pendant une intervention.
+> **7 août** — Phase 4 bis, **bloc 1 (sécurité) terminé et vérifié en base**. La console
+> exige désormais la 2FA, la boucle de redirection est fermée, ses actions sont gardées,
+> cloisonnées et tracées. **Restent les blocs 2 (charte) et 3 (ajouts)**.
+>
+> À éprouver à l'écran, dans cet ordre : se reconnecter à la console — elle demandera le
+> code TOTP, ayez le téléphone —, puis le parcours support (entrer dans l'école, agir,
+> sortir, contrôler que le journal de l'école porte bien votre nom).
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -207,31 +210,38 @@ alors que le domaine d'une école, oui. La console a été écrite avant les pas
 **aucune ne l'a suivie depuis** — ce n'est pas une accumulation d'oublis, c'est un décalage
 cohérent. Trois blocs, dans cet ordre.
 
-### Bloc 1 · Sécurité — avant tout usage réel
+### Bloc 1 · Sécurité — FAIT le 7 août
 
-- [ ] **2FA absente de la console**, par DEUX causes cumulées : la branche du sous-domaine
+> Livré et vérifié en base. Deux conséquences à connaître : la console **exige
+> désormais la 2FA** (facteur déjà vérifié pour l'éditeur, donc aucun
+> ré-enrôlement), et un **journal côté éditeur** reste à construire — une
+> connexion à la console ne concerne aucune école, donc aucun journal ne peut
+> l'accueillir. La mention de l'écran de connexion a été corrigée en
+> conséquence ; le journal lui-même est au bloc 3.
+
+- [x] **2FA absente de la console** — CORRIGÉ le 7 août., par DEUX causes cumulées : la branche du sous-domaine
       `superadmin.` **sort du middleware** avant le contrôle, et ce contrôle est de toute façon
       conditionné à `pathname.startsWith('/dashboard')`. La surface la plus privilégiée du système
       — liste des clients, création de comptes, entrée dans n'importe quelle école — n'est protégée
       que par un mot de passe.
-- [ ] **Boucle de redirection infinie** pour tout compte non super-admin : le middleware renvoie
+- [x] **Boucle de redirection infinie** — CORRIGÉE le 7 août. pour tout compte non super-admin : le middleware renvoie
       vers `/superadmin` qui est déjà connecté et demande `/superadmin/login` ; le layout protégé
       renvoie vers `/superadmin/login` qui n'est pas super-admin. Chacune est juste, ensemble elles
       bouclent. Depuis que le cookie porte le domaine entier, **n'importe quel utilisateur d'école
       connecté** qui tape l'adresse de la console la déclenche.
-- [ ] **Régression du 6 août (de moi)** : les 8 actions de `superadmin/actions.ts` sont gardées par
+- [x] **Régression du 6 août (de moi)** — CORRIGÉE le 7 août. : les 8 actions de `superadmin/actions.ts` sont gardées par
       `requireRoleServer(['super_admin'])`, or cette garde compare désormais le rôle **effectif**,
       qui vaut `admin` pendant une intervention. **Dès qu'une intervention est ouverte, aucune
       action de la console ne fonctionne.** Elles doivent utiliser `requireEditor()` (colonne brute),
       comme `support-actions.ts` — la règle était écrite, je ne l'ai pas appliquée à ce fichier.
-- [ ] **`createTenantUser` ne pose pas `app_metadata`** (rôle + établissement). Un compte créé
+- [x] **`createTenantUser` ne pose pas `app_metadata`** — CORRIGÉ le 7 août. (rôle + établissement). Un compte créé
       depuis la console est donc traité comme un **parent** par le middleware : **2FA contournée** et
       contrôle d'appartenance au sous-domaine inopérant. `createTenant` le fait correctement : les
       deux chemins de création divergent.
-- [ ] **`updateTenantUser` n'est pas cloisonnée** : `.eq('id', profileId)` sans vérifier que le
+- [x] **`updateTenantUser` n'est pas cloisonnée** — CORRIGÉ le 7 août. : `.eq('id', profileId)` sans vérifier que le
       profil appartient à l'école affichée, en service-role donc sans RLS pour rattraper, et sans
       valider le rôle transmis.
-- [ ] **Aucune action de la console n'est tracée** : créer une école, changer un abonnement,
+- [x] **Aucune action de la console n'est tracée** — CORRIGÉ le 7 août. : créer une école, changer un abonnement,
       désactiver un client, créer un compte. Et la page de connexion affiche « Accès surveillé et
       journalisé », ce qui est faux aujourd'hui.
 
