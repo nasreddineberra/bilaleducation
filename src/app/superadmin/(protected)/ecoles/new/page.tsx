@@ -6,11 +6,13 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { createTenant } from '@/app/superadmin/actions'
 import { validateSlug, SLUG_MAX } from '@/lib/tenant/slug'
-import { Eye, EyeOff, Check, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import TempPasswordField from '@/components/superadmin/TempPasswordField'
 
 type FormData = {
   slug: string; nom: string; adresse: string; telephone: string
+  subscription_expires_at: string; max_students: string
   first_name: string; last_name: string; email: string; password: string
 }
 
@@ -49,10 +51,10 @@ export default function NewEcolePage() {
   const router = useRouter()
   const [form, setForm] = useState<FormData>({
     slug: '', nom: '', adresse: '', telephone: '',
+    subscription_expires_at: '', max_students: '',
     first_name: '', last_name: '', email: '', password: '',
   })
   const [touched,      setTouched]      = useState<Set<string>>(new Set())
-  const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
 
@@ -65,6 +67,8 @@ export default function NewEcolePage() {
     first_name: form.first_name.trim().length < 2,
     last_name:  form.last_name.trim().length  < 2,
     email:      !isValidEmail(form.email.trim()),
+    max_students: form.max_students.trim().length > 0 &&
+                  (!/^d+$/.test(form.max_students.trim()) || parseInt(form.max_students, 10) < 1),
     password:   !isPasswordValid(form.password, form.first_name, form.last_name),
   }
   const isValid = !Object.values(v).some(Boolean)
@@ -85,6 +89,8 @@ export default function NewEcolePage() {
         nom:       form.nom.trim(),
         adresse:   form.adresse.trim()   || undefined,
         telephone: form.telephone.trim() || undefined,
+        subscription_expires_at: form.subscription_expires_at || null,
+        max_students: form.max_students.trim() ? parseInt(form.max_students, 10) : null,
         director: {
           first_name: form.first_name.trim(),
           last_name:  form.last_name.trim(),
@@ -148,6 +154,43 @@ export default function NewEcolePage() {
         </div>
 
         <div className="card p-4 space-y-3">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Accès et abonnement</h2>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Expiration de l'abonnement">
+              <input
+                type="date"
+                value={form.subscription_expires_at}
+                onChange={e => set('subscription_expires_at', e.target.value)}
+                className="input"
+              />
+              <p className="text-xs text-warm-700 mt-1">Vide : aucune expiration.</p>
+            </Field>
+
+            <Field
+              label="Limite d'élèves"
+              error={touched.has('max_students') && v.max_students ? 'Nombre entier supérieur à zéro.' : undefined}
+            >
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Illimitée"
+                value={form.max_students}
+                onChange={e => set('max_students', e.target.value)}
+                onBlur={() => touch('max_students')}
+                className={inputCls('max_students')}
+              />
+              <p className="text-xs text-warm-700 mt-1">Vide : accès illimité.</p>
+            </Field>
+          </div>
+
+          <p className="text-xs text-warm-700">
+            L&apos;établissement est actif dès sa création ; l&apos;accès se coupe depuis sa fiche.
+          </p>
+        </div>
+
+        <div className="card p-4 space-y-3">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Directeur initial</h2>
 
           <div className="grid grid-cols-2 gap-3">
@@ -163,20 +206,14 @@ export default function NewEcolePage() {
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)} onBlur={() => touch('email')} className={inputCls('email')} />
           </Field>
 
+          {/* Le mot de passe se GÉNÈRE : l'éditeur ouvre ce compte pour
+              quelqu'un d'autre et doit le lui transmettre — il n'a pas à en
+              inventer un, ni à le masquer à ses propres yeux. */}
           <Field label="Mot de passe temporaire *">
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={e => set('password', e.target.value)}
-                onBlur={() => touch('password')}
-                className={clsx(inputCls('password'), 'pr-10')}
-                placeholder="10 caractères minimum"
-              />
-              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700">
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
+            <TempPasswordField
+              value={form.password}
+              onChange={v => { set('password', v); touch('password') }}
+            />
             {touched.has('password') && form.password.length > 0 && (
               <PasswordChecklist
                 password={form.password}

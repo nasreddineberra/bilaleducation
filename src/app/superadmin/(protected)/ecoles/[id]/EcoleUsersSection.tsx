@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
-import { Eye, EyeOff, UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
+import { UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
+import FormModal from '@/components/ui/FormModal'
+import TempPasswordField from '@/components/superadmin/TempPasswordField'
 import { createTenantUser, updateTenantUser } from '@/app/superadmin/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
@@ -42,7 +44,6 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 export default function EcoleUsersSection({ profiles, etablissementId }: { profiles: Profile[]; etablissementId: string }) {
   const [showForm,     setShowForm]     = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
   const [submitting,   setSubmitting]   = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [togglingId,   setTogglingId]   = useState<string | null>(null)
@@ -109,40 +110,58 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
         <button
           type="button"
-          onClick={() => setShowForm(v => !v)}
-          aria-expanded={showForm}
-          className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          onClick={() => { setError(null); setShowForm(true) }}
+          className="btn btn-secondary text-xs py-1 px-2.5"
         >
-          {showForm ? 'Annuler' : 'Ajouter'}
+          Ajouter
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} noValidate className="border border-warm-200 rounded-xl p-3 space-y-2 bg-warm-50">
-          <div className="grid grid-cols-2 gap-2">
-            <input type="text" placeholder="NOM" value={newUser.last_name} onChange={e => setField('last_name', e.target.value.toUpperCase())} className="input text-sm py-1.5" />
-            <input type="text" placeholder="Prénom" value={newUser.first_name} onChange={e => setField('first_name', e.target.value)} className="input text-sm py-1.5" />
-          </div>
-          <input type="email" placeholder="Email" value={newUser.email} onChange={e => setField('email', e.target.value)} className="input text-sm py-1.5 w-full" />
-          <div className="grid grid-cols-2 gap-2">
-            <select value={newUser.role} onChange={e => setField('role', e.target.value)} className="input text-sm py-1.5">
+        <FormModal
+          title="Nouveau compte"
+          onClose={() => setShowForm(false)}
+          footer={
+            <>
+              <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-sm ml-auto">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                form="form-nouveau-compte"
+                disabled={submitting || !canSubmit}
+                className={clsx('btn btn-primary text-sm', (!canSubmit || submitting) && 'opacity-50 cursor-not-allowed')}
+              >
+                {submitting ? 'Création…' : 'Créer'}
+              </button>
+            </>
+          }
+        >
+          {/* Le formulaire est DANS la modale, mais ses boutons vivent dans le
+              pied : l'attribut `form` les relie, sans quoi « Créer » ne
+              soumettrait rien. */}
+          <form id="form-nouveau-compte" onSubmit={handleCreate} noValidate className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <input type="text" placeholder="NOM" aria-label="Nom" value={newUser.last_name} onChange={e => setField('last_name', e.target.value.toUpperCase())} className="input text-sm py-1.5" />
+              <input type="text" placeholder="Prénom" aria-label="Prénom" value={newUser.first_name} onChange={e => setField('first_name', e.target.value)} className="input text-sm py-1.5" />
+            </div>
+
+            <input type="email" placeholder="Email" aria-label="Adresse email" value={newUser.email} onChange={e => setField('email', e.target.value)} className="input text-sm py-1.5 w-full" />
+
+            <select value={newUser.role} onChange={e => setField('role', e.target.value)} aria-label="Rôle" className="input text-sm py-1.5 w-full">
               {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
             </select>
-            <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} placeholder="Mot de passe (10+ car.)" value={newUser.password} onChange={e => setField('password', e.target.value)} className="input text-sm py-1.5 pr-8 w-full" />
-              <button type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={showPassword} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
-                {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-              </button>
+
+            <div>
+              <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Mot de passe temporaire</label>
+              <div className="mt-1">
+                <TempPasswordField value={newUser.password} onChange={v => setField('password', v)} compact />
+              </div>
             </div>
-          </div>
-          {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-xs py-1.5 px-3">Annuler</button>
-            <button type="submit" disabled={submitting || !canSubmit} className={clsx('btn btn-primary text-xs py-1.5 px-3', (!canSubmit || submitting) && 'opacity-50 cursor-not-allowed')}>
-              {submitting ? 'Création...' : 'Créer'}
-            </button>
-          </div>
-        </form>
+
+            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+          </form>
+        </FormModal>
       )}
 
       {error && !showForm && (

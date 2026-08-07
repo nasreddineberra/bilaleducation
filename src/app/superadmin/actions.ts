@@ -28,6 +28,10 @@ export async function createTenant(data: {
   nom:       string
   adresse?:  string
   telephone?: string
+  /** Échéance d'abonnement, réglable dès l'ouverture du compte client. */
+  subscription_expires_at?: string | null
+  /** Limite d'élèves (mode essai) ; absente = illimitée. */
+  max_students?: number | null
   director: {
     first_name: string
     last_name:  string
@@ -45,6 +49,12 @@ export async function createTenant(data: {
   const slugError = validateSlug(data.slug)
   if (slugError) return { error: slugError }
 
+  // Une limite d'élèves nulle ou négative n'a pas de sens et bloquerait toute
+  // inscription : on la refuse plutôt que de l'enregistrer.
+  if (data.max_students != null && (!Number.isInteger(data.max_students) || data.max_students < 1)) {
+    return { error: "La limite d'élèves doit être un nombre entier supérieur à zéro." }
+  }
+
   const supabase = createAdminClient()
 
   // 1. Créer l'établissement
@@ -56,6 +66,8 @@ export async function createTenant(data: {
       adresse:   data.adresse?.trim()   || null,
       telephone: data.telephone?.trim() || null,
       is_active: true,
+      subscription_expires_at: data.subscription_expires_at || null,
+      max_students:            data.max_students ?? null,
     })
     .select('id')
     .single()
