@@ -18,7 +18,12 @@ const ROLE_LABELS: Record<string, string> = {
   secretaire: 'Secrétaire', parent: 'Parent', admin: 'Administrateur',
 }
 
-const ROLE_OPTIONS: UserRole[] = ['direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
+/**
+ * La console n'ouvre QUE des comptes de direction : l'editeur met le client en
+ * service, l'ecole gere ensuite ses propres utilisateurs depuis son ecran
+ * Utilisateurs. Un compte cree ici serait un compte a maintenir ici.
+ */
+const ROLE_CREABLE: UserRole = 'direction'
 
 function Champ({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -66,7 +71,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
   const [envoye,       setEnvoye]       = useState<string | null>(null)
   const router = useRouter()
   const [page, setPage] = useState(1)
-  const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: 'direction' as UserRole })
+  const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: ROLE_CREABLE })
 
   const setField = (f: keyof typeof newUser, v: string) => setNewUser(p => ({ ...p, [f]: v }))
 
@@ -89,7 +94,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
         role: newUser.role, first_name: newUser.first_name.trim(), last_name: newUser.last_name.trim(),
       })
       if (result.error) { setError(result.error); return }
-      setNewUser({ last_name: '', first_name: '', email: '', password: '', role: 'direction' })
+      setNewUser({ last_name: '', first_name: '', email: '', password: '', role: ROLE_CREABLE })
       setShowForm(false)
       // La liste vient du serveur : sans rafraîchissement, le compte créé
       // n'apparaît pas et la création semble n'avoir rien fait.
@@ -146,7 +151,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
 
       {showForm && (
         <FormModal
-          title="Nouveau compte"
+          title="Nouveau compte de direction"
           onClose={() => setShowForm(false)}
           footer={
             <>
@@ -182,11 +187,17 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               <input type="email" value={newUser.email} onChange={e => setField('email', e.target.value)} className="input text-sm py-1.5 w-full" />
             </Champ>
 
-            <Champ label="Rôle">
-              <select value={newUser.role} onChange={e => setField('role', e.target.value)} className="input text-sm py-1.5 w-full">
-                {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
-            </Champ>
+            {/* Champ VERROUILLE plutot que select a une seule entree : un menu
+                qui n'offre aucun choix se lit comme une liste incomplete. */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Rôle</label>
+              <p className="input text-sm py-1.5 bg-warm-50 text-warm-700 select-none">
+                {ROLE_LABELS[ROLE_CREABLE]}
+              </p>
+              <p className="text-xs text-warm-700 leading-snug">
+                L&apos;école crée elle-même ses autres comptes depuis son écran Utilisateurs.
+              </p>
+            </div>
 
             <Champ label="Mot de passe temporaire">
               <TempPasswordField value={newUser.password} onChange={v => setField('password', v)} compact />
@@ -219,6 +230,10 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
+                {/* Reserve a la direction, comme la creation : un « mot de passe
+                    oublie » d'enseignant se traite dans l'ecole, qui a l'ecran
+                    pour le faire. */}
+                {p.role === ROLE_CREABLE && (
                 <Tooltip content="Envoyer un lien de définition du mot de passe">
                   <button
                     type="button"
@@ -234,6 +249,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
                     <KeyRound size={15} />
                   </button>
                 </Tooltip>
+                )}
 
                 <Tooltip content={p.is_active ? 'Désactiver ce compte' : 'Réactiver ce compte'}>
                   <button

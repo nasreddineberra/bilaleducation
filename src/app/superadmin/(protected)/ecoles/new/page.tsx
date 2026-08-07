@@ -72,7 +72,7 @@ export default function NewEcolePage() {
     last_name:  form.last_name.trim().length  < 2,
     email:      !isValidEmail(form.email.trim()),
     max_students: form.max_students.trim().length > 0 &&
-                  (!/^d+$/.test(form.max_students.trim()) || parseInt(form.max_students, 10) < 1),
+                  (!/^\d+$/.test(form.max_students.trim()) || parseInt(form.max_students, 10) < 1),
     password:   !isPasswordValid(form.password, form.first_name, form.last_name),
   }
   const isValid = !Object.values(v).some(Boolean)
@@ -234,7 +234,7 @@ export default function NewEcolePage() {
                 type="number"
                 min="1"
                 step="1"
-                placeholder="Illimitée"
+                placeholder="Illimité"
                 value={form.max_students}
                 onChange={e => set('max_students', e.target.value)}
                 onBlur={() => touch('max_students')}

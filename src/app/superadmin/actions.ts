@@ -50,7 +50,7 @@ export async function createTenant(data: {
   telephone?: string
   /** Échéance d'abonnement, réglable dès l'ouverture du compte client. */
   subscription_expires_at?: string | null
-  /** Limite d'élèves (mode essai) ; absente = illimitée. */
+  /** Limite d'élèves (mode essai) ; absente = illimité. */
   max_students?: number | null
   director: {
     first_name: string
@@ -319,17 +319,24 @@ export async function updateSubscription(
 // ─── Créer un utilisateur dans un établissement ───────────────────────────────
 
 /**
- * Rôles qu'un compte d'école peut porter.
+ * Le SEUL rôle que la console peut attribuer.
  *
- * `super_admin` en est absent, et c'est le point : la console crée des comptes
- * CHEZ UN CLIENT, jamais un second éditeur. `admin` en est absent aussi — le
- * rôle d'administration d'une école se donne depuis l'école. La liste est
- * vérifiée côté serveur : le formulaire ne protège de rien.
+ * DÉCISION DE L'ÉDITEUR (7 août) : il ouvre la porte, l'école range sa maison.
+ * Créer le compte de direction fait partie de la mise en service d'un client ;
+ * ses enseignants, son secrétariat et sa comptabilité relèvent d'elle, et elle
+ * dispose pour cela de son propre écran Utilisateurs.
+ *
+ * Ce n'est pas qu'une question d'ergonomie : chaque compte créé d'ici serait un
+ * compte que l'éditeur devrait ensuite maintenir — mot de passe oublié, départ,
+ * changement de rôle. Refuser à la création, c'est refuser la suite.
+ *
+ * `super_admin` en est évidemment absent : la console crée des comptes CHEZ UN
+ * CLIENT, jamais un second éditeur. `admin` aussi — ce rôle est le sommet de
+ * l'école, il se donne depuis l'école.
+ *
+ * Vérifié côté serveur : le formulaire ne protège de rien.
  */
-const ROLES_TENANT = [
-  'direction', 'comptable', 'responsable_pedagogique',
-  'enseignant', 'secretaire', 'parent',
-] as const
+const ROLES_TENANT = ['direction'] as const
 
 export async function createTenantUser(
   etablissementId: string,

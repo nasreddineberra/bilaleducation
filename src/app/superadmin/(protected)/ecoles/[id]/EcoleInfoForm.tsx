@@ -214,7 +214,7 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
           <p className="text-xs text-warm-700 mb-2">Laisser vide pour un accès illimité</p>
           <div className="flex items-center gap-2">
             <input
-              type="number" min="1" placeholder="Illimitée"
+              type="number" min="1" placeholder="Illimité"
               value={maxStudents} onChange={e => setMaxStudents(e.target.value)}
               className="input flex-1"
             />
