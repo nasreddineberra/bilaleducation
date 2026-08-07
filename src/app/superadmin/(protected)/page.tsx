@@ -5,10 +5,24 @@ import { createClient } from '@/lib/supabase/server'
 import { Building2, Users, GraduationCap, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
+import { INTERVENTION_MAX_HEURES } from '@/lib/support/intervention'
 
 function formatDate(date: string | null | undefined) {
   if (!date) return null
   return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatDateHeure(date: string) {
+  return new Date(date).toLocaleString('fr-FR', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+/** Durée d'une intervention, en heures et minutes. */
+function duree(debut: string, fin: string) {
+  const minutes = Math.round((new Date(fin).getTime() - new Date(debut).getTime()) / 60000)
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
 }
 
 function isExpired(date: string | null | undefined) {
@@ -51,10 +65,33 @@ export default async function SuperAdminPage() {
     ? (etablissements ?? []).find(e => e.id === me.etablissement_id) ?? null
     : null
 
+  const { data: interventions } = await supabase
+    .from('support_interventions')
+    .select('id, etablissement_id, opened_at, closed_at, closed_reason')
+    .order('opened_at', { ascending: false })
+    .limit(10)
+
+  const nomEcole = Object.fromEntries((etablissements ?? []).map(e => [e.id, e.nom]))
+
+  // Depuis quand l'intervention en cours est-elle ouverte ? C'est la seule
+  // information que l'historique ne dit pas d'un coup d'oeil, et c'est celle qui
+  // compte : elle se referme d'office au-dela du delai.
+  const ouverte = (interventions ?? []).find(i => !i.closed_at)
+  const heuresOuvertes = ouverte
+    ? (Date.now() - new Date(ouverte.opened_at).getTime()) / 3_600_000
+    : null
+
   return (
     <div className="space-y-6 animate-fade-in">
 
-      {supportEcole && <SupportBar ecole={supportEcole.nom} slug={supportEcole.slug} />}
+      {supportEcole && (
+        <SupportBar
+          ecole={supportEcole.nom}
+          slug={supportEcole.slug}
+          depuis={heuresOuvertes}
+          maxHeures={INTERVENTION_MAX_HEURES}
+        />
+      )}
 
       <div className="flex items-center justify-between">
         <div>
@@ -171,6 +208,38 @@ export default async function SuperAdminPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {Boolean(interventions?.length) && (
+        <div className="card p-4 space-y-2">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            Interventions de support
+          </h2>
+          <p className="text-xs text-warm-700">
+            Une intervention se referme d&apos;elle-même au bout de {INTERVENTION_MAX_HEURES} heures.
+          </p>
+          <ul className="divide-y divide-warm-100">
+            {interventions!.map(i => (
+              <li key={i.id} className="flex items-center gap-3 py-1.5 text-xs">
+                <span className="font-semibold text-secondary-800 min-w-0 truncate">
+                  {nomEcole[i.etablissement_id] ?? 'Établissement supprimé'}
+                </span>
+                <span className="text-warm-700 whitespace-nowrap">
+                  {formatDateHeure(i.opened_at)}
+                </span>
+                <span className="ml-auto whitespace-nowrap">
+                  {!i.closed_at ? (
+                    <span className="text-amber-700 font-medium">En cours</span>
+                  ) : i.closed_reason === 'expiration' ? (
+                    <span className="text-warm-700">Refermée d&apos;office · {duree(i.opened_at, i.closed_at)}</span>
+                  ) : (
+                    <span className="text-warm-700">Terminée · {duree(i.opened_at, i.closed_at)}</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

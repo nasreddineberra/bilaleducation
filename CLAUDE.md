@@ -2231,6 +2231,8 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/create-support-interventions.sql` (journal des interventions
+  cote EDITEUR + expiration 4 h ; regime serveur uniquement). **Verifie sur 5 cas.**
 - [x] Executer `supabase/migrations/move-etablissement-notes-to-editor-table.sql` (les notes
   internes de l'editeur quittent `etablissements`, dont la ligne est lisible par TOUS les comptes
   de l'ecole ; table `etablissement_notes` en regime serveur uniquement). **Verifie** : lecture

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logAudit } from '@/lib/audit'
 import { requireEditor } from '@/lib/auth/requireEditor'
+import { ouvrirIntervention, fermerIntervention } from '@/lib/support/intervention'
 import { updateTag } from 'next/cache'
 
 /**
@@ -62,6 +63,11 @@ export async function enterSchool(etablissementId: string): Promise<{ error?: st
     .eq('id', userId)
 
   if (error) return { error: "Impossible d'ouvrir l'intervention." }
+
+  // Journal de l'ÉDITEUR, distinct de celui de l'école : c'est lui qui permet de
+  // voir ce qui est ouvert en ce moment, sans parcourir tous les clients.
+  const { data: moi } = await admin.from('profiles').select('email').eq('id', userId).single()
+  await ouvrirIntervention(userId, moi?.email ?? null, etablissementId)
 
   // Le profil est mis en cache une heure : sans invalidation, la sidebar et le
   // tableau de bord continueraient de travailler sur l'état d'avant.
@@ -126,6 +132,8 @@ export async function leaveSchool(): Promise<{ error?: string }> {
     .eq('id', userId)
 
   if (error) return { error: "Impossible de fermer l'intervention." }
+
+  await fermerIntervention(userId, 'manuelle')
 
   updateTag('profile')
 

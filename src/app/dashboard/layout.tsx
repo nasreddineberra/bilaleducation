@@ -9,6 +9,7 @@ import { getCachedProfile, getCachedEtablissement, getCurrentYear } from '@/lib/
 import { headers } from 'next/headers'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { consoleUrl } from '@/lib/tenant/console-url'
+import { expirerSiDepassee } from '@/lib/support/intervention'
 
 
 export default async function DashboardLayout({
@@ -50,6 +51,15 @@ export default async function DashboardLayout({
 
   if (user.app_metadata?.role === 'super_admin') {
     const tenantId = (await headers()).get('x-etablissement-id')
+
+    // EXPIRATION. Le contrôle vit ici et non dans la console, parce qu'il doit
+    // s'exécuter même si l'éditeur n'y revient jamais : un onglet oublié
+    // garderait sinon un accès complet aux données d'un client. La déconnexion
+    // pour inactivité ne suffit pas — elle ferme la session, pas le
+    // rattachement, qui lui survit.
+    if (await expirerSiDepassee(user.id)) {
+      redirect(consoleUrl())
+    }
 
     // Rattachement lu EN BASE, jamais dans le profil mis en cache. Le cache vit
     // une heure ; dès qu'il diverge — intervention refermée depuis un autre

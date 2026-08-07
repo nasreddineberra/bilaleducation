@@ -51,7 +51,20 @@ export function EnterButton({ id, slug, disabled }: { id: string; slug: string; 
  * pendant l'intervention parce que la garde de la console lit la COLONNE
  * `profiles.role`, qui vaut toujours `super_admin`.
  */
-export function SupportBar({ ecole, slug }: { ecole: string; slug: string }) {
+/** « 3 h 20 » ou « 45 min » — on ne parle d'heures qu'au-delà d'une heure. */
+function formatRestant(heures: number): string {
+  const minutes = Math.max(0, Math.round(heures * 60))
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+}
+
+export function SupportBar({ ecole, slug, depuis, maxHeures }: {
+  ecole: string
+  slug: string
+  /** Heures écoulées depuis l'ouverture, ou `null` si inconnue. */
+  depuis: number | null
+  maxHeures: number
+}) {
   const [pending, start] = useTransition()
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -74,6 +87,18 @@ export function SupportBar({ ecole, slug }: { ecole: string; slug: string }) {
         <span className="font-bold">Intervention en cours</span>
         <span className="mx-2" aria-hidden="true">·</span>
         {ecole}
+        {depuis !== null && (
+          <>
+            <span className="mx-2" aria-hidden="true">·</span>
+            {/* Le temps RESTANT plutôt que le temps écoulé : c'est lui qui dit
+                quand l'accès se fermera de lui-même. */}
+            <span className="text-amber-800">
+              {depuis >= maxHeures
+                ? 'expire à la prochaine page'
+                : `se referme dans ${formatRestant(maxHeures - depuis)}`}
+            </span>
+          </>
+        )}
       </p>
       {erreur && <span role="alert" className="text-xs font-medium text-red-700">{erreur}</span>}
 
