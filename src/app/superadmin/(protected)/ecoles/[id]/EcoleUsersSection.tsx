@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Eye, EyeOff, Plus, UserX, UserCheck } from 'lucide-react'
+import { Eye, EyeOff, UserX, UserCheck } from 'lucide-react'
 import { createTenantUser, updateTenantUser } from '@/app/superadmin/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
@@ -13,7 +13,7 @@ const ROLE_LABELS: Record<string, string> = {
   secretaire: 'Secrétaire', parent: 'Parent', admin: 'Administrateur',
 }
 
-const ROLE_OPTIONS: UserRole[] = ['direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent']
+const ROLE_OPTIONS: UserRole[] = ['direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 export default function EcoleUsersSection({ profiles, etablissementId }: { profiles: Profile[]; etablissementId: string }) {
@@ -59,8 +59,13 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
     <div className="card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
-        <button onClick={() => setShowForm(v => !v)} className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors">
-          <Plus className="w-3.5 h-3.5" /> Ajouter
+        <button
+          type="button"
+          onClick={() => setShowForm(v => !v)}
+          aria-expanded={showForm}
+          className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        >
+          {showForm ? 'Annuler' : 'Ajouter'}
         </button>
       </div>
 
@@ -82,7 +87,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               </button>
             </div>
           </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-xs py-1.5 px-3">Annuler</button>
             <button type="submit" disabled={submitting || !canSubmit} className={clsx('btn btn-primary text-xs py-1.5 px-3', (!canSubmit || submitting) && 'opacity-50 cursor-not-allowed')}>

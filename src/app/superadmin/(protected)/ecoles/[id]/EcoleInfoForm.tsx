@@ -5,6 +5,8 @@ import { clsx } from 'clsx'
 import { CheckCircle2 } from 'lucide-react'
 import { updateEtablissement, toggleEtablissementActive, updateSubscription, updateMaxStudents } from '@/app/superadmin/actions'
 import type { Etablissement } from '@/types/database'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
 
 const isValidEmail = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -13,7 +15,7 @@ function Field({ label, error, children }: { label: React.ReactNode; error?: str
     <div className="flex flex-col gap-1">
       <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
   )
 }
@@ -38,6 +40,11 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
   const [savingMax,    setSavingMax]    = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [success,      setSuccess]      = useState(false)
+
+  // Trois actions lourdes s'executaient sur un simple clic : couper l'acces d'une
+  // ecole entiere, retirer l'echeance d'abonnement, retirer la limite d'eleves.
+  // Aucune n'etait rattrapable.
+  const [aConfirmer, setAConfirmer] = useState<null | 'acces' | 'abonnement' | 'limite'>(null)
 
   const set   = (f: keyof FormData, v: string) => setForm(p => ({ ...p, [f]: v }))
   const touch = (f: string) => setTouched(p => new Set([...p, f]))
@@ -98,11 +105,21 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Informations</h2>
 
           <Field label={<>Nom <span className="text-red-400">*</span></>} error={touched.has('nom') && vNom ? 'Obligatoire.' : undefined}>
-            <input type="text" value={form.nom} onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')} className={inputCls('nom', vNom)} />
+            <div className="relative">
+              <input type="text" maxLength={ETAB_NOM_MAX} value={form.nom} onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')} className={`${inputCls('nom', vNom)} pr-14`} />
+              <span aria-hidden="true" className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-700 tabular-nums">
+                {form.nom.length}/{ETAB_NOM_MAX}
+              </span>
+            </div>
           </Field>
 
           <Field label="Adresse">
-            <input type="text" value={form.adresse} onChange={e => set('adresse', e.target.value)} className="input" />
+            <div className="relative">
+              <input type="text" maxLength={ETAB_ADRESSE_MAX} value={form.adresse} onChange={e => set('adresse', e.target.value)} className="input pr-14" />
+              <span aria-hidden="true" className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-warm-700 tabular-nums">
+                {form.adresse.length}/{ETAB_ADRESSE_MAX}
+              </span>
+            </div>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
@@ -124,7 +141,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
             />
           </Field>
 
-          {error   && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">{error}</p>}
+          {error   && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">{error}</p>}
           {success && <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2"><CheckCircle2 size={15} /> Enregistré.</div>}
 
           <div className="flex items-center gap-3">
@@ -145,7 +162,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
             <p className="text-sm font-medium text-secondary-700">Statut d'accès</p>
             <p className="text-xs text-warm-700 mt-0.5">{ecole.is_active ? "L'école peut se connecter." : "L'accès est bloqué."}</p>
           </div>
-          <button onClick={handleToggle} disabled={toggling} className={clsx('btn text-sm px-4 py-2', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
+          <button onClick={() => (ecole.is_active ? setAConfirmer('acces') : handleToggle())} disabled={toggling} className={clsx('btn text-sm px-4 py-2', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
             {toggling ? '...' : ecole.is_active ? 'Désactiver' : 'Activer'}
           </button>
         </div>
@@ -158,7 +175,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
               {savingDate ? '...' : 'Enregistrer'}
             </button>
             {subExpiry && (
-              <button onClick={() => { setSubExpiry(''); updateSubscription(ecole.id, null) }} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
+              <button type="button" onClick={() => setAConfirmer('abonnement')} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
                 Aucune
               </button>
             )}
@@ -178,13 +195,44 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
               {savingMax ? '...' : 'Enregistrer'}
             </button>
             {maxStudents && (
-              <button onClick={() => { setMaxStudents(''); updateMaxStudents(ecole.id, null) }} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
+              <button type="button" onClick={() => setAConfirmer('limite')} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
                 Aucune
               </button>
             )}
           </div>
         </div>
       </div>
+
+      {aConfirmer === 'acces' && (
+        <ConfirmModal
+          title="Couper l'accès de cet établissement ?"
+          message={`Plus personne de « ${ecole.nom} » ne pourra se connecter, ni la direction, ni les enseignants, ni le secrétariat. Les données sont conservées et l'accès se rétablit d'un clic.`}
+          confirmLabel="Désactiver"
+          variant="danger"
+          onConfirm={() => { setAConfirmer(null); handleToggle() }}
+          onCancel={() => setAConfirmer(null)}
+        />
+      )}
+
+      {aConfirmer === 'abonnement' && (
+        <ConfirmModal
+          title="Retirer l'échéance d'abonnement ?"
+          message="L'établissement n'aura plus de date d'expiration : son accès ne se coupera jamais de lui-même."
+          confirmLabel="Retirer l'échéance"
+          onConfirm={() => { setAConfirmer(null); setSubExpiry(''); updateSubscription(ecole.id, null) }}
+          onCancel={() => setAConfirmer(null)}
+        />
+      )}
+
+      {aConfirmer === 'limite' && (
+        <ConfirmModal
+          title="Retirer la limite d'élèves ?"
+          message="L'établissement pourra inscrire un nombre illimité d'élèves."
+          confirmLabel="Retirer la limite"
+          onConfirm={() => { setAConfirmer(null); setMaxStudents(''); updateMaxStudents(ecole.id, null) }}
+          onCancel={() => setAConfirmer(null)}
+        />
+      )}
     </div>
   )
 }

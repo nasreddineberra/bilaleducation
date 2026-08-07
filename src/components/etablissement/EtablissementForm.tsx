@@ -12,6 +12,7 @@ import { useToast } from '@/lib/toast-context'
 import { revalidateEtablissement } from '@/app/dashboard/etablissement/actions'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import type { Etablissement } from '@/types/database'
+import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
 
 interface EtablissementFormProps {
   etablissement: Etablissement
@@ -96,8 +97,10 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
   // REELLE de l'etablissement en fait deja 64 (« ... Saint-Germain-Au-Mont-D'Or »,
   // c'est le nom de la commune qui est long). A 80, on occupe 110 mm des 134,
   // et le debordement ne commence qu'au-dela de 90.
-  const NOM_MAX     = 30
-  const ADRESSE_MAX = 80
+  // Valeurs partagees avec la console de l editeur : les deux ecrans modifient la
+  // MEME ligne, ils ne peuvent pas diverger.
+  const NOM_MAX     = ETAB_NOM_MAX
+  const ADRESSE_MAX = ETAB_ADRESSE_MAX
 
   const vNom          = form.nom.trim().length < 2
   const vContact      = form.contact.trim().length > 0 && !isValidEmail(form.contact.trim())

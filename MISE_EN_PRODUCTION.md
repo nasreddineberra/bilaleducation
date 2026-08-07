@@ -14,13 +14,15 @@ sous-domaine par école, cloisonnement par RLS.
 > `superadmin.bilaleducation.fr`. L'**accès support** est livré et vérifié en base ; il
 > reste à l'éprouver à l'écran (entrer, agir, sortir, contrôler le journal de l'école).
 >
-> **7 août** — Phase 4 bis, **bloc 1 (sécurité) terminé et vérifié en base**. La console
-> exige désormais la 2FA, la boucle de redirection est fermée, ses actions sont gardées,
-> cloisonnées et tracées. **Restent les blocs 2 (charte) et 3 (ajouts)**.
+> **7 août** — Phase 4 bis, **blocs 1 (sécurité) et 2 (charte) terminés**. La console exige
+> désormais la 2FA, la boucle de redirection est fermée, ses actions sont gardées,
+> cloisonnées et tracées ; son apparence passe par les jetons et le système de composants.
+> **Reste le bloc 3 (ajouts fonctionnels)**.
 >
 > À éprouver à l'écran, dans cet ordre : se reconnecter à la console — elle demandera le
-> code TOTP, ayez le téléphone —, puis le parcours support (entrer dans l'école, agir,
-> sortir, contrôler que le journal de l'école porte bien votre nom).
+> code TOTP, ayez le téléphone —, regarder le nouvel écran de connexion et la liste, puis
+> le parcours support (entrer dans l'école, agir, sortir, contrôler que le journal de
+> l'école porte bien votre nom).
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -245,24 +247,29 @@ cohérent. Trois blocs, dans cet ordre.
       désactiver un client, créer un compte. Et la page de connexion affiche « Accès surveillé et
       journalisé », ce qui est faux aujourd'hui.
 
-### Bloc 2 · Charte et ergonomie
+### Bloc 2 · Charte et ergonomie — FAIT le 7 août
 
-- [ ] **Écran de connexion** : aucune des corrections du 3 août apportées à celui des écoles.
+> La console garde une identité DISTINCTE — arriver chez l'éditeur ne doit pas
+> ressembler à arriver chez un client — mais cette distinction passe désormais
+> par les **jetons de marque** et l'**orange de la charte**, non par une palette
+> inventée. Reste à valider **à l'écran**.
+
+- [x] **Écran de connexion** (repris sur celui des écoles) : aucune des corrections du 3 août apportées à celui des écoles.
       Pas de focus initial, pas de détection du verrouillage majuscules, bouton désactivé à vide
       (alors qu'on a décidé qu'un bouton grisé n'explique rien), œil hors navigation clavier et sans
       `aria-label`, erreur sans `role="alert"`.
-- [ ] **Couleurs en dur, hors charte** : `#0f1923` / `#16232f` / `#e85d04` (connexion) et le dégradé
+- [x] **Couleurs en dur, hors charte** — remplacées par les jetons. : `#0f1923` / `#16232f` / `#e85d04` (connexion) et le dégradé
       `#2e4550` de la barre latérale — la valeur même que nous avons retirée de l'emploi du temps le
       2 août au profit des jetons. L'orange de la charte est `#f97316`. La console ne suit ni le
       thème clair/sombre ni les jetons : une évolution de la marque ne l'entraînera pas.
-- [ ] **Système de composants non utilisé** : `<input>`/`<label>` bruts au lieu des champs à libellé
+- [x] **Système de composants non utilisé** — `.list-th`/`.list-td`/`.stat-label`, `card p-0`, icône retirée. : `<input>`/`<label>` bruts au lieu des champs à libellé
       flottant, en-têtes maison au lieu de `.list-th`, cartes en `text-2xl` au lieu de
       `ListStatCard`, icône `Plus` sur « Ajouter ».
-- [ ] **Trois actions lourdes sans confirmation** : désactiver un établissement (coupe l'accès à
+- [x] **Trois actions lourdes sans confirmation** — `ConfirmModal` sur les trois. : désactiver un établissement (coupe l'accès à
       toute une école), retirer la date d'abonnement, retirer la limite d'élèves.
-- [ ] **Ni limite de saisie ni compteur** sur nom (30) et adresse (80), pourtant imposés en base
+- [x] **Ni limite de saisie ni compteur** — compteur dans le champ, limites partagées avec la fiche établissement (`lib/tenant/limites.ts`). sur nom (30) et adresse (80), pourtant imposés en base
       depuis le 5 août : la frappe est acceptée puis rejetée par un message générique.
-- [ ] Détails : grille en 4 colonnes pour 3 cartes, lignes de liste non cliquables (règle projet),
+- [x] Détails traités : grille en 4 colonnes pour 3 cartes, lignes de liste non cliquables (règle projet),
       survol du fil d'Ariane de la même couleur que son état normal, `parent` proposé dans les rôles
       alors que ces comptes sont suspendus en V1.
 

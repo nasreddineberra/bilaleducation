@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { Building2, Plus, Users, GraduationCap, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Building2, Users, GraduationCap, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { EnterButton, SupportBar } from './SupportControls'
+import ClickableRow from './ClickableRow'
 
 function formatDate(date: string | null | undefined) {
   if (!date) return null
@@ -60,8 +61,7 @@ export default async function SuperAdminPage() {
             {etablissements?.length ?? 0} établissement{(etablissements?.length ?? 0) > 1 ? 's' : ''} enregistré{(etablissements?.length ?? 0) > 1 ? 's' : ''}
           </p>
         </div>
-        <Link href="/superadmin/ecoles/new" className="btn btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
+        <Link href="/superadmin/ecoles/new" className="btn btn-primary">
           Nouvel établissement
         </Link>
       </div>
@@ -73,16 +73,16 @@ export default async function SuperAdminPage() {
           <p className="text-warm-700 text-sm mt-1">Créez votre premier client avec le bouton ci-dessus.</p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-xs" aria-label="Établissements clients">
             <thead>
-              <tr className="border-b border-warm-100 bg-warm-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Établissement</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Statut</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Abonnement</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Utilisateurs</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-warm-700 uppercase tracking-wide">Élèves</th>
-                <th className="px-4 py-3" />
+              <tr>
+                <th scope="col" className="list-th text-left">Établissement</th>
+                <th scope="col" className="list-th text-left">Statut</th>
+                <th scope="col" className="list-th text-left">Abonnement</th>
+                <th scope="col" className="list-th text-right">Utilisateurs</th>
+                <th scope="col" className="list-th text-right">Élèves</th>
+                <th scope="col" className="list-th" />
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
@@ -92,12 +92,16 @@ export default async function SuperAdminPage() {
                 const s       = statsMap[e.id]
 
                 return (
-                  <tr key={e.id} className="hover:bg-warm-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-secondary-800">{e.nom}</p>
+                  <ClickableRow
+                    key={e.id}
+                    href={`/superadmin/ecoles/${e.id}`}
+                    label={`Fiche de ${e.nom}`}
+                  >
+                    <td className="list-td">
+                      <p className="list-name">{e.nom}</p>
                       <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="list-td">
                       {e.is_active ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Actif
@@ -108,7 +112,7 @@ export default async function SuperAdminPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="list-td">
                       {dateStr ? (
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${expired ? 'text-red-600 bg-red-50' : 'text-warm-700 bg-warm-100'}`}>
                           <Clock className="w-3.5 h-3.5" />
@@ -118,29 +122,26 @@ export default async function SuperAdminPage() {
                         <span className="text-xs text-warm-700">Sans expiration</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="list-td text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Users className="w-3.5 h-3.5" />{s?.users ?? '·'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="list-td text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <GraduationCap className="w-3.5 h-3.5" />{s?.students ?? '·'}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="list-td" data-no-row-nav>
+                      <div className="flex items-center justify-end">
                         <EnterButton
                           id={e.id}
                           slug={e.slug}
                           disabled={Boolean(supportEcole) && supportEcole?.id !== e.id}
                         />
-                        <Link href={`/superadmin/ecoles/${e.id}`} className="btn btn-secondary text-xs py-1.5 px-3">
-                          Gérer
-                        </Link>
                       </div>
                     </td>
-                  </tr>
+                  </ClickableRow>
                 )
               })}
             </tbody>

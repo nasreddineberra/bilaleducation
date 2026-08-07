@@ -22,7 +22,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <div className="flex flex-col gap-1">
       <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
   )
 }
@@ -187,7 +187,7 @@ export default function NewEcolePage() {
           </Field>
         </div>
 
-        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+        {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
 
         <div className="flex items-center justify-end gap-3 pt-1">
           <Link href="/superadmin" className="btn btn-secondary">Annuler</Link>
