@@ -211,18 +211,28 @@ export default async function SuperAdminPage() {
         </div>
       )}
 
-      {Boolean(interventions?.length) && (
-        <div className="card p-4 space-y-2">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-            Interventions de support
-          </h2>
-          <p className="text-xs text-warm-700">
-            Une intervention se referme d&apos;elle-même au bout d&apos;
-            {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}
-            {' '}; elle se rouvre en un clic.
+      {/* Encadré TOUJOURS affiché, même vide : masqué faute de lignes, il laissait
+          croire que la fonctionnalité n'existait pas — on cherche alors quelque
+          chose qui est bien là, mais sans rien à montrer. */}
+      <div className="card p-4 space-y-2">
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          Interventions de support
+        </h2>
+        <p className="text-xs text-warm-700">
+          Une intervention se referme d&apos;elle-même au bout d&apos;
+          {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}
+          {' '}; elle se rouvre en un clic.
+        </p>
+
+        {!interventions?.length ? (
+          <p className="text-xs text-warm-700 py-2">
+            Aucune intervention enregistrée. L&apos;historique démarre au premier
+            «&nbsp;Intervenir&nbsp;» — les accès pris avant la mise en place de ce journal
+            restent tracés dans celui de chaque école.
           </p>
+        ) : (
           <ul className="divide-y divide-warm-100">
-            {interventions!.map(i => (
+            {interventions.map(i => (
               <li key={i.id} className="flex items-center gap-3 py-1.5 text-xs">
                 <span className="font-semibold text-secondary-800 min-w-0 truncate">
                   {nomEcole[i.etablissement_id] ?? 'Établissement supprimé'}
@@ -242,8 +252,8 @@ export default async function SuperAdminPage() {
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
 
     </div>
   )
