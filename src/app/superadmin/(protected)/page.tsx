@@ -225,7 +225,7 @@ export default async function SuperAdminPage() {
             trois mots. La valeur reste tirée de la constante — la changer ne doit
             pas laisser un libellé qui ment. */}
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-          Interventions de support (exp. session {INTERVENTION_MAX_HEURES}h)
+          Interventions de support (expir. session {INTERVENTION_MAX_HEURES}h)
         </h2>
 
         {/* `card p-0` : un tableau de liste ne prend pas le retrait de 24 px.
