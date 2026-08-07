@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AuditLogsClient from '@/components/audit-logs/AuditLogsClient'
-import { effectiveRole } from '@/lib/auth/effective-role'
+import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 
 const PAGE_SIZE = 20
 
@@ -128,6 +128,7 @@ export default async function LogsPage({
       entityTypes={uniqueEntityTypes}
       userRoles={userRoles}
       docOwners={docOwners}
+      purgeInterdite={isSupportSession(profile)}
       filters={{
         user: userFilter ?? '',
         entity_type: entityFilter ?? '',

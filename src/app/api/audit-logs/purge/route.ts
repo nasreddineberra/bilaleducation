@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { effectiveRole } from '@/lib/auth/effective-role'
+import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { PURGE_OPTIONS, type PurgeJours } from '@/lib/audit/purge-options'
 
 export async function DELETE(request: Request) {
@@ -20,6 +20,23 @@ export async function DELETE(request: Request) {
 
     if (!profile || !['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+    }
+
+    // REFUS PENDANT UNE INTERVENTION DE SUPPORT.
+    //
+    // L'editeur y travaille avec le role effectif `admin`, donc avec ce droit.
+    // Mais le journal est la preuve, pour l'ecole, de ce qu'il a fait chez elle :
+    // pouvoir l'effacer viderait de sens les avertissements affiches a chaque
+    // ouverture d'intervention — « vos actions seront inscrites au journal de
+    // l'etablissement ». Une promesse de tracabilite ne vaut que si celui qu'elle
+    // engage ne peut pas defaire la trace.
+    //
+    // Le controle porte sur le rattachement, pas sur le role effectif : c'est
+    // l'interrupteur de l'intervention. Voir `isSupportSession`.
+    if (isSupportSession(profile)) {
+      return NextResponse.json({
+        error: "La purge appartient a l'etablissement. Elle n'est pas possible pendant une intervention de support.",
+      }, { status: 403 })
     }
 
     // Delai de conservation, choisi par la direction. VALIDE CONTRE LA LISTE :

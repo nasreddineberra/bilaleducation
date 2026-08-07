@@ -112,6 +112,8 @@ interface AuditLogsClientProps {
   entityTypes:  string[]
   userRoles:    Record<string, string>
   docOwners:    Record<string, string>
+  /** Intervention de support en cours : la purge appartient a l'ecole. */
+  purgeInterdite: boolean
   filters: {
     user:        string
     entity_type: string
@@ -219,7 +221,7 @@ function fmtDate(iso: string): string {
 // ─── Composant principal ─────────────────────────────────────────────────────
 
 export default function AuditLogsClient({
-  logs, totalCount, page, users, entityTypes, userRoles, docOwners, filters,
+  logs, totalCount, page, users, entityTypes, userRoles, docOwners, purgeInterdite, filters,
 }: AuditLogsClientProps) {
   const router = useRouter()
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
@@ -347,9 +349,22 @@ export default function AuditLogsClient({
           </button>
         )}
         <div className="ml-auto">
-          <FloatButton type="button" variant="danger" onClick={() => setShowPurge(true)}>
-            Purger le journal
-          </FloatButton>
+          {/* Désactivé, jamais masqué : un bouton qui disparaît se lit comme un
+              défaut d'affichage, alors qu'ici c'est une règle qu'il faut dire. */}
+          <Tooltip
+            content={purgeInterdite
+              ? "Le journal appartient à l'établissement : il ne se purge pas pendant une intervention de support."
+              : 'Supprimer des traces du journal'}
+          >
+            <FloatButton
+              type="button"
+              variant="danger"
+              onClick={() => setShowPurge(true)}
+              disabled={purgeInterdite}
+            >
+              Purger le journal
+            </FloatButton>
+          </Tooltip>
         </div>
       </div>
 
