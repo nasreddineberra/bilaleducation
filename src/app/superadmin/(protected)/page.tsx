@@ -217,7 +217,9 @@ export default async function SuperAdminPage() {
             Interventions de support
           </h2>
           <p className="text-xs text-warm-700">
-            Une intervention se referme d&apos;elle-même au bout de {INTERVENTION_MAX_HEURES} heures.
+            Une intervention se referme d&apos;elle-même au bout d&apos;
+            {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}
+            {' '}; elle se rouvre en un clic.
           </p>
           <ul className="divide-y divide-warm-100">
             {interventions!.map(i => (

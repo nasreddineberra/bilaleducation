@@ -16,17 +16,22 @@ import { createAdminClient } from '@/lib/supabase/admin'
 /**
  * Durée au-delà de laquelle une intervention se referme d'office.
  *
- * QUATRE HEURES, choisi entre deux écueils. Trop court, on coupe l'éditeur en
- * plein dépannage — il devrait rouvrir depuis la console, ce qui est pénible et
- * rendrait le garde-fou hostile. Trop long, un oubli laisse un accès complet aux
- * données d'un client ouvert toute une nuit.
+ * UNE HEURE — décision de l'éditeur, et elle se tient : c'est exactement le
+ * délai d'inactivité des sessions (`INACTIVITY_SECONDS`). Les deux protections
+ * expirent donc ensemble, au lieu de laisser un rattachement survivre trois
+ * heures à la session qui l'utilisait.
  *
  * Le compteur part de l'OUVERTURE, pas de la dernière action : c'est une durée
- * d'autorisation, pas une inactivité. L'inactivité, elle, est déjà traitée par la
- * déconnexion de session (1 h) — mais elle ne referme PAS le rattachement, qui
- * survit à la session. C'est précisément le trou que ce délai comble.
+ * d'AUTORISATION, pas une inactivité. Un dépannage plus long n'est pas bloqué —
+ * il se rouvre depuis la console, en un clic, et cette réouverture laisse une
+ * trace de plus, ce qui est le comportement souhaitable pour un accès aux
+ * données d'un client.
+ *
+ * L'inactivité, elle, ne referme PAS le rattachement, qui survit à la session :
+ * c'est ce qui garantit de pouvoir sortir après un plantage, et c'est aussi le
+ * trou que ce délai comble.
  */
-export const INTERVENTION_MAX_HEURES = 4
+export const INTERVENTION_MAX_HEURES = 1
 
 export type Intervention = {
   id: string
