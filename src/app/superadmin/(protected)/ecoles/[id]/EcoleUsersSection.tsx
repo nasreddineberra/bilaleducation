@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
 import { Eye, EyeOff, UserX, UserCheck } from 'lucide-react'
 import { createTenantUser, updateTenantUser } from '@/app/superadmin/actions'
@@ -22,6 +25,10 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
   const [submitting,   setSubmitting]   = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [togglingId,   setTogglingId]   = useState<string | null>(null)
+  // Couper l'accès de quelqu'un ne demandait aucune confirmation, alors qu'on en
+  // pose une pour l'école entière — la même action, à une personne près.
+  const [aDesactiver,  setADesactiver]  = useState<Profile | null>(null)
+  const router = useRouter()
   const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: 'direction' as UserRole })
 
   const setField = (f: keyof typeof newUser, v: string) => setNewUser(p => ({ ...p, [f]: v }))
@@ -42,6 +49,9 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
       if (result.error) { setError(result.error); return }
       setNewUser({ last_name: '', first_name: '', email: '', password: '', role: 'direction' })
       setShowForm(false)
+      // La liste vient du serveur : sans rafraîchissement, le compte créé
+      // n'apparaît pas et la création semble n'avoir rien fait.
+      router.refresh()
     } catch {
       setError('Une erreur est survenue.')
     } finally {
@@ -51,12 +61,23 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
 
   const handleToggle = async (profile: Profile) => {
     setTogglingId(profile.id)
-    await updateTenantUser(profile.id, etablissementId, { is_active: !profile.is_active })
-    setTogglingId(null)
+    setError(null)
+    try {
+      // La valeur de retour était jetée : depuis le cloisonnement du 7 août,
+      // cette action peut refuser (« ce compte n'appartient pas à cet
+      // établissement »), et le refus ressemblait exactement à un succès.
+      const res = await updateTenantUser(profile.id, etablissementId, { is_active: !profile.is_active })
+      if (res?.error) { setError(res.error); return }
+      router.refresh()
+    } catch {
+      setError('Une erreur est survenue.')
+    } finally {
+      setTogglingId(null)
+    }
   }
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card p-4 space-y-3 self-start">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
         <button
@@ -82,7 +103,7 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
             </select>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} placeholder="Mot de passe (10+ car.)" value={newUser.password} onChange={e => setField('password', e.target.value)} className="input text-sm py-1.5 pr-8 w-full" />
-              <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-700">
+              <button type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={showPassword} className="absolute right-2 top-1/2 -translate-y-1/2 text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
                 {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
             </div>
@@ -97,10 +118,14 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
         </form>
       )}
 
+      {error && !showForm && (
+        <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">{error}</p>
+      )}
+
       {profiles.length === 0 ? (
         <p className="text-sm text-warm-700 text-center py-4">Aucun utilisateur</p>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-1 max-h-[22rem] overflow-y-auto list-scroll pr-1">
           {profiles.map(p => (
             <div key={p.id} className={clsx('flex items-center justify-between px-3 py-2 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
               <div className="min-w-0">
@@ -109,14 +134,32 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
-                <button onClick={() => handleToggle(p)} disabled={togglingId === p.id} title={p.is_active ? 'Désactiver' : 'Activer'}
-                  className={clsx('p-1 rounded-lg transition-colors', p.is_active ? 'text-warm-700 hover:text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}>
-                  {p.is_active ? <UserX size={15} /> : <UserCheck size={15} />}
-                </button>
+                <Tooltip content={p.is_active ? 'Désactiver ce compte' : 'Réactiver ce compte'}>
+                  <button
+                    type="button"
+                    onClick={() => (p.is_active ? setADesactiver(p) : handleToggle(p))}
+                    disabled={togglingId === p.id}
+                    aria-label={`${p.is_active ? 'Désactiver' : 'Réactiver'} le compte de ${p.last_name} ${p.first_name}`}
+                    className={clsx('p-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', p.is_active ? 'text-warm-700 hover:text-red-500 hover:bg-red-50' : 'text-primary-600 hover:bg-primary-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}
+                  >
+                    {p.is_active ? <UserX size={15} /> : <UserCheck size={15} />}
+                  </button>
+                </Tooltip>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {aDesactiver && (
+        <ConfirmModal
+          title="Désactiver ce compte ?"
+          message={`${aDesactiver.last_name} ${aDesactiver.first_name} ne pourra plus se connecter. Le compte et ses données sont conservés, l'accès se rétablit d'un clic.`}
+          confirmLabel="Désactiver"
+          variant="danger"
+          onConfirm={() => { const p = aDesactiver; setADesactiver(null); handleToggle(p) }}
+          onCancel={() => setADesactiver(null)}
+        />
       )}
     </div>
   )

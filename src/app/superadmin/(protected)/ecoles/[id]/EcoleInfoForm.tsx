@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { CheckCircle2 } from 'lucide-react'
 import { updateEtablissement, toggleEtablissementActive, updateSubscription, updateMaxStudents } from '@/app/superadmin/actions'
@@ -45,6 +46,8 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
   // ecole entiere, retirer l'echeance d'abonnement, retirer la limite d'eleves.
   // Aucune n'etait rattrapable.
   const [aConfirmer, setAConfirmer] = useState<null | 'acces' | 'abonnement' | 'limite'>(null)
+  const [message,    setMessage]    = useState<string | null>(null)
+  const router = useRouter()
 
   const set   = (f: keyof FormData, v: string) => setForm(p => ({ ...p, [f]: v }))
   const touch = (f: string) => setTouched(p => new Set([...p, f]))
@@ -72,6 +75,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
       if (result.error) { setError(result.error); return }
       initialForm.current = { ...form }
       setSuccess(true)
+      router.refresh()
     } catch {
       setError('Une erreur est survenue.')
     } finally {
@@ -79,27 +83,44 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
     }
   }
 
-  const handleToggle = async () => {
-    setToggling(true)
-    await toggleEtablissementActive(ecole.id, !ecole.is_active)
-    setToggling(false)
+  /** Exécute une action, affiche son refus s'il y en a un, et rafraîchit l'écran. */
+  const agir = async (
+    marqueur: (v: boolean) => void,
+    action: () => Promise<{ error?: string }>,
+    confirmation: string,
+  ) => {
+    marqueur(true)
+    setError(null); setSuccess(false)
+    try {
+      const res = await action()
+      if (res?.error) { setError(res.error); return }
+      setMessage(confirmation)
+      // Sans ce rafraîchissement, la fiche continue d'afficher l'état d'avant.
+      router.refresh()
+    } catch {
+      setError('Une erreur est survenue.')
+    } finally {
+      marqueur(false)
+    }
   }
 
-  const handleSaveDate = async () => {
-    setSavingDate(true)
-    await updateSubscription(ecole.id, subExpiry || null)
-    setSavingDate(false)
-  }
+  const handleToggle = () =>
+    agir(setToggling,
+      () => toggleEtablissementActive(ecole.id, !ecole.is_active),
+      ecole.is_active ? 'Accès coupé.' : 'Accès rétabli.')
 
-  const handleSaveMax = async () => {
-    setSavingMax(true)
-    const val = maxStudents.trim() ? parseInt(maxStudents, 10) : null
-    await updateMaxStudents(ecole.id, val)
-    setSavingMax(false)
-  }
+  const handleSaveDate = () =>
+    agir(setSavingDate,
+      () => updateSubscription(ecole.id, subExpiry || null),
+      subExpiry ? 'Échéance enregistrée.' : 'Échéance retirée.')
+
+  const handleSaveMax = () =>
+    agir(setSavingMax,
+      () => updateMaxStudents(ecole.id, maxStudents.trim() ? parseInt(maxStudents, 10) : null),
+      maxStudents.trim() ? 'Limite enregistrée.' : 'Limite retirée.')
 
   return (
-    <div className="space-y-4">
+    <>
       <form onSubmit={handleSubmit} noValidate>
         <div className="card p-4 space-y-3">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Informations</h2>
@@ -155,14 +176,20 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
       </form>
 
       <div className="card p-4 space-y-3">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Accès & Abonnement</h2>
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Accès et abonnement</h2>
+
+        {message && (
+          <p role="status" className="flex items-center gap-2 text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+            <CheckCircle2 size={13} className="shrink-0" /> {message}
+          </p>
+        )}
 
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-secondary-700">Statut d'accès</p>
             <p className="text-xs text-warm-700 mt-0.5">{ecole.is_active ? "L'école peut se connecter." : "L'accès est bloqué."}</p>
           </div>
-          <button onClick={() => (ecole.is_active ? setAConfirmer('acces') : handleToggle())} disabled={toggling} className={clsx('btn text-sm px-4 py-2', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
+          <button type="button" onClick={() => (ecole.is_active ? setAConfirmer('acces') : handleToggle())} disabled={toggling} className={clsx('btn text-sm px-4 py-2', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
             {toggling ? '...' : ecole.is_active ? 'Désactiver' : 'Activer'}
           </button>
         </div>
@@ -171,7 +198,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
           <p className="text-sm font-medium text-secondary-700 mb-2">Expiration abonnement</p>
           <div className="flex items-center gap-2">
             <input type="date" value={subExpiry} onChange={e => setSubExpiry(e.target.value)} className="input flex-1" />
-            <button onClick={handleSaveDate} disabled={savingDate} className="btn btn-secondary text-sm px-3 py-2 whitespace-nowrap">
+            <button type="button" onClick={handleSaveDate} disabled={savingDate} className="btn btn-secondary text-sm px-3 py-2 whitespace-nowrap">
               {savingDate ? '...' : 'Enregistrer'}
             </button>
             {subExpiry && (
@@ -191,7 +218,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
               value={maxStudents} onChange={e => setMaxStudents(e.target.value)}
               className="input flex-1"
             />
-            <button onClick={handleSaveMax} disabled={savingMax} className="btn btn-secondary text-sm px-3 py-2 whitespace-nowrap">
+            <button type="button" onClick={handleSaveMax} disabled={savingMax} className="btn btn-secondary text-sm px-3 py-2 whitespace-nowrap">
               {savingMax ? '...' : 'Enregistrer'}
             </button>
             {maxStudents && (
@@ -219,7 +246,11 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
           title="Retirer l'échéance d'abonnement ?"
           message="L'établissement n'aura plus de date d'expiration : son accès ne se coupera jamais de lui-même."
           confirmLabel="Retirer l'échéance"
-          onConfirm={() => { setAConfirmer(null); setSubExpiry(''); updateSubscription(ecole.id, null) }}
+          onConfirm={() => {
+            setAConfirmer(null)
+            setSubExpiry('')
+            agir(setSavingDate, () => updateSubscription(ecole.id, null), 'Échéance retirée.')
+          }}
           onCancel={() => setAConfirmer(null)}
         />
       )}
@@ -229,10 +260,14 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
           title="Retirer la limite d'élèves ?"
           message="L'établissement pourra inscrire un nombre illimité d'élèves."
           confirmLabel="Retirer la limite"
-          onConfirm={() => { setAConfirmer(null); setMaxStudents(''); updateMaxStudents(ecole.id, null) }}
+          onConfirm={() => {
+            setAConfirmer(null)
+            setMaxStudents('')
+            agir(setSavingMax, () => updateMaxStudents(ecole.id, null), 'Limite retirée.')
+          }}
           onCancel={() => setAConfirmer(null)}
         />
       )}
-    </div>
+    </>
   )
 }
