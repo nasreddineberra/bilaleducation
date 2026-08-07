@@ -21,7 +21,7 @@ function Field({ label, error, children }: { label: React.ReactNode; error?: str
   )
 }
 
-export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
+export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; notes: string }) {
   type FormData = { nom: string; adresse: string; telephone: string; contact: string; notes: string }
 
   const [form, setForm] = useState<FormData>({
@@ -29,7 +29,7 @@ export default function EcoleInfoForm({ ecole }: { ecole: Etablissement }) {
     adresse:   ecole.adresse   ?? '',
     telephone: ecole.telephone ?? '',
     contact:   ecole.contact   ?? '',
-    notes:     ecole.notes     ?? '',
+    notes,
   })
   const [subExpiry,    setSubExpiry]    = useState(ecole.subscription_expires_at ? ecole.subscription_expires_at.split('T')[0] : '')
   const [maxStudents,  setMaxStudents]  = useState(ecole.max_students != null ? String(ecole.max_students) : '')

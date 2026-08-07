@@ -29,6 +29,13 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
 
   if (!ecole) notFound()
 
+  // Table serveur uniquement : ni l'école ni son navigateur n'y ont accès.
+  const { data: notesRow } = await supabase
+    .from('etablissement_notes')
+    .select('notes')
+    .eq('etablissement_id', id)
+    .maybeSingle()
+
   const { data: profiles } = await supabase
     .from('profiles')
     .select('*')
@@ -100,7 +107,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className="grid grid-cols-3 gap-4 items-start">
-        <EcoleInfoForm ecole={ecole} />
+        <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} />
         <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} />
       </div>
 

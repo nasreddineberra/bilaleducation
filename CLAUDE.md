@@ -2231,6 +2231,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/move-etablissement-notes-to-editor-table.sql` (les notes
+  internes de l'editeur quittent `etablissements`, dont la ligne est lisible par TOUS les comptes
+  de l'ecole ; table `etablissement_notes` en regime serveur uniquement). **Verifie** : lecture
+  refusee 42501, colonne absente 42703.
 - [x] Executer `supabase/migrations/fix-audit-log-old-role-reference.sql` (**URGENT** : la garde
   ajoutee la veille citait `OLD.role`, or PL/pgSQL compile l'expression ENTIERE — 37 des 38 tables
   auditees n'ont pas cette colonne, **toute ecriture echouait en 42703**). **Verifie sur 6 cas.**

@@ -154,7 +154,6 @@ export async function updateEtablissement(id: string, data: {
     adresse:   data.adresse?.trim()   || null,
     telephone: data.telephone?.trim() || null,
     contact:   data.contact?.trim()   || null,
-    notes:     data.notes?.trim()     || null,
   }).eq('id', id)
 
   if (error) {
@@ -162,6 +161,21 @@ export async function updateEtablissement(id: string, data: {
     return { error: 'Erreur lors de la mise à jour.' }
   }
 
+  // Les notes vivent dans une table RÉSERVÉE À L'ÉDITEUR : elles portent des
+  // observations commerciales sur le client, et la ligne `etablissements` est
+  // lisible par toute l'école. Voir `move-etablissement-notes-to-editor-table.sql`.
+  const notes = data.notes?.trim() || null
+  const { error: notesError } = await supabase
+    .from('etablissement_notes')
+    .upsert({ etablissement_id: id, notes }, { onConflict: 'etablissement_id' })
+
+  if (notesError) {
+    console.error('[superadmin] updateEtablissement (notes):', notesError)
+    return { error: "Erreur lors de l'enregistrement des notes." }
+  }
+
+  // La trace ne dit PAS ce que contiennent les notes : le journal de l'école est
+  // lisible par son admin et sa direction.
   await logAudit(await createClient(), {
     action: 'UPDATE',
     entityType: 'etablissements',

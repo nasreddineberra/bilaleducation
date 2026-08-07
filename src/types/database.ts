@@ -54,7 +54,9 @@ export interface Etablissement {
   is_active: boolean
   subscription_expires_at?: string
   max_students?: number | null    // NULL = illimité
-  notes?: string | null           // Notes internes super-admin
+  // `notes` a QUITTÉ cette table : les observations commerciales de l'éditeur
+  // vivent dans `etablissement_notes`, hors de portée de l'école — la ligne
+  // ci-dessus est lisible par tous ses comptes.
   week_start_day: number          // 1=Lundi, 6=Samedi, 0=Dimanche
   working_days: number            // 5=Lun-Ven, 7=Lun-Dim
   created_at: string
