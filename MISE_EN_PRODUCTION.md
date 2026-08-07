@@ -282,6 +282,11 @@ cohérent. Trois blocs, dans cet ordre.
       la limite, abonnement proche de l'échéance.
 - [ ] **Lien de réinitialisation** plutôt qu'un mot de passe saisi en clair pour le directeur
       initial, que l'éditeur doit ensuite transmettre par un canal quelconque.
+- [ ] **Lien « Contacter le support » dans la barre latérale de l'ÉCOLE**, au-dessus des
+      informations d'application (© et version), ouvrant un message vers l'adresse de
+      l'éditeur. Réservé à la direction. Aujourd'hui l'école n'a **aucun moyen de joindre
+      son fournisseur depuis l'application** : elle doit connaître une adresse par ailleurs.
+      Demandé le 7 août.
 - [ ] **Consentement et durée** de l'intervention (RGPD) : à traiter avec le contrat de
       sous-traitance de la phase 8.
 
