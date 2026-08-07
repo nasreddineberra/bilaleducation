@@ -105,6 +105,9 @@ export default async function SuperAdminPage() {
         </Link>
       </div>
 
+      <div className="grid grid-cols-4 gap-4 items-start">
+
+      <div className="col-span-3">
       {!etablissements?.length ? (
         <div className="card p-12 text-center">
           <Building2 className="w-12 h-12 text-warm-700 mx-auto mb-3" />
@@ -210,37 +213,35 @@ export default async function SuperAdminPage() {
           </table>
         </div>
       )}
+      </div>{/* fin colonne établissements */}
 
-      {/* Encadré TOUJOURS affiché, même vide : masqué faute de lignes, il laissait
-          croire que la fonctionnalité n'existait pas — on cherche alors quelque
-          chose qui est bien là, mais sans rien à montrer. */}
-      <div className="card p-4 space-y-2">
+      {/* Colonne étroite : l'historique se lit EMPILÉ — nom, date, issue — là où
+          la pleine largeur permettait une ligne. Encadré toujours affiché, même
+          vide : masqué faute de lignes, il laissait croire que la fonctionnalité
+          n'existait pas. */}
+      <div className="card p-4 space-y-2 col-span-1">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
           Interventions de support
         </h2>
-        <p className="text-xs text-warm-700">
-          Une intervention se referme d&apos;elle-même au bout d&apos;
-          {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}
-          {' '}; elle se rouvre en un clic.
+        <p className="text-xs text-warm-700 leading-snug">
+          Refermée d&apos;elle-même au bout d&apos;
+          {INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}.
         </p>
 
         {!interventions?.length ? (
-          <p className="text-xs text-warm-700 py-2">
+          <p className="text-xs text-warm-700 py-2 leading-snug">
             Aucune intervention enregistrée. L&apos;historique démarre au premier
-            «&nbsp;Intervenir&nbsp;» — les accès pris avant la mise en place de ce journal
-            restent tracés dans celui de chaque école.
+            «&nbsp;Intervenir&nbsp;».
           </p>
         ) : (
           <ul className="divide-y divide-warm-100">
             {interventions.map(i => (
-              <li key={i.id} className="flex items-center gap-3 py-1.5 text-xs">
-                <span className="font-semibold text-secondary-800 min-w-0 truncate">
+              <li key={i.id} className="py-2 text-xs">
+                <p className="font-semibold text-secondary-800 truncate">
                   {nomEcole[i.etablissement_id] ?? 'Établissement supprimé'}
-                </span>
-                <span className="text-warm-700 whitespace-nowrap">
-                  {formatDateHeure(i.opened_at)}
-                </span>
-                <span className="ml-auto whitespace-nowrap">
+                </p>
+                <p className="text-warm-700 mt-0.5">{formatDateHeure(i.opened_at)}</p>
+                <p className="mt-0.5">
                   {!i.closed_at ? (
                     <span className="text-amber-700 font-medium">En cours</span>
                   ) : i.closed_reason === 'expiration' ? (
@@ -248,12 +249,14 @@ export default async function SuperAdminPage() {
                   ) : (
                     <span className="text-warm-700">Terminée · {duree(i.opened_at, i.closed_at)}</span>
                   )}
-                </span>
+                </p>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      </div>{/* fin grille */}
 
     </div>
   )
