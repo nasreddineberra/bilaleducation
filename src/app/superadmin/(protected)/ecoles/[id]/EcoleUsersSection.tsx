@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
-import { Eye, EyeOff, UserX, UserCheck } from 'lucide-react'
+import { Eye, EyeOff, UserX, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createTenantUser, updateTenantUser } from '@/app/superadmin/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
@@ -17,6 +17,27 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 const ROLE_OPTIONS: UserRole[] = ['direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
+
+/**
+ * Ordre HIÉRARCHIQUE des rôles, repris de la liste des utilisateurs d'une école
+ * (`UtilisateursClient`) : les deux listes montrent les mêmes personnes, elles ne
+ * peuvent pas les ranger autrement.
+ */
+const ROLE_ORDER: Record<string, number> = {
+  super_admin: 0, admin: 1, direction: 2, comptable: 3,
+  responsable_pedagogique: 4, enseignant: 5, secretaire: 6, parent: 7,
+}
+
+/** Rôle, puis NOM, puis prénom — insensible à la casse et aux accents. */
+function parRolePuisNom(a: Profile, b: Profile): number {
+  const r = (ROLE_ORDER[a.role] ?? 99) - (ROLE_ORDER[b.role] ?? 99)
+  if (r !== 0) return r
+  const n = (a.last_name ?? '').localeCompare(b.last_name ?? '', 'fr', { sensitivity: 'base' })
+  if (n !== 0) return n
+  return (a.first_name ?? '').localeCompare(b.first_name ?? '', 'fr', { sensitivity: 'base' })
+}
+
+const PAR_PAGE = 10
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 export default function EcoleUsersSection({ profiles, etablissementId }: { profiles: Profile[]; etablissementId: string }) {
@@ -29,9 +50,15 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
   // pose une pour l'école entière — la même action, à une personne près.
   const [aDesactiver,  setADesactiver]  = useState<Profile | null>(null)
   const router = useRouter()
+  const [page, setPage] = useState(1)
   const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: 'direction' as UserRole })
 
   const setField = (f: keyof typeof newUser, v: string) => setNewUser(p => ({ ...p, [f]: v }))
+
+  const triees = useMemo(() => [...profiles].sort(parRolePuisNom), [profiles])
+  const nbPages = Math.max(1, Math.ceil(triees.length / PAR_PAGE))
+  const pageSure = Math.min(page, nbPages)
+  const visibles = triees.slice((pageSure - 1) * PAR_PAGE, pageSure * PAR_PAGE)
 
   const canSubmit = isValidEmail(newUser.email.trim()) &&
     isPasswordValid(newUser.password, newUser.first_name, newUser.last_name) &&
@@ -125,8 +152,8 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
       {profiles.length === 0 ? (
         <p className="text-sm text-warm-700 text-center py-4">Aucun utilisateur</p>
       ) : (
-        <div className="space-y-1 max-h-[22rem] overflow-y-auto list-scroll pr-1">
-          {profiles.map(p => (
+        <div className="space-y-1">
+          {visibles.map(p => (
             <div key={p.id} className={clsx('flex items-center justify-between px-3 py-2 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-secondary-800 leading-tight">{p.last_name} {p.first_name}</p>
@@ -149,6 +176,35 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
             </div>
           ))}
         </div>
+      )}
+
+      {nbPages > 1 && (
+        <nav className="flex items-center justify-between pt-1" aria-label="Pagination des utilisateurs">
+          <p className="text-xs text-warm-700">
+            {(pageSure - 1) * PAR_PAGE + 1}<span aria-hidden="true">-</span>{Math.min(pageSure * PAR_PAGE, triees.length)} sur {triees.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={pageSure === 1}
+              aria-label="Page précédente"
+              className="p-1 rounded-lg text-warm-700 hover:bg-warm-100 disabled:opacity-40 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="text-xs text-warm-700 tabular-nums px-1">{pageSure} / {nbPages}</span>
+            <button
+              type="button"
+              onClick={() => setPage(p => Math.min(nbPages, p + 1))}
+              disabled={pageSure === nbPages}
+              aria-label="Page suivante"
+              className="p-1 rounded-lg text-warm-700 hover:bg-warm-100 disabled:opacity-40 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        </nav>
       )}
 
       {aDesactiver && (

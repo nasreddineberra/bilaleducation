@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { Building2, Users, GraduationCap, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Building2, Users, GraduationCap, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 
@@ -20,20 +21,21 @@ export default async function SuperAdminPage() {
 
   const { data: etablissements } = await supabase
     .from('etablissements')
-    .select('id, slug, nom, is_active, subscription_expires_at')
+    .select('id, slug, nom, is_active, subscription_expires_at, logo_url')
     .order('nom', { ascending: true })
 
   const stats = await Promise.all(
     (etablissements ?? []).map(async (e) => {
-      const [{ count: users }, { count: students }] = await Promise.all([
+      const [{ count: users }, { count: students }, { count: classes }] = await Promise.all([
         // Le super-admin rattaché pour une intervention porte l'établissement
         // dans son profil : sans cette exclusion, le compteur d'utilisateurs de
         // l'école grimperait d'un le temps du dépannage.
         supabase.from('profiles').select('id', { count: 'exact', head: true })
           .eq('etablissement_id', e.id).neq('role', 'super_admin'),
         supabase.from('students').select('id', { count: 'exact', head: true }).eq('etablissement_id', e.id),
+        supabase.from('classes').select('id', { count: 'exact', head: true }).eq('etablissement_id', e.id),
       ])
-      return { id: e.id, users: users ?? 0, students: students ?? 0 }
+      return { id: e.id, users: users ?? 0, students: students ?? 0, classes: classes ?? 0 }
     })
   )
 
@@ -77,10 +79,12 @@ export default async function SuperAdminPage() {
           <table className="w-full text-xs" aria-label="Établissements clients">
             <thead>
               <tr>
+                <th scope="col" className="list-th w-14" />
                 <th scope="col" className="list-th text-left">Établissement</th>
                 <th scope="col" className="list-th text-left">Statut</th>
                 <th scope="col" className="list-th text-left">Abonnement</th>
                 <th scope="col" className="list-th text-right">Utilisateurs</th>
+                <th scope="col" className="list-th text-right whitespace-nowrap">Classes</th>
                 <th scope="col" className="list-th text-right">Élèves</th>
                 <th scope="col" className="list-th" />
               </tr>
@@ -97,6 +101,22 @@ export default async function SuperAdminPage() {
                     href={`/superadmin/ecoles/${e.id}`}
                     label={`Fiche de ${e.nom}`}
                   >
+                    <td className="list-td">
+                      {e.logo_url ? (
+                        <Image
+                          src={e.logo_url}
+                          alt=""
+                          width={32}
+                          height={32}
+                          unoptimized
+                          className="w-8 h-8 rounded-lg object-contain bg-[#ffffff] ring-1 ring-warm-200"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
+                          {(e.nom ?? '?').trim().charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </td>
                     <td className="list-td">
                       <p className="list-name">{e.nom}</p>
                       <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
@@ -125,6 +145,11 @@ export default async function SuperAdminPage() {
                     <td className="list-td text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Users className="w-3.5 h-3.5" />{s?.users ?? '·'}
+                      </span>
+                    </td>
+                    <td className="list-td text-right">
+                      <span className="inline-flex items-center gap-1 text-warm-700">
+                        <Layers className="w-3.5 h-3.5" />{s?.classes ?? '·'}
                       </span>
                     </td>
                     <td className="list-td text-right">
