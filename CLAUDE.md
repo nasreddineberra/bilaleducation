@@ -2044,7 +2044,22 @@ visible **grace au correctif du jour meme** — la veille, il aurait ete avale e
 > Modele retenu : editeur logiciel, abonnement par etablissement, un sous-domaine par
 > ecole, deploiement et base uniques.
 >
-> **AU PROCHAIN DEMARRAGE : phase 4 bis, console super-admin.** Audit fait le 6 aout,
+> **AU PROCHAIN DEMARRAGE : la MESSAGERIE (phase 5 du plan).** C'est le dernier verrou
+> avant d'accueillir un vrai client : sans elle, aucun lien de mot de passe ne part, donc
+> aucune ecole ne peut ouvrir son compte. Trois volets, dans cet ordre :
+> (1) creer les boites `contact@` / `admin@` / `superadmin@bilaleducation.fr` ;
+> (2) renseigner le **SMTP du projet Supabase** avec `contact@` — il couvre l'authentification
+> de TOUTES les ecoles, l'expediteur integre etant plafonne a 2-3 emails/heure ;
+> (3) **refondre les gabarits d'email Supabase** a la charte, avec les donnees de l'ecole.
+> **Contrainte a connaitre avant de commencer** : ces gabarits sont GLOBAUX au projet et
+> n'exposent qu'un jeu fixe de variables (`.ConfirmationURL`, `.Token`, `.SiteURL`, `.Email`,
+> `.RedirectTo`, `.Data`). Le nom et le logo d'une ecole n'y sont pas accessibles, SAUF par
+> `.Data` (metadonnees de l'utilisateur) : y deposer le nom de l'ecole a la creation du compte
+> est le seul levier de personnalisation. A arbitrer avec l'utilisateur.
+>
+> **Phase 4 bis (console super-admin) : TERMINEE le 7 aout** — securite, charte et ajouts.
+
+> **Rappel de l'ancien programme, desormais fait : phase 4 bis, console super-admin.** Audit fait le 6 aout,
 > **rien de corrige**. Bloc 1 (securite) en premier — la console **n'exige aucune 2FA**
 > (double cause : la branche du sous-domaine sort du middleware avant le controle, et ce
 > controle est limite a `/dashboard`) ; boucle de redirection infinie pour tout compte non

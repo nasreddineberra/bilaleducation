@@ -14,10 +14,13 @@ sous-domaine par école, cloisonnement par RLS.
 > `superadmin.bilaleducation.fr`. L'**accès support** est livré et vérifié en base ; il
 > reste à l'éprouver à l'écran (entrer, agir, sortir, contrôler le journal de l'école).
 >
-> **7 août** — Phase 4 bis, **blocs 1 (sécurité) et 2 (charte) terminés**. La console exige
-> désormais la 2FA, la boucle de redirection est fermée, ses actions sont gardées,
-> cloisonnées et tracées ; son apparence passe par les jetons et le système de composants.
-> **Reste le bloc 3 (ajouts fonctionnels)**.
+> **7 août** — Phase 4 bis **TERMINÉE** : sécurité, charte et ajouts. La console exige la 2FA,
+> ses actions sont gardées, cloisonnées et tracées ; elle porte le journal des interventions,
+> la vue de santé des écoles et l'envoi des liens de mot de passe.
+>
+> **AU PROCHAIN DÉMARRAGE : la MESSAGERIE (phase 5).** C'est le seul verrou qui reste avant
+> de pouvoir accueillir un vrai client — sans elle, aucun lien de mot de passe ne part, donc
+> aucune école ne peut ouvrir son compte.
 >
 > À éprouver à l'écran, dans cet ordre : se reconnecter à la console — elle demandera le
 > code TOTP, ayez le téléphone —, regarder le nouvel écran de connexion et la liste, puis
@@ -310,8 +313,27 @@ cohérent. Trois blocs, dans cet ordre.
 
 - [ ] **Toi** — Configurer **SPF, DKIM et DMARC** sur le domaine (DNS). C'est de loin
       le premier facteur de délivrabilité, bien avant le choix du prestataire.
-- [ ] **Moi** — Configurer le SMTP du premier établissement dans la fiche, et
-      **tester un envoi réel** : devoir, relance, message aux parents, message au staff.
+- [ ] **Toi** — **Créer les boîtes** `contact@`, `admin@` et `superadmin@bilaleducation.fr`
+      chez Infomaniak (décidé le 7 août).
+- [ ] **Toi + Moi** — **SMTP du projet Supabase** (Project Settings → Authentication → SMTP),
+      avec `contact@bilaleducation.fr` en expéditeur. Il couvre l'**authentification de toutes
+      les écoles** : création de compte, mot de passe oublié. L'expéditeur intégré de Supabase
+      est plafonné à **2 ou 3 emails par heure** — un service de test, inutilisable dès la
+      deuxième école créée dans l'heure. Un bandeau le rappelle dans leur console.
+- [ ] **Moi** — **Refondre les gabarits d'email de Supabase** à la charte, avec les données de
+      l'école (décidé le 7 août). Six gabarits d'authentification (confirmation d'inscription,
+      invitation, lien magique, changement d'adresse, réinitialisation, ré-authentification) et
+      sept notifications de sécurité, toutes désactivées aujourd'hui.
+      - **CONTRAINTE À CONNAÎTRE AVANT DE COMMENCER** : ces gabarits sont **globaux au projet**,
+        pas par école, et n'exposent qu'un jeu fixe de variables — `.ConfirmationURL`, `.Token`,
+        `.SiteURL`, `.Email`, `.RedirectTo` et `.Data`. Le nom et le logo d'une école n'y sont
+        donc pas accessibles… **sauf par `.Data`**, qui expose les métadonnées de l'utilisateur.
+        Y déposer le nom de l'école à la création du compte est le seul levier pour personnaliser
+        l'email. À arbitrer : personnalisation par `.Data`, ou gabarit unique aux couleurs de
+        l'éditeur.
+- [ ] **Moi** — Configurer le SMTP du premier établissement dans sa fiche, et **tester un envoi
+      réel** : devoir, relance, message aux parents, message au staff. Distinct du précédent :
+      celui-ci porte les communications de l'école, pas l'authentification.
       Aucun email n'est jamais parti de cette application.
 - [ ] **Toi** — Montée en charge **progressive** : quelques envois, puis quelques
       dizaines, sur plusieurs jours. Un domaine neuf qui émet 300 messages d'un coup
