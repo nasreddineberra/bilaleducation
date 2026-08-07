@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { FUSEAU, formatJourLongFr } from '@/lib/dates'
 import { Bell, ChevronRight } from 'lucide-react'
 
 interface Props {
@@ -20,7 +21,9 @@ interface Props {
 
 function formatDate(d: string | null): string {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return new Date(d).toLocaleDateString('fr-FR', {
+    timeZone: FUSEAU, day: '2-digit', month: '2-digit', year: 'numeric',
+  })
 }
 
 const PERIOD_FULL_LABELS: Record<string, string> = {
@@ -33,7 +36,9 @@ function expandPeriodLabel(label: string): string {
 }
 
 export default function DashboardHeader({ firstName, roleLabel, yearLabel, periodLabel, unreadNotifs, recentNotifs }: Props) {
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  // Rendu cote SERVEUR : sans fuseau, « aujourd'hui » affiche la veille entre
+  // minuit et 2 h du matin, heure de Paris.
+  const today = formatJourLongFr(new Date())
 
   return (
     <div className="space-y-4">

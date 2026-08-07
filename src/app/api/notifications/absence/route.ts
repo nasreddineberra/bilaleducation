@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { formatJourLongFr } from '@/lib/dates'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createNotification, getParentByStudentId } from '@/lib/notifications'
 import { requireRole } from '@/lib/auth/requireRole'
@@ -72,9 +73,7 @@ export async function POST(req: NextRequest) {
         const isRetard = entry.absence_type === 'retard'
         const typeLabel = isRetard ? 'en retard' : 'absent(e)'
         const typeNotif = isRetard ? 'retard' as const : 'absence' as const
-        const dateFormatted = new Date(entry.absence_date).toLocaleDateString('fr-FR', {
-          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-        })
+        const dateFormatted = formatJourLongFr(entry.absence_date)
 
         const title = isRetard
           ? `Retard de ${student.last_name} ${student.first_name}`

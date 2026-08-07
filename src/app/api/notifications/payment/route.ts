@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FUSEAU } from '@/lib/dates'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createNotification, getParentWithEmails } from '@/lib/notifications'
 import { requireRole } from '@/lib/auth/requireRole'
@@ -58,8 +59,8 @@ export async function POST(req: NextRequest) {
     if (!parent) return NextResponse.json({ ok: true })
 
     const dateFormatted = paid_date
-      ? new Date(paid_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-      : new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      ? new Date(paid_date).toLocaleDateString('fr-FR', { timeZone: FUSEAU, day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('fr-FR', { timeZone: FUSEAU, day: 'numeric', month: 'long', year: 'numeric' })
 
     const methodLabel = METHOD_LABELS[method] ?? method ?? ''
     const title = `Paiement enregistré · ${fmtEur(amount)}`

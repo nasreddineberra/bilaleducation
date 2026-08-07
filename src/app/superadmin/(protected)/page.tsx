@@ -6,17 +6,16 @@ import { Building2, Users, GraduationCap, Layers, CheckCircle2, XCircle, Clock }
 import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
+import { formatDateFr, formatDateHeureFr } from '@/lib/dates'
 
+// Le fuseau est FIXE : cette page est rendue cote SERVEUR, qui tourne en UTC.
+// Les heures d'intervention s'affichaient avec deux heures de retard.
 function formatDate(date: string | null | undefined) {
   if (!date) return null
-  return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatDateFr(date)
 }
 
-function formatDateHeure(date: string) {
-  return new Date(date).toLocaleString('fr-FR', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-  })
-}
+const formatDateHeure = formatDateHeureFr
 
 /** Durée d'une intervention, en heures et minutes. */
 function duree(debut: string, fin: string) {

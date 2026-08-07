@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { formatJourLongFr } from '@/lib/dates'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createNotification } from '@/lib/notifications'
 import { requireRole } from '@/lib/auth/requireRole'
@@ -39,9 +40,7 @@ export async function POST(req: NextRequest) {
     const teacherLabel = teacherInfo
       ? `${teacherInfo.civilite ? teacherInfo.civilite + ' ' : ''}${teacherInfo.last_name} ${teacherInfo.first_name}`
       : ''
-    const dueFormatted = new Date(hw.due_date).toLocaleDateString('fr-FR', {
-      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-    })
+    const dueFormatted = formatJourLongFr(hw.due_date)
 
     const HW_TYPE_LABELS: Record<string, string> = {
       exercice: 'Exercice',

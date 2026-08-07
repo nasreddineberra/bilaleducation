@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import ClickableRow from '../ClickableRow'
+import { formatDateFr } from '@/lib/dates'
 
 /**
  * Santé des établissements clients.
@@ -39,7 +40,7 @@ function depuis(date: string | null): { texte: string; jours: number | null } {
 
 function formatDate(date: string | null | undefined) {
   if (!date) return null
-  return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+  return formatDateFr(date)
 }
 
 export default async function SantePage() {

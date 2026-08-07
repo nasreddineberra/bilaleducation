@@ -1,4 +1,5 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
+import { FUSEAU } from '@/lib/dates'
 import autoTable from 'jspdf-autotable'
 
 // ─── Couleurs (alignees sur bulletinPdf) ─────────────────────────────────────
@@ -179,7 +180,9 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
   })
 
   // Pied de page : date de generation
-  const generated = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+  // Fuseau explicite : ce document date un fait de l'ÉCOLE. Généré depuis un
+  // ordinateur en voyage, il porterait sinon la date du lieu où l'on se trouve.
+  const generated = new Date().toLocaleDateString('fr-FR', { timeZone: FUSEAU, day: '2-digit', month: 'long', year: 'numeric' })
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...COLORS.gray)
