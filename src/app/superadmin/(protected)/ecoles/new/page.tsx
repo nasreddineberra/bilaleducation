@@ -120,7 +120,10 @@ export default function NewEcolePage() {
         <p className="text-warm-700 text-sm mt-1">Créer un nouveau tenant avec son directeur initial</p>
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-2xl">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-5xl">
+        <div className="grid grid-cols-2 gap-4 items-start">
+
+        <div className="space-y-4">
         <div className="card p-4 space-y-3">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Établissement</h2>
 
@@ -190,6 +193,8 @@ export default function NewEcolePage() {
           </p>
         </div>
 
+        </div>
+
         <div className="card p-4 space-y-3">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Directeur initial</h2>
 
@@ -222,6 +227,8 @@ export default function NewEcolePage() {
               />
             )}
           </Field>
+        </div>
+
         </div>
 
         {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
