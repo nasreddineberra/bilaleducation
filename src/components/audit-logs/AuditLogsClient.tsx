@@ -13,21 +13,73 @@ const PAGE_SIZE = 20
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
 
+/**
+ * Nom de chaque entité, tel qu'une direction le comprend.
+ *
+ * Le journal affichait le nom des TABLES — `cotisation_types`, `fee_adjustments`,
+ * `unites_enseignement`. C'est le vocabulaire de la base, pas celui de l'école :
+ * on lui demandait de deviner ce qu'elle avait sous les yeux.
+ *
+ * La liste couvre les **38 tables auditées**, pas seulement celles déjà
+ * apparues : une entité surgit le jour où quelqu'un modifie cette donnée pour la
+ * première fois, et elle ne doit pas surgir en anglais.
+ */
 const ENTITY_LABELS: Record<string, string> = {
-  students:             'Apprenants',
-  parents:              'Parents',
-  teachers:             'Enseignants',
-  classes:              'Classes',
-  enrollments:          'Inscriptions',
-  evaluations:          'Evaluations',
-  grades:               'Notes',
-  absences:             'Absences',
-  profiles:             'Utilisateurs',
-  auth:                 'Authentification',
-  schedule_slots:       'Emploi du temps',
-  schedule_exceptions:  'Exception EDT',
-  teacher_documents:    'Document enseignant',
-  student_documents:    'Document apprenant',
+  // Vie scolaire
+  students:                     'Apprenants',
+  parents:                      'Parents',
+  enrollments:                  'Inscriptions',
+  parent_class_enrollments:     'Inscriptions adultes',
+  absences:                     'Absences',
+  student_warnings:             'Avertissements',
+  student_warning_attachments:  'Pièces jointes d\'avertissement',
+  student_documents:            'Documents apprenant',
+
+  // Personnel
+  teachers:                     'Enseignants',
+  teacher_documents:            'Documents enseignant',
+  profiles:                     'Comptes utilisateurs',
+  staff_time_entries:           'Temps de présence',
+  staff_hourly_rates:           'Taux horaires',
+
+  // Pédagogie
+  classes:                      'Classes',
+  cours:                        'Cours',
+  cours_modules:                'Modules de cours',
+  unites_enseignement:          'Unités d\'enseignement',
+  evaluations:                  'Évaluations',
+  evaluation_order_config:      'Ordre des évaluations',
+  grades:                       'Notes',
+  adult_grades:                 'Notes des adultes',
+  bulletin_archives:            'Bulletins archivés',
+  adult_bulletin_archives:      'Bulletins archivés (adultes)',
+  adult_bulletin_appreciations: 'Appréciations (adultes)',
+  schedule_slots:               'Emploi du temps',
+  schedule_exceptions:          'Exceptions d\'emploi du temps',
+  schedule_validations:         'Validations de présence',
+
+  // Finances
+  cotisation_types:             'Types de cotisation',
+  family_fees:                  'Cotisations des familles',
+  fee_installments:             'Échéances de paiement',
+  fee_adjustments:              'Réductions et avoirs',
+  expenses:                     'Dépenses',
+  other_revenues:               'Autres recettes',
+
+  // Communication
+  announcements:                'Messages envoyés',
+  announcement_attachments:     'Pièces jointes de message',
+
+  // Paramétrage
+  etablissements:               'Établissement',
+  school_years:                 'Années scolaires',
+  document_type_configs:        'Documents requis',
+  rooms:                        'Salles',
+  materials:                    'Matériel',
+
+  // Transverse
+  auth:                         'Authentification',
+  support:                      'Support éditeur',
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -217,37 +269,6 @@ export default function AuditLogsClient({
   return (
     <div className="flex flex-col h-full animate-fade-in">
 
-      {/* Onglets utilisateurs */}
-      <div className="flex items-center gap-1 border-b border-warm-200 mb-3 overflow-x-auto" aria-label="Filtrer par utilisateur">
-        <button
-          onClick={() => navigate({ user: '', page: 1 })}
-          aria-current={!filters.user ? 'page' : undefined}
-          className={clsx(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px rounded-t outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40',
-            !filters.user
-              ? 'border-primary-500 text-primary-700'
-              : 'border-transparent text-warm-700 hover:text-secondary-700'
-          )}
-        >
-          Tous
-        </button>
-        {users.map(u => (
-          <button
-            key={u.user_id}
-            onClick={() => navigate({ user: u.user_id, page: 1 })}
-            aria-current={filters.user === u.user_id ? 'page' : undefined}
-            className={clsx(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap -mb-px rounded-t outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/40',
-              filters.user === u.user_id
-                ? 'border-primary-500 text-primary-700'
-                : 'border-transparent text-warm-700 hover:text-secondary-700'
-            )}
-          >
-            {u.user_name || u.user_email}
-          </button>
-        ))}
-      </div>
-
       {/* Filtres */}
       <div className="flex items-center gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-2">
@@ -270,16 +291,36 @@ export default function AuditLogsClient({
             className="input text-sm py-1.5 px-2 w-36"
           />
         </div>
+        {/* Filtre par utilisateur. C'était une barre d'ONGLETS, un par personne :
+            lisible à trois comptes, illisible à trente — elle débordait en
+            défilement horizontal et poussait le tableau vers le bas. */}
+        <select
+          aria-label="Filtrer par utilisateur"
+          value={filters.user}
+          onChange={e => navigate({ user: e.target.value, page: 1 })}
+          className="input text-sm py-1.5 px-2 w-auto"
+        >
+          <option value="">Tous les utilisateurs</option>
+          {users.map(u => (
+            <option key={u.user_id} value={u.user_id}>
+              {u.user_name || u.user_email}
+            </option>
+          ))}
+        </select>
         <select
           aria-label="Filtrer par entité"
           value={filters.entity_type}
           onChange={e => navigate({ entity_type: e.target.value, page: 1 })}
           className="input text-sm py-1.5 px-2 w-auto"
         >
-          <option value="">Toutes entites</option>
-          {entityTypes.map(t => (
-            <option key={t} value={t}>{ENTITY_LABELS[t] ?? t}</option>
-          ))}
+          <option value="">Toutes les entités</option>
+          {/* Tri sur le LIBELLÉ et non sur le nom de table : classer « Notes »
+              sous G parce que la table s'appelle `grades` n'aide personne. */}
+          {[...entityTypes]
+            .sort((a, b) => (ENTITY_LABELS[a] ?? a).localeCompare(ENTITY_LABELS[b] ?? b, 'fr'))
+            .map(t => (
+              <option key={t} value={t}>{ENTITY_LABELS[t] ?? t}</option>
+            ))}
         </select>
         <select
           aria-label="Filtrer par action"
@@ -287,19 +328,19 @@ export default function AuditLogsClient({
           onChange={e => navigate({ action: e.target.value, page: 1 })}
           className="input text-sm py-1.5 px-2 w-auto"
         >
-          <option value="">Toutes actions</option>
-          <option value="INSERT">Creation</option>
+          <option value="">Toutes les actions</option>
+          <option value="INSERT">Création</option>
           <option value="UPDATE">Modification</option>
           <option value="DELETE">Suppression</option>
           <option value="LOGIN">Connexion</option>
-          <option value="LOGOUT">Deconnexion</option>
+          <option value="LOGOUT">Déconnexion</option>
         </select>
-        {(filters.date_from || filters.date_to || filters.entity_type || filters.action) && (
+        {(filters.user || filters.date_from || filters.date_to || filters.entity_type || filters.action) && (
           <button
-            onClick={() => navigate({ date_from: '', date_to: '', entity_type: '', action: '', page: 1 })}
+            onClick={() => navigate({ user: '', date_from: '', date_to: '', entity_type: '', action: '', page: 1 })}
             className="text-xs text-red-500 hover:text-red-700 underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
           >
-            Reinitialiser
+            Réinitialiser
           </button>
         )}
         <div className="ml-auto">
