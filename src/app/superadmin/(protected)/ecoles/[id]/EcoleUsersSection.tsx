@@ -20,6 +20,18 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_OPTIONS: UserRole[] = ['direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire']
 
+function Champ({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">
+        {label}
+        <span className="text-red-400 font-semibold" aria-hidden="true"> *</span>
+      </label>
+      {children}
+    </div>
+  )
+}
+
 /**
  * Ordre HIÉRARCHIQUE des rôles, repris de la liste des utilisateurs d'une école
  * (`UtilisateursClient`) : les deux listes montrent les mêmes personnes, elles ne
@@ -123,7 +135,8 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-sm ml-auto">
+              <span className="text-xs text-red-400 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
+              <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-sm">
                 Annuler
               </button>
               <button
@@ -142,22 +155,27 @@ export default function EcoleUsersSection({ profiles, etablissementId }: { profi
               soumettrait rien. */}
           <form id="form-nouveau-compte" onSubmit={handleCreate} noValidate className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <input type="text" placeholder="NOM" aria-label="Nom" value={newUser.last_name} onChange={e => setField('last_name', e.target.value.toUpperCase())} className="input text-sm py-1.5" />
-              <input type="text" placeholder="Prénom" aria-label="Prénom" value={newUser.first_name} onChange={e => setField('first_name', e.target.value)} className="input text-sm py-1.5" />
+              <Champ label="Nom">
+                <input type="text" value={newUser.last_name} onChange={e => setField('last_name', e.target.value.toUpperCase())} className="input text-sm py-1.5" />
+              </Champ>
+              <Champ label="Prénom">
+                <input type="text" value={newUser.first_name} onChange={e => setField('first_name', e.target.value)} className="input text-sm py-1.5" />
+              </Champ>
             </div>
 
-            <input type="email" placeholder="Email" aria-label="Adresse email" value={newUser.email} onChange={e => setField('email', e.target.value)} className="input text-sm py-1.5 w-full" />
+            <Champ label="Email">
+              <input type="email" value={newUser.email} onChange={e => setField('email', e.target.value)} className="input text-sm py-1.5 w-full" />
+            </Champ>
 
-            <select value={newUser.role} onChange={e => setField('role', e.target.value)} aria-label="Rôle" className="input text-sm py-1.5 w-full">
-              {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-            </select>
+            <Champ label="Rôle">
+              <select value={newUser.role} onChange={e => setField('role', e.target.value)} className="input text-sm py-1.5 w-full">
+                {ROLE_OPTIONS.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+              </select>
+            </Champ>
 
-            <div>
-              <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Mot de passe temporaire</label>
-              <div className="mt-1">
-                <TempPasswordField value={newUser.password} onChange={v => setField('password', v)} compact />
-              </div>
-            </div>
+            <Champ label="Mot de passe temporaire">
+              <TempPasswordField value={newUser.password} onChange={v => setField('password', v)} compact />
+            </Champ>
 
             {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
           </form>

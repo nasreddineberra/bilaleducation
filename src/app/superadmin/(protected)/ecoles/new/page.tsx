@@ -19,10 +19,13 @@ type FormData = {
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 // Regle unique, partagee avec la server action : `src/lib/tenant/slug.ts`.
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">{label}</label>
+      <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">
+        {label}
+        {required && <span className="text-red-400 font-semibold" aria-hidden="true"> *</span>}
+      </label>
       {children}
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
@@ -127,7 +130,7 @@ export default function NewEcolePage() {
         <div className="card p-4 space-y-3">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Établissement</h2>
 
-          <Field label="Slug (sous-domaine) *" error={touched.has('slug') ? (validateSlug(form.slug) ?? undefined) : undefined}>
+          <Field label="Slug (sous-domaine)" required error={touched.has('slug') ? (validateSlug(form.slug) ?? undefined) : undefined}>
             <div className="flex items-center input gap-0 p-0 overflow-hidden">
               <input
                 type="text"
@@ -142,7 +145,7 @@ export default function NewEcolePage() {
             </div>
           </Field>
 
-          <Field label="Nom de l'établissement *" error={touched.has('nom') && v.nom ? 'Obligatoire (2 caractères min.).' : undefined}>
+          <Field label="Nom de l'établissement" required error={touched.has('nom') && v.nom ? 'Obligatoire (2 caractères min.).' : undefined}>
             <input type="text" value={form.nom} onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')} className={inputCls('nom')} />
           </Field>
 
@@ -199,22 +202,22 @@ export default function NewEcolePage() {
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Directeur initial</h2>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nom *" error={touched.has('last_name') && v.last_name ? 'Obligatoire.' : undefined}>
+            <Field label="Nom" required error={touched.has('last_name') && v.last_name ? 'Obligatoire.' : undefined}>
               <input type="text" value={form.last_name} onChange={e => set('last_name', e.target.value.toUpperCase())} onBlur={() => touch('last_name')} className={inputCls('last_name')} />
             </Field>
-            <Field label="Prénom *" error={touched.has('first_name') && v.first_name ? 'Obligatoire.' : undefined}>
+            <Field label="Prénom" required error={touched.has('first_name') && v.first_name ? 'Obligatoire.' : undefined}>
               <input type="text" value={form.first_name} onChange={e => set('first_name', e.target.value)} onBlur={() => touch('first_name')} className={inputCls('first_name')} />
             </Field>
           </div>
 
-          <Field label="Email *" error={touched.has('email') && v.email ? 'Adresse email invalide.' : undefined}>
+          <Field label="Email" required error={touched.has('email') && v.email ? 'Adresse email invalide.' : undefined}>
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)} onBlur={() => touch('email')} className={inputCls('email')} />
           </Field>
 
           {/* Le mot de passe se GÉNÈRE : l'éditeur ouvre ce compte pour
               quelqu'un d'autre et doit le lui transmettre — il n'a pas à en
               inventer un, ni à le masquer à ses propres yeux. */}
-          <Field label="Mot de passe temporaire *">
+          <Field label="Mot de passe temporaire" required>
             <TempPasswordField
               value={form.password}
               onChange={v => { set('password', v); touch('password') }}
@@ -234,8 +237,9 @@ export default function NewEcolePage() {
         {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
 
         <div className="flex items-center justify-end gap-3 pt-1">
+          <span className="text-xs text-red-400 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
           <Link href="/superadmin" className="btn btn-secondary">Annuler</Link>
-          <button type="submit" disabled={isSubmitting} className={clsx('btn btn-primary', isSubmitting && 'opacity-50 cursor-not-allowed')}>
+          <button type="submit" disabled={isSubmitting || !isValid} className={clsx('btn btn-primary', (isSubmitting || !isValid) && 'opacity-50 cursor-not-allowed')}>
             {isSubmitting ? 'Création...' : "Créer l'établissement"}
           </button>
         </div>
