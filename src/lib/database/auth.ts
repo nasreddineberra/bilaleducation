@@ -1,6 +1,7 @@
 // Ce repository utilise le client navigateur car il est appelé
 // exclusivement depuis des Client Components (login, navbar, sidebar).
 import { createClient } from '@/lib/supabase/client'
+import { canonicalOrigin } from '@/lib/tenant/canonical-host'
 import type { Profile, UserRole } from '@/types/database'
 
 /**
@@ -186,7 +187,9 @@ export const authRepository = {
   async resetPassword(email: string) {
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      // Origine NORMALISÉE : un `www.` de tête n'est couvert par aucun
+      // certificat sur un sous-domaine d'école. Voir `canonical-host`.
+      redirectTo: `${canonicalOrigin(window.location.origin)}/auth/reset-password`,
     })
 
     if (error) throw error

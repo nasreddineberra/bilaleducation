@@ -6,6 +6,7 @@ import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import { createClient } from '@/lib/supabase/client'
+import { canonicalOrigin } from '@/lib/tenant/canonical-host'
 
 // ─── Illustration (même que login) ─────────────────────────────────────────
 
@@ -91,7 +92,9 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createClient()
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+        // Origine NORMALISÉE : un `www.` de tête n'est couvert par aucun
+        // certificat sur un sous-domaine d'école. Voir `canonical-host`.
+        redirectTo: `${canonicalOrigin(window.location.origin)}/auth/callback?next=/auth/reset-password`,
       })
 
       if (resetError) {

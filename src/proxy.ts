@@ -16,6 +16,28 @@ export async function proxy(request: NextRequest) {
   const host    = request.headers.get('host') ?? ''
   const isLocal = host.includes('localhost') || host.includes('127.0.0.1')
 
+  // ─── 0. Hôte canonique : jamais de `www.` de tête ─────────────────────────
+  //
+  // Le certificat générique `*.bilaleducation.fr` couvre EXACTEMENT UN niveau,
+  // donc `www.ecole.bilaleducation.fr` n'est couvert par rien : le navigateur
+  // affiche « votre connexion n'est pas privée » et l'échec est INRATTRAPABLE
+  // ici — il survient pendant la poignée de main TLS, avant qu'une requête
+  // n'existe. Ce code ne s'exécute donc QUE pour qui a forcé le passage.
+  //
+  // Il vaut quand même la peine : la cible de la redirection, elle, dispose
+  // d'un certificat valide. Celui qui a cliqué au travers de l'avertissement
+  // atterrit dans une session propre, plutôt que de naviguer sur un hôte dont
+  // aucun lien fabriqué ensuite ne serait fiable.
+  //
+  // La véritable défense est en amont, dans les constructeurs de liens : voir
+  // `canonical-host`. Celle-ci est le filet.
+  if (!isLocal && host.toLowerCase().startsWith('www.')) {
+    const url = new URL(request.url)
+    url.protocol = 'https:'
+    url.host = host.slice(4)
+    return NextResponse.redirect(url, 308)
+  }
+
   // Tous les cookies de session portent le DOMAINE, pas l'hote : sans cela,
   // passer de la console a une ecole deconnecte. Voir `sessionCookieDomain`.
   //
@@ -227,8 +249,11 @@ export async function proxy(request: NextRequest) {
         const tenant  = tenants[0]
 
         if (!tenant) {
-          // Slug inconnu → page suspension
-          return NextResponse.redirect(new URL('/abonnement-expire', request.url))
+          // SLUG INCONNU ≠ ABONNEMENT EXPIRÉ. La page annonçait « votre
+          // abonnement est expiré » à qui s'était simplement trompé d'adresse :
+          // un message faux, et inquiétant pour un client dont l'abonnement est
+          // parfaitement à jour. Le motif distingue les deux cas.
+          return NextResponse.redirect(new URL('/abonnement-expire?raison=inconnu', request.url))
         }
 
         // Injecter l'identifiant tenant dans les headers de la requête
