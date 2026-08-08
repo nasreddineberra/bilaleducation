@@ -1,3 +1,5 @@
+import { canonicalHost } from './canonical-host'
+
 /**
  * Adresse de la console de l'éditeur.
  *
@@ -18,26 +20,33 @@
  * renvoie le chemin, qui mène à l'établissement de `DEFAULT_TENANT_SLUG`. C'est
  * une limite du développement, pas un comportement à reproduire.
  */
-export function schoolUrl(slug: string, path = '/dashboard'): string {
+/**
+ * Domaine racine déduit de `NEXT_PUBLIC_SITE_URL`, débarrassé d'un `www.`.
+ *
+ * Le `www.` n'est pas une coquetterie à corriger : les deux fonctions ci-dessous
+ * PRÉFIXENT ce domaine d'un sous-domaine. Une variable réglée sur
+ * `https://www.bilaleducation.fr` produirait `ecole.www.bilaleducation.fr` —
+ * trois niveaux, qu'aucun certificat ne couvre, sur des liens envoyés PAR EMAIL
+ * et donc découverts trop tard. Voir `canonical-host`.
+ */
+function domaineRacine(): string | null {
   const site = process.env.NEXT_PUBLIC_SITE_URL
-  if (!site) return path
+  if (!site) return null
   try {
-    const host = new URL(site).hostname
-    if (host === 'localhost' || host === '127.0.0.1') return path
-    return `https://${slug}.${host}${path}`
+    const host = canonicalHost(new URL(site).hostname)
+    if (host === 'localhost' || host === '127.0.0.1') return null
+    return host
   } catch {
-    return path
+    return null
   }
 }
 
+export function schoolUrl(slug: string, path = '/dashboard'): string {
+  const host = domaineRacine()
+  return host ? `https://${slug}.${host}${path}` : path
+}
+
 export function consoleUrl(path = '/superadmin'): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL
-  if (!site) return path
-  try {
-    const host = new URL(site).hostname
-    if (host === 'localhost' || host === '127.0.0.1') return path
-    return `https://superadmin.${host}${path}`
-  } catch {
-    return path
-  }
+  const host = domaineRacine()
+  return host ? `https://superadmin.${host}${path}` : path
 }
