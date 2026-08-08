@@ -4,15 +4,22 @@
 pas du code applicatif : rien ne le lit à l'exécution, il est ici pour être
 versionné — le jour où la charte bouge, la signature doit bouger avec elle.
 
-## À personnaliser
+## Telle quelle, rien à modifier
 
-Deux lignes, marquées `⟨ ⟩` dans le fichier :
+Le fichier est réglé pour **`contact@`, une adresse générique** : il ne nomme
+personne. C'est délibéré — une adresse partagée n'a pas de titulaire, et y
+afficher un nom laisse croire au destinataire qu'il écrit à une personne, puis
+qu'on l'ignore le jour où c'est quelqu'un d'autre qui répond.
 
-- **`Prénom NOM`** et **`Fonction`**.
+Copiez, collez, c'est fini.
 
-Sur une adresse **générique** comme `contact@`, **supprimez ce bloc entier** :
-une adresse partagée n'a pas de titulaire, et y afficher un nom laisse croire
-qu'on écrit à une personne. Le reste de la signature suffit.
+### Pour une adresse nominative, plus tard
+
+Le fichier contient un **bloc titulaire** désactivé (`Prénom NOM` / `Fonction`).
+Retirez ses deux marqueurs de commentaire et remplacez les deux libellés.
+
+Il vient **au-dessus** du nom de la marque, jamais en dessous : on lit d'abord
+qui écrit, ensuite pour quelle maison.
 
 ## Installer dans Infomaniak Mail
 
