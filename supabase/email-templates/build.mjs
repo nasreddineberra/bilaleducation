@@ -97,6 +97,32 @@ const POLICE = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica
  */
 const VALIDITE = '10 minutes'
 
+/**
+ * Lien du bouton de réinitialisation.
+ *
+ * ┌─ PAS `{{ .ConfirmationURL }}`, ET C'EST LA CORRECTION DU 9 AOÛT ────────┐
+ * │ Le lien direct de Supabase fait aboutir la session selon le flux qui a   │
+ * │ servi à le fabriquer. Or nos liens naissent de TROIS endroits, et deux   │
+ * │ sont côté serveur : la console qui crée une école, et la fiche           │
+ * │ utilisateur. Là, aucun vérificateur PKCE n'a été posé en cookie —        │
+ * │ Supabase retombe sur le flux implicite et renvoie la session dans le     │
+ * │ FRAGMENT de l'URL (`#...`), que le serveur ne reçoit jamais.             │
+ * │                                                                          │
+ * │ Symptôme observé au premier test réel : « ni code ni erreur », un lien   │
+ * │ annoncé incomplet, cliqué quelques secondes après réception.             │
+ * │                                                                          │
+ * │ `token_hash` ne dépend d'aucun cookie préalable : il vaut pour les trois │
+ * │ chemins, dont celui qui accueille le directeur d'une école nouvelle — le │
+ * │ seul dont l'échec se paierait sur un client payant.                     │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * `.RedirectTo` et non `.SiteURL` (que la documentation de Supabase emploie) :
+ * `.SiteURL` désigne le domaine racine, c'est-à-dire la vitrine. `.RedirectTo`
+ * porte le SOUS-DOMAINE DE L'ÉCOLE, celui que le code a demandé. Il contient
+ * déjà `?next=/auth/reset-password`, d'où le `&` qui suit.
+ */
+const LIEN_REINIT = '{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery'
+
 // Le pied ne donne AUCUNE adresse de l'éditeur, et c'est délibéré : le
 // destinataire est le personnel d'une école, son recours est sa propre
 // direction — la même que celle vers laquelle pointent les encadrés d'alerte.
@@ -267,14 +293,14 @@ const GABARITS = [
         // que chacun rapporte au sien.
         p('Une demande a été faite pour le compte <strong style="color:' + C.encre + ';">{{ .Email }}</strong>.'),
         p('Cliquez ci-dessous pour choisir votre mot de passe. Vous serez ramené sur l\'espace de votre établissement.'),
-        bouton('{{ .ConfirmationURL }}', 'Définir mon mot de passe'),
+        bouton(LIEN_REINIT, 'Définir mon mot de passe'),
         // Le délai est RECOPIÉ du réglage Supabase, il n'est pas décidé ici.
         // Voir `VALIDITE`.
         pDoux('Ce lien est valable <strong>' + VALIDITE + '</strong> et ne peut servir qu\'une seule fois. Passé ce délai, demandez-en un nouveau depuis l\'écran de connexion de votre établissement, par « Mot de passe oublié » — c\'est immédiat.'),
         // Repli texte : certains clients réécrivent ou tronquent les liens.
         // Groupé avec la note d'expiration — les deux parlent du lien, les
         // séparer d'un filet suggérerait à tort deux sujets distincts.
-        pDoux('Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :<br><span style="word-break:break-all;">{{ .ConfirmationURL }}</span>'),
+        pDoux('Le bouton ne fonctionne pas ? Copiez cette adresse dans votre navigateur :<br><span style="word-break:break-all;">' + LIEN_REINIT + '</span>'),
         filet,
         alerte('<strong>Vous n\'avez rien demandé ?</strong> Ignorez ce message : sans clic, votre mot de passe actuel reste inchangé. Si vous recevez plusieurs demandes de ce type, prévenez la direction de votre établissement.'),
       ].join('\n'),
