@@ -329,9 +329,26 @@ cohérent. Trois blocs, dans cet ordre.
       chez Infomaniak (décidé le 7 août).
 - [ ] **Toi + Moi** — **SMTP du projet Supabase** (Project Settings → Authentication → SMTP),
       avec `contact@bilaleducation.fr` en expéditeur. Il couvre l'**authentification de toutes
-      les écoles** : création de compte, mot de passe oublié. L'expéditeur intégré de Supabase
-      est plafonné à **2 ou 3 emails par heure** — un service de test, inutilisable dès la
-      deuxième école créée dans l'heure. Un bandeau le rappelle dans leur console.
+      les écoles** : création de compte, mot de passe oublié.
+      - **Paramètres Infomaniak** (vérifiés le 8 août) : `mail.infomaniak.com`, **port 587 +
+        STARTTLS** (465 en SSL toléré) ; identifiant = l'**adresse complète**, pas un login
+        court ; envoi anonyme refusé.
+      - **Les plafonds, et lequel mord.** Expéditeur intégré de Supabase : **2 messages/heure**,
+        un service de démonstration. Avec SMTP personnalisé : **30/heure, RÉGLABLE** dans
+        `Authentication → Rate Limits` — la valeur basse est une précaution de réputation, pas
+        une limite de formule. Infomaniak, service Mail payant : **1 440 messages / 24 h** par
+        adresse, quota libéré **progressivement sur 24 h glissantes** (atteindre le plafond ne
+        bloque donc pas jusqu'au lendemain), et **relevable sur demande écrite et motivée**.
+        → Le circuit d'authentification tient très largement : quelques dizaines de liens au
+        démarrage d'une école.
+      - **RAISON SUPPLÉMENTAIRE DE BRANCHER LE SMTP** : depuis le **3 juin 2026**, un projet
+        gratuit resté sur l'expéditeur par défaut **ne peut plus modifier ses gabarits d'email**.
+        Le nôtre est antérieur, donc probablement épargné — mais le SMTP personnalisé supprime
+        le doute : c'est lui qui rend les gabarits écrits le 8 août utilisables **et** les
+        limites configurables.
+      - **Ne concerne PAS le circuit 2** (communications d'école) : celui-ci passe par
+        `etablissement_smtp`, propre à chaque école, et Supabase n'y touche pas. Les 200-300
+        foyers d'une diffusion sont portés par le fournisseur de l'ÉCOLE, pas par le tien.
 - [x] **Moi** — **Gabarits d'email de Supabase refondus à la charte** (8 août).
       `supabase/email-templates/` : `build.mjs` (source unique) génère les 3 fichiers à coller,
       `README.md` porte la marche à suivre. Coque unique — l'en-tête et le pied n'existent
