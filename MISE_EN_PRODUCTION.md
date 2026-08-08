@@ -373,6 +373,19 @@ cohérent. Trois blocs, dans cet ordre.
         le SMTP **de chaque école**, depuis leur propre domaine, et ne dépendent pas de ce SPF.
       - **L'écran d'Infomaniak reste rouge un moment après la publication** : leur résolveur a
         mémorisé l'absence des enregistrements (cache négatif). Ce n'est pas un symptôme.
+        **SPF et DKIM sont passés au VERT le 8 août.**
+      - ⚠️ **NE PAS SUIVRE la recommandation DMARC d'Infomaniak** (« passer en mode reject »)
+        tant que les conditions ci-dessous ne sont pas réunies. Leur conseil est juste en
+        général et faux à ce moment précis : le domaine n'a **jamais envoyé un message**, et
+        `reject` demande au monde entier de JETER ce qui ne s'authentifie pas — avant toute
+        preuve que nos envois s'authentifient. Une erreur de configuration détruirait le
+        courrier en silence. Leur écran restera donc en ambre, et c'est normal.
+        **Durcir seulement quand** : (1) le SMTP Supabase est configuré et de vrais messages
+        sont partis ; (2) les rapports DMARC arrivent sur `contact@` — ils ne viennent qu'une
+        fois du courrier envoyé ; (3) ils montrent 100 % du légitime aligné, sans source
+        inattendue. Alors `p=quarantine`, puis `p=reject` une fois stable.
+      - **BIMI : à ignorer définitivement.** Indisponible pour un domaine géré hors d'Infomaniak,
+        leur propre message le dit. La croix rouge ne décrit aucun défaut de notre côté.
       - Valeurs et ordre retenus :
       1. **MX** vers Infomaniak — sans eux les boîtes existent mais **ne reçoivent rien**, et
          les demandes de support n'arriveraient nulle part.
