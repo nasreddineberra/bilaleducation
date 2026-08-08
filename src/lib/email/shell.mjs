@@ -165,10 +165,18 @@ export function coque({ titre, apercu, corps, ecole }) {
                          annoncée deux fois, à l'oeil comme au lecteur d'écran.
                          (Aucun accent grave ici : ce bloc vit dans un gabarit de
                          chaine, un seul le refermerait.) -->
-                    <img src="${ecole ? (ecole.logoUrl || LOGO_URL) : LOGO_URL}" width="${LOGO_PX}" height="${LOGO_PX}" alt=""
-                         style="display:block; width:${LOGO_PX}px; height:${LOGO_PX}px; border:0; outline:none; text-decoration:none; background-color:#ffffff; border-radius:8px;">
+                    <img src="${ecole?.logoUrl || LOGO_URL}" width="${LOGO_PX}" height="${LOGO_PX}" alt=""
+                         style="display:block; width:${LOGO_PX}px; height:${LOGO_PX}px; border:0; outline:none; text-decoration:none;${
+                           // Plaque blanche UNIQUEMENT pour un logo d'école : il
+                           // est souvent transparent, et se remplirait du teal du
+                           // bandeau. Le logo de l'éditeur porte déjà la sienne,
+                           // avec des coins arrondis transparents — un fond blanc
+                           // les remplirait, et Outlook, qui ignore border-radius,
+                           // afficherait un carré.
+                           ecole?.logoUrl ? ' background-color:#ffffff; border-radius:8px;' : ''
+                         }">
                   </td>
-                  <td style="padding-left:12px; vertical-align:middle; font-family:${POLICE}; font-size:17px; font-weight:700; letter-spacing:0.4px; color:#ffffff;">
+                  <td style="padding-left:12px; vertical-align:middle; font-family:${POLICE}; font-size:17px; font-weight:700; letter-spacing:0.4px; color:#ffffff;${ecole ? '' : ' white-space:nowrap;'}">
                     ${ecole
                       ? ecole.nom
                       : `BILAL <span style="color:${C.accent};">EDUCATION</span>`}
