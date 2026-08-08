@@ -3,6 +3,8 @@ import { formatJourLongFr } from '@/lib/dates'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createNotification } from '@/lib/notifications'
 import { requireRole } from '@/lib/auth/requireRole'
+import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
+import { marqueEcole } from '@/lib/email/marque-ecole'
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,39 +55,30 @@ export async function POST(req: NextRequest) {
     const title = `Nouveau devoir · ${className}`
     const body = `${hw.title} (${typeLabel}) · A rendre le ${dueFormatted}`
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a365d; margin-bottom: 8px;">${title}</h2>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-          <tr>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; background: #f7fafc;">Classe</td>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${className}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; background: #f7fafc;">Matiere</td>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${hw.subject}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; background: #f7fafc;">Type</td>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${typeLabel}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; background: #f7fafc;">Titre</td>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${hw.title}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; background: #f7fafc; color: #c53030;">A rendre le</td>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; color: #c53030;">${dueFormatted}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0; font-weight: bold; background: #f7fafc;">Enseignant</td>
-            <td style="padding: 8px 12px; border: 1px solid #e2e8f0;">${teacherLabel}</td>
-          </tr>
-        </table>
-        ${hw.description_html ? `<div style="margin-top: 12px; padding: 12px; background: #f7fafc; border-radius: 6px;">${hw.description_html}</div>` : ''}
-        <p style="color: #718096; font-size: 12px; margin-top: 24px;">Bilal Education · Notification automatique</p>
-      </div>
-    `
+    const ecole = await marqueEcole(supabase, etablissementId)
+
+    // Coque a la marque de L'ECOLE : la famille recoit un devoir de son
+    // etablissement. Le pied affichait « Bilal Education · Notification
+    // automatique » - le fournisseur du logiciel signait le message.
+    const emailHtml = coque({
+      titre: title,
+      apercu: body,
+      corps: [
+        tableauInfos([
+          ["Classe", className],
+          ["Matiere", hw.subject],
+          ["Type", typeLabel],
+          ["Titre", hw.title],
+          ["A rendre le", `<strong>${dueFormatted}</strong>`],
+          ["Enseignant", teacherLabel],
+        ]),
+        // Consignes redigees dans l'editeur riche : deja du HTML.
+        hw.description_html
+          ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${hw.description_html}</div>`
+          : "",
+      ].filter(Boolean).join('\n'),
+      ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },
+    })
 
     // 3. Construire les destinataires selon le type de classe.
     // - Classe enfant : élèves inscrits → parent (email aux 2 tuteurs du foyer).

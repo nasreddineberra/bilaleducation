@@ -5,6 +5,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { sendNotificationEmail, hasSmtpConfig } from '@/lib/email'
 import { sanitize } from '@/lib/security/sanitize'
 import { escapeHtml } from '@/lib/security/escape-html'
+import { coque, POLICE, C } from '@/lib/email/shell.mjs'
 import { FINANCE_ROLES } from '@/lib/financements/roles'
 import { logAudit } from '@/lib/audit'
 
@@ -69,7 +70,7 @@ export async function sendRelance(payload: SendRelancePayload): Promise<SendRela
 
   const { data: etab } = await supabase
     .from('etablissements')
-    .select('contact')
+    .select('nom, contact, logo_url')
     .eq('id', profile.etablissement_id)
     .single()
 
@@ -80,12 +81,16 @@ export async function sendRelance(payload: SendRelancePayload): Promise<SendRela
   // nl2br/escape ici, sinon les balises seraient echappees). La signature
   // (coordonnees etablissement) fait partie du corps edite.
   const safeBody = sanitize(body)
-  const emailHtml = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1a1a1a;">${escapeHtml(subject)}</h2>
-      <div style="color: #444; line-height: 1.6;">${safeBody}</div>
-    </div>
-  `
+
+  // Coque à la marque de L'ÉCOLE, pas de l'éditeur : la famille traite avec son
+  // établissement, le message part par son SMTP, et le corps porte déjà sa
+  // signature. Un bandeau « Bilal Education » sèmerait le doute sur l'origine.
+  const emailHtml = coque({
+    titre: escapeHtml(subject),
+    apercu: escapeHtml(subject),
+    corps: `              <div style="font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${safeBody}</div>`,
+    ecole: { nom: etab?.nom ?? 'Votre établissement', logoUrl: etab?.logo_url ?? null },
+  })
 
   const res = await sendNotificationEmail({
     etablissementId: profile.etablissement_id,

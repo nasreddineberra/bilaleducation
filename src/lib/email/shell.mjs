@@ -85,18 +85,48 @@ export const alerte = (html) =>
 export const filet =
   `              <div style="border-top:1px solid ${C.filet}; margin:22px 0 16px 0;"></div>`
 
+/**
+ * Tableau clé / valeur — devoir, absence, paiement.
+ *
+ * Sans bordures : les notifications les dessinaient en gris sur fond gris, ce
+ * qui donnait un rendu de tableur. Un filet horizontal discret suffit à aligner
+ * l'oeil, et la clé se distingue par sa couleur, pas par une case.
+ *
+ * @param {Array<[string, string]>} lignes Paires déjà échappées.
+ */
+export const tableauInfos = (lignes) =>
+  `              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:4px 0 14px 0;">
+${lignes.filter(Boolean).map(([cle, valeur]) => `                <tr>
+                  <td style="padding:7px 14px 7px 0; border-bottom:1px solid ${C.filet}; font-family:${POLICE}; font-size:13px; color:${C.encreDouce}; white-space:nowrap; vertical-align:top;">${cle}</td>
+                  <td style="padding:7px 0; border-bottom:1px solid ${C.filet}; font-family:${POLICE}; font-size:13px; color:${C.encre};">${valeur}</td>
+                </tr>`).join('\n')}
+              </table>`
+
 // ─── Coque ───────────────────────────────────────────────────────────────────
 
 /**
  * Document complet : bandeau de marque, carte, pied.
  *
+ * ┌─ DEUX MARQUES, ET IL NE FAUT PAS LES CONFONDRE ─────────────────────────┐
+ * │ · SANS `ecole` — l'expéditeur est l'ÉDITEUR : authentification, alerte   │
+ * │   de sécurité, demande de support. Bandeau « BILAL EDUCATION ».         │
+ * │                                                                          │
+ * │ · AVEC `ecole` — l'expéditeur est l'ÉTABLISSEMENT : relance de           │
+ * │   cotisation, annonce aux familles, devoir. Le parent traite avec son    │
+ * │   école, le message part par le SMTP de l'école, et son corps porte déjà │
+ * │   sa signature. Un bandeau « Bilal Education » y serait faux, et         │
+ * │   sèmerait le doute sur l'origine du message.                           │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
  * @param {object} o
  * @param {string} o.titre   Titre de la carte, et `<title>` du document.
  * @param {string} o.apercu  Ligne de prévisualisation de la boîte de réception.
  * @param {string} o.corps   HTML du contenu (composé avec les fragments).
+ * @param {{ nom: string, logoUrl?: string|null, pied?: string|null }} [o.ecole]
+ *        Présent = l'établissement signe le message à la place de l'éditeur.
  * @returns {string}
  */
-export function coque({ titre, apercu, corps }) {
+export function coque({ titre, apercu, corps, ecole }) {
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -135,11 +165,13 @@ export function coque({ titre, apercu, corps }) {
                          annoncée deux fois, à l'oeil comme au lecteur d'écran.
                          (Aucun accent grave ici : ce bloc vit dans un gabarit de
                          chaine, un seul le refermerait.) -->
-                    <img src="${LOGO_URL}" width="${LOGO_PX}" height="${LOGO_PX}" alt=""
-                         style="display:block; width:${LOGO_PX}px; height:${LOGO_PX}px; border:0; outline:none; text-decoration:none;">
+                    <img src="${ecole ? (ecole.logoUrl || LOGO_URL) : LOGO_URL}" width="${LOGO_PX}" height="${LOGO_PX}" alt=""
+                         style="display:block; width:${LOGO_PX}px; height:${LOGO_PX}px; border:0; outline:none; text-decoration:none; background-color:#ffffff; border-radius:8px;">
                   </td>
-                  <td style="padding-left:12px; vertical-align:middle; font-family:${POLICE}; font-size:17px; font-weight:700; letter-spacing:0.4px; color:#ffffff; white-space:nowrap;">
-                    BILAL <span style="color:${C.accent};">EDUCATION</span>
+                  <td style="padding-left:12px; vertical-align:middle; font-family:${POLICE}; font-size:17px; font-weight:700; letter-spacing:0.4px; color:#ffffff;">
+                    ${ecole
+                      ? ecole.nom
+                      : `BILAL <span style="color:${C.accent};">EDUCATION</span>`}
                   </td>
                 </tr>
               </table>
@@ -157,8 +189,12 @@ ${corps}
           <!-- Pied -->
           <tr>
             <td style="padding:20px 32px 0 32px; font-family:${POLICE}; font-size:11px; line-height:1.6; color:${C.encreDouce};">
-              Message automatique &middot; Bilal Education &middot; Gestion administrative et pédagogique<br>
-              Une question ? Contacter l'administrateur de votre école.
+              ${ecole
+                // Message d'une ÉCOLE : elle se nomme, et l'éditeur reste en
+                // retrait — le destinataire n'a pas affaire à nous.
+                ? (ecole.pied || `Message envoyé par ${ecole.nom}.`)
+                : `Message automatique &middot; Bilal Education &middot; Gestion administrative et pédagogique<br>
+              Une question ? Contacter l'administrateur de votre école.`}
             </td>
           </tr>
 

@@ -6,6 +6,8 @@ import { requireRole } from '@/lib/auth/requireRole'
 import { checkRateLimit } from '@/lib/security/rateLimiter'
 import { checkCsrf } from '@/lib/security/csrf'
 import { logger } from '@/lib/logger'
+import { coque, tableauInfos, p } from '@/lib/email/shell.mjs'
+import { marqueEcole } from '@/lib/email/marque-ecole'
 
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Espèces', check: 'Chèque', card: 'CB', transfer: 'Virement', online: 'En ligne',
@@ -66,20 +68,23 @@ export async function POST(req: NextRequest) {
     const title = `Paiement enregistré · ${fmtEur(amount)}`
     const body = `Votre paiement de ${fmtEur(amount)} par ${methodLabel} du ${dateFormatted} a bien été enregistré.${receipt ? ` Réf : ${receipt}.` : ''}`
 
-    const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-        <h2 style="color: #1a1a1a;">Confirmation de paiement</h2>
-        <p style="color: #444; line-height: 1.6;">${body}</p>
-        <table style="margin-top: 16px; font-size: 14px; color: #333;">
-          <tr><td style="padding: 4px 12px 4px 0; font-weight: bold;">Montant</td><td>${fmtEur(amount)}</td></tr>
-          <tr><td style="padding: 4px 12px 4px 0; font-weight: bold;">Moyen</td><td>${methodLabel}</td></tr>
-          <tr><td style="padding: 4px 12px 4px 0; font-weight: bold;">Date</td><td>${dateFormatted}</td></tr>
-          ${receipt ? `<tr><td style="padding: 4px 12px 4px 0; font-weight: bold;">Référence</td><td>${receipt}</td></tr>` : ''}
-        </table>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="color: #999; font-size: 12px;">Bilal Education · Notification automatique</p>
-      </div>
-    `
+    const ecole = await marqueEcole(admin, etablissementId)
+
+    // Coque a la marque de L'ECOLE : c'est elle qui encaisse et qui confirme.
+    const emailHtml = coque({
+      titre: "Confirmation de paiement",
+      apercu: body,
+      corps: [
+        p(body),
+        tableauInfos([
+          ["Montant", fmtEur(amount)],
+          ["Moyen", methodLabel],
+          ["Date", dateFormatted],
+          receipt ? ["Reference", receipt] : null,
+        ].filter(Boolean) as Array<[string, string]>),
+      ].join('\n'),
+      ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },
+    })
 
     const etabId = etablissementId
     if (!etabId) return NextResponse.json({ ok: true })

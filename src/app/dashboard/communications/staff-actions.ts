@@ -7,6 +7,8 @@ import { sanitize } from '@/lib/security/sanitize'
 import { logger } from '@/lib/logger'
 import { sendNotificationEmail, hasSmtpConfig, type EmailAttachment } from '@/lib/email'
 import type { UserRole } from '@/types/database'
+import { escapeHtml } from '@/lib/security/escape-html'
+import { coque, POLICE, C } from '@/lib/email/shell.mjs'
 
 // L'ENSEIGNANT est le seul role qui ne peut PAS ecrire au staff (il reste
 // destinataire). Le comptable ecrit (paie / sujets comptables).
@@ -177,20 +179,27 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
       .eq('etablissement_id', profile.etablissement_id)
     const bccAll = (directionProfiles ?? []).map(p => p.email).filter((e): e is string => !!e)
 
+    const { data: etab } = await supabase
+      .from('etablissements')
+      .select('nom, logo_url')
+      .eq('id', profile.etablissement_id)
+      .single()
+
     // Message interne : NOM Prenom de l'auteur au pied, reponse a l'auteur.
     const senderName = `${profile.last_name ?? ''} ${profile.first_name ?? ''}`.trim()
     const replyTo = profile.email ?? undefined
 
-    const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1a1a1a;">${subject}</h2>
-        <div style="color: #444; line-height: 1.6;">
-          ${safeBody}
-        </div>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="color: #999; font-size: 12px;">Message interne${senderName ? ` · ${senderName}` : ''}</p>
-      </div>
-    `
+    // Coque a la marque de L'ECOLE : c'est elle qui s'adresse a son personnel.
+    const emailHtml = coque({
+      titre: escapeHtml(subject),
+      apercu: escapeHtml(subject),
+      corps: `              <div style="font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${safeBody}</div>`,
+      ecole: {
+        nom: etab?.nom ?? 'Votre etablissement',
+        logoUrl: etab?.logo_url ?? null,
+        pied: `Message interne${senderName ? ` &middot; ${escapeHtml(senderName)}` : ''}.`,
+      },
+    })
 
     for (let i = 0; i < recipients.length; i += SEND_BATCH_SIZE) {
       const batch = recipients.slice(i, i + SEND_BATCH_SIZE)

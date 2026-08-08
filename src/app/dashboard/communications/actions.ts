@@ -9,6 +9,8 @@ import { logger } from '@/lib/logger'
 import type { EmailAttachment } from '@/lib/email'
 import type { UserRole } from '@/types/database'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { escapeHtml } from '@/lib/security/escape-html'
+import { coque, POLICE, C } from '@/lib/email/shell.mjs'
 
 // ─── Perimetre ───────────────────────────────────────────────────────────────
 // La communication aux parents est la voix de l'etablissement :
@@ -227,7 +229,7 @@ export async function sendParentMessage(
 
   const { data: etablissement } = await supabase
     .from('etablissements')
-    .select('nom, contact')
+    .select('nom, contact, logo_url')
     .eq('id', profile.etablissement_id)
     .single()
 
@@ -328,18 +330,18 @@ export async function sendParentMessage(
   const etabName = etablissement?.nom ?? 'Votre établissement'
   const senderName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()
 
-  const emailHtml = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #1a1a1a;">${subject}</h2>
-      <div style="color: #444; line-height: 1.6;">
-        ${safeBody}
-      </div>
-      <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-      <p style="color: #999; font-size: 12px;">
-        ${etabName}${senderName ? ` · ${senderName}` : ''}
-      </p>
-    </div>
-  `
+  // Coque à la marque de L'ÉCOLE. Une famille reçoit un message de son
+  // établissement — pas du fournisseur du logiciel.
+  const emailHtml = coque({
+    titre: escapeHtml(subject),
+    apercu: escapeHtml(subject),
+    corps: `              <div style="font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${safeBody}</div>`,
+    ecole: {
+      nom: etabName,
+      logoUrl: etablissement?.logo_url ?? null,
+      pied: `Message envoyé par ${escapeHtml(etabName)}${senderName ? ` &middot; ${escapeHtml(senderName)}` : ''}.`,
+    },
+  })
 
   // ─── Envoi, par lots ─────────────────────────────────────────────────────
   let sent = 0

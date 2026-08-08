@@ -6,6 +6,7 @@ import { effectiveRole } from '@/lib/auth/effective-role'
 import { sendNotificationEmail, SMTP_NOT_CONFIGURED } from '@/lib/email'
 import { escapeHtml, escapeHtmlMultiline } from '@/lib/security/escape-html'
 import { formatDateHeureFr } from '@/lib/dates'
+import { coque, pDoux, filet, C } from '@/lib/email/shell.mjs'
 import {
   SUPPORT_CATEGORIES,
   SUPPORT_IMPACTS,
@@ -311,30 +312,27 @@ function corpsEmail(d: {
       <td style="padding:3px 0; color:#1f2e35; font-size:12px;">${escapeHtml(valeur)}</td>
     </tr>`
 
-  return `
-  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; max-width:640px;">
-    <p style="margin:0 0 4px; font-size:12px; color:#786d64;">${escapeHtml(d.categorie)}${d.impact ? ` &middot; impact ${escapeHtml(d.impact.toLowerCase())}` : ''}</p>
-    <h2 style="margin:0 0 16px; font-size:18px; color:#1f2e35;">${escapeHtml(d.objet)}</h2>
-
-    <div style="background:#faf8f6; border-left:3px solid #18aa99; padding:14px 16px; border-radius:0 8px 8px 0; color:#1f2e35; font-size:14px; line-height:1.65;">
-      ${escapeHtmlMultiline(d.message)}
-    </div>
-
-    ${d.pieceJointe ? `<p style="margin:14px 0 0; font-size:12px; color:#786d64;">Pièce jointe : ${escapeHtml(d.pieceJointe)}</p>` : ''}
-
-    <table style="margin-top:22px; border-top:1px solid #e0d9d1; padding-top:14px; width:100%;">
-      ${ligne('École',       d.ecole)}
-      ${ligne('Adresse',     d.adresse ? `${d.adresse}.bilaleducation.fr` : '')}
-      ${ligne('Auteur',      `${d.auteur} (${d.auteurRole})`)}
-      ${ligne('Email',       d.auteurEmail)}
-      ${ligne('Envoyée le',  d.date)}
-      ${ligne('Page',        d.context.page || 'Non renseignée')}
-      ${ligne('Version',     d.context.version || 'Inconnue')}
-      ${ligne('Navigateur',  d.context.navigateur || 'Inconnu')}
-    </table>
-
-    <p style="margin:18px 0 0; font-size:11px; color:#786d64;">
-      Répondre à ce message écrit directement à l'auteur.
-    </p>
-  </div>`
+  return coque({
+    titre: d.objet,
+    apercu: `${d.categorie} — ${d.ecole}`,
+    corps: [
+      pDoux(`${escapeHtml(d.categorie)}${d.impact ? ` &middot; impact ${escapeHtml(d.impact.toLowerCase())}` : ''}`),
+      // Le message est du TEXTE BRUT saisi dans un champ : echappe, jamais
+      // sanitize. Et cette boite est la MIENNE - une injection y serait chez moi.
+      `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; color:${C.encre}; font-size:14px; line-height:1.65;">${escapeHtmlMultiline(d.message)}</div>`,
+      d.pieceJointe ? pDoux(`Piece jointe : ${escapeHtml(d.pieceJointe)}`) : '',
+      filet,
+      [
+        ['Ecole', d.ecole],
+        ['Adresse', d.adresse ? `${d.adresse}.bilaleducation.fr` : ''],
+        ['Auteur', `${d.auteur} (${d.auteurRole})`],
+        ['Email', d.auteurEmail],
+        ['Envoyee le', d.date],
+        ['Page', d.context.page || 'Non renseignee'],
+        ['Version', d.context.version || 'Inconnue'],
+        ['Navigateur', d.context.navigateur || 'Inconnu'],
+      ].map(([cle, val]) => pDoux(`<span style="color:${C.encreDouce};">${escapeHtml(cle)}</span> &nbsp; <span style="color:${C.encre};">${escapeHtml(String(val))}</span>`)).join('\n'),
+      pDoux("Répondre à ce message écrit directement à l'auteur."),
+    ].filter(Boolean).join('\n'),
+  })
 }

@@ -6,6 +6,8 @@ import { requireRole } from '@/lib/auth/requireRole'
 import { checkRateLimit } from '@/lib/security/rateLimiter'
 import { checkCsrf } from '@/lib/security/csrf'
 import { logger } from '@/lib/logger'
+import { coque, p } from '@/lib/email/shell.mjs'
+import { marqueEcole } from '@/lib/email/marque-ecole'
 
 export async function POST(req: NextRequest) {
   // Protection CSRF
@@ -81,14 +83,17 @@ export async function POST(req: NextRequest) {
 
         const body = `${student.last_name} ${student.first_name} a été marqué(e) ${typeLabel} le ${dateFormatted}${className ? ` · Classe ${className}` : ''}.`
 
-        const emailHtml = `
-          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-            <h2 style="color: #1a1a1a;">${title}</h2>
-            <p style="color: #444; line-height: 1.6;">${body}</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-            <p style="color: #999; font-size: 12px;">Bilal Education · Notification automatique</p>
-          </div>
-        `
+        const ecole = await marqueEcole(supabase, etablissementId)
+
+        // Coque a la marque de L'ECOLE. Le pied signait « Bilal Education ·
+        // Notification automatique » : le fournisseur du logiciel s'attribuait
+        // un message qui vient de l'etablissement.
+        const emailHtml = coque({
+          titre: title,
+          apercu: body,
+          corps: p(body),
+          ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },
+        })
 
         await createNotification({
           etablissement_id: etablissementId,
