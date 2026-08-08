@@ -2097,8 +2097,18 @@ deux. Verifie en inspectant le certificat servi (SAN = `*.bilaleducation.fr` seu
   hebergement, ce qui compte : le domaine racine doit devenir une vitrine peut-etre hebergee ailleurs) ;
   **`color-scheme: only light`** sans quoi le theme sombre de Gmail/Apple Mail reecrit les couleurs et
   detruit le bandeau de marque ; bouton **en tableau** (Outlook ignore le remplissage d'un lien seul).
-- **Couplage a surveiller** : le gabarit **annonce « une heure »** de validite. C'est le defaut du
-  reglage Supabase `Email OTP expiration` — **s'il change, la phrase doit changer avec lui**.
+- **Couplage a surveiller** : le gabarit **annonce la duree de validite** au destinataire. La
+  constante `VALIDITE` de `build.mjs` **RECOPIE** le reglage Supabase `Email OTP expiration`, elle
+  ne le fixe pas — **les deux changent ensemble**. Reglage constate le 8 aout : **10 minutes**
+  (et non 1 h comme je l'avais suppose ; la 1re redaction promettait une heure sur un lien de dix
+  minutes, exactement le defaut que j'avais signale). La duree apparait a **DEUX** endroits : le
+  corps ET la **ligne d'apercu** de la boite de reception — celle-ci ne passait pas par la
+  constante et a failli rester perimee.
+  - **Reserve a arbitrer** : 10 min convient a qui vient de cliquer « mot de passe oublie » (il est
+    devant son ecran), mais c'est tres court pour le cas qui compte commercialement — le **directeur
+    d'une ecole nouvelle**, a qui le lien part quand l'editeur cree l'etablissement. L'echec
+    tomberait sur la 1re impression d'un client payant. Repli existant (mot de passe oublie + mot de
+    passe provisoire affiche une fois), mais au prix d'un aller-retour.
 - **Allow-list de redirection** : `https://*.bilaleducation.fr/**`, **sans aucune variante `www.`**
   (voir le piege du certificat ci-dessus).
 - **Risque connu, non traite** : les **analyseurs de liens** des messageries d'entreprise ouvrent le
@@ -2322,8 +2332,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   auth retombent sur le fallback **`http://localhost:3000`** → en production, le mail de reinitialisation de mot de
   passe enverrait l'utilisateur **sur localhost** (lien mort). Definir la variable ET ajouter l'URL aux
   **Redirect URLs** autorisees du projet Supabase (Auth → URL Configuration).
-- [ ] Verifier la **duree de validite des liens auth** (Supabase → Auth → *Email OTP expiration*, **1 h par defaut**) :
-  les liens de reinitialisation sont a **usage unique** et expirent selon ce reglage.
+- [x] **Duree de validite des liens auth** verifiee le 8 aout (Supabase → Auth → *Email OTP
+  expiration*) : **10 minutes**, et non 1 h. Les liens de reinitialisation sont a **usage unique**.
+  Le gabarit annonce desormais la bonne duree (constante `VALIDITE`). **Reserve** : 10 min est
+  tres court pour le directeur d'une ecole nouvelle, qui ouvre sa boite quand il peut — arbitrage
+  securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
 - [x] Executer `supabase/migrations/add-etablissements-sante-rpc.sql` (sante des ecoles en UN

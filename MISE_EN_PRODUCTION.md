@@ -355,8 +355,11 @@ cohérent. Trois blocs, dans cet ordre.
       - **Épreuve visuelle** produite avant tout collage (rendu réel + bascule
         exemple/variables), générée depuis les fichiers eux-mêmes pour ne pas en dériver.
 - [ ] **Toi + Moi** — **Coller les 3 gabarits** dans Supabase, **activer les 2 notifications**,
-      et vérifier les 3 réglages du projet : SMTP, `Email OTP expiration` (le gabarit annonce
-      **une heure** au destinataire — si le réglage change, la phrase doit changer), et
+      et vérifier les 3 réglages du projet : SMTP, `Email OTP expiration` (**10 minutes**,
+      constaté le 8 août ; le gabarit recopie cette valeur par la constante `VALIDITE`, les deux
+      changent ensemble — **à arbitrer** : 10 min est très court pour le directeur d'une école
+      nouvelle, qui ouvre sa boîte quand il peut, et l'échec tomberait sur la première impression
+      d'un client payant), et
       l'allow-list `https://*.bilaleducation.fr/**`. **Aucune variante `www.`** : le certificat
       générique ne couvre qu'un niveau, `www.ecole.bilaleducation.fr` déclenche un
       avertissement de sécurité chez le destinataire.

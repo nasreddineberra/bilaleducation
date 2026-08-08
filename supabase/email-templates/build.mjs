@@ -72,6 +72,31 @@ const C = {
 
 const POLICE = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
+/**
+ * Durée de validité ANNONCÉE au destinataire.
+ *
+ * ┌─ CE N'EST PAS UNE FORMULE, C'EST UN MIROIR ─────────────────────────────┐
+ * │ La valeur réelle est le réglage Supabase                                │
+ * │ `Authentication → Email OTP expiration`. Cette constante ne la fixe pas :│
+ * │ elle la RECOPIE. Les deux doivent changer ensemble — un email qui        │
+ * │ promet une heure sur un lien valable dix minutes produit un appel au     │
+ * │ support à chaque envoi, et l'utilisateur croit le service cassé.        │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * Réglage constaté le 8 août : 10 minutes.
+ *
+ * RÉSERVE À ARBITRER. Dix minutes conviennent à quelqu'un qui vient de cliquer
+ * « mot de passe oublié » : il est devant son écran. C'est beaucoup plus court
+ * pour le cas qui compte commercialement — le directeur d'une école nouvelle,
+ * à qui le lien part au moment où l'éditeur crée l'établissement, et qui ouvre
+ * sa boîte quand il le peut. Là, dix minutes ratent presque à coup sûr, et
+ * l'échec tombe sur la toute première impression d'un client payant.
+ * Le repli existe (« Mot de passe oublié » sur l'écran de connexion de son
+ * école, et le mot de passe provisoire affiché une fois à la création), mais
+ * il se paie d'un aller-retour.
+ */
+const VALIDITE = '10 minutes'
+
 // Le pied ne donne AUCUNE adresse de l'éditeur, et c'est délibéré : le
 // destinataire est le personnel d'une école, son recours est sa propre
 // direction — la même que celle vers laquelle pointent les encadrés d'alerte.
@@ -233,7 +258,9 @@ const GABARITS = [
     objet: 'Définissez votre mot de passe Bilal Education',
     contenu: coque({
       titre: 'Définissez votre mot de passe',
-      apercu: 'Un lien valable une heure pour définir le mot de passe de votre compte.',
+      // La ligne d'aperçu annonce le délai elle aussi : c'est souvent tout ce
+      // qu'on lit avant d'ouvrir. Elle passe donc par la même constante.
+      apercu: `Un lien valable ${VALIDITE} pour définir le mot de passe de votre compte.`,
       corps: [
         // Nommer le compte concerné : c'est ce qui rend une erreur de
         // destinataire immédiatement visible, plutôt qu'un « votre compte »
@@ -241,9 +268,9 @@ const GABARITS = [
         p('Une demande a été faite pour le compte <strong style="color:' + C.encre + ';">{{ .Email }}</strong>.'),
         p('Cliquez ci-dessous pour choisir votre mot de passe. Vous serez ramené sur l\'espace de votre établissement.'),
         bouton('{{ .ConfirmationURL }}', 'Définir mon mot de passe'),
-        // Le délai doit rester en accord avec le réglage Supabase
-        // « Email OTP expiration ». Voir le README.
-        pDoux('Ce lien est valable <strong>une heure</strong> et ne peut servir qu\'une seule fois. Passé ce délai, demandez-en un nouveau depuis l\'écran de connexion, par « Mot de passe oublié ».'),
+        // Le délai est RECOPIÉ du réglage Supabase, il n'est pas décidé ici.
+        // Voir `VALIDITE`.
+        pDoux('Ce lien est valable <strong>' + VALIDITE + '</strong> et ne peut servir qu\'une seule fois. Passé ce délai, demandez-en un nouveau depuis l\'écran de connexion de votre établissement, par « Mot de passe oublié » — c\'est immédiat.'),
         // Repli texte : certains clients réécrivent ou tronquent les liens.
         // Groupé avec la note d'expiration — les deux parlent du lien, les
         // séparer d'un filet suggérerait à tort deux sujets distincts.

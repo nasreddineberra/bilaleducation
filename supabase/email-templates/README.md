@@ -76,10 +76,24 @@ créée dans l'heure.
 
 ### 2. Durée de validité (Authentication → Email OTP expiration)
 
-Le gabarit `reset-password.html` **annonce une heure**. C'est la valeur par défaut
-de Supabase. **Si ce réglage change, la phrase du gabarit doit changer avec lui** —
-un email qui promet une heure sur un lien valable dix minutes produit un appel au
-support à chaque envoi.
+**Réglage constaté le 8 août : 10 minutes.**
+
+La constante `VALIDITE` de `build.mjs` **recopie** cette valeur, elle ne la fixe
+pas. **Les deux changent ensemble** — un email qui promet une heure sur un lien
+valable dix minutes produit un appel au support à chaque envoi, et l'utilisateur
+croit le service cassé.
+
+> **Réserve à arbitrer.** Dix minutes conviennent à qui vient de cliquer « mot de
+> passe oublié » : il est devant son écran. C'est beaucoup plus court pour le cas
+> qui compte commercialement — le **directeur d'une école nouvelle**, à qui le lien
+> part au moment où l'éditeur crée l'établissement, et qui ouvre sa boîte quand il
+> le peut. Là, dix minutes ratent presque à coup sûr, et l'échec tombe sur la
+> **première impression d'un client payant**.
+>
+> Le repli existe — « Mot de passe oublié » sur l'écran de connexion de son école,
+> et le mot de passe provisoire affiché une fois à la création — mais il se paie
+> d'un aller-retour. Une heure sur ce réglage supprimerait le problème ; c'est un
+> arbitrage entre sécurité et friction, à trancher, pas un défaut.
 
 ### 3. Redirect URLs (Authentication → URL Configuration)
 
