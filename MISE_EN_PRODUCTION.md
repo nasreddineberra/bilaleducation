@@ -25,8 +25,10 @@ sous-domaine par école, cloisonnement par RLS.
 >
 > **CE QUI RESTE, ET DANS CET ORDRE** — tout le volet gabarits est inerte sans le premier point :
 > 1. **Toi** — créer les boîtes `contact@`, `admin@` et `superadmin@bilaleducation.fr` ;
-> 2. **Toi** — les 2 enregistrements DNS de protection dans Vercel (TXT `@` = `v=spf1 -all`,
->    TXT `_dmarc` = `v=DMARC1; p=reject;`), toujours en attente depuis le 5 août ;
+> 2. **Toi** — SPF / DKIM / DMARC **dans la zone Vercel**. ⚠️ **Les deux valeurs notées le
+>    5 août sont ANNULÉES** : `v=spf1 -all` interdit à *tout* serveur d'écrire pour le domaine,
+>    ce qui était juste tant qu'on n'envoyait rien et deviendrait une panne totale dès le
+>    premier message. Valeurs et ordre corrects en phase 5 ;
 > 3. **Toi + Moi** — renseigner le SMTP du projet Supabase avec `contact@`, coller les
 >    3 gabarits, **activer les 2 notifications de sécurité**, vérifier les 3 réglages ;
 > 4. **Moi + Toi** — configurer le SMTP de la première école et **tester un envoi réel**.
@@ -113,9 +115,13 @@ Aucun utilisateur réel, aucune donnée réelle.
       impose cette délégation : le certificat HTTPS générique se valide par le DNS, donc
       Vercel doit contrôler la zone. Infomaniak reste le registrar.
       Conséquence : les enregistrements de la future messagerie se créeront côté Vercel.
-- [ ] **Toi** — Recréer dans la zone Vercel les deux protections perdues à la délégation :
-      TXT `@` = `v=spf1 -all` et TXT `_dmarc` = `v=DMARC1; p=reject;`. Sans elles, n'importe
-      qui peut usurper `@bilaleducation.fr`.
+- [ ] ~~Recréer TXT `@` = `v=spf1 -all` et TXT `_dmarc` = `v=DMARC1; p=reject;`~~
+      **ANNULÉ LE 8 AOÛT — NE PAS CRÉER CES VALEURS.** Elles étaient justes tant que le
+      domaine n'envoyait **aucun** email : `-all` sans mécanisme d'autorisation signifie
+      « **aucun serveur** n'a le droit d'écrire pour ce domaine ». À partir du moment où
+      Infomaniak envoie pour nous, **tous nos messages échoueraient SPF** — et avec
+      `p=reject`, seraient **rejetés purement et simplement**. La panne serait totale et
+      silencieuse côté expéditeur. Voir la procédure de messagerie en phase 5.
 - [x] **Vérifié le 6 août** en conditions réelles :
       `bilal-neuville.bilaleducation.fr/login` répond 200 avec un certificat valide ;
       la route publique renvoie « ÉCOLE BILAL » et son logo, prouvant que le middleware
@@ -336,10 +342,31 @@ cohérent. Trois blocs, dans cet ordre.
 
 ## Phase 5 · Messagerie
 
-- [ ] **Toi** — Configurer **SPF, DKIM et DMARC** sur le domaine (DNS). C'est de loin
-      le premier facteur de délivrabilité, bien avant le choix du prestataire.
 - [ ] **Toi** — **Créer les boîtes** `contact@`, `admin@` et `superadmin@bilaleducation.fr`
-      chez Infomaniak (décidé le 7 août).
+      chez Infomaniak (décidé le 7 août). Rôles :
+      - `contact@` — **expéditeur** des emails d'authentification (SMTP du projet Supabase) et
+        adresse affichée sur les pages d'arrêt (`/abonnement-expire`). C'est l'adresse publique.
+      - `superadmin@` — **destinataire des demandes de support** (`SUPPORT_EMAIL` dans
+        `support/actions.ts`). Y répondre écrit directement à l'auteur (`Reply-To`).
+      - `admin@` — **n'est référencée nulle part dans le code.** À décider : facturation,
+        contrats, demandes RGPD — l'adresse qu'on met sur des documents, pas dans l'application.
+        Sans usage défini, elle restera vide.
+- [ ] **Toi** — **SPF, DKIM et DMARC dans la zone VERCEL** (pas chez Infomaniak : la zone lui
+      échappe depuis la délégation, son outil « Sécurité globale » ne peut que **afficher** les
+      valeurs à recopier). Premier facteur de délivrabilité, très loin devant le choix du
+      prestataire. **Ordre et valeurs** :
+      1. **MX** vers Infomaniak — sans eux les boîtes existent mais **ne reçoivent rien**, et
+         les demandes de support n'arriveraient nulle part.
+      2. **SPF** : `v=spf1 include:spf.infomaniak.ch -all` — remplace la valeur `-all` seule
+         annulée ci-dessus.
+      3. **DKIM** : clé générée par Infomaniak (« Sécurité globale → DKIM »), propre au domaine,
+         donc à lire chez eux et à recopier dans Vercel.
+      4. **DMARC en `p=none` D'ABORD**, jamais `p=reject` d'emblée. Sur une configuration
+         neuve, `reject` détruit le courrier pendant qu'on cherche encore l'erreur. On passe
+         à `quarantine` puis `reject` une fois les rapports propres.
+      - **Propagation : jusqu'à 48 h.** À faire tôt, pas en dernier. Ne pas tenter le premier
+        envoi réel avant que le contrôle automatique d'Infomaniak soit au vert : un premier
+        envoi non authentifié abîme durablement la réputation d'un domaine neuf.
 - [ ] **Toi + Moi** — **SMTP du projet Supabase** (Project Settings → Authentication → SMTP),
       avec `contact@bilaleducation.fr` en expéditeur. Il couvre l'**authentification de toutes
       les écoles** : création de compte, mot de passe oublié.
