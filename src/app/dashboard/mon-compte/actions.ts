@@ -82,12 +82,30 @@ export async function updateOwnEmail(newEmail: string): Promise<{ error?: string
   const email = newEmail.trim()
   if (!isValidEmail(email)) return { error: 'Adresse email invalide.' }
 
-  // 1. Compte auth (service-role, changement direct)
+  // 1. Compte auth (service-role, changement DIRECT)
+  //
+  // `email_confirm: true` est indispensable, et son absence était un bug : sans
+  // lui, l'API admin ne change PAS l'adresse — elle ouvre un cycle de
+  // confirmation et tente d'envoyer un email avec le gabarit « Change email
+  // address », que nous n'avons pas écrit. L'opération échouait alors sur un
+  // « Error updating user » opaque.
+  //
+  // Le changement direct est le comportement voulu (décision du 8 juillet) :
+  // l'écran demande déjà confirmation, et l'action est réservée à
+  // administration/direction.
   const admin = createAdminClient()
-  const { error: authErr } = await admin.auth.admin.updateUserById(user.id, { email })
+  const { error: authErr } = await admin.auth.admin.updateUserById(user.id, {
+    email,
+    email_confirm: true,
+  })
   if (authErr) {
-    if (authErr.message.includes('already registered')) return { error: 'Cette adresse email est déjà utilisée.' }
-    return { error: authErr.message }
+    // Message COMPLET au journal serveur : celui de Supabase est souvent
+    // générique, et sans trace on ne peut que deviner.
+    console.error('[mon-compte] changement d\'email refusé:', authErr.message, authErr)
+    if (/already|registered|exists/i.test(authErr.message)) {
+      return { error: 'Cette adresse email est déjà utilisée par un autre compte.' }
+    }
+    return { error: "L'adresse n'a pas pu être modifiée. Vérifiez qu'elle n'est pas déjà utilisée par un autre compte." }
   }
 
   // 2. Profil (client SESSION → RLS « update own » + audit ; email non protégé par le trigger)

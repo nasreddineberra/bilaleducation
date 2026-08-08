@@ -212,10 +212,20 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
 
   const supabase = createAdminClient()
 
-  const { error: authError } = await supabase.auth.admin.updateUserById(id, { email })
+  // `email_confirm: true` : changement DIRECT. Sans lui, l'API admin ouvre un
+  // cycle de confirmation et tente d'envoyer le gabarit « Change email
+  // address », que nous n'avons pas écrit — l'opération échoue alors sur un
+  // « Error updating user » opaque. Même correctif que `updateOwnEmail`.
+  const { error: authError } = await supabase.auth.admin.updateUserById(id, {
+    email,
+    email_confirm: true,
+  })
   if (authError) {
-    if (authError.message.includes('already registered')) return { error: 'Cette adresse email est déjà utilisée.' }
-    return { error: authError.message }
+    console.error('[utilisateurs] changement d\'email refusé:', authError.message, authError)
+    if (/already|registered|exists/i.test(authError.message)) {
+      return { error: 'Cette adresse email est déjà utilisée par un autre compte.' }
+    }
+    return { error: "L'adresse n'a pas pu être modifiée. Vérifiez qu'elle n'est pas déjà utilisée par un autre compte." }
   }
 
   // Table via client SESSION → l'acteur est capte par le trigger d'audit
