@@ -33,11 +33,11 @@ export default async function ConfirmPage({
         <h2 className="text-xl font-bold text-secondary-800 dark:text-[#e7eef0]">
           Confirmez votre demande
         </h2>
+        {/* Pas d'explication sur le POURQUOI de cette étape : la mécanique des
+            inspecteurs de liens n'apprend rien à l'utilisateur et l'inquiète
+            plutôt. Voir `actions.ts` pour la raison technique. */}
         <p className="text-sm text-warm-700 dark:text-[#93a2a8] leading-relaxed">
-          Cliquez ci-dessous pour définir votre mot de passe. Cette étape existe
-          parce que certaines messageries ouvrent les liens reçus pour les
-          inspecter&nbsp;: sans elle, le lien serait déjà utilisé avant que vous
-          n&apos;y touchiez.
+          Cliquez ci-dessous pour définir votre mot de passe.
         </p>
 
         <form action={confirmerLien} className="pt-2">

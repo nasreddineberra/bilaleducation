@@ -115,7 +115,10 @@ export default function ForgotPasswordPage() {
               </>
             )}
 
-            {/* Retour au login */}
+            {/* Retour au login — masqué une fois le lien envoyé : l'écran de
+                succès porte déjà ce bouton, et le proposer deux fois ferait
+                douter qu'il s'agisse de la même action. */}
+            {!success && (
             <div className="mt-5 pt-4 border-t border-warm-100 text-center">
               <button
                 onClick={() => router.push('/login')}
@@ -125,6 +128,7 @@ export default function ForgotPasswordPage() {
                 Retour à la connexion
               </button>
             </div>
+            )}
 
     </AuthShell>
   )
