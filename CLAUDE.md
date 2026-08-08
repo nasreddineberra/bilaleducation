@@ -2176,7 +2176,14 @@ l'app »**, ce qui fait de la messagerie un **prerequis d'ouverture** et non une
 - **Message d'echec HONNETE** : si l'email ne part pas, la modale se ferme quand meme avec
   « votre demande est enregistree, mais la notification n'a pas pu partir ». Annoncer un echec
   ferait tout recommencer a l'utilisateur, **pour rien**.
-- **Bucket `support-attachments`** prive, 2 Mo, images + PDF, cloisonne par
+- **Objet de l'email** : `[Support] BLOQUANT · {ecole} · {objet}`. **Ordre = urgence, qui, quoi.**
+  La NATURE n'y est PAS : les libelles complets (« Assistance a l'utilisation »…) consommaient une
+  cinquantaine de caracteres **avant** les mots de l'utilisateur, or une liste de messages tronque
+  vers 70 — on lisait le prefixe et rien d'autre. Elle reste en tete du corps. **`BLOQUANT`
+  n'apparait que la ou il est vrai** (ni « genant », ni « mineur ») : un marqueur d'urgence present
+  partout ne signale plus rien. `[Support]` en tete reste stable, pour une regle de filtrage.
+- **Bucket `support-attachments`** prive, **1 Mo** (meme plafond que les PJ de communication),
+  images + PDF, cloisonne par
   `{etablissement_id}/…` (motif des justificatifs et des PJ de communication). Prive et non public :
   une capture d'ecran de bug montre des donnees reelles d'eleves.
 - **Tout est ECHAPPE dans l'email** (`escapeHtml` / `escapeHtmlMultiline`) : objet, message et
@@ -2412,7 +2419,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 ## Actions SQL en attente
 - [ ] **A JOUER** — `supabase/migrations/create-support-requests.sql` (table `support_requests` +
   RLS « depot et relecture par la direction, ni modification ni suppression » + bucket prive
-  `support-attachments` 2 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**
+  `support-attachments` 1 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**
 - [x] Executer `supabase/migrations/add-etablissements-sante-rpc.sql` (sante des ecoles en UN
   appel au lieu de 3 requetes par ecole ; derniere connexion et messagerie configuree ;
   execution retiree aux roles de l API).

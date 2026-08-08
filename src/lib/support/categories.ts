@@ -69,8 +69,26 @@ export type SupportImpact = (typeof SUPPORT_IMPACTS)[number]['value']
 export const SUPPORT_SUBJECT_MAX = 150
 export const SUPPORT_MESSAGE_MAX = 5000
 
-/** Pièce jointe : 2 Mo, images et PDF. Doublé par le bucket, qui tranche. */
-export const SUPPORT_ATTACHMENT_MAX_BYTES = 2 * 1024 * 1024
+/**
+ * Pièce jointe : 1 Mo, images et PDF.
+ *
+ * Même plafond que les pièces jointes de communication — un seul chiffre à
+ * retenir dans toute l'application, et il suffit largement à une capture
+ * d'écran.
+ *
+ * TROIS GARDES pour une seule règle : le formulaire (confort), la server action
+ * (une action est appelable directement), et `file_size_limit` sur le bucket,
+ * qui est la seule à ne pouvoir être contournée. **Si ce chiffre change, la
+ * migration `create-support-requests.sql` doit changer avec lui** — le SQL ne
+ * peut pas importer cette constante.
+ */
+export const SUPPORT_ATTACHMENT_MAX_BYTES = 1024 * 1024
+
+/** Libellé DÉRIVÉ de la limite : les deux ne peuvent pas se contredire.
+ *  Il était écrit en toutes lettres à cinq endroits. */
+export const SUPPORT_ATTACHMENT_MAX_LABEL =
+  `${SUPPORT_ATTACHMENT_MAX_BYTES / (1024 * 1024)} Mo`
+
 export const SUPPORT_ATTACHMENT_TYPES = [
   'image/png',
   'image/jpeg',

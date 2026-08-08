@@ -15,6 +15,7 @@ import {
   SUPPORT_SUBJECT_MAX,
   SUPPORT_MESSAGE_MAX,
   SUPPORT_ATTACHMENT_MAX_BYTES,
+  SUPPORT_ATTACHMENT_MAX_LABEL,
   SUPPORT_ATTACHMENT_TYPES,
 } from '@/lib/support/categories'
 
@@ -72,7 +73,7 @@ export default function SupportRequestModal({
       return
     }
     if (f.size > SUPPORT_ATTACHMENT_MAX_BYTES) {
-      setErreur('Pièce jointe : 2 Mo maximum.')
+      setErreur(`Pièce jointe : ${SUPPORT_ATTACHMENT_MAX_LABEL} maximum.`)
       return
     }
     setFichier(f)
@@ -246,8 +247,8 @@ export default function SupportRequestModal({
           </button>
         )}
         <p className="text-xs text-warm-700 mt-1">
-          Facultatif &middot; image ou PDF, 2 Mo maximum. Sur une anomalie, une capture vaut souvent
-          mieux qu&apos;une description.
+          Facultatif &middot; image ou PDF, {SUPPORT_ATTACHMENT_MAX_LABEL} maximum. Sur une anomalie,
+          une capture vaut souvent mieux qu&apos;une description.
         </p>
       </div>
 

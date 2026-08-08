@@ -12,6 +12,7 @@ import {
   SUPPORT_SUBJECT_MAX,
   SUPPORT_MESSAGE_MAX,
   SUPPORT_ATTACHMENT_MAX_BYTES,
+  SUPPORT_ATTACHMENT_MAX_LABEL,
   SUPPORT_ATTACHMENT_TYPES,
   categoryLabel,
   impactLabel,
@@ -107,7 +108,7 @@ export async function sendSupportRequest(formData: FormData): Promise<SupportReq
       return { error: 'Pièce jointe : images (PNG, JPEG, WebP) et PDF uniquement.' }
     }
     if (fichier.size > SUPPORT_ATTACHMENT_MAX_BYTES) {
-      return { error: 'Pièce jointe : 2 Mo maximum.' }
+      return { error: `Pièce jointe : ${SUPPORT_ATTACHMENT_MAX_LABEL} maximum.` }
     }
 
     const ext = (fichier.name.split('.').pop() ?? 'bin').toLowerCase().slice(0, 5)
@@ -180,7 +181,7 @@ export async function sendSupportRequest(formData: FormData): Promise<SupportReq
     // La réponse doit partir vers l'AUTEUR, pas vers l'école en général :
     // c'est lui qui a le problème sous les yeux.
     replyTo: profile.email ?? undefined,
-    subject: `[Support] ${categoryLabel(category)} · ${etab?.nom ?? 'École'} · ${subject}`,
+    subject: objetEmail(etab?.nom ?? 'École', subject, impact),
     html: corpsEmail({
       categorie: categoryLabel(category),
       impact:    impactLabel(impact),
@@ -224,6 +225,32 @@ export async function sendSupportRequest(formData: FormData): Promise<SupportReq
         ? "Votre demande est enregistrée, mais la messagerie de l'établissement n'est pas configurée : la notification n'a pas pu partir."
         : "Votre demande est enregistrée, mais la notification n'a pas pu être envoyée.",
   }
+}
+
+/**
+ * Objet de l'email reçu par l'éditeur.
+ *
+ *   [Support] BLOQUANT · École Bilal Neuville · Les bulletins ne s'impriment pas
+ *   [Support] École Bilal Neuville · Comment inscrire un élève en cours d'année
+ *
+ * ORDRE : l'urgence, puis qui, puis quoi. C'est celui dans lequel on décide
+ * quel message ouvrir en premier.
+ *
+ * LA NATURE N'Y EST PLUS. Les libellés complets — « Assistance à l'utilisation »,
+ * « Abonnement et facturation » — consommaient une cinquantaine de caractères
+ * AVANT les mots de l'utilisateur, or une liste de messages tronque vers
+ * soixante-dix : on lisait le préfixe et rien d'autre. La nature reste en tête
+ * du corps, où elle ne coûte rien.
+ *
+ * `BLOQUANT` N'APPARAÎT QUE LÀ OÙ IL EST VRAI — ni sur « gênant », ni sur
+ * « mineur ». Un marqueur d'urgence présent partout ne signale plus rien.
+ *
+ * `[Support]` en tête reste stable : c'est ce sur quoi une règle de filtrage
+ * s'accroche.
+ */
+function objetEmail(ecole: string, objet: string, impact: string | null): string {
+  const urgence = impact === 'bloquant' ? 'BLOQUANT · ' : ''
+  return `[Support] ${urgence}${ecole} · ${objet}`
 }
 
 /**

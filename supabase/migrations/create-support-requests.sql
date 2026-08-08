@@ -97,16 +97,22 @@ CREATE POLICY support_requests_select ON public.support_requests
 
 -- ── Bucket des pièces jointes ───────────────────────────────────────────────
 -- PRIVÉ : une capture d'écran de bug montre des données réelles d'élèves.
--- 2 Mo, images et PDF seulement.
+-- 1 Mo, images et PDF seulement — même plafond que les pièces jointes de
+-- communication.
+--
+-- C'est LA garde qui compte : le formulaire et la server action limitent aussi,
+-- mais elles se contournent, pas celle-ci. Elle doit rester d'accord avec
+-- `SUPPORT_ATTACHMENT_MAX_BYTES` (src/lib/support/categories.ts), que le SQL ne
+-- peut pas importer.
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
-  'support-attachments', 'support-attachments', false, 2097152,
+  'support-attachments', 'support-attachments', false, 1048576,
   ARRAY['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
 )
 ON CONFLICT (id) DO UPDATE SET
   public             = false,
-  file_size_limit    = 2097152,
+  file_size_limit    = 1048576,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- Cloisonnement par le PREMIER SEGMENT du chemin, qui doit être
@@ -131,4 +137,4 @@ CREATE POLICY support_attachments_select ON storage.objects
     AND (storage.foldername(name))[1] = current_etablissement_id()::text
   );
 
-SELECT 'Demandes de support : table + RLS (depot et relecture par la direction, ni modification ni suppression) + bucket prive 2 Mo cloisonne.' AS status;
+SELECT 'Demandes de support : table + RLS (depot et relecture par la direction, ni modification ni suppression) + bucket prive 1 Mo cloisonne.' AS status;
