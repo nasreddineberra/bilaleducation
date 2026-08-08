@@ -2337,7 +2337,17 @@ sur place, dont deux se signaient encore « Bilal Education · Notification auto
 > complet : mot de passe oublie → email → page de confirmation → nouveau mot de passe →
 > notification « Mot de passe modifie ».
 >
-> **AU PROCHAIN DEMARRAGE — verifications d'abord, elles sont courtes :**
+> **AU PROCHAIN DEMARRAGE (decide le 9 aout au soir) : LA MESSAGERIE DE L'ECOLE.**
+> C'est le circuit 2, **jamais eprouve** — distinct de l'authentification, qui elle fonctionne.
+> L'ecran EXISTE deja (`Parametres → Etablissement → Messagerie`, construit le 15 juillet :
+> table `etablissement_smtp` en regime serveur uniquement, secret jamais renvoye au navigateur,
+> bouton « Tester la connexion » qui va jusqu'a l'envoi reel). Il n'a simplement jamais servi.
+> Renseigner le SMTP de la premiere ecole, tester la connexion, puis **un envoi reel de chaque** :
+> devoir, relance, message aux parents, message au staff. C'est aussi le premier test des
+> gabarits a la marque de l'ECOLE, **jamais vus a l'ecran** — surtout le rendu d'un logo
+> transparent sur le bandeau teal.
+>
+> **Verifications courtes a glisser dans la foulee :**
 > 1. **Utilisateur** — dans l'en-tete d'un email reçu, les 3 lignes `SPF` / `DKIM` / `DMARC`.
 >    Toujours pas verifiees. Elles diront si le classement en indesirables tient a la seule
 >    reputation d'un domaine neuf (attendu) ou a autre chose. Marquer « non indesirable »
