@@ -26,6 +26,7 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
 import QRCode from 'qrcode'
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader'
 
 type Step = 'enroll' | 'otp' | 'done'
 
@@ -226,16 +227,7 @@ export default function EnrollTotpPage() {
     >
       <div className="relative w-full max-w-md">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4">
-            <span className="text-white font-bold text-3xl leading-none">B</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Bilal <span className="text-amber-400">Education</span>
-          </h1>
-          <p className="text-white/75 mt-1 text-sm">Gestion Administrative &amp; Pédagogique</p>
-        </div>
+        <AuthBrandHeader />
 
         {/* Carte */}
         <div

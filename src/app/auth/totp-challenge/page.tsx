@@ -7,6 +7,7 @@ import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader'
 
 /**
  * Destination après validation : `next` s'il est fourni, sinon le tableau de
@@ -141,27 +142,7 @@ export default function TotpChallengePage() {
     >
       <div className="relative w-full max-w-md">
 
-        {/* Logo dans une carte claire (contraste sur le fond teal profond) + nom */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="mb-4 inline-flex items-center justify-center bg-white rounded-2xl p-4 shadow-lg">
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={nomEtab}
-                width={128}
-                height={128}
-                className="h-32 w-auto object-contain"
-                unoptimized
-              />
-            ) : (
-              <div className="w-32 h-32 rounded-xl flex items-center justify-center font-bold text-4xl text-primary-600 select-none">
-                {initiales || 'BE'}
-              </div>
-            )}
-          </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">{nomEtab}</h1>
-          <p className="text-white/75 mt-0.5 text-sm">Espace de gestion</p>
-        </div>
+        <AuthBrandHeader />
 
         {/* Carte */}
         <div

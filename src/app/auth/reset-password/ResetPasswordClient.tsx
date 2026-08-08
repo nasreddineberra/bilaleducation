@@ -1,11 +1,10 @@
 'use client'
 
-import Image from 'next/image'
-import { APP_VERSION } from '@/lib/app-version'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, CheckCircle2, Check, X } from 'lucide-react'
 import { clsx } from 'clsx'
+import AuthShell from '@/components/auth/AuthShell'
 import { createClient } from '@/lib/supabase/client'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
 
@@ -100,35 +99,7 @@ export default function ResetPasswordClient({ motif }: Props) {
   }
 
   return (
-    <div
-      className="relative min-h-screen flex items-center justify-center px-4 pt-12 pb-24"
-      style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
-    >
-      {/* Cercles décoratifs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-10 bg-white" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-10 bg-white" />
-        <div className="absolute top-1/2 left-1/4 w-48 h-48 rounded-full opacity-5 bg-amber-400" />
-      </div>
-
-      <div className="relative w-full max-w-md">
-
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4">
-            <span className="text-white font-bold text-3xl leading-none">B</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Bilal <span className="text-amber-400">Education</span>
-          </h1>
-          <p className="text-white/75 mt-1 text-sm">Gestion Administrative &amp; Pédagogique</p>
-        </div>
-
-        {/* Carte */}
-        <div
-          className="bg-white rounded-3xl p-8 animate-fade-in"
-          style={{ boxShadow: '0 24px 64px rgba(17,28,33,0.22), 0 8px 24px rgba(17,28,33,0.12)' }}
-        >
+    <AuthShell>
 
           {/* ── Lien invalide ─────────────────────────────────────────── */}
           {motif && (
@@ -257,24 +228,7 @@ export default function ResetPasswordClient({ motif }: Props) {
             </>
           )}
 
-        </div>
-
-      </div>
-
-      {/* Marque du PRODUIT, ancree en BAS DE PAGE et non sous la carte : elle
-          reste au meme endroit quelle que soit la hauteur du contenu. Le haut
-          de page appartient a l'ÉTABLISSEMENT (son logo, son nom), c'est chez
-          lui que l'utilisateur entre ; l'application se signe en bas. */}
-      <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5 px-4">
-        <Image src="/icon.png" alt="" width={22} height={22} unoptimized className="opacity-80 flex-shrink-0" />
-        <span className="text-white/60 text-xs">
-          &copy; Bilal Education &middot; Gestion administrative &amp; pédagogique &middot;
-        </span>
-        <span className="text-white/50 text-[11px] font-mono bg-white/10 px-1.5 py-0.5 rounded leading-none">
-          {APP_VERSION}
-        </span>
-      </div>
-    </div>
+    </AuthShell>
   )
 }
 

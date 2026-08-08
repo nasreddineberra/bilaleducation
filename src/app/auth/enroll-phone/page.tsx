@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { CheckCircle2, Phone, ShieldCheck } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader'
 
 type Step = 'phone' | 'otp' | 'done'
 
@@ -116,7 +117,7 @@ export default function EnrollPhonePage() {
   return (
     <div
       className="relative min-h-screen flex items-center justify-center px-4 pt-12 pb-24"
-      style={{ background: 'linear-gradient(135deg, #507583 0%, #18aa99 100%)' }}
+      style={{ background: 'linear-gradient(145deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
     >
       {/* Cercles décoratifs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -127,16 +128,7 @@ export default function EnrollPhonePage() {
 
       <div className="relative w-full max-w-md">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm shadow-lg mb-4">
-            <span className="text-white font-bold text-3xl leading-none">B</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Bilal <span className="text-amber-400">Education</span>
-          </h1>
-          <p className="text-white/75 mt-1 text-sm">Gestion Administrative &amp; Pédagogique</p>
-        </div>
+        <AuthBrandHeader />
 
         {/* Carte */}
         <div
