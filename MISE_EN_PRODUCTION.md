@@ -359,10 +359,21 @@ cohérent. Trois blocs, dans cet ordre.
           **`[Support]`**, invariable et posé pour ça : une règle de filtrage les isole.
       - `admin@` — **ABANDONNÉE.** Référencée nulle part dans le code ; son seul emploi
         envisagé était de recevoir les rapports DMARC, qui iront sur `contact@`.
-- [ ] **Toi** — **SPF, DKIM et DMARC dans la zone VERCEL** (pas chez Infomaniak : la zone lui
-      échappe depuis la délégation, son outil « Sécurité globale » ne peut que **afficher** les
-      valeurs à recopier). Premier facteur de délivrabilité, très loin devant le choix du
-      prestataire. **Ordre et valeurs** :
+- [x] **Toi** — **MX, SPF, DKIM et DMARC publiés dans la zone VERCEL** le 8 août
+      (pas chez Infomaniak : la zone lui échappe depuis la délégation, son outil « Sécurité
+      globale » ne peut que **afficher** les valeurs à recopier).
+      - **Vérifié sur les serveurs faisant autorité** (`ns1.vercel-dns.com`, donc hors de tout
+        cache) : les quatre répondent. Le **DKIM est publié en DEUX fragments** — une chaîne TXT
+        ne peut dépasser 255 caractères, Vercel découpe et les résolveurs recollent. Le recollage
+        redonne la clé au caractère près, et elle a été **décodée** : RSA 2048 bits, valide.
+        Sur 400 caractères, une comparaison à l'œil n'aurait rien prouvé.
+      - `t=s` sur le DKIM = mode strict, la signature ne vaut que pour l'apex et non ses
+        sous-domaines. Sans conséquence : nos envois partent de `contact@` sur l'apex.
+      - Le `-all` du SPF ne bloque rien de légitime : les communications des écoles partent par
+        le SMTP **de chaque école**, depuis leur propre domaine, et ne dépendent pas de ce SPF.
+      - **L'écran d'Infomaniak reste rouge un moment après la publication** : leur résolveur a
+        mémorisé l'absence des enregistrements (cache négatif). Ce n'est pas un symptôme.
+      - Valeurs et ordre retenus :
       1. **MX** vers Infomaniak — sans eux les boîtes existent mais **ne reçoivent rien**, et
          les demandes de support n'arriveraient nulle part.
       2. **SPF** : `v=spf1 include:spf.infomaniak.ch -all` — remplace la valeur `-all` seule
