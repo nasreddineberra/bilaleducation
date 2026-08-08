@@ -2217,6 +2217,62 @@ l'app »**, ce qui fait de la messagerie un **prerequis d'ouverture** et non une
 - **Visible pour `direction` + `admin` seulement** : un enseignant s'adresse a sa direction. Un
   canal ouvert a tous transformerait la boite du support en 2e niveau d'assistance interne.
 
+#### 9 aout 2026 — PREMIER EMAIL REEL : deux defauts de fond dans le lien de reinitialisation
+
+Le premier test de bout en bout (mot de passe oublie sur une ecole) a echoue trois fois de
+suite, et chaque echec a revele un defaut different. Tous sont corriges ; le parcours passe.
+
+**0. Le message d'erreur mentait, et empechait tout diagnostic.** `/auth/callback` renvoyait
+`?error=invalid` dans TOUS les cas — refus de Supabase, jeton absent, echange refuse — et
+l'ecran affichait « lien invalide ou expire ». Les parametres `error` / `error_code` /
+`error_description` que Supabase renvoie **en clair** etaient jetes. Trois causes tres
+differentes, un seul message, aucune action possible. **Corrige en premier, avant toute
+hypothese** : trois motifs distingues (`consomme` / `echange` / `sans-jeton`), journalises,
+et un message par cause qui dit QUOI FAIRE. C'est ce correctif qui a permis les deux suivants.
+**Regle** : un ecran d'erreur qui ne distingue pas ses causes rend le defaut indebuggable.
+
+**1. Le flux PKCE ne marche pas pour les liens fabriques cote SERVEUR.** PKCE exige un
+verificateur pose en cookie **au moment de la demande** ; il n'existe que si le lien est
+demande depuis un navigateur. Or nos liens naissent de **trois** endroits et **deux sont cote
+serveur** : la console qui cree une ecole, et la fiche utilisateur. La, Supabase retombe sur le
+flux **implicite** et renvoie la session dans le **FRAGMENT** (`#...`) — que le serveur ne
+recoit jamais. Symptome : « ni code ni erreur ».
+  - Le chemin serveur est precisement celui qui accueille le **directeur d'une ecole nouvelle**.
+  - **Correctif** : le gabarit n'envoie plus `{{ .ConfirmationURL }}` mais un lien portant
+    **`{{ .TokenHash }}`**, verifie par `verifyOtp`. **`token_hash` ne depend d'aucun cookie
+    prealable** : il vaut pour les trois chemins.
+  - **`{{ .RedirectTo }}` et non `{{ .SiteURL }}`** (que la doc Supabase emploie) : `.SiteURL`
+    designe le domaine racine, c'est-a-dire la vitrine. `.RedirectTo` porte le sous-domaine de
+    l'ecole. Consequence heureuse : changer l'adresse demandee par l'app suffit a rediriger
+    l'email, **sans recoller le gabarit**.
+
+**2. MICROSOFT SAFE LINKS BRULE LES JETONS A USAGE UNIQUE.** Revele par le lien lui-meme :
+`emea01.safelinks.protection.outlook.com/?url=...`. Defender **reecrit chaque URL entrante et
+la VISITE avant le destinataire** pour l'inspecter. Le jeton etait consomme au clic, sur un
+message recu quelques secondes plus tot. C'est le risque consigne au README des gabarits le
+8 aout ; il s'est manifeste au **premier** test reel — donc il n'est pas theorique.
+  - **Parade** : un inspecteur **SUIT les liens, il ne soumet pas de formulaire**. La
+    verification passe de GET a POST — `/auth/confirm` affiche un bouton et ne verifie qu'au
+    vrai clic. Cout : un clic, explique a l'utilisateur. Sans elle, tout destinataire sur
+    Microsoft 365 est incapable de definir son mot de passe.
+  - **Regle** : ne jamais consommer un jeton a usage unique sur une requete GET.
+  - `/auth/callback` conserve pour le flux navigateur (`code`).
+
+**Verifie** : sondage de la route en production (aucun parametre → `sans-jeton` ; `token_hash`
+bidon → `consomme` ; `type` invalide → `sans-jeton`) AVANT de faire refaire le test — le code
+etait bien deploye, le probleme etait en amont. Puis parcours complet : email → confirmation →
+nouveau mot de passe → notification « Mot de passe modifie » recue.
+
+**Divers** : `next` n'est accepte que s'il est un chemin absolu simple (`//ailleurs.example`
+en aurait fait un tremplin) ; `useFormStatus` doit vivre dans un composant **enfant** du
+`<form>`, sinon il renvoie toujours « inactif ».
+
+**Dette reperee** : tout le parcours d'authentification **sauf `/login`** est fige avant la
+refonte du 3 aout — pastille « B », degrade, bouton **ambre** (variante abandonnee fin juillet),
+et `forgot-password` porte encore l'illustration et les **points de pagination** que
+l'utilisateur avait explicitement refuses. Trois ecrans a aligner : `forgot-password`,
+`confirm`, `reset-password`.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

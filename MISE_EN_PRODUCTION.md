@@ -450,7 +450,21 @@ cohérent. Trois blocs, dans cet ordre.
         défaut au niveau du projet** : un gabarit collé sans activation ne part jamais.
       - **Épreuve visuelle** produite avant tout collage (rendu réel + bascule
         exemple/variables), générée depuis les fichiers eux-mêmes pour ne pas en dériver.
-- [ ] **Toi + Moi** — **Coller les 3 gabarits** dans Supabase, **activer les 2 notifications**,
+- [x] **PREMIER EMAIL RÉEL ENVOYÉ ET REÇU** (9 août). Parcours complet éprouvé : « mot de passe
+      oublié » → email → page de confirmation → nouveau mot de passe → notification
+      « Mot de passe modifié » reçue. Sont donc prouvés : le SMTP Infomaniak, le gabarit de
+      réinitialisation, le flux `token_hash`, l'atterrissage sur le bon sous-domaine, et
+      l'activation des notifications de sécurité.
+      - **Deux défauts de fond corrigés en chemin** — voir CLAUDE.md du 9 août : le flux PKCE
+        ne fonctionne pas pour les liens fabriqués **côté serveur** (donc pour le directeur
+        d'une école nouvelle), et **Microsoft Safe Links brûle les jetons à usage unique** en
+        inspectant les liens avant le destinataire.
+      - **Reste à vérifier** : l'alignement `SPF` / `DKIM` / `DMARC` dans l'en-tête d'un message
+        reçu, et le classement en indésirables (le premier est arrivé en courrier indésirable —
+        attendu pour un domaine neuf, mais l'en-tête dira si c'est bien de la réputation seule).
+      - **Non testé** : le gabarit « Email address changed », qui demande qu'un administrateur
+        modifie l'adresse d'un compte.
+- [x] **Toi + Moi** — **Coller les 3 gabarits** dans Supabase, **activer les 2 notifications**,
       et vérifier les 3 réglages du projet : SMTP, `Email OTP expiration` (**10 minutes**,
       constaté le 8 août ; le gabarit recopie cette valeur par la constante `VALIDITE`, les deux
       changent ensemble — **à arbitrer** : 10 min est très court pour le directeur d'une école
