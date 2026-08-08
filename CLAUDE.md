@@ -2119,6 +2119,36 @@ deux. Verifie en inspectant le certificat servi (SAN = `*.bilaleducation.fr` seu
 - **Epreuve visuelle** produite avant tout collage (rendu reel des 3 emails + bascule
   exemple/variables), **generee depuis les fichiers eux-memes** pour ne pas pouvoir en deriver.
 
+#### 8 aout 2026 (suite) — `authRepository` : 8 methodes sur 10 etaient MORTES
+
+Trouve en verifiant une question de l'utilisateur (« le lien mene-t-il bien a son ecole ? »).
+Seules `signIn` et `signOut` sont appelees ; les 4 fichiers qui importent le module n'utilisent
+qu'elles. 221 lignes ramenees a 107.
+- **La plus genante : `createUser`** — elle appelait **`supabase.auth.signUp` depuis le NAVIGATEUR**
+  en passant le **role** dans `options.data`, puis inserait la ligne `profiles` correspondante avec
+  ce role. Jamais appelee, mais c'etait un **patron d'escalade pret a etre recable par megarde**.
+- **`hasRole` / `isAdmin`** : controles de role **cote navigateur**. Ils ne protegent rien — ils
+  decident de ce qui s'AFFICHE, jamais de ce qui est PERMIS. La verite est la RLS.
+- **DEUX VERIFICATIONS QUI EN DECOULENT** (ajoutees en phase 6, pas faites — je ne sonde pas la base
+  de production pendant que l'utilisateur s'en sert) :
+  1. **`Allow new users to sign up` doit etre DESACTIVE** dans Supabase. Si actif, `signUp` reste
+     appelable depuis l'API avec la cle publique **quoi que fasse notre code**.
+  2. **Policy INSERT de `profiles`** : le garde-fou anti-escalade du 8 juillet est un trigger
+     **`BEFORE UPDATE`**, il **ne voit pas un INSERT**. Si la policy d'insertion est permissive, un
+     compte authentifie pourrait creer une ligne `profiles` en choisissant son role.
+- **Durcissement au passage** (`console-url.ts`) : `schoolUrl`/`consoleUrl` **PREFIXENT** le domaine
+  racine d'un sous-domaine. Une `NEXT_PUBLIC_SITE_URL` reglee sur `https://www.…` aurait produit
+  `ecole.www.bilaleducation.fr` — trois niveaux, **aucun certificat**, sur des liens **envoyes par
+  email** donc decouverts trop tard. Domaine racine extrait une seule fois et normalise.
+- **Chaine du lien de reinitialisation VERIFIEE** (les 3 mecanismes menent a l'ecole) : « mot de
+  passe oublie » → `window.location.origin` ; fiche utilisateur → `requestOrigin()` (en-tete `host`) ;
+  **console → `schoolUrl(slug)`**, seul cas emis depuis un autre domaine, et il reconstruit
+  l'adresse depuis le slug au lieu d'utiliser l'hote courant. `/auth/callback` redirige ensuite avec
+  l'`origin` de la requete entrante, donc reste sur l'ecole.
+  - **Dependance a configurer** : sans `https://*.bilaleducation.fr/**` dans l'allow-list Supabase,
+    `redirect_to` est **ignore** et l'utilisateur atterrit sur la **Site URL** (l'apex, la vitrine),
+    jeton en main, sans que rien ne se passe. Echec silencieux.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

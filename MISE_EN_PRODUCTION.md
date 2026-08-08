@@ -381,6 +381,19 @@ cohérent. Trois blocs, dans cet ordre.
 
 ## Phase 6 · Tests
 
+- [ ] **Toi** — **`Authentication → Providers → Email → Allow new users to sign up`
+      doit être DÉSACTIVÉ.** Tous les comptes sont créés côté serveur, par un
+      administrateur : personne ne doit pouvoir s'inscrire seul. Si le réglage est actif,
+      `signUp` reste appelable depuis l'API avec la clé publique, **quoi que fasse notre
+      code** — un compte `auth` peut alors naître sans que l'école l'ait décidé.
+      Repéré le 8 août en supprimant un `createUser` mort qui appelait précisément `signUp`
+      depuis le navigateur.
+- [ ] **Moi + Toi** — **Vérifier la policy INSERT de `profiles`**, avec un compte non
+      administrateur. Le garde-fou anti-escalade posé le 8 juillet est un trigger
+      **`BEFORE UPDATE`** : il ne voit pas un INSERT. Si la policy d'insertion est permissive,
+      un utilisateur authentifié pourrait créer une ligne `profiles` en choisissant son rôle,
+      sans jamais passer par une server action. À éprouver en même temps que la matrice de
+      rôles ci-dessous — c'est le même test, avec le même compte.
 - [ ] **Toi + Moi** — **Un compte de chaque rôle** : admin, direction, comptable,
       responsable pédagogique, secrétaire, enseignant. La matrice RLS a été réécrite
       le 5 août et n'a jamais été éprouvée. Le mode de défaillance est silencieux :
