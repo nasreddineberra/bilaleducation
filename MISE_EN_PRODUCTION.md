@@ -342,15 +342,23 @@ cohérent. Trois blocs, dans cet ordre.
 
 ## Phase 5 · Messagerie
 
-- [ ] **Toi** — **Créer les boîtes** `contact@`, `admin@` et `superadmin@bilaleducation.fr`
-      chez Infomaniak (décidé le 7 août). Rôles :
-      - `contact@` — **expéditeur** des emails d'authentification (SMTP du projet Supabase) et
-        adresse affichée sur les pages d'arrêt (`/abonnement-expire`). C'est l'adresse publique.
-      - `superadmin@` — **destinataire des demandes de support** (`SUPPORT_EMAIL` dans
-        `support/actions.ts`). Y répondre écrit directement à l'auteur (`Reply-To`).
-      - `admin@` — **n'est référencée nulle part dans le code.** À décider : facturation,
-        contrats, demandes RGPD — l'adresse qu'on met sur des documents, pas dans l'application.
-        Sans usage défini, elle restera vide.
+- [x] **Toi** — **Messagerie créée chez Infomaniak** (8 août). Le Service Mail facture **à
+      l'adresse**, et n'autorise **qu'un seul alias par adresse existante** : l'installation
+      réelle est donc **une boîte + un alias**, et non trois boîtes.
+      - `contact@` — **la seule vraie boîte.** Expéditeur des emails d'authentification (SMTP du
+        projet Supabase), adresse affichée sur les pages d'arrêt (`/abonnement-expire`), et
+        destinataire des rapports DMARC. Ses identifiants SMTP sont ceux à renseigner partout.
+      - `superadmin@` — **alias de `contact@`.** Destinataire des demandes de support
+        (`SUPPORT_EMAIL` dans `support/actions.ts`). **Aucune modification de code n'a été
+        nécessaire** : vérifié le 8 août, cette adresse n'apparaît **qu'en `to:`**, jamais en
+        expéditeur — l'email de support part par le SMTP de l'ÉCOLE, pas par le nôtre. Un alias,
+        qui ne sait que recevoir, suffit donc exactement.
+        - **Alias conservé plutôt que remplacé par `contact@` dans le code** : le jour où une
+          seconde boîte est payée, `superadmin@` devient une vraie adresse et rien ne bouge.
+        - Les deux flux atterrissent dans la même boîte, mais l'objet des demandes commence par
+          **`[Support]`**, invariable et posé pour ça : une règle de filtrage les isole.
+      - `admin@` — **ABANDONNÉE.** Référencée nulle part dans le code ; son seul emploi
+        envisagé était de recevoir les rapports DMARC, qui iront sur `contact@`.
 - [ ] **Toi** — **SPF, DKIM et DMARC dans la zone VERCEL** (pas chez Infomaniak : la zone lui
       échappe depuis la délégation, son outil « Sécurité globale » ne peut que **afficher** les
       valeurs à recopier). Premier facteur de délivrabilité, très loin devant le choix du
@@ -364,6 +372,13 @@ cohérent. Trois blocs, dans cet ordre.
       4. **DMARC en `p=none` D'ABORD**, jamais `p=reject` d'emblée. Sur une configuration
          neuve, `reject` détruit le courrier pendant qu'on cherche encore l'erreur. On passe
          à `quarantine` puis `reject` une fois les rapports propres.
+         `v=DMARC1; p=none; rua=mailto:contact@bilaleducation.fr` — les rapports arrivent sur
+         `contact@` faute d'`admin@` (voir ci-dessus) ; quelques XML par jour, qu'une règle
+         de filtrage écarte. Ce sont eux qui diront quand durcir la politique.
+      - **MX, SPF et DMARC peuvent être publiés AVANT que le Service Mail soit actif** : ils
+        pointent vers Infomaniak, ils ne lisent rien chez eux. Les deux attentes de 48 h
+        (mise en place du service, propagation DNS) se recouvrent alors au lieu de s'ajouter.
+        **Seule la clé DKIM doit attendre**, puisqu'elle est générée pour le domaine.
       - **Propagation : jusqu'à 48 h.** À faire tôt, pas en dernier. Ne pas tenter le premier
         envoi réel avant que le contrôle automatique d'Infomaniak soit au vert : un premier
         envoi non authentifié abîme durablement la réputation d'un domaine neuf.
