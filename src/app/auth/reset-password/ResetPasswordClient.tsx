@@ -10,10 +10,41 @@ import { createClient } from '@/lib/supabase/client'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
 
 interface Props {
-  hasError?: boolean
+  motif?: string | null
 }
 
-export default function ResetPasswordClient({ hasError }: Props) {
+/**
+ * Un message par cause, et chacun dit QUOI FAIRE.
+ *
+ * L'écran annonçait « lien invalide ou expiré » dans les trois cas. Or « expiré »
+ * est faux la plupart du temps, et laisse l'utilisateur recommencer à l'identique
+ * — donc échouer à l'identique. Le cas « déjà utilisé » se produit sans qu'il ait
+ * rien fait : les filtres anti-spam ouvrent les liens pour les inspecter, ce qui
+ * consomme un jeton à usage unique. Sortir le message des indésirables est alors
+ * la seule action qui change quelque chose, et il faut la lui dire.
+ */
+const MOTIFS: Record<string, { titre: string; texte: string }> = {
+  consomme: {
+    titre: 'Ce lien a déjà servi',
+    texte:
+      "Un lien de réinitialisation ne fonctionne qu'une seule fois, et il expire au bout de dix minutes. " +
+      "S'il est arrivé dans vos indésirables, le filtre a pu l'ouvrir avant vous pour l'inspecter : déplacez d'abord le message dans votre boîte de réception, puis demandez un nouveau lien.",
+  },
+  echange: {
+    titre: 'Ouvrez le lien dans le même navigateur',
+    texte:
+      "Ce lien doit être ouvert dans le navigateur depuis lequel la réinitialisation a été demandée. " +
+      "Si vous avez changé d'appareil ou de navigateur entre-temps, refaites la demande depuis celui que vous utilisez maintenant.",
+  },
+  'sans-jeton': {
+    titre: 'Lien incomplet',
+    texte:
+      "Ce lien ne contient pas les informations attendues — il a probablement été tronqué par la messagerie. " +
+      "Demandez-en un nouveau, et cliquez dessus plutôt que de le recopier.",
+  },
+}
+
+export default function ResetPasswordClient({ motif }: Props) {
   const router = useRouter()
 
   const [firstName,    setFirstName]    = useState<string | undefined>()
@@ -29,7 +60,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
 
   // Récupère le profil pour activer les règles "ne contient pas le nom"
   useEffect(() => {
-    if (hasError) return
+    if (motif) return
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -43,7 +74,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
         setLastName(data.last_name  ?? undefined)
       }
     })
-  }, [hasError])
+  }, [motif])
 
   const vPassword = !isPasswordValid(password, firstName, lastName)
   const vConfirm  = confirm !== password
@@ -100,12 +131,11 @@ export default function ResetPasswordClient({ hasError }: Props) {
         >
 
           {/* ── Lien invalide ─────────────────────────────────────────── */}
-          {hasError && (
+          {motif && (
             <div className="text-center space-y-4">
-              <h2 className="text-xl font-bold text-secondary-800">Lien invalide ou expiré</h2>
+              <h2 className="text-xl font-bold text-secondary-800">{MOTIFS[motif]?.titre ?? MOTIFS['sans-jeton'].titre}</h2>
               <p className="text-sm text-warm-700">
-                Ce lien de réinitialisation est invalide ou a expiré.
-                Veuillez recommencer la procédure depuis votre application.
+                {MOTIFS[motif]?.texte ?? MOTIFS['sans-jeton'].texte}
               </p>
               <button
                 onClick={() => router.push('/login')}
@@ -117,7 +147,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
           )}
 
           {/* ── Succès ────────────────────────────────────────────────── */}
-          {!hasError && success && (
+          {!motif && success && (
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <CheckCircle2 size={48} className="text-green-500" />
@@ -136,7 +166,7 @@ export default function ResetPasswordClient({ hasError }: Props) {
           )}
 
           {/* ── Formulaire ────────────────────────────────────────────── */}
-          {!hasError && !success && (
+          {!motif && !success && (
             <>
               <h2 className="text-xl font-bold text-secondary-800 mb-1">Nouveau mot de passe</h2>
               <p className="text-sm text-warm-700 mb-6">Choisissez un mot de passe sécurisé.</p>

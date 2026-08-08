@@ -2,38 +2,86 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+/**
+ * Atterrissage des liens d'authentification (réinitialisation de mot de passe).
+ *
+ * POURQUOI CETTE ROUTE DIT DÉSORMAIS CE QUI S'EST PASSÉ. Elle renvoyait
+ * `?error=invalid` dans TOUS les cas d'échec — lien déjà consommé, jeton absent,
+ * échange refusé — et l'écran affichait « lien invalide ou expiré ». Trois causes
+ * très différentes, un seul message, aucune action possible pour l'utilisateur ;
+ * et pour nous, aucun moyen de diagnostiquer autrement qu'en devinant.
+ *
+ * Le cas qui a motivé la correction : un lien cliqué QUELQUES SECONDES après
+ * réception, annoncé « expiré ». Quelques secondes ne sont pas dix minutes — le
+ * jeton avait été consommé avant le clic. Un lien Supabase ne sert qu'une fois,
+ * et les analyseurs anti-spam ouvrent les liens pour les inspecter.
+ */
+
+/** Motifs distingués, repris par l'écran pour dire quoi faire. */
+type Motif = 'consomme' | 'echange' | 'sans-jeton'
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
 
-  if (code) {
-    const cookieStore = await cookies()
+  // `next` vient de l'URL : on n'accepte qu'un chemin absolu simple. Sans cette
+  // garde, `//ailleurs.example` serait un tremplin vers un autre site.
+  const nextBrut = searchParams.get('next') ?? '/dashboard'
+  const next = /^\/(?!\/)/.test(nextBrut) ? nextBrut : '/dashboard'
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
+  const echec = (motif: Motif) =>
+    NextResponse.redirect(`${origin}/auth/reset-password?motif=${motif}`)
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
-    }
+  // ── 1. Erreur renvoyée par Supabase lui-même ─────────────────────────────
+  // Elle arrive en clair dans l'URL : `error`, `error_code`, `error_description`.
+  // C'est le cas d'un jeton déjà utilisé ou réellement périmé.
+  const erreurSupabase = searchParams.get('error')
+  if (erreurSupabase) {
+    console.error('[auth/callback] refus de Supabase:', {
+      error: erreurSupabase,
+      code: searchParams.get('error_code'),
+      description: searchParams.get('error_description'),
+    })
+    return echec('consomme')
   }
 
-  // Code absent ou invalide → retour au formulaire avec indicateur d'erreur
-  return NextResponse.redirect(`${origin}/auth/reset-password?error=invalid`)
+  const code = searchParams.get('code')
+
+  // ── 2. Aucun jeton ───────────────────────────────────────────────────────
+  // Le lien a été tronqué, ou le jeton voyage dans le FRAGMENT (`#...`), que le
+  // serveur ne reçoit jamais — le navigateur ne le transmet pas.
+  if (!code) {
+    console.error('[auth/callback] aucun code dans l\'URL:', request.url)
+    return echec('sans-jeton')
+  }
+
+  // ── 3. Échange du code contre une session ────────────────────────────────
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+  if (error) {
+    // Cause la plus fréquente : le lien est ouvert dans un AUTRE navigateur que
+    // celui qui a demandé la réinitialisation. Le vérificateur PKCE est un
+    // cookie posé au moment de la demande ; sans lui, l'échange est refusé.
+    console.error('[auth/callback] échange du code refusé:', error.message)
+    return echec('echange')
+  }
+
+  return NextResponse.redirect(`${origin}${next}`)
 }
