@@ -486,6 +486,13 @@ cohérent. Trois blocs, dans cet ordre.
       dizaines, sur plusieurs jours. Un domaine neuf qui émet 300 messages d'un coup
       s'installe durablement dans les indésirables.
 - [ ] **Moi** — Rédiger la procédure de configuration SMTP à remettre aux écoles.
+- [ ] **À arbitrer un jour, pas urgent — une personne dans DEUX écoles.** L'unicité de l'adresse
+      email est **globale au projet**, imposée par `auth.users` de Supabase et non par notre code :
+      deux comptes ne peuvent pas partager une adresse, quelle que soit l'école. C'est le
+      comportement voulu (question posée le 9 août), mais il a une conséquence : un intervenant
+      travaillant chez deux clients devrait avoir **deux adresses distinctes**, un profil ne
+      portant qu'un `etablissement_id`. Sans objet avec un seul client ; à trancher le jour où
+      deux écoles voisines partageront un enseignant.
 - [ ] **Toi** — **Vérifier l'alignement dans un email reçu** : en-tête du message → les trois
       lignes `SPF` / `DKIM` / `DMARC`. Toujours pas fait au 9 août. Elles diront si le classement
       en indésirables tient à la seule réputation d'un domaine neuf — attendu — ou à autre chose.
