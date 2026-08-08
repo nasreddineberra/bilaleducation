@@ -2192,6 +2192,26 @@ l'app »**, ce qui fait de la messagerie un **prerequis d'ouverture** et non une
   **3e occurrence** (financements + signature de communications, qui omettaient l'apostrophe).
   **Ne pas confondre avec `sanitize()`** : le choix se fait sur la nature de la SOURCE — HTML
   d'editeur riche → `sanitize`, texte brut de champ → `escapeHtml`.
+- **Le lien de la sidebar mene a une PAGE d'historique** (`/dashboard/support`), pas directement a
+  la modale — decision utilisateur. « Ai-je deja signale ce probleme ? » se pose AVANT « comment le
+  signaler » : c'est ce qui evite les demandes en double. Bouton **« Contacter le support »** en
+  haut a gauche, qui ouvre la modale de saisie.
+  - **Le manque qui l'a motivee** : l'email part par **relais SMTP**, ce qui **ne depose AUCUNE
+    copie dans le dossier « Envoyes »** de la boite de l'ecole. Sans cette page, une direction qui
+    se demande « ma demande est-elle partie ? » n'avait **rien** a regarder — et la policy SELECT
+    de `support_requests` restait un droit que **rien n'exercait**. Signe qu'il manquait un ecran.
+  - **`SupportRequestsClient` est CALQUE sur `SentMessagesClient`** (regle « comme X » = lire X et
+    le recopier) : `space-y-2`, carte de filtres `card px-3 py-2 flex flex-wrap gap-3`, `SearchField`,
+    chips `aria-pressed`, sous-filtre en `FloatSelect compact wrapperClassName="w-fit ml-auto"`,
+    tableau `card p-0` + `.list-th/.list-td/.list-name` en `text-xs`, lignes cliquables, filtres
+    memorises en `sessionStorage` avec le flag d'hydratation en **state** (pas un ref).
+  - **Detail en MODALE de lecture** (et non page `[id]`) : motif du cahier de texte, ou les pages
+    de detail ont ete supprimees au profit de modales. Pièce jointe via **URL signee** 60 s, onglet
+    ouvert **AVANT** l'attente (sinon bloque comme une fenetre surgissante — lecon de l'attestation).
+  - **« Non transmise » en AMBRE, jamais en rouge** : la demande EST enregistree, c'est l'email qui
+    manque. Le rouge dirait « perdue » et ferait reecrire pour rien.
+  - **Titre de page** ajoute a `DashboardNav` (`/dashboard/support` → « Support technique ») ;
+    **garde de role sur la page**, un ecran est atteignable par son adresse meme si le lien est masque.
 - **Modale VERROUILLEE** (`FormModal`) : ni clic sur le fond, ni Echap. Une demande de support se
   redige parfois longuement, et dans l'agacement d'un probleme.
 - **Visible pour `direction` + `admin` seulement** : un enseignant s'adresse a sa direction. Un

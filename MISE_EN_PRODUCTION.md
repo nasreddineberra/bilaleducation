@@ -311,11 +311,15 @@ cohérent. Trois blocs, dans cet ordre.
       Décision du 7 août : ce SMTP sert à l'**authentification de toutes les écoles** (création
       de compte, mot de passe oublié) ; il ne touche PAS aux communications des écoles, qui
       gardent leur propre configuration et leur propre expéditeur.
-- [x] **« Contacter le support » dans la barre latérale de l'ÉCOLE** (8 août), au-dessus des
+- [x] **« Support technique » dans la barre latérale de l'ÉCOLE** (8 août), au-dessus des
       informations d'application, réservé à `direction` et `admin`. Un **formulaire**, décidé
       contre le simple `mailto:` : six natures de demande, impact conditionnel sur un incident,
-      pièce jointe, et le contexte joint automatiquement (école, auteur, **page d'origine**,
+      pièce jointe (1 Mo), et le contexte joint automatiquement (école, auteur, **page d'origine**,
       version, navigateur) — montré à l'utilisateur, replié.
+      - Le lien mène à une **page d'historique** (`/dashboard/support`) avec filtres et recherche,
+        calquée sur « Messages envoyés » ; le bouton « Contacter le support » y ouvre la modale.
+        L'email partant par relais SMTP, **aucune copie n'atterrit dans le dossier « Envoyés »**
+        de l'école : sans cette page, elle n'avait aucun moyen de vérifier ce qu'elle avait envoyé.
       - **La demande est ÉCRITE avant d'être notifiée** (`support_requests`). Sans cela,
         « ma messagerie ne fonctionne plus » — motif de demande parfaitement ordinaire —
         serait la seule demande incapable d'arriver : l'école croirait avoir écrit.

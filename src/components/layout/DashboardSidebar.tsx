@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
-import SupportRequestModal from '@/components/support/SupportRequestModal'
+
 import {
   LifeBuoy,
   LayoutDashboard,
@@ -397,7 +397,6 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   const pathname   = usePathname()
 
   const { collapsed, setCollapsed } = useSidebar()
-  const [supportOuvert, setSupportOuvert] = useState(false)
   const peutContacterSupport = Boolean(role && ROLES_SUPPORT.includes(role))
   const [tempExpanded,  setTempExpanded]  = useState(false)  // expand temporaire depuis état réduit
 
@@ -834,31 +833,29 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           collapsed ? 'py-2 flex justify-center' : 'px-3 py-2'
         )}>
           <SidebarTooltip
-            label="Contacter le support"
+            label="Support technique"
             className={collapsed ? 'w-auto' : 'w-full'}
           >
-            <button
-              type="button"
-              onClick={() => setSupportOuvert(true)}
+            {/* Mène à l'HISTORIQUE, d'où l'on écrit — et non directement à une
+                modale de saisie. « Ai-je déjà signalé ce problème ? » se pose
+                avant « comment le signaler », et c'est ce qui évite les
+                demandes en double. */}
+            <Link
+              href="/dashboard/support"
+              aria-current={pathname === '/dashboard/support' ? 'page' : undefined}
               className={clsx(
-                'sidebar-item flex items-center rounded-lg text-[var(--brand-muted)]',
-                'hover:bg-white/10 hover:text-white transition-colors',
+                'sidebar-item flex items-center rounded-lg transition-colors',
+                pathname === '/dashboard/support'
+                  ? 'bg-white/10 text-white'
+                  : 'text-[var(--brand-muted)] hover:bg-white/10 hover:text-white',
                 collapsed ? 'justify-center p-2' : 'w-full gap-3 px-3 py-2'
               )}
             >
               <LifeBuoy size={collapsed ? 20 : 18} className="flex-shrink-0" aria-hidden="true" />
-              {!collapsed && <span className="text-sm truncate">Contacter le support</span>}
-            </button>
+              {!collapsed && <span className="text-sm truncate">Support technique</span>}
+            </Link>
           </SidebarTooltip>
         </div>
-      )}
-
-      {supportOuvert && (
-        <SupportRequestModal
-          onClose={() => setSupportOuvert(false)}
-          ecole={etablissementNom ?? null}
-          auteur={auteur ?? null}
-        />
       )}
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}

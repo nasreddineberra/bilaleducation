@@ -36,10 +36,15 @@ import {
  */
 export default function SupportRequestModal({
   onClose,
+  onSent,
   ecole,
   auteur,
 }: {
   onClose: () => void
+  /** Appelé à la place de `onClose` après un dépôt réussi : laisse l'écran
+   *  parent recharger sa liste. Sans lui, la demande n'apparaîtrait qu'au
+   *  prochain rendu. */
+  onSent?: () => void
   ecole: string | null
   auteur: { nom: string; email: string; role: string } | null
 }) {
@@ -102,7 +107,7 @@ export default function SupportRequestModal({
     if (res.enregistree) {
       if (res.emailEnvoye) toast.success('Votre demande a été transmise au support.')
       else                 toast.warning(res.error ?? 'Votre demande est enregistrée.')
-      onClose()
+      ;(onSent ?? onClose)()
       return
     }
 

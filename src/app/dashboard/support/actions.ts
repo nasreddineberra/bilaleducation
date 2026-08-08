@@ -228,6 +228,37 @@ export async function sendSupportRequest(formData: FormData): Promise<SupportReq
 }
 
 /**
+ * URL signée d'une pièce jointe, valable une minute.
+ *
+ * Le bucket est PRIVÉ : `getPublicUrl` n'y résout rien. La lecture de la ligne
+ * passe par le client SESSION — c'est la RLS qui garantit qu'on ne signe que
+ * les pièces de SON établissement, sans qu'aucun contrôle soit à réécrire ici.
+ */
+export async function getSupportAttachmentUrl(
+  id: string
+): Promise<{ url?: string; error?: string }> {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('support_requests')
+    .select('attachment_path')
+    .eq('id', id)
+    .single()
+
+  if (!data?.attachment_path) return { error: 'Aucune pièce jointe.' }
+
+  const { data: signe, error } = await supabase.storage
+    .from('support-attachments')
+    .createSignedUrl(data.attachment_path, 60)
+
+  if (error || !signe) {
+    console.error('[support] signature de la pièce jointe:', error)
+    return { error: "Le fichier n'a pas pu être ouvert." }
+  }
+  return { url: signe.signedUrl }
+}
+
+/**
  * Objet de l'email reçu par l'éditeur.
  *
  *   [Support] BLOQUANT · École Bilal Neuville · Les bulletins ne s'impriment pas
