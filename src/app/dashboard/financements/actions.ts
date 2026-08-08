@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { sendNotificationEmail, hasSmtpConfig } from '@/lib/email'
 import { sanitize } from '@/lib/security/sanitize'
+import { escapeHtml } from '@/lib/security/escape-html'
 import { FINANCE_ROLES } from '@/lib/financements/roles'
 import { logAudit } from '@/lib/audit'
 
@@ -28,12 +29,6 @@ export interface SendRelancePayload {
 export interface SendRelanceResult {
   error?:        string
   communication?: FinancementCommunication
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 export async function sendRelance(payload: SendRelancePayload): Promise<SendRelanceResult> {

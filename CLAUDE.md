@@ -2149,6 +2149,47 @@ qu'elles. 221 lignes ramenees a 107.
     `redirect_to` est **ignore** et l'utilisateur atterrit sur la **Site URL** (l'apex, la vitrine),
     jeton en main, sans que rien ne se passe. Echec silencieux.
 
+#### 8 aout 2026 (fin) — « Contacter le support » : formulaire de l'ecole vers l'editeur
+
+Dernier point en attente du bloc 3, demande le 7 aout. **Decision utilisateur : un FORMULAIRE**,
+contre le `mailto:` que je proposais — et **« toute ecole devra configurer sa messagerie dans
+l'app »**, ce qui fait de la messagerie un **prerequis d'ouverture** et non une option.
+
+- **La demande est ECRITE avant d'etre notifiee** (`support_requests`). C'est la raison d'etre de
+  la table : « ma messagerie ne fonctionne plus » est un motif de demande **ordinaire** — envoyer
+  d'abord ferait de cette demande-la **la seule incapable d'arriver**, et l'ecole croirait avoir ecrit.
+- **Taxonomie en 6 natures** (`src/lib/support/categories.ts`, source unique partagee par le select,
+  la validation serveur et le CHECK en base) : assistance / incident / information / suggestion /
+  facturation / autre. Choisies pour etre **DISTINCTES** — deux categories qui se recouvrent ne se
+  partagent pas les demandes, elles finissent toutes deux dans « Autre ».
+  - **Champ IMPACT conditionnel** (bloquant / genant / mineur), **uniquement sur un incident** :
+    contrainte `support_impact_incident_seulement` en base. Libelles decrivant une **consequence**
+    et non une urgence ressentie — « bloquant » se verifie, « urgent » ne se verifie pas et tout
+    finit urgent.
+- **Le contexte s'attache seul** (ecole, auteur, **page d'origine**, version, navigateur) : c'est
+  ce qui distingue un formulaire d'un email, et sur un incident cela economise le 1er aller-retour.
+  Il est **MONTRE** a l'utilisateur (replie) — une application qui transmet des informations sur
+  son utilisateur les lui affiche.
+- **`Reply-To` = l'AUTEUR**, pas l'ecole : la reponse va a qui a le probleme sous les yeux.
+- **Statut d'envoi ecrit en SERVICE-ROLE** : la table n'a **ni policy UPDATE ni DELETE** (l'ecole
+  depose et relit, elle ne retouche pas une demande partie) ; `email_status` est un champ systeme.
+- **Message d'echec HONNETE** : si l'email ne part pas, la modale se ferme quand meme avec
+  « votre demande est enregistree, mais la notification n'a pas pu partir ». Annoncer un echec
+  ferait tout recommencer a l'utilisateur, **pour rien**.
+- **Bucket `support-attachments`** prive, 2 Mo, images + PDF, cloisonne par
+  `{etablissement_id}/…` (motif des justificatifs et des PJ de communication). Prive et non public :
+  une capture d'ecran de bug montre des donnees reelles d'eleves.
+- **Tout est ECHAPPE dans l'email** (`escapeHtml` / `escapeHtmlMultiline`) : objet, message et
+  contexte viennent d'une saisie, et cette boite est **la mienne** — une injection y serait une
+  injection chez moi. **`escapeHtml` extrait** en `src/lib/security/escape-html.ts` : c'etait sa
+  **3e occurrence** (financements + signature de communications, qui omettaient l'apostrophe).
+  **Ne pas confondre avec `sanitize()`** : le choix se fait sur la nature de la SOURCE — HTML
+  d'editeur riche → `sanitize`, texte brut de champ → `escapeHtml`.
+- **Modale VERROUILLEE** (`FormModal`) : ni clic sur le fond, ni Echap. Une demande de support se
+  redige parfois longuement, et dans l'agacement d'un probleme.
+- **Visible pour `direction` + `admin` seulement** : un enseignant s'adresse a sa direction. Un
+  canal ouvert a tous transformerait la boite du support en 2e niveau d'assistance interne.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2369,6 +2410,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] **A JOUER** — `supabase/migrations/create-support-requests.sql` (table `support_requests` +
+  RLS « depot et relecture par la direction, ni modification ni suppression » + bucket prive
+  `support-attachments` 2 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**
 - [x] Executer `supabase/migrations/add-etablissements-sante-rpc.sql` (sante des ecoles en UN
   appel au lieu de 3 requetes par ecole ; derniere connexion et messagerie configuree ;
   execution retiree aux roles de l API).

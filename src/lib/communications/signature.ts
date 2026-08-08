@@ -2,11 +2,7 @@
 // Cordialement + coordonnees de l'etablissement : nom, adresse, telephone, contact.
 // Rendue en HTML pour le RichTextEditor (parents + staff).
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { escapeHtml } from '@/lib/security/escape-html'
 
 interface EtabSignatureFields {
   nom?: string | null

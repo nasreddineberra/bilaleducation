@@ -6,7 +6,9 @@ import { usePathname } from 'next/navigation'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
+import SupportRequestModal from '@/components/support/SupportRequestModal'
 import {
+  LifeBuoy,
   LayoutDashboard,
   Users,
   Contact,
@@ -366,7 +368,21 @@ interface DashboardSidebarProps {
   etablissementNom?:  string | null
   etablissementLogo?: string | null
   anneeCourante?:     string | null
+  /** Auteur affiché dans « informations jointes » de la demande de support.
+   *  Pour l'AFFICHAGE seulement : la server action relit l'identité en session. */
+  auteur?:            { nom: string; email: string; role: string } | null
 }
+
+/**
+ * Qui peut écrire à l'éditeur.
+ *
+ * La direction — et l'admin, par la règle du projet : tout contrôle qui
+ * autorise `direction` autorise `admin`. Masqué pour les autres : un
+ * enseignant s'adresse à sa direction, pas au fournisseur du logiciel, et un
+ * canal ouvert à tous transformerait la boîte du support en second niveau
+ * d'assistance interne.
+ */
+const ROLES_SUPPORT: UserRole[] = ['admin', 'direction']
 
 // Initiales de tous les mots, majuscules, sans accents
 function getInitiales(nom: string): string {
@@ -377,10 +393,12 @@ function getInitiales(nom: string): string {
     .join('') || 'BE'
 }
 
-export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante }: DashboardSidebarProps) {
+export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante, auteur }: DashboardSidebarProps) {
   const pathname   = usePathname()
 
   const { collapsed, setCollapsed } = useSidebar()
+  const [supportOuvert, setSupportOuvert] = useState(false)
+  const peutContacterSupport = Boolean(role && ROLES_SUPPORT.includes(role))
   const [tempExpanded,  setTempExpanded]  = useState(false)  // expand temporaire depuis état réduit
 
   // Collecter tous les hrefs pour déterminer le match le plus spécifique
@@ -805,6 +823,43 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           )
         })}
       </nav>
+
+      {/* ── Contacter le support ─────────────────────────────────────────────
+          Placé JUSTE AU-DESSUS des informations d'application : c'est le bas de
+          page, là où l'on cherche un contact — et non dans la navigation, où il
+          se lirait comme une rubrique de travail. */}
+      {peutContacterSupport && (
+        <div className={clsx(
+          'border-t border-white/10 flex-shrink-0',
+          collapsed ? 'py-2 flex justify-center' : 'px-3 py-2'
+        )}>
+          <SidebarTooltip
+            label="Contacter le support"
+            className={collapsed ? 'w-auto' : 'w-full'}
+          >
+            <button
+              type="button"
+              onClick={() => setSupportOuvert(true)}
+              className={clsx(
+                'sidebar-item flex items-center rounded-lg text-[var(--brand-muted)]',
+                'hover:bg-white/10 hover:text-white transition-colors',
+                collapsed ? 'justify-center p-2' : 'w-full gap-3 px-3 py-2'
+              )}
+            >
+              <LifeBuoy size={collapsed ? 20 : 18} className="flex-shrink-0" aria-hidden="true" />
+              {!collapsed && <span className="text-sm truncate">Contacter le support</span>}
+            </button>
+          </SidebarTooltip>
+        </div>
+      )}
+
+      {supportOuvert && (
+        <SupportRequestModal
+          onClose={() => setSupportOuvert(false)}
+          ecole={etablissementNom ?? null}
+          auteur={auteur ?? null}
+        />
+      )}
 
       {/* ── Footer ───────────────────────────────────────────────────────────── */}
       <div className={clsx(

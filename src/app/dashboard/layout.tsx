@@ -158,6 +158,11 @@ export default async function DashboardLayout({
           etablissementNom={etablissement?.nom ?? null}
           etablissementLogo={etablissement?.logo_url ?? null}
           anneeCourante={currentYear?.label ?? null}
+          auteur={profile ? {
+            nom:   [profile.civilite, profile.last_name, profile.first_name].filter(Boolean).join(' ').trim(),
+            email: profile.email ?? user.email ?? '',
+            role:  displayRole ?? '',
+          } : null}
         />
 
         {/* Zone droite : navbar + contenu */}

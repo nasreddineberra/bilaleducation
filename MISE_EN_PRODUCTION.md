@@ -311,11 +311,20 @@ cohérent. Trois blocs, dans cet ordre.
       Décision du 7 août : ce SMTP sert à l'**authentification de toutes les écoles** (création
       de compte, mot de passe oublié) ; il ne touche PAS aux communications des écoles, qui
       gardent leur propre configuration et leur propre expéditeur.
-- [ ] **Lien « Contacter le support » dans la barre latérale de l'ÉCOLE**, au-dessus des
-      informations d'application (© et version), ouvrant un message vers l'adresse de
-      l'éditeur. Réservé à la direction. Aujourd'hui l'école n'a **aucun moyen de joindre
-      son fournisseur depuis l'application** : elle doit connaître une adresse par ailleurs.
-      Demandé le 7 août.
+- [x] **« Contacter le support » dans la barre latérale de l'ÉCOLE** (8 août), au-dessus des
+      informations d'application, réservé à `direction` et `admin`. Un **formulaire**, décidé
+      contre le simple `mailto:` : six natures de demande, impact conditionnel sur un incident,
+      pièce jointe, et le contexte joint automatiquement (école, auteur, **page d'origine**,
+      version, navigateur) — montré à l'utilisateur, replié.
+      - **La demande est ÉCRITE avant d'être notifiée** (`support_requests`). Sans cela,
+        « ma messagerie ne fonctionne plus » — motif de demande parfaitement ordinaire —
+        serait la seule demande incapable d'arriver : l'école croirait avoir écrit.
+      - **`Reply-To` = l'auteur**, pas l'école : répondre écrit à qui a le problème sous les yeux.
+      - **Migration `create-support-requests.sql` À JOUER** — sans elle, l'écran échoue.
+- [ ] **Toi** — **Conséquence de la décision du 8 août : configurer la messagerie devient un
+      PRÉREQUIS D'OUVERTURE pour chaque école**, et non une option. Le formulaire de support en
+      dépend, comme les devoirs, les relances et les annonces. À intégrer à la procédure de
+      mise en service d'un client, et à la procédure SMTP à leur remettre.
 - [ ] **Consentement et durée** de l'intervention (RGPD) : à traiter avec le contrat de
       sous-traitance de la phase 8.
 
