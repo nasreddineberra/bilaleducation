@@ -133,13 +133,66 @@ Trois contraintes du format à ne pas défaire :
 
 1. **mise en page en tableaux** — Outlook s'appuie sur le moteur de Word, qui
    ignore `flex` et `grid` ;
-2. **aucune image distante** — Outlook et Gmail les bloquent par défaut pour un
-   expéditeur inconnu, ce que nous serons au lancement. Le logotype est dessiné en
-   texte et en fonds de cellule : il s'affiche toujours, et ne dépend d'aucun
-   hébergement — ce qui compte, le domaine racine devant devenir une vitrine
-   peut-être hébergée ailleurs ;
+2. **une seule image, le logo, et rien qui en dépende** — Gmail et Apple Mail
+   affichent les images distantes ; **Outlook de bureau les bloque** tant que
+   l'expéditeur n'est pas dans les contacts. Le logotype **textuel** porte donc seul
+   le bandeau quand l'image manque, et aucune information n'est confiée à une image.
+   Voir aussi la section « Le logo » ci-dessous ;
 3. **`color-scheme: only light`** — sans lui, le thème sombre d'Apple Mail et de
    Gmail réécrit les couleurs et détruit le bandeau de marque.
+
+## Le logo
+
+Fichier : **`public/email/logo.png`**, servi par le domaine racine à
+`https://bilaleducation.fr/email/logo.png`.
+
+> **CONTRAINTE À NE PAS PERDRE DE VUE.** Le domaine racine doit devenir une
+> vitrine, peut-être hébergée ailleurs. **Ce chemin devra continuer d'être
+> servi** — sinon le logo disparaît de tous les emails, sans le moindre
+> avertissement. Le domaine vous appartient : quel que soit l'hébergeur, le
+> fichier peut y être remis.
+
+### Pourquoi une URL, et pas l'image elle-même
+
+Un email ne peut pas embarquer une image ici :
+
+| Méthode | Verdict |
+|---|---|
+| URI `data:` | supprimée par Gmail et Outlook |
+| Pièce jointe `cid:` — la méthode classique | suppose de composer le message ; Supabase ne nous laisse fournir que du HTML |
+| **URL distante** | la seule voie |
+
+Et elle doit être **réellement publique** : un email se lit parfois des jours plus
+tard, et le client va chercher l'image **sans session**. Une URL signée aurait
+expiré — c'est l'inverse de la règle appliquée aux justificatifs et aux bulletins,
+pour une raison qui tient au support, pas au laxisme : un logo n'est pas une
+donnée personnelle.
+
+### Ce que le fichier contient
+
+Une **plaque blanche arrondie** avec le logo inséré, coins transparents, produite
+au **double** de sa taille d'affichage (76 px pour 38 px affichés). Deux raisons
+distinctes à la plaque :
+
+- les pétales du logo sont **transparents** — posé nu sur le bandeau, ils se
+  rempliraient de teal et le dessin changerait d'aspect. C'est la décision du
+  3 août, déjà appliquée à la fiche établissement et à `apple-icon.png` : un logo
+  est dessiné pour un fond blanc ;
+- une plaque construite en HTML **resterait affichée** quand l'image est bloquée :
+  un rectangle blanc vide au milieu du bandeau.
+
+### `alt=""` — l'image est décorative
+
+Le logotype **textuel** est juste à côté et s'affiche toujours. Un texte de
+remplacement répéterait la marque, à l'œil comme au lecteur d'écran. Image
+bloquée, le bandeau retrouve exactement l'état qui précédait le logo.
+
+### Régénérer l'image
+
+Si le logo source change (`src/app/icon.png`), refaire le fichier avec `sharp` :
+plaque blanche `rx=20` de 76 px, logo redimensionné à 56 px composé à 10 px des
+bords. **Le script doit être lancé depuis la racine du projet** — placé ailleurs,
+Node n'y résout pas `node_modules` et ne trouve pas `sharp`.
 
 ## Variables disponibles
 

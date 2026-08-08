@@ -33,12 +33,11 @@
  * CONTRAINTES DU FORMAT EMAIL, qui expliquent le HTML daté ci-dessous :
  *   · mise en page en TABLEAUX — Outlook (moteur Word) ignore flex et grid ;
  *   · styles EN LIGNE — la plupart des clients suppriment les feuilles de style ;
- *   · AUCUNE image distante — Outlook et Gmail les bloquent par défaut pour un
- *     expéditeur inconnu, ce que nous serons au lancement. Le logotype est donc
- *     dessiné en texte et en fonds de cellule : il s'affiche toujours. Il ne
- *     dépend d'aucun hébergement, ce qui compte ici : le domaine racine doit
- *     devenir une vitrine peut-être hébergée ailleurs, une URL d'image posée
- *     dessus casserait le jour de la bascule ;
+ *   · UNE SEULE image, le logo, et RIEN qui en dépende — Gmail et Apple Mail
+ *     affichent les images distantes ; Outlook de bureau les bloque tant que
+ *     l'expéditeur n'est pas dans les contacts. Le logotype TEXTUEL porte donc
+ *     seul le bandeau quand l'image manque, et aucune information n'est confiée
+ *     à une image. Voir `LOGO_URL` ;
  *   · `color-scheme: only light` — sans cela Apple Mail et Gmail inversent les
  *     couleurs en thème sombre et massacrent un fond de marque foncé.
  *
@@ -69,12 +68,50 @@ const C = {
   filet:       '#f0ece8', // --line (warm-100)
   alerteFond:  '#fff8e6', // amber-50
   alerteEncre: '#996100', // amber-700
-  tuile:       '#18aa99', // primary-500
 }
 
 const POLICE = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
-const CONTACT = 'contact@bilaleducation.fr'
+// Le pied ne donne AUCUNE adresse de l'éditeur, et c'est délibéré : le
+// destinataire est le personnel d'une école, son recours est sa propre
+// direction — la même que celle vers laquelle pointent les encadrés d'alerte.
+// L'éditeur assiste l'établissement, pas ses utilisateurs un par un.
+
+/**
+ * Logo du bandeau — `public/email/logo.png`, servi par le domaine racine.
+ *
+ * ┌─ POURQUOI UNE URL, ET PAS L'IMAGE ELLE-MÊME ────────────────────────────┐
+ * │ Un email ne peut pas embarquer une image ici : les URI `data:` sont     │
+ * │ supprimées par Gmail et Outlook, et la pièce jointe `cid:` — la méthode │
+ * │ classique — suppose de composer le message, alors que Supabase ne nous  │
+ * │ laisse fournir que du HTML. L'URL distante est la seule voie.           │
+ * │                                                                         │
+ * │ Elle doit être RÉELLEMENT PUBLIQUE : un email se lit parfois des jours  │
+ * │ plus tard, et le client va chercher l'image sans session. Une URL       │
+ * │ signée aurait expiré.                                                  │
+ * └─────────────────────────────────────────────────────────────────────────┘
+ *
+ * CONTRAINTE À CONNAÎTRE : le domaine racine doit devenir une vitrine,
+ * peut-être hébergée ailleurs. Ce chemin devra continuer d'être servi — sinon
+ * le logo disparaît de tous les emails, sans le moindre avertissement.
+ * Le domaine, lui, vous appartient : quel que soit l'hébergeur, le fichier
+ * peut y être remis.
+ *
+ * L'image porte SA PROPRE plaque blanche, pour deux raisons distinctes :
+ *   · les pétales du logo sont transparents — posé nu sur le bandeau, ils se
+ *     rempliraient de teal et le dessin changerait d'aspect (décision du
+ *     3 août : un logo est dessiné pour un fond blanc) ;
+ *   · une plaque construite en HTML resterait affichée quand l'image est
+ *     bloquée : un rectangle blanc vide au milieu du bandeau.
+ *
+ * `alt=""` : l'image est DÉCORATIVE. Le logotype textuel est juste à côté et
+ * s'affiche toujours — un texte de remplacement répéterait la marque, à l'œil
+ * comme au lecteur d'écran. Bloquée (Outlook de bureau, tant que l'expéditeur
+ * n'est pas dans les contacts), l'image s'efface et le logotype porte seul le
+ * bandeau : c'est exactement l'état d'avant.
+ */
+const LOGO_URL = 'https://bilaleducation.fr/email/logo.png'
+const LOGO_PX = 38   // le PNG est produit au double, pour les écrans à haute densité
 
 // ─── Coque commune ───────────────────────────────────────────────────────────
 
@@ -115,13 +152,12 @@ function coque({ titre, apercu, corps }) {
             <td style="background-color:${C.marque}; border-radius:16px 16px 0 0; padding:22px 32px;">
               <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td width="38" style="vertical-align:middle;">
-                    <!-- Logotype dessiné, pas une image : voir l'en-tête du générateur. -->
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td width="38" height="38" align="center" bgcolor="${C.tuile}" style="border-radius:10px; font-family:${POLICE}; font-size:21px; font-weight:700; color:#ffffff; line-height:38px;">B</td>
-                      </tr>
-                    </table>
+                  <td width="${LOGO_PX}" style="vertical-align:middle; line-height:0;">
+                    <!-- Dimensions déclarées en attribut ET en style : sans elles,
+                         un client qui bloque l'image réserve une place au hasard
+                         et déforme le bandeau. Voir LOGO_URL pour le reste. -->
+                    <img src="${LOGO_URL}" width="${LOGO_PX}" height="${LOGO_PX}" alt=""
+                         style="display:block; width:${LOGO_PX}px; height:${LOGO_PX}px; border:0; outline:none; text-decoration:none;">
                   </td>
                   <td style="padding-left:12px; vertical-align:middle; font-family:${POLICE}; font-size:17px; font-weight:700; letter-spacing:0.4px; color:#ffffff; white-space:nowrap;">
                     BILAL <span style="color:${C.accent};">EDUCATION</span>
@@ -143,7 +179,7 @@ ${corps}
           <tr>
             <td style="padding:20px 32px 0 32px; font-family:${POLICE}; font-size:11px; line-height:1.6; color:${C.encreDouce};">
               Message automatique &middot; Bilal Education &middot; Gestion administrative et pédagogique<br>
-              Une question ? <a href="mailto:${CONTACT}" style="color:${C.encreDouce}; text-decoration:underline;">${CONTACT}</a>
+              Une question ? Contacter l'administrateur de votre école.
             </td>
           </tr>
 
