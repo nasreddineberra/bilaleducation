@@ -22,7 +22,7 @@ import { schoolUrl } from '@/lib/tenant/console-url'
  */
 async function envoyerLienMotDePasse(email: string, slug: string): Promise<boolean> {
   const { error } = await createAdminClient().auth.resetPasswordForEmail(email, {
-    redirectTo: schoolUrl(slug, '/auth/callback?next=/auth/reset-password'),
+    redirectTo: schoolUrl(slug, '/auth/confirm?next=/auth/reset-password'),
   })
   if (error) console.error('[superadmin] envoi du lien de mot de passe:', error)
   return !error

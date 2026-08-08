@@ -289,7 +289,7 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
   // cette variable vaut le domaine racine, devenu la vitrine, ou aucun
   // etablissement n'est resolu. Le lien partait et menait nulle part.
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await requestOrigin()}/auth/callback?next=/auth/reset-password`,
+    redirectTo: `${await requestOrigin()}/auth/confirm?next=/auth/reset-password`,
   })
 
   if (error) return { error: 'Erreur lors de l\'envoi de l\'email.' }

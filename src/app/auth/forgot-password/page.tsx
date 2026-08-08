@@ -94,7 +94,7 @@ export default function ForgotPasswordPage() {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
         // Origine NORMALISÉE : un `www.` de tête n'est couvert par aucun
         // certificat sur un sous-domaine d'école. Voir `canonical-host`.
-        redirectTo: `${canonicalOrigin(window.location.origin)}/auth/callback?next=/auth/reset-password`,
+        redirectTo: `${canonicalOrigin(window.location.origin)}/auth/confirm?next=/auth/reset-password`,
       })
 
       if (resetError) {
