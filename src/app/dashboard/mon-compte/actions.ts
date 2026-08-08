@@ -4,6 +4,7 @@ import { updateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -69,7 +70,7 @@ export async function setOwnTheme(theme: 'light' | 'dark'): Promise<{ error?: st
 
 // Changement de son propre email — réservé admin/direction (pas de hiérarchie au-dessus).
 // Changement direct (auth + profil), tracé via le client session.
-export async function updateOwnEmail(newEmail: string): Promise<{ error?: string }> {
+export async function updateOwnEmail(newEmail: string): Promise<{ error?: string; avertissement?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié.' }
@@ -81,6 +82,9 @@ export async function updateOwnEmail(newEmail: string): Promise<{ error?: string
 
   const email = newEmail.trim()
   if (!isValidEmail(email)) return { error: 'Adresse email invalide.' }
+
+  // Capturee AVANT le changement : ensuite, plus rien ne la porte.
+  const ancienneAdresse = user.email ?? ''
 
   // 1. Compte auth (service-role, changement DIRECT)
   //
@@ -111,6 +115,22 @@ export async function updateOwnEmail(newEmail: string): Promise<{ error?: string
   // 2. Profil (client SESSION → RLS « update own » + audit ; email non protégé par le trigger)
   const { error: profErr } = await supabase.from('profiles').update({ email }).eq('id', user.id)
   if (profErr) return { error: "Erreur lors de la mise à jour de l'email du profil." }
+
+  // 3. Alerte à l'ANCIENNE adresse — voir `alerterAncienneAdresse`.
+  //    Envoyée APRÈS le changement, jamais avant : une alerte émise sur un
+  //    changement qui échoue ensuite inquiéterait pour rien.
+  //    Non bloquante : l'adresse est déjà modifiée, un échec d'envoi ne le défait pas.
+  if (ancienneAdresse && me?.etablissement_id) {
+    const alerte = await alerterAncienneAdresse({
+      etablissementId: me.etablissement_id,
+      ancienneAdresse,
+      nouvelleAdresse: email,
+      parUnAdministrateur: false,
+    })
+    if (!alerte.ok) {
+      return { avertissement: "Adresse modifiée, mais l'alerte de sécurité n'a pas pu être envoyée à l'ancienne adresse." }
+    }
+  }
 
   return {}
 }

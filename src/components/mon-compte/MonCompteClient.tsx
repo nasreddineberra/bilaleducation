@@ -65,11 +65,14 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
 
   const handleChangeEmail = async () => {
     setEmailSaving(true)
-    const { error } = await updateOwnEmail(emailInput.trim())
+    const { error, avertissement } = await updateOwnEmail(emailInput.trim())
     setEmailSaving(false)
     setConfirmEmail(false)
     if (error) { toast.error(error); return }
-    toast.success('Adresse email mise à jour.')
+    // L'adresse EST modifiee ; seule l'alerte de securite a manque. Le dire en
+    // ambre et non en rouge : rouge ferait croire que le changement a echoue.
+    if (avertissement) toast.warning(avertissement)
+    else toast.success("Adresse email mise à jour. Une alerte a été envoyée à l'ancienne adresse.")
     router.refresh()
   }
 

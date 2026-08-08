@@ -10,6 +10,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { requestOrigin } from '@/lib/tenant/request-origin'
 import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
+import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
 
 // ─── Créer un utilisateur ────────────────────────────────────────────────────
 
@@ -198,7 +199,7 @@ export async function toggleActive(id: string, is_active: boolean): Promise<{ er
 
 // ─── Modifier l'email ────────────────────────────────────────────────────────
 
-export async function updateEmail(id: string, email: string): Promise<{ error?: string }> {
+export async function updateEmail(id: string, email: string): Promise<{ error?: string; avertissement?: string }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
@@ -207,7 +208,7 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
   // etablissement passait — le compte auth n'est soumis a aucune RLS. Meme
   // motif que `deleteUser`.
   const session = await createClient()
-  const { data: cible } = await session.from('profiles').select('id').eq('id', id).maybeSingle()
+  const { data: cible } = await session.from('profiles').select('id, email, etablissement_id').eq('id', id).maybeSingle()
   if (!cible) return { error: 'Utilisateur introuvable.' }
 
   const supabase = createAdminClient()
@@ -233,8 +234,24 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
   const { error: profileError } = await session.from('profiles').update({ email }).eq('id', id)
   if (profileError) return { error: "Erreur lors de la mise à jour de l'email." }
 
+  // Alerte a l'ANCIENNE adresse. C'est ici qu'elle compte le plus : l'interesse
+  // n'a rien demande, et sans ce message il ne saurait pas que son acces vient
+  // de changer de main. Non bloquante — l'adresse est deja modifiee.
+  let avertissement: string | undefined
+  if (cible.email && cible.etablissement_id) {
+    const alerte = await alerterAncienneAdresse({
+      etablissementId: cible.etablissement_id,
+      ancienneAdresse: cible.email,
+      nouvelleAdresse: email,
+      parUnAdministrateur: true,
+    })
+    if (!alerte.ok) {
+      avertissement = "Adresse modifiée, mais l'alerte de sécurité n'a pas pu être envoyée à l'ancienne adresse."
+    }
+  }
+
   revalidatePath('/dashboard/utilisateurs')
-  return {}
+  return avertissement ? { avertissement } : {}
 }
 
 // ─── Réinitialiser la 2FA d'un utilisateur (déblocage admin) ─────────────────

@@ -160,6 +160,9 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
         if (emailEditable && form.email.trim() !== initialForm.current.email) {
           const emailResult = await updateEmail(profile.id, form.email.trim())
           if (emailResult.error) { toast.error(emailResult.error); setIsSubmitting(false); return }
+          // L'adresse est modifiee ; seule l'alerte a l'ancienne adresse a
+          // manque. On le signale sans interrompre l'enregistrement du reste.
+          if (emailResult.avertissement) toast.warning(emailResult.avertissement)
         }
         result = await updateProfile(profile.id, {
           role:       form.role as UserRole,   // non vide : garanti par isValid
