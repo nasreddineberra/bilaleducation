@@ -486,6 +486,16 @@ cohérent. Trois blocs, dans cet ordre.
       dizaines, sur plusieurs jours. Un domaine neuf qui émet 300 messages d'un coup
       s'installe durablement dans les indésirables.
 - [ ] **Moi** — Rédiger la procédure de configuration SMTP à remettre aux écoles.
+- [ ] **Toi** — **Vérifier l'alignement dans un email reçu** : en-tête du message → les trois
+      lignes `SPF` / `DKIM` / `DMARC`. Toujours pas fait au 9 août. Elles diront si le classement
+      en indésirables tient à la seule réputation d'un domaine neuf — attendu — ou à autre chose.
+      Marquer « non indésirable » dans Outlook au passage : cela nourrit la réputation.
+- [ ] **Vérifier à l'écran les gabarits à la marque de l'ÉCOLE** (relance, annonce, message
+      staff, devoir, absence, paiement), refondus le 9 août et **jamais vus** : je n'ai pas de
+      logo d'établissement sous la main. Le point à regarder est le rendu d'un **logo
+      transparent** sur le bandeau teal — la plaque blanche n'est posée que dans ce cas.
+- [ ] **Vérifier à l'écran les 7 écrans d'authentification** refondus le 9 août, notamment le
+      **repli en initiales** quand une école n'a pas de logo.
 
 ---
 

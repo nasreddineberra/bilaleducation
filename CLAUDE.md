@@ -2273,6 +2273,56 @@ et `forgot-password` porte encore l'illustration et les **points de pagination**
 l'utilisateur avait explicitement refuses. Trois ecrans a aligner : `forgot-password`,
 `confirm`, `reset-password`.
 
+#### 9 aout 2026 (suite) — Charte des ecrans auth, alerte de securite, coque d'email unique
+
+**LES 7 ECRANS D'AUTHENTIFICATION** (`AuthShell` + `AuthBrandHeader`). La coque etait recopiee
+**sept fois** et avait derive : quatre ecrans gardaient le degrade EN DUR `#507583 → #18aa99`
+d'avant la refonte du 3 aout (donc insensible au theme), un n'avait pas de pied de page, et
+**six affichaient une pastille « B » generique au lieu du logo de l'ECOLE**. Une seule etait
+juste (`totp-challenge`) : elle est devenue le composant.
+- **Le logo est celui de l'ECOLE.** Ces pages vivent sur son sous-domaine ; le commentaire du
+  pied l'enonçait deja (« le haut appartient a l'etablissement, l'application se signe en bas »)
+  — l'intention etait ecrite, l'en-tete ne la respectait pas.
+- **Deux pieces et non une**, pour limiter le risque sur les ecrans 2FA en production :
+  `AuthBrandHeader` (l'en-tete, ce qui manquait partout) et `AuthShell` (la coque complete, pour
+  les 3 ecrans reellement casses). Les 4 ecrans 2FA n'ont reçu que l'en-tete.
+- `forgot-password` perd l'illustration et les **points de pagination** que l'utilisateur avait
+  explicitement refuses le 3 aout, et qui avaient survecu la. **302 lignes supprimees, 36 ajoutees.**
+
+**CHANGEMENT D'EMAIL — deux defauts** (`updateOwnEmail`, `updateEmail`).
+1. **`email_confirm: true` manquait.** Sans lui l'API admin ne change PAS l'adresse : elle ouvre
+   un cycle de confirmation et tente d'envoyer le gabarit « Change email address », que nous
+   n'avons pas ecrit → « Error updating user » opaque. **Mon affirmation du 8 aout (« l'API admin
+   change sans confirmation ») etait fausse** : c'est vrai uniquement AVEC ce drapeau.
+2. **L'ancienne adresse n'etait pas prevenue.** C'est LE controle en cas d'usurpation : qui prend
+   la main sur une session change l'adresse pour verrouiller le compte, et le titulaire legitime
+   ne reçoit plus rien a une adresse qu'il ne connait pas. **L'ancienne boite est le seul canal
+   que l'attaquant ne controle pas.** La notification Supabase, pourtant activee, N'EST PAS PARTIE
+   (le changement direct court-circuite le cycle) → l'application l'envoie elle-meme
+   (`lib/auth/email-change-alert.ts`).
+   - **NOTIFIER, NE PAS BLOQUER** : l'alerte part APRES un changement deja effectif et son echec
+     ne le defait pas. Exiger une confirmation depuis l'ancienne adresse enfermerait precisement
+     celui qui en a perdu l'acces — c'est souvent la raison meme du changement.
+   - Echec d'envoi remonte en **ambre** et non en rouge : l'adresse EST modifiee.
+
+**COQUE D'EMAIL UNIQUE** (`src/lib/email/shell.mjs`). Les 8 emails de l'app ecrivaient leur HTML
+sur place, dont deux se signaient encore « Bilal Education · Notification automatique ».
+- **Ecrit en `.mjs` et non `.ts`** : `build.mjs` est un script Node ordinaire, il ne peut pas
+  importer du TypeScript ; le projet ayant `allowJs`, l'application l'importe sans difficulte.
+  **Un fichier, deux consommateurs** (gabarits Supabase + code applicatif).
+- **DEUX MARQUES, A NE PAS CONFONDRE** — c'est ce qui a decide de la conception :
+  **editeur** (auth, alerte securite, support, test messagerie) vs **ECOLE** (relance, annonce,
+  message staff, devoir, absence, paiement). Une famille traite avec son ecole ; le message part
+  par le SMTP de l'ecole et son corps porte deja sa signature. Appliquer la meme coque partout
+  aurait ete plus rapide et **faux**.
+- **Regression introduite puis rattrapee** : la plaque blanche derriere le logo ne vaut que pour
+  un logo d'ECOLE (souvent transparent). Le logo de l'editeur porte deja la sienne, a coins
+  arrondis transparents — un fond blanc les remplissait, et Outlook (qui ignore `border-radius`)
+  aurait affiche un carre. Trouvee en verifiant une phrase ecrite trop vite dans un commit.
+  **Verifie par empreinte** : les 3 gabarits Supabase sont byte pour byte ceux qui y sont colles.
+- **Piege repaye** : des accents graves dans un commentaire A L'INTERIEUR d'un gabarit de chaine
+  le referment (deja rencontre sur le CSS de la page de connexion).
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2280,26 +2330,38 @@ l'utilisateur avait explicitement refuses. Trois ecrans a aligner : `forgot-pass
 > Modele retenu : editeur logiciel, abonnement par etablissement, un sous-domaine par
 > ecole, deploiement et base uniques.
 >
-> **MESSAGERIE (phase 5) — volet GABARITS FAIT le 8 aout** (voir la section du jour).
-> Les 3 emails d'authentification sont ecrits, relus a l'ecran, et le README porte la marche
-> a suivre. **Tout cela reste inerte sans les boites email.**
+> **MESSAGERIE (phase 5) — LE CIRCUIT D'AUTHENTIFICATION FONCTIONNE** (9 aout).
+> Boite `contact@` + alias `superadmin@` chez Infomaniak, MX/SPF/DKIM/DMARC publies dans
+> Vercel et **verifies a la source**, SMTP du projet Supabase branche, 3 gabarits colles,
+> 2 notifications de securite activees. **Premier email reel envoye et reçu**, parcours
+> complet : mot de passe oublie → email → page de confirmation → nouveau mot de passe →
+> notification « Mot de passe modifie ».
 >
-> **AU PROCHAIN DEMARRAGE, dans cet ORDRE** :
-> 1. **Utilisateur** — creer les boites `contact@` / `admin@` / `superadmin@bilaleducation.fr` ;
-> 2. **Utilisateur** — les 2 enregistrements DNS de protection dans Vercel (TXT `@` =
->    `v=spf1 -all`, TXT `_dmarc` = `v=DMARC1; p=reject;`), en attente depuis le 5 aout ;
-> 3. **Ensemble** — renseigner le **SMTP du projet Supabase** avec `contact@` (il couvre
->    l'authentification de TOUTES les ecoles ; l'expediteur integre est plafonne a
->    2-3 emails/heure), coller les 3 gabarits, **activer les 2 notifications de securite**,
->    verifier les 3 reglages (SMTP, `Email OTP expiration`, allow-list) ;
-> 4. **Ensemble** — configurer le SMTP de la PREMIERE ECOLE (circuit distinct : il porte les
->    communications de l'ecole, pas l'authentification) et **tester un envoi reel** —
->    devoir, relance, message aux parents, message au staff.
->    **Aucun email n'est jamais parti de cette application.**
+> **AU PROCHAIN DEMARRAGE — verifications d'abord, elles sont courtes :**
+> 1. **Utilisateur** — dans l'en-tete d'un email reçu, les 3 lignes `SPF` / `DKIM` / `DMARC`.
+>    Toujours pas verifiees. Elles diront si le classement en indesirables tient a la seule
+>    reputation d'un domaine neuf (attendu) ou a autre chose. Marquer « non indesirable »
+>    dans Outlook au passage.
+> 2. **A l'ecran** — les 7 ecrans d'authentification refondus le 9 aout, notamment le repli
+>    en INITIALES quand une ecole n'a pas de logo.
 >
-> Restent ensuite : la montee en charge progressive (un domaine neuf qui emet 300 messages
-> d'un coup s'installe dans les indesirables) et la procedure de configuration SMTP a
-> remettre aux ecoles.
+> **PUIS le circuit 2, jamais eprouve : les COMMUNICATIONS D'ECOLE.**
+> 3. **Ensemble** — configurer le SMTP de la PREMIERE ECOLE dans sa fiche (circuit DISTINCT
+>    de l'authentification), puis **un envoi reel de chaque** : devoir, relance, message aux
+>    parents, message au staff. C'est aussi le premier test des gabarits a la marque de
+>    l'ECOLE, **jamais vus a l'ecran** — surtout le rendu d'un logo transparent sur le
+>    bandeau teal.
+> 4. **Utilisateur** — DMARC de `p=none` vers `quarantine` puis `reject`, **seulement** quand
+>    les rapports arrivent sur `contact@` et montrent 100 % du legitime aligne. Infomaniak
+>    affichera un avertissement ambre entre-temps : **ne pas le suivre**.
+>
+> **Restent ensuite** : montee en charge progressive (un domaine neuf qui emet 300 messages
+> d'un coup s'installe dans les indesirables), procedure de configuration SMTP a remettre aux
+> ecoles, enrolement TOTP des comptes restants, et un compte de CHAQUE ROLE a eprouver depuis
+> la passe RLS du 5 aout (une policy trop stricte ne leve pas d'erreur : elle vide l'ecran).
+>
+> **Idee en attente** : liste des demandes de support dans la console de l'editeur. La table
+> `support_requests` existe et se lit ; aujourd'hui elles n'arrivent que par email.
 >
 > **Phase 4 bis (console super-admin) : TERMINEE le 7 aout** — securite, charte et ajouts.
 
