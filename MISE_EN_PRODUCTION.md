@@ -18,14 +18,23 @@ sous-domaine par école, cloisonnement par RLS.
 > ses actions sont gardées, cloisonnées et tracées ; elle porte le journal des interventions,
 > la vue de santé des écoles et l'envoi des liens de mot de passe.
 >
-> **AU PROCHAIN DÉMARRAGE : la MESSAGERIE (phase 5).** C'est le seul verrou qui reste avant
-> de pouvoir accueillir un vrai client — sans elle, aucun lien de mot de passe ne part, donc
-> aucune école ne peut ouvrir son compte.
+> **8 août — MESSAGERIE (phase 5), volet gabarits FAIT.** Les 3 emails d'authentification
+> sont écrits à la charte et relus à l'écran (`supabase/email-templates/`). Vérification
+> décisive au passage : **5 des 6 gabarits d'authentification ne se déclenchent jamais**,
+> seul « Reset Password » est en service.
 >
-> À éprouver à l'écran, dans cet ordre : se reconnecter à la console — elle demandera le
-> code TOTP, ayez le téléphone —, regarder le nouvel écran de connexion et la liste, puis
-> le parcours support (entrer dans l'école, agir, sortir, contrôler que le journal de
-> l'école porte bien votre nom).
+> **CE QUI RESTE, ET DANS CET ORDRE** — tout le volet gabarits est inerte sans le premier point :
+> 1. **Toi** — créer les boîtes `contact@`, `admin@` et `superadmin@bilaleducation.fr` ;
+> 2. **Toi** — les 2 enregistrements DNS de protection dans Vercel (TXT `@` = `v=spf1 -all`,
+>    TXT `_dmarc` = `v=DMARC1; p=reject;`), toujours en attente depuis le 5 août ;
+> 3. **Toi + Moi** — renseigner le SMTP du projet Supabase avec `contact@`, coller les
+>    3 gabarits, **activer les 2 notifications de sécurité**, vérifier les 3 réglages ;
+> 4. **Moi + Toi** — configurer le SMTP de la première école et **tester un envoi réel**.
+>    Aucun email n'est jamais parti de cette application.
+>
+> À éprouver à l'écran par ailleurs : se reconnecter à la console — elle demandera le
+> code TOTP, ayez le téléphone —, puis le parcours support (entrer dans l'école, agir,
+> sortir, contrôler que le journal de l'école porte bien votre nom).
 
 **Légende** : `[ ]` à faire · `[x]` fait · **Toi** = action manuelle (achat,
 compte, réglage chez un prestataire) · **Moi** = code, SQL, configuration.
@@ -281,8 +290,11 @@ cohérent. Trois blocs, dans cet ordre.
 - [ ] **Journal des interventions de support** dans la console (qui, quelle école, ouverte quand,
       fermée quand) et **expiration automatique** : aujourd'hui une intervention oubliée reste
       ouverte indéfiniment.
-- [ ] **Vue de santé par école** : messagerie configurée ou non, dernière connexion, effectif face à
-      la limite, abonnement proche de l'échéance.
+- [x] **Vue de santé par école** (7 août) : messagerie configurée ou non, dernière connexion,
+      effectif face à la limite, abonnement proche de l'échéance. Écran distinct de la liste —
+      celle-ci répond à « quels sont mes clients ? », celui-là à « lesquels vont mal ? ».
+      Un établissement désactivé ne produit aucune alerte : son silence est la conséquence
+      d'une décision, pas un symptôme.
 - [x] **Lien de réinitialisation** (7 août) : à la création d'une école ou d'un compte, un
       lien de définition du mot de passe part vers l'intéressé ; un bouton par utilisateur le
       renvoie depuis la fiche. Le mot de passe généré reste en repli, affiché **une seule
@@ -320,17 +332,39 @@ cohérent. Trois blocs, dans cet ordre.
       les écoles** : création de compte, mot de passe oublié. L'expéditeur intégré de Supabase
       est plafonné à **2 ou 3 emails par heure** — un service de test, inutilisable dès la
       deuxième école créée dans l'heure. Un bandeau le rappelle dans leur console.
-- [ ] **Moi** — **Refondre les gabarits d'email de Supabase** à la charte, avec les données de
-      l'école (décidé le 7 août). Six gabarits d'authentification (confirmation d'inscription,
-      invitation, lien magique, changement d'adresse, réinitialisation, ré-authentification) et
-      sept notifications de sécurité, toutes désactivées aujourd'hui.
-      - **CONTRAINTE À CONNAÎTRE AVANT DE COMMENCER** : ces gabarits sont **globaux au projet**,
-        pas par école, et n'exposent qu'un jeu fixe de variables — `.ConfirmationURL`, `.Token`,
-        `.SiteURL`, `.Email`, `.RedirectTo` et `.Data`. Le nom et le logo d'une école n'y sont
-        donc pas accessibles… **sauf par `.Data`**, qui expose les métadonnées de l'utilisateur.
-        Y déposer le nom de l'école à la création du compte est le seul levier pour personnaliser
-        l'email. À arbitrer : personnalisation par `.Data`, ou gabarit unique aux couleurs de
-        l'éditeur.
+- [x] **Moi** — **Gabarits d'email de Supabase refondus à la charte** (8 août).
+      `supabase/email-templates/` : `build.mjs` (source unique) génère les 3 fichiers à coller,
+      `README.md` porte la marche à suivre. Coque unique — l'en-tête et le pied n'existent
+      qu'en un exemplaire, pour ne pas rejouer le calcul comptable copié en trois écrans.
+      - **TROIS gabarits, pas treize.** Vérifié dans le code : **5 des 6 gabarits
+        d'authentification ne se déclenchent jamais** (les 7 `createUser` posent
+        `email_confirm: true` ; `inviteUserByEmail`, `signInWithOtp` et `reauthenticate`
+        sont absents ; `updateUserById({ email })` change l'adresse sans confirmation).
+        Seul **Reset Password** est en service — 4 points d'appel. Les habiller tous aurait
+        été cinq sixièmes de travail perdu.
+      - **Décision du 8 août — marque Bilal Education seule**, pas le nom de l'école, à
+        l'inverse de l'intention du 7. Raison : les écoles vivent sur `*.bilaleducation.fr`,
+        l'email et le domaine d'atterrissage portent donc la même marque. Le nom d'école
+        n'était accessible que par `.Data` (métadonnées utilisateur) : à écrire aux 4 points
+        de création, à rattraper sur les comptes existants, **modifiable par l'utilisateur
+        lui-même**, et **ne suivant pas un changement de nom**. Réversible pour un
+        `{{ if .Data.etablissement_nom }}` si une école prend un domaine propre.
+      - **Décision du 8 août — les 2 notifications de sécurité sont retenues** :
+        « Password changed » et « Email address changed ». Elles sont **désactivées par
+        défaut au niveau du projet** : un gabarit collé sans activation ne part jamais.
+      - **Épreuve visuelle** produite avant tout collage (rendu réel + bascule
+        exemple/variables), générée depuis les fichiers eux-mêmes pour ne pas en dériver.
+- [ ] **Toi + Moi** — **Coller les 3 gabarits** dans Supabase, **activer les 2 notifications**,
+      et vérifier les 3 réglages du projet : SMTP, `Email OTP expiration` (le gabarit annonce
+      **une heure** au destinataire — si le réglage change, la phrase doit changer), et
+      l'allow-list `https://*.bilaleducation.fr/**`. **Aucune variante `www.`** : le certificat
+      générique ne couvre qu'un niveau, `www.ecole.bilaleducation.fr` déclenche un
+      avertissement de sécurité chez le destinataire.
+- [ ] **Moi, si le symptôme apparaît** — Route `/auth/confirm` portant `.TokenHash`, contre les
+      **analyseurs de liens** des messageries d'entreprise, qui ouvrent le lien avant
+      l'utilisateur et **consomment le jeton à usage unique**. Symptôme reconnaissable :
+      « le lien dit qu'il a expiré alors que je viens de recevoir le mail. » Laissé de côté
+      faute d'occurrence, nos destinataires étant sur des messageries grand public.
 - [ ] **Moi** — Configurer le SMTP du premier établissement dans sa fiche, et **tester un envoi
       réel** : devoir, relance, message aux parents, message au staff. Distinct du précédent :
       celui-ci porte les communications de l'école, pas l'authentification.

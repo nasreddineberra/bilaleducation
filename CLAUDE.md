@@ -2037,6 +2037,78 @@ visible **grace au correctif du jour meme** — la veille, il aurait ete avale e
   pastilles, corps en **3 colonnes**, liste des comptes **bornee en hauteur** (sinon la page
   redeborde au 10e compte).
 
+#### 8 aout 2026 — Certificat generique (www) + gabarits d'email Supabase
+
+**PIEGE DU CERTIFICAT GENERIQUE** (signale par l'utilisateur, tombe par hasard sur l'adresse) :
+`www.bilal-neuville.bilaleducation.fr` affiche « votre connexion n'est pas privee »
+(`ERR_CERT_COMMON_NAME_INVALID`). Cause : **un joker TLS couvre EXACTEMENT UN niveau** —
+`*.bilaleducation.fr` vaut pour `ecole.bilaleducation.fr`, jamais pour `www.ecole.…`, qui en fait
+deux. Verifie en inspectant le certificat servi (SAN = `*.bilaleducation.fr` seul). Le DNS resout
+(les jokers DNS sont plus permissifs), c'est la **poignee de main TLS** qui echoue.
+- **L'echec est INRATTRAPABLE cote application** : il survient avant qu'une requete HTTP n'existe,
+  donc avant tout middleware. Aucune redirection ne peut le corriger. **Regle** : ne jamais
+  declarer, communiquer ni autoriser une forme `www.` sur un sous-domaine d'ecole.
+- **Le vrai risque etait la PROPAGATION** : les 3 constructeurs de liens de reinitialisation
+  recopiaient l'hote de la requete tel quel (`requestOrigin()` cote serveur ; `window.location.origin`
+  dans `auth.ts` et `forgot-password`). Un `www.` entre une fois partait dans le mail, et c'est le
+  **DESTINATAIRE** — qui n'a rien tape — qui recevait l'avertissement. Nouveau
+  `src/lib/tenant/canonical-host.ts` (`canonicalHost` / `canonicalOrigin`), branche aux 3 endroits.
+  Le point du motif `/^www\./i` protege `wwwecole.…` (teste sur 7 cas).
+- **Filet** dans `proxy.ts` : redirection **308** vers l'hote sans `www` (la cible a, elle, un
+  certificat valide). Ne sert qu'a qui a force le passage. L'apex et `www.` de l'apex ont chacun
+  un certificat valide, la normalisation les couvre aussi (canonique, correct pour le referencement).
+- **Slug inconnu ≠ abonnement expire** : le middleware envoyait les deux cas sur la meme page, qui
+  annonçait « votre abonnement est expire » a qui s'etait trompe d'adresse — faux, et alarmant pour
+  un client a jour. Motif `?raison=inconnu` : titre, texte et icone distincts, et **pas de bouton
+  « retour a la connexion »** (aucun etablissement n'etant resolu, `/login` renverrait ICI meme —
+  `skipTenantCheck` ne couvre pas `/login`). Au passage, le bouton de contact pointait vers
+  `support@bilaleducation.fr`, **qui n'existe pas** (boites retenues : `contact@`, `admin@`, `superadmin@`).
+
+**GABARITS D'EMAIL SUPABASE** (`supabase/email-templates/`) — phase 5, volet gabarits.
+- **VERIFICATION DECISIVE AVANT D'ECRIRE : 5 des 6 gabarits d'authentification ne se declenchent
+  JAMAIS.** Les 7 `createUser` posent `email_confirm: true` (pas de confirmation d'inscription) ;
+  `inviteUserByEmail`, `signInWithOtp` et `reauthenticate` sont **absents du code** ;
+  `updateUserById({ email })` (API admin) change l'adresse **sans email de confirmation**.
+  Seul **Reset Password** est en service (4 points d'appel). Les habiller tous aurait ete cinq
+  sixiemes de travail perdu. **Regle** : avant de refondre un gabarit, verifier qu'un appel le declenche.
+- **`build.mjs` = SOURCE UNIQUE** qui genere les 3 `.html` a coller. Le tableau de bord Supabase
+  n'a pas de notion de fragment partage (chaque gabarit doit etre un document complet) : sans
+  generateur, coque, couleurs et boutons seraient recopies 3 fois — le motif exact qui a produit
+  le calcul comptable faux dans 2 ecrans sur 3. **Ne jamais editer les `.html` a la main.**
+- **DECISION — marque « Bilal Education » seule**, a l'inverse de l'intention de la veille. Raison
+  d'architecture : les ecoles vivent sur `*.bilaleducation.fr`, donc l'email et le domaine
+  d'atterrissage portent **la meme marque**, sans dissonance. Le nom d'ecole n'etait accessible que
+  par **`.Data`** (= `user_metadata`) : a ecrire aux 4 points de creation de compte, a rattraper sur
+  les comptes existants, **modifiable par l'utilisateur lui-meme** (donc non fiable), et **ne suivant
+  pas un changement de nom**. Reversible pour un `{{ if .Data.etablissement_nom }}` le jour ou une
+  ecole prendrait un domaine propre — c'est ce cas qui inverserait l'arbitrage.
+- **DECISION — les 2 notifications de securite sont retenues** (« Password changed », « Email address
+  changed »). Elles sont **desactivees par defaut au niveau du projet** : un gabarit colle sans
+  activation ne part jamais. Le texte de « Email address changed » ne suggere PAS au destinataire
+  qu'il pourrait en etre l'auteur — chez nous une adresse ne change que par une action d'administrateur.
+- **Variables verifiees dans la doc** (une variable inconnue **s'affiche vide, sans erreur** — ne rien
+  inventer) : `.ConfirmationURL` / `.TokenHash` / `.SiteURL` / `.Email` / `.RedirectTo` / `.Data`
+  partout ; **`.OldEmail` uniquement dans « Email address changed »** ; `.NewEmail` uniquement dans
+  « Change email address » ; `.Token` **absent** de Reset Password.
+- **Contraintes du format email** (expliquent le HTML date) : mise en page **en tableaux** (Outlook
+  = moteur de Word, ignore flex/grid) ; styles **en ligne** ; **aucune image distante** — Outlook et
+  Gmail les bloquent par defaut pour un expediteur inconnu, ce que nous serons au lancement, donc le
+  logotype est **dessine en texte et fonds de cellule** (il s'affiche toujours et ne depend d'aucun
+  hebergement, ce qui compte : le domaine racine doit devenir une vitrine peut-etre hebergee ailleurs) ;
+  **`color-scheme: only light`** sans quoi le theme sombre de Gmail/Apple Mail reecrit les couleurs et
+  detruit le bandeau de marque ; bouton **en tableau** (Outlook ignore le remplissage d'un lien seul).
+- **Couplage a surveiller** : le gabarit **annonce « une heure »** de validite. C'est le defaut du
+  reglage Supabase `Email OTP expiration` — **s'il change, la phrase doit changer avec lui**.
+- **Allow-list de redirection** : `https://*.bilaleducation.fr/**`, **sans aucune variante `www.`**
+  (voir le piege du certificat ci-dessus).
+- **Risque connu, non traite** : les **analyseurs de liens** des messageries d'entreprise ouvrent le
+  lien avant l'utilisateur et **consomment le jeton a usage unique** → « lien expire » sur un mail
+  qui vient d'arriver. Contournement = route maison `/auth/confirm` portant `.TokenHash`, qui ne
+  consomme le jeton qu'au clic. Laissee de cote faute d'occurrence (destinataires sur messageries
+  grand public). Symptome reconnaissable, a construire s'il apparait.
+- **Epreuve visuelle** produite avant tout collage (rendu reel des 3 emails + bascule
+  exemple/variables), **generee depuis les fichiers eux-memes** pour ne pas pouvoir en deriver.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2044,18 +2116,26 @@ visible **grace au correctif du jour meme** — la veille, il aurait ete avale e
 > Modele retenu : editeur logiciel, abonnement par etablissement, un sous-domaine par
 > ecole, deploiement et base uniques.
 >
-> **AU PROCHAIN DEMARRAGE : la MESSAGERIE (phase 5 du plan).** C'est le dernier verrou
-> avant d'accueillir un vrai client : sans elle, aucun lien de mot de passe ne part, donc
-> aucune ecole ne peut ouvrir son compte. Trois volets, dans cet ordre :
-> (1) creer les boites `contact@` / `admin@` / `superadmin@bilaleducation.fr` ;
-> (2) renseigner le **SMTP du projet Supabase** avec `contact@` — il couvre l'authentification
-> de TOUTES les ecoles, l'expediteur integre etant plafonne a 2-3 emails/heure ;
-> (3) **refondre les gabarits d'email Supabase** a la charte, avec les donnees de l'ecole.
-> **Contrainte a connaitre avant de commencer** : ces gabarits sont GLOBAUX au projet et
-> n'exposent qu'un jeu fixe de variables (`.ConfirmationURL`, `.Token`, `.SiteURL`, `.Email`,
-> `.RedirectTo`, `.Data`). Le nom et le logo d'une ecole n'y sont pas accessibles, SAUF par
-> `.Data` (metadonnees de l'utilisateur) : y deposer le nom de l'ecole a la creation du compte
-> est le seul levier de personnalisation. A arbitrer avec l'utilisateur.
+> **MESSAGERIE (phase 5) — volet GABARITS FAIT le 8 aout** (voir la section du jour).
+> Les 3 emails d'authentification sont ecrits, relus a l'ecran, et le README porte la marche
+> a suivre. **Tout cela reste inerte sans les boites email.**
+>
+> **AU PROCHAIN DEMARRAGE, dans cet ORDRE** :
+> 1. **Utilisateur** — creer les boites `contact@` / `admin@` / `superadmin@bilaleducation.fr` ;
+> 2. **Utilisateur** — les 2 enregistrements DNS de protection dans Vercel (TXT `@` =
+>    `v=spf1 -all`, TXT `_dmarc` = `v=DMARC1; p=reject;`), en attente depuis le 5 aout ;
+> 3. **Ensemble** — renseigner le **SMTP du projet Supabase** avec `contact@` (il couvre
+>    l'authentification de TOUTES les ecoles ; l'expediteur integre est plafonne a
+>    2-3 emails/heure), coller les 3 gabarits, **activer les 2 notifications de securite**,
+>    verifier les 3 reglages (SMTP, `Email OTP expiration`, allow-list) ;
+> 4. **Ensemble** — configurer le SMTP de la PREMIERE ECOLE (circuit distinct : il porte les
+>    communications de l'ecole, pas l'authentification) et **tester un envoi reel** —
+>    devoir, relance, message aux parents, message au staff.
+>    **Aucun email n'est jamais parti de cette application.**
+>
+> Restent ensuite : la montee en charge progressive (un domaine neuf qui emet 300 messages
+> d'un coup s'installe dans les indesirables) et la procedure de configuration SMTP a
+> remettre aux ecoles.
 >
 > **Phase 4 bis (console super-admin) : TERMINEE le 7 aout** — securite, charte et ajouts.
 
