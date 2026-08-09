@@ -2632,6 +2632,33 @@ Un rond « Chargement… » plein ecran, puis un squelette : l'interface semblai
    justificatif (bucket prive, URL signee), impression PDF — et la **carte « En cours »** de
    l'onglet Scolarite adulte (2 participants sur `ADUL-DA-BL1`).
 
+#### A CONSIGNER — PERFORMANCE RESSENTIE (chantier a ouvrir)
+
+Impression de l'utilisateur (10 aout) : « des fois j'ai l'impression que le site est moins
+performant ». **Rien n'est mesure a ce jour** — c'est la premiere chose a faire, avant toute
+optimisation. Optimiser sur une intuition, c'est deplacer du code au hasard.
+
+**Ce que la refonte des squelettes n'a PAS change** : un squelette est un fallback de Suspense,
+il s'affiche A LA PLACE de l'attente, jamais en plus. Seul cout reel : `RouteSkeleton` est un
+composant client (~1 Ko compresse, mutualise) la ou le rond n'embarquait aucun JS. Negligeable.
+
+**Pistes reperees, par ordre de suspicion :**
+1. **`dashboard/layout.tsx` enchaine des attentes SEQUENTIELLES** : session → profil → **puis**
+   etablissement (le profil porte l'`etablissement_id`, c'est le prix du cloisonnement du 5 aout),
+   plus **2 comptages de notifications non caches** a CHAQUE rendu de page. C'est le chemin
+   critique de tout chargement a froid.
+2. **Les caches `unstable_cache` ne sont JAMAIS invalides** : les tags `dashboard-stats` et
+   `profile` ne sont appeles nulle part, parce que les ecritures partent de composants CLIENTS
+   (constat du 4 aout). Les durees sont donc les seules garde-fous — et un cache qu'on n'invalide
+   pas pousse a raccourcir sa duree, donc a recalculer plus souvent.
+3. **Demarrages a froid** (Vercel) : une fonction inactive repond plus lentement. A distinguer
+   d'une lenteur applicative — sinon on optimisera du code qui n'est pas en cause.
+4. **Pages a requetes multiples** non encore auditees de ce point de vue (Reglements, EDT,
+   Feuille d'appel toutes classes chargent beaucoup en une fois).
+
+**Methode** : instrumenter d'abord (temps serveur par requete, `Server-Timing` ou simple log),
+comparer chargement A FROID et navigation interne, puis n'attaquer que ce qui ressort.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
