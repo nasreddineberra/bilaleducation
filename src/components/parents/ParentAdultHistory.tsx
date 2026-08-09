@@ -81,11 +81,12 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
 
   if (rows.length === 0 && current.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-sm text-warm-700">Aucun cours adulte pour ce foyer.</p>
-        <p className="text-xs text-warm-700 mt-1">
-          Un tuteur inscrit à un cours adultes apparaît ici dès son affectation ; l’historique se complète à la
-          clôture de chaque année scolaire.
+      <div className="card p-6 text-center">
+        {/* Meme distinction que sur la fiche apprenant : etre inscrit aux cours
+            adultes et etre affecte a une classe sont deux choses. */}
+        <p className="text-sm text-secondary-800">Aucune affectation à un cours adultes.</p>
+        <p className="mt-1 text-xs text-warm-700">
+          Un tuteur inscrit aux cours adultes apparaît ici dès son affectation à une classe.
         </p>
       </div>
     )

@@ -159,8 +159,16 @@ export default function StudentScolarite({
 
   if (yearGroups.length === 0) {
     return (
-      <div className="card p-4 text-center">
-        <p className="text-xs text-warm-700 italic">Aucune inscription enregistrée.</p>
+      <div className="card p-6 text-center">
+        {/* « Aucune inscription » etait FAUX : l'apprenant EST inscrit a
+            l'etablissement - il a une fiche -, il n'est simplement affecte a
+            aucune classe. Ce sont deux choses differentes, et le bandeau de la
+            fiche affiche deja « Non affecte ». */}
+        <p className="text-sm text-secondary-800">Aucune affectation à une classe.</p>
+        <p className="mt-1 text-xs text-warm-700">
+          L’apprenant est inscrit à l’établissement mais n’a pas encore de classe.
+          Sa scolarité apparaîtra ici dès son affectation.
+        </p>
       </div>
     )
   }
