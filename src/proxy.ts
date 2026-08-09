@@ -402,9 +402,24 @@ export async function proxy(request: NextRequest) {
     // arrete » restaure ses cookies de session ; la fermeture n'est alors pas
     // detectee. Reglage minoritaire, et l'inactivite reste le filet.
     const browserOpen = !!request.cookies.get(BROWSER_MARKER)?.value
-    const navigateurFerme = !!sessionCookie && !browserOpen
 
-    if (inactive || expired || navigateurFerme) {
+    // RETIRE LE 9 AOUT, APRES VERROUILLAGE EN PRODUCTION. La condition
+    // `!!sessionCookie && !browserOpen` renvoyait l'utilisateur sur /login en
+    // boucle apres une fermeture de navigateur. La cause n'est pas etablie : la
+    // purge de /login fonctionne (verifiee en production), et les deux cookies
+    // sont poses ensemble sur toute reponse valide du tableau de bord — ils ne
+    // devraient jamais diverger.
+    //
+    // Piste a explorer : le bloc 2FA s'execute APRES et retourne une NOUVELLE
+    // reponse (`NextResponse.redirect`), qui ne porte pas les cookies poses sur
+    // `response`. Un compte soumis au TOTP n'obtiendrait donc jamais `app-open`,
+    // alors que `app-session` survit 30 jours — les deux divergent, et la
+    // condition se declenche a chaque passage.
+    //
+    // A reprendre a tete reposee, avec un test avant deploiement. Rester
+    // connecte apres avoir ferme son navigateur est un inconfort ; etre
+    // verrouille hors de la production est une panne.
+    if (inactive || expired) {
       // Le message ne s'affiche que si le NAVIGATEUR est reste ouvert. Sur un
       // demarrage a froid, il a disparu → login neutre, sans message : se
       // reconnecter apres avoir ferme son navigateur n'a rien d'anormal, et
