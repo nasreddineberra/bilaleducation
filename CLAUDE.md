@@ -2358,15 +2358,35 @@ l'annee EN COURS.
     « cloturer N » (l'ete, avec les audits). Ce sont deux moments differents,
     meme si les deux concernent l'annee en cours.
 
-**A ETUDIER AVANT DE CODER** (rien ne doit etre livre sans accord sur le cycle) :
-   · que signifie « annuler » a chaque etape — avant tout audit, apres audits, apres archivage,
-     apres creation de l'annee suivante ? Toutes ne sont pas reversibles de la meme facon ;
-   · faut-il interdire le lancement **en cours d'annee** (avant une date, ou avant que l'annee
-     soit marquee terminee), ou seulement avertir ?
-   · une cloture abandonnee doit-elle etre supprimee, ou conservee comme trace ?
-   · l'ecran dedie : ou dans la sidebar, et pour quels roles.
+**CONCEPTION ARRETEE LE 9 AOUT — a construire telle quelle.**
 
-Voir aussi la memoire `year-rollover-archiving`, ecrite quand le chantier a ete construit.
+**LE CHANGEMENT DE FOND : il n'y a PLUS DE « LANCEMENT ».** Les audits peuvent tourner a tout
+moment, meme en septembre, pour connaitre l'etat des donnees saisies (decision utilisateur).
+« Preparer l'annee suivante » cesse donc d'etre un processus qu'on demarre — c'etait la le
+defaut : un clic creait un objet irreversible. A la place, une **page permanente** ou les six
+audits sont relancables a volonte, comme un tableau de sante. Rien a demarrer, donc rien a
+annuler. La cloture devient une **action terminale unique**, en bas de cette page.
+
+1. **AUDITS LIBRES.** Ils lisent et affichent, rien d'autre. Relancer un audit remplace son
+   resultat precedent : c'est ca, « annuler un audit ». Aucun enregistrement irreversible.
+2. **CLOTURE REELLE** — bouton actif seulement si LES DEUX conditions sont reunies :
+   (a) la **date de fin** de l'annee est atteinte ; (b) les **six audits** ont ete passes.
+   Sinon refus explicite, en disant laquelle manque.
+3. **UN SEUL POINT DE NON-RETOUR : LA PURGE.** Les audits ne touchent rien ; l'archivage
+   s'annule (`reopenStep` supprime deja les instantanes). Tant que la purge n'a pas eu lieu,
+   tout se defait.
+4. **TRACE : `closed_at` (+ par qui) sur `school_years`**, et non seulement dans une table
+   annexe — l'etat vit sur l'annee elle-meme. **A afficher dans la FICHE annee scolaire et en
+   DERNIERE COLONNE de la liste.**
+5. **ANNEE CLOSE = LECTURE SEULE**, mais **seulement si elle n'est plus l'annee en cours** :
+   une annee peut etre close tout en restant courante jusqu'a l'activation de N+1. Chantier
+   large (beaucoup d'ecrans) — a mesurer avant de s'y engager.
+6. **EMPLACEMENT** : barre laterale, nouvelle section **« Cloture »** placee **juste au-dessus
+   de Parametres**, menu **« Passage d'annee »**. Reserve a **admin et direction**, garde sur
+   la PAGE et pas seulement sur le lien.
+7. **N+1 SE CREE A LA MAIN** (« Ajouter »). Pas d'automatisation pour l'instant.
+8. **`year_closure` a reduire** a ce qu'elle devient : le RESULTAT des audits + la date de
+   cloture. Elle n'a plus a porter un « processus en cours ». Migration a prevoir.
 
 ## Prochaine etape
 
