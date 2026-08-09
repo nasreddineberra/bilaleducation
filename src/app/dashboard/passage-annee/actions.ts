@@ -30,6 +30,24 @@ import { generateArchive } from '@/lib/closure/archive'
 
 const ROLES = ['admin', 'direction'] as const
 
+/**
+ * Une année close ne s'audite plus.
+ *
+ * `closeYear` repasse les six audits et réécrit leurs lignes : les résultats
+ * stockés sont donc, littéralement, LE CONSTAT AU MOMENT DE LA CLÔTURE. Les
+ * relancer ou les effacer ensuite détruirait cette preuve. Masquer les boutons
+ * ne protège rien — la garde est ici.
+ */
+async function refuserSiClose(supabase: any, yearId: string): Promise<string | null> {
+  const { data: year } = await supabase
+    .from('school_years').select('label, closed_at').eq('id', yearId).maybeSingle()
+  if (!year) return 'Année introuvable.'
+  if (year.closed_at) {
+    return `L’année ${year.label} est clôturée : ses audits sont figés. Annulez la clôture pour les reprendre.`
+  }
+  return null
+}
+
 /** Contexte d'une année donnée, tel que l'attendent les audits et l'archivage. */
 async function getYearCtx(supabase: any, etablissementId: string, yearId: string): Promise<YearCtx | null> {
   const { data: year } = await supabase
@@ -82,6 +100,9 @@ export async function runAudit(yearId: string, stepKey: string): Promise<{ error
   const etablissementId = (await headers()).get('x-etablissement-id') ?? ''
   const { data: { user } } = await supabase.auth.getUser()
 
+  const close = await refuserSiClose(supabase, yearId)
+  if (close) return { error: close }
+
   const ctx = await getYearCtx(supabase, etablissementId, yearId)
   if (!ctx) return { error: 'Année introuvable.' }
 
@@ -115,6 +136,9 @@ export async function resetAudit(yearId: string, stepKey: string): Promise<{ err
   if (roleError) return { error: roleError }
 
   const supabase = await createClient()
+
+  const close = await refuserSiClose(supabase, yearId)
+  if (close) return { error: close }
 
   // `.select()` après le DELETE : une suppression bloquée par la RLS ne renvoie
   // PAS d'erreur, elle supprime zéro ligne. Sans ça, un refus passerait pour un

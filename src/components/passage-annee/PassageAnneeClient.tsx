@@ -141,6 +141,17 @@ export default function PassageAnneeClient({
     return null
   }
 
+  /**
+   * ANNÉE CLOSE : les audits se figent, la page reste vivante.
+   *
+   * `closeYear` repasse les six audits et réécrit leurs lignes ; les résultats
+   * affichés sont donc LE CONSTAT AU MOMENT DE LA CLÔTURE. Les relancer les
+   * écraserait, les réinitialiser les effacerait. Le reste de l'écran, lui, a
+   * encore du travail : c'est d'ici qu'on archive, qu'on choisit l'épuration et
+   * qu'on annule la clôture. Annuler rend les audits actionnables à nouveau.
+   */
+  const fige = !!annee.closedAt
+
   // ── Conditions de clôture ────────────────────────────────────────────────
   // Elles se DISENT toutes les trois, y compris remplies : un bouton grisé sans
   // motif ne s'explique pas.
@@ -199,12 +210,23 @@ export default function PassageAnneeClient({
       {/* ═══ Colonne gauche : les audits ═══ */}
       <div className="card p-0 w-full xl:flex-1 xl:min-w-0">
         <div className="px-3 py-2 border-b border-warm-200">
-          <h2 className="text-sm font-bold text-secondary-800">Audits de l’année {annee.label}</h2>
+          <h2 className="text-sm font-bold text-secondary-800">
+            {fige ? `Constat à la clôture · ${annee.label}` : `Audits de l’année ${annee.label}`}
+          </h2>
           {/* Pas de « Tout auditer » : on les lance un par un, pour lire chacun
               avant de passer au suivant. */}
           <p className="text-[11px] text-warm-700">
-            Ils ne modifient rien et se lancent un par un, dans l’ordre que vous voulez. Tant qu’un audit
-            <strong> bloquant</strong> remonte des anomalies, ceux qui en dépendent sont signalés « à revérifier ».
+            {fige ? (
+              <>
+                Ces six résultats ont été recalculés au moment de la clôture : ils disent ce qui a été vérifié.
+                Ils sont <strong>figés</strong> et le restent tant que la clôture n’est pas annulée.
+              </>
+            ) : (
+              <>
+                Ils ne modifient rien et se lancent un par un, dans l’ordre que vous voulez. Tant qu’un audit
+                <strong> bloquant</strong> remonte des anomalies, ceux qui en dépendent sont signalés « à revérifier ».
+              </>
+            )}
           </p>
         </div>
 
@@ -242,18 +264,21 @@ export default function PassageAnneeClient({
 
                     {/* Auditer, puis Réinitialiser, puis Auditer à nouveau : on efface
                         un résultat avant d'en calculer un neuf, plutôt que de le
-                        remplacer sans qu'on l'ait vu partir. */}
-                    <FloatButton
-                      type="button"
-                      variant="secondary"
-                      disabled={!!enCours}
-                      onClick={() => (etat ? reinitialiser(step.key) : lancer(step.key))}
-                      className="!px-2 !py-0.5 !text-[11px] !rounded-lg"
-                    >
-                      {enCours === step.key
-                        ? (etat ? 'Effacement…' : 'Audit…')
-                        : (etat ? 'Réinitialiser' : 'Auditer')}
-                    </FloatButton>
+                        remplacer sans qu'on l'ait vu partir. Rien de tout cela sur une
+                        année close : le constat ne se retouche pas. */}
+                    {!fige && (
+                      <FloatButton
+                        type="button"
+                        variant="secondary"
+                        disabled={!!enCours}
+                        onClick={() => (etat ? reinitialiser(step.key) : lancer(step.key))}
+                        className="!px-2 !py-0.5 !text-[11px] !rounded-lg"
+                      >
+                        {enCours === step.key
+                          ? (etat ? 'Effacement…' : 'Audit…')
+                          : (etat ? 'Réinitialiser' : 'Auditer')}
+                      </FloatButton>
+                    )}
                   </div>
                 </div>
 

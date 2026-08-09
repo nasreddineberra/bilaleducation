@@ -2459,6 +2459,16 @@ les eleves affectes fassent apparaitre d'un coup leurs notes manquantes.
   affichent « Depend de X, qui remonte encore des anomalies » et leur resultat passe en grise avec
   la mention **« a reverifier »** (jamais en vert). L'audit reste lançable.
 
+**ANNEE CLOSE : les AUDITS se figent, la page reste vivante.** La question posee etait « le
+contenu ne doit-il etre visible que si l'annee n'est pas close ? » — non : tout masquer
+supprimerait le SEUL acces a l'archivage (qui vient APRES la cloture), au choix d'epuration et
+a l'annulation. Ce qui se fige, ce sont les audits, pour une raison de PREUVE : `closeYear`
+**repasse les six audits et reecrit leurs lignes**, donc les resultats stockes sont
+litteralement le constat au moment de la cloture. Les relancer les ecraserait, les
+reinitialiser les effacerait. Entete « **Constat a la cloture** », boutons retires, details
+toujours consultables ; annuler la cloture les rend actionnables. **Garde SERVEUR**
+(`refuserSiClose` dans `runAudit` et `resetAudit`) : masquer un bouton ne protege rien.
+
 **POINT 5 (lecture seule) : RIEN A CONSTRUIRE, la garantie tient deja.** Mesure faite avant
 d'ecrire quoi que ce soit : **les 30 ecrans operationnels epinglent tous `is_current = true`**
 — une annee non courante n'est atteignable depuis aucun module, et la fiche annee est deja en
