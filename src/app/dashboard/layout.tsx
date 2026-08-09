@@ -10,6 +10,7 @@ import { headers } from 'next/headers'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { consoleUrl } from '@/lib/tenant/console-url'
 import { expirerSiDepassee } from '@/lib/support/intervention'
+import SingleTabGuard from '@/components/layout/SingleTabGuard'
 
 
 export default async function DashboardLayout({
@@ -144,6 +145,7 @@ export default async function DashboardLayout({
 
   return (
     <ThemeProvider initialTheme={profile?.theme === 'dark' ? 'dark' : 'light'}>
+    <SingleTabGuard>
     <SidebarProvider>
       <a
         href="#main-content"
@@ -174,6 +176,7 @@ export default async function DashboardLayout({
         </div>
       </div>
     </SidebarProvider>
+    </SingleTabGuard>
     </ThemeProvider>
   )
 }
