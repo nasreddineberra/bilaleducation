@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react'
 import { clsx } from 'clsx'
-import { BookOpen, AlertTriangle, FileText, Download, ShieldAlert, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -207,157 +206,137 @@ export default function StudentScolarite({
     )
   }
 
+  /**
+   * MISE EN PAGE (choix utilisateur du 9 août) : une carte par année, calquée sur
+   * la scolarité adulte — les informations de classe se lisent AU NIVEAU DE
+   * L'ANNÉE, en tête de carte, et les périodes s'alignent en COLONNES au-dessous,
+   * chacune portant sa moyenne, son bulletin et son assiduité.
+   *
+   * La carte reste rattachée à une INSCRIPTION et non à l'année seule : un élève
+   * n'est jamais dans deux classes à la fois, mais il peut en changer en cours
+   * d'année, et deux classes successives ne se moyennent pas dans une même
+   * colonne. Ce cas rare donne donc deux cartes pour la même année, chacune avec
+   * son statut.
+   */
+
   return (
     <div className="space-y-3">
-      {yearGroups.map(([year, yearEnrollments]) => (
-        <div key={year}>
-          {/* En-tête année scolaire + stats discipline */}
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <BookOpen size={13} className="text-primary flex-shrink-0" />
-            <h3 className="text-xs font-bold text-secondary-800">{year}</h3>
-            {(() => {
-              const ds = disciplineStatsByYear.get(year)
-              if (!ds || (ds.abs === 0 && ds.retards === 0 && ds.warnings === 0)) return null
-              return (
-                <span className="flex items-center gap-2 text-[11px] text-warm-700 ml-2">
-                  {ds.abs > 0 && (
-                    <span className="flex items-center gap-0.5">
-                      <AlertTriangle size={10} className="text-red-400" />
-                      {ds.abs} abs.{ds.unjustified > 0 && <span className="text-red-500">({ds.unjustified} nj)</span>}
-                    </span>
-                  )}
-                  {ds.retards > 0 && (
-                    <span className="flex items-center gap-0.5">
-                      <Clock size={10} className="text-amber-400" />
-                      {ds.retards} ret.
-                    </span>
-                  )}
-                  {ds.warnings > 0 && (
-                    <span className="flex items-center gap-0.5">
-                      <ShieldAlert size={10} className="text-purple-400" />
-                      {ds.warnings} avert.
-                    </span>
-                  )}
-                </span>
-              )
-            })()}
-          </div>
+      {yearGroups.map(([year, yearEnrollments]) =>
+        yearEnrollments.map(enrollment => {
+          const cls     = enrollment.classes!
+          const teacher = teacherMap.get(enrollment.class_id)
+          const ds      = disciplineStatsByYear.get(year)
+          const yearPeriods = (periodsByYear.get(cls.academic_year) ?? [])
+            .sort((a, b) => a.order_index - b.order_index)
+          const classEvals = evaluations.filter(e => e.class_id === enrollment.class_id)
 
-          <div className="space-y-2">
-            {yearEnrollments.map(enrollment => {
-              const cls = enrollment.classes!
-              const teacher = teacherMap.get(enrollment.class_id)
-              const yearPeriods = (periodsByYear.get(cls.academic_year) ?? [])
-                .sort((a, b) => a.order_index - b.order_index)
+          // Infos de classe : au niveau de l'annee, sur une seule ligne.
+          const infosClasse = [
+            teacher,
+            cls.cotisation_types?.label,
+            cls.level ? `Niveau ${cls.level}` : null,
+            cls.day_of_week
+              ? `${cls.day_of_week}${cls.start_time && cls.end_time ? ` ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}` : ''}`
+              : null,
+            `Inscrit le ${new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}`,
+          ].filter(Boolean).join(' · ')
 
-              // Calcul des moyennes par période
-              const classEvals = evaluations.filter(e => e.class_id === enrollment.class_id)
+          return (
+            <section key={enrollment.id} className="card p-4 space-y-2">
 
-              return (
-                <div key={enrollment.id} className="card overflow-hidden">
-                  {/* Info classe */}
-                  <div className="px-3 py-2 bg-warm-50 border-b border-warm-100 flex items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-bold text-secondary-800">
-                          {cls.name}{cls.level ? ` · ${cls.level}` : ''}
-                        </p>
-                        <span className={clsx(
-                          'text-[10px] font-medium px-1.5 py-0.5 rounded-full',
-                          STATUS_COLOR[enrollment.status] ?? 'bg-warm-100 text-warm-700'
-                        )}>
-                          {STATUS_LABEL[enrollment.status] ?? enrollment.status}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-warm-700 mt-0.5">
-                        {teacher && <>{teacher} · </>}
-                        {cls.cotisation_types?.label && <>{cls.cotisation_types.label} · </>}
-                        {cls.level && <>Niveau {cls.level} · </>}
-                        {cls.day_of_week && (
-                          <>
-                            {cls.day_of_week}
-                            {cls.start_time && cls.end_time && ` ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}`}
-                            {' · '}
-                          </>
-                        )}
-                        Inscrit le {new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Bulletins par période */}
-                  {yearPeriods.length > 0 ? (
-                    <div className="divide-y divide-warm-100">
-                      {yearPeriods.map(period => {
-                        const bulletinPath = bulletinMap.get(`${enrollment.class_id}:${period.id}`)
-                        const periodEvals = classEvals.filter(e => e.period_id === period.id)
-                        const scoredEvals = periodEvals.filter(e => e.eval_kind === 'scored')
-
-                        // Moyenne
-                        let totalWeighted = 0
-                        let totalCoeff = 0
-                        for (const ev of scoredEvals) {
-                          const grade = gradeMap.get(ev.id)
-                          if (!grade || grade.is_absent || grade.score == null || !ev.max_score) continue
-                          totalWeighted += (grade.score / ev.max_score) * 20 * ev.coefficient
-                          totalCoeff += ev.coefficient
-                        }
-                        const avg = totalCoeff > 0 ? totalWeighted / totalCoeff : null
-
-                        // Absences
-                        const periodAbs = absences.filter(a => a.class_id === enrollment.class_id && a.period_id === period.id)
-                        const absTotal = periodAbs.filter(a => a.absence_type === 'absence').length
-                        const retards = periodAbs.filter(a => a.absence_type === 'retard').length
-
-                        return (
-                          <div key={period.id} className="px-3 py-1.5 flex items-center gap-2">
-                            <span className="text-[11px] font-semibold text-warm-700 w-20 flex-shrink-0">
-                              {PERIOD_LABELS[period.label] ?? period.label}
-                            </span>
-
-                            {avg != null && (
-                              <span className={clsx(
-                                'text-xs font-bold',
-                                avg >= 14 ? 'text-green-600' : avg >= 10 ? 'text-amber-600' : 'text-red-600'
-                              )}>
-                                {avg.toFixed(2)}/20
-                              </span>
-                            )}
-
-                            {bulletinPath ? (
-                              <button
-                                type="button"
-                                onClick={() => openBulletin(bulletinPath)}
-                                className="flex items-center gap-1 text-[11px] text-primary-600 hover:text-primary-700 font-medium"
-                              >
-                                <Download size={11} />
-                                Bulletin
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-warm-700 italic">·</span>
-                            )}
-
-                            {(absTotal > 0 || retards > 0) && (
-                              <span className="flex items-center gap-1 text-[11px] text-warm-700 ml-auto">
-                                {absTotal > 0 && <><AlertTriangle size={10} className="text-red-400" /> {absTotal} abs.</>}
-                                {retards > 0 && <>{absTotal > 0 ? ' · ' : ''}<Clock size={10} className="text-amber-400" /> {retards} ret.</>}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="px-3 py-2">
-                      <p className="text-[11px] text-warm-700 italic">Aucune période trouvée</p>
-                    </div>
-                  )}
+              {/* En-tete : annee, statut, classe, et le bilan d'assiduite de l'annee */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-secondary-800">{year}</h3>
+                  <span className={clsx(
+                    'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded',
+                    STATUS_COLOR[enrollment.status] ?? 'bg-warm-100 text-warm-700',
+                  )}>
+                    {STATUS_LABEL[enrollment.status] ?? enrollment.status}
+                  </span>
+                  <span className="text-sm font-semibold text-warm-800">
+                    {cls.name}{cls.level ? ` · ${cls.level}` : ''}
+                  </span>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+
+                {/* Les avertissements ne figurent dans aucune colonne : c'est ici
+                    qu'ils se lisent, avec le total de l'annee. */}
+                {ds && (ds.abs > 0 || ds.retards > 0 || ds.warnings > 0) && (
+                  <span className="text-xs text-warm-700">
+                    {ds.abs > 0 && <>{ds.abs} abs.{ds.unjustified > 0 && ` (${ds.unjustified} nj)`}</>}
+                    {ds.retards > 0 && <>{ds.abs > 0 ? ' · ' : ''}{ds.retards} ret.</>}
+                    {ds.warnings > 0 && <>{(ds.abs > 0 || ds.retards > 0) ? ' · ' : ''}{ds.warnings} avert.</>}
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-warm-700">{infosClasse}</p>
+
+              {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
+              {yearPeriods.length > 0 ? (
+                <div className={clsx('grid gap-2', yearPeriods.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+                  {yearPeriods.map(period => {
+                    const bulletinPath = bulletinMap.get(`${enrollment.class_id}:${period.id}`)
+                    const scoredEvals  = classEvals.filter(e => e.period_id === period.id && e.eval_kind === 'scored')
+
+                    // Moyenne PONDEREE : chaque note ramenee sur 20, ponderee par
+                    // son coefficient. Les absences et les evaluations non notees
+                    // en sont exclues.
+                    let totalWeighted = 0
+                    let totalCoeff    = 0
+                    for (const ev of scoredEvals) {
+                      const grade = gradeMap.get(ev.id)
+                      if (!grade || grade.is_absent || grade.score == null || !ev.max_score) continue
+                      totalWeighted += (grade.score / ev.max_score) * 20 * ev.coefficient
+                      totalCoeff    += ev.coefficient
+                    }
+                    const avg = totalCoeff > 0 ? totalWeighted / totalCoeff : null
+
+                    const periodAbs = absences.filter(a => a.class_id === enrollment.class_id && a.period_id === period.id)
+                    const absTotal  = periodAbs.filter(a => a.absence_type === 'absence').length
+                    const absNJ     = periodAbs.filter(a => a.absence_type === 'absence' && !a.is_justified).length
+                    const retards   = periodAbs.filter(a => a.absence_type === 'retard').length
+
+                    return (
+                      <div key={period.id} className="rounded-xl bg-warm-50 px-3 py-2 space-y-1">
+                        <p className="stat-label">{PERIOD_LABELS[period.label] ?? period.label}</p>
+
+                        <p className={clsx(
+                          'text-sm font-bold tabular-nums',
+                          avg == null ? 'text-warm-700'
+                            : avg >= 14 ? 'text-primary-700'
+                            : avg >= 10 ? 'text-amber-700'
+                            : 'text-red-600',
+                        )}>
+                          {avg != null ? `${avg.toFixed(2)}/20` : 'Pas de note'}
+                        </p>
+
+                        {bulletinPath ? (
+                          <button
+                            type="button"
+                            onClick={() => openBulletin(bulletinPath)}
+                            className="text-[11px] text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                          >
+                            Bulletin
+                          </button>
+                        ) : (
+                          <p className="text-[11px] text-warm-700">Pas de bulletin</p>
+                        )}
+
+                        <p className="text-[11px] text-warm-700 tabular-nums">
+                          {absTotal} abs.{absNJ > 0 && <span className="text-orange-700"> ({absNJ} nj)</span>} · {retards} ret.
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-[11px] text-warm-700 italic">Aucune période configurée pour cette année.</p>
+              )}
+            </section>
+          )
+        })
+      )}
     </div>
   )
 }

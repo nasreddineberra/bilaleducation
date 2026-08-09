@@ -1,7 +1,6 @@
 'use client'
 
 import { clsx } from 'clsx'
-import { FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface AdultRow {
@@ -157,7 +156,7 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
                       onClick={() => openBulletin(b.file_path)}
                       className="inline-flex items-center gap-1 bg-warm-50 hover:bg-warm-100 rounded-lg px-2.5 py-1 text-xs text-primary-600 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                     >
-                      <FileText size={12} /> {b.period_label}
+                      {b.period_label}
                     </button>
                   ))}
                 </div>
@@ -220,7 +219,7 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
                       onClick={() => openBulletin(b.file_path)}
                       className="inline-flex items-center gap-1 bg-warm-50 hover:bg-warm-100 rounded-lg px-2.5 py-1 text-xs text-primary-600 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                     >
-                      <FileText size={12} /> {b.period_label}
+                      {b.period_label}
                     </button>
                   ))}
                 </div>
