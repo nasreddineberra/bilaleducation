@@ -473,12 +473,16 @@ export default async function DashboardPage() {
       { count: parentsCount },
       { count: teachersCount },
       { count: enrollmentsThisMonth },
+      { count: adultEnrollmentsThisMonth },
       { data: recentStudents },
     ] = await Promise.all([
       supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
       supabase.from('parents').select('id', { count: 'exact', head: true }),
       supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+      // Les DEUX tables d'inscription : une inscription d'adulte est une
+      // inscription, et ne comptait pas jusqu'ici.
       supabase.from('enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', thisMonth).lt('enrollment_date', nextMonth),
+      supabase.from('parent_class_enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', thisMonth).lt('enrollment_date', nextMonth),
       supabase.from('students').select('id, first_name, last_name, student_number, created_at').eq('is_active', true).order('created_at', { ascending: false }).limit(6),
     ])
 
@@ -489,7 +493,7 @@ export default async function DashboardPage() {
           studentsActive: studentsActive ?? 0,
           parentsCount: parentsCount ?? 0,
           teachersCount: teachersCount ?? 0,
-          enrollmentsThisMonth: enrollmentsThisMonth ?? 0,
+          enrollmentsThisMonth: (enrollmentsThisMonth ?? 0) + (adultEnrollmentsThisMonth ?? 0),
           recentStudents: (recentStudents ?? []) as any[],
         }}
       />

@@ -2477,6 +2477,65 @@ conformement a la decision. **Fragilite a connaitre** : la garantie est structur
 declaree — le jour ou un ecran offrira un selecteur d'annee, elle tombera **en silence**. Une
 garde en base serait la seule protection durable ; surface trop large pour aujourd'hui.
 
+#### 9 aout 2026 (fin, suite) — UN ADULTE DOIT ETRE TRAITE COMME UN ELEVE, DE BOUT EN BOUT
+
+Question de l'utilisateur (« les audits portent-ils aussi sur les adultes ? »), puis revue
+complete de l'application. **Trois manques reels et deux details**, tous verifies dans le code
+ET dans le dump de schema du 6 aout — jamais supposes.
+
+**Deja conformes** : notes, bulletins, cahier de texte (devoirs + suivi), communications,
+financements, effectifs du tableau de bord, affectations adultes, archivage de cloture.
+
+**FAIT (ce commit)**
+- **PERTE DE DONNEES — suppression d'une classe adulte.** Le garde-fou ne comptait que
+  `enrollments`, donc **ZERO** pour une classe adulte, et annonçait « 0 inscription elève »
+  avant de laisser passer. Or `parent_class_enrollments.class_id`, `evaluations.class_id` et
+  `adult_bulletin_archives.class_id` sont tous en **`ON DELETE CASCADE`** (et `adult_grades`
+  suit les evaluations) : une classe adulte pleine se supprimait **sans un mot**, emportant
+  inscriptions, evaluations, notes et bulletins. Corrige cote app (les 2 tables, mot « eleve »
+  ou « participant » selon `cotisation.is_adult`) **ET en base** — cette suppression part
+  **directement du navigateur**, le garde applicatif se contourne par l'API REST. Migration
+  `guard-class-delete-with-participants.sql` (trigger BEFORE DELETE, **sortie de secours** si
+  l'etablissement n'existe plus, sinon la garde bloquerait une CASCADE legitime).
+- **Migration `add-adult-absences.sql`** : **CINQUIEME** table miroir (apres `adult_grades`,
+  `adult_bulletin_appreciations`, `adult_bulletin_archives`, `adult_homework_status`).
+  `absences.student_id` est NOT NULL vers `students` : un adulte ne peut pas y figurer. Cle
+  `parent_id + tutor_number`, RLS **recopiee** de `absences` (encadrement + enseignant sur ses
+  classes via `teaches_class`), trigger d'audit, chemin de justificatif (bucket prive, URL
+  signee — jamais `getPublicUrl`).
+- **Audit « Affectations » etendu aux adultes** : un tuteur coche `tutorN_adult_courses` sans
+  inscription active de l'annee. **Ce trou etait le pire** — sans classe, l'adulte n'a ni
+  evaluation, ni bulletin attendu, ni cotisation facturee, donc **les cinq autres audits se
+  taisaient aussi**. L'audit cense l'attraper etait justement celui qui l'ignorait.
+- **« Inscriptions ce mois »** (tableau de bord secretaire) : les 2 tables.
+
+**RESTE A FAIRE (reprise)**
+1. **Feuille d'appel adultes.** Aujourd'hui l'ecran charge **toutes** les classes de l'annee
+   sans filtre et ne lit ses participants que dans `enrollments` → une classe adulte donne un
+   **trombinoscope VIDE** : un ecran qui offre ce qu'il ne sait pas faire. Decision utilisateur :
+   **on prend bien l'assiduite des cours adultes**, et la feuille d'appel se gere **comme les
+   affectations** — entree de sidebar avec deux enfants **Apprenants** (`/dashboard/absences`)
+   et **Adultes** (`/dashboard/absences/adultes`). La feuille eleves doit **cesser de proposer
+   les classes adultes**.
+   - **Ne PAS dupliquer `AbsencesClient` (1 684 lignes)** : contrairement aux deux ecrans
+     d'affectation, qui font des choses differentes, c'est ici le MEME ecran (trombinoscope,
+     statuts, justification) — seules la source des participants et la table cible changent.
+     **Generaliser sur la cle de participant unifiee** (`student_id` uuid **ou**
+     `parentId-tutorNumber`), comme l'ont ete saisie de notes, bulletins et suivi des devoirs.
+2. **Onglet « Scolarite » dans la fiche PARENT.** Un adulte apprenant n'a aucune fiche : sa
+   fiche parent ne montre qu'une case « Inscrit aux cours adultes » grisee, alors que ses notes
+   et bulletins existent en base. Passer la fiche en **onglets ARIA** (Identite / Scolarite) avec
+   deep-link `?tab=`, comme les fiches eleve et enseignant. Onglet visible seulement si un tuteur
+   au moins est inscrit ; **une section par tuteur inscrit** (un foyer peut en compter deux, la
+   fiche eleve ne gere qu'une personne). Contenu repris de `StudentScolarite` (inscriptions par
+   annee, notes par periode, bulletins en URL signee, absences/retards) en lisant
+   `parent_class_enrollments` / `adult_grades` / `adult_bulletin_archives` / `adult_absences`.
+   - **Decision prise** : **pas de discipline pour les adultes** (`student_warnings` n'a pas
+     d'equivalent, et rien dans l'app ne suggere qu'on sanctionne un adulte inscrit). L'onglet
+     est donc identique **moins ce bloc**. Y revenir demanderait une table + un formulaire.
+3. **Etendre l'audit « Absences » aux adultes**, une fois `adult_absences` peuplee — sinon on
+   rebouche un trou en en laissant un autre.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2719,11 +2778,14 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] **A JOUER** — `supabase/migrations/rework-year-closure-state.sql` (passage d'annee :
-  `closed_at`/`closed_by`/`archived_at`/`purged_at`/`purge_intent` sur `school_years`, nouvelle
-  table `year_audits`, `purge_school_year` reecrite, suppression gardee de `year_closure` et
-  `year_closure_steps`). **Sans elle, l'ecran « Passage d'annee » affiche zero audit et la
-  cloture echoue.**
+- [ ] **A JOUER** — `supabase/migrations/guard-class-delete-with-participants.sql` (une classe
+  avec des inscrits ACTIFS, eleves **ou adultes**, ne peut plus etre supprimee ; le garde-fou
+  applicatif ne suffit pas, la suppression part du navigateur).
+- [ ] **A JOUER** — `supabase/migrations/add-adult-absences.sql` (cinquieme table miroir :
+  assiduite des cours adultes ; RLS calquee sur `absences`, audit pose).
+- [x] Executer `supabase/migrations/rework-year-closure-state.sql` (passage d'annee : etat sur
+  `school_years`, table `year_audits`, `purge_school_year` reecrite, anciennes tables
+  supprimees). **Verifie en base sur 5 controles.**
 - [ ] **A JOUER** — `supabase/migrations/create-support-requests.sql` (table `support_requests` +
   RLS « depot et relecture par la direction, ni modification ni suppression » + bucket prive
   `support-attachments` 1 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**

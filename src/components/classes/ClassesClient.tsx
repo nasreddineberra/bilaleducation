@@ -75,12 +75,17 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
   // Step 1: load dependencies and show first modal
   const startDelete = async (cls: ClassRow) => {
     const supabase = createClient()
-    const [{ count: slotsCount }, { count: studentsCount }] = await Promise.all([
+    // Les DEUX tables d'inscription. Une classe adulte n'a aucune ligne dans
+    // `enrollments` : ne compter que celle-ci annonçait « 0 inscription » sur une
+    // classe pleine, et la suppression emportait en cascade les inscriptions, les
+    // évaluations, les notes et les bulletins de ses participants.
+    const [{ count: slotsCount }, { count: studentsCount }, { count: adultsCount }] = await Promise.all([
       supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('class_id', cls.id),
-      supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('class_id', cls.id),
+      supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('class_id', cls.id).eq('status', 'active'),
+      supabase.from('parent_class_enrollments').select('id', { count: 'exact', head: true }).eq('class_id', cls.id).eq('status', 'active'),
     ])
     const teachersCount = cls.class_teachers?.length ?? 0
-    setDeleteDeps({ slots: slotsCount ?? 0, students: studentsCount ?? 0, teachers: teachersCount })
+    setDeleteDeps({ slots: slotsCount ?? 0, students: (studentsCount ?? 0) + (adultsCount ?? 0), teachers: teachersCount })
     setDeleteTarget(cls)
     setDeleteStep(1)
     setDeleteNameInput('')
@@ -101,13 +106,19 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
     try {
       const supabase = createClient()
 
-      // Vérifier si des élèves sont affectés à la classe
-      const { count } = await supabase
-        .from('enrollments')
-        .select('*', { count: 'exact', head: true })
-        .eq('class_id', deleteTarget.id)
-      if (count && count > 0) {
-        setDeleteError(`${count} élève${count > 1 ? 's' : ''} inscrit${count > 1 ? 's' : ''} dans cette classe. Retirez-les avant de supprimer.`)
+      // Des inscrits ? Élèves ET adultes : une classe adulte n'a de participants
+      // que dans `parent_class_enrollments`. Le mot suit la nature de la classe.
+      const estAdulte = !!deleteTarget.cotisation_types?.is_adult
+      const [{ count: nEleves }, { count: nAdultes }] = await Promise.all([
+        supabase.from('enrollments').select('*', { count: 'exact', head: true })
+          .eq('class_id', deleteTarget.id).eq('status', 'active'),
+        supabase.from('parent_class_enrollments').select('*', { count: 'exact', head: true })
+          .eq('class_id', deleteTarget.id).eq('status', 'active'),
+      ])
+      const count = (nEleves ?? 0) + (nAdultes ?? 0)
+      if (count > 0) {
+        const mot = estAdulte ? 'participant' : 'élève'
+        setDeleteError(`${count} ${mot}${count > 1 ? 's' : ''} inscrit${count > 1 ? 's' : ''} dans cette classe. Retirez-les avant de supprimer.`)
         return
       }
 
@@ -311,7 +322,12 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                 <li><strong>{deleteDeps.slots}</strong> créneau{deleteDeps.slots > 1 ? 'x' : ''} EDT</li>
               )}
               {deleteDeps.students > 0 && (
-                <li><strong>{deleteDeps.students}</strong> inscription{deleteDeps.students > 1 ? 's' : ''} élève{deleteDeps.students > 1 ? 's' : ''}</li>
+                <li>
+                  <strong>{deleteDeps.students}</strong> inscription{deleteDeps.students > 1 ? 's' : ''}{' '}
+                  {deleteTarget?.cotisation_types?.is_adult
+                    ? `participant${deleteDeps.students > 1 ? 's' : ''}`
+                    : `élève${deleteDeps.students > 1 ? 's' : ''}`}
+                </li>
               )}
               {deleteDeps.teachers > 0 && (
                 <li><strong>{deleteDeps.teachers}</strong> affectation{deleteDeps.teachers > 1 ? 's' : ''} enseignant{deleteDeps.teachers > 1 ? 's' : ''}</li>

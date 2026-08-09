@@ -41,30 +41,67 @@ function nom(last?: string | null, first?: string | null): string {
 }
 function cap<T>(arr: T[]): T[] { return arr.slice(0, ITEMS_CAP) }
 
-// ─── 1. Affectations (bloquant) : eleves actifs sans classe de l'annee ──────
+// ─── 1. Affectations (bloquant) : participants sans classe de l'annee ───────
+//
+// ELEVES **ET** ADULTES. L'audit ne regardait que `students` : un adulte inscrit
+// aux cours mais jamais affecte passait donc INVISIBLE d'un bout a l'autre de la
+// cloture — sans classe, il n'a ni evaluation a noter, ni bulletin attendu, ni
+// cotisation facturee, si bien que les cinq autres audits se taisaient aussi.
+// C'est precisement l'audit cense l'attraper qui l'ignorait.
 export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<AuditResult> {
-  const { data: activeStudents } = await supabase
-    .from('students').select('id, first_name, last_name, student_number')
-    .eq('is_active', true).eq('etablissement_id', ctx.etablissementId)
+  const [{ data: activeStudents }, { data: enrolled }, { data: parents }, { data: adultEnrolled }] = await Promise.all([
+    supabase.from('students').select('id, first_name, last_name, student_number')
+      .eq('is_active', true).eq('etablissement_id', ctx.etablissementId),
+    supabase.from('enrollments').select('student_id, classes!inner(academic_year)')
+      .eq('status', 'active').eq('classes.academic_year', ctx.yearLabel),
+    // Le vivier des adultes, tel que le construit l'ecran « Affectations adultes » :
+    // un tuteur coche « inscrit aux cours adultes ».
+    supabase.from('parents')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor1_adult_courses, tutor2_last_name, tutor2_first_name, tutor2_adult_courses')
+      .eq('etablissement_id', ctx.etablissementId),
+    supabase.from('parent_class_enrollments').select('parent_id, tutor_number, classes!inner(academic_year)')
+      .eq('status', 'active').eq('classes.academic_year', ctx.yearLabel),
+  ])
 
-  const { data: enrolled } = await supabase
-    .from('enrollments').select('student_id, classes!inner(academic_year)')
-    .eq('status', 'active').eq('classes.academic_year', ctx.yearLabel)
-
+  // ── Eleves ──
   const affected = new Set((enrolled ?? []).map((e: any) => e.student_id))
   const unassigned = (activeStudents ?? []).filter((s: any) => !affected.has(s.id))
 
+  // ── Adultes ── (cle participant unifiee : `parentId-tutorNumber`)
+  const adultAffected = new Set((adultEnrolled ?? []).map((e: any) => `${e.parent_id}-${e.tutor_number}`))
+  const adultesNonAffectes: { label: string }[] = []
+  for (const p of (parents ?? []) as any[]) {
+    if (p.tutor1_adult_courses && !adultAffected.has(`${p.id}-1`)) {
+      adultesNonAffectes.push({ label: nom(p.tutor1_last_name, p.tutor1_first_name) })
+    }
+    if (p.tutor2_adult_courses && p.tutor2_last_name && !adultAffected.has(`${p.id}-2`)) {
+      adultesNonAffectes.push({ label: nom(p.tutor2_last_name, p.tutor2_first_name) })
+    }
+  }
+
+  const total = unassigned.length + adultesNonAffectes.length
+  const parts: string[] = []
+  if (unassigned.length > 0) parts.push(`${unassigned.length} élève(s) actif(s) sans classe`)
+  if (adultesNonAffectes.length > 0) parts.push(`${adultesNonAffectes.length} adulte(s) inscrit(s) aux cours sans classe`)
+
   return {
     blocking: true,
-    anomalies: unassigned.length,
-    items: cap(unassigned.map((s: any) => ({
-      label: nom(s.last_name, s.first_name),
-      detail: s.student_number ?? 'Non affecté',
-      href: '/dashboard/affectation',
-    }))),
-    summary: unassigned.length === 0
-      ? 'Tous les élèves actifs sont affectés à une classe de l’année.'
-      : `${unassigned.length} élève(s) actif(s) sans classe cette année.`,
+    anomalies: total,
+    items: cap([
+      ...unassigned.map((s: any) => ({
+        label: nom(s.last_name, s.first_name),
+        detail: s.student_number ?? 'Non affecté',
+        href: '/dashboard/affectation',
+      })),
+      ...adultesNonAffectes.map(a => ({
+        label: `${a.label} (adulte)`,
+        detail: 'Non affecté',
+        href: '/dashboard/affectation/adultes',
+      })),
+    ]),
+    summary: total === 0
+      ? 'Tous les participants actifs sont affectés à une classe de l’année.'
+      : parts.join(' · ') + ' cette année.',
   }
 }
 
