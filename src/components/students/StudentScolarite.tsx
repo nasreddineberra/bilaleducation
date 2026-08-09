@@ -96,6 +96,13 @@ const STATUS_COLOR: Record<string, string> = {
   withdrawn: 'bg-red-100 text-red-700',
 }
 
+// Le jour de classe etait rendu tel qu'il est stocke (« monday ») : anglais a
+// l'ecran, dans une interface entierement francaise.
+const DAYS_FR: Record<string, string> = {
+  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',
+  thursday: 'Jeudi', friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
+}
+
 const PERIOD_LABELS: Record<string, string> = {
   T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
   S1: 'Semestre 1', S2: 'Semestre 2',
@@ -232,11 +239,11 @@ export default function StudentScolarite({
 
           // Infos de classe : au niveau de l'annee, sur une seule ligne.
           const infosClasse = [
+            cls.level ? `Niveau ${cls.level}` : null,
             teacher,
             cls.cotisation_types?.label,
-            cls.level ? `Niveau ${cls.level}` : null,
             cls.day_of_week
-              ? `${cls.day_of_week}${cls.start_time && cls.end_time ? ` ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}` : ''}`
+              ? `${DAYS_FR[cls.day_of_week] ?? cls.day_of_week}${cls.start_time && cls.end_time ? ` ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}` : ''}`
               : null,
             `Inscrit le ${new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}`,
           ].filter(Boolean).join(' · ')
@@ -254,8 +261,9 @@ export default function StudentScolarite({
                   )}>
                     {STATUS_LABEL[enrollment.status] ?? enrollment.status}
                   </span>
-                  <span className="text-sm font-semibold text-warm-800">
-                    {cls.name}{cls.level ? ` · ${cls.level}` : ''}
+                  <span className="text-xs text-warm-700">
+                    <span className="font-semibold text-warm-800">Classe : {cls.name}</span>
+                    {infosClasse && <> · {infosClasse}</>}
                   </span>
                 </div>
 
@@ -269,8 +277,6 @@ export default function StudentScolarite({
                   </span>
                 )}
               </div>
-
-              <p className="text-xs text-warm-700">{infosClasse}</p>
 
               {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
               {yearPeriods.length > 0 ? (
@@ -298,34 +304,41 @@ export default function StudentScolarite({
                     const retards   = periodAbs.filter(a => a.absence_type === 'retard').length
 
                     return (
-                      <div key={period.id} className="rounded-xl bg-warm-50 px-3 py-2 space-y-1">
+                      <div key={period.id} className="rounded-xl bg-warm-50 px-3 py-2">
                         <p className="stat-label">{PERIOD_LABELS[period.label] ?? period.label}</p>
 
-                        <p className={clsx(
-                          'text-sm font-bold tabular-nums',
-                          avg == null ? 'text-warm-700'
-                            : avg >= 14 ? 'text-primary-700'
-                            : avg >= 10 ? 'text-amber-700'
-                            : 'text-red-600',
-                        )}>
-                          {avg != null ? `${avg.toFixed(2)}/20` : 'Pas de note'}
-                        </p>
+                        {/* Moyenne, bulletin et assiduite sur UNE ligne. */}
+                        <div className="flex items-center gap-1.5 text-[11px] text-warm-700">
+                          <span className={clsx(
+                            'font-bold tabular-nums',
+                            avg == null ? 'text-warm-700'
+                              : avg >= 14 ? 'text-primary-700'
+                              : avg >= 10 ? 'text-amber-700'
+                              : 'text-red-600',
+                          )}>
+                            {avg != null ? `${avg.toFixed(2)}/20` : 'Pas de note'}
+                          </span>
 
-                        {bulletinPath ? (
-                          <button
-                            type="button"
-                            onClick={() => openBulletin(bulletinPath)}
-                            className="text-[11px] text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                          >
-                            Bulletin
-                          </button>
-                        ) : (
-                          <p className="text-[11px] text-warm-700">Pas de bulletin</p>
-                        )}
+                          <span aria-hidden="true">·</span>
 
-                        <p className="text-[11px] text-warm-700 tabular-nums">
-                          {absTotal} abs.{absNJ > 0 && <span className="text-orange-700"> ({absNJ} nj)</span>} · {retards} ret.
-                        </p>
+                          {bulletinPath ? (
+                            <button
+                              type="button"
+                              onClick={() => openBulletin(bulletinPath)}
+                              className="text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                            >
+                              Bulletin
+                            </button>
+                          ) : (
+                            <span>Pas de bulletin</span>
+                          )}
+
+                          <span aria-hidden="true">·</span>
+
+                          <span className="tabular-nums">
+                            {absTotal} abs.{absNJ > 0 && <span className="text-orange-700"> ({absNJ} nj)</span>} · {retards} ret.
+                          </span>
+                        </div>
                       </div>
                     )
                   })}
