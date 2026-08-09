@@ -4,6 +4,8 @@ import './globals.css'
 import { ToastProvider } from '@/lib/toast-context'
 import { ToastContainer } from '@/components/ui/Toast'
 import { validateEnv } from '@/lib/env'
+import { headers } from 'next/headers'
+import { getCachedEtablissement } from '@/lib/cache/dashboard'
 
 // Valider les variables d'environnement au démarrage
 validateEnv()
@@ -27,10 +29,34 @@ const arabic = Noto_Sans_Arabic({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  // Titre UNIQUE pour toute l'application : l'onglet affiche toujours
-  // « Bilal Education », jamais le nom de la page. Ne pas réintroduire de
-  // `template` ni de `title` dans une page : ils repasseraient devant.
+/**
+ * Titre d'onglet : « NOM DE L'ÉCOLE - Bilal Education ».
+ *
+ * Le nom de l'établissement vient du SOUS-DOMAINE, via l'en-tête que pose le
+ * middleware — la seule source disponible ici, une page pouvant être servie
+ * sans session (la connexion, par exemple). Sur la console de l'éditeur et sur
+ * le domaine racine, aucun établissement n'est résolu : le titre reste
+ * « Bilal Education » seul.
+ *
+ * Le titre ne nomme JAMAIS la page. Ne pas réintroduire de `template` ni de
+ * `title` dans une page : ils repasseraient devant.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  let prefixe = ''
+  try {
+    const etabId = (await headers()).get('x-etablissement-id')
+    if (etabId) {
+      const etab = await getCachedEtablissement(etabId).catch(() => null)
+      if (etab?.nom) prefixe = `${etab.nom} - `
+    }
+  } catch {
+    // Titre de repli : mieux vaut un onglet sans nom d'école qu'une page en erreur.
+  }
+
+  return { ...metadata, title: `${prefixe}Bilal Education` }
+}
+
+const metadata: Metadata = {
   title: 'Bilal Education',
   description: 'Bilal Education · Plateforme de gestion administrative et pédagogique pour école arabe et islamique. Suivi des élèves, enseignants, absences, cotisations et bulletins.',
   keywords: ['école arabe', 'école islamique', 'gestion scolaire', 'ERP scolaire', 'Bilal Education', 'suivi élèves', 'gestion pédagogique', 'administration école'],

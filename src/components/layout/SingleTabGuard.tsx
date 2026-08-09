@@ -21,9 +21,10 @@ import { useEffect, useState, useRef } from 'react'
  * en double et affiche l'écran de blocage. Le canal étant lié à l'ORIGINE, la
  * console (`superadmin.…`) et une école ne se gênent jamais.
  *
- * ON NE PIÈGE PERSONNE. L'onglet bloqué propose de « prendre la main » : ouvrir
- * un lien dans un nouvel onglet est un réflexe courant, et refuser sans issue
- * ferait chercher longtemps. C'est alors l'autre onglet qui passe en blocage.
+ * ON NE PIÈGE PERSONNE. L'onglet bloqué se débloque tout seul dès que la place
+ * se libère — soit parce que l'autre a prévenu en partant, soit parce qu'il ne
+ * répond plus (relance périodique). Sans ce filet, un navigateur qui plante
+ * laisserait l'utilisateur devant un écran dont rien ne le sortirait.
  */
 
 const CANAL = 'bilal-onglet-unique'
@@ -32,15 +33,17 @@ const CANAL = 'bilal-onglet-unique'
 type Message =
   | { type: 'qui-est-la'; id: string }
   | { type: 'je-suis-la'; id: string }
-  | { type: 'je-prends-la-main'; id: string }
   | { type: 'je-pars'; id: string }
 
 export default function SingleTabGuard({ children }: { children: React.ReactNode }) {
   const [bloque, setBloque] = useState(false)
+  const [fermetureRefusee, setFermetureRefusee] = useState(false)
   const idRef = useRef<string>('')
   const canalRef = useRef<BroadcastChannel | null>(null)
   const bloqueRef = useRef(false)
   bloqueRef.current = bloque
+  /** Dernière fois qu'un autre onglet s'est manifesté. Voir la relance périodique. */
+  const dernierSigneDeVieRef = useRef(0)
 
   useEffect(() => {
     // `BroadcastChannel` manque à quelques navigateurs anciens. On laisse alors
@@ -64,11 +67,7 @@ export default function SingleTabGuard({ children }: { children: React.ReactNode
           break
 
         case 'je-suis-la':
-          setBloque(true)
-          break
-
-        case 'je-prends-la-main':
-          // Un autre onglet réclame la main : on lui cède.
+          dernierSigneDeVieRef.current = Date.now()
           setBloque(true)
           break
 
@@ -88,16 +87,46 @@ export default function SingleTabGuard({ children }: { children: React.ReactNode
     }
     window.addEventListener('pagehide', partir)
 
+    /**
+     * RELANCE PÉRIODIQUE — indispensable depuis qu'il n'y a plus de bouton
+     * « prendre la main ». Si l'onglet propriétaire disparaît sans prévenir —
+     * navigateur qui plante, onglet tué par le système, `pagehide` avalé — plus
+     * personne n'envoie « je pars », et cet onglet resterait bloqué pour
+     * toujours, sans issue.
+     *
+     * On redemande donc régulièrement. Sans réponse pendant quelques secondes,
+     * la place est libre : on se débloque.
+     */
+    const relance = setInterval(() => {
+      if (!bloqueRef.current) return
+      if (Date.now() - dernierSigneDeVieRef.current > 5000) {
+        setBloque(false)
+        setFermetureRefusee(false)
+        return
+      }
+      canal.postMessage({ type: 'qui-est-la', id })
+    }, 2000)
+
     return () => {
       partir()
+      clearInterval(relance)
       window.removeEventListener('pagehide', partir)
       canal.close()
     }
   }, [])
 
-  function prendreLaMain() {
-    canalRef.current?.postMessage({ type: 'je-prends-la-main', id: idRef.current })
-    setBloque(false)
+  /**
+   * Fermeture de l'onglet.
+   *
+   * LIMITE DU NAVIGATEUR : `window.close()` ne ferme que les fenêtres ouvertes
+   * PAR un script. Un onglet ouvert à la main — Ctrl+T, Ctrl+clic, duplication —
+   * ne se ferme pas, et l'appel est ignoré en silence. Un bouton qui ne fait
+   * rien serait pire que pas de bouton : on tente, et si l'onglet est toujours
+   * là un instant après, on dit à l'utilisateur de le fermer lui-même.
+   */
+  function fermerOnglet() {
+    window.close()
+    setTimeout(() => setFermetureRefusee(true), 300)
   }
 
   if (!bloque) return <>{children}</>
@@ -117,17 +146,27 @@ export default function SingleTabGuard({ children }: { children: React.ReactNode
           Déjà ouverte dans un autre onglet
         </h1>
         <p className="text-sm text-warm-700 dark:text-[#93a2a8] leading-relaxed mb-6">
-          L&apos;application ne fonctionne que dans un seul onglet à la fois. Revenez à
-          celui qui est déjà ouvert, ou continuez ici — l&apos;autre sera alors mis en
-          attente.
+          L&apos;application ne fonctionne que dans un seul onglet à la fois.
+          Fermez celui-ci et revenez à celui qui est déjà ouvert.
         </p>
         <button
           type="button"
-          onClick={prendreLaMain}
+          onClick={fermerOnglet}
           className="w-full py-3 px-4 rounded-xl bg-primary-500 text-white text-base font-semibold hover:bg-primary-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
-          Continuer dans cet onglet
+          Fermer cet onglet
         </button>
+
+        {/* Le navigateur a refusé la fermeture : on ne laisse pas l'utilisateur
+            devant un bouton sans effet. */}
+        {fermetureRefusee && (
+          <p role="status" className="mt-4 text-xs text-warm-700 dark:text-[#93a2a8]">
+            Votre navigateur ne permet pas de fermer cet onglet automatiquement.
+            Fermez-le avec <kbd className="px-1.5 py-0.5 rounded bg-warm-100 dark:bg-[#243139] font-mono text-[11px]">Ctrl</kbd>
+            {' + '}
+            <kbd className="px-1.5 py-0.5 rounded bg-warm-100 dark:bg-[#243139] font-mono text-[11px]">W</kbd>.
+          </p>
+        )}
       </div>
     </div>
   )
