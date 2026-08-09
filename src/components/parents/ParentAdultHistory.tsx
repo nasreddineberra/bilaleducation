@@ -2,6 +2,7 @@
 
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import PeriodeCell from '@/components/scolarite/PeriodeCell'
 
 interface AdultRow {
   id: string
@@ -67,11 +68,6 @@ const STATUS_LABEL: Record<string, string> = { active: 'Actif', withdrawn: 'Reti
 const STATUS_COLOR: Record<string, string> = {
   active:    'bg-green-100 text-green-700',
   withdrawn: 'bg-red-100 text-red-700',
-}
-
-const PERIOD_LABELS: Record<string, string> = {
-  T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
-  S1: 'Semestre 1', S2: 'Semestre 2',
 }
 
 export default function ParentAdultHistory({ rows, current = [] }: { rows: AdultRow[]; current?: CurrentRow[] }) {
@@ -143,44 +139,23 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
 
             {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
             {h.periods.length > 0 ? (
-              <div className={clsx('grid gap-2', h.periods.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+              <div className={clsx(
+                'grid gap-2',
+                h.periods.length === 2
+                  ? 'grid-cols-1 sm:grid-cols-2'
+                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+              )}>
                 {h.periods.map(p => (
-                  <div key={p.id} className="rounded-xl bg-warm-50 px-3 py-2">
-                    <p className="stat-label">{PERIOD_LABELS[p.label] ?? p.label}</p>
-
-                    {!p.archive ? (
-                      <p className="text-[11px] text-warm-700 italic">Non archivé</p>
-                    ) : (
-                    /* Moyenne, bulletin et assiduite sur UNE ligne. */
-                    <div className="flex items-center gap-1.5 text-[11px] text-warm-700">
-                      <span className={clsx(
-                        'font-bold tabular-nums',
-                        p.avg == null ? 'text-warm-700'
-                          : p.avg >= 14 ? 'text-primary-700'
-                          : p.avg >= 10 ? 'text-amber-700'
-                          : 'text-red-600',
-                      )}>
-                        {p.avg != null ? `${p.avg.toFixed(2)}/20` : 'Pas de note'}
-                      </span>
-
-                      <span aria-hidden="true">·</span>
-
-                      <button
-                        type="button"
-                        onClick={() => openBulletin(p.bulletinPath!)}
-                        className="text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                      >
-                        Bulletin
-                      </button>
-
-                      <span aria-hidden="true">·</span>
-
-                      <span className="tabular-nums">
-                        {p.abs} abs.{p.absNJ > 0 && <span className="text-orange-700"> ({p.absNJ} nj)</span>} · {p.retards} ret.
-                      </span>
-                    </div>
-                    )}
-                  </div>
+                  <PeriodeCell
+                    key={p.id}
+                    label={p.label}
+                    archived={p.archive}
+                    moyenne={p.avg}
+                    filePath={p.bulletinPath}
+                    abs={p.abs}
+                    absNJ={p.absNJ}
+                    retards={p.retards}
+                  />
                 ))}
               </div>
             ) : (

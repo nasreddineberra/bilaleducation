@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { clsx } from 'clsx'
-import { createClient } from '@/lib/supabase/client'
+import PeriodeCell from '@/components/scolarite/PeriodeCell'
 
 /**
  * SCOLARITÉ — un HISTORIQUE, année après année.
@@ -98,11 +98,6 @@ const DAYS_FR: Record<string, string> = {
   thursday: 'Jeudi', friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
 }
 
-const PERIOD_LABELS: Record<string, string> = {
-  T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
-  S1: 'Semestre 1', S2: 'Semestre 2',
-}
-
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function StudentScolarite({
@@ -115,14 +110,6 @@ export default function StudentScolarite({
     for (const a of bulletinArchives) map.set(`${a.class_id}:${a.period_id}`, a)
     return map
   }, [bulletinArchives])
-
-  // Bucket privé : URL signée à la demande. Onglet ouvert AVANT l'await (popup).
-  const openBulletin = async (fp: string) => {
-    const w = window.open('', '_blank')
-    const { data, error } = await createClient().storage.from('bulletins').createSignedUrl(fp, 60)
-    if (error || !data?.signedUrl) { w?.close(); return }
-    w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
-  }
 
   const teacherMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -241,51 +228,28 @@ export default function StudentScolarite({
                 )}
               </div>
 
-              {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
+              {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. Une
+                  seule colonne sur petit ecran, sinon la ligne serait rognee. */}
               {yearPeriods.length > 0 ? (
-                <div className={clsx('grid gap-2', yearPeriods.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+                <div className={clsx(
+                  'grid gap-2',
+                  yearPeriods.length === 2
+                    ? 'grid-cols-1 sm:grid-cols-2'
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+                )}>
                   {yearPeriods.map(period => {
                     const a = archiveMap.get(`${enrollment.class_id}:${period.id}`)
-
                     return (
-                      <div key={period.id} className="rounded-xl bg-warm-50 px-3 py-2">
-                        <p className="stat-label">{PERIOD_LABELS[period.label] ?? period.label}</p>
-
-                        {a ? (
-                          /* Moyenne, bulletin et assiduite sur UNE ligne. */
-                          <div className="flex items-center gap-1.5 text-[11px] text-warm-700">
-                            <span className={clsx(
-                              'font-bold tabular-nums',
-                              a.moyenne_generale == null ? 'text-warm-700'
-                                : a.moyenne_generale >= 14 ? 'text-primary-700'
-                                : a.moyenne_generale >= 10 ? 'text-amber-700'
-                                : 'text-red-600',
-                            )}>
-                              {a.moyenne_generale != null ? `${Number(a.moyenne_generale).toFixed(2)}/20` : 'Pas de note'}
-                            </span>
-
-                            <span aria-hidden="true">·</span>
-
-                            <button
-                              type="button"
-                              onClick={() => openBulletin(a.file_path)}
-                              className="text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                            >
-                              Bulletin
-                            </button>
-
-                            <span aria-hidden="true">·</span>
-
-                            <span className="tabular-nums">
-                              {a.absences_count} abs.
-                              {a.absences_unjustified > 0 && <span className="text-orange-700"> ({a.absences_unjustified} nj)</span>}
-                              {' · '}{a.retards_count} ret.
-                            </span>
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-warm-700 italic">Non archivé</p>
-                        )}
-                      </div>
+                      <PeriodeCell
+                        key={period.id}
+                        label={period.label}
+                        archived={!!a}
+                        moyenne={a?.moyenne_generale ?? null}
+                        filePath={a?.file_path ?? null}
+                        abs={a?.absences_count ?? 0}
+                        absNJ={a?.absences_unjustified ?? 0}
+                        retards={a?.retards_count ?? 0}
+                      />
                     )
                   })}
                 </div>
