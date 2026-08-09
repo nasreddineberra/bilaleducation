@@ -2511,20 +2511,25 @@ financements, effectifs du tableau de bord, affectations adultes, archivage de c
   taisaient aussi**. L'audit cense l'attraper etait justement celui qui l'ignorait.
 - **« Inscriptions ce mois »** (tableau de bord secretaire) : les 2 tables.
 
+**FEUILLE D'APPEL ADULTES — FAIT.** Sidebar « Feuille d'appel » a deux enfants **Apprenants**
+(`/dashboard/absences`) et **Adultes** (`/dashboard/absences/adultes`), comme les Affectations ;
+la feuille eleves **filtre desormais les classes adultes**, qu'elle proposait avec un
+trombinoscope vide.
+- **`AbsencesClient` GENERALISE, pas duplique** (1 700 lignes). Contrairement aux deux ecrans
+  d'affectation, qui font des choses differentes, c'est ici rigoureusement le meme ecran :
+  seules la source des participants et la table cible changent. Prop **`mode`**, helpers
+  exportes `tableAppel` / `colonnesParticipant` / `normaliserAbsence`, et **cle de participant
+  unifiee** (`student_id` = uuid **ou** `parentId-tutorNumber`) comme la saisie de notes, les
+  bulletins et le suivi des devoirs. La PAGE traduit, le client ignore le modele adulte.
+- **Notification d'absence JAMAIS envoyee en mode adulte** : la route resout le foyer A PARTIR
+  de l'eleve (`getParentByStudentId`), et prevenir quelqu'un de sa propre absence n'a pas de sens.
+- Vocabulaire suivant le mode (« participant » / « eleve ») jusque dans le PDF.
+- `genderFromRelationship` **extraite** en `src/lib/parents/tutor-gender.ts` a son 2e usage.
+- **AUDIT « Absences » etendu** aux adultes dans la foulee (sinon on rebouchait un trou en en
+  laissant un autre) : second volet sur `adult_absences`, libelle « (adulte) ».
+
 **RESTE A FAIRE (reprise)**
-1. **Feuille d'appel adultes.** Aujourd'hui l'ecran charge **toutes** les classes de l'annee
-   sans filtre et ne lit ses participants que dans `enrollments` → une classe adulte donne un
-   **trombinoscope VIDE** : un ecran qui offre ce qu'il ne sait pas faire. Decision utilisateur :
-   **on prend bien l'assiduite des cours adultes**, et la feuille d'appel se gere **comme les
-   affectations** — entree de sidebar avec deux enfants **Apprenants** (`/dashboard/absences`)
-   et **Adultes** (`/dashboard/absences/adultes`). La feuille eleves doit **cesser de proposer
-   les classes adultes**.
-   - **Ne PAS dupliquer `AbsencesClient` (1 684 lignes)** : contrairement aux deux ecrans
-     d'affectation, qui font des choses differentes, c'est ici le MEME ecran (trombinoscope,
-     statuts, justification) — seules la source des participants et la table cible changent.
-     **Generaliser sur la cle de participant unifiee** (`student_id` uuid **ou**
-     `parentId-tutorNumber`), comme l'ont ete saisie de notes, bulletins et suivi des devoirs.
-2. **Onglet « Scolarite » dans la fiche PARENT.** Un adulte apprenant n'a aucune fiche : sa
+1. **Onglet « Scolarite » dans la fiche PARENT.** Un adulte apprenant n'a aucune fiche : sa
    fiche parent ne montre qu'une case « Inscrit aux cours adultes » grisee, alors que ses notes
    et bulletins existent en base. Passer la fiche en **onglets ARIA** (Identite / Scolarite) avec
    deep-link `?tab=`, comme les fiches eleve et enseignant. Onglet visible seulement si un tuteur
@@ -2535,8 +2540,9 @@ financements, effectifs du tableau de bord, affectations adultes, archivage de c
    - **Decision prise** : **pas de discipline pour les adultes** (`student_warnings` n'a pas
      d'equivalent, et rien dans l'app ne suggere qu'on sanctionne un adulte inscrit). L'onglet
      est donc identique **moins ce bloc**. Y revenir demanderait une table + un formulaire.
-3. **Etendre l'audit « Absences » aux adultes**, une fois `adult_absences` peuplee — sinon on
-   rebouche un trou en en laissant un autre.
+2. **Verifier a l'ecran** la feuille d'appel adultes : elle n'a jamais tourne avec de vraies
+   donnees (0 ligne dans `adult_absences` a la livraison). Points a regarder en premier :
+   saisie + enregistrement, justificatif (bucket prive, URL signee), impression PDF.
 
 ## Prochaine etape
 

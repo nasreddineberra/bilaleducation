@@ -124,8 +124,28 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     cur.perPeriod.set(a.period_id, (cur.perPeriod.get(a.period_id) ?? 0) + 1)
     byStudent.set(a.student_id, cur)
   }
+  // ── Adultes ──
+  // Leur assiduité vit dans `adult_absences` : `absences.student_id` pointe vers
+  // `students`, un tuteur ne peut pas y figurer. Sans ce second volet, l'audit
+  // déclarerait « aucune absence en attente » sur des cours adultes entiers.
+  const { data: absA } = await supabase
+    .from('adult_absences')
+    .select('parent_id, tutor_number, period_id, parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
+    .in('period_id', ctx.periodIds).eq('is_justified', false).eq('absence_type', 'absence')
+
+  for (const a of (absA ?? []) as any[]) {
+    const cle = `${a.parent_id}-${a.tutor_number}`
+    const nomA = a.tutor_number === 2
+      ? nom(a.parents?.tutor2_last_name, a.parents?.tutor2_first_name)
+      : nom(a.parents?.tutor1_last_name, a.parents?.tutor1_first_name)
+    const cur = byStudent.get(cle) ?? { name: `${nomA} (adulte)`, count: 0, perPeriod: new Map<string, number>(), cls: a.classes }
+    cur.count++
+    cur.perPeriod.set(a.period_id, (cur.perPeriod.get(a.period_id) ?? 0) + 1)
+    byStudent.set(cle, cur)
+  }
+
   const list = [...byStudent.values()].sort((x, y) => y.count - x.count)
-  const total = (abs ?? []).length
+  const total = (abs ?? []).length + (absA ?? []).length
 
   // Detail par periode, dans l'ordre des periodes de l'annee (ex. « S1 : 1 · S2 : 2 »).
   const perPeriodLabel = (m: Map<string, number>) =>
@@ -143,7 +163,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     }))),
     summary: total === 0
       ? 'Aucune absence non justifiée en attente.'
-      : `${total} absence(s) non justifiée(s) · ${list.length} élève(s).`,
+      : `${total} absence(s) non justifiée(s) · ${list.length} participant(s).`,
   }
 }
 

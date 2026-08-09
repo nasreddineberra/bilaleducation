@@ -9,6 +9,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import { saveParentEnrollments } from '@/app/dashboard/affectation/actions'
+import { genderFromRelationship } from '@/lib/parents/tutor-gender'
 
 const POOL_PAGE_SIZE = 20
 
@@ -64,12 +65,6 @@ interface Props {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function genderFromRelationship(rel: string | null): 'male' | 'female' | null {
-  if (rel === 'père' || rel === 'tuteur') return 'male'
-  if (rel === 'mère') return 'female'
-  return null
-}
 
 const DAYS: Record<string, string> = {
   monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',

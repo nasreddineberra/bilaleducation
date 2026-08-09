@@ -31,6 +31,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/grades':            'Saisie notes',
   '/dashboard/bulletins':          'Bulletins',
   '/dashboard/absences':          'Feuille d\'appel',
+  '/dashboard/absences/adultes':  'Feuille d\'appel adultes',
   '/dashboard/evaluations':       'Gabarits des évaluations',
   '/dashboard/communications':        'Messages envoyés',
   '/dashboard/communications/new':    'Nouveau message',
@@ -144,6 +145,12 @@ function getBreadcrumbs(pathname: string): Crumb[] {
     return [{ label: 'Affectations' }, { label: 'Adultes' }]
   if (pathname === '/dashboard/affectation')
     return [{ label: 'Affectations' }, { label: 'Apprenants' }]
+
+  // Feuille d'appel
+  if (/^\/dashboard\/absences\/adultes/.test(pathname))
+    return [{ label: 'Feuille d’appel' }, { label: 'Adultes' }]
+  if (pathname === '/dashboard/absences')
+    return [{ label: 'Feuille d’appel' }, { label: 'Apprenants' }]
 
   // Évaluations
   if (pathname === '/dashboard/evaluations')

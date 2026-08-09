@@ -193,10 +193,25 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
   },
   {
+    // Deux entrées comme les Affectations : les cours adultes ont leurs propres
+    // participants (des tuteurs) et leur propre table d'assiduité.
     name:  'Feuille d\'appel',
-    href:  '/dashboard/absences',
     icon:  Calendar,
     roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+    children: [
+      {
+        name:  'Apprenants',
+        href:  '/dashboard/absences',
+        icon:  Users,
+        roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+      },
+      {
+        name:  'Adultes',
+        href:  '/dashboard/absences/adultes',
+        icon:  UserCheck,
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
+      },
+    ],
   },
   {
     name:  'Cahier de texte',

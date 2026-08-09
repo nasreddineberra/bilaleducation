@@ -42,6 +42,24 @@ type EtablissementInfo = {
   logo_url: string | null
 }
 
+/**
+ * ÉLÈVES ou ADULTES — le même écran.
+ *
+ * Une classe adulte n'a aucun `enrollments` : ses participants sont des TUTEURS
+ * (`parent_class_enrollments`) et leur assiduité vit dans `adult_absences`, la
+ * table miroir, parce que `absences.student_id` pointe vers `students`.
+ *
+ * On ne duplique pas pour autant ces 1 700 lignes : contrairement aux deux écrans
+ * d'affectation, qui font des choses différentes, c'est ici rigoureusement le même
+ * écran — trombinoscope, statuts, justification, impression. Seules changent la
+ * source des participants et la table cible. Le composant travaille donc sur une
+ * CLÉ DE PARTICIPANT UNIFIÉE, comme la saisie de notes, les bulletins et le suivi
+ * des devoirs : `student_id` vaut l'uuid d'un élève, ou `parentId-tutorNumber`
+ * pour un adulte. La page fournit les participants déjà normalisés ; les
+ * écritures reconvertissent la clé au dernier moment.
+ */
+export type ModeAppel = 'students' | 'adults'
+
 interface AbsencesClientProps {
   classes: ClassRow[]
   periods: Period[]
@@ -53,6 +71,31 @@ interface AbsencesClientProps {
   yearLabel: string | null
   /** Rôle du profil connecté : la vue globale est réservée à l'encadrement. */
   role: string
+  /** Élèves par défaut ; `adults` bascule sur les classes et la table adultes. */
+  mode?: ModeAppel
+}
+
+/** Table d'assiduité correspondant au mode. */
+export function tableAppel(mode: ModeAppel) {
+  return mode === 'adults' ? 'adult_absences' : 'absences'
+}
+
+/**
+ * Clé unifiée → colonnes de la base.
+ *
+ * On coupe au DERNIER tiret : un uuid en contient déjà quatre, un `split('-')`
+ * naïf le mettrait en pièces. Même règle que la notation des adultes.
+ */
+export function colonnesParticipant(mode: ModeAppel, cle: string): Record<string, unknown> {
+  if (mode === 'students') return { student_id: cle }
+  const i = cle.lastIndexOf('-')
+  return { parent_id: cle.slice(0, i), tutor_number: Number(cle.slice(i + 1)) }
+}
+
+/** Ligne de base → forme unifiée attendue par l'écran (`student_id` = la clé). */
+export function normaliserAbsence(row: any, mode: ModeAppel): Absence {
+  if (mode === 'students') return row as Absence
+  return { ...row, student_id: `${row.parent_id}-${row.tutor_number}` } as Absence
 }
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -107,7 +150,13 @@ export default function AbsencesClient({
   etablissement,
   yearLabel,
   role,
+  mode = 'students',
 }: AbsencesClientProps) {
+  const TABLE = tableAppel(mode)
+  /** Le mot juste : on ne fait pas l'appel d'« élèves » dans un cours adultes. */
+  const MOT     = mode === 'adults' ? 'participant' : 'élève'
+  const MOT_MAJ = mode === 'adults' ? 'Participant' : 'Élève'
+
   // Inutile de proposer une vue « toutes les classes » quand il n'y en a qu'une.
   const canSeeAllClasses = GLOBAL_VIEW_ROLES.includes(role) && classes.length > 1
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
@@ -329,7 +378,7 @@ export default function AbsencesClient({
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLORS.secondary)
     doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, margin, y)
-    doc.text(`Effectif : ${classStudents.length} élève${classStudents.length > 1 ? 's' : ''}`, pageWidth - margin, y, { align: 'right' })
+    doc.text(`Effectif : ${classStudents.length} ${MOT}${classStudents.length > 1 ? 's' : ''}`, pageWidth - margin, y, { align: 'right' })
     y += 6
 
     // Tableau des élèves
@@ -411,7 +460,7 @@ export default function AbsencesClient({
   const handleRemoveJustification = async (id: string) => {
     const supabase = createClient()
     const { data, error } = await supabase
-      .from('absences')
+      .from(TABLE)
       .update({
         is_justified: false,
         justification_date: null,
@@ -422,14 +471,14 @@ export default function AbsencesClient({
       .select()
       .single()
     if (!error && data) {
-      setAbsences(prev => prev.map(a => a.id === id ? (data as Absence) : a))
+      setAbsences(prev => prev.map(a => a.id === id ? normaliserAbsence(data, mode) : a))
     }
   }
 
   // Suppression d'une absence
   const handleDelete = async (id: string) => {
     const supabase = createClient()
-    const { error } = await supabase.from('absences').delete().eq('id', id)
+    const { error } = await supabase.from(TABLE).delete().eq('id', id)
     if (!error) setAbsences(prev => prev.filter(a => a.id !== id))
   }
 
@@ -544,7 +593,7 @@ export default function AbsencesClient({
                     <thead className="bg-warm-50">
                       <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
                         <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">Classe</th>
-                        <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Élèves</th>
+                        <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">{MOT_MAJ}s</th>
                         <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
                         <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Abs NJ</th>
                         <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Ret</th>
@@ -589,14 +638,14 @@ export default function AbsencesClient({
 
                   {/* ── Élèves les plus absents, tous cours confondus ──────── */}
                   <section>
-                    <h3 className="stat-label mb-1.5">Élèves les plus absents · tous cours</h3>
+                    <h3 className="stat-label mb-1.5">{MOT_MAJ}s les plus absents · tous cours</h3>
                     {topAbsentStudents.length === 0 ? (
                       <p className="text-xs text-warm-700 italic py-3 text-center">Aucune absence sur la période.</p>
                     ) : (
-                      <table aria-label="Élèves les plus absents sur la période" className="w-full text-xs">
+                      <table aria-label={`${MOT_MAJ}s les plus absents sur la période`} className="w-full text-xs">
                         <thead className="bg-warm-50">
                           <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
-                            <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">Élève</th>
+                            <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">{MOT_MAJ}</th>
                             <th scope="col" className="text-left py-1 px-2 font-semibold">Classe</th>
                             <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
                             <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Abs NJ</th>
@@ -696,6 +745,7 @@ export default function AbsencesClient({
           yearLabel={yearLabel}
           existingAbsences={absences.filter(a => a.class_id === selectedClassId)}
           validatedDates={validatedDates}
+          mode={mode}
           onComplete={handleSaisieComplete}
           onClose={() => setShowSaisie(false)}
         />
@@ -710,6 +760,7 @@ export default function AbsencesClient({
             return s ? `${s.last_name} ${s.first_name}` : ''
           })()}
           etablissementId={etablissementId}
+          mode={mode}
           onComplete={handleJustifyComplete}
           onClose={() => setJustifyTarget(null)}
         />
@@ -930,7 +981,7 @@ const STATUS_STYLE = {
 
 function SaisieModal({
   classStudents, classInfo, classId, periodId, etablissementId, etablissement, yearLabel,
-  existingAbsences, validatedDates, onComplete, onClose,
+  existingAbsences, validatedDates, mode, onComplete, onClose,
 }: {
   classStudents: StudentRow[]
   classInfo: ClassRow
@@ -941,9 +992,11 @@ function SaisieModal({
   yearLabel: string | null
   existingAbsences: Absence[]
   validatedDates: Set<string>
+  mode: ModeAppel
   onComplete: (added: Absence[], updated: Absence[], deletedIds: string[], savedDate: string) => void
   onClose: () => void
 }) {
+  const TABLE = tableAppel(mode)
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [date,          setDate]          = useState(today)
   const [localAbsences, setLocalAbsences] = useState<Absence[]>(existingAbsences)
@@ -961,9 +1014,9 @@ function SaisieModal({
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
-      const { data } = await supabase.from('absences').select('*').eq('class_id', classId)
+      const { data } = await supabase.from(TABLE).select('*').eq('class_id', classId)
       if (data) {
-        const fresh = data as Absence[]
+        const fresh = data.map(r => normaliserAbsence(r, mode))
         setLocalAbsences(fresh)
         setEntries(buildEntries(classStudents, fresh, today))
       }
@@ -1050,7 +1103,9 @@ function SaisieModal({
       if (toInsert.length > 0) {
         const rows = toInsert.map(e => ({
           etablissement_id: etablissementId,
-          student_id:       e.student_id,
+          // Clé unifiée reconvertie au dernier moment : `student_id` pour un élève,
+          // `parent_id` + `tutor_number` pour un adulte.
+          ...colonnesParticipant(mode, e.student_id),
           class_id:         classId,
           period_id:        periodId,
           absence_date:     date,
@@ -1059,30 +1114,33 @@ function SaisieModal({
           is_justified:     false,
           recorded_by:      uid,
         }))
-        const { data, error: err } = await supabase.from('absences').insert(rows).select()
+        const { data, error: err } = await supabase.from(TABLE).insert(rows).select()
         if (err) throw err
-        added = (data ?? []) as Absence[]
+        added = (data ?? []).map(r => normaliserAbsence(r, mode))
       }
 
       for (const e of toUpdate) {
         const { data, error: err } = await supabase
-          .from('absences')
+          .from(TABLE)
           .update({ absence_type: e.status as AbsenceType, comment: e.comment.trim() || null })
           .eq('id', e.existingId!)
           .select()
           .single()
         if (err) throw err
-        if (data) updated.push(data as Absence)
+        if (data) updated.push(normaliserAbsence(data, mode))
       }
 
       for (const e of toDelete) {
-        const { error: err } = await supabase.from('absences').delete().eq('id', e.existingId!)
+        const { error: err } = await supabase.from(TABLE).delete().eq('id', e.existingId!)
         if (err) throw err
         deletedIds.push(e.existingId!)
       }
 
-      // Notifications parents (fire-and-forget)
-      if (added.length > 0) {
+      // Notifications parents (fire-and-forget).
+      // JAMAIS en mode adulte : la route résout le foyer À PARTIR de l'élève
+      // (`getParentByStudentId`), et un adulte n'en est pas un. Prévenir quelqu'un
+      // de sa propre absence n'aurait de toute façon aucun sens.
+      if (mode === 'students' && added.length > 0) {
         fetch('/api/notifications/absence', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1534,14 +1592,16 @@ function SaisieModal({
 // ─── Modale Justification ────────────────────────────────────────────────────
 
 function JustificationModal({
-  absence, studentName, etablissementId, onComplete, onClose,
+  absence, studentName, etablissementId, mode, onComplete, onClose,
 }: {
   absence: Absence
   studentName: string
   etablissementId: string
+  mode: ModeAppel
   onComplete: (updated: Absence) => void
   onClose: () => void
 }) {
+  const TABLE = tableAppel(mode)
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [justDate,    setJustDate]    = useState(absence.justification_date ?? today)
   const [comment,     setComment]     = useState(absence.justification_comment ?? '')
@@ -1585,7 +1645,7 @@ function JustificationModal({
       }
 
       const { data, error: updateErr } = await supabase
-        .from('absences')
+        .from(TABLE)
         .update({
           is_justified:              true,
           justification_date:        justDate,
@@ -1597,7 +1657,7 @@ function JustificationModal({
         .single()
 
       if (updateErr) throw updateErr
-      onComplete(data as Absence)
+      onComplete(normaliserAbsence(data, mode))
     } catch (err: any) {
       setError(err?.message ?? 'Erreur lors de la justification.')
       setIsSubmitting(false)
