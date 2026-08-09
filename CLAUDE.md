@@ -2582,6 +2582,25 @@ Migration `add-bulletin-archive-figures.sql` (**jouee**) : `moyenne_generale`,
   **EN DUR** pour les adultes, herite de l'epoque sans table. Tout historique adulte cloture
   aurait annonce zero absence. Corrige via `adult_absences`.
 
+**LA CLOTURE N'A PLUS RIEN A RECALCULER** (decision utilisateur du 10 aout).
+`generateArchive` refaisait la moyenne (`weightedAvg` sur `evaluations` + `grades` +
+`adult_grades`) et recomptait les absences. Elle **AGREGE** desormais les **bulletins
+archives**, qui portent les chiffres imprimes.
+- **Ce que ça garantit** : l'historique ne peut plus **CONTREDIRE** les bulletins detenus par
+  les familles. Tant qu'on recalculait, c'etait possible.
+- **5 requetes supprimees** (`evaluations`, `grades`, `adult_grades`, `absences`,
+  `adult_absences`) ; `weightedAvg`, `gradeMap` et les index d'absences disparaissent avec.
+- **Moyenne de l'annee = moyenne des moyennes de PERIODE.** Ce n'est pas une moyenne ponderee
+  sur toutes les evaluations, et c'est desormais la bonne : les seuls chiffres PUBLIES sont
+  ceux des bulletins, l'historique doit dire ce qu'ils disent.
+- **La completude est garantie EN AMONT** : l'audit « Bulletins » est **BLOQUANT**, la cloture
+  n'aboutit que si chaque participant a ses bulletins sur toutes les periodes. On ne derive
+  donc jamais d'un archivage partiel. C'est le raisonnement de l'utilisateur : « le controle se
+  fait apres un audit des bulletins ».
+- **Audit « Bulletins » verifie** (rien a construire) : il couvrait DEJA eleves ET adultes,
+  participant x periode, et il est bloquant. Seul son resume a ete precise (« Bulletins
+  manquants : N eleve(s) · N adulte(s) »), puisqu'il est devenu la garantie de l'archivage.
+
 **RESTE A FAIRE (reprise)**
 1. **Verifier a l'ecran** ce qui n'a jamais tourne avec de vraies donnees : la **feuille d'appel
    adultes** (0 ligne dans `adult_absences` a la livraison) — saisie + enregistrement,

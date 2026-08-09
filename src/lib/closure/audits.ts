@@ -351,14 +351,20 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
     }
   }
 
+  // Cet audit est la GARANTIE sur laquelle s'appuie l'archivage de cloture :
+  // celui-ci n'agrege plus que des bulletins, il faut donc qu'ils existent tous.
   const total = studentMissing + adultMissing
+  const parts: string[] = []
+  if (studentMissing > 0) parts.push(`${studentMissing} élève(s)`)
+  if (adultMissing > 0) parts.push(`${adultMissing} adulte(s)`)
+
   return {
     blocking: true,
     anomalies: total,
     items: cap(items),
     summary: total === 0
-      ? 'Chaque participant a ses bulletins pour toutes les périodes.'
-      : `${total} participant(s) avec des bulletins manquants.`,
+      ? 'Élèves et adultes ont tous leurs bulletins archivés, sur toutes les périodes.'
+      : `Bulletins manquants : ${parts.join(' · ')}.`,
   }
 }
 

@@ -2,9 +2,10 @@
 // Produit les lignes de `student_year_history` (participant x annee) et
 // `family_year_finance` (foyer x annee), a inserer par l'action `archiveYear`.
 //
-// Moyenne generale = FIDELE AU BULLETIN : weightedAvg sur les evaluations `scored`
-// (note/max normalisee /20, ponderee par `coefficient`), meme formule que
-// BulletinsClient.
+// Moyenne et assiduite ne sont plus RECALCULEES : elles sont agregees depuis les
+// BULLETINS ARCHIVES, qui portent desormais les chiffres imprimes sur le
+// document. L'historique ne peut donc plus contredire les bulletins detenus par
+// les familles - ce qui etait possible tant qu'on refaisait le calcul.
 
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { siblingDiscounts, lineTotal } from '@/lib/financements/compute'
@@ -32,8 +33,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
 
   // 2. Eleves actifs inscrits + 3. Adultes + 4. Evals scored + 5. Notes + 6. Absences + 7. Bulletins
   const [
-    { data: enr }, { data: pce }, { data: evals },
-    { data: abs }, { data: absA }, { data: ba }, { data: aba },
+    { data: enr }, { data: pce }, { data: ba }, { data: aba },
     fin,
   ] = await Promise.all([
     supabase.from('enrollments')
@@ -42,73 +42,71 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
     supabase.from('parent_class_enrollments')
       .select('parent_id, tutor_number, class_id, parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
       .eq('status', 'active').in('class_id', classIds),
-    supabase.from('evaluations')
-      .select('id, class_id, max_score, coefficient')
-      .in('class_id', classIds).in('period_id', ctx.periodIds).eq('eval_kind', 'scored'),
-    supabase.from('absences')
-      .select('student_id, is_justified').in('period_id', ctx.periodIds).eq('absence_type', 'absence'),
-    // Assiduite des ADULTES. Elle etait ecrite « 0 » EN DUR plus bas, faute de
-    // table : tout historique adulte cloture aurait annonce zero absence, quoi
-    // qu'il se soit passe. `adult_absences` existe depuis le 9 aout.
-    supabase.from('adult_absences')
-      .select('parent_id, tutor_number, is_justified').in('period_id', ctx.periodIds).eq('absence_type', 'absence'),
+    // LES CHIFFRES VIENNENT DES BULLETINS ARCHIVES, plus d'un recalcul.
+    //
+    // Depuis le 10 aout, la ligne d'archive porte la moyenne et l'assiduite
+    // IMPRIMEES sur le document. Trois consequences :
+    //   · l'historique ne peut plus CONTREDIRE les bulletins que les familles
+    //     detiennent — c'etait possible tant qu'on recalculait ;
+    //   · quatre requetes disparaissent (evaluations, grades, adult_grades,
+    //     absences, adult_absences) ;
+    //   · les archives SURVIVENT a la purge (elles figurent explicitement dans
+    //     la liste de ce qu'on conserve), la source reste donc disponible.
+    //
+    // La completude est garantie en amont : l'audit « Bulletins » est BLOQUANT,
+    // la cloture n'aboutit que si chaque participant a ses bulletins sur toutes
+    // les periodes. On ne derive donc jamais d'un archivage partiel.
     supabase.from('bulletin_archives')
-      .select('id, student_id, period_id, file_path').in('period_id', ctx.periodIds),
+      .select('id, student_id, period_id, file_path, moyenne_generale, absences_count, absences_unjustified')
+      .in('period_id', ctx.periodIds),
     supabase.from('adult_bulletin_archives')
-      .select('id, parent_id, tutor_number, period_id, file_path').in('period_id', ctx.periodIds),
+      .select('id, parent_id, tutor_number, period_id, file_path, moyenne_generale, absences_count, absences_unjustified')
+      .in('period_id', ctx.periodIds),
     getFamilyFinancials(supabase, { id: ctx.yearId, label: ctx.yearLabel, start_date: ctx.startDate, end_date: ctx.endDate }),
   ])
 
   const students = ((enr ?? []) as any[]).filter(e => e.students?.is_active)
   const adults = ((pce ?? []) as any[]).filter(p => isAdultClass(classById.get(p.class_id)))
 
-  // Evals scored par classe
-  const scoredByClass = new Map<string, any[]>()
-  for (const e of (evals ?? []) as any[]) {
-    if (!scoredByClass.has(e.class_id)) scoredByClass.set(e.class_id, [])
-    scoredByClass.get(e.class_id)!.push(e)
-  }
-  const evalIds = ((evals ?? []) as any[]).map(e => e.id)
-
-  const [{ data: g }, { data: ag }] = await Promise.all([
-    evalIds.length ? supabase.from('grades').select('evaluation_id, student_id, score').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
-    evalIds.length ? supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
-  ])
-  const gradeMap = new Map<string, number>()
-  for (const r of (g ?? []) as any[]) if (r.score != null) gradeMap.set(`${r.evaluation_id}:${r.student_id}`, Number(r.score))
-  for (const r of (ag ?? []) as any[]) if (r.score != null) gradeMap.set(`${r.evaluation_id}:${r.parent_id}-${r.tutor_number}`, Number(r.score))
-
-  // Moyenne generale ponderee (/20), fidele au bulletin.
-  const weightedAvg = (key: string, scoredEvals: any[]): number | null => {
-    const graded = scoredEvals
-      .map(ev => {
-        const score = gradeMap.get(`${ev.id}:${key}`)
-        if (score == null || !ev.max_score) return null
-        return { score, maxScore: Number(ev.max_score), coefficient: Number(ev.coefficient ?? 1) }
-      })
-      .filter(Boolean) as { score: number; maxScore: number; coefficient: number }[]
-    if (graded.length === 0) return null
-    const tc = graded.reduce((s, l) => s + l.coefficient, 0)
-    if (tc <= 0) return null
-    const ws = graded.reduce((s, l) => s + ((l.score / l.maxScore) * 20) * l.coefficient, 0)
-    return Math.round((ws / tc) * 100) / 100
+  /**
+   * Agregation des bulletins d'un participant sur l'annee.
+   *
+   * La moyenne de l'annee est la moyenne des moyennes de PERIODE. Ce n'est pas
+   * la meme chose qu'une moyenne ponderee sur toutes les evaluations — mais
+   * c'est desormais la bonne : les seuls chiffres PUBLIES sont ceux des
+   * bulletins, et l'historique doit dire ce qu'ils disent.
+   *
+   * `absences_count` compte les absences, `absences_unjustified` celles qui ne
+   * sont pas justifiees : les justifiees s'en deduisent.
+   */
+  const agreger = (lignes: any[]) => {
+    const moyennes = lignes.map(b => b.moyenne_generale).filter((m: any) => m != null).map(Number)
+    let j = 0, nj = 0
+    for (const b of lignes) {
+      const tot = Number(b.absences_count ?? 0)
+      const n   = Number(b.absences_unjustified ?? 0)
+      nj += n
+      j  += Math.max(0, tot - n)
+    }
+    return {
+      moyenne: moyennes.length > 0
+        ? Math.round((moyennes.reduce((a, b) => a + b, 0) / moyennes.length) * 100) / 100
+        : null,
+      j, nj,
+    }
   }
 
-  // Absences par eleve
-  const absByStudent = new Map<string, { j: number; nj: number }>()
-  for (const a of (abs ?? []) as any[]) {
-    const cur = absByStudent.get(a.student_id) ?? { j: 0, nj: 0 }
-    if (a.is_justified) cur.j++; else cur.nj++
-    absByStudent.set(a.student_id, cur)
+  // Archives par participant (cle unifiee cote adulte).
+  const archivesByStudent = new Map<string, any[]>()
+  for (const b of (ba ?? []) as any[]) {
+    if (!archivesByStudent.has(b.student_id)) archivesByStudent.set(b.student_id, [])
+    archivesByStudent.get(b.student_id)!.push(b)
   }
-
-  // Absences adultes par participant (cle unifiee `parentId-tutorNumber`)
-  const absByAdult = new Map<string, { j: number; nj: number }>()
-  for (const a of (absA ?? []) as any[]) {
-    const k = `${a.parent_id}-${a.tutor_number}`
-    const cur = absByAdult.get(k) ?? { j: 0, nj: 0 }
-    a.is_justified ? cur.j++ : cur.nj++
-    absByAdult.set(k, cur)
+  const archivesByAdult = new Map<string, any[]>()
+  for (const b of (aba ?? []) as any[]) {
+    const k = `${b.parent_id}-${b.tutor_number}`
+    if (!archivesByAdult.has(k)) archivesByAdult.set(k, [])
+    archivesByAdult.get(k)!.push(b)
   }
 
   // Bulletins par participant
@@ -129,7 +127,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
   // ── student_year_history : eleves ──
   const studentRows: any[] = students.map((e: any) => {
     const c = classById.get(e.class_id)
-    const a = absByStudent.get(e.student_id) ?? { j: 0, nj: 0 }
+    const a = agreger(archivesByStudent.get(e.student_id) ?? [])
     const fr = e.students?.parent_id ? finByParent.get(e.students.parent_id) : null
     return {
       etablissement_id: ctx.etablissementId,
@@ -145,7 +143,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       class_name: c?.name ?? null,
       level: c?.level ?? null,
       cotisation_label: c?.cotisation_types?.label ?? null,
-      moyenne_generale: weightedAvg(e.student_id, scoredByClass.get(e.class_id) ?? []),
+      moyenne_generale: a.moyenne,
       absences_justified: a.j,
       absences_unjustified: a.nj,
       financial_status: fr?.status ?? null,
@@ -176,9 +174,9 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       class_name: c?.name ?? null,
       level: c?.level ?? null,
       cotisation_label: c?.cotisation_types?.label ?? null,
-      moyenne_generale: weightedAvg(key, scoredByClass.get(p.class_id) ?? []),
-      absences_justified: (absByAdult.get(key) ?? { j: 0, nj: 0 }).j,
-      absences_unjustified: (absByAdult.get(key) ?? { j: 0, nj: 0 }).nj,
+      moyenne_generale: agreger(archivesByAdult.get(key) ?? []).moyenne,
+      absences_justified: agreger(archivesByAdult.get(key) ?? []).j,
+      absences_unjustified: agreger(archivesByAdult.get(key) ?? []).nj,
       financial_status: fr?.status ?? null,
       total_due: fr?.totalDue ?? null,
       total_paid: fr?.totalPaid ?? null,
