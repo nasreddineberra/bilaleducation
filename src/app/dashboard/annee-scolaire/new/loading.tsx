@@ -1,2 +1,1 @@
-export { default } from '@/components/ui/LoadingSpinner'
-
+export { default } from '@/components/ui/RouteSkeleton'

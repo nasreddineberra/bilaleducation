@@ -1,2 +1,1 @@
-import { SkeletonFormPage } from '@/components/ui/SkeletonTable'
-export default function Loading() { return <SkeletonFormPage sections={3} /> }
+export { default } from '@/components/ui/RouteSkeleton'

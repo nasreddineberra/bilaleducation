@@ -2601,6 +2601,31 @@ archives**, qui portent les chiffres imprimes.
   participant x periode, et il est bloquant. Seul son resume a ete precise (« Bulletins
   manquants : N eleve(s) · N adulte(s) »), puisqu'il est devenu la garantie de l'archivage.
 
+**DOUBLE LOADER AU CHARGEMENT A FROID** (signale par l'utilisateur, capture a l'appui).
+Un rond « Chargement… » plein ecran, puis un squelette : l'interface semblait REDEMARRER.
+- **Diagnostic** : ce sont deux attentes REELLES et successives — `dashboard/loading.tsx` couvre
+  le LAYOUT (session, profil, puis etablissement en sequentiel, annee, 2 comptages), d'ou l'ecran
+  sans barre laterale ; le loader de page couvre ensuite les donnees. Le defaut n'etait pas leur
+  nombre mais leurs **deux langages visuels** : un rond ne dit rien, un squelette prefigure.
+  **Phenomene de chargement A FROID uniquement** — en navigation interne le layout est deja rendu.
+- **Pire que prevu** : **la moitie des pages n'avait AUCUN squelette** et re-exportait le meme
+  rond → on voyait « rond → rond », deux fois la meme image sans information.
+- **`src/components/ui/RouteSkeleton.tsx`** : carte UNIQUE route → forme (`liste` / `fiche` /
+  `formulaire` / `tableau-de-bord` / `grille`), lue par le loader racine ET par les **42 loaders
+  de page**, tous ramenes a une ligne. Ajouter une page = ajouter une ligne a `FORMES`.
+- **Loader racine** = silhouette du CADRE (barre laterale `w-64` sur la surface de marque,
+  en-tete `h-[61px]`, memes marges que `<main>`) + le squelette de la page demandee. Les deux
+  attentes se lisent alors comme une seule montee en charge.
+- **FICHES A ONGLETS** (rappel de l'utilisateur) : elles ne se reduisent pas a un formulaire —
+  bandeau d'identite, barre d'onglets, puis contenu. Forme dediee pour `students|parents|teachers`
+  `/[id]`, avec **negation de `new`** (la creation n'a ni bandeau ni onglets). Le `?tab=` ne
+  change rien : basculer d'onglet est un etat client, sans nouvelle attente.
+- **Verifie** : les **47 routes reelles** tombent sur une forme, en evaluant le VRAI tableau du
+  composant (et non une copie) contre l'arborescence des `page.tsx`.
+- **A NE PAS FAIRE** : supprimer `dashboard/loading.tsx`. Sans lui, le chargement a froid affiche
+  une page blanche jusqu'a la reponse du layout — un trou au lieu d'un begaiement.
+- `LoadingSpinner.tsx` supprime (plus aucun appelant).
+
 **RESTE A FAIRE (reprise)**
 1. **Verifier a l'ecran** ce qui n'a jamais tourne avec de vraies donnees : la **feuille d'appel
    adultes** (0 ligne dans `adult_absences` a la livraison) — saisie + enregistrement,
