@@ -685,7 +685,7 @@ export default function AbsencesClient({
                 </div>
               ) : classStudents.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-warm-700">Aucun élève inscrit dans cette classe.</p>
+                  <p className="text-sm text-warm-700">Aucun {MOT} affecté à cette classe.</p>
                 </div>
               ) : (
                 <table aria-label="Récapitulatif des absences et retards par élève" className="w-full text-xs">

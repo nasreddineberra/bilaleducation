@@ -118,7 +118,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
       const count = (nEleves ?? 0) + (nAdultes ?? 0)
       if (count > 0) {
         const mot = estAdulte ? 'participant' : 'élève'
-        setDeleteError(`${count} ${mot}${count > 1 ? 's' : ''} inscrit${count > 1 ? 's' : ''} dans cette classe. Retirez-les avant de supprimer.`)
+        setDeleteError(`${count} ${mot}${count > 1 ? 's' : ''} affecté${count > 1 ? 's' : ''} à cette classe. Retirez-les avant de supprimer.`)
         return
       }
 
@@ -323,7 +323,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
               )}
               {deleteDeps.students > 0 && (
                 <li>
-                  <strong>{deleteDeps.students}</strong> inscription{deleteDeps.students > 1 ? 's' : ''}{' '}
+                  <strong>{deleteDeps.students}</strong> affectation{deleteDeps.students > 1 ? 's' : ''}{' '}
                   {deleteTarget?.cotisation_types?.is_adult
                     ? `participant${deleteDeps.students > 1 ? 's' : ''}`
                     : `élève${deleteDeps.students > 1 ? 's' : ''}`}
