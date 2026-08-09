@@ -388,12 +388,27 @@ export async function proxy(request: NextRequest) {
     const inactive = now - lastActivity > INACTIVITY_TIMEOUT
     const expired = now - loginTime > MAX_SESSION_DURATION
 
-    if (inactive || expired) {
-      // Le message ne s'affiche que si le NAVIGATEUR est resté ouvert (marqueur de
-      // session présent). Sur un démarrage à froid (navigateur fermé puis rouvert),
-      // le marqueur a disparu → login neutre, sans message : on se reconnecte
-      // simplement, ce qui a du sens du point de vue de l'utilisateur.
-      const browserOpen = !!request.cookies.get(BROWSER_MARKER)?.value
+    // FERMETURE DU NAVIGATEUR = FIN DE SESSION.
+    //
+    // `app-open` est pose SANS duree de vie : le navigateur l'efface en se
+    // fermant. Sa disparition ALORS QUE `app-session` subsiste (donc qu'il y a
+    // bien eu une session) ne peut vouloir dire qu'une chose : le navigateur a
+    // ete ferme depuis la derniere activite.
+    //
+    // C'est le bon comportement pour un poste PARTAGE — l'ordinateur du
+    // secretariat, qu'on ferme et devant lequel quelqu'un d'autre s'assoit.
+    //
+    // LIMITE : un navigateur regle sur « reprendre la ou vous vous etiez
+    // arrete » restaure ses cookies de session ; la fermeture n'est alors pas
+    // detectee. Reglage minoritaire, et l'inactivite reste le filet.
+    const browserOpen = !!request.cookies.get(BROWSER_MARKER)?.value
+    const navigateurFerme = !!sessionCookie && !browserOpen
+
+    if (inactive || expired || navigateurFerme) {
+      // Le message ne s'affiche que si le NAVIGATEUR est reste ouvert. Sur un
+      // demarrage a froid, il a disparu → login neutre, sans message : se
+      // reconnecter apres avoir ferme son navigateur n'a rien d'anormal, et
+      // annoncer une « session expiree » inquieterait pour rien.
       const reason = browserOpen ? (inactive ? 'inactivity' : 'session') : null
       const loginUrl = reason ? `/login?reason=${reason}` : '/login'
       const redirect = NextResponse.redirect(new URL(loginUrl, request.url))
