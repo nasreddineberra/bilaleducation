@@ -102,6 +102,34 @@ export async function runAudit(yearId: string, stepKey: string): Promise<{ error
   return { result }
 }
 
+/**
+ * Efface le résultat d'un audit : l'étape revient à « jamais lancé ».
+ *
+ * C'est le geste inverse de `runAudit`, et il a un sens fort : la clôture exige
+ * que les six audits aient été passés, donc réinitialiser l'un d'eux, c'est dire
+ * « celui-ci est à revérifier ». L'action ne détruit qu'un résultat calculé, que
+ * le bouton « Auditer » reproduit en un clic — pas de confirmation à demander.
+ */
+export async function resetAudit(yearId: string, stepKey: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer([...ROLES])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  // `.select()` après le DELETE : une suppression bloquée par la RLS ne renvoie
+  // PAS d'erreur, elle supprime zéro ligne. Sans ça, un refus passerait pour un
+  // succès et l'écran afficherait un état que la base n'a pas.
+  const { data, error } = await supabase
+    .from('year_audits').delete()
+    .eq('school_year_id', yearId).eq('step_key', stepKey)
+    .select('id')
+  if (error) return { error: error.message }
+  if (!data || data.length === 0) return { error: 'Réinitialisation refusée.' }
+
+  revalidatePath('/dashboard/passage-annee')
+  return {}
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  CLÔTURE — acte terminal, réversible tant que la purge n'a pas eu lieu
 // ═══════════════════════════════════════════════════════════════════════════

@@ -10,7 +10,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
 import type { AuditResult } from '@/lib/closure/audits'
-import { runAudit, closeYear, reopenYear, archiveYear, setPurgeIntent } from '@/app/dashboard/passage-annee/actions'
+import { runAudit, resetAudit, closeYear, reopenYear, archiveYear, setPurgeIntent } from '@/app/dashboard/passage-annee/actions'
 
 export interface AnneeEtat {
   id: string
@@ -87,6 +87,49 @@ export default function PassageAnneeClient({
     } finally {
       setEnCours(null)
     }
+  }
+
+  const reinitialiser = async (stepKey: string) => {
+    setEnCours(stepKey)
+    try {
+      const res = await resetAudit(annee.id, stepKey)
+      if (res.error) { toast.error(res.error); return }
+      setResultats(prev => {
+        const suite = { ...prev }
+        delete suite[stepKey]
+        return suite
+      })
+      setDeplie(p => ({ ...p, [stepKey]: false }))
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Une erreur est survenue.')
+    } finally {
+      setEnCours(null)
+    }
+  }
+
+  /**
+   * VERROU DE DÉPENDANCE. Tout descend des affectations : un élève sans classe
+   * n'a ni évaluation, ni absence, ni bulletin, ni cotisation facturée. Auditer
+   * « Notes » avant d'avoir corrigé les affectations peut donc afficher zéro
+   * anomalie et donner un FAUX FEU VERT, jusqu'à ce que les élèves affectés
+   * fassent apparaître d'un coup leurs notes manquantes.
+   *
+   * On NE VERROUILLE PAS pour autant : le verrouillage séquentiel était le
+   * défaut de l'ancien modèle, et il retirerait à cet écran sa raison d'être,
+   * qui est de pouvoir consulter l'état de n'importe quel domaine à tout moment.
+   * On affiche donc la dépendance au lieu de l'imposer : l'audit reste lançable,
+   * mais son résultat est présenté comme « à revérifier ».
+   *
+   * Renvoie l'audit bloquant amont non résolu, ou `null` si la voie est libre.
+   */
+  const bloqueurAmont = (ordre: number) => {
+    for (const s of CLOSURE_STEPS) {
+      if (s.order >= ordre) break
+      if (!s.blocking) continue
+      const etat = resultats[s.key]
+      if (!etat || (etat.result?.anomalies ?? 0) > 0) return s
+    }
+    return null
   }
 
   // ── Conditions de clôture ────────────────────────────────────────────────
@@ -178,16 +221,22 @@ export default function PassageAnneeClient({
         <div className="px-4 py-3 border-b border-warm-200">
           <h2 className="text-sm font-bold text-secondary-800">Audits de l’année</h2>
           <p className="text-xs text-warm-700">
-            Ils ne modifient rien et se relancent autant de fois que voulu. Le dernier résultat remplace le précédent.
+            Ils ne modifient rien et se lancent un par un, dans l’ordre que vous voulez. Tant qu’un audit
+            <strong> bloquant</strong> remonte des anomalies, les audits qui en dépendent sont signalés
+            « à revérifier » : leur résultat est incomplet.
           </p>
         </div>
 
         <ul className="divide-y divide-warm-100">
           {CLOSURE_STEPS.map(step => {
-            const etat  = resultats[step.key]
-            const res   = etat?.result ?? null
-            const n     = res?.anomalies ?? 0
+            const etat   = resultats[step.key]
+            const res    = etat?.result ?? null
+            const n      = res?.anomalies ?? 0
             const ouvert = !!deplie[step.key]
+            const amont  = bloqueurAmont(step.order)
+            // Un résultat calculé alors qu'un audit bloquant amont n'est pas
+            // résolu ne vaut rien : il est affiché en grisé, pas en vert.
+            const perime = !!amont && !!etat
 
             return (
               <li key={step.key} className="px-4 py-3">
@@ -204,31 +253,55 @@ export default function PassageAnneeClient({
                     <p className="text-xs text-warm-700">{step.description}</p>
 
                     {etat ? (
-                      <p className={`mt-1 text-xs font-medium ${n > 0 ? 'text-orange-700' : 'text-primary-700'}`}>
+                      <p className={`mt-1 text-xs font-medium ${
+                        perime ? 'text-warm-700' : n > 0 ? 'text-orange-700' : 'text-primary-700'
+                      }`}>
                         {res?.summary ?? `${n} anomalie(s).`}
                         <span className="ml-2 font-normal text-warm-700">Audité le {horodate(etat.at)}</span>
+                        {perime && <span className="ml-2 font-semibold text-orange-700">· à revérifier</span>}
                       </p>
                     ) : (
                       <p className="mt-1 text-xs text-warm-700">Jamais lancé.</p>
+                    )}
+
+                    {amont && (
+                      <p className="mt-1 text-[11px] text-orange-700">
+                        Dépend de « {amont.label} », qui remonte encore des anomalies : {etat ? 'ce résultat est' : 'un résultat serait'} incomplet.
+                      </p>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     {etat && (
                       <span className={`px-2 py-0.5 rounded-lg text-xs font-bold tabular-nums ${
-                        n > 0 ? 'bg-orange-100 text-orange-700' : 'bg-primary-100 text-primary-700'
+                        perime ? 'bg-warm-100 text-warm-700' : n > 0 ? 'bg-orange-100 text-orange-700' : 'bg-primary-100 text-primary-700'
                       }`}>
                         {n}
                       </span>
                     )}
-                    <FloatButton
-                      type="button"
-                      variant="secondary"
-                      onClick={() => lancer(step.key)}
-                      disabled={!!enCours}
-                    >
-                      {enCours === step.key ? 'Audit…' : etat ? 'Relancer' : 'Auditer'}
-                    </FloatButton>
+
+                    {/* Auditer, puis Réinitialiser, puis Auditer à nouveau : on
+                        efface un résultat avant d'en calculer un neuf, plutôt que
+                        de le remplacer sans qu'on l'ait vu partir. */}
+                    {etat ? (
+                      <FloatButton
+                        type="button"
+                        variant="secondary"
+                        onClick={() => reinitialiser(step.key)}
+                        disabled={!!enCours}
+                      >
+                        {enCours === step.key ? 'Effacement…' : 'Réinitialiser'}
+                      </FloatButton>
+                    ) : (
+                      <FloatButton
+                        type="button"
+                        variant="secondary"
+                        onClick={() => lancer(step.key)}
+                        disabled={!!enCours}
+                      >
+                        {enCours === step.key ? 'Audit…' : 'Auditer'}
+                      </FloatButton>
+                    )}
                   </div>
                 </div>
 

@@ -2440,6 +2440,25 @@ d'epuration, et « Annuler la cloture ».
 (Purgee > Archivee > Close, infobulle datee) et bandeau turquoise en tete de la fiche annee,
 avec l'auteur et un lien vers l'ecran de passage.
 
+**ENCHAINEMENT DES BOUTONS : Auditer → Reinitialiser → Auditer** (choix utilisateur). Plus de
+« Relancer » qui remplace un resultat sans qu'on l'ait vu partir, et **plus de « Tout auditer »** :
+les audits se lancent un par un, pour qu'on lise chacun avant de passer au suivant. Nouvelle
+action `resetAudit` (supprime la ligne `year_audits` ; `.select()` apres le DELETE, une
+suppression bloquee par la RLS ne leve pas d'erreur, elle supprime 0 ligne). Pas de confirmation :
+on n'efface qu'un resultat calcule, reproductible en un clic. **Consequence coherente** :
+reinitialiser retire un prerequis de cloture, c'est ainsi qu'on dit « celui-ci est a reverifier ».
+
+**DEPENDANCE ENTRE AUDITS : affichee, JAMAIS imposee** (arbitrage utilisateur, apres hesitation).
+La dependance est reelle et part des **affectations** : un eleve sans classe n'a ni evaluation, ni
+absence, ni bulletin, ni cotisation facturee. Auditer « Notes » avant d'avoir corrige les
+affectations peut donc afficher **zero anomalie** et donner un **FAUX FEU VERT**, jusqu'a ce que
+les eleves affectes fassent apparaitre d'un coup leurs notes manquantes.
+- Verrouiller la sequence a ete **ecarte** : c'etait le defaut de l'ancien modele, et cela
+  retirerait a l'ecran sa raison d'etre (consulter n'importe quel domaine a tout moment).
+- Retenu : tant qu'un audit **bloquant** amont remonte des anomalies, les audits qui en dependent
+  affichent « Depend de X, qui remonte encore des anomalies » et leur resultat passe en grise avec
+  la mention **« a reverifier »** (jamais en vert). L'audit reste lançable.
+
 **POINT 5 (lecture seule) : RIEN A CONSTRUIRE, la garantie tient deja.** Mesure faite avant
 d'ecrire quoi que ce soit : **les 30 ecrans operationnels epinglent tous `is_current = true`**
 — une annee non courante n'est atteignable depuis aucun module, et la fiche annee est deja en
