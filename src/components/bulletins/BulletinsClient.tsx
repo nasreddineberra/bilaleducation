@@ -476,6 +476,17 @@ export default function BulletinsClient({
 
         // Bucket privé : on ne persiste plus d'URL publique, seulement le chemin
         // (URL signée générée à la consultation).
+        // Les CHIFFRES DU DOCUMENT partent avec lui. Un bulletin archive est
+        // publie : sa moyenne et son assiduite sont des faits, ils ne se
+        // recalculent pas. C'est ce que la fiche Scolarite relira, plutot que de
+        // reconstituer depuis quatre tables un resultat qui pourrait diverger.
+        const chiffres = {
+          moyenne_generale:     data.generalAvg,
+          absences_count:       data.absCount,
+          absences_unjustified: data.absUnjustifiedCount,
+          retards_count:        data.retardCount,
+        }
+
         let insertPayload: Record<string, unknown>
         if (isAdultClass) {
           const sep = student.student_id.lastIndexOf('-')
@@ -485,12 +496,14 @@ export default function BulletinsClient({
             tutor_number: parseInt(student.student_id.slice(sep + 1), 10),
             class_id: selectedClassId, period_id: selectedPeriodId,
             file_path: filePath,
+            ...chiffres,
           }
         } else {
           insertPayload = {
             etablissement_id: etablissementId, student_id: student.student_id,
             class_id: selectedClassId, period_id: selectedPeriodId,
             file_path: filePath,
+            ...chiffres,
           }
         }
 

@@ -38,10 +38,7 @@ interface Props {
   backHref: string
   etablissementId: string
   enrollments: any[]
-  evaluations: any[]
-  grades: any[]
   periods: any[]
-  absences: any[]
   absencesFull: any[]
   studentWarnings: any[]
   bulletinArchives: any[]
@@ -65,7 +62,7 @@ type TabKey = typeof TABS[number]['key']
 
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
-  enrollments, evaluations, grades, periods, absences, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel, history,
+  enrollments, periods, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel, history,
 }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
@@ -196,10 +193,7 @@ export default function StudentDetail({
           <StudentScolarite
             studentId={student.id}
             enrollments={enrollments}
-            evaluations={evaluations}
-            grades={grades}
             periods={periods}
-            absences={absences}
             bulletinArchives={bulletinArchives}
             mainTeachers={mainTeachers}
             warnings={studentWarnings}

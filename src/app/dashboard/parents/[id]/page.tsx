@@ -98,50 +98,34 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
 
   const classIds = inscriptions.map((e: any) => e.class_id)
 
-  const [{ data: evals }, { data: grades }, { data: bulletins }, { data: absences }] = await Promise.all([
-    periodIds.length
-      // `eval_kind`, `max_score` et `coefficient` : les évaluations des classes
-      // adultes vivent dans la MÊME table que celles des élèves, la moyenne se
-      // pondère donc exactement de la même façon.
-      ? supabase.from('evaluations').select('id, class_id, period_id, eval_kind, max_score, coefficient').in('class_id', classIds).in('period_id', periodIds)
-      : Promise.resolve({ data: [] }),
-    supabase.from('adult_grades').select('evaluation_id, tutor_number, score, is_absent').eq('parent_id', parentId),
-    supabase.from('adult_bulletin_archives').select('tutor_number, class_id, period_id, file_path').eq('parent_id', parentId),
-    periodIds.length
-      ? supabase.from('adult_absences').select('tutor_number, class_id, period_id, absence_type, is_justified').eq('parent_id', parentId).in('period_id', periodIds)
-      : Promise.resolve({ data: [] }),
-  ])
+  // UNE seule source : le bulletin archivé, qui porte ses propres chiffres.
+  // Les requêtes `evaluations`, `grades` et `adult_absences` qui servaient à les
+  // recalculer ont disparu — un document publié n'a pas à être reconstitué.
+  const { data: bulletins } = await supabase
+    .from('adult_bulletin_archives')
+    .select('tutor_number, class_id, period_id, file_path, moyenne_generale, absences_count, absences_unjustified, retards_count')
+    .eq('parent_id', parentId)
 
   return inscriptions.map((e: any) => {
     const t2 = e.tutor_number === 2
     const c  = e.classes
     const mien = (rows: any[]) => rows.filter(r => r.tutor_number === e.tutor_number)
 
-    const mesNotes = new Map<string, any>()
-    for (const g of mien(grades ?? [])) mesNotes.set(g.evaluation_id, g)
-    const mesAbs   = mien(absences ?? []).filter((a: any) => a.class_id === e.class_id)
-    const mesBull  = mien(bulletins ?? []).filter((b: any) => b.class_id === e.class_id)
+    const mesBull = mien(bulletins ?? []).filter((b: any) => b.class_id === e.class_id)
 
     const colonnes = periods.map((p: any) => {
-      // Moyenne PONDÉRÉE : chaque note ramenée sur 20, pondérée par son coefficient.
-      // Absences et évaluations non notées exclues. Identique à la fiche apprenant.
-      let totalWeighted = 0
-      let totalCoeff    = 0
-      for (const ev of (evals ?? []).filter((v: any) => v.class_id === e.class_id && v.period_id === p.id && v.eval_kind === 'scored')) {
-        const g = mesNotes.get(ev.id)
-        if (!g || g.is_absent || g.score == null || !ev.max_score) continue
-        totalWeighted += (Number(g.score) / ev.max_score) * 20 * ev.coefficient
-        totalCoeff    += ev.coefficient
-      }
-      const periodAbs = mesAbs.filter((a: any) => a.period_id === p.id)
+      const a = mesBull.find((b: any) => b.period_id === p.id)
       return {
         id:    p.id,
         label: p.label,
-        avg:   totalCoeff > 0 ? totalWeighted / totalCoeff : null,
-        bulletinPath: mesBull.find((b: any) => b.period_id === p.id)?.file_path ?? null,
-        abs:     periodAbs.filter((a: any) => a.absence_type === 'absence').length,
-        absNJ:   periodAbs.filter((a: any) => a.absence_type === 'absence' && !a.is_justified).length,
-        retards: periodAbs.filter((a: any) => a.absence_type === 'retard').length,
+        // `null` = periode NON ARCHIVEE, ce qui ne se lit pas comme « zero » :
+        // la carte affiche « Non archive » plutot qu'un chiffre invente.
+        avg:     a ? (a.moyenne_generale != null ? Number(a.moyenne_generale) : null) : null,
+        archive: !!a,
+        bulletinPath: a?.file_path ?? null,
+        abs:     a?.absences_count ?? 0,
+        absNJ:   a?.absences_unjustified ?? 0,
+        retards: a?.retards_count ?? 0,
       }
     })
 
@@ -165,11 +149,11 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
         ? `${DAY_FR[c.day_of_week] ?? c.day_of_week} ${c.start_time.slice(0, 5)}-${(c.end_time ?? '').slice(0, 5)}`
         : null,
       enrollment_date: e.enrollment_date,
-      totals: {
-        abs:     mesAbs.filter((a: any) => a.absence_type === 'absence').length,
-        absNJ:   mesAbs.filter((a: any) => a.absence_type === 'absence' && !a.is_justified).length,
-        retards: mesAbs.filter((a: any) => a.absence_type === 'retard').length,
-      },
+      // Bilan de l'annee : SOMME des bulletins archives, et non un comptage
+      // parallele qui pourrait les contredire.
+      totals: colonnes.reduce((acc: any, c: any) => ({
+        abs: acc.abs + c.abs, absNJ: acc.absNJ + c.absNJ, retards: acc.retards + c.retards,
+      }), { abs: 0, absNJ: 0, retards: 0 }),
       periods: colonnes,
     }
   })

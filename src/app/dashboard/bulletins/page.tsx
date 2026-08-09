@@ -272,15 +272,32 @@ export default async function BulletinsPage() {
     })))
   }
 
-  // 8. Absences (comptage par élève/période) — flux élève uniquement (pas d'absences adultes)
-  let absences: AbsenceRow[] = []
+  // 8. Absences par participant/période : `absences` (élèves) + `adult_absences`
+  //    (adultes), clé participant unifiée.
+  //    Les adultes en étaient TOTALEMENT absents — la table `adult_absences`
+  //    n'existait pas — si bien que tout bulletin de cours adultes imprimait
+  //    zéro absence, et que la colonne « Absences » du tableau affichait zéro.
+  const absences: AbsenceRow[] = []
   if (studentClassIds.length > 0) {
     const { data } = await supabase
       .from('absences')
       .select('student_id, absence_type, is_justified, period_id')
       .eq('etablissement_id', etablissementId)
       .in('class_id', studentClassIds)
-    absences = (data ?? []) as AbsenceRow[]
+    absences.push(...((data ?? []) as AbsenceRow[]))
+  }
+  if (adultClassIds.length > 0) {
+    const { data } = await supabase
+      .from('adult_absences')
+      .select('parent_id, tutor_number, absence_type, is_justified, period_id')
+      .eq('etablissement_id', etablissementId)
+      .in('class_id', adultClassIds)
+    absences.push(...((data ?? []) as any[]).map(a => ({
+      student_id: `${a.parent_id}-${a.tutor_number}`,
+      absence_type: a.absence_type,
+      is_justified: a.is_justified,
+      period_id: a.period_id,
+    })) as AbsenceRow[])
   }
 
   // 9. Archives de bulletins existantes : bulletin_archives (élèves) + adult_bulletin_archives (adultes)

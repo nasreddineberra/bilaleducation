@@ -2555,6 +2555,33 @@ trombinoscope vide.
   interface entierement francaise ; icones retirees des boutons « Bulletin » (regle du projet).
 - **Pas de discipline** (decision) : `student_warnings` n'a pas d'equivalent adulte.
 
+**LES CHIFFRES DU BULLETIN VIVENT AVEC LE BULLETIN** (proposition utilisateur, retenue).
+Migration `add-bulletin-archive-figures.sql` (**jouee**) : `moyenne_generale`,
+`absences_count`, `absences_unjustified`, `retards_count` sur `bulletin_archives` ET
+`adult_bulletin_archives`, renseignes par le bouton **Archiver**.
+- **Pourquoi** : un bulletin archive est un document PUBLIE, ses chiffres sont des faits. La
+  fiche Scolarite les RECALCULAIT depuis `evaluations` + `grades` + `absences` — quatre tables
+  pour redire ce qu'un document affirmait deja, et surtout un chiffre qui pouvait **DIVERGER**
+  de celui reçu par la famille (une note corrigee apres l'archivage changeait l'ecran, jamais
+  le PDF).
+- **Decision utilisateur** : l'onglet Scolarite **n'affiche QUE de l'archive**, c'est un
+  historique annee apres annee. **Consequence assumee** : une periode non archivee affiche
+  « Non archive » et aucun chiffre. J'avais plaide pour un repli sur le calcul vivant ; l'arbitrage
+  a tranche l'inverse, et il est coherent avec la nature d'un historique.
+- **Exception** : les **avertissements** ne figurent sur aucun bulletin, ils restent lus en direct.
+- **3 requetes supprimees** de la fiche eleve (`evaluations`, `grades`, `absences`) et 3 de la
+  fiche parent : elles ne servaient qu'a ce recalcul.
+- **Le bilan de l'annee est la SOMME des archives**, jamais un comptage parallele qui pourrait
+  les contredire.
+
+**DEUX DEFAUTS D'ASSIDUITE ADULTE corriges au passage**
+- **Module Bulletins** : `bulletins/page.tsx` ne chargeait **aucune** absence adulte (commentaire
+  « flux eleve uniquement ») → tout bulletin de cours adultes **imprimait zero absence**, et la
+  colonne « Absences » du tableau affichait zero. Les 2 tables sont desormais lues, cle unifiee.
+- **Cloture** : `generateArchive` ecrivait `absences_justified: 0` / `absences_unjustified: 0`
+  **EN DUR** pour les adultes, herite de l'epoque sans table. Tout historique adulte cloture
+  aurait annonce zero absence. Corrige via `adult_absences`.
+
 **RESTE A FAIRE (reprise)**
 1. **Verifier a l'ecran** ce qui n'a jamais tourne avec de vraies donnees : la **feuille d'appel
    adultes** (0 ligne dans `adult_absences` a la livraison) — saisie + enregistrement,
@@ -2811,6 +2838,8 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 - [x] Executer `supabase/migrations/rework-year-closure-state.sql` (passage d'annee : etat sur
   `school_years`, table `year_audits`, `purge_school_year` reecrite, anciennes tables
   supprimees). **Verifie en base sur 5 controles.**
+- [x] Executer `supabase/migrations/add-bulletin-archive-figures.sql` (moyenne et assiduite
+  imprimees rangees AVEC le bulletin archive ; la fiche Scolarite ne recalcule plus rien).
 - [ ] **A JOUER** — `supabase/migrations/create-support-requests.sql` (table `support_requests` +
   RLS « depot et relecture par la direction, ni modification ni suppression » + bucket prive
   `support-attachments` 1 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**

@@ -72,32 +72,17 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     mainTeachers = data ?? []
   }
 
-  // Évaluations + notes + périodes pour ces classes
-  const [evalResult, gradeResult, periodResult] = classIds.length > 0
-    ? await Promise.all([
-        supabase
-          .from('evaluations')
-          .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, cours(nom_fr)')
-          .in('class_id', classIds)
-          .not('cours_id', 'is', null),
-        supabase
-          .from('grades')
-          .select('id, evaluation_id, score, is_absent, comment')
-          .eq('student_id', id),
-        supabase
-          .from('periods')
-          .select('id, label, order_index, is_current, school_years(label)')
-          .order('order_index'),
-      ])
-    : [{ data: [] }, { data: [] }, { data: [] }]
-
-  // Absences résumé (pour onglet Scolarité)
-  const { data: absences } = classIds.length > 0
-    ? await supabase
-        .from('absences')
-        .select('class_id, period_id, absence_type, is_justified')
-        .eq('student_id', id)
-    : { data: [] }
+  // Périodes (onglets Scolarité et Discipline).
+  //
+  // Les requêtes `evaluations`, `grades` et `absences` qui vivaient ici ont été
+  // SUPPRIMÉES : elles ne servaient qu'à recalculer la moyenne et l'assiduité de
+  // l'onglet Scolarité, que le bulletin archivé porte désormais lui-même. Trois
+  // tables interrogées en moins, et plus aucun risque de voir l'écran annoncer
+  // un chiffre différent de celui reçu par la famille.
+  const { data: periodRows } = await supabase
+    .from('periods')
+    .select('id, label, order_index, is_current, school_years(label)')
+    .order('order_index')
 
   // Absences détaillées (pour onglet Discipline)
   const { data: absencesFull } = classIds.length > 0
@@ -127,7 +112,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   // Bulletins archivés
   const { data: bulletinArchives } = await supabase
     .from('bulletin_archives')
-    .select('class_id, period_id, file_path')
+    .select('class_id, period_id, file_path, moyenne_generale, absences_count, absences_unjustified, retards_count')
     .eq('student_id', id)
 
   // Année scolaire en cours (pour filtrer onglet Discipline)
@@ -163,10 +148,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         backHref={backHref}
         etablissementId={student.etablissement_id}
         enrollments={(enrollments ?? []) as any[]}
-        evaluations={(evalResult.data ?? []) as any[]}
-        grades={(gradeResult.data ?? []) as any[]}
-        periods={(periodResult.data ?? []) as any[]}
-        absences={(absences ?? []) as any[]}
+        periods={(periodRows ?? []) as any[]}
         absencesFull={(absencesFull ?? []) as any[]}
         studentWarnings={studentWarnings.map(w => ({ ...w, attachments: w.student_warning_attachments })) as any[]}
         bulletinArchives={(bulletinArchives ?? []) as any[]}

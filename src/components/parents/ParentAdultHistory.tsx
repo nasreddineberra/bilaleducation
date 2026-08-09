@@ -54,6 +54,8 @@ interface CurrentRow {
     id: string
     label: string
     avg: number | null
+    /** false = periode NON archivee : rien a afficher, et surtout pas un zero. */
+    archive: boolean
     bulletinPath: string | null
     abs: number
     absNJ: number
@@ -146,7 +148,10 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
                   <div key={p.id} className="rounded-xl bg-warm-50 px-3 py-2">
                     <p className="stat-label">{PERIOD_LABELS[p.label] ?? p.label}</p>
 
-                    {/* Moyenne, bulletin et assiduite sur UNE ligne. */}
+                    {!p.archive ? (
+                      <p className="text-[11px] text-warm-700 italic">Non archivé</p>
+                    ) : (
+                    /* Moyenne, bulletin et assiduite sur UNE ligne. */
                     <div className="flex items-center gap-1.5 text-[11px] text-warm-700">
                       <span className={clsx(
                         'font-bold tabular-nums',
@@ -160,17 +165,13 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
 
                       <span aria-hidden="true">·</span>
 
-                      {p.bulletinPath ? (
-                        <button
-                          type="button"
-                          onClick={() => openBulletin(p.bulletinPath!)}
-                          className="text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                        >
-                          Bulletin
-                        </button>
-                      ) : (
-                        <span>Pas de bulletin</span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => openBulletin(p.bulletinPath!)}
+                        className="text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                      >
+                        Bulletin
+                      </button>
 
                       <span aria-hidden="true">·</span>
 
@@ -178,6 +179,7 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
                         {p.abs} abs.{p.absNJ > 0 && <span className="text-orange-700"> ({p.absNJ} nj)</span>} · {p.retards} ret.
                       </span>
                     </div>
+                    )}
                   </div>
                 ))}
               </div>

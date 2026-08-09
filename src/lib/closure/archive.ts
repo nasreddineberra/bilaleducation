@@ -33,7 +33,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
   // 2. Eleves actifs inscrits + 3. Adultes + 4. Evals scored + 5. Notes + 6. Absences + 7. Bulletins
   const [
     { data: enr }, { data: pce }, { data: evals },
-    { data: abs }, { data: ba }, { data: aba },
+    { data: abs }, { data: absA }, { data: ba }, { data: aba },
     fin,
   ] = await Promise.all([
     supabase.from('enrollments')
@@ -47,6 +47,11 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       .in('class_id', classIds).in('period_id', ctx.periodIds).eq('eval_kind', 'scored'),
     supabase.from('absences')
       .select('student_id, is_justified').in('period_id', ctx.periodIds).eq('absence_type', 'absence'),
+    // Assiduite des ADULTES. Elle etait ecrite « 0 » EN DUR plus bas, faute de
+    // table : tout historique adulte cloture aurait annonce zero absence, quoi
+    // qu'il se soit passe. `adult_absences` existe depuis le 9 aout.
+    supabase.from('adult_absences')
+      .select('parent_id, tutor_number, is_justified').in('period_id', ctx.periodIds).eq('absence_type', 'absence'),
     supabase.from('bulletin_archives')
       .select('id, student_id, period_id, file_path').in('period_id', ctx.periodIds),
     supabase.from('adult_bulletin_archives')
@@ -95,6 +100,15 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
     const cur = absByStudent.get(a.student_id) ?? { j: 0, nj: 0 }
     if (a.is_justified) cur.j++; else cur.nj++
     absByStudent.set(a.student_id, cur)
+  }
+
+  // Absences adultes par participant (cle unifiee `parentId-tutorNumber`)
+  const absByAdult = new Map<string, { j: number; nj: number }>()
+  for (const a of (absA ?? []) as any[]) {
+    const k = `${a.parent_id}-${a.tutor_number}`
+    const cur = absByAdult.get(k) ?? { j: 0, nj: 0 }
+    a.is_justified ? cur.j++ : cur.nj++
+    absByAdult.set(k, cur)
   }
 
   // Bulletins par participant
@@ -163,8 +177,8 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       level: c?.level ?? null,
       cotisation_label: c?.cotisation_types?.label ?? null,
       moyenne_generale: weightedAvg(key, scoredByClass.get(p.class_id) ?? []),
-      absences_justified: 0,
-      absences_unjustified: 0,
+      absences_justified: (absByAdult.get(key) ?? { j: 0, nj: 0 }).j,
+      absences_unjustified: (absByAdult.get(key) ?? { j: 0, nj: 0 }).nj,
       financial_status: fr?.status ?? null,
       total_due: fr?.totalDue ?? null,
       total_paid: fr?.totalPaid ?? null,
