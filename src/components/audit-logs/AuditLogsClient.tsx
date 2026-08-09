@@ -230,16 +230,55 @@ export default function AuditLogsClient({
   const [purgeResult, setPurgeResult] = useState<string | null>(null)
   // Le mois par defaut : c'est l'ancien comportement, et le choix le plus sur.
   const [purgeJours, setPurgeJours] = useState<PurgeJours>(30)
+  /**
+   * DEUX TEMPS. Le bouton « Purger » declenchait la suppression au premier clic,
+   * depuis un ecran ou l'on venait de cocher une option : le geste de choisir et
+   * le geste de detruire se confondaient. On separe donc le choix (1) de la
+   * confirmation (2), et cette derniere annonce le NOMBRE REEL d'entrees
+   * concernees — sans quoi elle ne serait qu'une formalite qu'on clique.
+   */
+  const [purgeEtape, setPurgeEtape] = useState<1 | 2>(1)
+  const [purgeCount, setPurgeCount] = useState<number | null>(null)
+  const [comptage, setComptage] = useState(false)
+  /** L'option retenue, rappelee a la confirmation : on ne confirme pas a l'aveugle. */
+  const optionChoisie = PURGE_OPTIONS.find(o => o.jours === purgeJours)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // Modale : focus a l'ouverture + fermeture par Echap
   useEffect(() => {
     if (!showPurge) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !purging) setShowPurge(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !purging) fermerPurge() }
     document.addEventListener('keydown', onKey)
     dialogRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPurge, purging])
+
+  const fermerPurge = () => {
+    setShowPurge(false)
+    setPurgeEtape(1)
+    setPurgeCount(null)
+  }
+
+  /** Passage a la confirmation : on demande d'abord le volume au serveur. */
+  const versConfirmation = async () => {
+    setComptage(true)
+    setPurgeResult(null)
+    try {
+      const res = await fetch(`/api/audit-logs/purge?jours=${purgeJours}`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPurgeCount(data.count)
+      setPurgeEtape(2)
+    } catch {
+      // Sans le volume, on ne confirme pas a l'aveugle : on le dit et on reste
+      // sur le choix.
+      setPurgeResult('Impossible de compter les entrées concernées. Purge non lancée.')
+      fermerPurge()
+    } finally {
+      setComptage(false)
+    }
+  }
 
   const handlePurge = async () => {
     setPurging(true)
@@ -248,8 +287,8 @@ export default function AuditLogsClient({
       const res = await fetch(`/api/audit-logs/purge?jours=${purgeJours}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      setPurgeResult(`${data.deleted} log${data.deleted > 1 ? 's' : ''} supprime${data.deleted > 1 ? 's' : ''}`)
-      setShowPurge(false)
+      setPurgeResult(`${data.deleted} entrée${data.deleted > 1 ? 's' : ''} supprimée${data.deleted > 1 ? 's' : ''}`)
+      fermerPurge()
       router.refresh()
     } catch {
       setPurgeResult('Erreur lors de la purge')
@@ -391,56 +430,109 @@ export default function AuditLogsClient({
             onClick={e => e.stopPropagation()}
             className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md outline-none"
           >
-            <h3 id="purge-title" className="text-lg font-bold text-secondary-800 mb-2">Purger le journal</h3>
-            <p className="text-sm text-warm-700 mb-3">
-              Choisissez ce que vous souhaitez conserver. La suppression est
-              <span className="font-semibold"> définitive</span> : le journal ne se reconstitue pas.
-            </p>
+            <h3 id="purge-title" className="text-lg font-bold text-secondary-800 mb-2">
+              {purgeEtape === 1 ? 'Purger le journal' : 'Confirmer la suppression'}
+            </h3>
 
-            {/* Un choix EXPLICITE plutôt qu'un délai imposé : selon qu'on fasse
-                du ménage ou qu'on reparte à zéro, ce n'est pas la même opération.
-                Le mois reste coché par défaut — l'ancien comportement, et le
-                choix le moins destructeur. */}
-            <fieldset className="space-y-1.5 mb-4">
-              <legend className="sr-only">Durée de conservation</legend>
-              {PURGE_OPTIONS.map(o => (
-                <label
-                  key={o.jours}
-                  className={clsx(
-                    'flex items-start gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-colors',
-                    purgeJours === o.jours
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-warm-200 hover:bg-warm-50',
+            {purgeEtape === 1 ? (
+              <>
+                <p className="text-sm text-warm-700 mb-3">
+                  Choisissez ce que vous souhaitez conserver. La suppression est
+                  <span className="font-semibold"> définitive</span> : le journal ne se reconstitue pas.
+                </p>
+
+                {/* Un choix EXPLICITE plutôt qu'un délai imposé : selon qu'on fasse
+                    du ménage ou qu'on reparte à zéro, ce n'est pas la même opération.
+                    Le mois reste coché par défaut — l'ancien comportement, et le
+                    choix le moins destructeur. */}
+                <fieldset className="space-y-1.5 mb-4">
+                  <legend className="sr-only">Durée de conservation</legend>
+                  {PURGE_OPTIONS.map(o => (
+                    <label
+                      key={o.jours}
+                      className={clsx(
+                        'flex items-start gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-colors',
+                        purgeJours === o.jours
+                          ? 'border-primary-500 bg-primary-50'
+                          : 'border-warm-200 hover:bg-warm-50',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="purge-duree"
+                        value={o.jours}
+                        checked={purgeJours === o.jours}
+                        onChange={() => setPurgeJours(o.jours)}
+                        disabled={comptage}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium text-secondary-800">{o.label}</span>
+                        <span className={clsx('block text-xs', o.jours === 0 ? 'text-red-700' : 'text-warm-700')}>
+                          {o.detail}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+
+                <div className="flex justify-end gap-3">
+                  <FloatButton type="button" variant="secondary" onClick={fermerPurge} disabled={comptage}>
+                    Annuler
+                  </FloatButton>
+                  {/* « Continuer » et non « Purger » : ce bouton ne detruit rien. */}
+                  <FloatButton type="button" variant="submit" onClick={versConfirmation} disabled={comptage}>
+                    {comptage ? 'Vérification…' : 'Continuer'}
+                  </FloatButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-warm-700 mb-3">
+                  {optionChoisie?.label} · {optionChoisie?.detail}
+                </p>
+
+                <div className={clsx(
+                  'rounded-lg border px-3 py-3 mb-4',
+                  purgeCount === 0 ? 'border-warm-200 bg-warm-50' : 'border-red-200 bg-red-50',
+                )}>
+                  {purgeCount === 0 ? (
+                    <p className="text-sm text-warm-700">
+                      Aucune entrée ne correspond : il n’y a rien à supprimer.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-secondary-800">
+                        <span className="font-bold tabular-nums">{purgeCount?.toLocaleString('fr-FR')}</span>
+                        {' '}entrée{(purgeCount ?? 0) > 1 ? 's' : ''} du journal
+                        {(purgeCount ?? 0) > 1 ? ' seront supprimées' : ' sera supprimée'}
+                        {' '}<span className="font-semibold">définitivement</span>.
+                      </p>
+                      <p className="mt-1 text-xs text-red-700">
+                        Le journal ne se reconstitue pas : ces traces ne pourront plus être produites.
+                      </p>
+                    </>
                   )}
-                >
-                  <input
-                    type="radio"
-                    name="purge-duree"
-                    value={o.jours}
-                    checked={purgeJours === o.jours}
-                    onChange={() => setPurgeJours(o.jours)}
-                    disabled={purging}
-                    className="mt-0.5"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-secondary-800">{o.label}</span>
-                    <span className={clsx('block text-xs', o.jours === 0 ? 'text-red-700' : 'text-warm-700')}>
-                      {o.detail}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            <div className="flex justify-end gap-3">
-              <FloatButton type="button" variant="secondary" onClick={() => setShowPurge(false)} disabled={purging}>
-                Annuler
-              </FloatButton>
-              <FloatButton type="button" variant="danger" onClick={handlePurge} disabled={purging}>
-                {purging
-                  ? 'Suppression…'
-                  : purgeJours === 0 ? 'Tout supprimer' : 'Purger'}
-              </FloatButton>
-            </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  {/* Retour, et non Annuler : on revient au choix sans tout refermer. */}
+                  <FloatButton type="button" variant="secondary" onClick={() => setPurgeEtape(1)} disabled={purging}>
+                    Retour
+                  </FloatButton>
+                  <FloatButton
+                    type="button"
+                    variant="danger"
+                    onClick={handlePurge}
+                    disabled={purging || purgeCount === 0}
+                  >
+                    {purging
+                      ? 'Suppression…'
+                      : purgeJours === 0 ? 'Tout supprimer' : 'Supprimer définitivement'}
+                  </FloatButton>
+                </div>
+              </>
+            )}
           </div>
         </div>
         ,
