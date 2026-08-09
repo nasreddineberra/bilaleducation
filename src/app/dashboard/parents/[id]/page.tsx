@@ -73,9 +73,10 @@ export default async function EditParentPage({ params }: Props) {
  *
  * Un adulte inscrit n'est pas un `student` : sa classe vit dans
  * `parent_class_enrollments`, ses notes dans `adult_grades`, ses bulletins dans
- * `adult_bulletin_archives` et son assiduité dans `adult_absences`. On rassemble
- * ici ce que la fiche élève affiche dans son onglet Scolarité — moins la
- * discipline, qui n'a pas d'équivalent pour un adulte (décision du 9 août).
+ * `adult_bulletin_archives` et son assiduité dans `adult_absences`. On produit ici
+ * EXACTEMENT la structure de l'onglet Scolarité de l'apprenant — informations de
+ * classe au niveau de l'année, puis une colonne par période — moins la discipline,
+ * qui n'a pas d'équivalent adulte (décision du 9 août).
  */
 async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
   const { data: year } = await supabase
@@ -88,7 +89,7 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
 
   const { data: enr } = await supabase
     .from('parent_class_enrollments')
-    .select('tutor_number, class_id, classes!inner(id, name, level, day_of_week, start_time, end_time, academic_year, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
+    .select('tutor_number, class_id, status, enrollment_date, classes!inner(id, name, level, day_of_week, start_time, end_time, academic_year, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
     .eq('parent_id', parentId).eq('status', 'active')
     .eq('classes.academic_year', year.label)
 
@@ -99,48 +100,57 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
 
   const [{ data: evals }, { data: grades }, { data: bulletins }, { data: absences }] = await Promise.all([
     periodIds.length
-      ? supabase.from('evaluations').select('id, title, class_id, period_id').in('class_id', classIds).in('period_id', periodIds)
+      // `eval_kind`, `max_score` et `coefficient` : les évaluations des classes
+      // adultes vivent dans la MÊME table que celles des élèves, la moyenne se
+      // pondère donc exactement de la même façon.
+      ? supabase.from('evaluations').select('id, class_id, period_id, eval_kind, max_score, coefficient').in('class_id', classIds).in('period_id', periodIds)
       : Promise.resolve({ data: [] }),
     supabase.from('adult_grades').select('evaluation_id, tutor_number, score, is_absent').eq('parent_id', parentId),
-    supabase.from('adult_bulletin_archives').select('id, tutor_number, class_id, period_id, file_path').eq('parent_id', parentId),
+    supabase.from('adult_bulletin_archives').select('tutor_number, class_id, period_id, file_path').eq('parent_id', parentId),
     periodIds.length
-      ? supabase.from('adult_absences').select('tutor_number, absence_type, is_justified').eq('parent_id', parentId).in('period_id', periodIds)
+      ? supabase.from('adult_absences').select('tutor_number, class_id, period_id, absence_type, is_justified').eq('parent_id', parentId).in('period_id', periodIds)
       : Promise.resolve({ data: [] }),
   ])
-
-  const evalById   = new Map<string, any>((evals ?? []).map((e: any) => [e.id, e]))
-  const periodById = new Map(periods.map((p: any) => [p.id, p.label]))
 
   return inscriptions.map((e: any) => {
     const t2 = e.tutor_number === 2
     const c  = e.classes
-    const mine = (rows: any[]) => rows.filter(r => r.tutor_number === e.tutor_number)
+    const mien = (rows: any[]) => rows.filter(r => r.tutor_number === e.tutor_number)
 
-    // Notes de CE tuteur, regroupées par période dans l'ordre de l'année.
-    const mesNotes = mine(grades ?? []).filter((g: any) => evalById.has(g.evaluation_id))
-    const parPeriode = periods
-      .map((p: any) => ({
-        period_label: p.label,
-        items: mesNotes
-          .filter((g: any) => evalById.get(g.evaluation_id).period_id === p.id)
-          .map((g: any) => ({ title: evalById.get(g.evaluation_id).title, score: g.score, is_absent: !!g.is_absent })),
-      }))
-      .filter((p: any) => p.items.length > 0)
+    const mesNotes = new Map<string, any>()
+    for (const g of mien(grades ?? [])) mesNotes.set(g.evaluation_id, g)
+    const mesAbs   = mien(absences ?? []).filter((a: any) => a.class_id === e.class_id)
+    const mesBull  = mien(bulletins ?? []).filter((b: any) => b.class_id === e.class_id)
 
-    // Moyenne des notes SAISIES, absences exclues. Libellé volontairement
-    // distinct de la « moyenne générale » des archives, qui est pondérée : deux
-    // calculs différents ne doivent pas porter le même nom.
-    const chiffrees = mesNotes.filter((g: any) => !g.is_absent && g.score != null)
-    const moyenne = chiffrees.length > 0
-      ? chiffrees.reduce((s: number, g: any) => s + Number(g.score), 0) / chiffrees.length
-      : null
+    const colonnes = periods.map((p: any) => {
+      // Moyenne PONDÉRÉE : chaque note ramenée sur 20, pondérée par son coefficient.
+      // Absences et évaluations non notées exclues. Identique à la fiche apprenant.
+      let totalWeighted = 0
+      let totalCoeff    = 0
+      for (const ev of (evals ?? []).filter((v: any) => v.class_id === e.class_id && v.period_id === p.id && v.eval_kind === 'scored')) {
+        const g = mesNotes.get(ev.id)
+        if (!g || g.is_absent || g.score == null || !ev.max_score) continue
+        totalWeighted += (Number(g.score) / ev.max_score) * 20 * ev.coefficient
+        totalCoeff    += ev.coefficient
+      }
+      const periodAbs = mesAbs.filter((a: any) => a.period_id === p.id)
+      return {
+        id:    p.id,
+        label: p.label,
+        avg:   totalCoeff > 0 ? totalWeighted / totalCoeff : null,
+        bulletinPath: mesBull.find((b: any) => b.period_id === p.id)?.file_path ?? null,
+        abs:     periodAbs.filter((a: any) => a.absence_type === 'absence').length,
+        absNJ:   periodAbs.filter((a: any) => a.absence_type === 'absence' && !a.is_justified).length,
+        retards: periodAbs.filter((a: any) => a.absence_type === 'retard').length,
+      }
+    })
 
-    const mesAbs = mine(absences ?? [])
     const titulaire = (c.class_teachers ?? []).find((ct: any) => ct.is_main_teacher)?.teachers ?? null
 
     return {
       key: `${parentId}-${e.tutor_number}`,
       year_label: year.label,
+      status: e.status,
       last_name:  t2 ? parent.tutor2_last_name  : parent.tutor1_last_name,
       first_name: t2 ? parent.tutor2_first_name : parent.tutor1_first_name,
       tutor_number: e.tutor_number,
@@ -154,15 +164,13 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
       schedule: c.day_of_week && c.start_time
         ? `${DAY_FR[c.day_of_week] ?? c.day_of_week} ${c.start_time.slice(0, 5)}-${(c.end_time ?? '').slice(0, 5)}`
         : null,
-      moyenne,
-      absences_justified:   mesAbs.filter((a: any) => a.absence_type === 'absence' && a.is_justified).length,
-      absences_unjustified: mesAbs.filter((a: any) => a.absence_type === 'absence' && !a.is_justified).length,
-      retards:              mesAbs.filter((a: any) => a.absence_type === 'retard').length,
-      bulletin_refs: mine(bulletins ?? [])
-        .filter((b: any) => b.class_id === e.class_id)
-        .map((b: any) => ({ period_label: periodById.get(b.period_id) ?? '·', archive_id: b.id, file_path: b.file_path }))
-        .filter((b: any) => b.file_path),
-      grades: parPeriode,
+      enrollment_date: e.enrollment_date,
+      totals: {
+        abs:     mesAbs.filter((a: any) => a.absence_type === 'absence').length,
+        absNJ:   mesAbs.filter((a: any) => a.absence_type === 'absence' && !a.is_justified).length,
+        retards: mesAbs.filter((a: any) => a.absence_type === 'retard').length,
+      },
+      periods: colonnes,
     }
   })
 }

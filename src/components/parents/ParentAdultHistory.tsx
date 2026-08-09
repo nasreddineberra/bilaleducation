@@ -31,10 +31,15 @@ function fmtEur(n: number | null): string {
   return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 }
 
-/** Scolarité de l'année EN COURS : ce que les archives ne contiennent pas encore. */
+/**
+ * Scolarité de l'année EN COURS : ce que les archives ne contiennent pas encore.
+ * Structure IDENTIQUE à l'onglet Scolarité de l'apprenant — informations de classe
+ * au niveau de l'année, puis une colonne par période.
+ */
 interface CurrentRow {
   key: string
   year_label: string
+  status: string
   last_name: string
   first_name: string
   tutor_number: number
@@ -43,12 +48,28 @@ interface CurrentRow {
   cotisation_label: string | null
   teacher_name: string | null
   schedule: string | null
-  moyenne: number | null
-  absences_justified: number
-  absences_unjustified: number
-  retards: number
-  bulletin_refs: { period_label: string; archive_id: string; file_path: string }[]
-  grades: { period_label: string; items: { title: string; score: number | null; is_absent: boolean }[] }[]
+  enrollment_date: string
+  totals: { abs: number; absNJ: number; retards: number }
+  periods: {
+    id: string
+    label: string
+    avg: number | null
+    bulletinPath: string | null
+    abs: number
+    absNJ: number
+    retards: number
+  }[]
+}
+
+const STATUS_LABEL: Record<string, string> = { active: 'Actif', withdrawn: 'Retiré' }
+const STATUS_COLOR: Record<string, string> = {
+  active:    'bg-green-100 text-green-700',
+  withdrawn: 'bg-red-100 text-red-700',
+}
+
+const PERIOD_LABELS: Record<string, string> = {
+  T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
+  S1: 'Semestre 1', S2: 'Semestre 2',
 }
 
 export default function ParentAdultHistory({ rows, current = [] }: { rows: AdultRow[]; current?: CurrentRow[] }) {
@@ -78,89 +99,90 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
 
       {/* ── Année en cours ── */}
       {current.map(h => {
-        const classLine = [h.class_name, h.level ? `Niveau ${h.level}` : null, h.cotisation_label].filter(Boolean).join(' · ')
+        // Infos de classe : au niveau de l'année, sur une seule ligne.
+        const infosClasse = [
+          h.level ? `Niveau ${h.level}` : null,
+          h.teacher_name,
+          h.cotisation_label,
+          h.schedule,
+          `Inscrit le ${new Date(h.enrollment_date).toLocaleDateString('fr-FR')}`,
+        ].filter(Boolean).join(' · ')
+
         return (
-          <section key={h.key} className="card p-4 space-y-2 border-primary-200">
+          <section key={h.key} className="card p-4 space-y-2">
+
+            {/* En-tete : annee, statut, tuteur, classe, et le bilan d'assiduite */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-bold text-secondary-800">{h.year_label}</h3>
-                <span className="text-[10px] font-bold uppercase bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded">
-                  En cours
+                <span className={clsx(
+                  'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded',
+                  STATUS_COLOR[h.status] ?? 'bg-warm-100 text-warm-700',
+                )}>
+                  {STATUS_LABEL[h.status] ?? h.status}
                 </span>
                 <span className="text-sm font-semibold text-warm-800">{h.last_name} {h.first_name}</span>
                 <span className="text-[10px] font-bold uppercase bg-secondary-100 text-secondary-700 px-1.5 py-0.5 rounded">
                   Tuteur {h.tutor_number}
                 </span>
+                <span className="text-xs text-warm-700">
+                  <span className="font-semibold text-warm-800">Classe : {h.class_name}</span>
+                  {infosClasse && <> · {infosClasse}</>}
+                </span>
               </div>
-              {classLine && <span className="text-xs text-warm-700">{classLine}</span>}
+
+              {(h.totals.abs > 0 || h.totals.retards > 0) && (
+                <span className="text-xs text-warm-700">
+                  {h.totals.abs > 0 && <>{h.totals.abs} abs.{h.totals.absNJ > 0 && ` (${h.totals.absNJ} nj)`}</>}
+                  {h.totals.retards > 0 && <>{h.totals.abs > 0 ? ' · ' : ''}{h.totals.retards} ret.</>}
+                </span>
+              )}
             </div>
 
-            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <dt className="stat-label">Enseignant</dt>
-                <dd className="text-sm text-warm-800">{h.teacher_name ?? 'Non affecté'}</dd>
-              </div>
-              <div>
-                <dt className="stat-label">Horaire</dt>
-                <dd className="text-sm text-warm-800">{h.schedule ?? 'Non renseigné'}</dd>
-              </div>
-              <div>
-                <dt className="stat-label">Moyenne des notes</dt>
-                <dd className="text-sm font-bold text-secondary-800 tabular-nums">
-                  {h.moyenne != null ? `${h.moyenne.toFixed(2)}/20` : '·'}
-                </dd>
-              </div>
-              <div>
-                <dt className="stat-label">Assiduité</dt>
-                <dd className="text-sm tabular-nums">
-                  <span className="text-orange-700 font-semibold">{h.absences_unjustified}</span>
-                  <span className="text-warm-700"> non justifiée(s) · {h.absences_justified} justifiée(s) · {h.retards} retard(s)</span>
-                </dd>
-              </div>
-            </dl>
+            {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
+            {h.periods.length > 0 ? (
+              <div className={clsx('grid gap-2', h.periods.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
+                {h.periods.map(p => (
+                  <div key={p.id} className="rounded-xl bg-warm-50 px-3 py-2">
+                    <p className="stat-label">{PERIOD_LABELS[p.label] ?? p.label}</p>
 
-            {h.grades.length > 0 && (
-              <div className="space-y-1">
-                {h.grades.map(p => (
-                  <div key={p.period_label}>
-                    <p className="stat-label mb-1">{p.period_label}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {p.items.map((it, i) => (
-                        <span
-                          key={i}
-                          className={clsx(
-                            'inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs',
-                            it.is_absent ? 'bg-orange-50 text-orange-700' : 'bg-warm-50 text-warm-800',
-                          )}
+                    {/* Moyenne, bulletin et assiduite sur UNE ligne. */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-warm-700">
+                      <span className={clsx(
+                        'font-bold tabular-nums',
+                        p.avg == null ? 'text-warm-700'
+                          : p.avg >= 14 ? 'text-primary-700'
+                          : p.avg >= 10 ? 'text-amber-700'
+                          : 'text-red-600',
+                      )}>
+                        {p.avg != null ? `${p.avg.toFixed(2)}/20` : 'Pas de note'}
+                      </span>
+
+                      <span aria-hidden="true">·</span>
+
+                      {p.bulletinPath ? (
+                        <button
+                          type="button"
+                          onClick={() => openBulletin(p.bulletinPath!)}
+                          className="text-primary-600 hover:text-primary-700 font-medium rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                         >
-                          {it.title}
-                          <strong className="tabular-nums">
-                            {it.is_absent ? 'Absent' : it.score != null ? `${it.score}/20` : '·'}
-                          </strong>
-                        </span>
-                      ))}
+                          Bulletin
+                        </button>
+                      ) : (
+                        <span>Pas de bulletin</span>
+                      )}
+
+                      <span aria-hidden="true">·</span>
+
+                      <span className="tabular-nums">
+                        {p.abs} abs.{p.absNJ > 0 && <span className="text-orange-700"> ({p.absNJ} nj)</span>} · {p.retards} ret.
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-
-            {h.bulletin_refs.length > 0 && (
-              <div>
-                <p className="stat-label mb-1">Bulletins</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {h.bulletin_refs.map(b => (
-                    <button
-                      key={b.archive_id}
-                      type="button"
-                      onClick={() => openBulletin(b.file_path)}
-                      className="inline-flex items-center gap-1 bg-warm-50 hover:bg-warm-100 rounded-lg px-2.5 py-1 text-xs text-primary-600 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                    >
-                      {b.period_label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            ) : (
+              <p className="text-[11px] text-warm-700 italic">Aucune période configurée pour cette année.</p>
             )}
           </section>
         )
@@ -169,7 +191,9 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
       {/* ── Années archivées ── */}
       {rows.map(h => {
         const fin = h.financial_status ? FIN_STATUS[h.financial_status] ?? FIN_STATUS.pending : null
-        const classLine = [h.class_name, h.level ? `Niveau ${h.level}` : null, h.cotisation_label].filter(Boolean).join(' · ')
+        // Meme forme d'en-tete que l'annee en cours : « Classe : NOM · … ».
+        // L'archive fige des LIBELLES, elle ne porte ni enseignant ni horaire.
+        const infosClasse = [h.level ? `Niveau ${h.level}` : null, h.cotisation_label].filter(Boolean).join(' · ')
         return (
           <section key={h.id} className="card p-4 space-y-2">
             <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -181,8 +205,13 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
                     Tuteur {h.tutor_number}
                   </span>
                 )}
+                {h.class_name && (
+                  <span className="text-xs text-warm-700">
+                    <span className="font-semibold text-warm-800">Classe : {h.class_name}</span>
+                    {infosClasse && <> · {infosClasse}</>}
+                  </span>
+                )}
               </div>
-              {classLine && <span className="text-xs text-warm-700">{classLine}</span>}
             </div>
 
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">

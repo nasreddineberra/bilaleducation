@@ -2539,9 +2539,20 @@ trombinoscope vide.
   `parents/[id]/page.tsx`), **une carte par tuteur inscrit** — un foyer peut en compter deux —
   avec enseignant, horaire, moyenne, assiduite, notes par periode et bulletins (URL signee).
   Meme carte que les archives, badge « En cours ».
-- **« Moyenne des notes » et non « Moyenne generale »** : l'annee vivante fait une moyenne
-  simple des notes saisies, l'archive une moyenne **ponderee**. Deux calculs differents ne
-  doivent pas porter le meme nom.
+- **MISE EN PAGE COMMUNE aux deux fiches** (choix utilisateur, en deux temps : l'apprenant a
+  d'abord ete calque sur l'adulte, puis l'adulte sur le resultat) : **une carte par annee**,
+  en-tete `Classe : NOM · Niveau · Enseignant · Cotisation · Horaire · Inscrit le …` **sur une
+  seule ligne**, bilan d'assiduite de l'annee a droite, puis les **periodes EN COLONNES** (2
+  semestres ou 3 trimestres), chacune portant sur **une ligne** moyenne · Bulletin · abs/ret.
+- **Moyenne PONDEREE des deux cotes.** Ma « moyenne simple » de l'adulte etait une facilite
+  injustifiee : les evaluations des classes adultes vivent dans **la meme table** `evaluations`,
+  avec les memes `coefficient`, `max_score` et `eval_kind`. Le calcul est donc identique, et la
+  distinction bancale « moyenne des notes » / « moyenne generale » disparait.
+- **La carte est rattachee a une INSCRIPTION, pas a l'annee seule** : un apprenant n'est jamais
+  dans deux classes a la fois mais peut en changer en cours d'annee, et deux classes successives
+  ne se moyennent pas dans une meme colonne → deux cartes, chacune avec son statut.
+- **Corrige au passage** : le jour de classe s'affichait « monday » (valeur stockee) dans une
+  interface entierement francaise ; icones retirees des boutons « Bulletin » (regle du projet).
 - **Pas de discipline** (decision) : `student_warnings` n'a pas d'equivalent adulte.
 
 **RESTE A FAIRE (reprise)**
