@@ -2626,11 +2626,13 @@ Un rond « Chargement… » plein ecran, puis un squelette : l'interface semblai
   une page blanche jusqu'a la reponse du layout — un trou au lieu d'un begaiement.
 - `LoadingSpinner.tsx` supprime (plus aucun appelant).
 
-**RESTE A FAIRE (reprise)**
-1. **Verifier a l'ecran** ce qui n'a jamais tourne avec de vraies donnees : la **feuille d'appel
-   adultes** (0 ligne dans `adult_absences` a la livraison) — saisie + enregistrement,
-   justificatif (bucket prive, URL signee), impression PDF — et la **carte « En cours »** de
-   l'onglet Scolarite adulte (2 participants sur `ADUL-DA-BL1`).
+**VERIFIE A L'ECRAN (10 aout, retour utilisateur : « affichage ok »)** : la chaine complete
+appel adulte → bulletin → archivage → onglet Scolarite, ainsi que le nouveau chargement (apres
+correction du fallback qui redessinait le cadre par-dessus le vrai). Le chantier adulte est donc
+clos, eprouve avec de vraies donnees et non seulement compile.
+
+**Reste, sans urgence** : un compte de CHAQUE ROLE depuis la passe RLS du 5 aout — une policy
+trop stricte ne leve pas d'erreur, elle vide l'ecran en silence.
 
 #### A CONSIGNER — PERFORMANCE RESSENTIE (chantier a ouvrir)
 
