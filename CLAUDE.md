@@ -2390,7 +2390,9 @@ annuler. La cloture devient une **action terminale unique**, en bas de cette pag
 
 #### 9 aout 2026 (fin, suite) — PASSAGE D'ANNEE reconstruit selon la conception ci-dessus
 
-Les 8 points sont construits. **Migration `rework-year-closure-state.sql` A JOUER.**
+Les 8 points sont construits. Migration `rework-year-closure-state.sql` **executee et verifiee**
+(5 controles : colonnes d'etat, `year_audits`, les 2 anciennes tables bien supprimees, RPC de
+purge, CHECK `purge_intent`).
 
 **LE MODELE : l'etat quitte le processus et rejoint l'ANNEE.**
 - **`school_years`** porte `closed_at` / `closed_by`, plus `archived_at`, `purged_at`,
@@ -2778,10 +2780,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] **A JOUER** — `supabase/migrations/guard-class-delete-with-participants.sql` (une classe
+- [x] Executer `supabase/migrations/guard-class-delete-with-participants.sql` (une classe
   avec des inscrits ACTIFS, eleves **ou adultes**, ne peut plus etre supprimee ; le garde-fou
   applicatif ne suffit pas, la suppression part du navigateur).
-- [ ] **A JOUER** — `supabase/migrations/add-adult-absences.sql` (cinquieme table miroir :
+- [x] Executer `supabase/migrations/add-adult-absences.sql` (cinquieme table miroir :
   assiduite des cours adultes ; RLS calquee sur `absences`, audit pose).
 - [x] Executer `supabase/migrations/rework-year-closure-state.sql` (passage d'annee : etat sur
   `school_years`, table `year_audits`, `purge_school_year` reecrite, anciennes tables
