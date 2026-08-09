@@ -2323,6 +2323,36 @@ sur place, dont deux se signaient encore « Bilal Education · Notification auto
 - **Piege repaye** : des accents graves dans un commentaire A L'INTERIEUR d'un gabarit de chaine
   le referment (deja rencontre sur le CSS de la page de connexion).
 
+#### 9 aout 2026 (fin) — CHANTIER OUVERT : le cycle « Preparer l'annee suivante » est a revoir
+
+Signale par l'utilisateur apres un essai reel. **Rien n'est corrige** : le diagnostic est
+pose, la refonte reste entiere. C'est le cycle le plus lourd de l'application (audits,
+archivage, purge) — il merite une etude, pas une rustine.
+
+**LES QUATRE DEFAUTS CONSTATES**
+1. **Aucune annulation.** `cloture/actions.ts` expose `startClosure`, `runAudit`, `closeStep`,
+   `purgeYear`, `setPurgeIntent`, `reopenStep`, `archiveYear` — **rien pour abandonner**.
+   `reopenStep` defait UNE etape, jamais le processus. Lance par megarde en cours d'annee,
+   on ne peut plus revenir en arriere.
+2. **Aucune confirmation au lancement.** `startClosure` cree la ligne `year_closure` et ses
+   etapes **des le clic**. Un geste, et le processus existe.
+3. **Reprise silencieuse d'une cloture ancienne.** `if (existing) return { closureId: existing.id }` :
+   l'essai d'il y a plusieurs semaines vit toujours, et rouvrir le processus replace
+   l'utilisateur ou il s'etait arrete — d'ou l'impression qu'il « cree tout de suite l'annee
+   suivante ». Remettre les audits a zero ne remet PAS la cloture a zero.
+4. **Mauvais emplacement.** Le point d'entree est enfoui dans la fiche Annee scolaire.
+   **Decision utilisateur : ce doit etre une page a part, avec son entree de sidebar.**
+
+**A ETUDIER AVANT DE CODER** (rien ne doit etre livre sans accord sur le cycle) :
+   · que signifie « annuler » a chaque etape — avant tout audit, apres audits, apres archivage,
+     apres creation de l'annee suivante ? Toutes ne sont pas reversibles de la meme facon ;
+   · faut-il interdire le lancement **en cours d'annee** (avant une date, ou avant que l'annee
+     soit marquee terminee), ou seulement avertir ?
+   · une cloture abandonnee doit-elle etre supprimee, ou conservee comme trace ?
+   · l'ecran dedie : ou dans la sidebar, et pour quels roles.
+
+Voir aussi la memoire `year-rollover-archiving`, ecrite quand le chantier a ete construit.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
