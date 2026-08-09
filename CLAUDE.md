@@ -2343,6 +2343,21 @@ archivage, purge) — il merite une etude, pas une rustine.
 4. **Mauvais emplacement.** Le point d'entree est enfoui dans la fiche Annee scolaire.
    **Decision utilisateur : ce doit etre une page a part, avec son entree de sidebar.**
 
+**CORRECTION DU 9 AOUT — ma premiere piste etait FAUSSE.** J'avais propose de
+n'autoriser la cloture que sur « une annee qui n'est plus l'annee en cours ».
+C'est CIRCULAIRE, l'utilisateur l'a releve : une annee ne cesse d'etre en cours
+QUE parce qu'on l'a cloturee et qu'on a active la suivante. On cloture donc bien
+l'annee EN COURS.
+  · La bonne distinction n'est pas *en cours / pas en cours* mais **terminee /
+    encore en route**. Le garde-fou doit etre une DATE (`end_date` atteinte, ou
+    proche) ou une declaration explicite de la direction — jamais un statut.
+  · Corollaire : l'ANNULATION devient d'autant plus indispensable. Puisqu'on
+    cloture l'annee en cours, on peut la lancer trop tot et devoir revenir en
+    arriere — c'est exactement ce qui est arrive.
+  · Reste valable : separer « ouvrir N+1 » (au printemps, sans audit) de
+    « cloturer N » (l'ete, avec les audits). Ce sont deux moments differents,
+    meme si les deux concernent l'annee en cours.
+
 **A ETUDIER AVANT DE CODER** (rien ne doit etre livre sans accord sur le cycle) :
    · que signifie « annuler » a chaque etape — avant tout audit, apres audits, apres archivage,
      apres creation de l'annee suivante ? Toutes ne sont pas reversibles de la meme facon ;
