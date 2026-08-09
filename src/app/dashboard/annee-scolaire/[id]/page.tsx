@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
 import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
 import ClotureClient from '@/components/annee-scolaire/ClotureClient'
-import PrepareNextYearButton from '@/components/annee-scolaire/PrepareNextYearButton'
 import PurgeYearCard from '@/components/annee-scolaire/PurgeYearCard'
 import { effectiveRole } from '@/lib/auth/effective-role'
 
@@ -160,9 +159,14 @@ export default async function EditAnneeScolairePage({ params }: Props) {
           Retour à la liste
         </Link>
 
-        {isAdminDir && schoolYear.is_current && (
-          <PrepareNextYearButton currentYearId={schoolYear.id} yearLabel={schoolYear.label} />
-        )}
+        {/* POINT D'ENTREE RETIRE le 9 aout, a la demande de l'utilisateur.
+            Le cycle « Preparer l'annee suivante » est a repenser entierement :
+            il fusionnait la preparation de N+1 et la cloture de N, lancait un
+            processus IRREVERSIBLE des le clic, et reprenait en silence une
+            cloture ancienne. Il avait ete lance ici sur l'ANNEE EN COURS.
+            L'annee suivante se cree pour l'instant a la main (« Ajouter »).
+            Le composant reste dans le depot, inatteignable, en attendant la
+            refonte - voir le brief dans CLAUDE.md du 9 aout. */}
       </div>
 
       {showClosure ? (
