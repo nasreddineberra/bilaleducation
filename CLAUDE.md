@@ -2388,6 +2388,66 @@ annuler. La cloture devient une **action terminale unique**, en bas de cette pag
 8. **`year_closure` a reduire** a ce qu'elle devient : le RESULTAT des audits + la date de
    cloture. Elle n'a plus a porter un « processus en cours ». Migration a prevoir.
 
+#### 9 aout 2026 (fin, suite) — PASSAGE D'ANNEE reconstruit selon la conception ci-dessus
+
+Les 8 points sont construits. **Migration `rework-year-closure-state.sql` A JOUER.**
+
+**LE MODELE : l'etat quitte le processus et rejoint l'ANNEE.**
+- **`school_years`** porte `closed_at` / `closed_by`, plus `archived_at`, `purged_at`,
+  `purge_intent` qui vivaient dans l'en-tete. « Cette annee est close » est une propriete de
+  l'annee : c'est ce qui permet de l'afficher dans sa fiche et dans la liste sans jointure.
+- **`year_audits`** (nouvelle) remplace `year_closure_steps` : le DERNIER resultat de chaque
+  audit, rattache a l'ANNEE et non a une cloture. **Ni `status`, ni verrouillage sequentiel,
+  ni `order_index`** — l'ordre et le caractere bloquant vivent dans `src/lib/closure/steps.ts`,
+  ce sont des regles, pas des donnees. Relancer un audit remplace sa ligne (upsert sur
+  `(school_year_id, step_key)`) : c'est ca, « annuler un audit ».
+- **`year_closure` et `year_closure_steps` SUPPRIMEES.** Videes de leur substance, elles
+  n'auraient plus porte qu'une redondance. Drop **sans CASCADE** et **garde de non-vacuite** :
+  la migration s'interrompt si une table contient encore des lignes (verifiees vides ici, mais
+  un autre environnement pourrait porter une cloture reelle).
+- **`purge_school_year` reecrite** : elle lisait `year_closure.archived_at` et y ecrivait
+  `purged_at`. Trois passages changent, le corps destructif est repris a l'identique.
+
+**LES RESULTATS D'AUDIT NE SONT PAS LA GARDE.** Ils servent l'ecran (afficher sans tout
+recalculer) et prouvent que les six ont ete passes. `closeYear` **RE-AUDITE les six** a
+l'instant du clic : un audit bloquant passe il y a un mois ne vaut rien, les donnees ont pu
+changer. C'est cette passe fraiche qui decide, et elle reecrit les lignes au passage.
+
+**Les actions** (`src/app/dashboard/passage-annee/actions.ts`, l'ancien dossier `cloture/`
+est supprime) : `runAudit` · `closeYear` · **`reopenYear`** · `archiveYear` · `setPurgeIntent`
+· `purgeYear`. **`startClosure` et `closeStep` n'existent plus** — il n'y a plus rien a
+demarrer ni d'etape a fermer.
+- **`closeYear`** — deux conditions, et elles se DISENT toutes les trois a l'ecran, y compris
+  remplies (un bouton grise sans motif ne s'explique pas) : (1) `end_date` **depassee**
+  (critere = une DATE, pas un statut : on cloture bien l'annee EN COURS, ce qui interdit de se
+  fonder sur « n'est plus l'annee en cours », elle ne cesse de l'etre qu'apres) ; (2) les six
+  audits passes ; (3) aucune anomalie bloquante.
+- **`reopenYear`** — la cloture se defait tant que la PURGE n'a pas eu lieu. Elle **supprime
+  les instantanes** (`student_year_history`, `family_year_finance`) : garder un historique fige
+  au-dessus de donnees redevenues vivantes le rendrait faux. Refusee apres purge.
+
+**L'ecran** (`/dashboard/passage-annee`, section **« Cloture »** de la sidebar placee
+**au-dessus de Parametres**, admin/direction, **garde sur la PAGE** et pas seulement sur le
+lien) : bandeau d'etat de l'annee, les six audits en liste (badge Bloquant/Avertissement,
+resume, horodatage, detail deroulant avec lien « Corriger »), bouton **« Tout auditer »**,
+puis la carte de cloture avec ses trois conditions. Une fois close : archivage, choix
+d'epuration, et « Annuler la cloture ».
+- **Rappel « Annees closes non archivees »** en bas : sans lui, une annee cloturee **puis**
+  remplacee par N+1 n'aurait plus aucun ecran d'ou lancer son archivage — et sans archivage,
+  pas de purge. Cloture et bascule sont deux actes independants, le trou etait reel.
+
+**La trace** : colonne **« Cloture »** en avant-derniere position de la liste des annees
+(Purgee > Archivee > Close, infobulle datee) et bandeau turquoise en tete de la fiche annee,
+avec l'auteur et un lien vers l'ecran de passage.
+
+**POINT 5 (lecture seule) : RIEN A CONSTRUIRE, la garantie tient deja.** Mesure faite avant
+d'ecrire quoi que ce soit : **les 30 ecrans operationnels epinglent tous `is_current = true`**
+— une annee non courante n'est atteignable depuis aucun module, et la fiche annee est deja en
+lecture seule dans ce cas (19 juillet). Une annee close **encore courante** reste modifiable,
+conformement a la decision. **Fragilite a connaitre** : la garantie est structurelle, pas
+declaree — le jour ou un ecran offrira un selecteur d'annee, elle tombera **en silence**. Une
+garde en base serait la seule protection durable ; surface trop large pour aujourd'hui.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -2630,6 +2690,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] **A JOUER** — `supabase/migrations/rework-year-closure-state.sql` (passage d'annee :
+  `closed_at`/`closed_by`/`archived_at`/`purged_at`/`purge_intent` sur `school_years`, nouvelle
+  table `year_audits`, `purge_school_year` reecrite, suppression gardee de `year_closure` et
+  `year_closure_steps`). **Sans elle, l'ecran « Passage d'annee » affiche zero audit et la
+  cloture echoue.**
 - [ ] **A JOUER** — `supabase/migrations/create-support-requests.sql` (table `support_requests` +
   RLS « depot et relecture par la direction, ni modification ni suppression » + bucket prive
   `support-attachments` 1 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**

@@ -38,6 +38,7 @@ import {
   BookOpenText,
   Boxes,
   ScrollText,
+  CalendarCheck,
 } from 'lucide-react'
 import Image from 'next/image'
 import type { UserRole } from '@/types/database'
@@ -258,6 +259,16 @@ const navItems: NavItem[] = [
       },
     ],
   },
+  // ── Section CLÔTURE ──
+  // Sa propre section, juste au-dessus de Paramètres : le passage d'année n'est
+  // ni une opération courante ni un réglage. Il était enfoui dans la fiche
+  // Année scolaire, où rien n'annonçait sa portée.
+  {
+    name:  'Passage d\'année',
+    href:  '/dashboard/passage-annee',
+    icon:  CalendarCheck,
+    roles: ['admin', 'direction'],
+  },
   // ── Section PARAMÈTRES (entrées de 1er niveau ; visibilité admin/direction,
   //    identique à l'ancien groupe « Paramètres » qui les englobait) ──
   {
@@ -334,7 +345,7 @@ const navItems: NavItem[] = [
 
 // ─── Sections repliables (regroupement des items, mapping validé) ──────────────
 
-const SECTION_ORDER = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Paramètres'] as const
+const SECTION_ORDER = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Clôture', 'Paramètres'] as const
 
 const SECTION_OF: Record<string, string> = {
   'Tableau de bord':    'Principal',
@@ -349,6 +360,7 @@ const SECTION_OF: Record<string, string> = {
   'Cahier de texte':    'Pédagogie',
   'Communications':     'Gestion',
   'Financements':       'Gestion',
+  'Passage d\'année':   'Clôture',
   // Section Paramètres
   'Année scolaire':     'Paramètres',
   'Pédagogie':          'Paramètres',   // item (Param. Classes / Référentiel Cours)

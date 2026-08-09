@@ -78,6 +78,14 @@ export interface SchoolYear {
   start_date: string | null  // date de rentrée scolaire
   end_date: string | null    // date de fin d'année scolaire
   vacations: VacationPeriod[]
+  // Passage d'année : l'état de clôture vit sur l'année elle-même.
+  // Une année peut être close tout en restant l'année EN COURS, jusqu'à
+  // l'activation de la suivante.
+  closed_at?: string | null
+  closed_by?: string | null
+  archived_at?: string | null
+  purged_at?: string | null
+  purge_intent?: 'purge' | 'keep' | null
   created_at: string
 }
 

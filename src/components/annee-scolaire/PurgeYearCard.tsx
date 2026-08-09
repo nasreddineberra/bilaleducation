@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
-import { purgeYear } from '@/app/dashboard/annee-scolaire/cloture/actions'
+import { purgeYear } from '@/app/dashboard/passage-annee/actions'
 
 function fmt(d: string) {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })

@@ -4,7 +4,6 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import SchoolYearForm from '@/components/annee-scolaire/SchoolYearForm'
 import CurrentPeriodCard from '@/components/annee-scolaire/CurrentPeriodCard'
-import ClotureClient from '@/components/annee-scolaire/ClotureClient'
 import PurgeYearCard from '@/components/annee-scolaire/PurgeYearCard'
 import { effectiveRole } from '@/lib/auth/effective-role'
 
@@ -106,29 +105,18 @@ export default async function EditAnneeScolairePage({ params }: Props) {
     }
   }
 
-  // Cloture d'annee : affichee en colonne droite pour l'annee EN COURS (admin/direction).
-  let closure: any = null
-  let closureSteps: any[] = []
-  const showClosure = isAdminDir && !!schoolYear.is_current
-  if (showClosure) {
-    const { data: c } = await supabase
-      .from('year_closure').select('*').eq('school_year_id', schoolYear.id).maybeSingle()
-    closure = c
-    if (c) {
-      const { data: s } = await supabase
-        .from('year_closure_steps').select('*').eq('closure_id', c.id).order('order_index')
-      closureSteps = s ?? []
-    }
-  }
+  // Purge : disponible sur une année ARCHIVÉE et NON courante. L'état de clôture
+  // vit désormais sur l'année elle-même (`school_years`), plus dans une table
+  // annexe — il est donc déjà là, sans requête supplémentaire.
+  const showPurge = isAdminDir && !schoolYear.is_current && !!schoolYear.archived_at
 
-  // Purge (Phase 5) : disponible sur une année ARCHIVÉE et NON courante.
-  let purgeClosure: { archived_at: string | null; purged_at: string | null; purge_intent: 'purge' | 'keep' | null } | null = null
-  if (isAdminDir && !schoolYear.is_current) {
-    const { data } = await supabase
-      .from('year_closure').select('archived_at, purged_at, purge_intent').eq('school_year_id', schoolYear.id).maybeSingle()
-    purgeClosure = data
-  }
-  const showPurge = isAdminDir && !schoolYear.is_current && !!purgeClosure?.archived_at
+  // Auteur de la clôture : l'année ne porte que son identifiant.
+  const { data: closedBy } = schoolYear.closed_by
+    ? await supabase.from('profiles').select('civilite, last_name, first_name').eq('id', schoolYear.closed_by).maybeSingle()
+    : { data: null }
+  const closedByNom = closedBy
+    ? [closedBy.civilite, closedBy.last_name, closedBy.first_name].filter(Boolean).join(' ').trim()
+    : null
 
   const formEl = (
     <SchoolYearForm
@@ -137,6 +125,7 @@ export default async function EditAnneeScolairePage({ params }: Props) {
       gradedEvalTypes={gradedEvalTypes}
       usedEvalTypes={usedEvalTypes}
       anotherYearIsCurrent={anotherYearIsCurrent}
+      closedByNom={closedByNom}
       currentPeriodSlot={
         <CurrentPeriodCard
           schoolYearId={schoolYear.id}
@@ -159,33 +148,24 @@ export default async function EditAnneeScolairePage({ params }: Props) {
           Retour à la liste
         </Link>
 
-        {/* POINT D'ENTREE RETIRE le 9 aout, a la demande de l'utilisateur.
-            Le cycle « Preparer l'annee suivante » est a repenser entierement :
-            il fusionnait la preparation de N+1 et la cloture de N, lancait un
-            processus IRREVERSIBLE des le clic, et reprenait en silence une
-            cloture ancienne. Il avait ete lance ici sur l'ANNEE EN COURS.
-            L'annee suivante se cree pour l'instant a la main (« Ajouter »).
-            Le composant reste dans le depot, inatteignable, en attendant la
-            refonte - voir le brief dans CLAUDE.md du 9 aout. */}
+        {/* L'assistant de clôture ne vit plus ici : il a sa propre page,
+            « Clôture → Passage d'année ». Cette fiche décrit l'année ; elle ne
+            pilote pas son passage. */}
       </div>
 
-      {showClosure ? (
-        <div className="flex flex-col xl:flex-row gap-6 items-start">
-          <div className="w-full xl:w-auto xl:flex-shrink-0">{formEl}</div>
-          <div className="w-full xl:flex-1 xl:min-w-0">
-            <ClotureClient yearLabel={schoolYear.label} closure={closure} steps={closureSteps} />
+      <div className="space-y-4">
+        {formEl}
+        {showPurge && (
+          <div className="max-w-2xl">
+            <PurgeYearCard
+              yearId={schoolYear.id}
+              yearLabel={schoolYear.label}
+              purgedAt={schoolYear.purged_at}
+              purgeIntent={schoolYear.purge_intent}
+            />
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {formEl}
-          {showPurge && (
-            <div className="max-w-2xl">
-              <PurgeYearCard yearId={schoolYear.id} yearLabel={schoolYear.label} purgedAt={purgeClosure!.purged_at} purgeIntent={purgeClosure!.purge_intent} />
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
     </div>
   )

@@ -3,7 +3,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { X, Pencil, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
+import { X, Pencil, AlertTriangle, Lock } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
@@ -22,6 +23,7 @@ interface SchoolYearFormProps {
   usedEvalTypes?:    string[] // types utilisés dans gabarits sans note → badge "Utilisé dans gabarit"
   currentPeriodSlot?: React.ReactNode  // encadre « Periode en cours » (2e position, en edition)
   anotherYearIsCurrent?: boolean       // une AUTRE annee est deja « en cours » → activation bloquee
+  closedByNom?: string | null          // auteur de la cloture (l'annee ne porte que son identifiant)
 }
 
 // Type frontend uniquement : scored_10 / scored_20 remplacent "scored" + max_score
@@ -120,7 +122,7 @@ function getWeeksBetween(startDate: string, endDate: string, startDay: number): 
 
 // ─── Composant ────────────────────────────────────────────────────────────────
 
-export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1, gradedEvalTypes = [], usedEvalTypes = [], currentPeriodSlot, anotherYearIsCurrent = false }: SchoolYearFormProps) {
+export default function SchoolYearForm({ schoolYear, etablissementId, weekStartDay: wsd = 1, gradedEvalTypes = [], usedEvalTypes = [], currentPeriodSlot, anotherYearIsCurrent = false, closedByNom = null }: SchoolYearFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!schoolYear
@@ -502,6 +504,25 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-2xl">
+
+      {/* ── Trace de clôture ──
+          L'état vit sur l'année elle-même : il se lit ici, sans aller le chercher
+          ailleurs. Le lien renvoie à l'écran qui pilote le cycle. */}
+      {schoolYear?.closed_at && (
+        <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-primary-50 border border-primary-200 text-[11px] text-primary-800">
+          <Lock size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+          <span>
+            <b>Année clôturée</b> le {new Date(schoolYear.closed_at).toLocaleDateString('fr-FR')}
+            {closedByNom ? ` par ${closedByNom}` : ''}
+            {schoolYear.archived_at ? ` · archivée le ${new Date(schoolYear.archived_at).toLocaleDateString('fr-FR')}` : ' · non archivée'}
+            {schoolYear.purged_at ? ` · purgée le ${new Date(schoolYear.purged_at).toLocaleDateString('fr-FR')}` : ''}
+            {'. '}
+            <Link href="/dashboard/passage-annee" className="underline underline-offset-2 hover:no-underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+              Passage d’année
+            </Link>
+          </span>
+        </div>
+      )}
 
       {readOnly && (
         <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800">

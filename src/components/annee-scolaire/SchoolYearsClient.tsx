@@ -120,6 +120,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                 <th className="list-th">Fin</th>
                 <th className="list-th">Répartition</th>
                 <th className="list-th">Évaluation</th>
+                <th className="list-th whitespace-nowrap">Clôture</th>
                 <th className="list-th" />
               </tr>
             </thead>
@@ -188,6 +189,26 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                       <div className="flex items-center gap-1">
                         {activeEvals.map(c => <EvalBadge key={c.id} config={c} />)}
                       </div>
+                    </td>
+
+                    {/* Clôture : l'état le plus avancé atteint par l'année.
+                        Purgée l'emporte sur archivée, qui l'emporte sur close. */}
+                    <td className="list-td whitespace-nowrap">
+                      {year.purged_at ? (
+                        <Tooltip content={`Purgée le ${fmtDate(year.purged_at)}`}>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">Purgée</span>
+                        </Tooltip>
+                      ) : year.archived_at ? (
+                        <Tooltip content={`Close le ${fmtDate(year.closed_at!)} · archivée le ${fmtDate(year.archived_at)}`}>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-primary-100 text-primary-700">Archivée</span>
+                        </Tooltip>
+                      ) : year.closed_at ? (
+                        <Tooltip content={`Close le ${fmtDate(year.closed_at)}`}>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-primary-100 text-primary-700">Close</span>
+                        </Tooltip>
+                      ) : (
+                        <span className="text-xs text-warm-700">·</span>
+                      )}
                     </td>
 
                     {/* Actions */}
