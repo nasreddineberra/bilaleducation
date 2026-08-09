@@ -2830,9 +2830,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [x] Executer `supabase/migrations/guard-class-delete-with-participants.sql` (une classe
-  avec des inscrits ACTIFS, eleves **ou adultes**, ne peut plus etre supprimee ; le garde-fou
-  applicatif ne suffit pas, la suppression part du navigateur).
+- [ ] **A REJOUER** — `supabase/migrations/guard-class-delete-with-participants.sql` : le
+  message du trigger disait « inscrit(s) actif(s) » la ou il s'agit d'**affectations**
+  (vocabulaire fixe le 10 aout : « inscrit » = ACTIF, le rattachement a une classe = « affecte »).
+  `CREATE OR REPLACE`, rejeu sans risque. Le comportement de la garde est inchange.
 - [x] Executer `supabase/migrations/add-adult-absences.sql` (cinquieme table miroir :
   assiduite des cours adultes ; RLS calquee sur `absences`, audit pose).
 - [x] Executer `supabase/migrations/rework-year-closure-state.sql` (passage d'annee : etat sur

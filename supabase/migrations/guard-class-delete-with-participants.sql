@@ -41,9 +41,12 @@ BEGIN
   SELECT count(*) INTO n_adultes
   FROM parent_class_enrollments WHERE class_id = OLD.id AND status = 'active';
 
+  -- VOCABULAIRE : dans cette application « inscrit » veut dire ACTIF, et le
+  -- rattachement a une classe se dit « affecte ». Le message parle donc
+  -- d'affectations, pas d'inscriptions.
   IF n_eleves + n_adultes > 0 THEN
     RAISE EXCEPTION
-      'La classe « % » compte % inscrit(s) actif(s) (% eleve(s), % adulte(s)) : retirez-les avant de la supprimer.',
+      'La classe « % » compte encore % affectation(s) active(s) (% eleve(s), % adulte(s)) : retirez-les avant de la supprimer.',
       OLD.name, n_eleves + n_adultes, n_eleves, n_adultes
       USING ERRCODE = 'restrict_violation';
   END IF;
