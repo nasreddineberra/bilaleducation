@@ -50,7 +50,6 @@ interface CurrentRow {
   teacher_name: string | null
   schedule: string | null
   enrollment_date: string
-  totals: { abs: number; absNJ: number; retards: number }
   periods: {
     id: string
     label: string
@@ -103,7 +102,6 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
           h.teacher_name,
           h.cotisation_label,
           h.schedule,
-          `Inscrit le ${new Date(h.enrollment_date).toLocaleDateString('fr-FR')}`,
         ].filter(Boolean).join(' · ')
 
         return (
@@ -129,12 +127,9 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
                 </span>
               </div>
 
-              {(h.totals.abs > 0 || h.totals.retards > 0) && (
-                <span className="text-xs text-warm-700">
-                  {h.totals.abs > 0 && <>{h.totals.abs} abs.{h.totals.absNJ > 0 && ` (${h.totals.absNJ} nj)`}</>}
-                  {h.totals.retards > 0 && <>{h.totals.abs > 0 ? ' · ' : ''}{h.totals.retards} ret.</>}
-                </span>
-              )}
+              <span className="text-xs text-warm-700">
+                Inscrit le {new Date(h.enrollment_date).toLocaleDateString('fr-FR')}
+              </span>
             </div>
 
             {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
@@ -142,8 +137,8 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
               <div className={clsx(
                 'grid gap-2',
                 h.periods.length === 2
-                  ? 'grid-cols-1 sm:grid-cols-2'
-                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+                  ? 'grid-cols-1 lg:grid-cols-2'
+                  : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
               )}>
                 {h.periods.map(p => (
                   <PeriodeCell

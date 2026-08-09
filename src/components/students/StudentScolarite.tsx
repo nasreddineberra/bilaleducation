@@ -188,16 +188,10 @@ export default function StudentScolarite({
             cls.day_of_week
               ? `${DAYS_FR[cls.day_of_week] ?? cls.day_of_week}${cls.start_time && cls.end_time ? ` ${cls.start_time.slice(0, 5)}-${cls.end_time.slice(0, 5)}` : ''}`
               : null,
-            `Inscrit le ${new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}`,
           ].filter(Boolean).join(' · ')
 
-          // Bilan de l'annee : SOMME des bulletins archives, et non un comptage
-          // parallele qui pourrait les contredire.
-          const bilan = yearPeriods.reduce((acc, p) => {
-            const a = archiveMap.get(`${enrollment.class_id}:${p.id}`)
-            if (a) { acc.abs += a.absences_count; acc.nj += a.absences_unjustified; acc.ret += a.retards_count }
-            return acc
-          }, { abs: 0, nj: 0, ret: 0 })
+          // Seuls les avertissements restent au niveau de l'annee : aucune colonne
+          // ne les porte, et ils ne figurent sur aucun bulletin.
           const avert = warningsByYear.get(year) ?? 0
 
           return (
@@ -219,13 +213,10 @@ export default function StudentScolarite({
                   </span>
                 </div>
 
-                {(bilan.abs > 0 || bilan.ret > 0 || avert > 0) && (
-                  <span className="text-xs text-warm-700">
-                    {bilan.abs > 0 && <>{bilan.abs} abs.{bilan.nj > 0 && ` (${bilan.nj} nj)`}</>}
-                    {bilan.ret > 0 && <>{bilan.abs > 0 ? ' · ' : ''}{bilan.ret} ret.</>}
-                    {avert > 0 && <>{(bilan.abs > 0 || bilan.ret > 0) ? ' · ' : ''}{avert} avert.</>}
-                  </span>
-                )}
+                <span className="text-xs text-warm-700">
+                  {avert > 0 && <>{avert} avert. · </>}
+                  Inscrit le {new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}
+                </span>
               </div>
 
               {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. Une
@@ -234,8 +225,8 @@ export default function StudentScolarite({
                 <div className={clsx(
                   'grid gap-2',
                   yearPeriods.length === 2
-                    ? 'grid-cols-1 sm:grid-cols-2'
-                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+                    ? 'grid-cols-1 lg:grid-cols-2'
+                    : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
                 )}>
                   {yearPeriods.map(period => {
                     const a = archiveMap.get(`${enrollment.class_id}:${period.id}`)

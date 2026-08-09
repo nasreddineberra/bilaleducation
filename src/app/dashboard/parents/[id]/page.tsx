@@ -149,11 +149,6 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
         ? `${DAY_FR[c.day_of_week] ?? c.day_of_week} ${c.start_time.slice(0, 5)}-${(c.end_time ?? '').slice(0, 5)}`
         : null,
       enrollment_date: e.enrollment_date,
-      // Bilan de l'annee : SOMME des bulletins archives, et non un comptage
-      // parallele qui pourrait les contredire.
-      totals: colonnes.reduce((acc: any, c: any) => ({
-        abs: acc.abs + c.abs, absNJ: acc.absNJ + c.absNJ, retards: acc.retards + c.retards,
-      }), { abs: 0, absNJ: 0, retards: 0 }),
       periods: colonnes,
     }
   })
