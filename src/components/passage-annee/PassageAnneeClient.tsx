@@ -76,27 +76,17 @@ export default function PassageAnneeClient({
   const [modale, setModale]     = useState<null | 'cloture' | 'annulation'>(null)
   const [occupe, setOccupe]     = useState(false)
 
-  const lancer = async (stepKey: string): Promise<boolean> => {
+  const lancer = async (stepKey: string) => {
     setEnCours(stepKey)
     try {
       const res = await runAudit(annee.id, stepKey)
-      if (res.error) { toast.error(res.error); return false }
+      if (res.error) { toast.error(res.error); return }
       setResultats(prev => ({ ...prev, [stepKey]: { result: res.result ?? null, at: new Date().toISOString() } }))
-      return true
     } catch (e: any) {
       toast.error(e?.message ?? 'Une erreur est survenue.')
-      return false
     } finally {
       setEnCours(null)
     }
-  }
-
-  const toutAuditer = async () => {
-    for (const s of CLOSURE_STEPS) {
-      const ok = await lancer(s.key)
-      if (!ok) return
-    }
-    toast.success('Les six audits ont été passés.')
   }
 
   // ── Conditions de clôture ────────────────────────────────────────────────
@@ -183,16 +173,13 @@ export default function PassageAnneeClient({
 
       {/* ── Les audits ── */}
       <div className="card p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-warm-200">
-          <div>
-            <h2 className="text-sm font-bold text-secondary-800">Audits de l’année</h2>
-            <p className="text-xs text-warm-700">
-              Ils ne modifient rien et se relancent autant de fois que voulu. Le dernier résultat remplace le précédent.
-            </p>
-          </div>
-          <FloatButton type="button" variant="secondary" onClick={toutAuditer} disabled={!!enCours}>
-            {enCours ? 'Audit en cours…' : 'Tout auditer'}
-          </FloatButton>
+        {/* Pas de « Tout auditer » : les audits se lancent un par un, pour qu'on
+            lise le résultat de chacun avant de passer au suivant. */}
+        <div className="px-4 py-3 border-b border-warm-200">
+          <h2 className="text-sm font-bold text-secondary-800">Audits de l’année</h2>
+          <p className="text-xs text-warm-700">
+            Ils ne modifient rien et se relancent autant de fois que voulu. Le dernier résultat remplace le précédent.
+          </p>
         </div>
 
         <ul className="divide-y divide-warm-100">
