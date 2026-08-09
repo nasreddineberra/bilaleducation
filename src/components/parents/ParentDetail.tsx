@@ -20,9 +20,10 @@ interface Props {
   tutor2AdultEnrolled: boolean
   adultHistory: any[]
   adultCurrent: any[]
+  adultsNonAffectes: { tutor_number: number; last_name: string; first_name: string }[]
 }
 
-export default function ParentDetail({ parent, tutor1AdultEnrolled, tutor2AdultEnrolled, adultHistory, adultCurrent }: Props) {
+export default function ParentDetail({ parent, tutor1AdultEnrolled, tutor2AdultEnrolled, adultHistory, adultCurrent, adultsNonAffectes }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
 
@@ -88,7 +89,7 @@ export default function ParentDetail({ parent, tutor1AdultEnrolled, tutor2AdultE
 
       {activeTab === 'scolarite_adulte' && (
         <div role="tabpanel" id="panel-scolarite_adulte" aria-labelledby="tab-scolarite_adulte">
-          <ParentAdultHistory rows={adultHistory} current={adultCurrent} />
+          <ParentAdultHistory rows={adultHistory} current={adultCurrent} nonAffectes={adultsNonAffectes} />
         </div>
       )}
     </div>

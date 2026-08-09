@@ -69,7 +69,15 @@ const STATUS_COLOR: Record<string, string> = {
   withdrawn: 'bg-red-100 text-red-700',
 }
 
-export default function ParentAdultHistory({ rows, current = [] }: { rows: AdultRow[]; current?: CurrentRow[] }) {
+interface TuteurNonAffecte { tutor_number: number; last_name: string; first_name: string }
+
+export default function ParentAdultHistory({
+  rows, current = [], nonAffectes = [],
+}: {
+  rows: AdultRow[]
+  current?: CurrentRow[]
+  nonAffectes?: TuteurNonAffecte[]
+}) {
   const supabase = createClient()
   // Bucket privé : URL signée à la demande. Onglet ouvert AVANT l'await (popup), puis redirigé.
   const openBulletin = async (fp: string) => {
@@ -79,14 +87,14 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
     w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
   }
 
-  if (rows.length === 0 && current.length === 0) {
+  if (rows.length === 0 && current.length === 0 && nonAffectes.length === 0) {
     return (
       <div className="card p-6 text-center">
-        {/* Meme distinction que sur la fiche apprenant : etre inscrit aux cours
-            adultes et etre affecte a une classe sont deux choses. */}
-        <p className="text-sm text-secondary-800">Aucune affectation à un cours adultes.</p>
+        {/* On arrive ici quand AUCUN tuteur n'est meme inscrit aux cours adultes.
+            Le cas « inscrit mais non affecte » est traite plus bas, nomme. */}
+        <p className="text-sm text-secondary-800">Aucun tuteur inscrit aux cours adultes.</p>
         <p className="mt-1 text-xs text-warm-700">
-          Un tuteur inscrit aux cours adultes apparaît ici dès son affectation à une classe.
+          Cochez « Inscrit aux cours adultes » sur l’onglet Identité, puis affectez le tuteur à une classe.
         </p>
       </div>
     )
@@ -94,6 +102,27 @@ export default function ParentAdultHistory({ rows, current = [] }: { rows: Adult
 
   return (
     <div className="space-y-3 animate-fade-in">
+
+      {/* ── Inscrits aux cours adultes, mais affectés à aucune classe ──
+          Une ligne par tuteur concerné : le foyer peut en compter deux, et un
+          seul des deux peut être dans ce cas. Le message NOMME la personne,
+          sans quoi on ne saurait pas de qui il parle. */}
+      {nonAffectes.length > 0 && (
+        <section className="card p-4">
+          <h3 className="text-sm font-semibold text-secondary-800">Aucune affectation à un cours adultes</h3>
+          <ul className="mt-1 space-y-0.5">
+            {nonAffectes.map(t => (
+              <li key={t.tutor_number} className="text-xs text-warm-700">
+                <span className="font-semibold text-warm-800">{t.last_name} {t.first_name}</span>
+                <span className="text-[10px] font-bold uppercase bg-secondary-100 text-secondary-700 px-1.5 py-0.5 rounded ml-1.5">
+                  Tuteur {t.tutor_number}
+                </span>
+                {' · '}inscrit aux cours adultes, en attente d’affectation à une classe.
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ── Année en cours ── */}
       {current.map(h => {

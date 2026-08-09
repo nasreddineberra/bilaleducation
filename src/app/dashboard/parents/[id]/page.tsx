@@ -45,6 +45,19 @@ export default async function EditParentPage({ params }: Props) {
   // tuteur inscrit — un foyer peut en compter deux.
   const adultCurrent = await buildAdultCurrent(supabase, id, parent)
 
+  // Tuteurs INSCRITS aux cours adultes mais AFFECTÉS À AUCUNE classe. Le cas est
+  // exactement celui de l'apprenant sans classe, et il se nomme : un foyer peut
+  // compter deux tuteurs, dont un seul concerné.
+  const affectes = new Set(adultCurrent.map((c: any) => c.tutor_number))
+  const adultsNonAffectes = [
+    parent.tutor1_adult_courses && !affectes.has(1)
+      ? { tutor_number: 1, last_name: parent.tutor1_last_name, first_name: parent.tutor1_first_name }
+      : null,
+    parent.tutor2_adult_courses && !affectes.has(2) && parent.tutor2_last_name
+      ? { tutor_number: 2, last_name: parent.tutor2_last_name, first_name: parent.tutor2_first_name }
+      : null,
+  ].filter(Boolean) as { tutor_number: number; last_name: string; first_name: string }[]
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -62,6 +75,7 @@ export default async function EditParentPage({ params }: Props) {
         tutor2AdultEnrolled={enrolledTutors.has(2)}
         adultHistory={(adultHistory ?? []) as any[]}
         adultCurrent={adultCurrent}
+        adultsNonAffectes={adultsNonAffectes}
       />
 
     </div>
