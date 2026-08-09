@@ -192,6 +192,7 @@ export default function StudentDetail({
         <div role="tabpanel" id="panel-scolarite" aria-labelledby="tab-scolarite">
           <StudentScolarite
             studentId={student.id}
+            studentActive={!!student.is_active}
             enrollments={enrollments}
             periods={periods}
             bulletinArchives={bulletinArchives}

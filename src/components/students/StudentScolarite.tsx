@@ -73,6 +73,9 @@ type WarningRow = {
 
 interface Props {
   studentId: string
+  /** « Inscrit » = ACTIF dans cette application : l'etat vide ne peut pas
+      affirmer qu'un apprenant desactive est inscrit. */
+  studentActive: boolean
   enrollments: EnrollmentRow[]
   periods: PeriodRow[]
   bulletinArchives: BulletinArchiveRow[]
@@ -101,7 +104,7 @@ const DAYS_FR: Record<string, string> = {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function StudentScolarite({
-  enrollments, periods, bulletinArchives, mainTeachers, warnings,
+  studentActive, enrollments, periods, bulletinArchives, mainTeachers, warnings,
 }: Props) {
 
   // Archives indexées par classe:période — la source unique de cet écran.
@@ -166,8 +169,9 @@ export default function StudentScolarite({
             fiche affiche deja « Non affecte ». */}
         <p className="text-sm text-secondary-800">Aucune affectation à une classe.</p>
         <p className="mt-1 text-xs text-warm-700">
-          L’apprenant est inscrit à l’établissement mais n’a pas encore de classe.
-          Sa scolarité apparaîtra ici dès son affectation.
+          {studentActive
+            ? 'L’apprenant est inscrit mais n’a pas encore de classe. Sa scolarité apparaîtra ici dès son affectation.'
+            : 'L’apprenant n’est pas inscrit cette année et n’a aucune classe.'}
         </p>
       </div>
     )
@@ -223,7 +227,10 @@ export default function StudentScolarite({
 
                 <span className="text-xs text-warm-700">
                   {avert > 0 && <>{avert} avert. · </>}
-                  Inscrit le {new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}
+                  {/* `enrollments.enrollment_date` date l'AFFECTATION a la classe.
+                      Dans cette application « inscrit » veut dire ACTIF : appeler
+                      cette date « Inscrit le » melangeait les deux notions. */}
+                  Affecté le {new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}
                 </span>
               </div>
 

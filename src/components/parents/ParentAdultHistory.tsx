@@ -158,7 +158,7 @@ export default function ParentAdultHistory({
               </div>
 
               <span className="text-xs text-warm-700">
-                Inscrit le {new Date(h.enrollment_date).toLocaleDateString('fr-FR')}
+                Affecté le {new Date(h.enrollment_date).toLocaleDateString('fr-FR')}
               </span>
             </div>
 
