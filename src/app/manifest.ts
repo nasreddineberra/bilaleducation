@@ -38,9 +38,11 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   }
 
   return {
-    name: nom ? `${nom} - Bilal Education` : 'Bilal Education',
-    // Libellé sous l'icône, où la place manque : le nom de l'école seul. Les
-    // systèmes tronquent au-delà d'une douzaine de caractères.
+    // Le nom de l'ECOLE SEUL, et non « ÉCOLE X - Bilal Education ». Chrome
+    // COLLE ce nom devant le titre du document pour composer la barre de
+    // fenêtre : y mettre la marque complète la ferait apparaître deux fois
+    // (constaté le 9 août). C'est `TitreFenetre` qui fournit l'autre moitié.
+    name: nom ?? 'Bilal Education',
     short_name: nom ?? 'Bilal',
     description:
       'Plateforme de gestion administrative et pédagogique pour école arabe et islamique.',

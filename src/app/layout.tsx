@@ -6,6 +6,7 @@ import { ToastContainer } from '@/components/ui/Toast'
 import { validateEnv } from '@/lib/env'
 import { headers } from 'next/headers'
 import { getCachedEtablissement } from '@/lib/cache/dashboard'
+import TitreFenetre from '@/components/layout/TitreFenetre'
 
 // Valider les variables d'environnement au démarrage
 validateEnv()
@@ -98,6 +99,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${arabic.variable}`}>
+        <TitreFenetre />
         <ToastProvider>
           {children}
           <ToastContainer />
