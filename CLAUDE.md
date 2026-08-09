@@ -2528,21 +2528,27 @@ trombinoscope vide.
 - **AUDIT « Absences » etendu** aux adultes dans la foulee (sinon on rebouchait un trou en en
   laissant un autre) : second volet sur `adult_absences`, libelle « (adulte) ».
 
+**SCOLARITE ADULTE DE LA FICHE PARENT — FAIT.**
+- **CORRECTION d'un constat errone de ma part** : j'avais annonce que la fiche parent « ne
+  montre qu'une case grisee ». **Faux** — elle a deja des onglets ARIA (Identite / Scolarite
+  adulte) et un `ParentAdultHistory`. Mon releve les avait manques (le grep portait sur
+  `is_adult` / `parent_class_enrollments`, or ce code lit `student_year_history`).
+- Le vrai defaut etait plus etroit : cet onglet ne lisait que les **ARCHIVES de cloture**, donc
+  un adulte inscrit **cette annee** y lisait « aucun cours archive » alors que sa classe, ses
+  notes et son assiduite existent. Ajout de l'**annee VIVANTE** (`buildAdultCurrent` dans
+  `parents/[id]/page.tsx`), **une carte par tuteur inscrit** — un foyer peut en compter deux —
+  avec enseignant, horaire, moyenne, assiduite, notes par periode et bulletins (URL signee).
+  Meme carte que les archives, badge « En cours ».
+- **« Moyenne des notes » et non « Moyenne generale »** : l'annee vivante fait une moyenne
+  simple des notes saisies, l'archive une moyenne **ponderee**. Deux calculs differents ne
+  doivent pas porter le meme nom.
+- **Pas de discipline** (decision) : `student_warnings` n'a pas d'equivalent adulte.
+
 **RESTE A FAIRE (reprise)**
-1. **Onglet « Scolarite » dans la fiche PARENT.** Un adulte apprenant n'a aucune fiche : sa
-   fiche parent ne montre qu'une case « Inscrit aux cours adultes » grisee, alors que ses notes
-   et bulletins existent en base. Passer la fiche en **onglets ARIA** (Identite / Scolarite) avec
-   deep-link `?tab=`, comme les fiches eleve et enseignant. Onglet visible seulement si un tuteur
-   au moins est inscrit ; **une section par tuteur inscrit** (un foyer peut en compter deux, la
-   fiche eleve ne gere qu'une personne). Contenu repris de `StudentScolarite` (inscriptions par
-   annee, notes par periode, bulletins en URL signee, absences/retards) en lisant
-   `parent_class_enrollments` / `adult_grades` / `adult_bulletin_archives` / `adult_absences`.
-   - **Decision prise** : **pas de discipline pour les adultes** (`student_warnings` n'a pas
-     d'equivalent, et rien dans l'app ne suggere qu'on sanctionne un adulte inscrit). L'onglet
-     est donc identique **moins ce bloc**. Y revenir demanderait une table + un formulaire.
-2. **Verifier a l'ecran** la feuille d'appel adultes : elle n'a jamais tourne avec de vraies
-   donnees (0 ligne dans `adult_absences` a la livraison). Points a regarder en premier :
-   saisie + enregistrement, justificatif (bucket prive, URL signee), impression PDF.
+1. **Verifier a l'ecran** ce qui n'a jamais tourne avec de vraies donnees : la **feuille d'appel
+   adultes** (0 ligne dans `adult_absences` a la livraison) — saisie + enregistrement,
+   justificatif (bucket prive, URL signee), impression PDF — et la **carte « En cours »** de
+   l'onglet Scolarite adulte (2 participants sur `ADUL-DA-BL1`).
 
 ## Prochaine etape
 
