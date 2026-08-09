@@ -54,7 +54,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/cahier-texte/new':  'Nouvelle séance',
   '/dashboard/mon-compte':        'Mon compte',
   '/dashboard/support':           'Support technique',
-  '/dashboard/passage-annee':     'Passage d\'année',
+  '/dashboard/passage-annee':     'Audits & Passage d\'année',
 }
 
 /**
@@ -161,7 +161,7 @@ function getBreadcrumbs(pathname: string): Crumb[] {
 
   // Section Clôture
   if (pathname === '/dashboard/passage-annee')
-    return [{ label: 'Clôture' }, { label: 'Passage d’année' }]
+    return [{ label: 'Clôture' }, { label: 'Audits & Passage d’année' }]
 
   // Pages Paramètres niveau 1 (2 niveaux)
   const paramsPages: Record<string, string> = {

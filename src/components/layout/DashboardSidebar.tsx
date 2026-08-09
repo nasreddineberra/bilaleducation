@@ -264,7 +264,7 @@ const navItems: NavItem[] = [
   // ni une opération courante ni un réglage. Il était enfoui dans la fiche
   // Année scolaire, où rien n'annonçait sa portée.
   {
-    name:  'Passage d\'année',
+    name:  'Audits & Passage d\'année',
     href:  '/dashboard/passage-annee',
     icon:  CalendarCheck,
     roles: ['admin', 'direction'],
@@ -360,7 +360,7 @@ const SECTION_OF: Record<string, string> = {
   'Cahier de texte':    'Pédagogie',
   'Communications':     'Gestion',
   'Financements':       'Gestion',
-  'Passage d\'année':   'Clôture',
+  'Audits & Passage d\'année': 'Clôture',
   // Section Paramètres
   'Année scolaire':     'Paramètres',
   'Pédagogie':          'Paramètres',   // item (Param. Classes / Référentiel Cours)
