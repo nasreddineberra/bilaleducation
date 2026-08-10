@@ -269,7 +269,7 @@ export default function PassageAnneeClient({
                     {!fige && (
                       <FloatButton
                         type="button"
-                        variant="secondary"
+                        variant="submit"
                         disabled={!!enCours}
                         onClick={() => (etat ? reinitialiser(step.key) : lancer(step.key))}
                         size="mini"
@@ -484,7 +484,7 @@ export default function PassageAnneeClient({
                   <span className="text-xs font-medium text-secondary-800">{p.label}</span>
                   <FloatButton
                     type="button"
-                    variant="secondary"
+                    variant="submit"
                     disabled={occupe}
                     onClick={() => archiver(p.id, p.label)}
                     size="mini"
