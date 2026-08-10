@@ -176,6 +176,32 @@ function Vide({ texte }: { texte: string }) {
   return <p className="px-3 py-6 text-xs text-[var(--ink-muted)] text-center">{texte}</p>
 }
 
+/**
+ * Groupe de cours d'un module, présenté en CARTE avec son en-tête.
+ *
+ * Le rattachement est porté par la STRUCTURE et non par la couleur. La piste
+ * des bandes teintées a été abandonnée après mesure : au-delà de cinq teintes,
+ * garder toutes les paires distinctes pour toutes les formes de daltonisme est
+ * impossible dans cet espace — la palette de 15 couleurs du projet échoue
+ * d'ailleurs au contrôle (violet contre bleu, ΔE 1,3). Une bordure et un
+ * en-tête ne connaissent pas ce plafond, et se lisent en noir et blanc.
+ */
+function CarteGroupe({
+  titre, compte, children,
+}: {
+  titre: string; compte: number; children: React.ReactNode
+}) {
+  return (
+    <div role="group" aria-label={titre} className="rounded-lg border border-[var(--line-strong)] overflow-hidden">
+      <div className="h-8 flex items-center gap-2 px-2.5 bg-[var(--surface-sunken)] border-b border-[var(--line)]">
+        <span aria-hidden="true" className="list-th !px-0 !py-0 truncate">{titre}</span>
+        <span className="text-[10px] text-[var(--ink-muted)] tabular-nums ml-auto flex-shrink-0">{compte}</span>
+      </div>
+      <div className="py-1">{children}</div>
+    </div>
+  )
+}
+
 export default function ReferentielColonnes({
   ues, modules, cours, gabaritsParCours, anneeLabel,
 }: {
@@ -213,14 +239,30 @@ export default function ReferentielColonnes({
   const ueActive     = sel.ueId
   const modulesDeUE  = modules.filter(m => m.unite_enseignement_id === ueActive)
   const coursDirects = cours.filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
-  const coursDuModule = cours.filter(c => c.module_id === sel.moduleId)
-  const coursDeUE     = cours.filter(c => c.unite_enseignement_id === ueActive)
 
-  // Colonne 3 : les cours du module choisi, ou les cours directs quand c'est le
-  // groupe « sans module » qui est sélectionné (`moduleId` vaut alors la
-  // sentinelle ci-dessous).
   const SANS_MODULE = '__directs__'
-  const coursAffiches = sel.moduleId === SANS_MODULE ? coursDirects : coursDuModule
+
+  /**
+   * Ce que montre la troisième colonne : une CARTE par module.
+   *
+   * Aucun module choisi → toute l'unité, module par module. Un module choisi →
+   * cette seule carte. La présentation ne change pas d'un cas à l'autre : le
+   * regard n'a rien à réapprendre, seule la quantité varie.
+   *
+   * Les modules VIDES sont écartés : une carte à en-tête sans contenu
+   * n'apprendrait rien et allongerait la colonne. Leur existence se lit dans la
+   * colonne du milieu, qui est faite pour ça.
+   */
+  const groupes = useMemo(() => {
+    const tous = [
+      ...modulesDeUE.map(m => ({
+        cle: m.id, titre: m.nom_fr, liste: cours.filter(c => c.module_id === m.id),
+      })),
+      { cle: SANS_MODULE, titre: 'Sans module', liste: coursDirects },
+    ].filter(g => g.liste.length > 0)
+
+    return sel.moduleId ? tous.filter(g => g.cle === sel.moduleId) : tous
+  }, [modulesDeUE, coursDirects, cours, sel.moduleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-2">
@@ -334,7 +376,7 @@ export default function ReferentielColonnes({
         <div className="flex-1 min-w-0 flex">
           <Encadre
             titre="Cours"
-            compte={sel.moduleId ? coursAffiches.length : coursDeUE.length}
+            compte={groupes.reduce((t, g) => t + g.liste.length, 0)}
             actions={sel.moduleId ? [{ libelle: 'Ajouter', aria: 'Ajouter un cours' }] : []}
             liste="Cours du module"
             className="flex-1 min-w-0"
@@ -348,61 +390,28 @@ export default function ReferentielColonnes({
                coup ce que porte l'unité. C'est le prix des colonnes en cascade, et
                il n'a pas à être payé ici : on affiche TOUS les cours de l'unité,
                groupés par module. Choisir un module ne fait alors que resserrer. */
-            ) : !sel.moduleId ? (
-              coursDeUE.length === 0
-                ? <Vide texte="Cette unité ne contient aucun cours." />
-                : (
-                  <>
-                    {modulesDeUE.map(m => {
-                      const liste = cours.filter(c => c.module_id === m.id)
-                      if (!liste.length) return null
-                      return (
-                        <div key={m.id} role="group" aria-label={m.nom_fr}>
-                          <p aria-hidden="true" className="list-th !py-1 mt-1 first:mt-0">{m.nom_fr}</p>
-                          {liste.map(c => (
-                            <Ligne
-                              key={c.id}
-                              code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
-                              badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
-                              actif={sel.coursId === c.id}
-                              chevron={false}
-                              onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
-                            />
-                          ))}
-                        </div>
-                      )
-                    })}
-                    {coursDirects.length > 0 && (
-                      <div role="group" aria-label="Cours sans module">
-                        <p aria-hidden="true" className="list-th !py-1 mt-1 first:mt-0">Sans module</p>
-                        {coursDirects.map(c => (
-                          <Ligne
-                            key={c.id}
-                            code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
-                            badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
-                            actif={sel.coursId === c.id}
-                            chevron={false}
-                            onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )
-
-            ) : coursAffiches.length === 0 ? (
-              <Vide texte="Ce module ne contient aucun cours." />
+            ) : groupes.length === 0 ? (
+              <Vide texte={sel.moduleId ? 'Ce module ne contient aucun cours.' : "Cette unité ne contient aucun cours."} />
             ) : (
-              coursAffiches.map(c => (
-                <Ligne
-                  key={c.id}
-                  code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
-                  badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
-                  actif={sel.coursId === c.id}
-                  chevron={false}
-                  onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
-                />
-              ))
+              /* Une carte par module. Choisir un module dans la colonne du
+                 milieu ne change pas la presentation : il ne reste qu'une
+                 carte. Le regard n'a donc rien a reapprendre. */
+              <div className="px-2 py-1 space-y-2">
+                {groupes.map(g => (
+                  <CarteGroupe key={g.cle} titre={g.titre} compte={g.liste.length}>
+                    {g.liste.map(c => (
+                      <Ligne
+                        key={c.id}
+                        code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
+                        badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
+                        actif={sel.coursId === c.id}
+                        chevron={false}
+                        onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
+                      />
+                    ))}
+                  </CarteGroupe>
+                ))}
+              </div>
             )}
           </Encadre>
         </div>
