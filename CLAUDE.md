@@ -2677,6 +2677,32 @@ Nouveau logo (anneau hexagonal plein a degrade, en remplacement du moulinet a tr
   teal et sur clair) : c'est l'**inverse** — l'ancien devenait un gribouillis illisible sous 32 px,
   le nouveau tient. Aucune retouche d'opacite ou de taille.
 
+#### 10 aout 2026 — Le theme ne se change plus pendant une intervention de support
+
+**Sequence reproduite par l'utilisateur** : entrer dans une ecole depuis la console,
+**changer de mode (clair → sombre) sur le site de l'ecole**, revenir sur la console →
+les ennuis de deconnexion apparaissent. Hors de cette sequence, un nouveau test de la
+deconnexion seule s'est revele **correct**.
+- **Ce qui est certain, et suffit a justifier le correctif** : le theme est une preference
+  **PERSONNELLE**, rangee dans `profiles.theme` — donc dans le profil de **l'EDITEUR**, meme
+  quand il agit sous l'identite d'une ecole. Le changer la modifie son reglage a lui et le
+  suit jusque dans sa console : un etat qui **traverse la frontiere** que l'intervention est
+  censee tenir. (`localStorage`, lui, est par origine : rien ne fuit entre `ecole.` et
+  `superadmin.`.)
+- **Correctif** : bascule **masquee** dans `DashboardNav` quand `supportEcole` est pose
+  (masquee et non grisee — pendant une intervention il n'existe aucun cas ou ce reglage
+  serait legitime), **et refus serveur dans `setOwnTheme`** via `isSupportSession` :
+  masquer un bouton ne protege rien, une server action reste appelable.
+- **HONNETETE — le mecanisme de la panne de deconnexion n'est PAS explique.** La lecture du
+  code n'a rien donne : `setOwnTheme` n'ecrit que `theme`, le trigger anti-escalade ne mord
+  que sur `role`/`etablissement_id`, et le seul effet de bord est `updateTag('profile')`.
+  Le correctif supprime le geste declencheur, il ne prouve pas la cause. **A refaire tester
+  par l'utilisateur sur la sequence exacte.**
+- **Consequence assumee a surveiller** : l'editeur ne peut plus changer de theme **du tout**
+  — la console n'a pas de bascule, et l'intervention la lui refuse desormais. S'il se
+  retrouve coince dans un theme qui le gene, le repli serait une bascule **visuelle
+  seulement** (sans persistance) pendant les interventions.
+
 #### A CONSIGNER — DECONNEXION DE LA CONSOLE SUPER-ADMIN (10 aout)
 
 Signale par l'utilisateur en fin de session. **Symptome non decrit, rien de verifie.**

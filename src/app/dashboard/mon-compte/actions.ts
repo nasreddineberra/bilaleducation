@@ -3,7 +3,7 @@
 import { updateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { effectiveRole } from '@/lib/auth/effective-role'
+import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
@@ -49,6 +49,23 @@ export async function setOwnTheme(theme: 'light' | 'dark'): Promise<{ error?: st
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Non authentifié.' }
+
+  // ── REFUS PENDANT UNE INTERVENTION DE SUPPORT ────────────────────────────
+  //
+  // Le thème est une préférence PERSONNELLE, rangée dans `profiles.theme` —
+  // donc dans le profil de l'ÉDITEUR, même lorsqu'il agit sous l'identité d'une
+  // école. L'enregistrer ici modifierait son réglage à lui et le suivrait
+  // jusque dans sa console : un état qui traverse la frontière que
+  // l'intervention est censée tenir.
+  //
+  // La bascule est masquée dans l'en-tête pendant une intervention, mais une
+  // server action reste appelable : c'est ICI que le refus compte.
+  const { data: profil } = await supabase
+    .from('profiles').select('role, etablissement_id').eq('id', user.id).maybeSingle()
+
+  if (isSupportSession(profil)) {
+    return { error: "Le thème ne peut pas être changé pendant une intervention de support." }
+  }
 
   // `.select()` est indispensable : un UPDATE filtré par la RLS ne renvoie AUCUNE
   // erreur, il modifie simplement 0 ligne. Sans ça, l'échec passe inaperçu.

@@ -271,7 +271,19 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0, supp
         {supportEcole && <SupportBanner ecole={supportEcole} />}
 
         <div className="flex items-center gap-3 ml-auto">
-          {/* Bascule thème clair / sombre — sélecteur segmenté */}
+          {/* ── Bascule thème clair / sombre — sélecteur segmenté ──────────────
+              MASQUÉE PENDANT UNE INTERVENTION DE SUPPORT. Le thème est une
+              préférence PERSONNELLE, rangée dans `profiles.theme` — donc dans le
+              profil de l'ÉDITEUR, même quand il agit sous l'identité d'une école.
+              La changer ici modifie son réglage à lui et le suit jusque dans sa
+              console : un état qui traverse la frontière que l'intervention est
+              censée tenir.
+
+              Masquée et non grisée : pendant une intervention, il n'existe aucun
+              cas où ce réglage serait légitime (même motif que la suppression
+              d'enseignant, cachée à la secrétaire). La garde qui compte est
+              côté serveur, dans `setOwnTheme` — masquer un bouton ne protège rien. */}
+          {!supportEcole && (
           <div
             role="group"
             aria-label="Thème de l'interface"
@@ -310,6 +322,7 @@ export default function DashboardNav({ user, profile, unreadNotifCount = 0, supp
             </button>
             </Tooltip>
           </div>
+          )}
 
           {/* Notifications */}
           <Tooltip content={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'} position="bottom">
