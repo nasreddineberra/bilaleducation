@@ -52,9 +52,18 @@ type Selection = { ueId: string | null; moduleId: string | null; coursId: string
  * déclencheur refusant un cours qui sert un gabarit de l'année en cours. La
  * suppression partant du navigateur, un contrôle d'écran ne protégerait rien.
  */
+type Emplacement = { classe: string; periode: string }
+
 type DeleteDeps =
   | { etat: 'calcul' }
-  | { etat: 'pret'; motifBlocage: string | null; avertissements: string[] }
+  | {
+      etat: 'pret'
+      motifBlocage: string | null
+      avertissements: string[]
+      /** Où le cours est encore utilisé. Dire COMBIEN sans dire OÙ laisse
+       *  l'utilisateur chercher : le tableau lui épargne la fouille. */
+      emplacements: Emplacement[]
+    }
 
 // Normalisation de recherche : minuscules + accents retirés, comme l'arbre.
 const norm = (s: string | null | undefined) =>
@@ -682,8 +691,8 @@ export default function ReferentielColonnes({
     if (!aSupprimer) return
     let annule = false
     setDeps({ etat: 'calcul' }); setErreurSuppr(null)
-    const pret = (motifBlocage: string | null, avertissements: string[] = []) => {
-      if (!annule) setDeps({ etat: 'pret', motifBlocage, avertissements })
+    const pret = (motifBlocage: string | null, avertissements: string[] = [], emplacements: Emplacement[] = []) => {
+      if (!annule) setDeps({ etat: 'pret', motifBlocage, avertissements, emplacements })
     }
 
     if (aSupprimer.nature === 'module') {
@@ -705,22 +714,43 @@ export default function ReferentielColonnes({
     // Un cours : ses gabarits vivent ailleurs, il faut aller les compter.
     ;(async () => {
       const supabase = createClient()
+      // Classe et période remontées avec le compte : `!inner` sur `classes`
+      // (le filtre d'année en dépend), simple sur `periods` — une évaluation
+      // sans période existe en base, la masquer fausserait le compte.
       const { data } = await supabase
         .from('evaluations')
-        .select('id, classes!inner(academic_year)')
+        .select('id, classes!inner(academic_year, name), periods(label)')
         .eq('cours_id', aSupprimer.id)
-      const lignes = (data ?? []) as Array<{ classes: { academic_year: string } | { academic_year: string }[] }>
-      const annee = (l: (typeof lignes)[number]) =>
-        Array.isArray(l.classes) ? l.classes[0]?.academic_year : l.classes?.academic_year
-      const vivants  = anneeLabel ? lignes.filter(l => annee(l) === anneeLabel).length : 0
-      const archives = lignes.length - vivants
+
+      type Ligne = {
+        classes: { academic_year: string; name: string } | { academic_year: string; name: string }[]
+        periods: { label: string } | { label: string }[] | null
+      }
+      // PostgREST rend un objet ou un tableau selon la cardinalité qu'il déduit :
+      // on aplatit dans les deux cas plutôt que de parier sur l'une des formes.
+      const un = <T,>(v: T | T[] | null): T | undefined => (Array.isArray(v) ? v[0] : v ?? undefined)
+
+      const lignes = (data ?? []) as Ligne[]
+      const vivantes = anneeLabel
+        ? lignes.filter(l => un(l.classes)?.academic_year === anneeLabel)
+        : []
+      const archives = lignes.length - vivantes.length
+
+      const emplacements: Emplacement[] = vivantes
+        .map(l => ({
+          classe:  un(l.classes)?.name ?? '(classe inconnue)',
+          periode: un(l.periods)?.label ?? '(sans période)',
+        }))
+        .sort((a, b) => a.classe.localeCompare(b.classe, 'fr') || a.periode.localeCompare(b.periode, 'fr'))
+
       pret(
-        vivants > 0
-          ? `Ce cours sert ${vivants} gabarit${vivants > 1 ? 's' : ''} d'évaluation de l'année en cours. Supprimez-les d'abord.`
+        vivantes.length > 0
+          ? `Ce cours est encore présent dans ${vivantes.length} gabarit${vivantes.length > 1 ? 's' : ''} d'évaluation de l'année en cours.`
           : null,
         archives > 0
           ? [`${archives} évaluation${archives > 1 ? 's' : ''} d'années précédentes archivées perdront leur rattachement.`]
           : [],
+        emplacements,
       )
     })()
     return () => { annule = true }
@@ -948,6 +978,28 @@ export default function ReferentielColonnes({
             )}
             {deps.etat === 'pret' && deps.motifBlocage && (
               <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{deps.motifBlocage}</p>
+            )}
+            {deps.etat === 'pret' && deps.emplacements.length > 0 && (
+              /* Hauteur bornée : un cours peut servir dans beaucoup de classes,
+                 et une modale qui s'allonge repousse ses boutons hors de l'écran. */
+              <div className="rounded-lg border border-[var(--line-strong)] overflow-hidden max-h-40 overflow-y-auto list-scroll">
+                <table className="w-full text-xs" aria-label="Gabarits qui utilisent ce cours">
+                  <thead>
+                    <tr className="bg-[var(--surface-sunken)]">
+                      <th scope="col" className="list-th !px-2 !py-1">Classe</th>
+                      <th scope="col" className="list-th !px-2 !py-1">Période</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deps.emplacements.map((e: Emplacement, i: number) => (
+                      <tr key={`${e.classe}-${e.periode}-${i}`} className="border-t border-[var(--line)]">
+                        <td className="px-2 py-1 text-[var(--ink)]">{e.classe}</td>
+                        <td className="px-2 py-1 text-[var(--ink-muted)]">{e.periode}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             {deps.etat === 'pret' && !deps.motifBlocage && deps.avertissements.map((a: string) => (
               <p key={a} className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">{a}</p>
