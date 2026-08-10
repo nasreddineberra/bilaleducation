@@ -30,11 +30,16 @@
     background: rgba(255, 255, 255, 0.30);
   }
 
-  /* Scrollbar fine pour les listes sur fond clair (encadres bornes).
-     Pendant clair de .sidebar-scroll : meme affordance, pouce chaud. */
+  /* Scrollbar fine des encadres bornes. Pendant de .sidebar-scroll, taillee
+     pour la sidebar sombre.
+
+     LA TEINTE EST UN JETON, declare par theme : elle etait ecrite en dur, en
+     gris chaud choisi pour un fond CLAIR — son commentaire le disait — et
+     restait donc la meme sur l'ardoise du theme sombre, ou elle se fondait.
+     Une couleur qui doit suivre le theme n'a rien a faire dans la regle. */
   .list-scroll {
     scrollbar-width: thin;
-    scrollbar-color: rgba(120, 113, 108, 0.28) transparent;
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
   .list-scroll::-webkit-scrollbar {
     width: 6px;
@@ -43,11 +48,11 @@
     background: transparent;
   }
   .list-scroll::-webkit-scrollbar-thumb {
-    background: rgba(120, 113, 108, 0.28);
+    background: var(--scroll-thumb);
     border-radius: 3px;
   }
   .list-scroll:hover::-webkit-scrollbar-thumb {
-    background: rgba(120, 113, 108, 0.45);
+    background: var(--scroll-thumb-hover);
   }
 }
 
@@ -78,6 +83,10 @@
     --line:           #f0ece8;   /* bordures douces (warm-100) */
     --line-strong:    #d0c6ba;   /* bordures de champ (warm-300) */
     --card-shadow:    0 2px 8px rgba(47,69,80,.08), 0 1px 3px rgba(47,69,80,.04);
+    /* Pouce des barres de defilement fines (.list-scroll). Gris chaud sur les
+       surfaces claires ; la variante sombre est plus bas. */
+    --scroll-thumb:       rgba(120, 113, 108, 0.28);
+    --scroll-thumb-hover: rgba(120, 113, 108, 0.45);
     /* Relief du logo sur les blocs de MARQUE (fond sombre dans les deux
        thèmes). Jeton distinct de --card-shadow, qui est un box-shadow de 2 px :
        aucun rapport d'échelle. Ici, panneau `--brand-surface` = #0c5b51. */
@@ -113,6 +122,10 @@
     --line:           #243139;
     --line-strong:    #2c3a42;
     --card-shadow:    0 2px 10px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.25);
+    /* Sur l'ardoise, un gris chaud a 28 % se fond dans le fond : le pouce
+       ECLAIRCIT au lieu d'assombrir, comme le fait deja .sidebar-scroll. */
+    --scroll-thumb:       rgba(255, 255, 255, 0.18);
+    --scroll-thumb-hover: rgba(255, 255, 255, 0.32);
     /* Panneau de marque plus sombre ici (#18242a) : une ombre noire y a moins
        de matière contre quoi se détacher, d'où la densité relevée. */
     --logo-shadow:    0 12px 28px rgba(0,0,0,.80);

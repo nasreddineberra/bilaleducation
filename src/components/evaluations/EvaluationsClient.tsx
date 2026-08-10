@@ -6,6 +6,7 @@ import {
   ChevronUp, ChevronRight, ChevronDown, BookOpen, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatInput, FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
@@ -221,40 +222,6 @@ function InlineEvalForm({
 }
 
 
-// Nom arabe : police du projet, taille RELATIVE — sans ca il retomberait sur la
-// fallback systeme, et une taille fixe desequilibrerait des lignes en text-xs.
-const AR_INLINE: React.CSSProperties = { fontFamily: 'var(--font-arabic), sans-serif', fontSize: '1.45em' }
-
-/** Libelle affiche dans l'arbre : « Nom FR · Nom AR ». Rendu inline pour que la
- *  troncature du conteneur porte sur l'ensemble. */
-function refLabel(item: { nom_fr?: string | null; nom_ar?: string | null } | null | undefined) {
-  const fr = item?.nom_fr?.trim() ?? ''
-  const ar = item?.nom_ar?.trim()
-  if (!ar) return fr
-  return (
-    <>
-      {fr}
-      {fr && <span aria-hidden="true" className="mx-1 text-warm-700">·</span>}
-      <span dir="rtl" className="font-normal" style={AR_INLINE}>{ar}</span>
-    </>
-  )
-}
-
-/** Meme libelle pour l'infobulle, mais sans troncature : c'est elle qui donne
- *  le nom complet quand la ligne est coupee. */
-function refTooltip(item: { nom_fr?: string | null; nom_ar?: string | null } | null | undefined) {
-  const fr = item?.nom_fr?.trim()
-  const ar = item?.nom_ar?.trim()
-  if (!fr && !ar) return ''
-  if (!ar) return fr as string
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      {fr && <span>{fr}</span>}
-      {fr && <span aria-hidden="true">·</span>}
-      <span dir="rtl" style={{ fontFamily: 'var(--font-arabic), sans-serif', fontSize: '15px' }}>{ar}</span>
-    </span>
-  )
-}
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
