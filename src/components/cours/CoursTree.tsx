@@ -209,7 +209,19 @@ const norm = (s: string | null | undefined) =>
 function BadgeGabarits({ n, annee }: { n: number; annee: string | null }) {
   if (!n) return null
   return (
-    <Tooltip content={`${n} gabarit${n > 1 ? 's' : ''} d'évaluation${annee ? ` en ${annee}` : ''}`}>
+    <Tooltip
+      // `max-w-none` + `whitespace-nowrap` : la bulle est bornée à `max-w-xs`
+      // par défaut, ce qui découpait la phrase en quatre lignes molles. Les
+      // deux lignes sont ici DÉCIDÉES — l'usage d'abord, l'année ensuite — et
+      // non subies par le retour à la ligne automatique.
+      maxWidth="max-w-none"
+      content={
+        <span className="whitespace-nowrap">
+          {`Utilisé dans ${n} gabarit${n > 1 ? 's' : ''} d'évaluation`}
+          {annee && <><br />{`en ${annee}`}</>}
+        </span>
+      }
+    >
       <span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-1.5 py-px rounded-full flex-shrink-0 tabular-nums cursor-default">
         {n}
       </span>
