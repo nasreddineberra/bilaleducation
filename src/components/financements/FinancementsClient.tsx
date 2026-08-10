@@ -1337,20 +1337,20 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto list-scroll">
               {/* Raccourcis : le cas d'usage courant est « les enfants seulement ». */}
               <div className="flex flex-wrap items-center gap-2">
-                <FloatButton type="button" variant="secondary" className="text-xs px-2.5 py-1"
+                <FloatButton type="button" variant="secondary" size="mini"
                   onClick={() => {
                     setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
                     setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))
                   }}>Tout</FloatButton>
                 {selectedParent.students.length > 0 && (
-                  <FloatButton type="button" variant="secondary" className="text-xs px-2.5 py-1"
+                  <FloatButton type="button" variant="secondary" size="mini"
                     onClick={() => {
                       setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
                       setAttestAdults(new Set())
                     }}>Élèves seulement</FloatButton>
                 )}
                 {selectedParent.adultLines.length > 0 && (
-                  <FloatButton type="button" variant="secondary" className="text-xs px-2.5 py-1"
+                  <FloatButton type="button" variant="secondary" size="mini"
                     onClick={() => {
                       setAttestStudents(new Set())
                       setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))

@@ -27,12 +27,17 @@ export default function FormModal({
   children,
   footer,
   maxWidth = 'max-w-md',
+  footerSeparator = true,
 }: {
   title: string
   onClose: () => void
   children: React.ReactNode
   footer: React.ReactNode
   maxWidth?: string
+  /** Filet au-dessus du pied. À désactiver quand le pied contient un CHAMP et
+   *  non seulement des actions : le trait couperait alors le formulaire en deux
+   *  et ferait passer la partie basse pour une autre zone. */
+  footerSeparator?: boolean
 }) {
   const titleId = useId()
 
@@ -58,7 +63,9 @@ export default function FormModal({
           </button>
         </div>
         <div className="px-5 py-4 space-y-3 overflow-y-auto min-h-0">{children}</div>
-        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100 shrink-0">{footer}</div>
+        <div className={`flex items-center gap-2 px-5 py-3 shrink-0${footerSeparator ? ' border-t border-warm-100' : ''}`}>
+          {footer}
+        </div>
       </div>
     </div>,
     document.body,

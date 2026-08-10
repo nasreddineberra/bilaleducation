@@ -99,17 +99,19 @@ function Encadre({
         {/* Mini-boutons : libellé seul, jamais d'icône (règle du projet).
             L'`aria-label` porte la phrase entière, le bouton n'affichant qu'un
             mot. */}
-        <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+        {/* `size="mini"` — la taille réduite du projet, désormais portée par
+            `FloatButton` au lieu d'être recopiée à la main. La variante reste
+            `submit` : c'est celle des actions de création, là où Règlements
+            emploie `secondary` pour de simples raccourcis. */}
+        <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
           {actions.map(a => (
-            <button
-              key={a.aria}
-              type="button"
-              aria-label={a.aria}
-              onClick={a.onClick}
-              className="text-[11px] font-semibold text-primary-700 border border-primary-600/40 hover:bg-primary-50 px-2 py-0.5 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            <FloatButton
+              key={a.aria} type="button" variant="submit"
+              size="mini"
+              aria-label={a.aria} onClick={a.onClick}
             >
               {a.libelle}
-            </button>
+            </FloatButton>
           ))}
         </span>
       </div>
@@ -259,7 +261,6 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
   const [ref, setRef]     = useState('')
   const [nomFr, setNomFr] = useState('')
   const [nomAr, setNomAr] = useState('')
-  const [couleur, setCouleur] = useState('#3B82F6')
 
   const titre =
     ajout.kind === 'ue'     ? "Nouvelle unité d'enseignement" :
@@ -273,6 +274,7 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
     <FormModal
       title={titre}
       onClose={onClose}
+      footerSeparator={false}
       footer={
         /* Le pied porte la RÉF et les boutons sur la même ligne — réf à gauche,
            actions à droite — et la mention des champs obligatoires sous la réf.
@@ -313,19 +315,6 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
         label="Nom (AR)" value={nomAr} dir="rtl" style={arStyle}
         onChange={e => setNomAr(e.target.value)}
       />
-
-      {ajout.kind === 'ue' && (
-        <div className="flex items-center gap-2">
-          <label htmlFor="couleur-ue" className="text-xs font-semibold text-[var(--ink-muted)] uppercase tracking-wide">
-            Couleur
-          </label>
-          <input
-            id="couleur-ue" type="color" value={couleur}
-            onChange={e => setCouleur(e.target.value)}
-            className="h-8 w-14 rounded cursor-pointer border border-[var(--line-strong)]"
-          />
-        </div>
-      )}
     </FormModal>
   )
 }

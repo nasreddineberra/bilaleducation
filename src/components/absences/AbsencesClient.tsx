@@ -561,7 +561,7 @@ export default function AbsencesClient({
                     type="button"
                     onClick={() => setShowSaisie(true)}
                     disabled={isAllClasses}
-                    className="text-xs px-2.5 py-1"
+                    size="mini"
                   >
                     Ajouter
                   </FloatButton>
@@ -572,7 +572,7 @@ export default function AbsencesClient({
                     type="button"
                     onClick={handlePrintPdf}
                     disabled={isAllClasses}
-                    className="text-xs px-2.5 py-1"
+                    size="mini"
                   >
                     Feuille vierge
                   </FloatButton>

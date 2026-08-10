@@ -409,6 +409,16 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
 
 export interface FloatButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?:  'submit' | 'secondary' | 'edit' | 'danger' | 'primary' | 'brand'
+  /**
+   * TAILLE, orthogonale à la variante — et non une variante de plus : sans ça
+   * il faudrait `mini-submit`, `mini-secondary`, `mini-danger`… pour chaque
+   * couleur. `mini` sert aux boutons posés DANS un en-tête ou une barre, où un
+   * bouton pleine taille écraserait la ligne.
+   *
+   * Remplace l'habillage `className="text-xs px-2.5 py-1"` qu'on recopiait à la
+   * main : une valeur répétée finit toujours par diverger.
+   */
+  size?:     'normal' | 'mini'
   loading?:  boolean
   children:  React.ReactNode
 }
@@ -431,6 +441,7 @@ const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
 
 export function FloatButton({
   variant = 'submit',
+  size = 'normal',
   loading = false,
   disabled,
   children,
@@ -443,7 +454,8 @@ export function FloatButton({
       disabled={disabled || loading}
       className={[
         'inline-flex items-center justify-center gap-2',
-        'px-5 py-2 rounded-lg font-semibold text-sm tracking-wide',
+        size === 'mini' ? 'px-2.5 py-1 text-xs' : 'px-5 py-2 text-sm',
+        'rounded-lg font-semibold tracking-wide',
         'transition-all duration-200',
         'focus:outline-none focus:ring-2 focus:ring-offset-1',
         'active:scale-[0.97] select-none',
