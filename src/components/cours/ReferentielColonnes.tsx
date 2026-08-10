@@ -59,26 +59,41 @@ function Badge({ n, annee }: { n: number; annee: string | null }) {
   )
 }
 
-/** Colonne : en-tête, corps défilant, pied d'action. Les trois sont identiques. */
-function Colonne({
-  titre, compte, children, action,
+/**
+ * Encadré : en-tête (titre · compte · bouton d'ajout) puis corps défilant.
+ *
+ * Trois cartes distinctes plutôt qu'une seule découpée : chaque niveau devient
+ * un objet à part entière, avec sa propre bordure et son propre ombrage. Le
+ * bouton d'ajout monte dans l'en-tête — en pied de carte, il flottait sans
+ * appartenir à rien, exactement le défaut de l'arbre en service.
+ */
+function Encadre({
+  titre, compte, ajout, liste, className = '', children,
 }: {
-  titre: string; compte: number; children: React.ReactNode; action: string
+  titre: string; compte: number; ajout: string
+  /** Libellé de la liste de choix — porté par le CORPS, jamais par la carte :
+   *  un `listbox` ne contient que des `option`, et l'en-tête porte un bouton. */
+  liste: string
+  className?: string; children: React.ReactNode
 }) {
   return (
-    <div className="flex-1 min-w-0 flex flex-col border-r border-[var(--line)] last:border-r-0">
-      <div className="h-9 flex items-center justify-between px-3 border-b border-[var(--line)] bg-[var(--surface-sunken)] flex-shrink-0">
+    <div className={`card p-0 flex flex-col overflow-hidden ${className}`}>
+      <div className="h-9 flex items-center gap-2 px-3 border-b border-[var(--line)] bg-[var(--surface-sunken)] flex-shrink-0">
         <span className="list-th !px-0 !py-0">{titre}</span>
         <span className="text-[10px] text-[var(--ink-muted)] tabular-nums">{compte}</span>
-      </div>
-      <div className="flex-1 min-h-0 overflow-y-auto list-scroll py-1">{children}</div>
-      <div className="border-t border-[var(--line)] px-2 py-1.5 flex-shrink-0">
+        {/* Mini-bouton : libellé seul, jamais d'icône (règle du projet). Les
+            trois portent le même mot, d'où l'`aria-label` qui les distingue
+            pour qui ne voit pas l'en-tête au-dessus. */}
         <button
           type="button"
-          className="text-xs font-medium text-primary-700 hover:text-primary-800 px-1.5 py-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          aria-label={ajout}
+          className="ml-auto flex-shrink-0 text-[11px] font-semibold text-primary-700 border border-primary-600/40 hover:bg-primary-50 px-2 py-0.5 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
         >
-          {action}
+          Ajouter
         </button>
+      </div>
+      <div role="listbox" aria-label={liste} className="flex-1 min-h-0 overflow-y-auto list-scroll py-1">
+        {children}
       </div>
     </div>
   )
@@ -218,102 +233,117 @@ export default function ReferentielColonnes({
         />
       </div>
 
-      {/* Hauteur bornée : ce sont les COLONNES qui défilent, jamais la page —
-          sinon les trois en-têtes disparaîtraient au premier défilement. */}
-      <div className="card p-0 overflow-hidden">
-        <div className="flex h-[calc(100vh-15rem)] min-h-[24rem]" role="group" aria-label="Référentiel des cours">
+      {/* Hauteur bornée : ce sont les ENCADRÉS qui défilent, jamais la page —
+          sinon les trois en-têtes disparaîtraient au premier défilement.
+          Les deux premiers se règlent sur leur contenu (`w-fit`), le troisième
+          prend ce qui reste (`flex-1`), avec un plafond de largeur pour qu'un
+          libellé exceptionnellement long ne déséquilibre pas la rangée. */}
+      <div className="flex gap-3 items-stretch h-[calc(100vh-15rem)] min-h-[24rem]" role="group" aria-label="Référentiel des cours">
 
-          {/* ── Colonne 1 : unités ─────────────────────────────────────────── */}
-          <div className="w-[30%] flex-shrink-0 flex" role="listbox" aria-label="Unités d'enseignement">
-            <Colonne titre="Unités" compte={uesFiltrees.length} action="Ajouter une unité">
-              {uesFiltrees.length === 0
-                ? <Vide texte={q ? 'Aucun résultat.' : 'Aucune unité.'} />
-                : uesFiltrees.map(ue => (
-                    <Ligne
-                      key={ue.id}
-                      code={ue.code} nomFr={ue.nom_fr} nomAr={ue.nom_ar}
-                      badge={<Badge n={somme(cours.filter(c => c.unite_enseignement_id === ue.id))} annee={anneeLabel} />}
-                      actif={sel.ueId === ue.id}
-                      chevron
-                      onSelect={() => setSel({ ueId: ue.id, moduleId: null, coursId: null })}
-                    />
-                  ))}
-            </Colonne>
-          </div>
-
-          {/* ── Colonne 2 : modules, puis cours sans module ─────────────────── */}
-          <div className="w-[35%] flex-shrink-0 flex" role="listbox" aria-label="Modules">
-            <Colonne
-              titre="Modules"
-              compte={modulesDeUE.length + (coursDirects.length ? 1 : 0)}
-              action="Ajouter un module"
-            >
-              {!ueActive ? (
-                <Vide texte="Sélectionnez une unité." />
-              ) : (
-                <>
-                  {modulesDeUE.map(m => (
-                    <Ligne
-                      key={m.id}
-                      code={m.code} nomFr={m.nom_fr} nomAr={m.nom_ar}
-                      badge={<Badge n={somme(cours.filter(c => c.module_id === m.id))} annee={anneeLabel} />}
-                      actif={sel.moduleId === m.id}
-                      chevron
-                      onSelect={() => setSel(s => ({ ...s, moduleId: m.id, coursId: null }))}
-                    />
-                  ))}
-
-                  {/* Les cours SANS module. Groupés et nommés plutôt que mêlés
-                      aux modules : sans ça, la colonne mélangerait deux natures
-                      et la troisième deviendrait imprévisible. */}
-                  {coursDirects.length > 0 && (
-                    <>
-                      <p className="list-th !py-1 mt-1 border-t border-[var(--line)] pt-2">
-                        Cours sans module
-                      </p>
-                      <Ligne
-                        code={null}
-                        nomFr={`${coursDirects.length} cours rattaché${coursDirects.length > 1 ? 's' : ''} à l'unité`}
-                        nomAr={null}
-                        badge={<Badge n={somme(coursDirects)} annee={anneeLabel} />}
-                        actif={sel.moduleId === SANS_MODULE}
-                        chevron
-                        onSelect={() => setSel(s => ({ ...s, moduleId: SANS_MODULE, coursId: null }))}
-                      />
-                    </>
-                  )}
-
-                  {modulesDeUE.length === 0 && coursDirects.length === 0 && (
-                    <Vide texte="Cette unité est vide." />
-                  )}
-                </>
-              )}
-            </Colonne>
-          </div>
-
-          {/* ── Colonne 3 : cours ──────────────────────────────────────────── */}
-          <div className="flex-1 min-w-0 flex" role="listbox" aria-label="Cours">
-            <Colonne titre="Cours" compte={coursAffiches.length} action="Ajouter un cours">
-              {!sel.moduleId ? (
-                <Vide texte={ueActive ? 'Sélectionnez un module.' : ''} />
-              ) : coursAffiches.length === 0 ? (
-                <Vide texte="Ce module ne contient aucun cours." />
-              ) : (
-                coursAffiches.map(c => (
+        {/* ── Encadré 1 : unités ───────────────────────────────────────────── */}
+        <div className="flex">
+          <Encadre
+            titre="Unités"
+            compte={uesFiltrees.length}
+            ajout="Ajouter une unité"
+            liste="Unités d'enseignement"
+            className="w-fit min-w-[13rem] max-w-[24rem]"
+          >
+            {uesFiltrees.length === 0
+              ? <Vide texte={q ? 'Aucun résultat.' : 'Aucune unité.'} />
+              : uesFiltrees.map(ue => (
                   <Ligne
-                    key={c.id}
-                    code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
-                    badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
-                    actif={sel.coursId === c.id}
-                    chevron={false}
-                    onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
+                    key={ue.id}
+                    code={ue.code} nomFr={ue.nom_fr} nomAr={ue.nom_ar}
+                    badge={<Badge n={somme(cours.filter(c => c.unite_enseignement_id === ue.id))} annee={anneeLabel} />}
+                    actif={sel.ueId === ue.id}
+                    chevron
+                    onSelect={() => setSel({ ueId: ue.id, moduleId: null, coursId: null })}
                   />
-                ))
-              )}
-            </Colonne>
-          </div>
-
+                ))}
+          </Encadre>
         </div>
+
+        {/* ── Encadré 2 : modules, puis cours sans module ───────────────────── */}
+        <div className="flex">
+          <Encadre
+            titre="Modules"
+            compte={modulesDeUE.length + (coursDirects.length ? 1 : 0)}
+            ajout="Ajouter un module"
+            liste="Modules de l'unité"
+            className="w-fit min-w-[14rem] max-w-[26rem]"
+          >
+            {!ueActive ? (
+              <Vide texte="Sélectionnez une unité." />
+            ) : (
+              <>
+                {modulesDeUE.map(m => (
+                  <Ligne
+                    key={m.id}
+                    code={m.code} nomFr={m.nom_fr} nomAr={m.nom_ar}
+                    badge={<Badge n={somme(cours.filter(c => c.module_id === m.id))} annee={anneeLabel} />}
+                    actif={sel.moduleId === m.id}
+                    chevron
+                    onSelect={() => setSel(s => ({ ...s, moduleId: m.id, coursId: null }))}
+                  />
+                ))}
+
+                {/* Les cours SANS module. Groupés et nommés plutôt que mêlés
+                    aux modules : sans ça, la colonne mélangerait deux natures
+                    et la troisième deviendrait imprévisible. */}
+                {coursDirects.length > 0 && (
+                  <div role="group" aria-label="Cours sans module">
+                    <p aria-hidden="true" className="list-th !py-1 mt-1 border-t border-[var(--line)] pt-2">
+                      Cours sans module
+                    </p>
+                    <Ligne
+                      code={null}
+                      nomFr={`${coursDirects.length} cours rattaché${coursDirects.length > 1 ? 's' : ''} à l'unité`}
+                      nomAr={null}
+                      badge={<Badge n={somme(coursDirects)} annee={anneeLabel} />}
+                      actif={sel.moduleId === SANS_MODULE}
+                      chevron
+                      onSelect={() => setSel(s => ({ ...s, moduleId: SANS_MODULE, coursId: null }))}
+                    />
+                  </div>
+                )}
+
+                {modulesDeUE.length === 0 && coursDirects.length === 0 && (
+                  <Vide texte="Cette unité est vide." />
+                )}
+              </>
+            )}
+          </Encadre>
+        </div>
+
+        {/* ── Encadré 3 : cours, il prend tout le reste ─────────────────────── */}
+        <div className="flex-1 min-w-0 flex">
+          <Encadre
+            titre="Cours"
+            compte={coursAffiches.length}
+            ajout="Ajouter un cours"
+            liste="Cours du module"
+            className="flex-1 min-w-0"
+          >
+            {!sel.moduleId ? (
+              <Vide texte={ueActive ? 'Sélectionnez un module.' : ''} />
+            ) : coursAffiches.length === 0 ? (
+              <Vide texte="Ce module ne contient aucun cours." />
+            ) : (
+              coursAffiches.map(c => (
+                <Ligne
+                  key={c.id}
+                  code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
+                  badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
+                  actif={sel.coursId === c.id}
+                  chevron={false}
+                  onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
+                />
+              ))
+            )}
+          </Encadre>
+        </div>
+
       </div>
     </div>
   )
