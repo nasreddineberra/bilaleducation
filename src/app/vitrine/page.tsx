@@ -21,7 +21,7 @@ export default function VitrinePage() {
       {/* Même bloc de marque que l'écran de connexion : logo à gauche, nom sur
           deux lignes à côté, l'ensemble aligné sur la hauteur du symbole. */}
       <div className="flex items-center gap-5">
-        <Image src="/icon.png" alt="" width={104} height={104} unoptimized className="flex-shrink-0" />
+        <Image src="/icon.png" alt="" width={104} height={104} unoptimized className="flex-shrink-0 logo-relief" />
         <div className="text-left leading-[0.95] bg-clip-text text-transparent nom-vague">
           <p className="text-[40px] font-bold tracking-wide">BILAL</p>
           <p className="text-[40px] font-bold tracking-wide">EDUCATION</p>

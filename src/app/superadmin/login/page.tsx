@@ -78,7 +78,7 @@ export default function SuperAdminLoginPage() {
         {/* Marque — le logo de l'application, comme sur l'écran des écoles : la
             console reste le même produit, vue depuis l'autre côté. */}
         <div className="flex flex-col items-center mb-8">
-          <Image src="/icon.png" alt="" width={56} height={56} unoptimized className="mb-3 opacity-95" />
+          <Image src="/icon.png" alt="" width={56} height={56} unoptimized className="mb-3 opacity-95 logo-relief" />
           <h1 className="text-xl font-bold text-white tracking-tight">Bilal Education</h1>
           <div className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30">
             <Shield size={11} className="text-orange-400" />

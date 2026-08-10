@@ -214,6 +214,18 @@
     @apply text-[10px] font-bold text-[var(--ink-muted)] uppercase tracking-wide;
   }
 
+  /* RELIEF DU LOGO sur les blocs de marque en fond sombre (connexion, vitrine,
+     connexion de la console). Ces trois écrans se déclarent identiques dans
+     leurs commentaires : la valeur vit donc ICI, sinon ils divergent — c'est la
+     dérive qui avait produit sept coques d'authentification différentes.
+
+     `drop-shadow` et non `box-shadow` : il suit la couche ALPHA, donc l'ombre
+     épouse l'hexagone. Un `box-shadow` dessinerait le rectangle de l'image,
+     dont les coins sont transparents. */
+  .logo-relief {
+    filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.45));
+  }
+
   /* Card sans padding interne (pour les composants qui gèrent leur propre layout) */
   .card-flush {
     @apply bg-[var(--surface-card)] rounded-lg

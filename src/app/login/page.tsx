@@ -198,7 +198,7 @@ export default function LoginPage() {
               est posé à côté, sur deux lignes, aligné sur la hauteur du
               symbole — la disposition classique d'un logotype. */}
           <div className="flex items-center gap-5">
-            <Image src="/icon.png" alt="" width={104} height={104} unoptimized className="flex-shrink-0" />
+            <Image src="/icon.png" alt="" width={104} height={104} unoptimized className="flex-shrink-0 logo-relief" />
             {/* `.nom-vague` (globals.css) porte le dégradé animé ; ici on ne
                 garde que le découpage aux lettres. Les deux lignes sont
                 STRICTEMENT identiques — même corps, même graisse, même
