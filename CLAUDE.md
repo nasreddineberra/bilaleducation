@@ -2705,6 +2705,36 @@ deconnexion seule s'est revele **correct**.
   retrouve coince dans un theme qui le gene, le repli serait une bascule **visuelle
   seulement** (sans persistance) pendant les interventions.
 
+#### 10 aout 2026 (suite) — Console : marque de l'editeur sur la 2FA, pied de barre laterale
+
+- **Ecran 2FA de la console** : `AuthBrandHeader` ne savait pas distinguer « une ecole sans
+  logo » de « **aucune** ecole ». Les deux retombaient sur le repli en initiales → la console
+  affichait « BE » sur une plaque blanche de 160 px, les initiales d'un etablissement
+  inexistant. Elle montre desormais la marque de l'**editeur** (`/icon.png` + `.logo-relief`,
+  sans plaque), traitee comme sur `/superadmin/login`. **Verifie a l'ecran** : pas de
+  clignotement perceptible, bien que la bascule se decide apres hydratation.
+  - Second defaut trouve au passage : sur ce domaine, l'appel a `/api/public/etablissement`
+    est **redirige vers l'ecran 2FA** par le middleware → `r.json()` echoue sur du HTML et le
+    `.catch()` laissait les valeurs par defaut. **Panne silencieuse.** On ne le lance plus la
+    ou il ne peut pas aboutir.
+  - Le nom du sous-domaine `superadmin` etait ecrit en toutes lettres dans `proxy.ts` → il vit
+    dans **`src/lib/tenant/console-host.ts`**, que les deux utilisent. En local il n'y a pas de
+    sous-domaine, d'ou le repli sur **`next`**, que le middleware pose systematiquement en
+    envoyant vers la 2FA depuis la console.
+- **Pied de la barre laterale de la console** — 6 ecarts avec la charte, releves sur les
+  composants de reference et non de memoire : l'**adresse** cedait la place a **NOM Prenom**
+  (c'etait un identifiant de connexion, pas une identite, et elle etait tronquee en plein
+  milieu du domaine sans moyen de lire la valeur) ; **`Power`** remplace la fleche `LogOut`
+  (icone de deconnexion de l'application, posee dans le header ecole) ; **`Tooltip`** ajoute
+  (tout bouton icone-seule en porte un) ; `text-white/40` et `/50` → jetons `--brand-icon` /
+  `--brand-muted` (les deux tombaient sous le seuil du 18 juillet) ; **pastille de version**
+  ajoutee, comme le pied ecole ; **rouge au survol retire** (le header ecole n'en met pas).
+  Le layout selectionnait deja le profil pour la garde de role : 2 colonnes de plus, 0 requete.
+- **PIEGE `Tooltip`** : `position="bottom"` sur un bouton **au ras du bas de l'ecran** affiche
+  la bulle **hors du cadre visible**. Cette position ne vaut que pour la barre d'en-tete, d'ou
+  elle vient. Verifie : le seul autre `bottom` hors en-tete (fiche apprenant) est en haut d'une
+  carte, donc legitime.
+
 #### A CONSIGNER — DECONNEXION DE LA CONSOLE SUPER-ADMIN (10 aout)
 
 Signale par l'utilisateur en fin de session. **Symptome non decrit, rien de verifie.**
