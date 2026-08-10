@@ -2942,6 +2942,20 @@ et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »)
 - **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
   imposee en base** — aucun index unique sur `enrollments`. Un index partiel sur `student_id`
   `WHERE status = 'active'` la rendrait impossible plutot qu'improbable. A arbitrer.
+- **JOURS FERIES** (demande du 11 aout, a concevoir) : l'annee scolaire ne gere aujourd'hui que des
+  **semaines de vacances** (modale « Vacances scolaires », `getWeeksBetween` — calage sur
+  `start_date`/`end_date` **verifie correct**). Il manque les jours feries, qui sont des journees
+  isolees et non des semaines.
+  - **Le modele ne peut pas etre le meme** : une vacance se marque a la semaine, un ferie a la
+    journee. Prevoir une table ou une colonne dediee, pas un detournement des semaines.
+  - **Deux natures de feries, et c'est le point dur** : les feries civils francais sont
+    **calculables** (fixes, ou derives de Paques) ; les fetes musulmanes suivent le calendrier
+    **lunaire** et ne se calculent pas de façon fiable des annees a l'avance — elles devront etre
+    **saisies a la main**, annee par annee. Un ecran qui ne proposerait que du calcule serait
+    inutilisable ici.
+  - **Consommateurs a prevoir** : emploi du temps (ne pas placer de creneau), feuille d'appel (pas
+    d'appel un jour ferie), temps de presence (ne pas compter d'heures). Ce sont eux qui decident de
+    la forme, pas l'ecran de saisie.
 - **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
