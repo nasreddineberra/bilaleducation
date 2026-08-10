@@ -36,7 +36,10 @@ const norm = (s: string | null | undefined) =>
   (s ?? '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
 
 const arStyle: React.CSSProperties = {
-  fontFamily: 'var(--font-arabic), sans-serif', fontSize: '16px', lineHeight: 1.4,
+  // Interlignage figé sur celui de `text-sm` : sans ça, l'arabe — plus grand
+  // parce que sa hauteur de caractères est plus faible — impose une boîte de
+  // 22 px et gonfle chaque ligne. Même remède que `arInputStyle` dans l'arbre.
+  fontFamily: 'var(--font-arabic), sans-serif', fontSize: '16px', lineHeight: '1.25rem',
 }
 
 /** Nombre de gabarits d'évaluation, pour l'année en cours. Rien à zéro. */
@@ -125,7 +128,7 @@ function Ligne({
       onClick={onSelect}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
       className={[
-        'group mx-1 px-2 py-1 rounded-lg cursor-pointer flex items-center gap-2 outline-none',
+        'group mx-1 px-2 py-0.5 rounded-md cursor-pointer flex items-center gap-2 outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary-500/50 transition-colors',
         actif ? 'bg-primary-50' : 'hover:bg-[var(--surface-sunken)]',
       ].join(' ')}
@@ -193,11 +196,13 @@ function CarteGroupe({
 }) {
   return (
     <div role="group" aria-label={titre} className="rounded-lg border border-[var(--line-strong)] overflow-hidden">
-      <div className="h-8 flex items-center gap-2 px-2.5 bg-[var(--surface-sunken)] border-b border-[var(--line)]">
+      <div className="h-7 flex items-center gap-2 px-2.5 bg-[var(--surface-sunken)] border-b border-[var(--line)]">
         <span aria-hidden="true" className="list-th !px-0 !py-0 truncate">{titre}</span>
-        <span className="text-[10px] text-[var(--ink-muted)] tabular-nums ml-auto flex-shrink-0">{compte}</span>
+        <span className="text-[10px] text-[var(--ink-muted)] tabular-nums ml-auto flex-shrink-0 whitespace-nowrap">
+          {compte} cours
+        </span>
       </div>
-      <div className="py-1">{children}</div>
+      <div className="py-0.5">{children}</div>
     </div>
   )
 }
@@ -396,7 +401,7 @@ export default function ReferentielColonnes({
               /* Une carte par module. Choisir un module dans la colonne du
                  milieu ne change pas la presentation : il ne reste qu'une
                  carte. Le regard n'a donc rien a reapprendre. */
-              <div className="px-2 py-1 space-y-2">
+              <div className="px-2 py-1.5 space-y-1.5">
                 {groupes.map(g => (
                   <CarteGroupe key={g.cle} titre={g.titre} compte={g.liste.length}>
                     {g.liste.map(c => (
