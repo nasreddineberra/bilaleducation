@@ -2693,11 +2693,13 @@ deconnexion seule s'est revele **correct**.
   (masquee et non grisee — pendant une intervention il n'existe aucun cas ou ce reglage
   serait legitime), **et refus serveur dans `setOwnTheme`** via `isSupportSession` :
   masquer un bouton ne protege rien, une server action reste appelable.
-- **HONNETETE — le mecanisme de la panne de deconnexion n'est PAS explique.** La lecture du
-  code n'a rien donne : `setOwnTheme` n'ecrit que `theme`, le trigger anti-escalade ne mord
-  que sur `role`/`etablissement_id`, et le seul effet de bord est `updateTag('profile')`.
-  Le correctif supprime le geste declencheur, il ne prouve pas la cause. **A refaire tester
-  par l'utilisateur sur la sequence exacte.**
+- **VERIFIE** : plusieurs tests de l'utilisateur apres deploiement, la panne **ne se
+  reproduit plus**. C'est une preuve par la DISPARITION DU SYMPTOME, pas par la
+  comprehension : **le mecanisme n'a jamais ete explique.** La lecture du code n'avait
+  rien donne — `setOwnTheme` n'ecrit que `theme`, le trigger anti-escalade ne mord que sur
+  `role`/`etablissement_id`, et le seul effet de bord est `updateTag('profile')`. Si la
+  panne revient, c'est que le theme n'etait qu'un temoin : reprendre les pistes du cookie
+  `app-session` (section suivante), qui restent valables et non testees.
 - **Consequence assumee a surveiller** : l'editeur ne peut plus changer de theme **du tout**
   — la console n'a pas de bascule, et l'intervention la lui refuse desormais. S'il se
   retrouve coince dans un theme qui le gene, le repli serait une bascule **visuelle
