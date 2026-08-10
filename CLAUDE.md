@@ -2677,6 +2677,21 @@ Nouveau logo (anneau hexagonal plein a degrade, en remplacement du moulinet a tr
   teal et sur clair) : c'est l'**inverse** — l'ancien devenait un gribouillis illisible sous 32 px,
   le nouveau tient. Aucune retouche d'opacite ou de taille.
 
+#### A CONSIGNER — DECONNEXION DE LA CONSOLE SUPER-ADMIN (10 aout)
+
+Signale par l'utilisateur en fin de session. **Symptome non decrit, rien de verifie.**
+Pistes relevees en lisant le code, a confirmer APRES avoir demande le symptome exact
+(reste connecte ? boucle ? deux connexions necessaires ? deconnecte aussi l'ecole ?) :
+- `SuperAdminSidebar.handleLogout` fait `router.push('/superadmin/login')`, navigation
+  **souple**. Cote ecole, le correctif du 12/07 reposait sur une navigation **dure** ET
+  sur la purge du cookie httpOnly `app-session` par le middleware **sur `/login`** — purge
+  qui **ne couvre pas** `/superadmin/login`. C'est le montage exact qui produisait le bug
+  de « double connexion ».
+- Le cookie de session porte le **domaine entier** (note du 7 aout) : se deconnecter de la
+  console pourrait deconnecter les ecoles, et reciproquement.
+- `useInactivityLogout` s'applique aussi a la console, sans motif passe a l'ecran de
+  connexion (donc sans message d'explication).
+
 #### A CONSIGNER — PERFORMANCE RESSENTIE (chantier a ouvrir)
 
 Impression de l'utilisateur (10 aout) : « des fois j'ai l'impression que le site est moins
