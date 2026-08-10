@@ -166,9 +166,23 @@ export default async function EvaluationsPage() {
     .not('cours_id', 'is', null)
     .order('sort_order')
 
+  // 6. Archives de bulletins : un bulletin archivé n'est plus modifiable, et le
+  //    gabarit sur lequel il repose pas davantage. Même lecture que la saisie
+  //    des notes — élèves ET adultes, les deux tables étant distinctes.
+  type ArchiveRow = { class_id: string; period_id: string }
+  const bulletinArchives: ArchiveRow[] = []
+  if (classIds.length > 0) {
+    const [{ data: aEleves }, { data: aAdultes }] = await Promise.all([
+      supabase.from('bulletin_archives').select('class_id, period_id').in('class_id', classIds),
+      supabase.from('adult_bulletin_archives').select('class_id, period_id').in('class_id', classIds),
+    ])
+    bulletinArchives.push(...((aEleves ?? []) as ArchiveRow[]), ...((aAdultes ?? []) as ArchiveRow[]))
+  }
+
   return (
     <div className="h-full animate-fade-in">
       <EvaluationsClient
+        bulletinArchives={bulletinArchives}
         classes={classes}
         periods={periods}
         evalTypeConfigs={evalTypeConfigs}

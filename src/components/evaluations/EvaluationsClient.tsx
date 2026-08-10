@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import {
   Plus, Check, Pencil, Trash2,
-  ChevronUp, ChevronRight, ChevronDown, BookOpen,
+  ChevronUp, ChevronRight, ChevronDown, BookOpen, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -68,6 +68,9 @@ interface Props {
   evalOrderConfigs:   EvalOrderConfig[]
   etablissementId:    string
   schoolYearId:       string | null
+  /** Couples (classe, période) dont les bulletins sont archivés : tout y est
+   *  figé, gabarit compris. */
+  bulletinArchives:   { class_id: string; period_id: string }[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -257,7 +260,7 @@ function refTooltip(item: { nom_fr?: string | null; nom_ar?: string | null } | n
 
 export default function EvaluationsClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
-  initialEvaluations, evalOrderConfigs, etablissementId, schoolYearId,
+  initialEvaluations, evalOrderConfigs, etablissementId, schoolYearId, bulletinArchives,
 }: Props) {
   // ── Sélecteurs ──────────────────────────────────────────────────────────────
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
@@ -416,6 +419,9 @@ export default function EvaluationsClient({
 
   // ── Supabase handlers ────────────────────────────────────────────────────────
   const handleAdd = async () => {
+    // Verrou d'archivage : la base refusera de toute façon, mais un refus
+    // annoncé ici se lit, là où l'erreur Postgres se subit.
+    if (isArchived) { setError(MSG_ARCHIVE); return }
     if (!adding || !selectedClassId || !selectedPeriodId || !formConfigId) return
     const option    = getOption(); if (!option) return
     const coursItem = coursById.get(adding); if (!coursItem) return
@@ -471,6 +477,9 @@ export default function EvaluationsClient({
   }
 
   const handleDelete = async (evalId: string) => {
+    // Verrou d'archivage : la base refusera de toute façon, mais un refus
+    // annoncé ici se lit, là où l'erreur Postgres se subit.
+    if (isArchived) { setError(MSG_ARCHIVE); return }
     setSubmitting(true); setError(null)
     const supabase = createClient()
     const gradesTable = classes.find(c => c.id === selectedClassId)?.is_adult ? 'adult_grades' : 'grades'
@@ -528,6 +537,9 @@ export default function EvaluationsClient({
 
   // ── Sauvegarde de l'ordre (propre à la classe × période) ─────────────────
   const handleSaveOrder = async () => {
+    // Verrou d'archivage : la base refusera de toute façon, mais un refus
+    // annoncé ici se lit, là où l'erreur Postgres se subit.
+    if (isArchived) { setError(MSG_ARCHIVE); return }
     if (!selectedClassId || !selectedPeriodId) return
     setSavingOrder(true)
     setError(null)
@@ -558,6 +570,25 @@ export default function EvaluationsClient({
       setSavingOrder(false)
     }
   }
+
+  /**
+   * Bulletins archivés pour cette classe et cette période ?
+   *
+   * Même calcul que la saisie des notes — et même raison : un bulletin archivé
+   * est un document REMIS. Laisser modifier le gabarit sur lequel il repose
+   * ferait diverger l'écran du PDF détenu par la famille.
+   *
+   * La vraie barrière est en base (`guard-archived-period-writes.sql`) : cet
+   * écran écrit DIRECTEMENT depuis le navigateur, un bandeau ne protège rien.
+   * Ce qui suit sert à dire non en français plutôt qu'en erreur Postgres.
+   */
+  const MSG_ARCHIVE = 'Les bulletins de cette classe sont archivés pour cette période : le gabarit ne peut plus être modifié. Désarchivez-les d’abord.'
+
+  const isArchived = useMemo(() =>
+    bulletinArchives.some((a: { class_id: string; period_id: string }) =>
+      a.class_id === selectedClassId && a.period_id === selectedPeriodId),
+    [bulletinArchives, selectedClassId, selectedPeriodId],
+  )
 
   // ── Flags état ───────────────────────────────────────────────────────────────
   const noSchoolYear   = !schoolYearId
@@ -649,6 +680,15 @@ export default function EvaluationsClient({
       </div>
 
       {/* ── Panneau principal (split) ── */}
+      {/* Verrou d'archivage — même bandeau, mêmes mots que la saisie des notes :
+          c'est la même situation, elle ne doit pas se dire de deux façons. */}
+      {isArchived && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex-shrink-0">
+          <Lock size={13} className="flex-shrink-0" />
+          Bulletins archivés pour cette période. Modification du gabarit impossible.
+        </div>
+      )}
+
       <div className="flex gap-3 flex-1 min-h-0">
 
         {/* ── Gauche : Référentiel ── */}
@@ -680,7 +720,7 @@ export default function EvaluationsClient({
                 const ueCours = cours.filter(c => c.unite_enseignement_id === ue.id)
                 const ueMods  = modules.filter(m => m.unite_enseignement_id === ue.id)
                 const expanded = expandedUEs.has(ue.id)
-                const canAdd   = !noClassOrPeriod && !noSchoolYear && !noEvalTypes
+                const canAdd   = !noClassOrPeriod && !noSchoolYear && !noEvalTypes && !isArchived
 
                 return (
                   <div key={ue.id} className="border border-warm-100 rounded-lg overflow-hidden">

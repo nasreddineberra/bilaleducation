@@ -3108,6 +3108,12 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] **A JOUER** — `supabase/migrations/guard-archived-period-writes.sql` : un bulletin archive
+  n'est plus modifiable NULLE PART. L'ecran des gabarits laissait ajouter des cours a une classe et
+  une periode dont les bulletins etaient archives, alors que la saisie des notes s'y refusait. Et le
+  bandeau de la saisie ne protegeait rien : **les deux ecrans ecrivent directement depuis le
+  navigateur**. Declencheur sur `evaluations`, `grades`, `adult_grades` et les 2 tables
+  d'appreciations ; la purge d'annee le neutralise le temps de son travail.
 - [ ] **A JOUER** — `supabase/migrations/guard-referentiel-delete.sql` : les 3 cles du referentiel
   passent en **RESTRICT** (on ne supprime que ce qui est VIDE, en partant du bas) ; declencheur
   refusant un cours qui sert un **gabarit de l'annee en cours** ; purge d'annee dotee d'un filet
