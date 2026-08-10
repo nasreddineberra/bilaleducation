@@ -2634,6 +2634,37 @@ clos, eprouve avec de vraies donnees et non seulement compile.
 **Reste, sans urgence** : un compte de CHAQUE ROLE depuis la passe RLS du 5 aout — une policy
 trop stricte ne leve pas d'erreur, elle vide l'ecran en silence.
 
+#### 10 aout 2026 — Changement de logo + master versionne
+
+Nouveau logo (anneau hexagonal plein a degrade, en remplacement du moulinet a traits fins).
+
+- **LE DEPOT N'AVAIT AUCUN ORIGINAL.** `apple-icon.png` avait ete fabrique le 3 aout depuis
+  `icon.png`, **lui-meme deja reduit a 512 px** : on derivait d'une copie. Et les geometries
+  (plaque, marges) ne vivaient que dans un README — il a fallu les **remesurer sur les fichiers
+  existants** pour ne pas les perdre. Corrige : **`assets/logo-source.png`** (3198x3582,
+  transparent, 300 dpi) devient le master versionne, et **`scripts/generer-logos.mjs`** produit
+  les 4 declinaisons. Changer de logo = remplacer le master, relancer le script.
+  - Pas dans `public/` : tout ce qui s'y trouve est telechargeable par n'importe qui et deploye
+    a chaque mise en ligne. Un master n'a rien a y faire.
+- **Geometrie des plaques mesuree, pas devinee** : les 2 tailles existantes suivaient exactement
+  le meme rapport — **rayon = 26,3 % du cote, marge interieure = 13,2 %** (20/10 px pour 76,
+  32/16 px pour 120). Ce sont donc des regles, et elles sont desormais dans le script.
+- **Le dessin est PORTRAIT, les 4 sorties sont carrees** : il est **centre** dans un carre
+  transparent, jamais recadre — un recadrage automatique rognerait sans que personne ne l'ait
+  decide. Verifie que le masque arrondi d'iOS ne mord pas (les coins du carre sont vides).
+- **La plaque blanche reste indispensable** (`apple-icon`, les 2 fichiers d'email) : l'interieur
+  de l'hexagone et son pourtour sont transparents, ils se rempliraient du fond du client de
+  messagerie — noir en theme sombre. Regle du 3 aout, inchangee.
+- **Rien a recoller dans Supabase** : les 3 gabarits pointent vers
+  `https://bilaleducation.fr/email/logo.png`, URL inchangee. En revanche les 2 fichiers
+  `public/email/` ne prennent effet **qu'une fois deployes** sur le domaine racine.
+- **`/icon.png` est reference sans empreinte** dans le code (10 composants) → **Ctrl+F5** requis
+  pour cesser de voir l'ancien.
+- **Crainte levee par la mesure** : je m'attendais a devoir attenuer le nouveau logo, plus massif,
+  dans le pied de barre laterale. Comparatif avant/apres aux tailles reelles (28/32/22/104 px, sur
+  teal et sur clair) : c'est l'**inverse** — l'ancien devenait un gribouillis illisible sous 32 px,
+  le nouveau tient. Aucune retouche d'opacite ou de taille.
+
 #### A CONSIGNER — PERFORMANCE RESSENTIE (chantier a ouvrir)
 
 Impression de l'utilisateur (10 aout) : « des fois j'ai l'impression que le site est moins
