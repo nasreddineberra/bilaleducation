@@ -2942,20 +2942,42 @@ et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »)
 - **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
   imposee en base** — aucun index unique sur `enrollments`. Un index partiel sur `student_id`
   `WHERE status = 'active'` la rendrait impossible plutot qu'improbable. A arbitrer.
-- **JOURS FERIES** (demande du 11 aout, a concevoir) : l'annee scolaire ne gere aujourd'hui que des
-  **semaines de vacances** (modale « Vacances scolaires », `getWeeksBetween` — calage sur
-  `start_date`/`end_date` **verifie correct**). Il manque les jours feries, qui sont des journees
-  isolees et non des semaines.
-  - **Le modele ne peut pas etre le meme** : une vacance se marque a la semaine, un ferie a la
-    journee. Prevoir une table ou une colonne dediee, pas un detournement des semaines.
-  - **Deux natures de feries, et c'est le point dur** : les feries civils francais sont
-    **calculables** (fixes, ou derives de Paques) ; les fetes musulmanes suivent le calendrier
-    **lunaire** et ne se calculent pas de façon fiable des annees a l'avance — elles devront etre
-    **saisies a la main**, annee par annee. Un ecran qui ne proposerait que du calcule serait
-    inutilisable ici.
-  - **Consommateurs a prevoir** : emploi du temps (ne pas placer de creneau), feuille d'appel (pas
-    d'appel un jour ferie), temps de presence (ne pas compter d'heures). Ce sont eux qui decident de
-    la forme, pas l'ecran de saisie.
+- **CALENDRIER DES VACANCES ET JOURS FERIES** (demande du 11 aout, **a concevoir — rien de code**) :
+  chantier en deux volets, le second donnant son sens au premier.
+
+  **VOLET 1 — la modale des vacances, trois defauts constates a l'ecran**
+  (`SchoolYearForm.tsx`, modale « Vacances scolaires ») :
+  1. **la liste « Periodes de vacances » est SOUS la ligne de flottaison** : il faut faire defiler
+     pour decouvrir qu'une periode se nomme. A sortir de la zone de defilement, en pied fixe.
+  2. **le regroupement n'est pas explique** : `toggleWeekVacation` FUSIONNE les semaines contigues
+     (verifie dans le code — 5 semaines cochees donnent bien 2 periodes, rien n'est perdu), mais
+     l'en-tete annonce « 5 semaines selectionnees » et la liste n'affiche que 2 lignes. Chaque ligne
+     doit dire ce qu'elle contient : « S48 a S49 · 2 semaines · 23 nov.-06 dec. ».
+  3. **calendrier a 5 colonnes** au lieu de 4 : une annee de 10 mois tiendrait en 2 rangees et le
+     defilement disparaitrait dans le cas courant.
+  - **Verifie au passage, correct** : `getWeeksBetween` se cale bien sur `start_date`/`end_date`.
+    Le calendrier commencait fin juin parce que l'annee en cours commence le 1er juillet EN BASE.
+    Nuance : la boucle retient toute semaine dont le LUNDI precede la fin d'annee, la derniere peut
+    donc deborder de quelques jours — defendable, une semaine est une unite.
+
+  **VOLET 2 — les jours feries**
+  - **Le modele ne peut pas etre celui des vacances** : une vacance se marque a la SEMAINE, un ferie
+    est une JOURNEE isolee. Les vacances vivent dans `school_years.vacations` (**jsonb**) ; une
+    colonne jumelle `jours_feries` suivrait le meme chemin, sans nouvelle table ni RLS a ecrire.
+  - **SAISIE MANUELLE, decidee par l'utilisateur** — et c'est ce qui evite le vrai piege : les feries
+    civils francais se calculent (fixes ou derives de Paques), mais les fetes musulmanes suivent le
+    calendrier **lunaire** et ne se calculent pas de facon fiable a l'avance. Un ecran qui ne
+    proposerait que du calcule serait inutilisable dans cette application.
+  - Section sous les vacances dans la meme modale, qui deviendrait « Vacances et jours feries ».
+
+  **VOLET 3 — le BRANCHEMENT, qui est la raison d'etre des deux premiers**
+  Ni les vacances ni les feries ne servent a rien tant qu'ils ne sont pas consommes :
+  - **emploi du temps** : ne pas placer de creneau, signaler ceux qui tombent dedans (l'EDT sait deja
+    le faire pour les vacances — voir `getVacationLabel`) ;
+  - **feuille d'appel** : pas d'appel un jour ferie ni pendant les vacances ;
+  - **temps de presence** : ne pas compter d'heures.
+  Ce sont EUX qui decideront de la forme exacte de la donnee, pas l'ecran de saisie.
+
 - **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
