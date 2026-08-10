@@ -783,8 +783,11 @@ export default function ReferentielColonnes({
         <SearchField
           value={search}
           onChange={setSearch}
-          placeholder="Rechercher une unité, un module, un cours…"
-          ariaLabel="Rechercher dans le référentiel"
+          // Le champ est plus étroit que l'énumération complète, qui se coupait
+          // en plein mot. Le cours vient en tête : c'est ce qu'on cherche le
+          // plus souvent, et l'`aria-label` porte la portée réelle.
+          placeholder="Rechercher un cours, un module…"
+          ariaLabel="Rechercher une unité, un module ou un cours"
         />
       </div>
 
