@@ -274,33 +274,40 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
       title={titre}
       onClose={onClose}
       footer={
-        <>
-          <FloatButton type="button" variant="secondary" onClick={onClose}>Annuler</FloatButton>
-          {/* Inerte : ce prototype se juge sur la présentation. */}
-          <FloatButton type="button" variant="submit" disabled={!nomFr.trim()}>Valider</FloatButton>
-        </>
+        /* Le pied porte la RÉF et les boutons sur la même ligne — réf à gauche,
+           actions à droite — et la mention des champs obligatoires sous la réf.
+           Même disposition sur les trois natures : une modale d'ajout ne doit
+           pas se relire différemment selon ce qu'on ajoute.
+           `w-full` : le pied de `FormModal` est un `flex items-center`, un
+           enfant unique pleine largeur y reprend la main sur la mise en page. */
+        <div className="w-full">
+          <div className="flex items-end gap-3">
+            <div className="w-24 flex-shrink-0">
+              <FloatInput
+                label="Réf" value={ref} required
+                onChange={e => setRef(e.target.value.toUpperCase())}
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+              <FloatButton type="button" variant="secondary" onClick={onClose}>Annuler</FloatButton>
+              {/* Inerte : ce prototype se juge sur la présentation. */}
+              <FloatButton type="button" variant="submit" disabled={!ref.trim() || !nomFr.trim()}>
+                Valider
+              </FloatButton>
+            </div>
+          </div>
+          <p className="text-[11px] text-[var(--ink-muted)] mt-1">* champs obligatoires</p>
+        </div>
       }
     >
       {rattachement && (
         <p className="text-xs text-[var(--ink-muted)] -mt-1">{rattachement}</p>
       )}
 
-      {/* `FloatInput` n'expose pas de `wrapperClassName` — contrairement à
-          `FloatSelect` — donc la largeur se règle sur un conteneur. */}
-      <div className="flex gap-2">
-        <div className="w-24 flex-shrink-0">
-          <FloatInput
-            label="Réf" value={ref} required
-            onChange={e => setRef(e.target.value.toUpperCase())}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <FloatInput
-            label="Nom (FR)" value={nomFr} required
-            onChange={e => setNomFr(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
-          />
-        </div>
-      </div>
+      <FloatInput
+        label="Nom (FR)" value={nomFr} required
+        onChange={e => setNomFr(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
+      />
 
       <FloatInput
         label="Nom (AR)" value={nomAr} dir="rtl" style={arStyle}
@@ -319,8 +326,6 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
           />
         </div>
       )}
-
-      <p className="text-[11px] text-[var(--ink-muted)]">* champs obligatoires</p>
     </FormModal>
   )
 }
