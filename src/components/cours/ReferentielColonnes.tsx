@@ -49,6 +49,36 @@ const arStyle: React.CSSProperties = {
   fontFamily: 'var(--font-arabic), sans-serif', fontSize: '16px', lineHeight: '1.25rem',
 }
 
+/**
+ * Surligne la portion cherchée. Recopié de `CoursTree` : `norm()` conserve la
+ * LONGUEUR du texte (un accent reste un caractère + un diacritique retiré),
+ * donc les indices calculés sur la version normalisée s'appliquent tels quels
+ * au texte d'origine — c'est ce qui permet de surligner « écr » en tapant
+ * « ecr ».
+ */
+function Surligne({ text, query }: { text: string; query: string }) {
+  const nq = norm(query.trim())
+  if (!nq) return <>{text}</>
+  const nt = norm(text)
+  const out: React.ReactNode[] = []
+  let i = 0, key = 0
+  while (i <= text.length) {
+    const idx = nt.indexOf(nq, i)
+    if (idx === -1) {
+      if (i < text.length) out.push(<span key={key++}>{text.slice(i)}</span>)
+      break
+    }
+    if (idx > i) out.push(<span key={key++}>{text.slice(i, idx)}</span>)
+    out.push(
+      <mark key={key++} className="bg-amber-200 text-amber-900 rounded-sm not-italic px-px">
+        {text.slice(idx, idx + nq.length)}
+      </mark>
+    )
+    i = idx + nq.length
+  }
+  return <>{out}</>
+}
+
 /** Nombre de gabarits d'évaluation, pour l'année en cours. Rien à zéro. */
 function Badge({ n, annee }: { n: number; annee: string | null }) {
   if (!n) return null
@@ -135,9 +165,11 @@ function Encadre({
  * structure au lieu de l'ordre.
  */
 function Ligne({
-  id, code, nomFr, nomAr, badge, actif, chevron, onSelect, triable = true,
+  id, code, nomFr, nomAr, badge, actif, chevron, onSelect, triable = true, q = '',
 }: {
   id: string
+  /** Recherche en cours, pour le surlignage. */
+  q?: string
   /** `false` pour les lignes qui ne sont pas de vraies entités — le groupe
    *  « Cours sans module » n'est pas un module, il n'a pas d'ordre à changer.
    *  Le crochet est appelé quoi qu'il arrive (règle des hooks), simplement
@@ -176,7 +208,7 @@ function Ligne({
       </button>}
       {code && (
         <span className="text-[10px] font-mono text-[var(--ink-muted)] bg-[var(--line)] px-1 py-px rounded flex-shrink-0">
-          {code}
+          <Surligne text={code} query={q} />
         </span>
       )}
 
@@ -185,10 +217,10 @@ function Ligne({
           comme dans l'arbre, où l'œil devait faire l'aller-retour. */}
       <span className="flex-1 min-w-0 flex items-baseline gap-1.5">
         <span className={`text-sm truncate ${actif ? 'font-semibold text-primary-800' : 'font-medium text-[var(--ink)]'}`}>
-          {nomFr}
+          <Surligne text={nomFr} query={q} />
         </span>
         {nomAr && (
-          <span dir="rtl" className="text-[var(--ink-muted)] truncate flex-shrink-0" style={arStyle}>{nomAr}</span>
+          <span dir="rtl" className="text-[var(--ink-muted)] truncate flex-shrink-0" style={arStyle}><Surligne text={nomAr} query={q} /></span>
         )}
       </span>
 
@@ -428,9 +460,38 @@ export default function ReferentielColonnes({
     })
   }, [lstUes, lstModules, lstCours, q]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ueActive     = sel.ueId
-  const modulesDeUE  = lstModules.filter(m => m.unite_enseignement_id === ueActive)
-  const coursDirects = lstCours.filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
+  // La recherche PORTE la sélection sur le premier résultat : sans ça, on
+  // filtre une colonne dont l'unité sélectionnée a disparu, et les deux autres
+  // restent obstinément vides. On ne touche à rien si la sélection courante
+  // fait toujours partie des résultats.
+  useEffect(() => {
+    if (!q) return
+    setSel(courant => {
+      const encoreLa = uesFiltrees.some(u => u.id === courant.ueId)
+      if (encoreLa) return courant
+      const premiere = uesFiltrees[0]
+      return premiere ? { ueId: premiere.id, moduleId: null, coursId: null } : courant
+    })
+  }, [q, uesFiltrees])
+
+
+  const ueActive = sel.ueId
+
+  // La recherche traverse les TROIS colonnes. Ne filtrer que les unités — ce
+  // qu'elle faisait — reste invisible tant qu'il n'y en a qu'une : la seule
+  // colonne qui réagissait était celle qui ne pouvait rien montrer.
+  //
+  // Un module est gardé s'il correspond LUI-MÊME ou si l'un de ses cours
+  // correspond ; sinon chercher un cours ferait disparaître le module qui le
+  // porte, et le cours deviendrait inatteignable.
+  const modulesDeUE = lstModules
+    .filter(m => m.unite_enseignement_id === ueActive)
+    .filter(m => !q || matche(m.nom_fr, m.nom_ar, m.code)
+      || lstCours.some(c => c.module_id === m.id && matche(c.nom_fr, c.nom_ar, c.code)))
+
+  const coursDirects = lstCours
+    .filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
+    .filter(c => !q || matche(c.nom_fr, c.nom_ar, c.code))
 
   const SANS_MODULE = '__directs__'
 
@@ -453,13 +514,18 @@ export default function ReferentielColonnes({
   const groupes = useMemo(() => {
     const tous = [
       ...modulesDeUE.map(m => ({
-        cle: m.id, titre: m.nom_fr, liste: lstCours.filter(c => c.module_id === m.id),
+        cle: m.id,
+        titre: m.nom_fr,
+        // Un module retenu parce qu'il correspond LUI-MÊME montre tous ses
+        // cours ; retenu pour l'un de ses cours, il ne montre que ceux-là.
+        liste: lstCours.filter(c => c.module_id === m.id
+          && (!q || matche(m.nom_fr, m.nom_ar, m.code) || matche(c.nom_fr, c.nom_ar, c.code))),
       })),
       { cle: SANS_MODULE, titre: 'Sans module', liste: coursDirects },
     ].filter(g => g.liste.length > 0)
 
     return sel.moduleId ? tous.filter(g => g.cle === sel.moduleId) : tous
-  }, [modulesDeUE, coursDirects, lstCours, sel.moduleId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [modulesDeUE, coursDirects, lstCours, sel.moduleId, q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-2">
@@ -504,7 +570,7 @@ export default function ReferentielColonnes({
               : <Tri items={uesFiltrees} sensors={sensors} onOrdre={(a, b) => setLstUes(t => reordonner(t, uesFiltrees, a, b))}>
                 {uesFiltrees.map(ue => (
                   <Ligne
-                    key={ue.id} id={ue.id}
+                    key={ue.id} id={ue.id} q={q}
                     code={ue.code} nomFr={ue.nom_fr} nomAr={ue.nom_ar}
                     badge={<Badge n={somme(lstCours.filter(c => c.unite_enseignement_id === ue.id))} annee={anneeLabel} />}
                     actif={sel.ueId === ue.id}
@@ -537,7 +603,7 @@ export default function ReferentielColonnes({
                 <Tri items={modulesDeUE} sensors={sensors} onOrdre={(a, b) => setLstModules(t => reordonner(t, modulesDeUE, a, b))}>
                 {modulesDeUE.map(m => (
                   <Ligne
-                    key={m.id} id={m.id}
+                    key={m.id} id={m.id} q={q}
                     code={m.code} nomFr={m.nom_fr} nomAr={m.nom_ar}
                     badge={<Badge n={somme(lstCours.filter(c => c.module_id === m.id))} annee={anneeLabel} />}
                     actif={sel.moduleId === m.id}
@@ -616,7 +682,7 @@ export default function ReferentielColonnes({
                     <Tri items={g.liste} sensors={sensors} onOrdre={(a, b) => setLstCours(t => reordonner(t, g.liste, a, b))}>
                     {g.liste.map(c => (
                       <Ligne
-                        key={c.id} id={c.id}
+                        key={c.id} id={c.id} q={q}
                         code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
                         badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
                         actif={sel.coursId === c.id}
