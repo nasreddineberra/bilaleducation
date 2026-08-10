@@ -51,7 +51,23 @@ interface Props {
   modules:         CoursModule[]
   cours:           Cours[]
   etablissementId: string
+  /** Libellé de l'année en cours : sépare les gabarits VIVANTS (qui bloquent
+   *  une suppression) de ceux d'années archivées (seulement annoncés). */
+  currentYearLabel: string | null
 }
+
+/**
+ * Ce qu'emporte une suppression, calculé AVANT de la proposer.
+ *
+ * L'écran promettait l'inverse de ce que faisait la base : il annonçait qu'un
+ * module emporterait ses cours (faux — ils étaient détachés, donc invisibles
+ * dans l'arbre mais toujours en base), et affichait un message d'erreur
+ * « des cours sont rattachés » que rien ne pouvait déclencher, aucune clé
+ * étrangère n'étant en RESTRICT. Voir `guard-referentiel-delete.sql`.
+ */
+type DeleteDeps =
+  | { etat: 'calcul' }
+  | { etat: 'pret'; motifBlocage: string | null; avertissements: string[] }
 
 // Props partagées transmises à SortableUECard
 interface SharedCardProps {
@@ -562,7 +578,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function CoursTree({ ues, modules, cours, etablissementId }: Props) {
+export default function CoursTree({ ues, modules, cours, etablissementId, currentYearLabel }: Props) {
   const router = useRouter()
 
   const [orderedUEs,      setOrderedUEs]      = useState<UniteEnseignement[]>(ues)
@@ -575,6 +591,7 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
   const [submitting,      setSubmitting]      = useState(false)
   const [error,           setError]           = useState<string | null>(null)
   const [deleteError,     setDeleteError]     = useState<string | null>(null)
+  const [deleteDeps,      setDeleteDeps]      = useState<DeleteDeps>({ etat: 'calcul' })
 
   const [fNomFr, setFNomFr] = useState('')
   const [fNomAr, setFNomAr] = useState('')
@@ -594,6 +611,86 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [confirmDelete])
+
+  // ── Ce qu'emporte la suppression, calculé à l'ouverture de la confirmation ──
+  //
+  // Pour un module et une UE, l'arbre entier est déjà en mémoire : le comptage
+  // est GRATUIT, aucune requête. Seul un cours en demande une, parce que ses
+  // dépendances vivent ailleurs (gabarits, emploi du temps).
+  useEffect(() => {
+    if (!confirmDelete) return
+    let annule = false
+    setDeleteDeps({ etat: 'calcul' })
+
+    const pret = (motifBlocage: string | null, avertissements: string[] = []) => {
+      if (!annule) setDeleteDeps({ etat: 'pret', motifBlocage, avertissements })
+    }
+
+    if (confirmDelete.kind === 'module') {
+      const n = cours.filter(c => c.module_id === confirmDelete.id).length
+      pret(n > 0 ? `Ce module contient encore ${n} cours. Supprimez-les d'abord.` : null)
+      return
+    }
+
+    if (confirmDelete.kind === 'ue') {
+      // Un cours peut pendre DIRECTEMENT à l'UE (`module_id` est nullable) : on
+      // compte donc les deux, sans quoi une UE paraîtrait vide alors qu'elle
+      // porte encore des cours hors module.
+      const nMod = modules.filter(m => m.unite_enseignement_id === confirmDelete.id).length
+      const nCrs = cours.filter(c => c.unite_enseignement_id === confirmDelete.id).length
+      const restes = [
+        nMod > 0 ? `${nMod} module${nMod > 1 ? 's' : ''}` : null,
+        nCrs > 0 ? `${nCrs} cours` : null,
+      ].filter(Boolean).join(' et ')
+      pret(restes ? `Cette unité contient encore ${restes}. Videz-la d'abord.` : null)
+      return
+    }
+
+    // ── Cours ────────────────────────────────────────────────────────────────
+    ;(async () => {
+      const supabase = createClient()
+      const [gabarits, creneaux] = await Promise.all([
+        supabase.from('evaluations')
+          .select('id, classes!inner(academic_year)')
+          .eq('cours_id', confirmDelete.id),
+        supabase.from('schedule_slots')
+          .select('id, school_years!inner(is_current)')
+          .eq('cours_id', confirmDelete.id)
+          .eq('school_years.is_current', true),
+      ])
+
+      // `!inner` est indispensable sur un filtre de ressource imbriquée : sans
+      // lui PostgREST l'IGNORE et renvoie tout (piège déjà payé le 4 août).
+      const lignes = (gabarits.data ?? []) as Array<{ classes: { academic_year: string } | { academic_year: string }[] }>
+      const annee = (l: (typeof lignes)[number]) =>
+        Array.isArray(l.classes) ? l.classes[0]?.academic_year : l.classes?.academic_year
+
+      const vivants  = currentYearLabel ? lignes.filter(l => annee(l) === currentYearLabel).length : 0
+      const archives = lignes.length - vivants
+      const nSlots   = creneaux.data?.length ?? 0
+
+      const avertissements: string[] = []
+      if (archives > 0) {
+        avertissements.push(
+          `${archives} évaluation${archives > 1 ? 's' : ''} d'années précédentes archivées perdront leur rattachement.`,
+        )
+      }
+      if (nSlots > 0) {
+        avertissements.push(
+          `${nSlots} créneau${nSlots > 1 ? 'x' : ''} d'emploi du temps perdront leur matière.`,
+        )
+      }
+
+      pret(
+        vivants > 0
+          ? `Ce cours sert ${vivants} gabarit${vivants > 1 ? 's' : ''} d'évaluation de l'année en cours. Supprimez-les d'abord.`
+          : null,
+        avertissements,
+      )
+    })()
+
+    return () => { annule = true }
+  }, [confirmDelete, cours, modules, currentYearLabel])
 
   // Auto-expand/collapse selon la recherche.
   // On ne réagit qu'aux VRAIS changements de recherche : un rafraîchissement de
@@ -799,24 +896,29 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
     setSubmitting(true); setDeleteError(null)
     const supabase = createClient()
 
-    let error: { code?: string; message: string } | null = null
+    const table =
+      confirmDelete.kind === 'ue'     ? 'unites_enseignement' :
+      confirmDelete.kind === 'module' ? 'cours_modules' : 'cours'
 
-    if (confirmDelete.kind === 'ue') {
-      const res = await supabase.from('unites_enseignement').delete().eq('id', confirmDelete.id)
-      error = res.error
-    } else if (confirmDelete.kind === 'module') {
-      const res = await supabase.from('cours_modules').delete().eq('id', confirmDelete.id)
-      error = res.error
-    } else {
-      const res = await supabase.from('cours').delete().eq('id', confirmDelete.id)
-      error = res.error
-    }
+    // `.select()` est indispensable : une suppression refusée par la RLS ne lève
+    // AUCUNE erreur, elle supprime simplement zéro ligne. Sans lui, l'écran
+    // annonçait un succès puis rafraîchissait sur un élément toujours là.
+    const { data, error } = await supabase
+      .from(table).delete().eq('id', confirmDelete.id).select('id')
 
     if (error) {
-      const msg = error.code === '23503'
-        ? 'Impossible de supprimer : des cours sont rattachés à cet élément.'
-        : error.message
-      setDeleteError(msg)
+      // 23503 est désormais ATTEIGNABLE — les clés étrangères sont passées en
+      // RESTRICT et le déclencheur `guard_cours_delete` lève ce même code. Le
+      // message de la base est précis (il compte), on le préfère au nôtre.
+      setDeleteError(error.code === '23503' && error.message
+        ? error.message
+        : error.message || 'La suppression a échoué.')
+      setSubmitting(false)
+      return
+    }
+
+    if (!data || data.length === 0) {
+      setDeleteError("Suppression refusée : vous n'avez pas les droits sur le référentiel.")
       setSubmitting(false)
       return
     }
@@ -960,11 +1062,21 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
             <p className="text-sm text-warm-700 mb-1">
               Supprimer <span dir="auto" className="font-semibold text-secondary-700">&ldquo;{confirmDelete.nom}&rdquo;</span> ?
             </p>
-            {confirmDelete.kind !== 'cours' && (
-              <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mb-3">
-                Attention : tous les éléments rattachés seront également supprimés.
+            {/* La conséquence RÉELLE, à la place de « tous les éléments
+                rattachés seront également supprimés » — qui était faux pour un
+                module : ses cours n'étaient pas supprimés mais détachés. */}
+            {deleteDeps.etat === 'calcul' && (
+              <p className="text-xs text-warm-700 mb-3">Vérification des dépendances…</p>
+            )}
+            {deleteDeps.etat === 'pret' && deleteDeps.motifBlocage && (
+              <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">
+                {deleteDeps.motifBlocage}
               </p>
             )}
+            {deleteDeps.etat === 'pret' && !deleteDeps.motifBlocage &&
+              deleteDeps.avertissements.map(a => (
+                <p key={a} className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mb-3">{a}</p>
+              ))}
             {deleteError && (
               <p role="alert" className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-3">{deleteError}</p>
             )}
@@ -972,7 +1084,16 @@ export default function CoursTree({ ues, modules, cours, etablissementId }: Prop
               <FloatButton type="button" variant="secondary" onClick={() => { setConfirmDelete(null); setDeleteError(null) }} disabled={submitting}>
                 Annuler
               </FloatButton>
-              <FloatButton type="button" variant="danger" onClick={handleDelete} disabled={submitting}>
+              {/* Grisé tant que le calcul court ou qu'un motif bloque : le
+                  refus est déjà écrit au-dessus, laisser le bouton actif
+                  n'offrirait qu'un échec. La base refuserait de toute façon —
+                  les clés sont en RESTRICT et le déclencheur veille. */}
+              <FloatButton
+                type="button"
+                variant="danger"
+                onClick={handleDelete}
+                disabled={submitting || deleteDeps.etat !== 'pret' || !!deleteDeps.motifBlocage}
+              >
                 {submitting ? 'Suppression…' : 'Supprimer'}
               </FloatButton>
             </div>

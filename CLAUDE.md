@@ -3050,6 +3050,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] **A JOUER** — `supabase/migrations/guard-referentiel-delete.sql` : les 3 cles du referentiel
+  passent en **RESTRICT** (on ne supprime que ce qui est VIDE, en partant du bas) ; declencheur
+  refusant un cours qui sert un **gabarit de l'annee en cours** ; purge d'annee dotee d'un filet
+  **par classe** (`evaluations.period_id` est nullable, `class_id` ne l'est pas).
 - [ ] **A REJOUER** — `supabase/migrations/guard-class-delete-with-participants.sql` : le
   message du trigger disait « inscrit(s) actif(s) » la ou il s'agit d'**affectations**
   (vocabulaire fixe le 10 aout : « inscrit » = ACTIF, le rattachement a une classe = « affecte »).
