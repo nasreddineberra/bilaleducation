@@ -2978,6 +2978,44 @@ et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »)
   - **temps de presence** : ne pas compter d'heures.
   Ce sont EUX qui decideront de la forme exacte de la donnee, pas l'ecran de saisie.
 
+- **IMPORTATION EN MASSE PARENTS + APPRENANTS** (demande du 11 aout, **a concevoir — gros chantier**) :
+  nouveau menu **« Importation »** dans la section **Vie scolaire**, reserve **admin/direction**
+  (garde sur la PAGE, pas seulement sur le lien de la sidebar). Import d'un fichier Excel
+  **predefini** creant en une fois les foyers et les apprenants qui leur sont rattaches, avec
+  **controles AVANT enregistrement reel**.
+  - **Le besoin est reel** : certaines ecoles comptent 150 a 200 eleves. Les saisir un par un, fiche
+    parents puis fiche de chaque enfant, n'est pas tenable a la rentree.
+
+  **CE QUI DECIDERA DU TRAVAIL — a trancher avant d'ecrire une ligne**
+  - **La forme du fichier.** Le modele est un FOYER (`parents`, avec jusqu'a 2 tuteurs :
+    `tutor1_*` / `tutor2_*`) et N enfants (`students.parent_id`). Le plus robuste pour qui remplit un
+    tableur est **une ligne par ENFANT, avec le foyer repete** ; le regroupement se fait a l'import.
+    Deux onglets separes seraient plus propres en theorie et bien plus fragiles en pratique.
+  - **Le gabarit se telecharge depuis l'ecran** : sans fichier de depart, chacun inventera ses
+    colonnes. C'est une partie du travail, pas un accessoire.
+  - **Deux passes obligatoires** : une **verification** qui ne touche rien et rend un rapport ligne
+    par ligne, puis un **enregistrement** sur ce qui a ete valide. C'est ce que demande l'utilisateur,
+    et c'est aussi ce qui rend l'echec partiel supportable.
+  - **DOUBLONS — le point le plus delicat.** Il y en a DEUX sortes : les doublons **internes au
+    fichier** et ceux **contre l'existant**. La regle du projet est nom+prenom insensible a la casse
+    ET aux accents (`normalizeNom` cote client, `norm_name()` en SQL). **Rappel** : seuls les
+    ENSEIGNANTS ont aujourd'hui un index unique en base ; apprenants et parents reposent encore sur
+    un controle client-only — un import de masse rend ce trou beaucoup plus grave.
+  - **NUMEROTATION** : `ELV-YYYYMM-NNN`, increment ANNUEL. Une insertion en lot doit produire une
+    suite sans collision — a faire cote serveur, pas en calculant N numeros a l'avance dans le
+    navigateur.
+  - **ECRITURE PAR SERVER ACTION**, jamais depuis le navigateur : c'est la regle de tracabilite du
+    projet (client session ⇒ `auth.uid()` capte ⇒ journal d'activite renseigne). 200 lignes ecrites
+    sans acteur seraient invisibles au journal.
+  - **Comptes parents** : `CREATE_PARENT_ACCOUNTS = false` en V1, l'import ne cree donc **que des
+    fiches**, pas de comptes auth. Cela simplifie beaucoup — a rouvrir le jour ou les comptes
+    reviennent.
+  - **HORS PERIMETRE propose** : l'affectation aux classes, qui a deja son ecran. L'import cree des
+    fiches, pas des inscriptions.
+  - **Dependance technique** : aucune bibliotheque de lecture Excel dans le projet aujourd'hui.
+    Soit on ajoute `xlsx`, soit on impose du **CSV** — a arbitrer (le CSV evite une dependance mais
+    expose l'utilisateur aux separateurs et aux encodages).
+
 - **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
