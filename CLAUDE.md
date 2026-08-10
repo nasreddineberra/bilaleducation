@@ -2735,6 +2735,64 @@ deconnexion seule s'est revele **correct**.
   elle vient. Verifie : le seul autre `bottom` hors en-tete (fiche apprenant) est en haut d'une
   carte, donc legitime.
 
+#### 10 aout 2026 (suite) — Referentiel des cours : garde-fous de suppression, compteur, refonte en 3 colonnes
+
+**SUPPRESSIONS — l'ecran promettait l'inverse de ce que faisait la base.** Aucune cle n'etait en
+RESTRICT : supprimer une UE emportait modules ET cours en CASCADE d'un clic ; supprimer un module
+DETACHAIT ses cours (`SET NULL`), qui survivaient invisibles dans l'arbre mais toujours references.
+Le message « Impossible de supprimer : des cours sont rattaches » etait **INATTEIGNABLE** (rien ne
+pouvait lever 23503) et l'avertissement « tous les elements rattaches seront supprimes » etait **FAUX**
+pour un module.
+- **Migration `guard-referentiel-delete.sql`** (jouee) : les 3 cles passent en **RESTRICT** — un module
+  ne part que vide, une UE que sans module NI cours (un cours pouvant pendre directement a l'UE,
+  `module_id` etant nullable). La regle vit dans les CLES, donc elle vaut pour tout chemin d'ecriture,
+  la suppression partant du navigateur. \+ declencheur refusant un cours qui sert un **gabarit de
+  l'annee EN COURS** (chaine referentiel → gabarit → notes) ; les gabarits d'annees archivees ne
+  bloquent pas, l'ecran **ANNONCE** que leur rattachement tombera.
+  - **CONSEQUENCE de RESTRICT** : contrairement a un declencheur, il n'a pas de sortie de secours et
+    refusera aussi une CASCADE venue d'en haut. Verifie : les 3 seules suppressions d'`etablissements`
+    du code sont des ROLLBACKS de `createTenant`.
+  - **Purge d'annee** : filet par **classe** ajoute — elle effacait les evaluations par periode, or
+    `evaluations.period_id` est NULLABLE, une evaluation sans periode lui echappait definitivement.
+- **`.select()` apres DELETE** : sans lui, une suppression refusee par la RLS n'ecrit rien et ne leve
+  RIEN — l'ecran annoncait un succes sur un element toujours la.
+- **Faux avertissement retire** : `schedule_slots.cours_id` n'a plus aucun chemin d'ecriture (seule la
+  palette de matieres du Secondaire l'ecrivait, neutralisee ; `SlotFormModal` ecrit `null` en dur ;
+  0 creneau sur 4 en base). Un avertissement a ce sujet ne pouvait jamais s'afficher.
+
+**COMPTEUR DE GABARITS** (idee utilisateur) : pastille sur chaque cours, somme remontee sur les modules
+et les UE — **une seule requete** pour la page, les sommes se calculant en memoire. Rien a zero. Ce
+n'est pas qu'une statistique : **c'est l'indicateur de suppressibilite**, visible AVANT le clic.
+
+**REFONTE EN TROIS COLONNES** (Unites · Modules · Cours), prototypee sur `/dashboard/cours/test` puis
+basculee ; `CoursTree.tsx` supprime.
+- L'arbre ne disait la hierarchie qu'a un retrait de quelques pixels, cachait les cours derriere deux
+  depliages, et laissait 1 200 px de vide entre le nom et son chiffre.
+- Colonne du milieu = modules **+ groupe « Cours sans module »** (la 3e reste homogene) ; **2 boutons**
+  Module/Cours — avec un seul, une unite sans cours direct n'offrait AUCUN moyen d'en creer le premier.
+- Colonne 3 = **une carte par module**. Sans module choisi elle montre TOUTE l'unite, sinon une seule
+  carte : la presentation ne change pas, seule la quantite varie.
+- **Glisser-deposer = REORDONNER SEULEMENT** (decision utilisateur), garanti **structurellement** — un
+  contexte de tri par liste, donc rien ne peut passer d'une liste a l'autre. Poignee dediee (le corps
+  sert a selectionner), capteur a 4 px. `order_index` renumerote sur tout le sous-ensemble.
+- Recherche : filtre les **3** colonnes et surligne ; un module est garde s'il correspond ou si l'un de
+  ses cours correspond ; la selection suit le premier resultat.
+- **COULEUR ABANDONNEE apres MESURE** (skill `dataviz`) : le texte sur bande teintee tient a plus de
+  9:1 dans les deux themes et l'opacite peut monter a **34 %** avec n'importe quelle couleur — la
+  lisibilite n'etait donc pas le probleme. Le probleme etait la **DISTINCTION** : la palette de 15
+  couleurs du projet **echoue** au validateur (violet↔bleu ΔE 1,3 en deuteranopie, orange↔ambre 9,6 en
+  vision normale), et l'etendre au-dela de 5 teintes separables s'est revele impossible. Une regle
+  « une couleur prise n'est plus reprise » aurait empeche le meme violet deux fois, pas deux violets
+  voisins. **Une bordure et un en-tete ne connaissent pas ce plafond, et se lisent en noir et blanc.**
+  - La couleur d'UE n'est **plus editable** : elle ne servait qu'a la palette de matieres du Secondaire
+    (`isDndActive = false`). Colonne conservee en base.
+- **`FloatButton` gagne `size="mini"`** : l'habillage `text-xs px-2.5 py-1` etait recopie a la main
+  dans Reglements et la Feuille d'appel (6 occurrences, converties). **`size` et non `variant`** —
+  c'est une TAILLE, sinon il faudrait `mini-submit`, `mini-secondary`, `mini-danger`…
+- **`FormModal` gagne `footerSeparator`** : quand le pied porte un CHAMP (ici la Ref, a gauche des
+  boutons), le filet coupait le formulaire en deux et les remplissages cumules ouvraient un trou de
+  28 px.
+
 #### A CONSIGNER — DECONNEXION DE LA CONSOLE SUPER-ADMIN (10 aout)
 
 Signale par l'utilisateur en fin de session. **Symptome non decrit, rien de verifie.**

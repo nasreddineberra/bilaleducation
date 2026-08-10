@@ -8,13 +8,16 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { SearchField, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import type { UniteEnseignement, CoursModule, Cours } from '@/types/database'
 
 /**
- * PROTOTYPE — le référentiel des cours en TROIS COLONNES.
+ * Le référentiel des cours, en TROIS COLONNES.
  *
  * ┌─ CE QU'IL CORRIGE ──────────────────────────────────────────────────────┐
  * │ Dans l'arbre en service, la hiérarchie ne se lit qu'à un retrait de      │
@@ -27,16 +30,31 @@ import type { UniteEnseignement, CoursModule, Cours } from '@/types/database'
  * │ visibles en permanence.                                                  │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
+ * LA COULEUR D'UNE UNITÉ N'EST PLUS ÉDITABLE ICI. Elle ne servait qu'à la
+ * palette de matières de l'emploi du temps, neutralisée avec le mode Secondaire
+ * (`isDndActive = false`), et la piste des bandes teintées a été écartée après
+ * mesure. La colonne reste en base pour le jour où le Secondaire reviendrait.
+ *
  * LE POINT DUR : un cours peut pendre DIRECTEMENT à une unité (`module_id`
  * est nullable, `unite_enseignement_id` ne l'est pas). La colonne du milieu
  * n'est donc pas homogène. Elle range les modules d'abord, puis les cours
  * sans module dans un groupe nommé — la troisième colonne reste ainsi
  * homogène, ce qu'un mélange aurait détruit.
- *
- * Les actions sont INERTES : ce prototype se juge sur la lisibilité.
  */
 
 type Selection = { ueId: string | null; moduleId: string | null; coursId: string | null }
+
+/**
+ * Ce qu'emporte une suppression, calculé AVANT de la proposer.
+ *
+ * L'écran ne fait qu'ANNONCER : la barrière vit en base
+ * (`guard-referentiel-delete.sql`), les clés étant en RESTRICT et un
+ * déclencheur refusant un cours qui sert un gabarit de l'année en cours. La
+ * suppression partant du navigateur, un contrôle d'écran ne protégerait rien.
+ */
+type DeleteDeps =
+  | { etat: 'calcul' }
+  | { etat: 'pret'; motifBlocage: string | null; avertissements: string[] }
 
 // Normalisation de recherche : minuscules + accents retirés, comme l'arbre.
 const norm = (s: string | null | undefined) =>
@@ -50,8 +68,8 @@ const arStyle: React.CSSProperties = {
 }
 
 /**
- * Surligne la portion cherchée. Recopié de `CoursTree` : `norm()` conserve la
- * LONGUEUR du texte (un accent reste un caractère + un diacritique retiré),
+ * Surligne la portion cherchée. Repris de l'arbre qu'écran remplace : `norm()`
+ * conserve la LONGUEUR du texte (un accent reste un caractère + un diacritique retiré),
  * donc les indices calculés sur la version normalisée s'appliquent tels quels
  * au texte d'origine — c'est ce qui permet de surligner « écr » en tapant
  * « ecr ».
@@ -166,7 +184,11 @@ function Encadre({
  */
 function Ligne({
   id, code, nomFr, nomAr, badge, actif, chevron, onSelect, triable = true, q = '',
+  onEditer, onSupprimer,
 }: {
+  /** Absents sur les lignes qui ne sont pas de vraies entités. */
+  onEditer?: () => void
+  onSupprimer?: () => void
   id: string
   /** Recherche en cours, pour le surlignage. */
   q?: string
@@ -229,16 +251,28 @@ function Ligne({
       {/* Actions révélées au survol ET au focus clavier — sans `group-focus-within`
           elles resteraient inatteignables sans souris. */}
       <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
-        <Tooltip content="Modifier">
-          <button type="button" aria-label={`Modifier ${nomFr}`} className="p-1 text-[var(--ink-muted)] hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
-            <Pencil size={12} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Supprimer">
-          <button type="button" aria-label={`Supprimer ${nomFr}`} className="p-1 text-[var(--ink-muted)] hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-400/60">
-            <Trash2 size={12} />
-          </button>
-        </Tooltip>
+        {onEditer && (
+          <Tooltip content="Modifier">
+            <button
+              type="button" aria-label={`Modifier ${nomFr}`}
+              onClick={e => { e.stopPropagation(); onEditer() }}
+              className="p-1 text-[var(--ink-muted)] hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            >
+              <Pencil size={12} />
+            </button>
+          </Tooltip>
+        )}
+        {onSupprimer && (
+          <Tooltip content="Supprimer">
+            <button
+              type="button" aria-label={`Supprimer ${nomFr}`}
+              onClick={e => { e.stopPropagation(); onSupprimer() }}
+              className="p-1 text-[var(--ink-muted)] hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+            >
+              <Trash2 size={12} />
+            </button>
+          </Tooltip>
+        )}
       </span>
 
       {/* Le chevron dit « cette ligne a une suite à droite » — le seul repère
@@ -280,7 +314,14 @@ function Tri({
  * directement à une unité.
  */
 type Parent = { nature: 'ue' | 'module'; nom: string }
-type Ajout = { kind: 'ue' } | { kind: 'module'; parent: Parent } | { kind: 'cours'; parent: Parent }
+type Nature = 'ue' | 'module' | 'cours'
+
+/** Saisie en cours : création (`item` absent) ou modification. */
+type Saisie = {
+  nature: Nature
+  parent: Parent | null
+  item?: { id: string; code: string | null; nom_fr: string; nom_ar: string | null }
+}
 
 /**
  * Formulaire d'ajout, en modale VERROUILLÉE.
@@ -295,19 +336,36 @@ type Ajout = { kind: 'ue' } | { kind: 'module'; parent: Parent } | { kind: 'cour
  * trois colonnes, la destination d'un ajout doit être écrite, pas déduite de la
  * colonne d'où l'on a cliqué.
  */
-function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) {
-  const [ref, setRef]     = useState('')
-  const [nomFr, setNomFr] = useState('')
-  const [nomAr, setNomAr] = useState('')
+function ModaleSaisie({
+  saisie, onClose, onValider,
+}: {
+  saisie: Saisie
+  onClose: () => void
+  onValider: (v: { code: string; nomFr: string; nomAr: string }) => Promise<string | null>
+}) {
+  const [ref, setRef]     = useState(saisie.item?.code ?? '')
+  const [nomFr, setNomFr] = useState(saisie.item?.nom_fr ?? '')
+  const [nomAr, setNomAr] = useState(saisie.item?.nom_ar ?? '')
+  const [erreur, setErreur] = useState<string | null>(null)
+  const [envoi, setEnvoi] = useState(false)
 
-  const titre =
-    ajout.kind === 'ue'     ? "Nouvelle unité d'enseignement" :
-    ajout.kind === 'module' ? 'Nouveau module' : 'Nouveau cours'
+  const edition = !!saisie.item
+  const NOM: Record<Nature, string> = { ue: "unité d'enseignement", module: 'module', cours: 'cours' }
+  const titre = edition
+    ? `Modifier ${saisie.nature === 'ue' ? "l'unité d'enseignement" : saisie.nature === 'module' ? 'le module' : 'le cours'}`
+    : saisie.nature === 'ue' ? "Nouvelle unité d'enseignement" : `Nouveau ${NOM[saisie.nature]}`
 
-  const rattachement = ajout.kind === 'ue' ? null
-    : ajout.parent.nature === 'module'
-      ? `Dans le module « ${ajout.parent.nom} »`
-      : `Dans l'UE « ${ajout.parent.nom} »`
+  const rattachement = !saisie.parent ? null
+    : saisie.parent.nature === 'module'
+      ? `Dans le module « ${saisie.parent.nom} »`
+      : `Dans l'UE « ${saisie.parent.nom} »`
+
+  const valider = async () => {
+    setEnvoi(true); setErreur(null)
+    const err = await onValider({ code: ref.trim(), nomFr: nomFr.trim(), nomAr: nomAr.trim() })
+    if (err) { setErreur(err); setEnvoi(false); return }
+    onClose()
+  }
 
   return (
     <FormModal
@@ -330,10 +388,16 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
               />
             </div>
             <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-              <FloatButton type="button" variant="secondary" onClick={onClose}>Annuler</FloatButton>
-              {/* Inerte : ce prototype se juge sur la présentation. */}
-              <FloatButton type="button" variant="submit" disabled={!ref.trim() || !nomFr.trim()}>
-                Valider
+              <FloatButton type="button" variant="secondary" onClick={onClose} disabled={envoi}>
+                Annuler
+              </FloatButton>
+              <FloatButton
+                type="button"
+                variant={edition ? 'edit' : 'submit'}
+                onClick={valider}
+                disabled={envoi || !ref.trim() || !nomFr.trim()}
+              >
+                {envoi ? 'Enregistrement…' : 'Valider'}
               </FloatButton>
             </div>
           </div>
@@ -343,6 +407,9 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
     >
       {rattachement && (
         <p className="text-xs text-[var(--ink-muted)] -mt-1">{rattachement}</p>
+      )}
+      {erreur && (
+        <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{erreur}</p>
       )}
 
       <FloatInput
@@ -412,21 +479,74 @@ function reordonner<T extends { id: string }>(tout: T[], sous: T[], actif: strin
 }
 
 export default function ReferentielColonnes({
-  ues, modules, cours, gabaritsParCours, anneeLabel,
+  ues, modules, cours, gabaritsParCours, anneeLabel, etablissementId,
 }: {
   ues: UniteEnseignement[]
   modules: CoursModule[]
   cours: Cours[]
+  /** Exigé à la création d'une unité : elle seule porte le cloisonnement, les
+   *  modules et les cours l'héritent par leur unité. */
+  etablissementId: string
   gabaritsParCours: Record<string, number>
   anneeLabel: string | null
 }) {
   const [sel, setSel] = useState<Selection>({ ueId: null, moduleId: null, coursId: null })
   const [search, setSearch] = useState('')
-  const [ajout, setAjout] = useState<Ajout | null>(null)
+  const [saisie, setSaisie] = useState<Saisie | null>(null)
+  const [aSupprimer, setASupprimer] = useState<{ nature: Nature; id: string; nom: string } | null>(null)
+  const router = useRouter()
 
-  // Ordre LOCAL. Ce prototype ne persiste pas `order_index` : on n'écrit pas
-  // dans les données depuis une maquette. Le geste et le rendu sont réels, le
-  // rangement repart à zéro au rechargement.
+  const TABLE: Record<Nature, string> = {
+    ue: 'unites_enseignement', module: 'cours_modules', cours: 'cours',
+  }
+
+  /**
+   * Écriture d'une création ou d'une modification.
+   *
+   * Le `.select()` n'est pas décoratif : une écriture refusée par la RLS ne
+   * lève AUCUNE erreur, elle touche simplement zéro ligne. Sans lui, l'écran
+   * annoncerait un succès puis se rafraîchirait sur des données inchangées.
+   */
+  const enregistrer = async (v: { code: string; nomFr: string; nomAr: string }): Promise<string | null> => {
+    if (!saisie) return 'Rien à enregistrer.'
+    const supabase = createClient()
+    const champs = { code: v.code || null, nom_fr: v.nomFr, nom_ar: v.nomAr || null }
+
+    const req = saisie.item
+      ? supabase.from(TABLE[saisie.nature]).update(champs).eq('id', saisie.item.id).select('id')
+      : supabase.from(TABLE[saisie.nature]).insert({
+          ...champs,
+          ...(saisie.nature === 'ue'
+            ? { etablissement_id: etablissementId }
+            : saisie.nature === 'module'
+              ? { unite_enseignement_id: sel.ueId }
+              : { unite_enseignement_id: sel.ueId, module_id: saisie.parent?.nature === 'module' ? sel.moduleId : null }),
+        }).select('id')
+
+    const { data, error } = await req
+    if (error) return error.message
+    if (!data || data.length === 0) return "Écriture refusée : vous n'avez pas les droits sur le référentiel."
+    router.refresh()
+    return null
+  }
+
+  /**
+   * Ordre persisté. On réécrit `order_index` sur TOUT le sous-ensemble et non
+   * sur les deux éléments échangés : les index d'origine peuvent être nuls ou
+   * en doublon (rien ne les contraint), et une renumérotation complète est la
+   * seule qui produise un ordre sans ambiguïté.
+   */
+  const persisterOrdre = async (nature: Nature, liste: { id: string }[]) => {
+    const supabase = createClient()
+    await Promise.all(liste.map((x, i) =>
+      supabase.from(TABLE[nature]).update({ order_index: i }).eq('id', x.id),
+    ))
+  }
+
+
+
+  // L'ordre affiché est local pour que le glisser-déposer réponde tout de
+  // suite ; `persisterOrdre` écrit `order_index` dans la foulée.
   const [lstUes, setLstUes]         = useState(ues)
   const [lstModules, setLstModules] = useState(modules)
   const [lstCours, setLstCours]     = useState(cours)
@@ -527,19 +647,86 @@ export default function ReferentielColonnes({
     return sel.moduleId ? tous.filter(g => g.cle === sel.moduleId) : tous
   }, [modulesDeUE, coursDirects, lstCours, sel.moduleId, q]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Suppression ───────────────────────────────────────────────────────────
+  //
+  // La barrière vit en BASE (`guard-referentiel-delete.sql`) : les clés sont en
+  // RESTRICT et un déclencheur refuse un cours qui sert un gabarit de l'année
+  // en cours. Ce qui suit ne fait qu'ANNONCER ce que la base appliquera — un
+  // écran ne protège rien, la suppression partant du navigateur.
+  const [deps, setDeps] = useState<DeleteDeps>({ etat: 'calcul' })
+  const [erreurSuppr, setErreurSuppr] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!aSupprimer) return
+    let annule = false
+    setDeps({ etat: 'calcul' }); setErreurSuppr(null)
+    const pret = (motifBlocage: string | null, avertissements: string[] = []) => {
+      if (!annule) setDeps({ etat: 'pret', motifBlocage, avertissements })
+    }
+
+    if (aSupprimer.nature === 'module') {
+      const n = lstCours.filter(c => c.module_id === aSupprimer.id).length
+      pret(n > 0 ? `Ce module contient encore ${n} cours. Supprimez-les d'abord.` : null)
+      return
+    }
+    if (aSupprimer.nature === 'ue') {
+      const nMod = lstModules.filter(m => m.unite_enseignement_id === aSupprimer.id).length
+      const nCrs = lstCours.filter(c => c.unite_enseignement_id === aSupprimer.id).length
+      const restes = [
+        nMod > 0 ? `${nMod} module${nMod > 1 ? 's' : ''}` : null,
+        nCrs > 0 ? `${nCrs} cours` : null,
+      ].filter(Boolean).join(' et ')
+      pret(restes ? `Cette unité contient encore ${restes}. Videz-la d'abord.` : null)
+      return
+    }
+
+    // Un cours : ses gabarits vivent ailleurs, il faut aller les compter.
+    ;(async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('evaluations')
+        .select('id, classes!inner(academic_year)')
+        .eq('cours_id', aSupprimer.id)
+      const lignes = (data ?? []) as Array<{ classes: { academic_year: string } | { academic_year: string }[] }>
+      const annee = (l: (typeof lignes)[number]) =>
+        Array.isArray(l.classes) ? l.classes[0]?.academic_year : l.classes?.academic_year
+      const vivants  = anneeLabel ? lignes.filter(l => annee(l) === anneeLabel).length : 0
+      const archives = lignes.length - vivants
+      pret(
+        vivants > 0
+          ? `Ce cours sert ${vivants} gabarit${vivants > 1 ? 's' : ''} d'évaluation de l'année en cours. Supprimez-les d'abord.`
+          : null,
+        archives > 0
+          ? [`${archives} évaluation${archives > 1 ? 's' : ''} d'années précédentes archivées perdront leur rattachement.`]
+          : [],
+      )
+    })()
+    return () => { annule = true }
+  }, [aSupprimer, lstCours, lstModules, anneeLabel])
+
+  const supprimer = async () => {
+    if (!aSupprimer) return
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from(TABLE[aSupprimer.nature]).delete().eq('id', aSupprimer.id).select('id')
+
+    if (error) { setErreurSuppr(error.message || 'La suppression a échoué.'); return }
+    if (!data || data.length === 0) {
+      setErreurSuppr("Suppression refusée : vous n'avez pas les droits sur le référentiel.")
+      return
+    }
+    // La sélection pointait peut-être sur ce qui vient de disparaître.
+    setSel(s => ({
+      ueId:     aSupprimer.nature === 'ue' ? null : s.ueId,
+      moduleId: aSupprimer.nature === 'cours' ? s.moduleId : null,
+      coursId:  null,
+    }))
+    setASupprimer(null)
+    router.refresh()
+  }
+
   return (
     <div className="space-y-2">
-      {/* Bandeau d'avertissement : cette page est un prototype. */}
-      <div className="card px-3 py-2 flex items-center gap-3 border-l-4 border-l-orange-400">
-        <span className="text-xs text-[var(--ink)]">
-          <strong>Page de test.</strong> Prototype du référentiel en trois colonnes, sur données
-          réelles. Les boutons Ajouter / Modifier / Supprimer sont inertes.
-        </span>
-        <a href="/dashboard/cours" className="ml-auto text-xs font-medium text-primary-700 hover:text-primary-800 flex-shrink-0">
-          Voir l&rsquo;écran actuel
-        </a>
-      </div>
-
       <div className="card px-3 py-2 flex items-center gap-3">
         <SearchField
           value={search}
@@ -561,13 +748,17 @@ export default function ReferentielColonnes({
           <Encadre
             titre="Unités"
             compte={uesFiltrees.length}
-            actions={[{ libelle: 'Ajouter', aria: 'Ajouter une unité', onClick: () => setAjout({ kind: 'ue' }) }]}
+            actions={[{ libelle: 'Ajouter', aria: 'Ajouter une unité', onClick: () => setSaisie({ nature: 'ue', parent: null }) }]}
             liste="Unités d'enseignement"
             className="w-fit min-w-[13rem] max-w-[24rem]"
           >
             {uesFiltrees.length === 0
               ? <Vide texte={q ? 'Aucun résultat.' : 'Aucune unité.'} />
-              : <Tri items={uesFiltrees} sensors={sensors} onOrdre={(a, b) => setLstUes(t => reordonner(t, uesFiltrees, a, b))}>
+              : <Tri items={uesFiltrees} sensors={sensors} onOrdre={(a, b) => setLstUes(t => {
+                  const n = reordonner(t, uesFiltrees, a, b)
+                  void persisterOrdre('ue', n.filter(u => uesFiltrees.some(f => f.id === u.id)))
+                  return n
+                })}>
                 {uesFiltrees.map(ue => (
                   <Ligne
                     key={ue.id} id={ue.id} q={q}
@@ -576,6 +767,8 @@ export default function ReferentielColonnes({
                     actif={sel.ueId === ue.id}
                     chevron
                     onSelect={() => setSel({ ueId: ue.id, moduleId: null, coursId: null })}
+                    onEditer={() => setSaisie({ nature: 'ue', parent: null, item: ue })}
+                    onSupprimer={() => setASupprimer({ nature: 'ue', id: ue.id, nom: ue.nom_fr })}
                   />
                 ))}
               </Tri>}
@@ -589,9 +782,9 @@ export default function ReferentielColonnes({
             compte={modulesDeUE.length + (coursDirects.length ? 1 : 0)}
             actions={ueActive ? [
               { libelle: 'Module', aria: 'Ajouter un module à cette unité',
-                onClick: () => setAjout({ kind: 'module', parent: { nature: 'ue', nom: nomUE } }) },
+                onClick: () => setSaisie({ nature: 'module', parent: { nature: 'ue', nom: nomUE } }) },
               { libelle: 'Cours',  aria: 'Ajouter un cours directement à cette unité',
-                onClick: () => setAjout({ kind: 'cours', parent: { nature: 'ue', nom: nomUE } }) },
+                onClick: () => setSaisie({ nature: 'cours', parent: { nature: 'ue', nom: nomUE } }) },
             ] : []}
             liste="Modules de l'unité"
             className="w-fit min-w-[14rem] max-w-[26rem]"
@@ -600,7 +793,11 @@ export default function ReferentielColonnes({
               <Vide texte="Sélectionnez une unité." />
             ) : (
               <>
-                <Tri items={modulesDeUE} sensors={sensors} onOrdre={(a, b) => setLstModules(t => reordonner(t, modulesDeUE, a, b))}>
+                <Tri items={modulesDeUE} sensors={sensors} onOrdre={(a, b) => setLstModules(t => {
+                  const n = reordonner(t, modulesDeUE, a, b)
+                  void persisterOrdre('module', n.filter(m => m.unite_enseignement_id === ueActive))
+                  return n
+                })}>
                 {modulesDeUE.map(m => (
                   <Ligne
                     key={m.id} id={m.id} q={q}
@@ -609,6 +806,8 @@ export default function ReferentielColonnes({
                     actif={sel.moduleId === m.id}
                     chevron
                     onSelect={() => setSel(s => ({ ...s, moduleId: m.id, coursId: null }))}
+                    onEditer={() => setSaisie({ nature: 'module', parent: { nature: 'ue', nom: nomUE }, item: m })}
+                    onSupprimer={() => setASupprimer({ nature: 'module', id: m.id, nom: m.nom_fr })}
                   />
                 ))}
                 </Tri>
@@ -651,8 +850,8 @@ export default function ReferentielColonnes({
             actions={sel.moduleId ? [{
               libelle: 'Ajouter', aria: 'Ajouter un cours',
               // Le groupe « sans module » rattache à l'UNITÉ, pas à un module.
-              onClick: () => setAjout({
-                kind: 'cours',
+              onClick: () => setSaisie({
+                nature: 'cours',
                 parent: sel.moduleId === SANS_MODULE
                   ? { nature: 'ue', nom: nomUE }
                   : { nature: 'module', nom: nomModule },
@@ -679,7 +878,11 @@ export default function ReferentielColonnes({
               <div className="px-2 py-1.5 space-y-1.5">
                 {groupes.map(g => (
                   <CarteGroupe key={g.cle} titre={g.titre} compte={g.liste.length}>
-                    <Tri items={g.liste} sensors={sensors} onOrdre={(a, b) => setLstCours(t => reordonner(t, g.liste, a, b))}>
+                    <Tri items={g.liste} sensors={sensors} onOrdre={(a, b) => setLstCours(t => {
+                      const n = reordonner(t, g.liste, a, b)
+                      void persisterOrdre('cours', n.filter(c => g.liste.some(x => x.id === c.id)))
+                      return n
+                    })}>
                     {g.liste.map(c => (
                       <Ligne
                         key={c.id} id={c.id} q={q}
@@ -688,6 +891,14 @@ export default function ReferentielColonnes({
                         actif={sel.coursId === c.id}
                         chevron={false}
                         onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
+                        onEditer={() => setSaisie({
+                          nature: 'cours',
+                          parent: c.module_id
+                            ? { nature: 'module', nom: g.titre }
+                            : { nature: 'ue', nom: nomUE },
+                          item: c,
+                        })}
+                        onSupprimer={() => setASupprimer({ nature: 'cours', id: c.id, nom: c.nom_fr })}
                       />
                     ))}
                     </Tri>
@@ -700,7 +911,37 @@ export default function ReferentielColonnes({
 
       </div>
 
-      {ajout && <ModaleAjout ajout={ajout} onClose={() => setAjout(null)} />}
+      {saisie && (
+        <ModaleSaisie saisie={saisie} onClose={() => setSaisie(null)} onValider={enregistrer} />
+      )}
+
+      {aSupprimer && (
+        <ConfirmModal
+          variant="danger"
+          confirmLabel="Supprimer"
+          confirmDisabled={deps.etat !== 'pret' || !!deps.motifBlocage}
+          onCancel={() => setASupprimer(null)}
+          onConfirm={supprimer}
+        >
+          <div className="space-y-2">
+            <p className="text-sm text-warm-700">
+              Supprimer <strong className="text-secondary-700">« {aSupprimer.nom} »</strong> ?
+            </p>
+            {deps.etat === 'calcul' && (
+              <p className="text-xs text-warm-700">Vérification des dépendances…</p>
+            )}
+            {deps.etat === 'pret' && deps.motifBlocage && (
+              <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{deps.motifBlocage}</p>
+            )}
+            {deps.etat === 'pret' && !deps.motifBlocage && deps.avertissements.map((a: string) => (
+              <p key={a} className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">{a}</p>
+            ))}
+            {erreurSuppr && (
+              <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{erreurSuppr}</p>
+            )}
+          </div>
+        </ConfirmModal>
+      )}
     </div>
   )
 }
