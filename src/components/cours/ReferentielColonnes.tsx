@@ -1,7 +1,13 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Pencil, Trash2, GripVertical } from 'lucide-react'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { UniteEnseignement, CoursModule, Cours } from '@/types/database'
@@ -112,27 +118,58 @@ function Encadre({
   )
 }
 
-/** Ligne sélectionnable. `role=option` : une colonne EST une liste de choix. */
+/**
+ * Ligne sélectionnable ET déplaçable. `role=option` : une colonne EST une liste
+ * de choix.
+ *
+ * Le déplacement passe par une POIGNÉE et non par le corps de la ligne : celui-ci
+ * sert déjà à sélectionner, et un même geste ne peut pas faire deux choses. La
+ * poignée n'apparaît qu'au survol pour ne pas alourdir la lecture.
+ *
+ * Le glisser-déposer ne fait que RÉORDONNER, jamais déplacer d'un module à
+ * l'autre — décision de l'utilisateur : un dépôt manqué changerait alors la
+ * structure au lieu de l'ordre.
+ */
 function Ligne({
-  code, nomFr, nomAr, badge, actif, chevron, onSelect,
+  id, code, nomFr, nomAr, badge, actif, chevron, onSelect, triable = true,
 }: {
+  id: string
+  /** `false` pour les lignes qui ne sont pas de vraies entités — le groupe
+   *  « Cours sans module » n'est pas un module, il n'a pas d'ordre à changer.
+   *  Le crochet est appelé quoi qu'il arrive (règle des hooks), simplement
+   *  désactivé, et la poignée disparaît. */
+  triable?: boolean
   code: string | null; nomFr: string; nomAr: string | null
   badge: React.ReactNode; actif: boolean; chevron: boolean
   onSelect: () => void
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id, disabled: !triable })
   return (
     <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       role="option"
       aria-selected={actif}
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
       className={[
-        'group mx-1 px-2 py-0.5 rounded-md cursor-pointer flex items-center gap-2 outline-none',
+        'group mx-1 px-1 py-0.5 rounded-md cursor-pointer flex items-center gap-1.5 outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary-500/50 transition-colors',
         actif ? 'bg-primary-50' : 'hover:bg-[var(--surface-sunken)]',
       ].join(' ')}
     >
+      {triable && <button
+        type="button"
+        aria-label={`Déplacer ${nomFr}`}
+        {...attributes}
+        {...listeners}
+        onClick={e => e.stopPropagation()}
+        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 rounded"
+      >
+        <GripVertical size={11} />
+      </button>}
       {code && (
         <span className="text-[10px] font-mono text-[var(--ink-muted)] bg-[var(--line)] px-1 py-px rounded flex-shrink-0">
           {code}
@@ -175,6 +212,32 @@ function Ligne({
   )
 }
 
+/**
+ * Enveloppe de tri d'une liste. Une par liste — chaque colonne et chaque carte
+ * a la sienne, ce qui interdit STRUCTURELLEMENT de faire passer un élément
+ * d'une liste à l'autre : le glisser-déposer ne peut que réordonner.
+ */
+function Tri({
+  items, sensors, onOrdre, children,
+}: {
+  items: { id: string }[]
+  sensors: ReturnType<typeof useSensors>
+  onOrdre: (actif: string, sur: string) => void
+  children: React.ReactNode
+}) {
+  const fin = (e: DragEndEvent) => {
+    const { active, over } = e
+    if (over && active.id !== over.id) onOrdre(String(active.id), String(over.id))
+  }
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={fin}>
+      <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </DndContext>
+  )
+}
+
 function Vide({ texte }: { texte: string }) {
   return <p className="px-3 py-6 text-xs text-[var(--ink-muted)] text-center">{texte}</p>
 }
@@ -207,6 +270,27 @@ function CarteGroupe({
   )
 }
 
+/**
+ * Réordonne un SOUS-ENSEMBLE à l'intérieur du tableau complet.
+ *
+ * Les modules d'une unité, ou les cours d'un module, ne sont pas contigus dans
+ * le tableau global : on déplace donc l'élément dans le sous-ensemble, puis on
+ * réécrit les positions que ce sous-ensemble occupait. Sans ça, un `arrayMove`
+ * sur le tableau entier ferait traverser les autres unités à l'élément.
+ */
+function reordonner<T extends { id: string }>(tout: T[], sous: T[], actif: string, sur: string): T[] {
+  const ids = sous.map(x => x.id)
+  const de = ids.indexOf(actif)
+  const vers = ids.indexOf(sur)
+  if (de < 0 || vers < 0 || de === vers) return tout
+
+  const nouvelOrdre = arrayMove(ids, de, vers)
+  const positions = tout.reduce<number[]>((acc, x, i) => (ids.includes(x.id) ? [...acc, i] : acc), [])
+  const copie = [...tout]
+  positions.forEach((pos, k) => { copie[pos] = tout.find(x => x.id === nouvelOrdre[k])! })
+  return copie
+}
+
 export default function ReferentielColonnes({
   ues, modules, cours, gabaritsParCours, anneeLabel,
 }: {
@@ -218,6 +302,20 @@ export default function ReferentielColonnes({
 }) {
   const [sel, setSel] = useState<Selection>({ ueId: null, moduleId: null, coursId: null })
   const [search, setSearch] = useState('')
+
+  // Ordre LOCAL. Ce prototype ne persiste pas `order_index` : on n'écrit pas
+  // dans les données depuis une maquette. Le geste et le rendu sont réels, le
+  // rangement repart à zéro au rechargement.
+  const [lstUes, setLstUes]         = useState(ues)
+  const [lstModules, setLstModules] = useState(modules)
+  const [lstCours, setLstCours]     = useState(cours)
+  useEffect(() => { setLstUes(ues) },         [ues])
+  useEffect(() => { setLstModules(modules) }, [modules])
+  useEffect(() => { setLstCours(cours) },     [cours])
+
+  // `PointerSensor` avec une distance d'activation : sans elle, un simple clic
+  // de sélection serait interprété comme le début d'un déplacement.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
   const q = norm(search)
   const matche = (...champs: (string | null | undefined)[]) =>
@@ -231,19 +329,19 @@ export default function ReferentielColonnes({
   // cherche un cours et l'unité qui le porte disparaît, ce qui le rend
   // inatteignable.
   const uesFiltrees = useMemo(() => {
-    if (!q) return ues
-    return ues.filter(ue => {
-      const sesModules = modules.filter(m => m.unite_enseignement_id === ue.id)
-      const sesCours   = cours.filter(c => c.unite_enseignement_id === ue.id)
+    if (!q) return lstUes
+    return lstUes.filter(ue => {
+      const sesModules = lstModules.filter(m => m.unite_enseignement_id === ue.id)
+      const sesCours   = lstCours.filter(c => c.unite_enseignement_id === ue.id)
       return matche(ue.nom_fr, ue.nom_ar, ue.code)
         || sesModules.some(m => matche(m.nom_fr, m.nom_ar, m.code))
         || sesCours.some(c => matche(c.nom_fr, c.nom_ar, c.code))
     })
-  }, [ues, modules, cours, q]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lstUes, lstModules, lstCours, q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ueActive     = sel.ueId
-  const modulesDeUE  = modules.filter(m => m.unite_enseignement_id === ueActive)
-  const coursDirects = cours.filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
+  const modulesDeUE  = lstModules.filter(m => m.unite_enseignement_id === ueActive)
+  const coursDirects = lstCours.filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
 
   const SANS_MODULE = '__directs__'
 
@@ -261,13 +359,13 @@ export default function ReferentielColonnes({
   const groupes = useMemo(() => {
     const tous = [
       ...modulesDeUE.map(m => ({
-        cle: m.id, titre: m.nom_fr, liste: cours.filter(c => c.module_id === m.id),
+        cle: m.id, titre: m.nom_fr, liste: lstCours.filter(c => c.module_id === m.id),
       })),
       { cle: SANS_MODULE, titre: 'Sans module', liste: coursDirects },
     ].filter(g => g.liste.length > 0)
 
     return sel.moduleId ? tous.filter(g => g.cle === sel.moduleId) : tous
-  }, [modulesDeUE, coursDirects, cours, sel.moduleId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [modulesDeUE, coursDirects, lstCours, sel.moduleId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-2">
@@ -309,16 +407,18 @@ export default function ReferentielColonnes({
           >
             {uesFiltrees.length === 0
               ? <Vide texte={q ? 'Aucun résultat.' : 'Aucune unité.'} />
-              : uesFiltrees.map(ue => (
+              : <Tri items={uesFiltrees} sensors={sensors} onOrdre={(a, b) => setLstUes(t => reordonner(t, uesFiltrees, a, b))}>
+                {uesFiltrees.map(ue => (
                   <Ligne
-                    key={ue.id}
+                    key={ue.id} id={ue.id}
                     code={ue.code} nomFr={ue.nom_fr} nomAr={ue.nom_ar}
-                    badge={<Badge n={somme(cours.filter(c => c.unite_enseignement_id === ue.id))} annee={anneeLabel} />}
+                    badge={<Badge n={somme(lstCours.filter(c => c.unite_enseignement_id === ue.id))} annee={anneeLabel} />}
                     actif={sel.ueId === ue.id}
                     chevron
                     onSelect={() => setSel({ ueId: ue.id, moduleId: null, coursId: null })}
                   />
                 ))}
+              </Tri>}
           </Encadre>
         </div>
 
@@ -338,16 +438,18 @@ export default function ReferentielColonnes({
               <Vide texte="Sélectionnez une unité." />
             ) : (
               <>
+                <Tri items={modulesDeUE} sensors={sensors} onOrdre={(a, b) => setLstModules(t => reordonner(t, modulesDeUE, a, b))}>
                 {modulesDeUE.map(m => (
                   <Ligne
-                    key={m.id}
+                    key={m.id} id={m.id}
                     code={m.code} nomFr={m.nom_fr} nomAr={m.nom_ar}
-                    badge={<Badge n={somme(cours.filter(c => c.module_id === m.id))} annee={anneeLabel} />}
+                    badge={<Badge n={somme(lstCours.filter(c => c.module_id === m.id))} annee={anneeLabel} />}
                     actif={sel.moduleId === m.id}
                     chevron
                     onSelect={() => setSel(s => ({ ...s, moduleId: m.id, coursId: null }))}
                   />
                 ))}
+                </Tri>
 
                 {/* Les cours SANS module. Groupés et nommés plutôt que mêlés
                     aux modules : sans ça, la colonne mélangerait deux natures
@@ -358,6 +460,8 @@ export default function ReferentielColonnes({
                       Cours sans module
                     </p>
                     <Ligne
+                      id={SANS_MODULE}
+                      triable={false}
                       code={null}
                       nomFr={`${coursDirects.length} cours rattaché${coursDirects.length > 1 ? 's' : ''} à l'unité`}
                       nomAr={null}
@@ -404,9 +508,10 @@ export default function ReferentielColonnes({
               <div className="px-2 py-1.5 space-y-1.5">
                 {groupes.map(g => (
                   <CarteGroupe key={g.cle} titre={g.titre} compte={g.liste.length}>
+                    <Tri items={g.liste} sensors={sensors} onOrdre={(a, b) => setLstCours(t => reordonner(t, g.liste, a, b))}>
                     {g.liste.map(c => (
                       <Ligne
-                        key={c.id}
+                        key={c.id} id={c.id}
                         code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
                         badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
                         actif={sel.coursId === c.id}
@@ -414,6 +519,7 @@ export default function ReferentielColonnes({
                         onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
                       />
                     ))}
+                    </Tri>
                   </CarteGroupe>
                 ))}
               </div>
