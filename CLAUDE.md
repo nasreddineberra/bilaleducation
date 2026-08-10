@@ -2660,6 +2660,18 @@ Nouveau logo (anneau hexagonal plein a degrade, en remplacement du moulinet a tr
   `public/email/` ne prennent effet **qu'une fois deployes** sur le domaine racine.
 - **`/icon.png` est reference sans empreinte** dans le code (10 composants) → **Ctrl+F5** requis
   pour cesser de voir l'ancien.
+- **Relief du logo** (`.logo-relief` + jeton **`--logo-shadow`**) : `drop-shadow` et non `box-shadow`
+  (il suit la couche ALPHA, donc l'ombre epouse l'hexagone au lieu du rectangle de l'image, dont les
+  coins sont transparents). Pose sur les **3** blocs de marque a fond sombre — connexion, vitrine,
+  connexion de la console — qui se declarent identiques dans leurs commentaires : n'en ombrer qu'un
+  les aurait fait diverger. **Faute relevee par l'utilisateur et corrigee** : j'avais ecrit
+  `rgba(0,0,0,.45)` EN DUR dans la regle, alors que **toutes les ombres du projet sont des jetons
+  declares par theme** (`--card-shadow`), et que le theme clair y refuse le noir pur (ardoise
+  `#2f4550`). Valeurs : `.70` en clair, `.80` en sombre (le panneau y est deja plus sombre, l'ombre a
+  moins de matiere contre quoi se detacher). `--card-shadow` n'etait pas reutilisable : c'est un
+  `box-shadow` de 2 px, aucun rapport d'echelle. **Regle** : une ombre nouvelle = un jeton, jamais une
+  valeur dans la regle (faute deja payee 3 fois : `SIDEBAR_COLOR` sur l'EDT, `#f0f5f7` et le degrade
+  recopie sur la connexion).
 - **Crainte levee par la mesure** : je m'attendais a devoir attenuer le nouveau logo, plus massif,
   dans le pied de barre laterale. Comparatif avant/apres aux tailles reelles (28/32/22/104 px, sur
   teal et sur clair) : c'est l'**inverse** — l'ancien devenait un gribouillis illisible sous 32 px,
