@@ -647,37 +647,33 @@ export default function CoursTree({ ues, modules, cours, etablissementId, curren
     }
 
     // ── Cours ────────────────────────────────────────────────────────────────
+    // L'EMPLOI DU TEMPS N'EST PAS CONSULTÉ, et ce n'est pas un oubli.
+    // `schedule_slots.cours_id` n'a plus aucun chemin d'écriture : la seule
+    // était le glisser-déposer de la palette de matières, neutralisé avec le
+    // mode Secondaire le 7 juillet (`isDndActive = false`), et `SlotFormModal`
+    // écrit `cours_id: null` en dur. Vérifié en base : 0 créneau sur 4 en porte
+    // un. Un avertissement à ce sujet ne pourrait jamais s'afficher — c'est le
+    // défaut même que cette passe corrige. À rétablir si le Secondaire revient.
     ;(async () => {
       const supabase = createClient()
-      const [gabarits, creneaux] = await Promise.all([
-        supabase.from('evaluations')
-          .select('id, classes!inner(academic_year)')
-          .eq('cours_id', confirmDelete.id),
-        supabase.from('schedule_slots')
-          .select('id, school_years!inner(is_current)')
-          .eq('cours_id', confirmDelete.id)
-          .eq('school_years.is_current', true),
-      ])
+      const { data } = await supabase
+        .from('evaluations')
+        .select('id, classes!inner(academic_year)')
+        .eq('cours_id', confirmDelete.id)
 
       // `!inner` est indispensable sur un filtre de ressource imbriquée : sans
       // lui PostgREST l'IGNORE et renvoie tout (piège déjà payé le 4 août).
-      const lignes = (gabarits.data ?? []) as Array<{ classes: { academic_year: string } | { academic_year: string }[] }>
+      const lignes = (data ?? []) as Array<{ classes: { academic_year: string } | { academic_year: string }[] }>
       const annee = (l: (typeof lignes)[number]) =>
         Array.isArray(l.classes) ? l.classes[0]?.academic_year : l.classes?.academic_year
 
       const vivants  = currentYearLabel ? lignes.filter(l => annee(l) === currentYearLabel).length : 0
       const archives = lignes.length - vivants
-      const nSlots   = creneaux.data?.length ?? 0
 
       const avertissements: string[] = []
       if (archives > 0) {
         avertissements.push(
           `${archives} évaluation${archives > 1 ? 's' : ''} d'années précédentes archivées perdront leur rattachement.`,
-        )
-      }
-      if (nSlots > 0) {
-        avertissements.push(
-          `${nSlots} créneau${nSlots > 1 ? 'x' : ''} d'emploi du temps perdront leur matière.`,
         )
       }
 
