@@ -5,7 +5,7 @@ import { ToastProvider } from '@/lib/toast-context'
 import { ToastContainer } from '@/components/ui/Toast'
 import { validateEnv } from '@/lib/env'
 import { headers } from 'next/headers'
-import { getCachedEtablissement } from '@/lib/cache/dashboard'
+import { getEtablissement } from '@/lib/cache/dashboard'
 import TitreFenetre from '@/components/layout/TitreFenetre'
 
 // Valider les variables d'environnement au démarrage
@@ -47,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
   try {
     const etabId = (await headers()).get('x-etablissement-id')
     if (etabId) {
-      const etab = await getCachedEtablissement(etabId).catch(() => null)
+      const etab = await getEtablissement(etabId).catch(() => null)
       if (etab?.nom) prefixe = `${etab.nom} - `
     }
   } catch {

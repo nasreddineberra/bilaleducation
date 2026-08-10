@@ -9,7 +9,6 @@ import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
-import { revalidateEtablissement } from '@/app/dashboard/etablissement/actions'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import type { Etablissement } from '@/types/database'
 import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
@@ -141,7 +140,6 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       initialLogoUrl.current      = logoUrl
       initialWeekStartDay.current = weekStartDay
       initialWorkingDays.current  = workingDays
-      await revalidateEtablissement()
       toast.success('Informations enregistrées avec succès.')
       router.refresh()
     } catch {

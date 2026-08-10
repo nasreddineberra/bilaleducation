@@ -2750,32 +2750,63 @@ Pistes relevees en lisant le code, a confirmer APRES avoir demande le symptome e
 - `useInactivityLogout` s'applique aussi a la console, sans motif passe a l'ecran de
   connexion (donc sans message d'explication).
 
-#### A CONSIGNER — PERFORMANCE RESSENTIE (chantier a ouvrir)
+#### 10 aout 2026 (fin) — LENTEUR RESSENTIE : les fonctions etaient sur un autre CONTINENT
 
-Impression de l'utilisateur (10 aout) : « des fois j'ai l'impression que le site est moins
-performant ». **Rien n'est mesure a ce jour** — c'est la premiere chose a faire, avant toute
-optimisation. Optimiser sur une intuition, c'est deplacer du code au hasard.
+Chantier ouvert sur une intuition (« des fois le site est moins performant »), **resolu par la
+mesure** — et la mesure a invalide les trois suspects que j'avais consignes.
 
-**Ce que la refonte des squelettes n'a PAS change** : un squelette est un fallback de Suspense,
-il s'affiche A LA PLACE de l'attente, jamais en plus. Seul cout reel : `RouteSkeleton` est un
-composant client (~1 Ko compresse, mutualise) la ou le rond n'embarquait aucun JS. Negligeable.
+**CE QUE L'AUDIT A ELIMINE, avant toute correction**
+- **La base n'est pas lente, elle est AU REPOS.** `pg_stat_statements` (actif sur le projet) :
+  les 15 requetes les plus lentes sont **toutes** de l'infrastructure Supabase — introspection
+  du catalogue (258 ms x 315 appels : Studio + rechargement du cache PostgREST), sauvegardes,
+  maintenance. **Aucune requete applicative n'y figure** ; les notres tournent a **0,09-0,18 ms**
+  sur ~51 000 appels.
+- **Les index ne servaient a rien** : la base entiere compte **329 lignes**. J'allais proposer
+  `school_years(is_current)` et `parent_class_enrollments(class_id)` — reellement manquants, mais
+  Postgres balaie 45 lignes plus vite qu'il ne consulte un index. **A noter pour le jour ou les
+  volumes monteront, pas maintenant.**
 
-**Pistes reperees, par ordre de suspicion :**
-1. **`dashboard/layout.tsx` enchaine des attentes SEQUENTIELLES** : session → profil → **puis**
-   etablissement (le profil porte l'`etablissement_id`, c'est le prix du cloisonnement du 5 aout),
-   plus **2 comptages de notifications non caches** a CHAQUE rendu de page. C'est le chemin
-   critique de tout chargement a froid.
-2. **Les caches `unstable_cache` ne sont JAMAIS invalides** : les tags `dashboard-stats` et
-   `profile` ne sont appeles nulle part, parce que les ecritures partent de composants CLIENTS
-   (constat du 4 aout). Les durees sont donc les seules garde-fous — et un cache qu'on n'invalide
-   pas pousse a raccourcir sa duree, donc a recalculer plus souvent.
-3. **Demarrages a froid** (Vercel) : une fonction inactive repond plus lentement. A distinguer
-   d'une lenteur applicative — sinon on optimisera du code qui n'est pas en cause.
-4. **Pages a requetes multiples** non encore auditees de ce point de vue (Reglements, EDT,
-   Feuille d'appel toutes classes chargent beaucoup en une fois).
+**LA CAUSE, mesuree depuis Vercel** (route de diagnostic temporaire, deployee puis supprimee) :
+`region_vercel = iad1` (**Virginie**) alors que le projet Supabase est en **AWS Europe**
+(IPv6 `2a05:d018:…`, 34 ms de connexion TCP depuis la France). **Chaque `await` traversait
+l'Atlantique** : aller-retour nu **139 ms**, sequence du layout **1021 ms** d'attente pure.
+- **Piege du diagnostic** : les fichiers statiques arrivaient vite (`X-Vercel-Id: cdg1::`, la
+  BORDURE est mondiale) pendant que chaque requete de page partait en Virginie — c'est la
+  FONCTION qui compte, et son defaut Vercel est `iad1`. Le depot n'avait aucun `vercel.json`.
+- **Correctif** : region des fonctions epinglee a **`cdg1`** (Vercel → Settings → Functions), puis
+  **versionnee dans `vercel.json`** — un reglage de tableau de bord est invisible du depot, absent
+  de l'historique, et perdu si le projet est recree.
 
-**Methode** : instrumenter d'abord (temps serveur par requete, `Server-Timing` ou simple log),
-comparer chargement A FROID et navigation interne, puis n'attaquer que ce qui ressort.
+**RESULTAT MESURE** : aller-retour **139 → 60 ms**, sequence du layout **1021 → 290 ms**,
+`/login` a chaud **362 → 140 ms**. **Aucune ligne de code applicatif** dans ce gain.
+
+**CE QUE LES NOUVEAUX CHIFFRES ONT REVELE** (invisible tant que tout coutait 139 ms)
+- **`getCachedEtablissement` coutait PLUS CHER que la requete qu'il evitait** : 100 ms de cache
+  contre 60 ms en direct. Le cache de donnees Vercel est lui-meme un appel reseau. Converti en
+  fonction ordinaire **memoisee par requete** (`cache()` de React — elle est appelee par le layout
+  racine, celui du tableau de bord ET le manifeste). Meme raisonnement que `getCurrentYear` le
+  4 aout. Le `revalidateEtablissement`/`updateTag` devenu vestige est **supprime** : un tag qui
+  n'invalide plus rien laisse croire a un cache inexistant.
+- **`getCachedProfile` est a l'equilibre** (57 ms caches contre 60 ms en direct) : gain nul, mais
+  il porte une **peremption sans invalidation fiable**. Laisse en place, a arbitrer.
+- **`auth.getUser()` est desormais le poste le plus lourd** (155 ms, > 2,5 aller-retours) : il
+  interroge le serveur d'authentification et non la base, et **le middleware en fait un de son
+  cote sur la meme requete**. Prochain levier si le besoin revient.
+
+**AUTRES CORRECTIONS DU LAYOUT** (~130 ms)
+- Les **3 dernieres lectures passent en parallele** : elles ne dependent que du profil, deja connu,
+  et n'avaient aucune raison de s'attendre.
+- Le **lookup `parents` est reserve au role `parent`** : la question « es-tu un parent ? » etait
+  posee a tout le monde, chaque directeur ou enseignant payant un aller-retour complet pour
+  s'entendre repondre non. **La garde porte sur le ROLE, pas sur la suspension des comptes parents
+  en V1** — rien a defaire le jour de leur reactivation.
+  - Dette relevee sans etre traitee : la requete ne teste que `user_id`, alors que la table porte
+    aussi `tutor1_user_id` / `tutor2_user_id` (tous deux indexes).
+
+**RAPPEL DE METHODE, valide par les faits** : le layout **n'est PAS re-execute** a chaque page —
+Next ne re-rend que le segment qui change. Ses requetes ne pesent donc qu'au **chargement a froid**
+et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »).
+
 
 ## Prochaine etape
 

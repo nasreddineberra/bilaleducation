@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache'
+import { cache } from 'react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -32,7 +33,7 @@ export const getCachedProfile = unstable_cache(
   { tags: ['profile'] },
 )
 
-// ─── Établissement (cache 6 h) ───────────────────────────────────────────────
+// ─── Établissement (mémoïsé par requête, plus de cache persistant) ───────────
 
 /**
  * Établissement affiché dans la sidebar.
@@ -40,21 +41,31 @@ export const getCachedProfile = unstable_cache(
  * PARAMÉTRÉE : le `.single()` sans filtre servait un établissement arbitraire —
  * et lèverait carrément dès le deuxième, `.single()` exigeant exactement une
  * ligne. En service-role la RLS ne rattrape rien, le filtre doit être explicite.
+ *
+ * ┌─ POURQUOI LE CACHE PERSISTANT A ÉTÉ RETIRÉ (10 août 2026) ──────────────┐
+ * │ Mesuré depuis Vercel, `unstable_cache` répondait en 100 ms là où la      │
+ * │ requête nue en met 60. Le cache de données est lui-même un appel réseau :│
+ * │ il coûtait donc PLUS CHER que ce qu'il évitait, tout en ajoutant six     │
+ * │ heures de péremption possible.                                          │
+ * │                                                                          │
+ * │ Même raisonnement que `getCurrentYear` le 4 août, et même bénéfice       │
+ * │ second : hors `unstable_cache`, on n'est plus obligé du service-role.    │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * `cache()` de React reste indispensable : la fonction est appelée par le layout
+ * racine, le layout du tableau de bord ET le manifeste. Sans mémoïsation, une
+ * même requête paierait trois allers-retours.
  */
-export const getCachedEtablissement = unstable_cache(
-  async (etablissementId: string) => {
-    if (!etablissementId) return null
-    const supabase = createAdminClient()
-    const { data } = await supabase
-      .from('etablissements')
-      .select('nom, logo_url')
-      .eq('id', etablissementId)
-      .maybeSingle()
-    return data
-  },
-  ['dashboard-etablissement'],
-  { tags: ['etablissement'], revalidate: 21600 },
-)
+export const getEtablissement = cache(async (etablissementId: string) => {
+  if (!etablissementId) return null
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('etablissements')
+    .select('nom, logo_url')
+    .eq('id', etablissementId)
+    .maybeSingle()
+  return data
+})
 
 // ─── Année scolaire en cours (NON cachée, volontairement) ────────────────────
 

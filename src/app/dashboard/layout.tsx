@@ -5,13 +5,36 @@ import DashboardNav from '@/components/layout/DashboardNav'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { ThemeProvider } from '@/components/layout/ThemeContext'
-import { getCachedProfile, getCachedEtablissement, getCurrentYear } from '@/lib/cache/dashboard'
+import { getCachedProfile, getEtablissement, getCurrentYear } from '@/lib/cache/dashboard'
 import { headers } from 'next/headers'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { consoleUrl } from '@/lib/tenant/console-url'
 import { expirerSiDepassee } from '@/lib/support/intervention'
 import SingleTabGuard from '@/components/layout/SingleTabGuard'
 
+
+/**
+ * Notifications non lues d'un parent.
+ *
+ * Deux allers-retours enchaînés, et ils le restent : le second a besoin de
+ * l'identifiant de la fiche trouvée par le premier. C'est pourquoi cet appel est
+ * réservé au rôle qui en a l'usage.
+ */
+async function compterNotifsParent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<number> {
+  const { data: parentLink } = await supabase
+    .from('parents').select('id').eq('user_id', userId).maybeSingle()
+  if (!parentLink) return 0
+
+  const { count } = await supabase
+    .from('announcement_recipients')
+    .select('id', { count: 'exact', head: true })
+    .eq('parent_id', parentLink.id)
+    .eq('is_read', false)
+  return count ?? 0
+}
 
 export default async function DashboardLayout({
   children,
@@ -92,20 +115,10 @@ export default async function DashboardLayout({
     ? { ...profile, etablissement_id: supportEtablissementId }
     : profile
 
-  // L'établissement est lu APRÈS le profil, qui en porte l'identifiant :
-  // `getCachedEtablissement` ne fait plus de `.single()` sans filtre. Séquentiel
-  // et non parallèle — c'est le prix du cloisonnement. L'autorité est le PROFIL
-  // de l'utilisateur, pas l'en-tête de tenant posé par le middleware, qui reflète
-  // l'URL et non l'identité.
-  const etablissement = profileEffectif?.etablissement_id
-    ? await getCachedEtablissement(profileEffectif.etablissement_id).catch(() => null)
-    : null
-
   // Le rôle d'AFFICHAGE : `admin` pendant une intervention, sans quoi la sidebar
   // et le tableau de bord ne connaîtraient pas `super_admin` et l'écran serait
   // vide alors que la base, elle, aurait tout ouvert. Voir `effectiveRole`.
   const displayRole = effectiveRole(profileEffectif)
-  const supportEcole = isSupportSession(profileEffectif) ? (etablissement?.nom ?? 'cet établissement') : null
 
   // Log des échecs partiels (ne pas bloquer le rendu)
   for (const [i, result] of results.entries()) {
@@ -114,34 +127,46 @@ export default async function DashboardLayout({
     }
   }
 
-  // Compteur notifications non lues (staff) — pas caché (change fréquemment).
-  // Les messages « email seul » (channel = 'email') n'apparaissent pas dans la
-  // cloche in-app : jointure inner + filtre sur le canal de l'annonce.
-  const { count: staffUnread } = await supabase
-    .from('announcement_staff_recipients')
-    .select('id, announcements!inner(channel)', { count: 'exact', head: true })
-    .eq('profile_id', user.id)
-    .eq('is_read', false)
-    .neq('announcements.channel', 'email')
+  // ── LES TROIS DERNIÈRES LECTURES, EN PARALLÈLE ─────────────────────────────
+  //
+  // Elles ne dépendent que du profil, déjà connu — elles n'ont donc aucune
+  // raison de s'attendre l'une l'autre. Enchaînées, elles coûtaient trois
+  // allers-retours pleins ; c'est un tiers du temps d'attente d'un chargement à
+  // froid, mesuré le 10 août.
+  //
+  // L'établissement se lit APRÈS le profil, qui en porte l'identifiant :
+  // l'autorité est le PROFIL de l'utilisateur, pas l'en-tête de tenant posé par
+  // le middleware, qui reflète l'URL et non l'identité. Ce séquencement-là est
+  // le prix du cloisonnement et reste indispensable.
+  const [etablissement, staffCount, parentUnread] = await Promise.all([
+    profileEffectif?.etablissement_id
+      ? getEtablissement(profileEffectif.etablissement_id).catch(() => null)
+      : Promise.resolve(null),
 
-  // Compteur notifications non lues (parent) — pas caché
-  const { data: parentLink } = await supabase
-    .from('parents')
-    .select('id')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  let parentUnread = 0
-  if (parentLink) {
-    const { count } = await supabase
-      .from('announcement_recipients')
-      .select('id', { count: 'exact', head: true })
-      .eq('parent_id', parentLink.id)
+    // Compteur notifications non lues (staff). Les messages « email seul »
+    // (channel = 'email') n'apparaissent pas dans la cloche in-app : jointure
+    // inner + filtre sur le canal de l'annonce.
+    supabase
+      .from('announcement_staff_recipients')
+      .select('id, announcements!inner(channel)', { count: 'exact', head: true })
+      .eq('profile_id', user.id)
       .eq('is_read', false)
-    parentUnread = count ?? 0
-  }
+      .neq('announcements.channel', 'email')
+      .then(r => r.count ?? 0),
 
-  const unreadNotifCount = (staffUnread ?? 0) + parentUnread
+    // Compteur notifications non lues (parent).
+    //
+    // RÉSERVÉ AU RÔLE `parent`. La question était posée à TOUT LE MONDE : chaque
+    // directeur, secrétaire ou enseignant payait un aller-retour complet pour
+    // s'entendre répondre « non ». Le garde-fou porte sur le RÔLE et non sur la
+    // suspension des comptes parents en V1 — ainsi rien ne sera à défaire le
+    // jour de leur réactivation, un compte parent portant `role = 'parent'`
+    // (posé par le RPC `create_parent_login_profile`).
+    displayRole === 'parent' ? compterNotifsParent(supabase, user.id) : Promise.resolve(0),
+  ])
+
+  const supportEcole = isSupportSession(profileEffectif) ? (etablissement?.nom ?? 'cet établissement') : null
+  const unreadNotifCount = staffCount + parentUnread
 
   return (
     <ThemeProvider initialTheme={profile?.theme === 'dark' ? 'dark' : 'light'}>

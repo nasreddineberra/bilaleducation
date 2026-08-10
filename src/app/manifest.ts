@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { headers } from 'next/headers'
-import { getCachedEtablissement } from '@/lib/cache/dashboard'
+import { getEtablissement } from '@/lib/cache/dashboard'
 
 /**
  * Manifeste d'application.
@@ -29,7 +29,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   try {
     const etabId = (await headers()).get('x-etablissement-id')
     if (etabId) {
-      const etab = await getCachedEtablissement(etabId).catch(() => null)
+      const etab = await getEtablissement(etabId).catch(() => null)
       nom = etab?.nom ?? null
     }
   } catch {
