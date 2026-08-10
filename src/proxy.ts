@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 // ── Délais de session (en secondes) ──────────────────────────────────────────
 import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE, sessionCookieDomain } from '@/lib/session-config'
+import { estSousDomaineConsole } from '@/lib/tenant/console-host'
 const SESSION_COOKIE = 'app-session'
 // Marqueur de session NAVIGATEUR : cookie sans maxAge/expires, supprimé par le
 // navigateur à sa fermeture. Permet de distinguer « navigateur resté ouvert »
@@ -108,7 +109,7 @@ export async function proxy(request: NextRequest) {
   // d'un client, sans aucune raison.
   const isSuperAdminDomain = isLocal
     ? (!process.env.DEFAULT_TENANT_SLUG || pathname.startsWith('/superadmin'))
-    : host.split('.')[0] === 'superadmin'
+    : estSousDomaineConsole(host)
 
   if (isSuperAdminDomain) {
     const { user, response, supabase } = await getAuthUser()
