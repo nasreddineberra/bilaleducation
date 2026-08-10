@@ -110,7 +110,10 @@ export default function SuperAdminSidebar({ nom }: SuperAdminSidebarProps) {
           <span className="inline-flex items-center leading-none text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-1 rounded flex-shrink-0">
             {APP_VERSION}
           </span>
-          <Tooltip content="Déconnexion" position="bottom">
+          {/* Position par défaut (`top`) et surtout PAS `bottom` : ce bouton est
+              au ras du bas de l'écran, une bulle posée dessous sort du cadre
+              visible. `bottom` ne vaut que pour la barre d'en-tête. */}
+          <Tooltip content="Déconnexion">
             <button
               onClick={handleLogout}
               className="p-1.5 text-[var(--brand-icon)] hover:text-white hover:bg-white/10 rounded-lg transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60"
