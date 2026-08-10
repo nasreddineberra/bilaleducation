@@ -54,6 +54,8 @@ interface Props {
   /** Libellé de l'année en cours : sépare les gabarits VIVANTS (qui bloquent
    *  une suppression) de ceux d'années archivées (seulement annoncés). */
   currentYearLabel: string | null
+  /** Nombre de gabarits de l'année en cours, par identifiant de cours. */
+  gabaritsParCours: Record<string, number>
 }
 
 /**
@@ -101,6 +103,9 @@ interface SharedCardProps {
   handleAddModule:  (ueId: string) => Promise<void>
   handleAddCours:   (ueId: string, moduleId: string | null) => Promise<void>
   search:           string
+  /** Gabarits de l'annee en cours, par identifiant de cours. */
+  gabarits:         Record<string, number>
+  anneeLabel:       string | null
 }
 
 // ─── Formulaire inline avec mini-libellés ─────────────────────────────────────
@@ -184,6 +189,34 @@ const norm = (s: string | null | undefined) =>
 
 // ─── Surlignage du texte recherché ───────────────────────────────────────────
 
+/**
+ * Nombre de gabarits d'évaluation qui s'appuient sur cet élément, pour l'année
+ * EN COURS.
+ *
+ * Ce n'est pas qu'une statistique : c'est aussi l'indicateur de suppressibilité.
+ * Un cours à zéro se supprime, un cours à trois non — et on le voit AVANT de
+ * cliquer, au lieu de le découvrir dans la modale de confirmation.
+ *
+ * Rien n'est affiché à zéro : un « 0 » sur chaque ligne ferait du bruit sans
+ * rien apprendre. Et la pastille reste visible en permanence, contrairement aux
+ * icônes d'action qui n'apparaissent qu'au survol — une information ne se
+ * cache pas.
+ *
+ * Le référentiel est commun à toutes les années, le compteur ne l'est pas :
+ * l'infobulle NOMME l'année, sans quoi la remise à zéro de la rentrée se
+ * lirait comme une perte de données.
+ */
+function BadgeGabarits({ n, annee }: { n: number; annee: string | null }) {
+  if (!n) return null
+  return (
+    <Tooltip content={`${n} gabarit${n > 1 ? 's' : ''} d'évaluation${annee ? ` en ${annee}` : ''}`}>
+      <span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-1.5 py-px rounded-full flex-shrink-0 tabular-nums cursor-default">
+        {n}
+      </span>
+    </Tooltip>
+  )
+}
+
 function Highlight({ text, query }: { text: string; query: string }) {
   const nq = norm(query.trim())
   if (!nq) return <>{text}</>
@@ -214,6 +247,7 @@ function CourseRow({
   c, editing, fNomFr, setFNomFr, fNomAr, setFNomAr, fRef, setFRef,
   coursFields, error, submitting,
   openEdit, setConfirmDelete, setDeleteError, onSubmit, onCancel, search,
+  nbGabarits, anneeLabel,
 }: {
   c:               Cours
   editing:         EditingKind | null
@@ -229,6 +263,8 @@ function CourseRow({
   onSubmit:        () => void
   onCancel:        () => void
   search:          string
+  nbGabarits:      number
+  anneeLabel:      string | null
 }) {
   void setFNomFr; void setFNomAr; void setFRef
 
@@ -260,6 +296,7 @@ function CourseRow({
           <span dir="auto" className="text-sm text-warm-700" style={arStyle}><Highlight text={c.nom_ar} query={search} /></span>
         )}
       </div>
+      <BadgeGabarits n={nbGabarits} annee={anneeLabel} />
       <Tooltip content="Modifier">
         <button
           onClick={() => openEdit({ kind: 'cours', item: c })}
@@ -294,7 +331,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
     fNomFr, fNomAr, fRef, setFNomFr, setFNomAr, setFRef,
     moduleFields, coursFields, toggleModule, openEdit, openAdd, cancel,
     setConfirmDelete, setDeleteError, handleEditModule, handleEditCours, handleAddCours,
-    search,
+    search, gabarits, anneeLabel,
   } = shared
 
   const modExpanded  = expandedModules.has(mod.id)
@@ -344,6 +381,10 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
                 <span dir="auto" className="text-sm text-warm-700" style={arStyle}><Highlight text={mod.nom_ar} query={search} /></span>
               )}
             </div>
+            <BadgeGabarits
+              n={cours.filter(c => c.module_id === mod.id).reduce((t, c) => t + (gabarits[c.id] ?? 0), 0)}
+              annee={anneeLabel}
+            />
             <Tooltip content="Modifier">
               <button onClick={() => openEdit({ kind: 'module', item: mod })} aria-label={`Modifier ${mod.nom_fr}`} className="p-1 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
                 <Pencil size={12} />
@@ -372,6 +413,7 @@ function SortableModuleRow({ mod, ue, shared }: { mod: CoursModule; ue: UniteEns
               openEdit={openEdit}
               setConfirmDelete={setConfirmDelete}
               setDeleteError={setDeleteError}
+              nbGabarits={gabarits[c.id] ?? 0} anneeLabel={anneeLabel}
               onSubmit={() => handleEditCours(c.id)}
               onCancel={cancel}
               search={search}
@@ -405,7 +447,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
     setConfirmDelete, setDeleteError,
     handleEditUE, handleEditModule, handleEditCours,
     handleAddModule, handleAddCours,
-    search,
+    search, gabarits, anneeLabel,
   } = shared
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -495,6 +537,10 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
                 <span dir="auto" className="text-sm text-warm-700" style={arStyle}><Highlight text={ue.nom_ar} query={search} /></span>
               )}
             </div>
+            <BadgeGabarits
+              n={cours.filter(c => c.unite_enseignement_id === ue.id).reduce((t, c) => t + (gabarits[c.id] ?? 0), 0)}
+              annee={anneeLabel}
+            />
             <Tooltip content="Modifier">
               <button onClick={() => openEdit({ kind: 'ue', item: ue })} aria-label={`Modifier ${ue.nom_fr}`} className="p-0.5 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
                 <Pencil size={12} />
@@ -549,7 +595,8 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
                   openEdit={openEdit}
                   setConfirmDelete={setConfirmDelete}
                   setDeleteError={setDeleteError}
-                  onSubmit={() => handleEditCours(c.id)}
+                  nbGabarits={gabarits[c.id] ?? 0} anneeLabel={anneeLabel}
+              onSubmit={() => handleEditCours(c.id)}
                   onCancel={cancel}
                   search={search}
                 />
@@ -578,7 +625,7 @@ function SortableUECard({ ue, shared }: { ue: UniteEnseignement; shared: SharedC
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function CoursTree({ ues, modules, cours, etablissementId, currentYearLabel }: Props) {
+export default function CoursTree({ ues, modules, cours, etablissementId, currentYearLabel, gabaritsParCours }: Props) {
   const router = useRouter()
 
   const [orderedUEs,      setOrderedUEs]      = useState<UniteEnseignement[]>(ues)
@@ -974,6 +1021,8 @@ export default function CoursTree({ ues, modules, cours, etablissementId, curren
     handleEditUE, handleEditModule, handleEditCours,
     handleAddModule, handleAddCours,
     search,
+    gabarits: gabaritsParCours,
+    anneeLabel: currentYearLabel,
   }
 
   // ── Rendu ─────────────────────────────────────────────────────────────────
