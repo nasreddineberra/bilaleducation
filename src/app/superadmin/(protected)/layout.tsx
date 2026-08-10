@@ -23,7 +23,7 @@ export default async function SuperAdminProtectedLayout({
   const admin = createAdminClient()
   const { data: profile } = await admin
     .from('profiles')
-    .select('role')
+    .select('role, first_name, last_name')
     .eq('id', user.id)
     .single()
 
@@ -34,7 +34,9 @@ export default async function SuperAdminProtectedLayout({
   return (
     <SingleTabGuard>
     <div className="h-screen overflow-hidden bg-warm-50 flex">
-      <SuperAdminSidebar email={user.email} />
+      {/* NOM Prénom, et non l'adresse : c'est l'identité, pas un identifiant
+          technique — et l'ordre est celui de toute l'application. */}
+      <SuperAdminSidebar nom={`${profile.last_name ?? ''} ${profile.first_name ?? ''}`.trim()} />
       <main className="flex-1 overflow-y-auto p-8">
         {children}
       </main>

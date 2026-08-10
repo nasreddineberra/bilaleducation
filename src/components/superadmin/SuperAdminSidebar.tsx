@@ -3,13 +3,18 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Building2, Activity, LogOut } from 'lucide-react'
+import { Building2, Activity, Power } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
+import { APP_VERSION } from '@/lib/app-version'
+import Tooltip from '@/components/ui/Tooltip'
+import TruncatedText from '@/components/ui/TruncatedText'
 import { clsx } from 'clsx'
 
 interface SuperAdminSidebarProps {
-  email?: string
+  /** NOM Prénom de l'éditeur connecté. Pas son adresse : le pied de barre
+   *  latérale porte une identité, pas un identifiant de connexion. */
+  nom?: string
 }
 
 function Item({ href, libelle, icone, actif }: {
@@ -31,7 +36,7 @@ function Item({ href, libelle, icone, actif }: {
   )
 }
 
-export default function SuperAdminSidebar({ email }: SuperAdminSidebarProps) {
+export default function SuperAdminSidebar({ nom }: SuperAdminSidebarProps) {
   const pathname = usePathname()
   const router   = useRouter()
 
@@ -84,17 +89,36 @@ export default function SuperAdminSidebar({ email }: SuperAdminSidebarProps) {
         />
       </nav>
 
-      {/* Footer */}
+      {/* ── Footer ────────────────────────────────────────────────────────────
+          Aligné sur la charte, contrôlée sur les composants de référence et non
+          de mémoire : l'icône de déconnexion de l'application est `Power` (et
+          non la flèche `LogOut`), tout bouton icône-seule porte un `Tooltip`,
+          et les textes secondaires de la barre latérale passent par les jetons
+          de marque. Les `text-white/40` et `/50` d'origine étaient sous le seuil
+          de lisibilité que la passe du 18 juillet a fixé.
+
+          Le nom est mesuré par `TruncatedText` : l'infobulle n'apparaît que
+          s'il est réellement coupé. L'adresse qui figurait ici l'était toujours,
+          en plein milieu du domaine, sans aucun moyen de lire la valeur — et
+          c'était de toute façon un identifiant de connexion, pas une identité. */}
       <div className="px-3 py-4 border-t border-white/10">
-        <div className="flex items-center justify-between px-2">
-          <p className="text-white/50 text-xs truncate max-w-[160px]">{email}</p>
-          <button
-            onClick={handleLogout}
-            className="p-1.5 text-white/40 hover:text-red-400 hover:bg-white/10 rounded-lg transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60"
-            aria-label="Déconnexion"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2 px-2">
+          <TruncatedText
+            text={nom ?? ''}
+            className="flex-1 min-w-0 text-[var(--brand-muted)] text-xs"
+          />
+          <span className="inline-flex items-center leading-none text-[11px] text-[var(--brand-icon)] font-mono bg-white/10 px-1.5 py-1 rounded flex-shrink-0">
+            {APP_VERSION}
+          </span>
+          <Tooltip content="Déconnexion" position="bottom">
+            <button
+              onClick={handleLogout}
+              className="p-1.5 text-[var(--brand-icon)] hover:text-white hover:bg-white/10 rounded-lg transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60"
+              aria-label="Déconnexion"
+            >
+              <Power className="w-[18px] h-[18px]" />
+            </button>
+          </Tooltip>
         </div>
       </div>
     </aside>
