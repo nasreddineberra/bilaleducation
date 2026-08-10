@@ -20,7 +20,10 @@ export default async function CoursPage() {
   const [{ data: ues }, { data: modules }, { data: cours }, { data: gabarits }] = await Promise.all([
     supabase.from('unites_enseignement').select('*').order('order_index').order('nom_fr'),
     supabase.from('cours_modules').select('*').order('order_index').order('nom_fr'),
-    supabase.from('cours').select('*').order('order_index').order('nom_fr'),
+    // Les cours n'ont pas de rang : ils s'affichent par ordre alphabétique.
+    // Le tri final se fait côté client, avec `localeCompare` en français — un
+    // ORDER BY SQL classerait « Écriture » après « Zoologie ».
+    supabase.from('cours').select('*').order('nom_fr'),
     currentYear
       ? supabase
           .from('evaluations')

@@ -512,14 +512,26 @@ export default function ReferentielColonnes({
     const supabase = createClient()
     const champs = { code: v.code || null, nom_fr: v.nomFr, nom_ar: v.nomAr || null }
 
+    // Un ajout se range TOUJOURS EN DERNIER : on prend le rang le plus haut de
+    // ses futurs voisins, plus un. S'en remettre au `NULLS LAST` de Postgres
+    // marcherait par accident aujourd'hui, mais un rang explicite survit au
+    // premier réordonnancement, qui renumérote tout le monde.
+    //
+    // Les COURS n'ont pas de rang : ils s'affichent par ordre alphabétique.
+    const rangSuivant = (fratrie: { order_index: number | null }[]) =>
+      fratrie.reduce((max, x) => Math.max(max, (x.order_index ?? -1) + 1), 0)
+
     const req = saisie.item
       ? supabase.from(TABLE[saisie.nature]).update(champs).eq('id', saisie.item.id).select('id')
       : supabase.from(TABLE[saisie.nature]).insert({
           ...champs,
           ...(saisie.nature === 'ue'
-            ? { etablissement_id: etablissementId }
+            ? { etablissement_id: etablissementId, order_index: rangSuivant(lstUes) }
             : saisie.nature === 'module'
-              ? { unite_enseignement_id: sel.ueId }
+              ? {
+                  unite_enseignement_id: sel.ueId,
+                  order_index: rangSuivant(lstModules.filter(m => m.unite_enseignement_id === sel.ueId)),
+                }
               : { unite_enseignement_id: sel.ueId, module_id: saisie.parent?.nature === 'module' ? sel.moduleId : null }),
         }).select('id')
 
@@ -561,6 +573,16 @@ export default function ReferentielColonnes({
   const q = norm(search)
   const matche = (...champs: (string | null | undefined)[]) =>
     !q || champs.some(c => norm(c).includes(q))
+
+  /**
+   * Les COURS s'affichent par ordre ALPHABÉTIQUE, et ne se réordonnent pas —
+   * décision de l'utilisateur, revenant sur le tri manuel. `localeCompare` en
+   * français, sans quoi « Écriture » se rangerait après « Zoologie » : un tri
+   * brut compare des points de code, où les lettres accentuées suivent tout
+   * l'alphabet latin.
+   */
+  const alpha = (liste: Cours[]) =>
+    [...liste].sort((a, b) => a.nom_fr.localeCompare(b.nom_fr, 'fr', { sensitivity: 'base' }))
 
   // Somme des gabarits d'un ensemble de cours — sert aux trois niveaux.
   const somme = (liste: Cours[]) => liste.reduce((t, c) => t + (gabaritsParCours[c.id] ?? 0), 0)
@@ -638,10 +660,10 @@ export default function ReferentielColonnes({
         titre: m.nom_fr,
         // Un module retenu parce qu'il correspond LUI-MÊME montre tous ses
         // cours ; retenu pour l'un de ses cours, il ne montre que ceux-là.
-        liste: lstCours.filter(c => c.module_id === m.id
-          && (!q || matche(m.nom_fr, m.nom_ar, m.code) || matche(c.nom_fr, c.nom_ar, c.code))),
+        liste: alpha(lstCours.filter(c => c.module_id === m.id
+          && (!q || matche(m.nom_fr, m.nom_ar, m.code) || matche(c.nom_fr, c.nom_ar, c.code)))),
       })),
-      { cle: SANS_MODULE, titre: 'Sans module', liste: coursDirects },
+      { cle: SANS_MODULE, titre: 'Sans module', liste: alpha(coursDirects) },
     ].filter(g => g.liste.length > 0)
 
     return sel.moduleId ? tous.filter(g => g.cle === sel.moduleId) : tous
@@ -878,14 +900,9 @@ export default function ReferentielColonnes({
               <div className="px-2 py-1.5 space-y-1.5">
                 {groupes.map(g => (
                   <CarteGroupe key={g.cle} titre={g.titre} compte={g.liste.length}>
-                    <Tri items={g.liste} sensors={sensors} onOrdre={(a, b) => setLstCours(t => {
-                      const n = reordonner(t, g.liste, a, b)
-                      void persisterOrdre('cours', n.filter(c => g.liste.some(x => x.id === c.id)))
-                      return n
-                    })}>
                     {g.liste.map(c => (
                       <Ligne
-                        key={c.id} id={c.id} q={q}
+                        key={c.id} id={c.id} q={q} triable={false}
                         code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
                         badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
                         actif={sel.coursId === c.id}
@@ -901,7 +918,6 @@ export default function ReferentielColonnes({
                         onSupprimer={() => setASupprimer({ nature: 'cours', id: c.id, nom: c.nom_fr })}
                       />
                     ))}
-                    </Tri>
                   </CarteGroupe>
                 ))}
               </div>
