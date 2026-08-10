@@ -68,9 +68,14 @@ function Badge({ n, annee }: { n: number; annee: string | null }) {
  * appartenir à rien, exactement le défaut de l'arbre en service.
  */
 function Encadre({
-  titre, compte, ajout, liste, className = '', children,
+  titre, compte, actions, liste, className = '', children,
 }: {
-  titre: string; compte: number; ajout: string
+  titre: string; compte: number
+  /** Un bouton par NATURE d'enfant. La colonne des modules en a deux, parce
+   *  qu'une unité accueille des modules ET des cours directs : avec un seul
+   *  bouton, une unité sans cours direct n'offrait AUCUN moyen d'en créer le
+   *  premier — le groupe « Cours sans module » n'existant pas encore. */
+  actions: { libelle: string; aria: string }[]
   /** Libellé de la liste de choix — porté par le CORPS, jamais par la carte :
    *  un `listbox` ne contient que des `option`, et l'en-tête porte un bouton. */
   liste: string
@@ -81,16 +86,21 @@ function Encadre({
       <div className="h-9 flex items-center gap-2 px-3 border-b border-[var(--line)] bg-[var(--surface-sunken)] flex-shrink-0">
         <span className="list-th !px-0 !py-0">{titre}</span>
         <span className="text-[10px] text-[var(--ink-muted)] tabular-nums">{compte}</span>
-        {/* Mini-bouton : libellé seul, jamais d'icône (règle du projet). Les
-            trois portent le même mot, d'où l'`aria-label` qui les distingue
-            pour qui ne voit pas l'en-tête au-dessus. */}
-        <button
-          type="button"
-          aria-label={ajout}
-          className="ml-auto flex-shrink-0 text-[11px] font-semibold text-primary-700 border border-primary-600/40 hover:bg-primary-50 px-2 py-0.5 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-        >
-          Ajouter
-        </button>
+        {/* Mini-boutons : libellé seul, jamais d'icône (règle du projet).
+            L'`aria-label` porte la phrase entière, le bouton n'affichant qu'un
+            mot. */}
+        <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+          {actions.map(a => (
+            <button
+              key={a.aria}
+              type="button"
+              aria-label={a.aria}
+              className="text-[11px] font-semibold text-primary-700 border border-primary-600/40 hover:bg-primary-50 px-2 py-0.5 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            >
+              {a.libelle}
+            </button>
+          ))}
+        </span>
       </div>
       <div role="listbox" aria-label={liste} className="flex-1 min-h-0 overflow-y-auto list-scroll py-1">
         {children}
@@ -204,6 +214,7 @@ export default function ReferentielColonnes({
   const modulesDeUE  = modules.filter(m => m.unite_enseignement_id === ueActive)
   const coursDirects = cours.filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
   const coursDuModule = cours.filter(c => c.module_id === sel.moduleId)
+  const coursDeUE     = cours.filter(c => c.unite_enseignement_id === ueActive)
 
   // Colonne 3 : les cours du module choisi, ou les cours directs quand c'est le
   // groupe « sans module » qui est sélectionné (`moduleId` vaut alors la
@@ -245,7 +256,7 @@ export default function ReferentielColonnes({
           <Encadre
             titre="Unités"
             compte={uesFiltrees.length}
-            ajout="Ajouter une unité"
+            actions={[{ libelle: 'Ajouter', aria: 'Ajouter une unité' }]}
             liste="Unités d'enseignement"
             className="w-fit min-w-[13rem] max-w-[24rem]"
           >
@@ -269,7 +280,10 @@ export default function ReferentielColonnes({
           <Encadre
             titre="Modules"
             compte={modulesDeUE.length + (coursDirects.length ? 1 : 0)}
-            ajout="Ajouter un module"
+            actions={ueActive ? [
+              { libelle: 'Module', aria: 'Ajouter un module à cette unité' },
+              { libelle: 'Cours',  aria: 'Ajouter un cours directement à cette unité' },
+            ] : []}
             liste="Modules de l'unité"
             className="w-fit min-w-[14rem] max-w-[26rem]"
           >
@@ -320,13 +334,62 @@ export default function ReferentielColonnes({
         <div className="flex-1 min-w-0 flex">
           <Encadre
             titre="Cours"
-            compte={coursAffiches.length}
-            ajout="Ajouter un cours"
+            compte={sel.moduleId ? coursAffiches.length : coursDeUE.length}
+            actions={sel.moduleId ? [{ libelle: 'Ajouter', aria: 'Ajouter un cours' }] : []}
             liste="Cours du module"
             className="flex-1 min-w-0"
           >
-            {!sel.moduleId ? (
-              <Vide texte={ueActive ? 'Sélectionnez un module.' : ''} />
+            {!ueActive ? (
+              <Vide texte="Sélectionnez une unité." />
+
+            /* ── VUE D'ENSEMBLE DE L'UNITÉ ─────────────────────────────────
+               Tant qu'aucun module n'est choisi, la colonne montrait « Sélectionnez
+               un module » — un tiers de l'écran vide, et aucun moyen de voir d'un
+               coup ce que porte l'unité. C'est le prix des colonnes en cascade, et
+               il n'a pas à être payé ici : on affiche TOUS les cours de l'unité,
+               groupés par module. Choisir un module ne fait alors que resserrer. */
+            ) : !sel.moduleId ? (
+              coursDeUE.length === 0
+                ? <Vide texte="Cette unité ne contient aucun cours." />
+                : (
+                  <>
+                    {modulesDeUE.map(m => {
+                      const liste = cours.filter(c => c.module_id === m.id)
+                      if (!liste.length) return null
+                      return (
+                        <div key={m.id} role="group" aria-label={m.nom_fr}>
+                          <p aria-hidden="true" className="list-th !py-1 mt-1 first:mt-0">{m.nom_fr}</p>
+                          {liste.map(c => (
+                            <Ligne
+                              key={c.id}
+                              code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
+                              badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
+                              actif={sel.coursId === c.id}
+                              chevron={false}
+                              onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
+                            />
+                          ))}
+                        </div>
+                      )
+                    })}
+                    {coursDirects.length > 0 && (
+                      <div role="group" aria-label="Cours sans module">
+                        <p aria-hidden="true" className="list-th !py-1 mt-1 first:mt-0">Sans module</p>
+                        {coursDirects.map(c => (
+                          <Ligne
+                            key={c.id}
+                            code={c.code} nomFr={c.nom_fr} nomAr={c.nom_ar}
+                            badge={<Badge n={gabaritsParCours[c.id] ?? 0} annee={anneeLabel} />}
+                            actif={sel.coursId === c.id}
+                            chevron={false}
+                            onSelect={() => setSel(s => ({ ...s, coursId: c.id }))}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+
             ) : coursAffiches.length === 0 ? (
               <Vide texte="Ce module ne contient aucun cours." />
             ) : (
