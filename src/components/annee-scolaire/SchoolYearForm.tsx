@@ -578,7 +578,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Vacances</h3>
                 {weeks.length > 0 && (
-                  <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} disabled={readOnly} className="!px-2 !py-0.5 !text-xs !rounded">
+                  <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} disabled={readOnly} size="mini">
                     Gérer
                   </FloatButton>
                 )}
@@ -998,8 +998,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               if (e.key === 'Escape') setEditingVacLabel(null)
                             }}
                           />
-                          <FloatButton type="button" variant="submit" onClick={() => saveVacLabel(groupKey, vacLabelDraft)} className="!px-2 !py-0.5 !text-xs !rounded">OK</FloatButton>
-                          <FloatButton type="button" variant="secondary" onClick={() => setEditingVacLabel(null)} className="!px-2 !py-0.5 !text-xs !rounded">Annuler</FloatButton>
+                          <FloatButton type="button" variant="submit" onClick={() => saveVacLabel(groupKey, vacLabelDraft)} size="mini">OK</FloatButton>
+                          <FloatButton type="button" variant="secondary" onClick={() => setEditingVacLabel(null)} size="mini">Annuler</FloatButton>
                         </div>
                       )
                     }

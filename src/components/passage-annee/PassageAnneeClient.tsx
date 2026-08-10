@@ -272,7 +272,7 @@ export default function PassageAnneeClient({
                         variant="secondary"
                         disabled={!!enCours}
                         onClick={() => (etat ? reinitialiser(step.key) : lancer(step.key))}
-                        className="!px-2 !py-0.5 !text-[11px] !rounded-lg"
+                        size="mini"
                       >
                         {enCours === step.key
                           ? (etat ? 'Effacement…' : 'Audit…')
@@ -487,7 +487,7 @@ export default function PassageAnneeClient({
                     variant="secondary"
                     disabled={occupe}
                     onClick={() => archiver(p.id, p.label)}
-                    className="!px-2 !py-0.5 !text-[11px] !rounded-lg"
+                    size="mini"
                   >
                     Archiver
                   </FloatButton>

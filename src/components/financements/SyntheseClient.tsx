@@ -400,7 +400,7 @@ export default function SyntheseClient({
         <div className="card p-0 overflow-hidden flex flex-col">
           <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between shrink-0">
             <h2 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Dépenses</h2>
-            <FloatButton type="button" variant="submit" onClick={() => setExpenseModal('new')} className="!px-2 !py-0.5 !text-xs !font-medium !rounded">
+            <FloatButton type="button" variant="submit" onClick={() => setExpenseModal('new')} size="mini">
               Ajouter
             </FloatButton>
           </div>
@@ -477,7 +477,7 @@ export default function SyntheseClient({
         <div className="card p-0 overflow-hidden flex flex-col">
           <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between shrink-0">
             <h2 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Revenus autres</h2>
-            <FloatButton type="button" variant="submit" onClick={() => setRevenueModal('new')} className="!px-2 !py-0.5 !text-xs !font-medium !rounded">
+            <FloatButton type="button" variant="submit" onClick={() => setRevenueModal('new')} size="mini">
               Ajouter
             </FloatButton>
           </div>

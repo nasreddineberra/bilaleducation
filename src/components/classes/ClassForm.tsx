@@ -864,7 +864,7 @@ export default function ClassForm({
           {!showSlotForm && (
             <FloatButton
               type="button" variant="submit"
-              className="!px-2.5 !py-1 !text-xs !rounded"
+              size="mini"
               onClick={() => { setEditingSlotIdx(null); setSlotOverlapErr(null); setShowSlotForm(true) }}
             >
               Ajouter
