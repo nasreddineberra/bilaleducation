@@ -46,6 +46,8 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/annee-scolaire':    'Années scolaires',
   '/dashboard/annee-scolaire/new':'Nouvelle année scolaire',
   '/dashboard/cours':             'Référentiel des cours',
+  // Page de TEST, temporaire — à retirer avec `/dashboard/cours/test`.
+  '/dashboard/cours/test':        'Référentiel des cours (test)',
   '/dashboard/cotisations':       'Financiers',
   '/dashboard/types-presence':   'Types de présence',
   '/dashboard/ressources':        'Ressources',
