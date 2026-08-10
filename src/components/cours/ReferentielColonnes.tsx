@@ -242,7 +242,13 @@ function Tri({
   )
 }
 
-type Ajout = { kind: 'ue' } | { kind: 'module'; ueNom: string } | { kind: 'cours'; parentNom: string }
+/**
+ * Le parent d'un ajout porte sa NATURE autant que son nom : « Dans Lecture »
+ * ne dit pas ce qu'est Lecture, et un cours peut pendre à un module comme
+ * directement à une unité.
+ */
+type Parent = { nature: 'ue' | 'module'; nom: string }
+type Ajout = { kind: 'ue' } | { kind: 'module'; parent: Parent } | { kind: 'cours'; parent: Parent }
 
 /**
  * Formulaire d'ajout, en modale VERROUILLÉE.
@@ -266,9 +272,10 @@ function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) 
     ajout.kind === 'ue'     ? "Nouvelle unité d'enseignement" :
     ajout.kind === 'module' ? 'Nouveau module' : 'Nouveau cours'
 
-  const rattachement =
-    ajout.kind === 'module' ? `Dans l'unité ${ajout.ueNom}` :
-    ajout.kind === 'cours'  ? `Dans ${ajout.parentNom}` : null
+  const rattachement = ajout.kind === 'ue' ? null
+    : ajout.parent.nature === 'module'
+      ? `Dans le module « ${ajout.parent.nom} »`
+      : `Dans l'UE « ${ajout.parent.nom} »`
 
   return (
     <FormModal
@@ -430,9 +437,7 @@ export default function ReferentielColonnes({
   // La destination d'un ajout doit être ÉCRITE dans la modale, pas déduite de
   // la colonne d'où l'on a cliqué.
   const nomUE = lstUes.find(u => u.id === ueActive)?.nom_fr ?? ''
-  const nomModule = sel.moduleId === SANS_MODULE
-    ? `${nomUE}, sans module`
-    : (lstModules.find(m => m.id === sel.moduleId)?.nom_fr ?? '')
+  const nomModule = lstModules.find(m => m.id === sel.moduleId)?.nom_fr ?? ''
 
   /**
    * Ce que montre la troisième colonne : une CARTE par module.
@@ -518,9 +523,9 @@ export default function ReferentielColonnes({
             compte={modulesDeUE.length + (coursDirects.length ? 1 : 0)}
             actions={ueActive ? [
               { libelle: 'Module', aria: 'Ajouter un module à cette unité',
-                onClick: () => setAjout({ kind: 'module', ueNom: nomUE }) },
+                onClick: () => setAjout({ kind: 'module', parent: { nature: 'ue', nom: nomUE } }) },
               { libelle: 'Cours',  aria: 'Ajouter un cours directement à cette unité',
-                onClick: () => setAjout({ kind: 'cours', parentNom: `${nomUE}, sans module` }) },
+                onClick: () => setAjout({ kind: 'cours', parent: { nature: 'ue', nom: nomUE } }) },
             ] : []}
             liste="Modules de l'unité"
             className="w-fit min-w-[14rem] max-w-[26rem]"
@@ -579,7 +584,13 @@ export default function ReferentielColonnes({
             compte={groupes.reduce((t, g) => t + g.liste.length, 0)}
             actions={sel.moduleId ? [{
               libelle: 'Ajouter', aria: 'Ajouter un cours',
-              onClick: () => setAjout({ kind: 'cours', parentNom: nomModule }),
+              // Le groupe « sans module » rattache à l'UNITÉ, pas à un module.
+              onClick: () => setAjout({
+                kind: 'cours',
+                parent: sel.moduleId === SANS_MODULE
+                  ? { nature: 'ue', nom: nomUE }
+                  : { nature: 'module', nom: nomModule },
+              }),
             }] : []}
             liste="Cours du module"
             className="flex-1 min-w-0"

@@ -62,8 +62,13 @@ export default function FormModal({
             <X size={16} />
           </button>
         </div>
-        <div className="px-5 py-4 space-y-3 overflow-y-auto min-h-0">{children}</div>
-        <div className={`flex items-center gap-2 px-5 py-3 shrink-0${footerSeparator ? ' border-t border-warm-100' : ''}`}>
+        {/* Sans filet, le pied CONTINUE le formulaire : les remplissages ne
+            doivent plus se cumuler, sinon un trou de 28 px s'ouvre au milieu
+            des champs. On retombe alors sur le rythme de `space-y-3`. */}
+        <div className={`px-5 pt-4 space-y-3 overflow-y-auto min-h-0 ${footerSeparator ? 'pb-4' : 'pb-3'}`}>
+          {children}
+        </div>
+        <div className={`flex items-center gap-2 px-5 pb-4 shrink-0${footerSeparator ? ' pt-3 border-t border-warm-100' : ' pt-0'}`}>
           {footer}
         </div>
       </div>
