@@ -8,7 +8,8 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SearchField } from '@/components/ui/FloatFields'
+import { SearchField, FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import type { UniteEnseignement, CoursModule, Cours } from '@/types/database'
 
@@ -84,7 +85,7 @@ function Encadre({
    *  qu'une unité accueille des modules ET des cours directs : avec un seul
    *  bouton, une unité sans cours direct n'offrait AUCUN moyen d'en créer le
    *  premier — le groupe « Cours sans module » n'existant pas encore. */
-  actions: { libelle: string; aria: string }[]
+  actions: { libelle: string; aria: string; onClick: () => void }[]
   /** Libellé de la liste de choix — porté par le CORPS, jamais par la carte :
    *  un `listbox` ne contient que des `option`, et l'en-tête porte un bouton. */
   liste: string
@@ -104,6 +105,7 @@ function Encadre({
               key={a.aria}
               type="button"
               aria-label={a.aria}
+              onClick={a.onClick}
               className="text-[11px] font-semibold text-primary-700 border border-primary-600/40 hover:bg-primary-50 px-2 py-0.5 rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
             >
               {a.libelle}
@@ -238,6 +240,91 @@ function Tri({
   )
 }
 
+type Ajout = { kind: 'ue' } | { kind: 'module'; ueNom: string } | { kind: 'cours'; parentNom: string }
+
+/**
+ * Formulaire d'ajout, en modale VERROUILLÉE.
+ *
+ * `FormModal` est la coque de saisie du projet : ni clic sur le fond, ni Échap.
+ * Une modale qui contient des champs ne doit pas pouvoir se fermer par accident
+ * — un clic à côté effacerait la saisie sans un mot. Seuls X et Annuler ferment.
+ * (Échap reste accepté sur les CONFIRMATIONS, qui n'ont rien à perdre.)
+ *
+ * Les trois natures partagent Réf / Nom (FR) / Nom (AR) ; seule l'unité ajoute
+ * sa couleur. Le sous-titre rappelle À QUOI on rattache : dans une maquette à
+ * trois colonnes, la destination d'un ajout doit être écrite, pas déduite de la
+ * colonne d'où l'on a cliqué.
+ */
+function ModaleAjout({ ajout, onClose }: { ajout: Ajout; onClose: () => void }) {
+  const [ref, setRef]     = useState('')
+  const [nomFr, setNomFr] = useState('')
+  const [nomAr, setNomAr] = useState('')
+  const [couleur, setCouleur] = useState('#3B82F6')
+
+  const titre =
+    ajout.kind === 'ue'     ? "Nouvelle unité d'enseignement" :
+    ajout.kind === 'module' ? 'Nouveau module' : 'Nouveau cours'
+
+  const rattachement =
+    ajout.kind === 'module' ? `Dans l'unité ${ajout.ueNom}` :
+    ajout.kind === 'cours'  ? `Dans ${ajout.parentNom}` : null
+
+  return (
+    <FormModal
+      title={titre}
+      onClose={onClose}
+      footer={
+        <>
+          <FloatButton type="button" variant="secondary" onClick={onClose}>Annuler</FloatButton>
+          {/* Inerte : ce prototype se juge sur la présentation. */}
+          <FloatButton type="button" variant="submit" disabled={!nomFr.trim()}>Valider</FloatButton>
+        </>
+      }
+    >
+      {rattachement && (
+        <p className="text-xs text-[var(--ink-muted)] -mt-1">{rattachement}</p>
+      )}
+
+      {/* `FloatInput` n'expose pas de `wrapperClassName` — contrairement à
+          `FloatSelect` — donc la largeur se règle sur un conteneur. */}
+      <div className="flex gap-2">
+        <div className="w-24 flex-shrink-0">
+          <FloatInput
+            label="Réf" value={ref} required
+            onChange={e => setRef(e.target.value.toUpperCase())}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <FloatInput
+            label="Nom (FR)" value={nomFr} required
+            onChange={e => setNomFr(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
+          />
+        </div>
+      </div>
+
+      <FloatInput
+        label="Nom (AR)" value={nomAr} dir="rtl" style={arStyle}
+        onChange={e => setNomAr(e.target.value)}
+      />
+
+      {ajout.kind === 'ue' && (
+        <div className="flex items-center gap-2">
+          <label htmlFor="couleur-ue" className="text-xs font-semibold text-[var(--ink-muted)] uppercase tracking-wide">
+            Couleur
+          </label>
+          <input
+            id="couleur-ue" type="color" value={couleur}
+            onChange={e => setCouleur(e.target.value)}
+            className="h-8 w-14 rounded cursor-pointer border border-[var(--line-strong)]"
+          />
+        </div>
+      )}
+
+      <p className="text-[11px] text-[var(--ink-muted)]">* champs obligatoires</p>
+    </FormModal>
+  )
+}
+
 function Vide({ texte }: { texte: string }) {
   return <p className="px-3 py-6 text-xs text-[var(--ink-muted)] text-center">{texte}</p>
 }
@@ -302,6 +389,7 @@ export default function ReferentielColonnes({
 }) {
   const [sel, setSel] = useState<Selection>({ ueId: null, moduleId: null, coursId: null })
   const [search, setSearch] = useState('')
+  const [ajout, setAjout] = useState<Ajout | null>(null)
 
   // Ordre LOCAL. Ce prototype ne persiste pas `order_index` : on n'écrit pas
   // dans les données depuis une maquette. Le geste et le rendu sont réels, le
@@ -344,6 +432,13 @@ export default function ReferentielColonnes({
   const coursDirects = lstCours.filter(c => c.unite_enseignement_id === ueActive && !c.module_id)
 
   const SANS_MODULE = '__directs__'
+
+  // La destination d'un ajout doit être ÉCRITE dans la modale, pas déduite de
+  // la colonne d'où l'on a cliqué.
+  const nomUE = lstUes.find(u => u.id === ueActive)?.nom_fr ?? ''
+  const nomModule = sel.moduleId === SANS_MODULE
+    ? `${nomUE}, sans module`
+    : (lstModules.find(m => m.id === sel.moduleId)?.nom_fr ?? '')
 
   /**
    * Ce que montre la troisième colonne : une CARTE par module.
@@ -401,7 +496,7 @@ export default function ReferentielColonnes({
           <Encadre
             titre="Unités"
             compte={uesFiltrees.length}
-            actions={[{ libelle: 'Ajouter', aria: 'Ajouter une unité' }]}
+            actions={[{ libelle: 'Ajouter', aria: 'Ajouter une unité', onClick: () => setAjout({ kind: 'ue' }) }]}
             liste="Unités d'enseignement"
             className="w-fit min-w-[13rem] max-w-[24rem]"
           >
@@ -428,8 +523,10 @@ export default function ReferentielColonnes({
             titre="Modules"
             compte={modulesDeUE.length + (coursDirects.length ? 1 : 0)}
             actions={ueActive ? [
-              { libelle: 'Module', aria: 'Ajouter un module à cette unité' },
-              { libelle: 'Cours',  aria: 'Ajouter un cours directement à cette unité' },
+              { libelle: 'Module', aria: 'Ajouter un module à cette unité',
+                onClick: () => setAjout({ kind: 'module', ueNom: nomUE }) },
+              { libelle: 'Cours',  aria: 'Ajouter un cours directement à cette unité',
+                onClick: () => setAjout({ kind: 'cours', parentNom: `${nomUE}, sans module` }) },
             ] : []}
             liste="Modules de l'unité"
             className="w-fit min-w-[14rem] max-w-[26rem]"
@@ -486,7 +583,10 @@ export default function ReferentielColonnes({
           <Encadre
             titre="Cours"
             compte={groupes.reduce((t, g) => t + g.liste.length, 0)}
-            actions={sel.moduleId ? [{ libelle: 'Ajouter', aria: 'Ajouter un cours' }] : []}
+            actions={sel.moduleId ? [{
+              libelle: 'Ajouter', aria: 'Ajouter un cours',
+              onClick: () => setAjout({ kind: 'cours', parentNom: nomModule }),
+            }] : []}
             liste="Cours du module"
             className="flex-1 min-w-0"
           >
@@ -528,6 +628,8 @@ export default function ReferentielColonnes({
         </div>
 
       </div>
+
+      {ajout && <ModaleAjout ajout={ajout} onClose={() => setAjout(null)} />}
     </div>
   )
 }
