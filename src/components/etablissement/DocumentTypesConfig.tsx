@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { Trash2, Check, X } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
+import { FloatButton } from '@/components/ui/FloatFields'
 import type { DocumentCategory } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -174,13 +175,19 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
             <div key={cat.key} className="card">
               <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
                 <h3 className="text-[11px] font-semibold text-warm-700 uppercase tracking-wide">{cat.label}</h3>
-                <button
+                {/* Mini-bouton et non lien : « Ajouter » est une action de
+                    creation, pas une navigation. `size="mini"` tient dans
+                    l'en-tete sans le faire grandir. */}
+                <FloatButton
+                  type="button"
+                  variant="submit"
+                  size="mini"
+                  aria-label={`Ajouter un type de document · ${cat.label}`}
                   onClick={() => { setAdding(cat.key); setNewLabel(''); setNewRequired(false) }}
-                  className="text-[11px] text-primary-700 hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-40"
                   disabled={adding === cat.key}
                 >
                   Ajouter
-                </button>
+                </FloatButton>
               </div>
 
               {items.length === 0 && adding !== cat.key && (
