@@ -113,8 +113,8 @@ function couvertureSemaines(start: Date, end: Date): { texte: string; nb: number
   const nb = Math.max(1, Math.round(jours / 7))
   const s1 = getISOWeek(start)
   const s2 = getISOWeek(end)
-  const plage = nb === 1 ? `S${s1}` : `S${s1} à S${s2}`
-  return { texte: `${plage} · ${nb} semaine${nb > 1 ? 's' : ''}`, nb }
+  const plage = nb === 1 ? `S${s1}` : `S${s1}-S${s2}`
+  return { texte: `${plage} · ${nb} sem.`, nb }
 }
 
 function getWeeksBetween(startDate: string, endDate: string, startDay: number): WeekInfo[] {
@@ -1051,7 +1051,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                       empilees elles imposaient leur propre barre de defilement.
                       Sur deux colonnes elles tiennent, et la fenetre cesse
                       d'avoir trois zones defilantes concurrentes. */}
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="grid grid-cols-3 gap-1.5">
                   {vacations.map(v => {
                     const start = new Date(v.start_date + 'T00:00:00')
                     const end = new Date(v.end_date + 'T00:00:00')
@@ -1085,11 +1085,12 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                         <span className="text-xs font-medium text-amber-800 flex-1 truncate">
                           {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                         </span>
-                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0">
+                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
                           {couvertureSemaines(start, end).texte}
                         </span>
-                        <span aria-hidden="true" className="text-warm-700 select-none flex-shrink-0">·</span>
-                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0">{fmtShort(start)}-{fmtShort(end)}</span>
+                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
+                          {fmtShort(start)}-{fmtShort(end)}
+                        </span>
                         <Tooltip content="Renommer">
                           <button
                             type="button"
@@ -1142,9 +1143,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 Jours fériés
               </p>
 
-              {/* Saisie — large d'une colonne, sur la meme grille que la liste */}
-              <div className="grid grid-cols-3 gap-1.5 mb-2">
-                <div className="space-y-1.5">
+              {/* Saisie : UNE LIGNE, large d'une colonne. Meme grille que la
+                  liste, donc alignee au pixel pres — et meme hauteur pour les
+                  trois controles, sans quoi la ligne se lit en escalier. */}
+              <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+                <div className="flex items-center gap-1.5">
                   <input
                     type="date"
                     value={ferieDate}
@@ -1152,22 +1155,22 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     max={form.end_date || undefined}
                     onChange={e => setFerieDate(e.target.value)}
                     aria-label="Date du jour férié"
-                    className="input h-9 text-xs w-full tabular-nums"
+                    className="input !h-8 !py-0 text-xs w-[7.5rem] flex-shrink-0 tabular-nums"
                   />
                   <input
                     type="text"
                     value={ferieLabel}
-                    placeholder="Libellé, ex. Aïd el-Fitr"
+                    placeholder="Libellé"
                     onChange={e => setFerieLabel(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); ajouterFerie() } }}
                     aria-label="Libellé du jour férié"
-                    className="input h-9 text-xs w-full"
+                    className="input !h-8 !py-0 text-xs flex-1 min-w-0"
                   />
                   <FloatButton
                     type="button" variant="submit"
                     onClick={ajouterFerie}
                     disabled={!ferieDate.trim() || !ferieLabel.trim()}
-                    className="w-full !h-9 !py-0 !text-xs"
+                    className="!h-8 !py-0 !px-3 !text-xs flex-shrink-0"
                   >
                     Ajouter
                   </FloatButton>
