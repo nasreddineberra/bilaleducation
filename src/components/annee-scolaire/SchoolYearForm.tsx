@@ -694,8 +694,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                                 <td className="px-2 py-1 font-medium text-secondary-700 truncate max-w-0 w-full">
                                   {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                                 </td>
+                                {/* Les SEMAINES, pas les dates : meme repere que
+                                    la modale, et la carte n'a pas la place de
+                                    porter une plage de dates complete. */}
                                 <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right tabular-nums">
-                                  {fmtShort(start)}-{fmtShort(end)}
+                                  {couvertureSemaines(start, end).texte}
                                 </td>
                               </tr>
                             )
