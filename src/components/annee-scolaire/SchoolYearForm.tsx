@@ -966,10 +966,19 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
               <div>
                 <h2 id="vac-modal-title" className="text-base font-bold text-secondary-800">Vacances et jours fériés</h2>
+                {/* Le sous-titre compte les DEUX : la fenetre ne traite plus
+                    seulement des vacances, et un decompte partiel laisserait
+                    croire que les feries ne sont pas enregistres. */}
                 <p className="text-xs text-warm-700 mt-0.5">
-                  {vacationMondaySet.size > 0
-                    ? `${vacationMondaySet.size} semaine${vacationMondaySet.size > 1 ? 's' : ''} sélectionnée${vacationMondaySet.size > 1 ? 's' : ''}`
-                    : 'Cliquez sur une semaine pour la marquer en vacances'}
+                  {(() => {
+                    const nbSem = vacationMondaySet.size
+                    const nbFer = feries.length
+                    if (!nbSem && !nbFer) return 'Cliquez sur une semaine pour la marquer en vacances'
+                    const parts: string[] = []
+                    if (nbSem) parts.push(`${nbSem} semaine${nbSem > 1 ? 's' : ''} de vacances`)
+                    if (nbFer) parts.push(`${nbFer} jour${nbFer > 1 ? 's' : ''} férié${nbFer > 1 ? 's' : ''}`)
+                    return parts.join(' · ')
+                  })()}
                 </p>
               </div>
               <button
@@ -1046,7 +1055,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             {vacations.length > 0 && (
               <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
                 <div className="space-y-1.5">
-                  <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Périodes de vacances</p>
+                  <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Périodes de vacances sélectionnées</p>
                   {/* DEUX COLONNES : une annee compte volontiers cinq periodes,
                       empilees elles imposaient leur propre barre de defilement.
                       Sur deux colonnes elles tiennent, et la fenetre cesse
@@ -1140,7 +1149,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 au bouton de validation d'un formulaire. */}
             <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
               <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide mb-1.5">
-                Jours fériés
+                Jours fériés saisis
               </p>
 
               {/* Saisie : UNE LIGNE, large d'une colonne. Meme grille que la
