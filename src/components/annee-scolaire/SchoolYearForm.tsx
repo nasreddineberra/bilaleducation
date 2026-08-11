@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { X, Pencil, AlertTriangle, Lock } from 'lucide-react'
+import { X, Pencil, Check, AlertTriangle, Lock } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
@@ -237,6 +237,32 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   }
 
   const retirerFerie = (date: string) => setFeries(prev => prev.filter(f => f.date !== date))
+
+  // ── Correction d'un ferie ─────────────────────────────────────────────────
+  //
+  // La DATE est modifiable autant que le libelle : les deux ont ete tapes a la
+  // main. Ne rendre que le libelle corrigeable — comme les periodes de
+  // vacances, dont les dates viennent du calendrier — obligerait a supprimer
+  // puis ressaisir pour un chiffre errone.
+  const [editionFerie, setEditionFerie] = useState<string | null>(null)
+  const [draftDate, setDraftDate]   = useState('')
+  const [draftLabel, setDraftLabel] = useState('')
+
+  const ouvrirEdition = (f: JourFerie) => {
+    setEditionFerie(f.date); setDraftDate(f.date); setDraftLabel(f.label)
+  }
+
+  const enregistrerFerie = (dateOrigine: string) => {
+    const d = draftDate.trim()
+    if (!d || !draftLabel.trim()) return
+    // On retire l'entree d'origine ET toute entree portant la nouvelle date :
+    // meme regle qu'a l'ajout, un jour ne se ferie pas deux fois.
+    setFeries(prev => [
+      ...prev.filter(f => f.date !== dateOrigine && f.date !== d),
+      { date: d, label: draftLabel.trim() },
+    ])
+    setEditionFerie(null)
+  }
 
   /** Le ferie tombe-t-il dans l'annee ? Averti sans bloquer — une saisie hors
    *  bornes est presque toujours une faute de frappe, mais c'est a l'utilisateur
@@ -1224,29 +1250,80 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 <p className="text-[11px] text-warm-700 italic">Aucun jour férié saisi.</p>
               ) : (
                 <div className="grid grid-cols-3 gap-1.5">
-                  {feriesTries.map(f => (
-                    <div key={f.date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50/60 border border-amber-100 rounded-lg min-w-0">
-                      <span className="text-xs font-medium text-amber-800 flex-1 truncate">{f.label}</span>
-                      {ferieHorsAnnee(f.date) && (
-                        <span className="text-[10px] text-amber-700 whitespace-nowrap flex-shrink-0">hors année</span>
-                      )}
-                      <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
-                        {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                      </span>
-                      {/* Remplissage etendu puis marge negative : la cible
-                          atteint 28 px sans que la ligne grandisse. */}
-                      <Tooltip content="Retirer">
-                        <button
-                          type="button"
-                          onClick={() => retirerFerie(f.date)}
-                          aria-label={`Retirer ${f.label}`}
-                          className="p-1.5 -m-1 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
-                        >
-                          <X size={11} />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  ))}
+                  {feriesTries.map(f => {
+                    if (editionFerie === f.date) {
+                      return (
+                        <div key={f.date} className="flex items-center gap-1 px-1.5 py-1 bg-amber-50 border border-amber-300 rounded-lg min-w-0">
+                          <input
+                            type="date" value={draftDate}
+                            onChange={e => setDraftDate(e.target.value)}
+                            aria-label="Date du jour férié"
+                            className="input !h-7 !py-0 !px-1 text-[11px] w-[6.5rem] flex-shrink-0 tabular-nums"
+                          />
+                          <input
+                            type="text" value={draftLabel} autoFocus
+                            onChange={e => setDraftLabel(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter')  { e.preventDefault(); enregistrerFerie(f.date) }
+                              if (e.key === 'Escape') setEditionFerie(null)
+                            }}
+                            aria-label="Libellé du jour férié"
+                            className="input !h-7 !py-0 !px-1.5 text-[11px] flex-1 min-w-0"
+                          />
+                          <Tooltip content="Valider">
+                            <button
+                              type="button" onClick={() => enregistrerFerie(f.date)}
+                              aria-label="Valider" disabled={!draftDate.trim() || !draftLabel.trim()}
+                              className="p-1 -m-0.5 text-primary-700 hover:text-primary-800 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0"
+                            >
+                              <Check size={12} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Annuler">
+                            <button
+                              type="button" onClick={() => setEditionFerie(null)} aria-label="Annuler"
+                              className="p-1 -m-0.5 text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0"
+                            >
+                              <X size={12} />
+                            </button>
+                          </Tooltip>
+                        </div>
+                      )
+                    }
+                    return (
+                      <div key={f.date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50/60 border border-amber-100 rounded-lg min-w-0">
+                        <span className="text-xs font-medium text-amber-800 flex-1 truncate">{f.label}</span>
+                        {ferieHorsAnnee(f.date) && (
+                          <span className="text-[10px] text-amber-700 whitespace-nowrap flex-shrink-0">hors année</span>
+                        )}
+                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
+                          {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                        </span>
+                        {/* Remplissage etendu puis marge negative : la cible
+                            atteint 28 px sans que la ligne grandisse. */}
+                        <Tooltip content="Modifier">
+                          <button
+                            type="button"
+                            onClick={() => ouvrirEdition(f)}
+                            aria-label={`Modifier ${f.label}`}
+                            className="p-1.5 -m-1 text-warm-700 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Retirer">
+                          <button
+                            type="button"
+                            onClick={() => retirerFerie(f.date)}
+                            aria-label={`Retirer ${f.label}`}
+                            className="p-1.5 -m-1 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
+                          >
+                            <X size={11} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
