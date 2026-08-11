@@ -639,42 +639,75 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             {/* Mini-tableau vacances */}
             <div className="pt-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Vacances</h3>
+                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Vacances et jours fériés</h3>
                 {weeks.length > 0 && (
                   <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} disabled={readOnly} size="mini">
                     Gérer
                   </FloatButton>
                 )}
               </div>
-              {vacations.length === 0 ? (
+
+              {/* Resume en DEUX COLONNES, une par nature. La colonne « 2 sem. »
+                  du tableau precedent est retiree : elle ne tenait pas dans un
+                  bloc aussi etroit, et l'information reste dans la modale, ou
+                  elle sert a comprendre le regroupement des semaines. */}
+              {vacations.length === 0 && feries.length === 0 ? (
                 <p className="text-xs text-warm-700 italic">
-                  {weeks.length > 0 ? 'Aucune vacance définie' : 'Renseigner les dates pour définir les vacances'}
+                  {weeks.length > 0 ? 'Aucune vacance ni jour férié défini' : 'Renseigner les dates pour définir les vacances'}
                 </p>
               ) : (
-                <div className="border border-warm-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
-                    <tbody className="divide-y divide-warm-100">
-                      {vacations.map(v => {
-                        const start = new Date(v.start_date + 'T00:00:00')
-                        const end = new Date(v.end_date + 'T00:00:00')
-                        const diffDays = Math.round((end.getTime() - start.getTime()) / 86400000)
-                        const nbWeeks = Math.floor(diffDays / 7) + 1
-                        return (
-                          <tr key={v.start_date} className="hover:bg-warm-50/60">
-                            <td className="px-2 py-1 font-medium text-secondary-700">
-                              {v.label || <span className="text-warm-700 italic">Sans nom</span>}
-                            </td>
-                            <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right">
-                              {fmtShort(start)}-{fmtShort(end)}
-                            </td>
-                            <td className="px-2 py-1 text-warm-700 text-right whitespace-nowrap">
-                              {nbWeeks} sem.
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                <div className="grid grid-cols-2 gap-2">
+
+                  <div className="border border-warm-200 rounded-lg overflow-hidden">
+                    <p className="px-2 py-1 text-[10px] font-bold text-warm-700 uppercase tracking-wide bg-warm-50 border-b border-warm-100">
+                      Vacances
+                    </p>
+                    {vacations.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[11px] text-warm-700 italic">Aucune</p>
+                    ) : (
+                      <table className="w-full text-[11px]">
+                        <tbody className="divide-y divide-warm-100">
+                          {vacations.map(v => {
+                            const start = new Date(v.start_date + 'T00:00:00')
+                            const end   = new Date(v.end_date + 'T00:00:00')
+                            return (
+                              <tr key={v.start_date} className="hover:bg-warm-50/60">
+                                <td className="px-2 py-1 font-medium text-secondary-700 truncate max-w-0 w-full">
+                                  {v.label || <span className="text-warm-700 italic">Sans nom</span>}
+                                </td>
+                                <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right tabular-nums">
+                                  {fmtShort(start)}-{fmtShort(end)}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  <div className="border border-warm-200 rounded-lg overflow-hidden">
+                    <p className="px-2 py-1 text-[10px] font-bold text-warm-700 uppercase tracking-wide bg-warm-50 border-b border-warm-100">
+                      Jours fériés
+                    </p>
+                    {feriesTries.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[11px] text-warm-700 italic">Aucun</p>
+                    ) : (
+                      <table className="w-full text-[11px]">
+                        <tbody className="divide-y divide-warm-100">
+                          {feriesTries.map(f => (
+                            <tr key={f.date} className="hover:bg-warm-50/60">
+                              <td className="px-2 py-1 font-medium text-secondary-700 truncate max-w-0 w-full">{f.label}</td>
+                              <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right tabular-nums">
+                                {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
                 </div>
               )}
             </div>
