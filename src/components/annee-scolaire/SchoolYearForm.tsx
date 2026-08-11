@@ -238,29 +238,22 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
   const retirerFerie = (date: string) => setFeries(prev => prev.filter(f => f.date !== date))
 
-  // ── Correction d'un ferie ─────────────────────────────────────────────────
+  // ── Correction d'un ferie : le LIBELLE seulement ──────────────────────────
   //
-  // La DATE est modifiable autant que le libelle : les deux ont ete tapes a la
-  // main. Ne rendre que le libelle corrigeable — comme les periodes de
-  // vacances, dont les dates viennent du calendrier — obligerait a supprimer
-  // puis ressaisir pour un chiffre errone.
+  // La date ne s'edite pas : une date fausse se supprime et se ressaisit, ce
+  // qui evite d'avoir a gerer la collision avec un jour deja ferie au milieu
+  // d'une correction de texte. Meme regle que les periodes de vacances, dont
+  // seul le nom se modifie ici.
   const [editionFerie, setEditionFerie] = useState<string | null>(null)
-  const [draftDate, setDraftDate]   = useState('')
   const [draftLabel, setDraftLabel] = useState('')
 
   const ouvrirEdition = (f: JourFerie) => {
-    setEditionFerie(f.date); setDraftDate(f.date); setDraftLabel(f.label)
+    setEditionFerie(f.date); setDraftLabel(f.label)
   }
 
-  const enregistrerFerie = (dateOrigine: string) => {
-    const d = draftDate.trim()
-    if (!d || !draftLabel.trim()) return
-    // On retire l'entree d'origine ET toute entree portant la nouvelle date :
-    // meme regle qu'a l'ajout, un jour ne se ferie pas deux fois.
-    setFeries(prev => [
-      ...prev.filter(f => f.date !== dateOrigine && f.date !== d),
-      { date: d, label: draftLabel.trim() },
-    ])
+  const enregistrerFerie = (date: string) => {
+    if (!draftLabel.trim()) return
+    setFeries(prev => prev.map(f => (f.date === date ? { ...f, label: draftLabel.trim() } : f)))
     setEditionFerie(null)
   }
 
@@ -1128,8 +1121,13 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
                     if (isEditingThis) {
                       return (
-                        <div key={v.start_date} className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                          <span className="text-xs text-warm-700 whitespace-nowrap">{fmtShort(start)}-{fmtShort(end)}</span>
+                        <div key={v.start_date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 border border-amber-300 rounded-lg min-w-0">
+                          {/* MEME repere que la ligne affichee : on modifie ce
+                              qu'on vient de lire. Une ligne d'edition qui
+                              designe sa cible autrement oblige a la retrouver. */}
+                          <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
+                            {couvertureSemaines(start, end).texte}
+                          </span>
                           <input
                             type="text"
                             value={vacLabelDraft}
@@ -1155,9 +1153,6 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                         </span>
                         <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
                           {couvertureSemaines(start, end).texte}
-                        </span>
-                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
-                          {fmtShort(start)}-{fmtShort(end)}
                         </span>
                         <Tooltip content="Renommer">
                           <button
@@ -1253,13 +1248,13 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   {feriesTries.map(f => {
                     if (editionFerie === f.date) {
                       return (
-                        <div key={f.date} className="flex items-center gap-1 px-1.5 py-1 bg-amber-50 border border-amber-300 rounded-lg min-w-0">
-                          <input
-                            type="date" value={draftDate}
-                            onChange={e => setDraftDate(e.target.value)}
-                            aria-label="Date du jour férié"
-                            className="input !h-7 !py-0 !px-1 text-[11px] w-[6.5rem] flex-shrink-0 tabular-nums"
-                          />
+                        <div key={f.date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 border border-amber-300 rounded-lg min-w-0">
+                          {/* Date en lecture seule, au MEME endroit et au meme
+                              format que sur la ligne affichee : on modifie ce
+                              qu'on vient de lire. */}
+                          <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums order-2">
+                            {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                          </span>
                           <input
                             type="text" value={draftLabel} autoFocus
                             onChange={e => setDraftLabel(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
@@ -1268,13 +1263,13 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               if (e.key === 'Escape') setEditionFerie(null)
                             }}
                             aria-label="Libellé du jour férié"
-                            className="input !h-7 !py-0 !px-1.5 text-[11px] flex-1 min-w-0"
+                            className="input !h-7 !py-0 !px-1.5 text-[11px] flex-1 min-w-0 order-1"
                           />
                           <Tooltip content="Valider">
                             <button
                               type="button" onClick={() => enregistrerFerie(f.date)}
-                              aria-label="Valider" disabled={!draftDate.trim() || !draftLabel.trim()}
-                              className="p-1 -m-0.5 text-primary-700 hover:text-primary-800 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0"
+                              aria-label="Valider" disabled={!draftLabel.trim()}
+                              className="p-1 -m-0.5 text-primary-700 hover:text-primary-800 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0 order-3"
                             >
                               <Check size={12} />
                             </button>
@@ -1282,7 +1277,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                           <Tooltip content="Annuler">
                             <button
                               type="button" onClick={() => setEditionFerie(null)} aria-label="Annuler"
-                              className="p-1 -m-0.5 text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0"
+                              className="p-1 -m-0.5 text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0 order-4"
                             >
                               <X size={12} />
                             </button>
