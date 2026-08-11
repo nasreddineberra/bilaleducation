@@ -99,6 +99,24 @@ interface WeekInfo {
   monthIndex: number // month of the monday
 }
 
+/**
+ * Ce que couvre une periode : « S48 a S49 · 2 semaines ».
+ *
+ * `toggleWeekVacation` FUSIONNE les semaines contigues en une seule periode —
+ * c'est voulu, et correct. Mais l'en-tete annonçait « 5 semaines
+ * selectionnees » quand la liste n'affichait que 2 lignes, sans rien dire du
+ * regroupement : on comptait 5 en haut et on lisait 2 en bas. Chaque ligne dit
+ * desormais ce qu'elle recouvre.
+ */
+function couvertureSemaines(start: Date, end: Date): { texte: string; nb: number } {
+  const jours = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  const nb = Math.max(1, Math.round(jours / 7))
+  const s1 = getISOWeek(start)
+  const s2 = getISOWeek(end)
+  const plage = nb === 1 ? `S${s1}` : `S${s1} à S${s2}`
+  return { texte: `${plage} · ${nb} semaine${nb > 1 ? 's' : ''}`, nb }
+}
+
 function getWeeksBetween(startDate: string, endDate: string, startDay: number): WeekInfo[] {
   const start = new Date(startDate + 'T00:00:00')
   const end = new Date(endDate + 'T00:00:00')
@@ -919,8 +937,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               </button>
             </div>
 
-            {/* Body — grille 3 colonnes de mois */}
-            <div className="p-4 overflow-y-auto">
+            {/* Corps DEFILANT : le calendrier seul. La liste des periodes en
+                sort (voir plus bas) — elle etait sous la ligne de flottaison,
+                et il fallait faire defiler pour decouvrir qu'une periode se
+                nomme. */}
+            <div className="p-4 overflow-y-auto flex-1 min-h-0 list-scroll">
               {(() => {
                 const monthGroups: { month: number; year: number; weeks: WeekInfo[] }[] = []
                 for (const w of weeks) {
@@ -935,7 +956,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 }
 
                 return (
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-5 gap-2">
                     {monthGroups.map(group => (
                       <div key={`${group.year}-${group.month}`} className="border border-warm-100 rounded-xl p-2">
                         <p className="text-[11px] font-bold text-secondary-700 uppercase tracking-wide mb-1.5 text-center">
@@ -972,9 +993,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 )
               })()}
 
-              {/* Nommage des périodes */}
-              {vacations.length > 0 && (
-                <div className="mt-3 space-y-1.5">
+            </div>
+
+            {/* Periodes — HORS du defilement, toujours visibles. Bornees en
+                hauteur : une annee peut compter beaucoup de periodes, et un
+                pied qui s'allonge repousserait le bouton hors de l'ecran. */}
+            {vacations.length > 0 && (
+              <div className="px-4 py-3 border-t border-warm-100 shrink-0 max-h-44 overflow-y-auto list-scroll">
+                <div className="space-y-1.5">
                   <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Périodes de vacances</p>
                   {vacations.map(v => {
                     const start = new Date(v.start_date + 'T00:00:00')
@@ -1006,10 +1032,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
                     return (
                       <div key={v.start_date} className="flex items-center gap-2 px-2 py-1.5 bg-amber-50/60 border border-amber-100 rounded-lg">
-                        <span className="text-xs font-medium text-amber-800 flex-1">
+                        <span className="text-xs font-medium text-amber-800 flex-1 truncate">
                           {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                         </span>
-                        <span className="text-[11px] text-warm-700">{fmtShort(start)}-{fmtShort(end)}</span>
+                        <span className="text-[11px] text-warm-700 whitespace-nowrap">
+                          {couvertureSemaines(start, end).texte}
+                        </span>
+                        <span aria-hidden="true" className="text-warm-700 select-none">·</span>
+                        <span className="text-[11px] text-warm-700 whitespace-nowrap">{fmtShort(start)}-{fmtShort(end)}</span>
                         <Tooltip content="Renommer">
                           <button
                             type="button"
@@ -1024,8 +1054,8 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     )
                   })}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-end px-5 py-3 border-t border-warm-100">

@@ -145,9 +145,21 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await authRepository.signIn(email, password)
-      const now = Math.floor(Date.now() / 1000)
-      const secure = process.env.NODE_ENV === 'production' ? ';secure' : ''
-      document.cookie = `app-session=${JSON.stringify({ loginTime: now, lastActivity: now })};path=/;max-age=${24 * 3600};samesite=lax${secure}`
+
+      // LE COOKIE `app-session` N'EST PLUS POSE ICI, et c'est un correctif.
+      //
+      // Il l'etait depuis le navigateur : SANS domaine, sans `HttpOnly`, pour
+      // 24 h. Le middleware pose le meme nom AVEC `Domain=.bilaleducation.fr`,
+      // `HttpOnly`, pour 30 jours. Le navigateur en gardait donc DEUX, et
+      // `request.cookies.get()` rendait celui que l'en-tete presentait en
+      // premier — souvent le plus ancien, donc le perime : le middleware
+      // concluait a l'inactivite et renvoyait ici. BOUCLE, constatee en
+      // production le 11 aout et resolue en vidant les cookies a la main.
+      //
+      // L'ecriture etait de toute facon REDONDANTE : quand le cookie est
+      // absent, le middleware initialise `loginTime` et `lastActivity` a
+      // l'instant present des le premier passage sur /dashboard. Un seul
+      // ecrivain, une seule portee.
       window.location.href = '/dashboard'
     } catch (err: any) {
       const msg = err.message ?? ''

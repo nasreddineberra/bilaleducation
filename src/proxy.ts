@@ -49,6 +49,38 @@ export async function proxy(request: NextRequest) {
   const cookieDomain = sessionCookieDomain()
   const withDomain = <T extends object>(o: T) => (cookieDomain ? { ...o, domain: cookieDomain } : o)
 
+  /**
+   * Efface les cookies traceurs, AVEC domaine ET SANS.
+   *
+   * ┌─ POURQUOI DEUX FOIS ────────────────────────────────────────────────┐
+   * │ `sessionCookieDomain()` derive son domaine de `NEXT_PUBLIC_SITE_URL`, │
+   * │ qui n'a pas toujours existe : avant qu'elle soit posee, les cookies   │
+   * │ etaient attaches a l'HOTE SEUL. Un navigateur ayant traverse ce       │
+   * │ changement en detient donc DEUX — un ancien sans domaine, un recent   │
+   * │ sur `.bilaleducation.fr`.                                            │
+   * │                                                                       │
+   * │ Une purge portant un domaine n'atteint QUE le second. L'ancien        │
+   * │ survivait avec son horodatage perime, le middleware le lisait a       │
+   * │ chaque passage, concluait a l'inactivite, et renvoyait vers /login.   │
+   * │ BOUCLE PERMANENTE sur ce navigateur — constatee en production le      │
+   * │ 11 aout, et resolue en vidant les cookies a la main. Une purge doit   │
+   * │ atteindre les deux, sinon elle ne prouve rien.                       │
+   * └───────────────────────────────────────────────────────────────────────┘
+   *
+   * `headers.append` et non `cookies.set` : le magasin de `NextResponse` est
+   * indexe PAR NOM, poser deux fois le meme nom remplacerait le premier au lieu
+   * d'emettre deux en-tetes. Le navigateur, lui, distingue bien deux cookies de
+   * meme nom si leur domaine differe — c'est toute l'origine du probleme.
+   */
+  const purgerTraceurs = (res: NextResponse) => {
+    for (const nom of [SESSION_COOKIE, BROWSER_MARKER]) {
+      res.headers.append('Set-Cookie', `${nom}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
+      if (cookieDomain) {
+        res.headers.append('Set-Cookie', `${nom}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Domain=${cookieDomain}`)
+      }
+    }
+  }
+
   // ─── Helper : créer un client Supabase + récupérer l'user ─────────────────
 
   async function getAuthUser(reqHeaders?: Headers) {
@@ -307,8 +339,7 @@ export async function proxy(request: NextRequest) {
   // Protéger /dashboard → redirection login si non authentifié
   if (!user && pathname.startsWith('/dashboard')) {
     const redirect = NextResponse.redirect(new URL('/login', request.url))
-    redirect.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
-    redirect.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
+    purgerTraceurs(redirect)
     return redirect
   }
 
@@ -363,8 +394,7 @@ export async function proxy(request: NextRequest) {
         }
       )
       await supabaseForSignOut.auth.signOut()
-      redirect.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
-      redirect.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
+      purgerTraceurs(redirect)
       return redirect
     }
   }
@@ -446,8 +476,7 @@ export async function proxy(request: NextRequest) {
       )
       await supabaseForSignOut.auth.signOut()
 
-      redirect.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
-      redirect.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
+      purgerTraceurs(redirect)
       return redirect
     }
 
@@ -535,8 +564,7 @@ export async function proxy(request: NextRequest) {
   // un `lastActivity` périmé. Sans ce nettoyage, la première reconnexion réussie est
   // aussitôt re-déconnectée par le contrôle d'inactivité (« double login »).
   if (pathname === '/login') {
-    response.cookies.set(SESSION_COOKIE, '', withDomain({ maxAge: 0, path: '/' }))
-    response.cookies.set(BROWSER_MARKER, '', withDomain({ maxAge: 0, path: '/' }))
+    purgerTraceurs(response)
   }
 
   return response
