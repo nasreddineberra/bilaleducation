@@ -1044,9 +1044,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 hauteur : une annee peut compter beaucoup de periodes, et un
                 pied qui s'allonge repousserait le bouton hors de l'ecran. */}
             {vacations.length > 0 && (
-              <div className="px-4 py-3 border-t border-warm-100 shrink-0 max-h-44 overflow-y-auto list-scroll">
+              <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Périodes de vacances</p>
+                  {/* DEUX COLONNES : une annee compte volontiers cinq periodes,
+                      empilees elles imposaient leur propre barre de defilement.
+                      Sur deux colonnes elles tiennent, et la fenetre cesse
+                      d'avoir trois zones defilantes concurrentes. */}
+                  <div className="grid grid-cols-2 gap-1.5">
                   {vacations.map(v => {
                     const start = new Date(v.start_date + 'T00:00:00')
                     const end = new Date(v.end_date + 'T00:00:00')
@@ -1076,15 +1081,15 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     }
 
                     return (
-                      <div key={v.start_date} className="flex items-center gap-2 px-2 py-1.5 bg-amber-50/60 border border-amber-100 rounded-lg">
+                      <div key={v.start_date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50/60 border border-amber-100 rounded-lg min-w-0">
                         <span className="text-xs font-medium text-amber-800 flex-1 truncate">
                           {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                         </span>
-                        <span className="text-[11px] text-warm-700 whitespace-nowrap">
+                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0">
                           {couvertureSemaines(start, end).texte}
                         </span>
-                        <span aria-hidden="true" className="text-warm-700 select-none">·</span>
-                        <span className="text-[11px] text-warm-700 whitespace-nowrap">{fmtShort(start)}-{fmtShort(end)}</span>
+                        <span aria-hidden="true" className="text-warm-700 select-none flex-shrink-0">·</span>
+                        <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0">{fmtShort(start)}-{fmtShort(end)}</span>
                         <Tooltip content="Renommer">
                           <button
                             type="button"
@@ -1098,6 +1103,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                       </div>
                     )
                   })}
+                  </div>
                 </div>
               </div>
             )}
@@ -1110,15 +1116,19 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 Rien n'est propose : les feries civils se calculent, les fetes
                 lunaires non. Un calcul partiel serait pire que pas de calcul,
                 il laisserait croire que la liste est complete. */}
-            <div className="px-4 py-3 border-t border-warm-100 shrink-0">
+            <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
               <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide mb-1.5">
                 Jours fériés
               </p>
 
-              <div className="flex items-end gap-2 mb-2">
-                <div className="w-40 flex-shrink-0">
+              {/* Champs COMPACTS : `FloatInput` porte deja `compact`, il n'y
+                  avait aucune raison de poser ici des champs pleine hauteur a
+                  cote de lignes de 24 px. La date est bornee aux dates de
+                  l'annee, le libelle prend le reste. */}
+              <div className="flex items-end gap-1.5 mb-1.5">
+                <div className="w-36 flex-shrink-0">
                   <FloatInput
-                    label="Date" type="date" value={ferieDate}
+                    label="Date" type="date" compact value={ferieDate}
                     min={form.start_date || undefined}
                     max={form.end_date || undefined}
                     onChange={e => setFerieDate(e.target.value)}
@@ -1126,7 +1136,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 </div>
                 <div className="flex-1 min-w-0">
                   <FloatInput
-                    label="Libellé" value={ferieLabel}
+                    label="Libellé" compact value={ferieLabel}
                     placeholder="ex. Aïd el-Fitr"
                     onChange={e => setFerieLabel(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); ajouterFerie() } }}
@@ -1136,7 +1146,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   type="button" variant="submit" size="mini"
                   onClick={ajouterFerie}
                   disabled={!ferieDate.trim() || !ferieLabel.trim()}
-                  className="mb-1"
+                  className="mb-0.5"
                 >
                   Ajouter
                 </FloatButton>
@@ -1145,26 +1155,28 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               {feriesTries.length === 0 ? (
                 <p className="text-[11px] text-warm-700 italic">Aucun jour férié saisi.</p>
               ) : (
-                <div className="max-h-32 overflow-y-auto list-scroll space-y-1">
+                /* Deux colonnes comme les periodes, et le MEME habillage : ce
+                   sont deux listes de la meme fenetre, elles n'ont pas a se
+                   lire differemment. La teinte ambre les rattache aux semaines
+                   marquees dans le calendrier juste au-dessus. */
+                <div className="grid grid-cols-2 gap-1.5">
                   {feriesTries.map(f => (
-                    <div key={f.date} className="flex items-center gap-2 px-2 py-1 bg-warm-50 border border-warm-100 rounded-lg">
-                      <span className="text-[11px] text-warm-700 whitespace-nowrap w-24 flex-shrink-0 tabular-nums">
+                    <div key={f.date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50/60 border border-amber-100 rounded-lg min-w-0">
+                      <span className="text-xs font-medium text-amber-800 flex-1 truncate">{f.label}</span>
+                      {ferieHorsAnnee(f.date) && (
+                        <span className="text-[10px] text-amber-700 whitespace-nowrap flex-shrink-0">hors année</span>
+                      )}
+                      <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
                         {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
                       </span>
-                      <span className="text-xs font-medium text-secondary-700 flex-1 truncate">{f.label}</span>
-                      {ferieHorsAnnee(f.date) && (
-                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-px whitespace-nowrap">
-                          hors année
-                        </span>
-                      )}
                       <Tooltip content="Retirer">
                         <button
                           type="button"
                           onClick={() => retirerFerie(f.date)}
                           aria-label={`Retirer ${f.label}`}
-                          className="p-0.5 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                          className="p-0.5 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
                         >
-                          <X size={12} />
+                          <X size={11} />
                         </button>
                       </Tooltip>
                     </div>
