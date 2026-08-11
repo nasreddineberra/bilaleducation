@@ -100,7 +100,8 @@ interface WeekInfo {
 }
 
 /**
- * Ce que couvre une periode : « S48 a S49 · 2 semaines ».
+ * Ce que couvre une periode : « S48-S49 ». Les semaines, rien d'autre — la
+ * plage les designe deja toutes, en compter le nombre serait redondant.
  *
  * `toggleWeekVacation` FUSIONNE les semaines contigues en une seule periode —
  * c'est voulu, et correct. Mais l'en-tete annonçait « 5 semaines
@@ -113,8 +114,7 @@ function couvertureSemaines(start: Date, end: Date): { texte: string; nb: number
   const nb = Math.max(1, Math.round(jours / 7))
   const s1 = getISOWeek(start)
   const s2 = getISOWeek(end)
-  const plage = nb === 1 ? `S${s1}` : `S${s1}-S${s2}`
-  return { texte: `${plage} · ${nb} sem.`, nb }
+  return { texte: nb === 1 ? `S${s1}` : `S${s1}-S${s2}`, nb }
 }
 
 function getWeeksBetween(startDate: string, endDate: string, startDay: number): WeekInfo[] {
