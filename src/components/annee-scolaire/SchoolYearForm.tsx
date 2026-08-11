@@ -1116,50 +1116,69 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 Rien n'est propose : les feries civils se calculent, les fetes
                 lunaires non. Un calcul partiel serait pire que pas de calcul,
                 il laisserait croire que la liste est complete. */}
+            {/* ── Jours feries ──────────────────────────────────────────────
+                DEUX COLONNES : le formulaire tient dans la premiere, la liste
+                occupe la seconde. Etale sur toute la largeur, il surplombait
+                des lignes deux fois moins hautes que ses propres champs.
+
+                UNE SEULE HAUTEUR pour tous les controles (`h-9`). Le bouton
+                etait en `mini` — 24 px — a cote de champs de 40 : trois
+                hauteurs differentes en 60 px de haut. `mini` convient a une
+                barre d'en-tete, pas au bouton de validation d'un formulaire,
+                qui doit rester atteignable. */}
+            {/* ── Jours feries ──────────────────────────────────────────────
+                Liste sur TROIS colonnes ; le formulaire n'occupe que la
+                PREMIERE, et la meme grille les aligne au pixel pres. Etale sur
+                toute la largeur, il surplombait des lignes deux fois moins
+                hautes que ses propres champs.
+
+                UNE SEULE HAUTEUR pour tous les controles (`h-9`). Le bouton
+                etait en `mini` — 24 px — a cote de champs de 40 : trois
+                hauteurs differentes en 60 px de haut, et une cible sous le
+                minimum atteignable. `mini` convient a une barre d'en-tete, pas
+                au bouton de validation d'un formulaire. */}
             <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
               <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide mb-1.5">
                 Jours fériés
               </p>
 
-              {/* Champs COMPACTS : `FloatInput` porte deja `compact`, il n'y
-                  avait aucune raison de poser ici des champs pleine hauteur a
-                  cote de lignes de 24 px. La date est bornee aux dates de
-                  l'annee, le libelle prend le reste. */}
-              <div className="flex items-end gap-1.5 mb-1.5">
-                <div className="w-36 flex-shrink-0">
-                  <FloatInput
-                    label="Date" type="date" compact value={ferieDate}
+              {/* Saisie — large d'une colonne, sur la meme grille que la liste */}
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                <div className="space-y-1.5">
+                  <input
+                    type="date"
+                    value={ferieDate}
                     min={form.start_date || undefined}
                     max={form.end_date || undefined}
                     onChange={e => setFerieDate(e.target.value)}
+                    aria-label="Date du jour férié"
+                    className="input h-9 text-xs w-full tabular-nums"
                   />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <FloatInput
-                    label="Libellé" compact value={ferieLabel}
-                    placeholder="ex. Aïd el-Fitr"
+                  <input
+                    type="text"
+                    value={ferieLabel}
+                    placeholder="Libellé, ex. Aïd el-Fitr"
                     onChange={e => setFerieLabel(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); ajouterFerie() } }}
+                    aria-label="Libellé du jour férié"
+                    className="input h-9 text-xs w-full"
                   />
+                  <FloatButton
+                    type="button" variant="submit"
+                    onClick={ajouterFerie}
+                    disabled={!ferieDate.trim() || !ferieLabel.trim()}
+                    className="w-full !h-9 !py-0 !text-xs"
+                  >
+                    Ajouter
+                  </FloatButton>
                 </div>
-                <FloatButton
-                  type="button" variant="submit" size="mini"
-                  onClick={ajouterFerie}
-                  disabled={!ferieDate.trim() || !ferieLabel.trim()}
-                  className="mb-0.5"
-                >
-                  Ajouter
-                </FloatButton>
               </div>
 
+              {/* Liste — trois colonnes, meme habillage que les periodes */}
               {feriesTries.length === 0 ? (
                 <p className="text-[11px] text-warm-700 italic">Aucun jour férié saisi.</p>
               ) : (
-                /* Deux colonnes comme les periodes, et le MEME habillage : ce
-                   sont deux listes de la meme fenetre, elles n'ont pas a se
-                   lire differemment. La teinte ambre les rattache aux semaines
-                   marquees dans le calendrier juste au-dessus. */
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   {feriesTries.map(f => (
                     <div key={f.date} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50/60 border border-amber-100 rounded-lg min-w-0">
                       <span className="text-xs font-medium text-amber-800 flex-1 truncate">{f.label}</span>
@@ -1167,14 +1186,16 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                         <span className="text-[10px] text-amber-700 whitespace-nowrap flex-shrink-0">hors année</span>
                       )}
                       <span className="text-[10px] text-warm-700 whitespace-nowrap flex-shrink-0 tabular-nums">
-                        {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                        {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                       </span>
+                      {/* Remplissage etendu puis marge negative : la cible
+                          atteint 28 px sans que la ligne grandisse. */}
                       <Tooltip content="Retirer">
                         <button
                           type="button"
                           onClick={() => retirerFerie(f.date)}
                           aria-label={`Retirer ${f.label}`}
-                          className="p-0.5 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
+                          className="p-1.5 -m-1 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
                         >
                           <X size={11} />
                         </button>
