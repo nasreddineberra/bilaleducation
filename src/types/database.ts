@@ -69,6 +69,15 @@ export interface VacationPeriod {
   label:      string
 }
 
+/**
+ * Jour ferie : une JOURNEE isolee, a distinguer des semaines de `vacations`.
+ * Saisi a la main — les fetes lunaires ne se calculent pas a l'avance.
+ */
+export interface JourFerie {
+  date:  string   // AAAA-MM-JJ
+  label: string
+}
+
 export interface SchoolYear {
   id: string
   etablissement_id: string
@@ -78,6 +87,7 @@ export interface SchoolYear {
   start_date: string | null  // date de rentrée scolaire
   end_date: string | null    // date de fin d'année scolaire
   vacations: VacationPeriod[]
+  jours_feries?: JourFerie[]
   // Passage d'année : l'état de clôture vit sur l'année elle-même.
   // Une année peut être close tout en restant l'année EN COURS, jusqu'à
   // l'activation de la suivante.

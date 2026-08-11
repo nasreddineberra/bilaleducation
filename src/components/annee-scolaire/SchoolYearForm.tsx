@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
-import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod } from '@/types/database'
+import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod, JourFerie } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 
 // ─── Types internes ───────────────────────────────────────────────────────────
@@ -203,6 +203,47 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   const initialFormRef      = useRef<FormData>(getInitialForm())
   const initialVacationsRef = useRef<VacationPeriod[]>((schoolYear?.vacations ?? []) as VacationPeriod[])
 
+  // ── Jours feries ───────────────────────────────────────────────────────────
+  //
+  // Journees ISOLEES, a distinguer des semaines de vacances : le modele n'est
+  // pas le meme, le rangement si (colonne jumelle sur `school_years`).
+  //
+  // SAISIE MANUELLE : les feries civils se calculent, mais les fetes musulmanes
+  // suivent le calendrier lunaire et ne se calculent pas de facon fiable a
+  // l'avance. Rien n'est donc propose, tout est saisi.
+  const [feries, setFeries] = useState<JourFerie[]>(
+    () => (schoolYear?.jours_feries ?? []) as JourFerie[]
+  )
+  const initialFeriesRef = useRef<JourFerie[]>((schoolYear?.jours_feries ?? []) as JourFerie[])
+  const [ferieDate, setFerieDate] = useState('')
+  const [ferieLabel, setFerieLabel] = useState('')
+
+  /** Tri a l'affichage : l'ordre de saisie n'a aucun sens pour des dates. */
+  const feriesTries = useMemo(
+    () => [...feries].sort((a, b) => a.date.localeCompare(b.date)),
+    [feries],
+  )
+
+  const ajouterFerie = () => {
+    const d = ferieDate.trim()
+    if (!d || !ferieLabel.trim()) return
+    // Un meme jour ne se ferie pas deux fois : on remplace plutot que d'empiler
+    // deux libelles sur la meme date, ce que rien n'afficherait correctement.
+    setFeries(prev => [
+      ...prev.filter(f => f.date !== d),
+      { date: d, label: ferieLabel.trim() },
+    ])
+    setFerieDate(''); setFerieLabel('')
+  }
+
+  const retirerFerie = (date: string) => setFeries(prev => prev.filter(f => f.date !== date))
+
+  /** Le ferie tombe-t-il dans l'annee ? Averti sans bloquer — une saisie hors
+   *  bornes est presque toujours une faute de frappe, mais c'est a l'utilisateur
+   *  de trancher, pas a l'ecran. */
+  const ferieHorsAnnee = (d: string) =>
+    !!form.start_date && !!form.end_date && (d < form.start_date || d > form.end_date)
+
   const hasChanges = !isEditing || (
     form.label        !== initialFormRef.current.label ||
     form.start_date   !== initialFormRef.current.start_date ||
@@ -211,7 +252,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
     form.period_type  !== initialFormRef.current.period_type ||
     JSON.stringify(form.eval_types.slice().sort())   !== JSON.stringify(initialFormRef.current.eval_types.slice().sort()) ||
     JSON.stringify(form.diagnostic_options)          !== JSON.stringify(initialFormRef.current.diagnostic_options) ||
-    JSON.stringify(vacations)                        !== JSON.stringify(initialVacationsRef.current)
+    JSON.stringify(vacations)                        !== JSON.stringify(initialVacationsRef.current) ||
+    // Compare TRIE : l'ordre de saisie des feries n'est pas une modification.
+    JSON.stringify(feriesTries)                      !== JSON.stringify(
+      [...initialFeriesRef.current].sort((a, b) => a.date.localeCompare(b.date)))
   )
   const [editingVacLabel, setEditingVacLabel] = useState<string | null>(null)
   const [vacLabelDraft, setVacLabelDraft]     = useState('')
@@ -445,7 +489,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       if (isEditing) {
         const { error: errUpd } = await supabase
           .from('school_years')
-          .update({ label: form.label.trim(), start_date: form.start_date || null, end_date: form.end_date || null, vacations, is_current: form.is_current, period_type: form.period_type })
+          .update({ label: form.label.trim(), start_date: form.start_date || null, end_date: form.end_date || null, vacations, jours_feries: feries, is_current: form.is_current, period_type: form.period_type })
           .eq('id', schoolYear.id)
         if (errUpd) throw errUpd
         yearId = schoolYear.id
@@ -458,6 +502,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             start_date:       form.start_date || null,
             end_date:         form.end_date || null,
             vacations,
+            jours_feries:     feries,
             is_current:       form.is_current,
             period_type:      form.period_type,
           })
@@ -920,7 +965,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
               <div>
-                <h2 id="vac-modal-title" className="text-base font-bold text-secondary-800">Vacances scolaires</h2>
+                <h2 id="vac-modal-title" className="text-base font-bold text-secondary-800">Vacances et jours fériés</h2>
                 <p className="text-xs text-warm-700 mt-0.5">
                   {vacationMondaySet.size > 0
                     ? `${vacationMondaySet.size} semaine${vacationMondaySet.size > 1 ? 's' : ''} sélectionnée${vacationMondaySet.size > 1 ? 's' : ''}`
@@ -1056,6 +1101,77 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 </div>
               </div>
             )}
+
+            {/* ── Jours feries ──────────────────────────────────────────────
+                Sous les vacances, dans la meme modale : c'est le meme objet —
+                les jours ou l'ecole ne fonctionne pas. Mais une JOURNEE isolee,
+                d'ou une saisie a la date et non a la semaine.
+
+                Rien n'est propose : les feries civils se calculent, les fetes
+                lunaires non. Un calcul partiel serait pire que pas de calcul,
+                il laisserait croire que la liste est complete. */}
+            <div className="px-4 py-3 border-t border-warm-100 shrink-0">
+              <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide mb-1.5">
+                Jours fériés
+              </p>
+
+              <div className="flex items-end gap-2 mb-2">
+                <div className="w-40 flex-shrink-0">
+                  <FloatInput
+                    label="Date" type="date" value={ferieDate}
+                    min={form.start_date || undefined}
+                    max={form.end_date || undefined}
+                    onChange={e => setFerieDate(e.target.value)}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <FloatInput
+                    label="Libellé" value={ferieLabel}
+                    placeholder="ex. Aïd el-Fitr"
+                    onChange={e => setFerieLabel(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); ajouterFerie() } }}
+                  />
+                </div>
+                <FloatButton
+                  type="button" variant="submit" size="mini"
+                  onClick={ajouterFerie}
+                  disabled={!ferieDate.trim() || !ferieLabel.trim()}
+                  className="mb-1"
+                >
+                  Ajouter
+                </FloatButton>
+              </div>
+
+              {feriesTries.length === 0 ? (
+                <p className="text-[11px] text-warm-700 italic">Aucun jour férié saisi.</p>
+              ) : (
+                <div className="max-h-32 overflow-y-auto list-scroll space-y-1">
+                  {feriesTries.map(f => (
+                    <div key={f.date} className="flex items-center gap-2 px-2 py-1 bg-warm-50 border border-warm-100 rounded-lg">
+                      <span className="text-[11px] text-warm-700 whitespace-nowrap w-24 flex-shrink-0 tabular-nums">
+                        {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                      </span>
+                      <span className="text-xs font-medium text-secondary-700 flex-1 truncate">{f.label}</span>
+                      {ferieHorsAnnee(f.date) && (
+                        <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-px whitespace-nowrap">
+                          hors année
+                        </span>
+                      )}
+                      <Tooltip content="Retirer">
+                        <button
+                          type="button"
+                          onClick={() => retirerFerie(f.date)}
+                          aria-label={`Retirer ${f.label}`}
+                          className="p-0.5 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                        >
+                          <X size={12} />
+                        </button>
+                      </Tooltip>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Footer */}
             <div className="flex items-center justify-end px-5 py-3 border-t border-warm-100">

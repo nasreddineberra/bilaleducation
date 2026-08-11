@@ -2793,6 +2793,52 @@ basculee ; `CoursTree.tsx` supprime.
   boutons), le filet coupait le formulaire en deux et les remplissages cumules ouvraient un trou de
   28 px.
 
+#### 11 aout 2026 — PANNE : boucle sur /login, deux ecrivains pour un meme cookie
+
+Signale par l'utilisateur, verrouille hors de sa production. **Resolu.**
+
+- **Diagnostic par la base, pas par l'intuition** : `auth.sessions` montrait TROIS sessions creees
+  pour `admin@bilaleducation.fr` en 31 secondes, **toutes en `aal1`** — le mot de passe passait, la
+  2FA n'etait jamais atteinte. Navigation privee : tout fonctionne. Le coupable etait donc un cookie
+  du navigateur, pas le code ni le compte.
+  - **Piste ecartee en chemin** : `auth.audit_log_entries` est **entierement vide** dans cette
+    configuration — mon « aucune tentative depuis 3 heures » ne valait rien. Verifier qu'une table
+    de journal est ALIMENTEE avant d'en tirer une conclusion.
+  - Verifie aussi : jetons `app_metadata.etablissement_id` **concordants** avec l'ecole, compte actif,
+    facteur TOTP verifie. Rien du cote des donnees.
+- **LA CAUSE** : `login/page.tsx` posait `app-session` **depuis le navigateur** — sans domaine, sans
+  `HttpOnly`, 24 h — pendant que le middleware pose le meme nom **avec** `Domain=.bilaleducation.fr`,
+  `HttpOnly`, 30 jours. Le navigateur en gardait **DEUX**, et `request.cookies.get()` rend celui que
+  l'en-tete presente en premier — souvent le plus ancien, donc celui dont `lastActivity` a expire.
+  Le middleware concluait a l'inactivite et renvoyait vers `/login`. A chaque tentative.
+- **Deux correctifs** : (1) l'ecriture cote navigateur **disparait** — elle etait REDONDANTE, le
+  middleware initialisant `loginTime`/`lastActivity` des le premier passage sur `/dashboard` quand le
+  cookie est absent ; (2) les purges effacent les **DEUX variantes**, avec domaine et sans, sinon un
+  navigateur deja dans cet etat reste bloque sans que personne ne devine qu'il faut vider ses cookies.
+  - **`headers.append` et non `cookies.set`** : le magasin de `NextResponse` est indexe PAR NOM, poser
+    deux fois le meme nom remplacerait le premier au lieu d'emettre deux en-tetes. Le navigateur, lui,
+    distingue bien deux cookies de meme nom si leur domaine differe — c'est toute l'origine du probleme.
+- **Le fichier portait deja l'avertissement** (« un cookie efface sans le domaine qui a servi a le
+  poser n'est pas reconnu par le navigateur, qui le garde ») : la parade existait, elle ne couvrait
+  simplement pas le cookie pose par la page elle-meme. **Regle : un cookie n'a qu'UN ecrivain.**
+
+#### 11 aout 2026 — Calendrier des vacances (volet 1) et jours feries (volet 2)
+
+- **Volet 1, les trois defauts** : la liste des periodes **sort de la zone de defilement** (elle etait
+  sous la ligne de flottaison, il fallait descendre pour decouvrir qu'une periode se nomme) ;
+  calendrier a **5 colonnes**, une annee de 10 mois tenant alors en 2 rangees ; et chaque periode dit
+  **ce qu'elle recouvre** — « S48 a S49 · 2 semaines · 23 nov.-06 dec. ». Le regroupement des semaines
+  contigues etait correct, mais on comptait 5 en haut et on lisait 2 en bas.
+- **Volet 2, les feries** : colonne `jours_feries` (jsonb) jumelle de `vacations`, section de saisie
+  sous les vacances, modale renommee **« Vacances et jours feries »**. Saisie **manuelle** : les feries
+  civils se calculent, les fetes lunaires non — un calcul partiel serait pire que pas de calcul, il
+  laisserait croire la liste complete. Une meme date **remplace** au lieu d'empiler deux libelles ;
+  un ferie hors des bornes de l'annee est **signale sans etre refuse** (c'est presque toujours une
+  faute de frappe, mais c'est a l'utilisateur de trancher).
+  - **`hasChanges` etendu aux feries**, comparaison sur la liste TRIEE : sans cela, modifier
+    uniquement les feries laissait « Valider » grise et la fonctionnalite paraissait cassee.
+- **Volet 3 (branchement EDT / feuille d'appel / temps de presence) : RESTE A FAIRE.**
+
 #### A CONSIGNER — DECONNEXION DE LA CONSOLE SUPER-ADMIN (10 aout)
 
 Signale par l'utilisateur en fin de session. **Symptome non decrit, rien de verifie.**
@@ -3182,6 +3228,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] **A JOUER** — `supabase/migrations/add-school-year-holidays.sql` : colonne `jours_feries`
+  (jsonb) sur `school_years`, jumelle de `vacations`. Une JOURNEE isolee la ou une vacance est une
+  SEMAINE. Pas de table : un ferie n'a ni identite propre, ni relation, ni historique — il herite
+  du cloisonnement de son annee.
 - [x] Executer `supabase/migrations/guard-archived-period-writes.sql` : un bulletin archive
   n'est plus modifiable NULLE PART. L'ecran des gabarits laissait ajouter des cours a une classe et
   une periode dont les bulletins etaient archives, alors que la saisie des notes s'y refusait. Et le
