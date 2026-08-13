@@ -517,26 +517,27 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           )}
 
           {/* Remplacement, CRENEAU PAR CRENEAU.
-              Le bloc s'affiche TOUJOURS sur une absence, meme sans cours ce
-              jour-la — il dit alors qu'il n'y a rien a couvrir. Ne rien
-              afficher laissait croire a un ecran casse : c'est ce qu'a conclu
-              l'utilisateur en saisissant une absence un mardi, jour ou
-              l'enseignante concernee n'a aucun cours. Ce qui disparait se lit
-              comme un defaut ; ce qui explique se lit comme une reponse. */}
-          {isAbsence && (
-            <div className="border border-warm-200 rounded-xl p-3 space-y-2.5">
-              <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">
-                Remplacement {creneauxConcernes.length > 0 && <span className="text-red-500">*</span>}
-              </p>
+              Construction RECOPIEE du bloc « Periode » juste au-dessus —
+              meme bordure, meme rayon, libelle en coin — et non redessinee de
+              memoire : deux encadres voisins qui different d'une nuance et
+              d'un rayon se voient immediatement, et donnent a l'ecran un air
+              bricole. Faute deja commise le 16 juillet sur un FloatSelect.
 
-              {creneauxConcernes.length === 0 && (
+              Le bloc s'affiche TOUJOURS sur une absence, meme sans cours ce
+              jour-la : ne rien afficher se lit comme un ecran casse. */}
+          {isAbsence && (
+            <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5 space-y-2.5">
+              <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">
+                Remplacement{creneauxConcernes.length > 0 && <span className="text-red-500"> *</span>}
+              </span>
+
+              {creneauxConcernes.length === 0 ? (
                 <p className="text-xs text-warm-700 italic">
                   {!profileId
                     ? 'Choisissez un membre pour voir ses cours de ce jour.'
                     : `Aucun cours ${absencePeriod === 'am' ? 'ce matin' : absencePeriod === 'pm' ? 'cet après-midi' : 'ce jour'} : il n'y a rien à faire remplacer.`}
                 </p>
-              )}
-              {creneauxConcernes.map(cr => (
+              ) : creneauxConcernes.map(cr => (
                 <div key={cr.slotId}>
                   <p className="text-[11px] text-warm-700 mb-1">
                     <span className="font-semibold text-secondary-800">{classesById[cr.classId] ?? 'Classe'}</span>
@@ -547,7 +548,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                     value={remplacants[cr.slotId] ?? ''}
                     onChange={e => setRemplacants(r => ({ ...r, [cr.slotId]: e.target.value }))}
                   >
-                    <option value="" disabled hidden>Choisir</option>
+                    {/* Placeholder SANS TEXTE, comme « Membre equipe ». Le libelle
+                        flottant ne monte que si la valeur est non vide
+                        (`hasValue` dans FloatSelect) : une option porteuse de
+                        texte se retrouve donc ecrite SOUS le libelle. */}
+                    <option value="" disabled hidden></option>
                     <option value={AUCUN}>Aucun membre</option>
                     {teachers
                       .filter(t => t.id !== teacherIdDuProfil)
