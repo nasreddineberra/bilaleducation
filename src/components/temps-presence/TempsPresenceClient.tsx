@@ -57,7 +57,8 @@ interface Props {
   currentUserId: string
   currentUserName: string
   role: string
-  canManageAll: boolean
+  canSeeAll: boolean
+  canWriteAll: boolean
   canSeeRecap: boolean
   staffList: StaffMember[]
   vacations?: VacationPeriod[]
@@ -226,7 +227,7 @@ function buildRecap(
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function TempsPresenceClient({
-  currentUserId, currentUserName, role, canManageAll, canSeeRecap,
+  currentUserId, currentUserName, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
@@ -236,15 +237,16 @@ export default function TempsPresenceClient({
   // enseignant voit ses propres couts (il ne voit que ses saisies).
   const canSeeCosts = ['admin', 'direction', 'comptable', 'enseignant'].includes(role)
   const isRespPedago = role === 'responsable_pedagogique'
-  // Peut saisir pour quelqu'un d'autre que soi : gestionnaires (tout le staff) OU
-  // responsable pedagogique (enseignants uniquement).
-  const canManage = canManageAll || isRespPedago
-  // Staff selectionnable dans la modale selon le perimetre du role.
+  // Peut SAISIR : admin/direction/secretaire pour tout le personnel, responsable
+  // pedagogique pour les enseignants. Ni le comptable (lecture seule) ni
+  // l'enseignant (qui valide depuis l'emploi du temps, pas ici).
+  const canManage = canWriteAll || isRespPedago
+  // Personnel selectionnable dans la modale, selon le perimetre d'ECRITURE.
   const assignableStaff = useMemo(() => {
-    if (canManageAll) return staffList
+    if (canWriteAll) return staffList
     if (isRespPedago) return staffList.filter(s => s.role === 'enseignant' || s.id === currentUserId)
-    return staffList.filter(s => s.id === currentUserId)
-  }, [canManageAll, isRespPedago, staffList, currentUserId])
+    return []
+  }, [canWriteAll, isRespPedago, staffList, currentUserId])
 
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
   const [currentDate, setCurrentDate] = useState(() => {
@@ -298,20 +300,14 @@ export default function TempsPresenceClient({
       .order('entry_date')
       .order('start_time')
 
-    if (isRespPedago) {
-      // Resp. pedagogique voit tous les enseignants + lui-meme
-      const teacherIds = staffList.filter(s => s.role === 'enseignant').map(s => s.id)
-      if (!teacherIds.includes(currentUserId)) teacherIds.push(currentUserId)
-      query = query.in('profile_id', teacherIds)
-    } else if (!canManageAll) {
-      // Enseignant ne voit que ses propres saisies
-      query = query.eq('profile_id', currentUserId)
-    }
+    // Seul l'enseignant est restreint — a ses propres lignes. La RLS dit la meme
+    // chose ; ce filtre evite juste de demander ce qu'on n'obtiendra pas.
+    if (!canSeeAll) query = query.eq('profile_id', currentUserId)
 
     const { data } = await query
     setEntries((data ?? []) as TimeEntry[])
     setLoading(false)
-  }, [year, month, canManageAll, isRespPedago, currentUserId, staffList, supabase])
+  }, [year, month, canSeeAll, currentUserId, supabase])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
 
@@ -325,17 +321,11 @@ export default function TempsPresenceClient({
       .gte('entry_date', schoolYearStart)
       .lte('entry_date', schoolYearEnd)
 
-    if (isRespPedago) {
-      const teacherIds = staffList.filter(s => s.role === 'enseignant').map(s => s.id)
-      if (!teacherIds.includes(currentUserId)) teacherIds.push(currentUserId)
-      query = query.in('profile_id', teacherIds)
-    } else if (!canManageAll) {
-      query = query.eq('profile_id', currentUserId)
-    }
+    if (!canSeeAll) query = query.eq('profile_id', currentUserId)
 
     const { data } = await query
     setYearEntries((data ?? []) as TimeEntry[])
-  }, [schoolYearStart, schoolYearEnd, canManageAll, isRespPedago, currentUserId, staffList, supabase])
+  }, [schoolYearStart, schoolYearEnd, canSeeAll, currentUserId, supabase])
 
   useEffect(() => { fetchYearEntries() }, [fetchYearEntries])
 
@@ -762,9 +752,8 @@ export default function TempsPresenceClient({
                       const label = pt?.label ?? e.entry_type
                       const isAbs = pt?.is_absence ?? false
                       const targetIsTeacher = staffMap[e.profile_id]?.role === 'enseignant'
-                      const canEdit = canManageAll
-                        || e.profile_id === currentUserId
-                        || (isRespPedago && targetIsTeacher)
+                      const canEdit = canWriteAll
+                        || (isRespPedago && (targetIsTeacher || e.profile_id === currentUserId))
                       return (
                         <div key={e.id} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]" style={entryStyle(color)}>
                           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(color)} />

@@ -25,9 +25,12 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .single()
 
   const role = effectiveRole(profile) ?? 'enseignant'
-  // Gestionnaires « tout le staff » (aligne sur la RLS staff_time_entries_manage).
-  // Le responsable pedagogique gere UNIQUEMENT les enseignants → traite a part cote client.
-  const canManageAll = ['admin', 'direction', 'comptable', 'secretaire'].includes(role)
+  // VOIR et SAISIR sont deux droits distincts, et les confondre etait le defaut :
+  // le comptable doit tout LIRE (il analyse les couts) sans rien SAISIR, et
+  // l'enseignant ne saisit pas du tout ici — il valide depuis l'emploi du temps.
+  // Les deux listes sont calquees sur la RLS (`add-role-checks-to-time-tracking`).
+  const canSeeAll = ['admin', 'direction', 'comptable', 'secretaire', 'responsable_pedagogique'].includes(role)
+  const canWriteAll = ['admin', 'direction', 'secretaire'].includes(role)
   // enseignant inclus : il voit un recap de SES propres saisies (avec ses couts).
   const canSeeRecap = ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant'].includes(role)
 
@@ -77,7 +80,8 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         currentUserId={userId}
         currentUserName={`${profile?.last_name ?? ''} ${profile?.first_name ?? ''}`}
         role={role}
-        canManageAll={canManageAll}
+        canSeeAll={canSeeAll}
+        canWriteAll={canWriteAll}
         canSeeRecap={canSeeRecap}
         staffList={(staffList ?? []) as any[]}
         presenceTypes={(presenceTypes ?? []) as any[]}
