@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
+import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
 import type { TimeEntry } from './TempsPresenceClient'
@@ -36,9 +37,33 @@ interface Props {
   /** Vacances et jours feries : une saisie un jour ferme est signalee. */
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
+  /** Creneaux de l'annee : un remplacant se designe PAR CRENEAU. */
+  slots?: CreneauSource[]
+  exceptions?: ExceptionSource[]
+  classesById?: Record<string, string>
+  teachers?: TeacherRef[]
 }
 
-export default function TimeEntryModal({ date, entry, currentUserId, canManage, staffList, presenceTypes, existingEntries, onClose, onSaved, vacations = [], feries = [] }: Props) {
+/**
+ * Valeur sentinelle de « personne ne remplace ».
+ *
+ * NON VIDE, et c'est deliberé : sur un `FloatSelect`, une valeur vide fait
+ * retomber le libelle flottant par-dessus le texte de l'option — les deux se
+ * chevauchent, defaut constate a l'ecran. Elle permet aussi de distinguer
+ * « pas encore repondu » (`''`) de « repondu : personne ».
+ */
+const AUCUN = '__aucun__'
+
+interface TeacherRef {
+  id: string
+  user_id: string | null
+  first_name: string
+  last_name: string
+  civilite?: string | null
+}
+
+export default function TimeEntryModal({ date, entry, currentUserId, canManage, staffList, presenceTypes, existingEntries, onClose, onSaved, vacations = [], feries = [],
+  slots = [], exceptions = [], classesById = {}, teachers = [] }: Props) {
   const supabase = createClient()
   const isEdit = !!entry
 
@@ -57,10 +82,6 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const [isReplacement, setIsReplacement] = useState(entry?.is_replacement ?? false)
   const [replacedId, setReplacedId] = useState(entry?.replaced_profile_id ?? '')
   const [absenceReason, setAbsenceReason] = useState(entry?.absence_reason ?? '')
-  // Qui remplace la personne absente. Designe ICI, au moment de l'absence, et
-  // non plus deduit apres coup de la ligne de presence du remplacant : c'est
-  // cette designation que l'emploi du temps lit pour lui montrer le creneau.
-  const [replacementId, setReplacementId] = useState(entry?.replacement_profile_id ?? '')
   const [absencePeriod, setAbsencePeriod] = useState<string>(entry?.absence_period ?? 'full')
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [saving, setSaving] = useState(false)
@@ -98,18 +119,45 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     existingEntries.filter(e => !isAbsenceType(e.entry_type)).map(e => e.profile_id),
   )
   const busyIds = new Set([...absentIds, ...presentIds]) // toute entree ce jour
-
-  // Remplacants proposables : tout le monde sauf la personne absente elle-meme
-  // et sauf ceux qui sont deja absents ce jour — les designer serait une erreur
-  // de saisie, et la base la refuse. On garde la selection en cours d'edition
-  // pour ne pas la perdre si les donnees ont change depuis.
-  const remplacantsPossibles = staffList.filter(
-    s => s.id !== profileId && (!absentIds.has(s.id) || s.id === replacementId),
-  )
   const excludedMemberIds = isAbsence ? busyIds : absentIds
   const selectableStaff = staffList.filter(
     s => !excludedMemberIds.has(s.id) || s.id === entry?.profile_id,
   )
+
+  // ── Remplacement, creneau par creneau ─────────────────────────────────────
+  //
+  // Un remplacement porte sur un COURS, pas sur une demi-journee : c'est la
+  // maille a laquelle quelqu'un prend la classe. La periode d'absence ne sert
+  // qu'a savoir QUELS cours sont concernes.
+  //
+  // Le support est `schedule_exceptions.override_teacher_id`, qui existe deja
+  // et que l'emploi du temps applique deja
+  // (`teacher_id: exception.override_teacher_id ?? slot.teacher_id`). Le
+  // creneau bascule donc chez le remplacant sans une ligne de plus cote EDT.
+  const teacherIdDuProfil = teachers.find(t => t.user_id === profileId)?.id ?? ''
+
+  const creneauxConcernes = creneauxDuJour(slots, exceptions, teacherIdDuProfil, date)
+    .filter(cr => {
+      if (absencePeriod === 'full') return true
+      return absencePeriod === 'am' ? cr.startTime < '12:00' : cr.startTime >= '12:00'
+    })
+
+  // `''` = pas encore repondu, `AUCUN` = « personne ne remplace », choisi
+  // explicitement. Distinguer les deux est ce qui permet de rendre le champ
+  // obligatoire : sans cela, ne pas repondre et repondre « personne » seraient
+  // le meme etat, et on ne saurait jamais si l'oubli est volontaire.
+  const [remplacants, setRemplacants] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    setRemplacants(prev => {
+      const suivant: Record<string, string> = {}
+      for (const cr of creneauxConcernes) {
+        suivant[cr.slotId] = prev[cr.slotId] ?? (cr.remplacantId ?? '')
+      }
+      return suivant
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId, date, absencePeriod, isAbsence])
 
   const isDirty = !isEdit || (
     profileId !== (entry?.profile_id ?? currentUserId) ||
@@ -119,16 +167,21 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     isReplacement !== (entry?.is_replacement ?? false) ||
     replacedId !== (entry?.replaced_profile_id ?? '') ||
     absenceReason !== (entry?.absence_reason ?? '') ||
-    replacementId !== (entry?.replacement_profile_id ?? '') ||
     absencePeriod !== (entry?.absence_period ?? 'full') ||
     notes !== (entry?.notes ?? '')
   )
+
+  // Chaque creneau concerne doit avoir recu une reponse — un remplacant, ou
+  // « Aucun membre ». On ne laisse pas partir une absence dont on ne sait pas
+  // si les cours sont couverts.
+  const remplacementsRepondus = creneauxConcernes.every(cr => !!remplacants[cr.slotId])
 
   const canSave = isDirty
     && (!canManage || !!profileId)
     && !!entryType
     && (isAbsence || (!!startTime && !!endTime))
     && (!isReplacement || !!replacedId)
+    && (!isAbsence || remplacementsRepondus)
 
   const dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -180,9 +233,6 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       is_replacement: isReplacement,
       replaced_profile_id: isReplacement && replacedId ? replacedId : null,
       absence_reason: isAbsence ? absenceReason : null,
-      // Le remplacant ne se designe que sur une absence — la base le refuse
-      // aussi, mais on n'envoie pas une valeur qu'on sait invalide.
-      replacement_profile_id: isAbsence && replacementId ? replacementId : null,
       absence_period: isAbsence ? absencePeriod : 'full',
       notes: notes || null,
       recorded_by: currentUserId,
@@ -192,8 +242,36 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       ? await supabase.from('staff_time_entries').update(payload).eq('id', entry!.id)
       : await supabase.from('staff_time_entries').insert(payload)
 
+    if (err) { setSaving(false); setError(err.message); return }
+
+    // Les remplacements suivent l'absence : on ne les ecrit qu'une fois
+    // celle-ci acceptee, sinon on designerait un remplacant pour une absence
+    // qui n'existe pas.
+    if (isAbsence) {
+      for (const cr of creneauxConcernes) {
+        const choix = remplacants[cr.slotId]
+        const remplacantId = choix && choix !== AUCUN ? choix : null
+
+        if (remplacantId) {
+          const { error: exErr } = await supabase.from('schedule_exceptions').upsert({
+            schedule_slot_id: cr.slotId,
+            exception_date: date,
+            exception_type: 'modified',
+            override_teacher_id: remplacantId,
+          }, { onConflict: 'schedule_slot_id,exception_date' })
+          if (exErr) { setSaving(false); setError('Absence enregistrée, mais le remplacement a échoué : ' + exErr.message); return }
+        } else if (cr.remplacantId) {
+          // « Aucun membre » alors qu'un remplacant etait designe : on retire la
+          // designation plutot que de la laisser contredire le choix courant.
+          await supabase.from('schedule_exceptions')
+            .delete()
+            .eq('schedule_slot_id', cr.slotId)
+            .eq('exception_date', date)
+        }
+      }
+    }
+
     setSaving(false)
-    if (err) { setError(err.message); return }
     onSaved()
   }
 
@@ -376,32 +454,45 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               ENSEMBLE. Separer les deux gestes, c'est accepter qu'on oublie le
               second — et sans lui le remplacant ne voit pas le creneau. */}
           {isAbsence && (
-            <>
-              <FloatInput
-                label="MOTIF"
-                value={absenceReason}
-                onChange={e => setAbsenceReason(e.target.value)}
-                placeholder="Maladie, congé..."
-              />
+            <FloatInput
+              label="MOTIF"
+              value={absenceReason}
+              onChange={e => setAbsenceReason(e.target.value)}
+              placeholder="Maladie, congé..."
+            />
+          )}
 
-              <div>
-                <FloatSelect
-                  label="REMPLACÉ PAR"
-                  value={replacementId}
-                  onChange={e => setReplacementId(e.target.value)}
-                >
-                  <option value="">Personne</option>
-                  {remplacantsPossibles.map(m => (
-                    <option key={m.id} value={m.id}>{m.last_name} {m.first_name}</option>
-                  ))}
-                </FloatSelect>
-                <p className="mt-1 text-[11px] text-warm-700">
-                  {replacementId
-                    ? "Le créneau apparaîtra dans son emploi du temps ; c'est en le validant qu'il enregistrera ses heures."
-                    : "Facultatif. À renseigner si quelqu'un assure les cours à sa place."}
-                </p>
-              </div>
-            </>
+          {/* Remplacement, CRENEAU PAR CRENEAU. Une absence sans cours ce
+              jour-la n'affiche rien : il n'y a rien a couvrir. */}
+          {isAbsence && creneauxConcernes.length > 0 && (
+            <div className="border border-warm-200 rounded-xl p-3 space-y-2.5">
+              <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">
+                Remplacement <span className="text-red-500">*</span>
+              </p>
+              {creneauxConcernes.map(cr => (
+                <div key={cr.slotId}>
+                  <p className="text-[11px] text-warm-700 mb-1">
+                    <span className="font-semibold text-secondary-800">{classesById[cr.classId] ?? 'Classe'}</span>
+                    {' · '}{cr.startTime}-{cr.endTime}
+                  </p>
+                  <FloatSelect
+                    label="REMPLACÉ PAR"
+                    value={remplacants[cr.slotId] ?? ''}
+                    onChange={e => setRemplacants(r => ({ ...r, [cr.slotId]: e.target.value }))}
+                  >
+                    <option value="" disabled hidden>Choisir</option>
+                    <option value={AUCUN}>Aucun membre</option>
+                    {teachers
+                      .filter(t => t.id !== teacherIdDuProfil)
+                      .map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.civilite ? `${t.civilite} ` : ''}{t.last_name} {t.first_name}
+                        </option>
+                      ))}
+                  </FloatSelect>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Notes */}

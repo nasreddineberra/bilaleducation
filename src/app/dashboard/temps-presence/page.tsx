@@ -41,6 +41,39 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .eq('is_current', true)
     .maybeSingle()
 
+  // ── Creneaux de l'annee, pour designer un remplacant PAR CRENEAU ─────────
+  //
+  // Charges ici plutot qu'a l'ouverture de la modale : quelques lignes, et une
+  // requete par ouverture rendrait le champ « Remplace par » vide le temps de
+  // l'aller-retour, juste au moment ou on le regarde.
+  const { data: slots } = currentYear
+    ? await supabase
+        .from('schedule_slots')
+        .select('id, class_id, teacher_id, day_of_week, start_time, end_time, is_recurring, slot_date, effective_from, effective_until, is_active')
+        .eq('school_year_id', currentYear.id)
+        .eq('is_active', true)
+    : { data: [] }
+
+  const { data: exceptions } = slots?.length
+    ? await supabase
+        .from('schedule_exceptions')
+        .select('schedule_slot_id, exception_date, exception_type, override_teacher_id')
+        .in('schedule_slot_id', slots.map(s => s.id))
+    : { data: [] }
+
+  const { data: classes } = currentYear
+    ? await supabase.from('classes').select('id, name').eq('academic_year', currentYear.label)
+    : { data: [] }
+  const classesById = Object.fromEntries((classes ?? []).map(c => [c.id, c.name]))
+
+  // `teachers.id` et non `profile_id` : c'est ce que portent `schedule_slots`
+  // et `schedule_exceptions`. Le lien vers le compte passe par `user_id`.
+  const { data: teachers } = await supabase
+    .from('teachers')
+    .select('id, user_id, first_name, last_name, civilite')
+    .eq('is_active', true)
+    .order('last_name')
+
   // Liste des membres pointables (profiles actifs). Exclus : parent, super_admin
   // et admin (l'admin gere le suivi mais ne pointe pas son propre temps).
   const { data: staffList } = await supabase
@@ -85,6 +118,10 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         canSeeRecap={canSeeRecap}
         staffList={(staffList ?? []) as any[]}
         presenceTypes={(presenceTypes ?? []) as any[]}
+        slots={(slots ?? []) as never[]}
+        exceptions={(exceptions ?? []) as never[]}
+        classesById={classesById}
+        teachers={(teachers ?? []) as never[]}
         vacations={(currentYear?.vacations as never[]) ?? []}
         feries={(currentYear?.jours_feries as never[]) ?? []}
         presenceTypeRates={presenceTypeRates}

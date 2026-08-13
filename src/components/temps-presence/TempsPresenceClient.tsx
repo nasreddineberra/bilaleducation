@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { VacationPeriod, JourFerie } from '@/types/database'
+import type { CreneauSource, ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -27,8 +28,6 @@ export interface TimeEntry {
   duration_minutes: number
   is_replacement: boolean
   replaced_profile_id: string | null
-  /** Sur une ABSENCE : qui remplace. Sens INVERSE de `replaced_profile_id`. */
-  replacement_profile_id: string | null
   absence_reason: string | null
   absence_period: string // 'full' | 'am' | 'pm'
   notes: string | null
@@ -63,6 +62,11 @@ interface Props {
   canWriteAll: boolean
   canSeeRecap: boolean
   staffList: StaffMember[]
+  /** Creneaux de l'annee : la modale designe un remplacant par creneau. */
+  slots?: CreneauSource[]
+  exceptions?: ExceptionSource[]
+  classesById?: Record<string, string>
+  teachers?: { id: string; user_id: string | null; first_name: string; last_name: string; civilite?: string | null }[]
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
   presenceTypes: PresenceType[]
@@ -241,6 +245,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, currentUserName, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
+  slots = [], exceptions = [], classesById = {}, teachers = [],
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
@@ -897,6 +902,10 @@ export default function TempsPresenceClient({
       {/* ── Modal ────────────────────────────────────────────────────── */}
       {modalOpen && (
         <TimeEntryModal
+          slots={slots}
+          exceptions={exceptions}
+          classesById={classesById}
+          teachers={teachers}
           vacations={vacations}
           feries={feries}
           date={selectedDay}
