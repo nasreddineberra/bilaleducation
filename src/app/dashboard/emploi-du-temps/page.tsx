@@ -103,9 +103,39 @@ export default async function EmploiDuTempsPage() {
     .from('schedule_validations')
     .select('id, schedule_slot_id, profile_id, validation_date, time_entry_id')
 
+  // ── Absences du personnel ────────────────────────────────────────────────
+  //
+  // L'emploi du temps ignorait totalement le temps de presence : un enseignant
+  // marque absent voyait son creneau ET son bouton de validation. Il pouvait
+  // donc valider un cours qu'il n'avait pas assure — la base le refuse
+  // desormais (`guard-presence-absence-exclusivity`), mais un refus qui tombe
+  // APRES le clic est une mauvaise reponse. On charge donc les absences pour
+  // l'annoncer AVANT.
+  //
+  // Bornees a l'annee : quelques lignes, et la vue ne sort jamais de cette
+  // fenetre. Les codes d'absence sont lus depuis `presence_types` plutot
+  // qu'ecrits en dur — le code d'un type est parametrable par etablissement.
+  const { data: typesAbsence } = await supabase
+    .from('presence_types')
+    .select('code')
+    .eq('school_year_id', currentYear.id)
+    .eq('is_absence', true)
+
+  const codesAbsence = (typesAbsence ?? []).map(t => t.code)
+
+  const { data: absences } = codesAbsence.length
+    ? await supabase
+        .from('staff_time_entries')
+        .select('profile_id, entry_date, absence_period')
+        .in('entry_type', codesAbsence)
+        .gte('entry_date', currentYear.start_date)
+        .lte('entry_date', currentYear.end_date)
+    : { data: [] }
+
   return (
     <div className="h-full animate-fade-in">
       <EmploiDuTempsClient
+        absences={(absences ?? []) as never[]}
         currentUserId={userId}
         currentUserName={`${profile?.last_name ?? ''} ${profile?.first_name ?? ''}`}
         role={role}

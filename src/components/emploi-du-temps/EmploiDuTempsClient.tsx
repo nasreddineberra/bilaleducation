@@ -147,6 +147,8 @@ export interface ResolvedSlot {
   end_time: string
   slot_type: string
   color: string | null
+  /** L'enseignant du creneau est absent sur cette demi-journee : pas de validation. */
+  teacherAbsent?: boolean
   classes?: { name: string }
   teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
@@ -178,6 +180,8 @@ interface Props {
   vacations?: { start_date: string; end_date: string; label: string }[]
   /** Jours feries de l'annee : une journee fermee au meme titre qu'une vacance. */
   feries?: { date: string; label: string }[]
+  /** Absences du personnel, pour interdire la validation d'un cours non assure. */
+  absences?: { profile_id: string; entry_date: string; absence_period: string }[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -249,7 +253,7 @@ export default function EmploiDuTempsClient({
   reservedPresenceTypes = [],
   weekStartDay = 1,
   workingDays = 5,
-  schoolYearStartDate, schoolYearEndDate, vacations = [], feries = [],
+  schoolYearStartDate, schoolYearEndDate, vacations = [], feries = [], absences = [],
 }: Props) {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -398,6 +402,34 @@ export default function EmploiDuTempsClient({
     return true
   }, [schoolYearStartDate, schoolYearEndDate, getVacationLabel])
 
+  // Absences indexees par ENSEIGNANT (teachers.id) et non par profil : c'est
+  // `teacher_id` que porte un creneau. Le meme piege que le 10 juillet, ou le
+  // filtre « par enseignant » comparait un id de profil a un id d'enseignant
+  // et ne matchait jamais.
+  const absenceParEnseignant = useMemo(() => {
+    const profilVersEnseignant = new Map(
+      teachers.filter(t => t.user_id).map(t => [t.user_id as string, t.id]),
+    )
+    const m = new Map<string, Set<string>>()   // `${teacherId}|${date}` → { 'am', 'pm' }
+    for (const a of absences) {
+      const tid = profilVersEnseignant.get(a.profile_id)
+      if (!tid) continue
+      const cle = `${tid}|${a.entry_date}`
+      const demi = m.get(cle) ?? new Set<string>()
+      if (a.absence_period === 'full' || a.absence_period === 'am') demi.add('am')
+      if (a.absence_period === 'full' || a.absence_period === 'pm') demi.add('pm')
+      m.set(cle, demi)
+    }
+    return m
+  }, [absences, teachers])
+
+  // Meme decoupage que la garde en base : midi separe les deux demi-journees.
+  const enseignantAbsent = useCallback((teacherId: string, date: string, start: string) => {
+    const demi = absenceParEnseignant.get(`${teacherId}|${date}`)
+    if (!demi) return false
+    return demi.has(start < '12:00' ? 'am' : 'pm')
+  }, [absenceParEnseignant])
+
   const resolvedSlots = useMemo(() => {
     const result: ResolvedSlot[] = []
     const weekDates = Object.values(weekDayDates)
@@ -438,6 +470,7 @@ export default function EmploiDuTempsClient({
           start_time: exception.override_start_time ?? slot.start_time,
           end_time: exception.override_end_time ?? slot.end_time,
           slot_type: slot.slot_type,
+          teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time),
           color: slot.color,
           classes: slot.classes,
           teachers: exception.override_teacher_id
@@ -464,6 +497,7 @@ export default function EmploiDuTempsClient({
           start_time: slot.start_time,
           end_time: slot.end_time,
           slot_type: slot.slot_type,
+          teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
           color: slot.color,
           classes: slot.classes,
           teachers: slot.teachers,
@@ -493,6 +527,7 @@ export default function EmploiDuTempsClient({
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
+        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
         color: slot.color,
         classes: slot.classes,
         teachers: slot.teachers,
@@ -564,6 +599,7 @@ export default function EmploiDuTempsClient({
             start_time: exception.override_start_time ?? slot.start_time,
             end_time: exception.override_end_time ?? slot.end_time,
             slot_type: slot.slot_type,
+            teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time),
             color: slot.color,
             classes: slot.classes,
             teachers: exception.override_teacher_id
@@ -589,6 +625,7 @@ export default function EmploiDuTempsClient({
             start_time: slot.start_time,
             end_time: slot.end_time,
             slot_type: slot.slot_type,
+            teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
             color: slot.color,
             classes: slot.classes,
             teachers: slot.teachers,
@@ -619,6 +656,7 @@ export default function EmploiDuTempsClient({
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
+        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
         color: slot.color,
         classes: slot.classes,
         teachers: slot.teachers,

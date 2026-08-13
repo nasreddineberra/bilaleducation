@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
-import { Check, CalendarDays, MoreVertical } from 'lucide-react'
+import { Check, CalendarDays, MoreVertical, Ban } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
@@ -73,6 +73,14 @@ export default function SlotCapsule({
   // Validation : le personnel gestionnaire (canEdit) peut valider tout créneau ;
   // un enseignant ne peut valider que SON propre créneau.
   const showValidation = (canEdit || (isTeacher && isOwnSlot)) && canValidate && slot.slot_type !== 'pause'
+
+  // ENSEIGNANT ABSENT : le creneau reste VISIBLE — il a bien lieu, et son
+  // titulaire doit savoir ce qu'il manque — mais la validation est refusee.
+  // On la remplace par une marque inerte plutot que de la retirer : un bouton
+  // qui disparait se lit comme un defaut, une marque qui explique se lit comme
+  // une regle. La base refuse de toute facon l'ecriture
+  // (`guard-presence-absence-exclusivity`) ; ceci l'annonce AVANT le clic.
+  const absent = !!slot.teacherAbsent
 
   // Libellé accessible du créneau (cours, classe/prof selon la vue, salle, horaire, statut)
   const ariaParts = [slot.cours?.nom_fr ?? slot.slot_type]
@@ -163,8 +171,23 @@ export default function SlotCapsule({
         </div>
       </Tooltip>
 
+      {/* Validation impossible : la personne est absente ce demi-jour */}
+      {showValidation && absent && (
+        <div className="absolute bottom-1 right-1" onClick={e => e.stopPropagation()}>
+          <Tooltip content="Absent ce jour : la présence ne peut pas être validée">
+            <span
+              role="img"
+              aria-label={`Présence non validable, absence enregistrée : ${ariaLabel}`}
+              className="w-[15px] h-[15px] rounded border border-red-300 bg-red-50 text-red-500 flex items-center justify-center cursor-not-allowed"
+            >
+              <Ban size={10} strokeWidth={2.5} />
+            </span>
+          </Tooltip>
+        </div>
+      )}
+
       {/* Validation button for teacher */}
-      {showValidation && (
+      {showValidation && !absent && (
         <div
           className="absolute bottom-1 right-1 flex gap-0.5"
           onClick={e => e.stopPropagation()}
