@@ -161,8 +161,12 @@ function getWeekDays(refDate: Date): Date[] {
 }
 
 // ─── Calcul d'un recapitulatif (mutualise mensuel / annuel) ──────────────────
-interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; absenceDays: number; cost: number }
-interface RecapResult { rows: RecapRow[]; totals: { typeMinutes: Record<string, number>; absenceDays: number; cost: number } }
+// `workedMinutes` : la somme des types NON-absence. Calculee ici et non
+// recomposee a l'affichage — le rendu ne connait que `nonAbsenceTypes`, la liste
+// des types de l'ANNEE EN COURS, alors que des saisies anciennes peuvent porter
+// un code retire depuis. Les additionner a l'ecran perdrait ces heures-la.
+interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; workedMinutes: number; absenceDays: number; cost: number }
+interface RecapResult { rows: RecapRow[]; totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceDays: number; cost: number } }
 
 function buildRecap(
   list: TimeEntry[],
@@ -207,6 +211,7 @@ function buildRecap(
       profileId,
       name: s ? `${s.last_name} ${s.first_name}` : '·',
       typeMinutes,
+      workedMinutes: Object.values(typeMinutes).reduce((a, b) => a + b, 0),
       absenceDays,
       cost,
     }
@@ -217,8 +222,13 @@ function buildRecap(
     for (const [code, mins] of Object.entries(r.typeMinutes)) {
       tm[code] = (tm[code] ?? 0) + mins
     }
-    return { typeMinutes: tm, absenceDays: t.absenceDays + r.absenceDays, cost: t.cost + r.cost }
-  }, { typeMinutes: {} as Record<string, number>, absenceDays: 0, cost: 0 })
+    return {
+      typeMinutes: tm,
+      workedMinutes: t.workedMinutes + r.workedMinutes,
+      absenceDays: t.absenceDays + r.absenceDays,
+      cost: t.cost + r.cost,
+    }
+  }, { typeMinutes: {} as Record<string, number>, workedMinutes: 0, absenceDays: 0, cost: 0 })
 
   return { rows, totals }
 }
@@ -434,7 +444,7 @@ export default function TempsPresenceClient({
         etablissementLogo,
         periodLabel,
         typeColumns: presenceTypes.filter(p => !p.is_absence).map(p => ({ code: p.code, label: p.label, rate: rateByTypeId[p.id] ?? 0, color: p.color })),
-        rows: recap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, absenceDays: r.absenceDays, cost: r.cost })),
+        rows: recap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, workedMinutes: r.workedMinutes, absenceDays: r.absenceDays, cost: r.cost })),
         totals: recap.totals,
         showCosts: canSeeCosts,
       })
@@ -459,6 +469,7 @@ export default function TempsPresenceClient({
                     {pt.label}
                   </th>
                 ))}
+                <th className="px-4 py-2.5 text-center text-[11px] font-bold text-secondary-800 uppercase tracking-wide border-l border-warm-200">Total heures</th>
                 <th className="px-4 py-2.5 text-center text-[11px] font-bold text-red-400 uppercase tracking-wide">Absences</th>
                 {canSeeCosts && <th className="px-5 py-2.5 text-right text-[11px] font-bold text-warm-700 uppercase tracking-wide">Coût</th>}
               </tr>
@@ -475,6 +486,9 @@ export default function TempsPresenceClient({
                       </td>
                     )
                   })}
+                  <td className="px-4 py-3 text-center tabular-nums font-semibold text-secondary-800 border-l border-warm-200">
+                    {r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·'}
+                  </td>
                   <td className={`px-4 py-3 text-center tabular-nums ${r.absenceDays > 0 ? 'text-red-600 font-medium' : 'text-warm-700'}`}>{r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·'}</td>
                   {canSeeCosts && <td className="px-5 py-3 text-right font-bold text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(r.cost)}</td>}
                 </tr>
@@ -491,6 +505,9 @@ export default function TempsPresenceClient({
                     </td>
                   )
                 })}
+                <td className="px-4 py-3 text-center tabular-nums text-secondary-800 border-l border-warm-200">
+                  {recap.totals.workedMinutes > 0 ? fmtDuration(recap.totals.workedMinutes) : '·'}
+                </td>
                 <td className="px-4 py-3 text-center text-red-600 tabular-nums">{recap.totals.absenceDays > 0 ? fmtDays(recap.totals.absenceDays) : '·'}</td>
                 {canSeeCosts && <td className="px-5 py-3 text-right text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(recap.totals.cost)}</td>}
               </tr>

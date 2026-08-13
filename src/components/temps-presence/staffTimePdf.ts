@@ -16,6 +16,8 @@ const COLORS = {
 export interface StaffTimePdfRow {
   name: string
   typeMinutes: Record<string, number>
+  /** Somme des types non-absence : le document doit dire ce que l'ecran dit. */
+  workedMinutes: number
   absenceDays: number
   cost: number
 }
@@ -27,7 +29,7 @@ export interface StaffTimePdfInput {
   // types non-absence, dans l'ordre ; rate/color pour la legende des taux (si showCosts)
   typeColumns: { code: string; label: string; rate: number; color?: string }[]
   rows: StaffTimePdfRow[]
-  totals: { typeMinutes: Record<string, number>; absenceDays: number; cost: number }
+  totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceDays: number; cost: number }
   showCosts: boolean
 }
 
@@ -129,6 +131,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
   const head = [[
     'Personnel',
     ...input.typeColumns.map(c => c.label),
+    'Total heures',
     'Absences',
     ...(input.showCosts ? ['Coût'] : []),
   ]]
@@ -139,6 +142,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       const mins = r.typeMinutes[c.code.toUpperCase()] ?? 0
       return mins > 0 ? fmtDuration(mins) : '·'
     }),
+    r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·',
     r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·',
     ...(input.showCosts ? [fmtEur(r.cost)] : []),
   ])
@@ -149,6 +153,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       const mins = input.totals.typeMinutes[c.code.toUpperCase()] ?? 0
       return mins > 0 ? fmtDuration(mins) : '·'
     }),
+    input.totals.workedMinutes > 0 ? fmtDuration(input.totals.workedMinutes) : '·',
     input.totals.absenceDays > 0 ? fmtDays(input.totals.absenceDays) : '·',
     ...(input.showCosts ? [fmtEur(input.totals.cost)] : []),
   ]]
@@ -168,10 +173,14 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       0: { halign: 'left' }, // Personnel a gauche ; heures / absences / cout centres
     },
     didParseCell: (data) => {
-      // Colonne Absences en rouge (avant-derniere si couts, derniere sinon)
+      // Colonne Absences en rouge, « Total heures » en gras. Les deux positions
+      // se derivent de la fin du tableau : la colonne Cout n'existe pas toujours.
       const absCol = input.showCosts ? lastCol - 1 : lastCol
       if (data.column.index === absCol && data.section !== 'head') {
         data.cell.styles.textColor = COLORS.redText
+      }
+      if (data.column.index === absCol - 1 && data.section === 'body') {
+        data.cell.styles.fontStyle = 'bold'
       }
       if (data.column.index === 0 && data.section === 'body') {
         data.cell.styles.fontStyle = 'bold'
