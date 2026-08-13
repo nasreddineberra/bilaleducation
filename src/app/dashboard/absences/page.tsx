@@ -47,9 +47,9 @@ export default async function AbsencesPage() {
   // 2. Année scolaire + périodes
   const { data: schoolYear } = await supabase
     .from('school_years')
-    .select('id, label, periods(*)')
+    .select('id, label, vacations, jours_feries, periods(*)')
     .eq('is_current', true)
-    .single() as { data: ({ id: string; label: string; periods: Period[] }) | null }
+    .single() as { data: ({ id: string; label: string; vacations: unknown; jours_feries: unknown; periods: Period[] }) | null }
 
   const periods      = (schoolYear?.periods ?? []).sort((a, b) => a.order_index - b.order_index)
   const schoolYearId = schoolYear?.id ?? null
@@ -187,6 +187,8 @@ export default async function AbsencesPage() {
       <AbsencesClient
         classes={classes}
         periods={periods}
+        vacations={(schoolYear?.vacations as never[]) ?? []}
+        feries={(schoolYear?.jours_feries as never[]) ?? []}
         students={students}
         initialAbsences={absences}
         etablissementId={etablissementId}

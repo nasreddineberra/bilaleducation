@@ -5,6 +5,8 @@ import { clsx } from 'clsx'
 import Image from 'next/image'
 import { ChevronRight, ChevronDown, FileCheck, AlertTriangle, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { jourFerme } from '@/lib/school-year/jours-fermes'
+import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
@@ -69,6 +71,9 @@ interface AbsencesClientProps {
   schoolYearId: string | null
   etablissement: EtablissementInfo | null
   yearLabel: string | null
+  /** Vacances et jours feries de l'annee : la feuille d'appel n'en savait rien. */
+  vacations?: VacationPeriod[]
+  feries?: JourFerie[]
   /** Rôle du profil connecté : la vue globale est réservée à l'encadrement. */
   role: string
   /** Élèves par défaut ; `adults` bascule sur les classes et la table adultes. */
@@ -148,7 +153,7 @@ export default function AbsencesClient({
   etablissementId,
   schoolYearId,
   etablissement,
-  yearLabel,
+  yearLabel, vacations = [], feries = [],
   role,
   mode = 'students',
 }: AbsencesClientProps) {
@@ -736,6 +741,8 @@ export default function AbsencesClient({
       {/* ── Modale Saisie ── */}
       {showSaisie && selectedClassId && !isAllClasses && selectedPeriodId && (
         <SaisieModal
+          vacations={vacations}
+          feries={feries}
           classStudents={classStudents}
           classInfo={classes.find(c => c.id === selectedClassId)!}
           classId={selectedClassId}
@@ -981,7 +988,7 @@ const STATUS_STYLE = {
 
 function SaisieModal({
   classStudents, classInfo, classId, periodId, etablissementId, etablissement, yearLabel,
-  existingAbsences, validatedDates, mode, onComplete, onClose,
+  existingAbsences, validatedDates, mode, onComplete, onClose, vacations = [], feries = [],
 }: {
   classStudents: StudentRow[]
   classInfo: ClassRow
@@ -990,6 +997,8 @@ function SaisieModal({
   etablissementId: string
   etablissement: EtablissementInfo | null
   yearLabel: string | null
+  vacations?: VacationPeriod[]
+  feries?: JourFerie[]
   existingAbsences: Absence[]
   validatedDates: Set<string>
   mode: ModeAppel
@@ -1004,6 +1013,12 @@ function SaisieModal({
     () => buildEntries(classStudents, existingAbsences, today)
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Jour de fermeture : on AVERTIT sans interdire. Une revision pendant les
+  // vacances ou un rattrapage un jour ferie existent ; bloquer priverait
+  // l'ecole d'un cas reel sans lui laisser de contournement, alors qu'un
+  // avertissement ignore ne coute rien.
+  const fermeture = jourFerme(date, vacations, feries)
   const [error,        setError]        = useState<string | null>(null)
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [isSaved,      setIsSaved]      = useState(false)
@@ -1362,6 +1377,14 @@ function SaisieModal({
               max={today}
               className="w-44"
             />
+            {fermeture && (
+              <span
+                role="status"
+                className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 whitespace-nowrap"
+              >
+                {fermeture.nature === 'ferie' ? 'Jour férié' : 'Vacances'} · {fermeture.label}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {/* Compteurs */}

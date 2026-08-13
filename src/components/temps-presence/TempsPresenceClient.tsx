@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import type { VacationPeriod, JourFerie } from '@/types/database'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -58,6 +59,8 @@ interface Props {
   canManageAll: boolean
   canSeeRecap: boolean
   staffList: StaffMember[]
+  vacations?: VacationPeriod[]
+  feries?: JourFerie[]
   presenceTypes: PresenceType[]
   presenceTypeRates: PresenceTypeRate[]
   schoolYearId: string | null
@@ -224,6 +227,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, currentUserName, role, canManageAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
+  vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
 }: Props) {
@@ -872,6 +876,8 @@ export default function TempsPresenceClient({
       {/* ── Modal ────────────────────────────────────────────────────── */}
       {modalOpen && (
         <TimeEntryModal
+          vacations={vacations}
+          feries={feries}
           date={selectedDay}
           entry={editingEntry}
           currentUserId={currentUserId}

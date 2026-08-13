@@ -34,7 +34,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
   // Annee scolaire courante (dates = perimetre du recap annuel)
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label, start_date, end_date')
+    .select('id, label, start_date, end_date, vacations, jours_feries')
     .eq('is_current', true)
     .maybeSingle()
 
@@ -81,6 +81,8 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         canSeeRecap={canSeeRecap}
         staffList={(staffList ?? []) as any[]}
         presenceTypes={(presenceTypes ?? []) as any[]}
+        vacations={(currentYear?.vacations as never[]) ?? []}
+        feries={(currentYear?.jours_feries as never[]) ?? []}
         presenceTypeRates={presenceTypeRates}
         schoolYearId={currentYear?.id ?? null}
         schoolYearLabel={currentYear?.label ?? null}

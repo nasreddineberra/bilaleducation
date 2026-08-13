@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { jourFerme } from '@/lib/school-year/jours-fermes'
+import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
 import type { TimeEntry } from './TempsPresenceClient'
 
@@ -31,11 +33,20 @@ interface Props {
   existingEntries: TimeEntry[]
   onClose: () => void
   onSaved: () => void
+  /** Vacances et jours feries : une saisie un jour ferme est signalee. */
+  vacations?: VacationPeriod[]
+  feries?: JourFerie[]
 }
 
-export default function TimeEntryModal({ date, entry, currentUserId, canManage, staffList, presenceTypes, existingEntries, onClose, onSaved }: Props) {
+export default function TimeEntryModal({ date, entry, currentUserId, canManage, staffList, presenceTypes, existingEntries, onClose, onSaved, vacations = [], feries = [] }: Props) {
   const supabase = createClient()
   const isEdit = !!entry
+
+  // Jour de fermeture : on AVERTIT sans interdire. Une permanence pendant les
+  // vacances ou une reunion un jour ferie existent ; bloquer priverait d'un cas
+  // reel sans laisser de contournement, alors qu'un avertissement ignore ne
+  // coute rien.
+  const fermeture = jourFerme(date, vacations, feries)
 
   const defaultType = entry?.entry_type ?? ''
 
@@ -191,6 +202,14 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
+          {fermeture && (
+            <p
+              role="status"
+              className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5"
+            >
+              {fermeture.nature === 'ferie' ? 'Jour férié' : 'Vacances'} · {fermeture.label}
+            </p>
+          )}
 
           <p className="text-xs text-warm-700 capitalize">{dateLabel}</p>
 

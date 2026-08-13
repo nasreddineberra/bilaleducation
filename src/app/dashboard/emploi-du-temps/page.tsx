@@ -25,7 +25,7 @@ export default async function EmploiDuTempsPage() {
   // Annee scolaire courante
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label, start_date, end_date, vacations')
+    .select('id, label, start_date, end_date, vacations, jours_feries')
     .eq('is_current', true)
     .maybeSingle()
 
@@ -125,6 +125,7 @@ export default async function EmploiDuTempsPage() {
         schoolYearStartDate={currentYear.start_date ?? null}
         schoolYearEndDate={currentYear.end_date ?? null}
         vacations={(currentYear.vacations as any[]) ?? []}
+        feries={(currentYear.jours_feries as any[]) ?? []}
       />
     </div>
   )

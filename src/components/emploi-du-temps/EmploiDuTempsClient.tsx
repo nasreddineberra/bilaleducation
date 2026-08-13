@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
+import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } from 'lucide-react'
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
@@ -175,6 +176,8 @@ interface Props {
   schoolYearStartDate?: string | null  // YYYY-MM-DD
   schoolYearEndDate?: string | null    // YYYY-MM-DD
   vacations?: { start_date: string; end_date: string; label: string }[]
+  /** Jours feries de l'annee : une journee fermee au meme titre qu'une vacance. */
+  feries?: { date: string; label: string }[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -246,7 +249,7 @@ export default function EmploiDuTempsClient({
   reservedPresenceTypes = [],
   weekStartDay = 1,
   workingDays = 5,
-  schoolYearStartDate, schoolYearEndDate, vacations = [],
+  schoolYearStartDate, schoolYearEndDate, vacations = [], feries = [],
 }: Props) {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -380,12 +383,12 @@ export default function EmploiDuTempsClient({
   // ─── Resolve slots for this week ──────────────────────────────────────────
 
   // Helper : la date est-elle en vacances ?
-  const getVacationLabel = useCallback((dateStr: string): string | null => {
-    for (const v of vacations) {
-      if (dateStr >= v.start_date && dateStr <= v.end_date) return v.label || 'Vacances'
-    }
-    return null
-  }, [vacations])
+  // Vacances ET feries, par la source unique : les trois ecrans qui posent la
+  // question « peut-on faire cours ce jour-la » doivent y repondre pareil.
+  const getVacationLabel = useCallback(
+    (dateStr: string): string | null => jourFerme(dateStr, vacations, feries)?.label ?? null,
+    [vacations, feries],
+  )
 
   // Helper : la date est-elle dans la période scolaire et hors vacances ?
   const isSchoolDay = useCallback((dateStr: string) => {
