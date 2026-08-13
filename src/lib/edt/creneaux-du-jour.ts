@@ -29,6 +29,7 @@ export interface CreneauSource {
   day_of_week: number | null
   start_time: string
   end_time: string
+  slot_type: string
   is_recurring: boolean
   slot_date: string | null
   effective_from: string | null
@@ -52,6 +53,8 @@ export interface CreneauDuJour {
   titulaireId: string
   startTime: string
   endTime: string
+  /** `cours` | `activite` — sert a choisir le type de la saisie de remplacement. */
+  slotType: string
   /** Un remplacant est deja designe pour ce jour (`override_teacher_id`). */
   remplacantId: string | null
 }
@@ -112,6 +115,7 @@ export function creneauxDuJour(
         teacherId: ex?.override_teacher_id ?? s.teacher_id,
         startTime: s.start_time.slice(0, 5),
         endTime: s.end_time.slice(0, 5),
+        slotType: s.slot_type,
         remplacantId: ex?.override_teacher_id ?? null,
       }
     })

@@ -49,7 +49,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
   const { data: slots } = currentYear
     ? await supabase
         .from('schedule_slots')
-        .select('id, class_id, teacher_id, day_of_week, start_time, end_time, is_recurring, slot_date, effective_from, effective_until, is_active')
+        .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active')
         .eq('school_year_id', currentYear.id)
         .eq('is_active', true)
     : { data: [] }
@@ -89,7 +89,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
   if (currentYear) {
     const { data } = await supabase
       .from('presence_types')
-      .select('id, label, code, color, is_absence')
+      .select('id, label, code, color, is_absence, reserved_kind')
       .eq('is_active', true)
       .eq('school_year_id', currentYear.id)
       .order('order_index')

@@ -15,6 +15,8 @@ interface PresenceType {
   code: string
   color: string
   is_absence: boolean
+  /** `cours` | `activite` | `absence` pour les types RESERVES, sinon null. */
+  reserved_kind?: string | null
 }
 
 interface StaffMember {
@@ -165,35 +167,28 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const chevauche = (aDeb: string, aFin: string, bDeb: string, bFin: string) =>
     aDeb < bFin && aFin > bDeb
 
-  const indisponibilite = (teacherId: string, cr: { slotId: string; startTime: string; endTime: string }): string | null => {
-    // 3. absent ce demi-jour
-    const t = teachers.find(x => x.id === teacherId)
-    if (t?.user_id) {
-      // Chevauchement d'HORAIRES : une absence de 9h a 10h ne rend plus
-      // indisponible sur un cours de 14h, ce que la demi-journee faisait.
-      const absentIci = existingEntries.some(e =>
-        e.profile_id === t.user_id
-        && isAbsenceType(e.entry_type)
-        && !!e.start_time && !!e.end_time
-        && cr.startTime < e.end_time.slice(0, 5)
-        && cr.endTime   > e.start_time.slice(0, 5),
-      )
-      if (absentIci) return 'absent'
-    }
+  const indisponibilite = (profilId: string, cr: { startTime: string; endTime: string }): string | null => {
+    // La contrainte d'horaires ne vaut QUE pour les enseignants : eux seuls ne
+    // peuvent pas etre a deux endroits. Le reste du personnel est present toute
+    // la journee et depanne pendant son propre temps de travail.
+    const estEnseignant = staffList.find(m => m.id === profilId)?.role === 'enseignant'
+    const occupe = estEnseignant && existingEntries.some(e => {
+      if (e.profile_id !== profilId) return false
+      if (!e.start_time || !e.end_time) return false
+      const debut = e.start_time.slice(0, 5)
+      const fin   = e.end_time.slice(0, 5)
+      return cr.startTime < fin && cr.endTime > debut
+    })
+    if (occupe) return 'occupé'
 
-    // 1. son propre cours au meme moment
-    const sesCreneaux = creneauxDuJour(slots, exceptions, teacherId, date)
-    if (sesCreneaux.some(c => c.slotId !== cr.slotId && chevauche(cr.startTime, cr.endTime, c.startTime, c.endTime))) {
-      return 'a déjà cours'
-    }
-
-    // 2. deja designe ailleurs au meme moment — enregistre, ou choisi a l'instant
-    const dejaDesigne = creneauxConcernes.some(autre =>
-      autre.slotId !== cr.slotId
-      && chevauche(cr.startTime, cr.endTime, autre.startTime, autre.endTime)
-      && (remplacants[autre.slotId] === teacherId || autre.remplacantId === teacherId),
+    // Deja choisi a l'instant sur un autre creneau simultane, pas encore
+    // enregistre : l'ecran doit le savoir avant la base.
+    const dejaChoisi = creneauxConcernes.some(autre =>
+      autre.startTime !== cr.startTime
+      && cr.startTime < autre.endTime && cr.endTime > autre.startTime
+      && remplacants[autre.slotId] === profilId,
     )
-    if (dejaDesigne) return 'déjà remplaçant'
+    if (dejaChoisi) return 'déjà remplaçant'
 
     return null
   }
@@ -334,29 +329,49 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
     if (err) { setSaving(false); setError(err.message); return }
 
-    // Les remplacements suivent l'absence : on ne les ecrit qu'une fois
-    // celle-ci acceptee, sinon on designerait un remplacant pour une absence
-    // qui n'existe pas.
-    if (isAbsence) {
-      for (const cr of creneauxConcernes) {
-        const choix = remplacants[cr.slotId]
-        const remplacantId = choix && choix !== AUCUN ? choix : null
+    // ── LE REMPLACEMENT CREE DIRECTEMENT LES HEURES DU REMPLACANT ─────────
+    //
+    // Une saisie faite dans temps de presence est un remplacement DIRECT : la
+    // personne habilitee qui l'enregistre atteste du fait, la ligne est donc
+    // valide d'emblee. Rien a valider ensuite dans l'emploi du temps — c'est ce
+    // qui distingue ce cas du remplacement de LONGUE DUREE declare sur la fiche
+    // classe, ou le remplacant valide ses creneaux comme un titulaire.
+    //
+    // Consequence utile : le remplacant n'a pas besoin d'une fiche enseignant.
+    // La direction ou la secretaire depanne quand aucun enseignant n'est libre,
+    // et ses heures sont comptees comme celles de n'importe qui.
+    if (isAbsence && creneauxConcernes.length > 0) {
+      const lignesRemplacement = creneauxConcernes
+        .map(cr => {
+          const choix = remplacants[cr.slotId]
+          if (!choix || choix === AUCUN) return null
+          // Meme type que le cours remplace (CRS / ACT), lu depuis les types
+          // RESERVES : ecrire un code en dur le rendrait faux des qu'un
+          // etablissement renomme les siens.
+          const type = presenceTypes.find(pt => pt.reserved_kind === cr.slotType)
+          if (!type) return null
+          return {
+            profile_id: choix,
+            entry_date: date,
+            entry_type: type.code,
+            start_time: cr.startTime,
+            end_time: cr.endTime,
+            duration_minutes: minutesEntre(cr.startTime, cr.endTime),
+            is_replacement: true,
+            replaced_profile_id: profileId,
+            absence_reason: null,
+            notes: null,
+            recorded_by: currentUserId,
+          }
+        })
+        .filter((l): l is NonNullable<typeof l> => l !== null)
 
-        if (remplacantId) {
-          const { error: exErr } = await supabase.from('schedule_exceptions').upsert({
-            schedule_slot_id: cr.slotId,
-            exception_date: date,
-            exception_type: 'modified',
-            override_teacher_id: remplacantId,
-          }, { onConflict: 'schedule_slot_id,exception_date' })
-          if (exErr) { setSaving(false); setError('Absence enregistrée, mais le remplacement a échoué : ' + exErr.message); return }
-        } else if (cr.remplacantId) {
-          // « Aucun membre » alors qu'un remplacant etait designe : on retire la
-          // designation plutot que de la laisser contredire le choix courant.
-          await supabase.from('schedule_exceptions')
-            .delete()
-            .eq('schedule_slot_id', cr.slotId)
-            .eq('exception_date', date)
+      if (lignesRemplacement.length) {
+        const { error: remErr } = await supabase.from('staff_time_entries').insert(lignesRemplacement)
+        if (remErr) {
+          setSaving(false)
+          setError('Absence enregistrée, mais les heures du remplaçant ont échoué : ' + remErr.message)
+          return
         }
       }
     }
@@ -613,13 +628,18 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                         texte se retrouve donc ecrite SOUS le libelle. */}
                     <option value="" disabled hidden></option>
                     <option value={AUCUN}>Aucun membre</option>
-                    {teachers
-                      .filter(t => t.id !== teacherIdDuProfil)
-                      .map(t => {
-                        const empeche = indisponibilite(t.id, cr)
+                    {/* TOUS les membres actifs sauf l'absent — `staffList`
+                        exclut deja admin, parent et super_admin. La direction ou
+                        la secretaire depanne quand aucun enseignant n'est libre :
+                        la saisie etant DIRECTE, aucune fiche enseignant n'est
+                        requise. */}
+                    {staffList
+                      .filter(m => m.id !== profileId)
+                      .map(m => {
+                        const empeche = indisponibilite(m.id, cr)
                         return (
-                          <option key={t.id} value={t.id} disabled={!!empeche}>
-                            {t.civilite ? `${t.civilite} ` : ''}{t.last_name} {t.first_name}
+                          <option key={m.id} value={m.id} disabled={!!empeche}>
+                            {m.last_name} {m.first_name}
                             {empeche ? ` · ${empeche}` : ''}
                           </option>
                         )

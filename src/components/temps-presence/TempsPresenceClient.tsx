@@ -39,6 +39,8 @@ interface PresenceType {
   code: string
   color: string
   is_absence: boolean
+  /** `cours` | `activite` | `absence` pour les types RESERVES, sinon null. */
+  reserved_kind?: string | null
 }
 
 interface PresenceTypeRate {

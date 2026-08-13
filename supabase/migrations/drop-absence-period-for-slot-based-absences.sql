@@ -48,10 +48,25 @@ SET search_path = public
 AS $$
 DECLARE
   v_conflit record;
+  v_role    text;
 BEGIN
   -- Sans horaire, il n'y a rien a comparer : on laisse passer plutot que
   -- d'inventer une plage. Le formulaire, lui, les exige.
   IF NEW.start_time IS NULL OR NEW.end_time IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- ── LA REGLE NE VAUT QUE POUR LES ENSEIGNANTS ────────────────────────────
+  --
+  -- Un enseignant ne peut pas assurer deux cours a la meme heure : chez lui,
+  -- un chevauchement est une erreur de saisie ou un double comptage.
+  --
+  -- Le reste du personnel est present toute la journee, et ses heures se
+  -- recouvrent legitimement : une secretaire qui depanne un cours de 9h a 12h
+  -- le fait PENDANT son temps administratif. Lui refuser la saisie
+  -- l'empecherait de remplacer, ce qui est precisement le cas prevu.
+  SELECT p.role INTO v_role FROM profiles p WHERE p.id = NEW.profile_id;
+  IF coalesce(v_role, '') <> 'enseignant' THEN
     RETURN NEW;
   END IF;
 
@@ -91,8 +106,10 @@ CREATE TRIGGER trg_guard_presence_absence
   EXECUTE FUNCTION fn_guard_presence_absence_exclusivity();
 
 COMMENT ON FUNCTION fn_guard_presence_absence_exclusivity() IS
-  'Deux saisies d''une meme personne ne peuvent pas se chevaucher dans le '
-  'temps. Remplace la regle en demi-journees, supprimee avec absence_period.';
+  'Deux saisies d''un meme ENSEIGNANT ne peuvent pas se chevaucher dans le '
+  'temps. Le reste du personnel en est exempt : ses heures se recouvrent '
+  'legitimement (un depannage pendant le temps administratif). Remplace la '
+  'regle en demi-journees, supprimee avec absence_period.';
 
 -- ── 2. La colonne disparait ────────────────────────────────────────────────
 --
