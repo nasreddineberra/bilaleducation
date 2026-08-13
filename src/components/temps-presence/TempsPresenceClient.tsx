@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { VacationPeriod, JourFerie } from '@/types/database'
+import { jourFerme } from '@/lib/school-year/jours-fermes'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -572,6 +573,7 @@ export default function TempsPresenceClient({
       })()
 
   const selectedDayLabel = new Date(selectedDay + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const fermetureJour = jourFerme(selectedDay, vacations, feries)
 
   return (
     <div className="space-y-5">
@@ -672,7 +674,11 @@ export default function TempsPresenceClient({
               const isToday = dk === todayKey
               const cellCount = (entriesByDate[dk] ?? []).length
               const dLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-              const ariaLabel = `${dLabel}${isToday ? " (aujourd'hui)" : ''}, ${cellCount === 0 ? 'aucune saisie' : cellCount === 1 ? '1 saisie' : `${cellCount} saisies`}`
+              // Jour ferme : meme ambre que l'emploi du temps, pour qu'un jour
+              // sans ecole se reconnaisse d'un ecran a l'autre. La NATURE part
+              // dans l'aria-label : un fond colore ne se lit pas au clavier.
+              const ferme = jourFerme(dk, vacations, feries)
+              const ariaLabel = `${dLabel}${isToday ? " (aujourd'hui)" : ''}${ferme ? `, ${ferme.titre}${ferme.label ? ` ${ferme.label}` : ''}` : ''}, ${cellCount === 0 ? 'aucune saisie' : cellCount === 1 ? '1 saisie' : `${cellCount} saisies`}`
               return (
                 <button
                   key={i}
@@ -683,9 +689,9 @@ export default function TempsPresenceClient({
                   className={clsx(
                     'relative border border-warm-50 p-1 text-left transition-colors min-h-[70px] outline-none focus-visible:ring-2 focus-visible:ring-primary-500/60 focus-visible:z-10',
                     viewMode === 'week' && 'min-h-[120px]',
-                    isCurrentMonth ? 'bg-white' : 'bg-warm-50/50',
+                    ferme ? 'bg-amber-50' : (isCurrentMonth ? 'bg-white' : 'bg-warm-50/50'),
                     isSelected && 'ring-2 ring-primary-400 ring-inset',
-                    !isSelected && 'hover:bg-warm-50',
+                    !isSelected && (ferme ? 'hover:bg-amber-100' : 'hover:bg-warm-50'),
                   )}
                 >
                   <div className="flex items-start gap-1">
@@ -707,7 +713,14 @@ export default function TempsPresenceClient({
         {/* Day panel : hauteur = contenu (self-start) au lieu de s'etirer sur le calendrier */}
         <div className="card flex flex-col self-start">
           <div className="px-4 h-9 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-secondary-800 capitalize">{selectedDayLabel}</h3>
+            <div className="flex items-center gap-2 min-w-0">
+              <h3 className="text-xs font-bold text-secondary-800 capitalize whitespace-nowrap">{selectedDayLabel}</h3>
+              {fermetureJour && (
+                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-full px-2 py-0.5 uppercase tracking-wide truncate">
+                  {fermetureJour.titre}{fermetureJour.label ? ` · ${fermetureJour.label}` : ''}
+                </span>
+              )}
+            </div>
             <Tooltip content={addBlockReason ?? 'Ajouter une saisie'}>
               <button
                 onClick={() => { setEditingEntry(null); setModalOpen(true) }}
