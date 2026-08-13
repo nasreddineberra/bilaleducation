@@ -142,6 +142,52 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       return absencePeriod === 'am' ? cr.startTime < '12:00' : cr.startTime >= '12:00'
     })
 
+  // ── Un remplacant doit etre LIBRE sur ce creneau ─────────────────────────
+  //
+  // Trois facons d'etre indisponible, et elles se cumulent :
+  //   1. il assure deja un cours a lui qui chevauche cet horaire ;
+  //   2. il est deja designe remplacant sur un autre creneau simultane —
+  //      y compris par un choix fait a l'instant dans cette meme modale, pas
+  //      encore enregistre ;
+  //   3. il est lui-meme absent sur cette demi-journee.
+  //
+  // On ne les MASQUE pas : on les affiche desactives, avec le motif. Une
+  // personne qui disparait d'une liste se lit comme un defaut ; une personne
+  // barree avec « occupe » se lit comme une reponse.
+  const chevauche = (aDeb: string, aFin: string, bDeb: string, bFin: string) =>
+    aDeb < bFin && aFin > bDeb
+
+  const indisponibilite = (teacherId: string, cr: { slotId: string; startTime: string; endTime: string }): string | null => {
+    // 3. absent ce demi-jour
+    const t = teachers.find(x => x.id === teacherId)
+    if (t?.user_id) {
+      const absentIci = existingEntries.some(e =>
+        e.profile_id === t.user_id
+        && isAbsenceType(e.entry_type)
+        && (e.absence_period === 'full'
+            || (e.absence_period === 'am' && cr.startTime < '12:00')
+            || (e.absence_period === 'pm' && cr.startTime >= '12:00')),
+      )
+      if (absentIci) return 'absent'
+    }
+
+    // 1. son propre cours au meme moment
+    const sesCreneaux = creneauxDuJour(slots, exceptions, teacherId, date)
+    if (sesCreneaux.some(c => c.slotId !== cr.slotId && chevauche(cr.startTime, cr.endTime, c.startTime, c.endTime))) {
+      return 'a déjà cours'
+    }
+
+    // 2. deja designe ailleurs au meme moment — enregistre, ou choisi a l'instant
+    const dejaDesigne = creneauxConcernes.some(autre =>
+      autre.slotId !== cr.slotId
+      && chevauche(cr.startTime, cr.endTime, autre.startTime, autre.endTime)
+      && (remplacants[autre.slotId] === teacherId || autre.remplacantId === teacherId),
+    )
+    if (dejaDesigne) return 'déjà remplaçant'
+
+    return null
+  }
+
   // `''` = pas encore repondu, `AUCUN` = « personne ne remplace », choisi
   // explicitement. Distinguer les deux est ce qui permet de rendre le champ
   // obligatoire : sans cela, ne pas repondre et repondre « personne » seraient
@@ -174,7 +220,15 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // Chaque creneau concerne doit avoir recu une reponse — un remplacant, ou
   // « Aucun membre ». On ne laisse pas partir une absence dont on ne sait pas
   // si les cours sont couverts.
-  const remplacementsRepondus = creneauxConcernes.every(cr => !!remplacants[cr.slotId])
+  // Repondu ET valide : griser une option ne suffit pas, car un choix fait
+  // AVANT peut devenir invalide apres — designer X sur un creneau le rend
+  // indisponible sur le creneau simultane ou il etait deja selectionne.
+  const remplacementsRepondus = creneauxConcernes.every(cr => {
+    const choix = remplacants[cr.slotId]
+    if (!choix) return false
+    if (choix === AUCUN) return true
+    return !indisponibilite(choix, cr)
+  })
 
   const canSave = isDirty
     && (!canManage || !!profileId)
@@ -484,11 +538,15 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                     <option value={AUCUN}>Aucun membre</option>
                     {teachers
                       .filter(t => t.id !== teacherIdDuProfil)
-                      .map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.civilite ? `${t.civilite} ` : ''}{t.last_name} {t.first_name}
-                        </option>
-                      ))}
+                      .map(t => {
+                        const empeche = indisponibilite(t.id, cr)
+                        return (
+                          <option key={t.id} value={t.id} disabled={!!empeche}>
+                            {t.civilite ? `${t.civilite} ` : ''}{t.last_name} {t.first_name}
+                            {empeche ? ` · ${empeche}` : ''}
+                          </option>
+                        )
+                      })}
                   </FloatSelect>
                 </div>
               ))}

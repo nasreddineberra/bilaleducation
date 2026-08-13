@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { VacationPeriod, JourFerie } from '@/types/database'
-import type { CreneauSource, ExceptionSource } from '@/lib/edt/creneaux-du-jour'
+import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -431,7 +431,30 @@ export default function TempsPresenceClient({
       setDeleteConfirm(null)
       return
     }
+    const supprimee = entries.find(e => e.id === id)
     await supabase.from('staff_time_entries').delete().eq('id', id)
+
+    // ── Le remplacement suit l'absence ────────────────────────────────────
+    //
+    // Supprimer une absence sans retirer les remplacements designes laisserait
+    // le creneau attribue a quelqu'un d'autre alors que le titulaire n'est plus
+    // absent : deux personnes le verraient, et l'une d'elles validerait des
+    // heures qu'elle n'a pas faites. La designation n'a de sens que tant que
+    // l'absence existe.
+    if (supprimee && findPresenceType(presenceTypes, supprimee.entry_type)?.is_absence) {
+      const teacherId = teachers.find(t => t.user_id === supprimee.profile_id)?.id
+      if (teacherId) {
+        const sesCreneaux = creneauxDuJour(slots, exceptions, teacherId, supprimee.entry_date)
+        const aRetirer = sesCreneaux.filter(cr => cr.remplacantId).map(cr => cr.slotId)
+        if (aRetirer.length) {
+          await supabase.from('schedule_exceptions')
+            .delete()
+            .in('schedule_slot_id', aRetirer)
+            .eq('exception_date', supprimee.entry_date)
+        }
+      }
+    }
+
     setDeleteConfirm(null)
     fetchEntries()
     fetchYearEntries()
