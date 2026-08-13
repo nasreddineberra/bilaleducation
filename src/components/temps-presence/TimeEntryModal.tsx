@@ -148,7 +148,13 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // creneau bascule donc chez le remplacant sans une ligne de plus cote EDT.
   const teacherIdDuProfil = teachers.find(t => t.user_id === profileId)?.id ?? ''
 
+  // COURS UNIQUEMENT. Un remplacement porte toujours sur un cours : les
+  // activites n'existent pas comme creneaux de classe propages a l'emploi du
+  // temps, elles se saisissent directement ici. Filtrer explicitement plutot
+  // que de compter sur le fait qu'aucun creneau ne soit d'un autre type
+  // aujourd'hui — une donnee qui peut changer sans qu'on y pense.
   const creneauxDuJourPersonne = creneauxDuJour(slots, exceptions, teacherIdDuProfil, date)
+    .filter(cr => cr.slotType === 'cours')
   // Ceux effectivement manques : eux seuls appellent un remplacant.
   const creneauxConcernes = creneauxDuJourPersonne.filter(cr => creneauxManques.has(cr.slotId))
 
@@ -345,10 +351,10 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
         .map(cr => {
           const choix = remplacants[cr.slotId]
           if (!choix || choix === AUCUN) return null
-          // Meme type que le cours remplace (CRS / ACT), lu depuis les types
-          // RESERVES : ecrire un code en dur le rendrait faux des qu'un
-          // etablissement renomme les siens.
-          const type = presenceTypes.find(pt => pt.reserved_kind === cr.slotType)
+          // Type COURS, lu depuis les types RESERVES — un remplacement porte
+          // toujours sur un cours. Ecrire le code en dur le rendrait faux des
+          // qu'un etablissement renomme les siens.
+          const type = presenceTypes.find(pt => pt.reserved_kind === 'cours')
           if (!type) return null
           return {
             profile_id: choix,
