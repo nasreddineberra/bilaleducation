@@ -122,58 +122,33 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     s => s.id !== profileId && (absentIds.has(s.id) || s.id === replacedId),
   )
 
-  // Exclusivite sur une journee :
-  //  - saisie d'ABSENCE  → exclure toute personne ayant DEJA une entree ce jour
-  //    (absente ou presente : une seule absence/jour, pas de melange).
-  //  - saisie de PRESENCE → exclure les personnes ABSENTES ce jour.
-  // On garde toujours le membre en cours d'edition.
-  const presentIds = new Set(
-    existingEntries.filter(e => !isAbsenceType(e.entry_type)).map(e => e.profile_id),
-  )
-  const busyIds = new Set([...absentIds, ...presentIds]) // toute entree ce jour
-  const excludedMemberIds = isAbsence ? busyIds : absentIds
-  const selectableStaff = staffList.filter(
-    s => !excludedMemberIds.has(s.id) || s.id === entry?.profile_id,
-  )
+  // ── PLUS D'EXCLUSION A LA JOURNEE ────────────────────────────────────────
+  //
+  // La modale ecartait toute personne ayant deja une saisie ce jour-la : reste
+  // du modele en demi-journees, ou l'on ne pouvait etre absent qu'une fois par
+  // jour. Depuis que l'absence porte sur un CRENEAU, un enseignant peut etre
+  // absent le matin, present l'apres-midi, ou absent sur deux cours distincts
+  // remplaces par deux personnes differentes — et l'ecarter apres la premiere
+  // saisie empechait precisement la seconde.
+  //
+  // La seule contrainte reelle est le CHEVAUCHEMENT d'horaires, portee par la
+  // base et signalee ici creneau par creneau. Une liste ne doit pas interdire
+  // ce que la regle autorise.
+  const selectableStaff = staffList
 
-  // ── Remplacement, creneau par creneau ─────────────────────────────────────
+  // ── Creneaux du jour, et remplacement creneau par creneau ────────────────
   //
-  // Un remplacement porte sur un COURS, pas sur une demi-journee : c'est la
-  // maille a laquelle quelqu'un prend la classe. La periode d'absence ne sert
-  // qu'a savoir QUELS cours sont concernes.
-  //
-  // Le support est `schedule_exceptions.override_teacher_id`, qui existe deja
-  // et que l'emploi du temps applique deja
-  // (`teacher_id: exception.override_teacher_id ?? slot.teacher_id`). Le
-  // creneau bascule donc chez le remplacant sans une ligne de plus cote EDT.
+  // Un remplacement porte sur un COURS : les activites ne sont pas des creneaux
+  // de classe propages a l'emploi du temps, elles se saisissent directement ici.
   const teacherIdDuProfil = teachers.find(t => t.user_id === profileId)?.id ?? ''
 
-  // COURS UNIQUEMENT. Un remplacement porte toujours sur un cours : les
-  // activites n'existent pas comme creneaux de classe propages a l'emploi du
-  // temps, elles se saisissent directement ici. Filtrer explicitement plutot
-  // que de compter sur le fait qu'aucun creneau ne soit d'un autre type
-  // aujourd'hui — une donnee qui peut changer sans qu'on y pense.
   const creneauxDuJourPersonne = creneauxDuJour(slots, exceptions, teacherIdDuProfil, date)
     .filter(cr => cr.slotType === 'cours')
+
   // Ceux effectivement manques : eux seuls appellent un remplacant.
   const creneauxConcernes = creneauxDuJourPersonne.filter(cr => creneauxManques.has(cr.slotId))
 
-  // ── Un remplacant doit etre LIBRE sur ce creneau ─────────────────────────
-  //
-  // Trois facons d'etre indisponible, et elles se cumulent :
-  //   1. il assure deja un cours a lui qui chevauche cet horaire ;
-  //   2. il est deja designe remplacant sur un autre creneau simultane —
-  //      y compris par un choix fait a l'instant dans cette meme modale, pas
-  //      encore enregistre ;
-  //   3. il est lui-meme absent sur cette demi-journee.
-  //
-  // On ne les MASQUE pas : on les affiche desactives, avec le motif. Une
-  // personne qui disparait d'une liste se lit comme un defaut ; une personne
-  // barree avec « occupe » se lit comme une reponse.
-  const chevauche = (aDeb: string, aFin: string, bDeb: string, bFin: string) =>
-    aDeb < bFin && aFin > bDeb
-
-  const indisponibilite = (profilId: string, cr: { startTime: string; endTime: string }): string | null => {
+  const indisponibilite = (profilId: string, cr: { slotId: string; startTime: string; endTime: string }): string | null => {
     // La contrainte d'horaires ne vaut QUE pour les enseignants : eux seuls ne
     // peuvent pas etre a deux endroits. Le reste du personnel est present toute
     // la journee et depanne pendant son propre temps de travail.
@@ -181,16 +156,14 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     const occupe = estEnseignant && existingEntries.some(e => {
       if (e.profile_id !== profilId) return false
       if (!e.start_time || !e.end_time) return false
-      const debut = e.start_time.slice(0, 5)
-      const fin   = e.end_time.slice(0, 5)
-      return cr.startTime < fin && cr.endTime > debut
+      return cr.startTime < e.end_time.slice(0, 5) && cr.endTime > e.start_time.slice(0, 5)
     })
     if (occupe) return 'occupé'
 
     // Deja choisi a l'instant sur un autre creneau simultane, pas encore
     // enregistre : l'ecran doit le savoir avant la base.
-    const dejaChoisi = creneauxConcernes.some(autre =>
-      autre.startTime !== cr.startTime
+    const dejaChoisi = estEnseignant && creneauxConcernes.some(autre =>
+      autre.slotId !== cr.slotId
       && cr.startTime < autre.endTime && cr.endTime > autre.startTime
       && remplacants[autre.slotId] === profilId,
     )
@@ -200,9 +173,8 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   }
 
   // `''` = pas encore repondu, `AUCUN` = « personne ne remplace », choisi
-  // explicitement. Distinguer les deux est ce qui permet de rendre le champ
-  // obligatoire : sans cela, ne pas repondre et repondre « personne » seraient
-  // le meme etat, et on ne saurait jamais si l'oubli est volontaire.
+  // explicitement. Distinguer les deux rend le champ obligatoire : sans cela,
+  // ne pas repondre et repondre « personne » seraient le meme etat.
   const [remplacants, setRemplacants] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -213,9 +185,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   useEffect(() => {
     setRemplacants(prev => {
       const suivant: Record<string, string> = {}
-      for (const cr of creneauxConcernes) {
-        suivant[cr.slotId] = prev[cr.slotId] ?? (cr.remplacantId ?? '')
-      }
+      for (const cr of creneauxConcernes) suivant[cr.slotId] = prev[cr.slotId] ?? ''
       return suivant
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -435,10 +405,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                       value={pt.code}
                       checked={selected}
                       onChange={() => {
+                        // Le membre reste selectionne : depuis que l'absence
+                        // porte sur un creneau, avoir deja une saisie ce jour-la
+                        // n'a plus rien d'incompatible. Seul le chevauchement
+                        // d'horaires l'est, et il se verifie ailleurs.
                         setEntryType(pt.code)
-                        // Reinitialiser le membre s'il devient incoherent avec le type.
-                        const conflict = pt.is_absence ? busyIds : absentIds
-                        if (profileId && profileId !== entry?.profile_id && conflict.has(profileId)) setProfileId('')
                       }}
                       className="sr-only"
                     />
