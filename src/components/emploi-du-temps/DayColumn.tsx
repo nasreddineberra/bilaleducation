@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
+import type { JourFerme } from '@/lib/school-year/jours-fermes'
 import SlotCapsule from './SlotCapsule'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 
@@ -29,7 +30,7 @@ interface Props {
   activeMenuSlotId?: string | null
   onClickEmpty: (day: number, time: string) => void
   onDeleteSlot: (sourceSlotId: string) => void
-  vacationLabel?: string | null
+  fermeture?: JourFerme | null
   /** Enable drop zones for drag & drop (only in week+class view) */
   droppable?: boolean
 }
@@ -57,7 +58,7 @@ function timeToMinutes(t: string): number {
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
-  isTeacher, currentTeacherId, vacationLabel, isValidated, onValidate, onCancelValidation,
+  isTeacher, currentTeacherId, fermeture, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
@@ -67,7 +68,7 @@ export default function DayColumn({
 
   // Generate 15min drop zones
   const dropZones = useMemo(() => {
-    if (!droppable || vacationLabel) return []
+    if (!droppable || fermeture) return []
     const zones: { id: string; topPct: number; heightPct: number }[] = []
     const totalSlots = (endHour - startHour) * 4 // 4 x 15min per hour
     const slotHeight = 100 / totalSlots
@@ -83,17 +84,17 @@ export default function DayColumn({
       })
     }
     return zones
-  }, [droppable, vacationLabel, day, startHour, endHour])
+  }, [droppable, fermeture, day, startHour, endHour])
 
   return (
     <div
       className={clsx(
         'relative border-l border-warm-100',
-        vacationLabel ? 'bg-amber-50/40 cursor-default' : 'cursor-crosshair',
-        isToday && !vacationLabel && 'bg-amber-50/30',
+        fermeture ? 'bg-amber-50/40 cursor-default' : 'cursor-crosshair',
+        isToday && !fermeture && 'bg-amber-50/30',
       )}
       onClick={(e) => {
-        if (vacationLabel) return
+        if (fermeture) return
         if ((e.target as HTMLElement).closest('[data-slot]')) return
         const rect = e.currentTarget.getBoundingClientRect()
         const y = e.clientY - rect.top
@@ -105,11 +106,21 @@ export default function DayColumn({
         onClickEmpty(day, `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
       }}
     >
-      {/* Tag vacances */}
-      {vacationLabel && (
+      {/* Jour ferme : la NATURE en tete, le nom saisi en dessous s'il existe.
+          Deux lignes plutot qu'une seule chaine : « VACANCES » dit ce qu'on ne
+          peut pas faire ce jour-la, « Toussaint » dit seulement laquelle. La
+          premiere information ne doit jamais dependre de la seconde. */}
+      {fermeture && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full uppercase tracking-wide">
-            {vacationLabel}
+          <span className="flex flex-col items-center gap-0.5 text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-2xl text-center">
+            <span className="text-xs font-semibold uppercase tracking-wide leading-none">
+              {fermeture.titre}
+            </span>
+            {fermeture.label && (
+              <span className="text-[10px] font-medium leading-none max-w-[8rem] truncate">
+                {fermeture.label}
+              </span>
+            )}
           </span>
         </div>
       )}

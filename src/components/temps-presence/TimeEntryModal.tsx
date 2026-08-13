@@ -207,7 +207,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               role="status"
               className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5"
             >
-              {fermeture.nature === 'ferie' ? 'Jour férié' : 'Vacances'} · {fermeture.label}
+              {fermeture.titre}{fermeture.label ? ` · ${fermeture.label}` : ''}
             </p>
           )}
 

@@ -1382,7 +1382,7 @@ function SaisieModal({
                 role="status"
                 className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 whitespace-nowrap"
               >
-                {fermeture.nature === 'ferie' ? 'Jour férié' : 'Vacances'} · {fermeture.label}
+                {fermeture.titre}{fermeture.label ? ` · ${fermeture.label}` : ''}
               </span>
             )}
           </div>

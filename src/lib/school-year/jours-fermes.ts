@@ -27,8 +27,18 @@ import type { VacationPeriod, JourFerie } from '@/types/database'
 export type JourFerme = {
   /** `ferie` ou `vacances` — le motif se dit, il ne se devine pas. */
   nature: 'ferie' | 'vacances'
-  /** Ce qu'on affiche : le libelle saisi, ou un repli neutre. */
-  label: string
+  /** Comment la NATURE s'appelle : « Vacances » / « Jour férié ». Toujours la. */
+  titre: string
+  /**
+   * Le nom SAISI, quand il y en a un — « Toussaint », « Armistice ».
+   *
+   * `null` et non un repli : le helper rapporte ce qui existe, il n'invente pas
+   * un nom. Sans cette distinction les appelants qui composent « titre · label »
+   * affichaient « Vacances · Vacances » sur une periode sans nom, et la pastille
+   * de l'emploi du temps ne pouvait pas savoir s'il y avait une 2e ligne a
+   * ecrire. Le repli est une decision d'AFFICHAGE, elle appartient a l'ecran.
+   */
+  label: string | null
 }
 
 /**
@@ -44,10 +54,10 @@ export function jourFerme(
   feries: JourFerie[] | null | undefined,
 ): JourFerme | null {
   const f = (feries ?? []).find(x => x.date === date)
-  if (f) return { nature: 'ferie', label: f.label?.trim() || 'Jour férié' }
+  if (f) return { nature: 'ferie', titre: 'Jour férié', label: f.label?.trim() || null }
 
   const v = (vacations ?? []).find(x => date >= x.start_date && date <= x.end_date)
-  if (v) return { nature: 'vacances', label: v.label?.trim() || 'Vacances' }
+  if (v) return { nature: 'vacances', titre: 'Vacances', label: v.label?.trim() || null }
 
   return null
 }

@@ -1622,7 +1622,7 @@ export default function EmploiDuTempsClient({
             {/* Day columns */}
             {activeDays.map(d => {
               const dateStr = weekDayDates[d]
-              const vacLabel = dateStr ? getVacationLabel(dateStr) : null
+              const fermeture = dateStr ? jourFerme(dateStr, vacations, feries) : null
               const canValidate = !!dateStr && dateStr <= todayStr
               return (
                 <DayColumn
@@ -1638,7 +1638,7 @@ export default function EmploiDuTempsClient({
                   viewMode={viewMode}
                   isTeacher={role === 'enseignant'}
                   currentTeacherId={ownTeacherId}
-                  vacationLabel={vacLabel}
+                  fermeture={fermeture}
                   droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}
                   onValidate={(resolved) => handleValidate(resolved)}
