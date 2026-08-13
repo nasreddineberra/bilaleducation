@@ -13,7 +13,9 @@ const ACTIVITY_EVENTS = [
 ] as const
 
 /**
- * Déconnecte automatiquement l'utilisateur après 1 heure d'inactivité.
+ * Déconnecte automatiquement l'utilisateur après la fenêtre d'inactivité
+ * (20 minutes — voir `INACTIVITY_SECONDS`, source unique partagée avec le
+ * middleware : les deux doivent tomber ensemble).
  * @param onLogout - Callback appelé à l'expiration du délai
  */
 export function useInactivityLogout(onLogout: () => void) {

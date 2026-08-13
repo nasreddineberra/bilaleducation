@@ -1,5 +1,18 @@
 // Source unique des délais de session (utilisée par le middleware et le hook client).
-export const INACTIVITY_SECONDS  = 60 * 60      // 1 heure d'inactivité
+/**
+ * Inactivite : 20 MINUTES.
+ *
+ * Ramenee d'une heure le 11 aout, en contrepartie du retrait de `app-open`.
+ * Celui-ci disparaissait a la fermeture du navigateur et deconnectait meme en
+ * pleine fenetre d'activite — protection pensee pour un poste PARTAGE (le
+ * secretariat ferme, quelqu'un d'autre s'assoit). Il a verrouille la production
+ * deux fois ; on ne le ressuscite pas.
+ *
+ * A 20 minutes, l'inactivite seule couvre ce cas : la fenetre pendant laquelle
+ * un tiers heriterait d'une session ouverte devient marginale, et le mecanisme
+ * reste celui qui ne peut plus mentir.
+ */
+export const INACTIVITY_SECONDS  = 20 * 60      // 20 minutes d'inactivité
 export const MAX_SESSION_SECONDS = 24 * 3600    // 24 heures max depuis la connexion
 export const INACTIVITY_MS       = INACTIVITY_SECONDS * 1000
 
@@ -24,7 +37,7 @@ export const INACTIVITY_MS       = INACTIVITY_SECONDS * 1000
  * Marge d'une heure au-dessus de la fenêtre d'inactivité : elle absorbe les
  * décalages d'horloge sans rouvrir la porte à un cookie ancien.
  */
-export const SESSION_COOKIE_MAX_AGE = INACTIVITY_SECONDS + 3600   // 2 heures
+export const SESSION_COOKIE_MAX_AGE = INACTIVITY_SECONDS + 3600   // 20 min + 1 h de marge
 
 /**
  * Domaine des cookies de session, ou `undefined` pour les laisser liés à l'hôte.

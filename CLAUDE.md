@@ -2839,6 +2839,60 @@ Signale par l'utilisateur, verrouille hors de sa production. **Resolu.**
     uniquement les feries laissait « Valider » grise et la fonctionnalite paraissait cassee.
 - **Volet 3 (branchement EDT / feuille d'appel / temps de presence) : RESTE A FAIRE.**
 
+#### 11 aout 2026 (soir) — REFONTE de la strategie de session
+
+Apres **SIX correctifs en un mois** sur le meme mecanisme (12/07 double connexion,
+13/07 duree du cookie 24 h → 30 j, 14/07 ajout d'`app-open`, 09/08 condition retiree en
+urgence apres verrouillage, 11/08 matin deux ecrivains, 11/08 midi garde « auth fraiche »),
+l'utilisateur a demande de **repenser la strategie** plutot que d'empiler.
+
+**LE DEFAUT DE CONCEPTION** : on repondait a « cette session est-elle valable ? » avec une
+horloge que NOUS maintenions, dans un cookie — un endroit qu'on ne controle pas (partage
+entre sous-domaines, survivant aux changements de config, restaure par le navigateur,
+duplique quand la portee change). Et la regle etait **FAIL-CLOSED** : cookie present et
+perime ⇒ deconnexion. Or **un cookie perime et un cookie ETRANGER sont indistinguables**.
+D'ou des verrouillages sans recours — chaque tentative repartait du meme etat.
+
+**TROIS PRINCIPES**
+1. **Une seule autorite pour l'identite** : la duree maximale (24 h) s'ancre sur
+   `user.last_sign_in_at`, qui vient de Supabase et ne peut pas diverger de la session
+   qu'il decrit. Le `loginTime` qu'on recopiait a disparu.
+2. **Le traceur est CONSULTATIF** : il ne porte plus que `lastActivity` — la seule donnee
+   que Supabase n'a pas — et sa duree de vie tombe de **30 jours a 1 h 20** (fenetre + marge).
+   Il ne peut donc plus **mentir**, seulement **manquer** ; son absence se tranche avec l'age
+   de la session.
+3. **FAIL-OPEN** : dans le doute, on laisse entrer. Verrouiller un client dehors est plus
+   grave que de le garder connecte une nuit.
+
+**`app-open` RETIRE.** Troisieme etat a tenir coherent avec les deux autres, il ne servait
+qu'a choisir le libelle d'un message et avait verrouille la production le 9 aout. Le motif se
+deduit desormais de ce qu'on mesure. Son nom reste dans `proxy.ts` **pour purger** les
+navigateurs qui en portent encore un — a supprimer quand le parc aura tourne.
+
+**CONTREPARTIE ARBITREE PAR L'UTILISATEUR : inactivite 1 h → 20 MIN.** `app-open` protegeait
+le poste PARTAGE (le secretariat ferme le navigateur, quelqu'un d'autre s'assoit). Sans lui,
+seule l'inactivite couvre ce cas ; a 20 min la fenetre d'heritage devient marginale.
+**Ce qui NE change pas** : connecte il y a 3 jours ⇒ reconnexion (24 h depuis
+`last_sign_in_at`). Ce qui change : retour dans les 20 min apres fermeture du navigateur ⇒
+on reste connecte, la ou `app-open` deconnectait.
+
+**Les deux incidents du jour, causes distinctes, meme symptome**
+- **Matin** : `login/page.tsx` posait `app-session` **depuis le navigateur** (sans domaine,
+  sans HttpOnly, 24 h) pendant que le middleware posait le meme nom **avec** domaine, 30 j.
+  Le navigateur en gardait DEUX ; `request.cookies.get()` rend celui que l'en-tete presente
+  en premier — souvent le perime. Ecriture client supprimee (redondante), et les purges
+  effacent desormais les **deux variantes** (`headers.append`, car le magasin de
+  `NextResponse` est indexe par nom).
+- **Apres-midi** : `/auth/totp-challenge` tournait sur « Chargement… » a l'infini —
+  `listFactors()` sans `try/catch` : un rejet laissait `isReady` a false, sans message ni
+  issue. Garde-fou en deux temps (catch + **delai de 10 s**, un catch seul ne voyant pas
+  l'appel qui ne repond jamais) et bouton « Reessayer » en **rechargement dur**.
+
+**CE QUI MANQUE ENCORE** : ce parcours n'a **aucun test automatise**. Les six defauts ont tous
+ete trouves par l'utilisateur, en production. « connexion → 2FA → tableau de bord →
+inactivite simulee → deconnexion » doit s'executer avant chaque deploiement — c'est le
+prochain chantier de cette zone.
+
 #### A CONSIGNER — DECONNEXION DE LA CONSOLE SUPER-ADMIN (10 aout)
 
 Signale par l'utilisateur en fin de session. **Symptome non decrit, rien de verifie.**
