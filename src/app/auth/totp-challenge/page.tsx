@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import OtpInput from '@/components/ui/OtpInput'
+import { FloatButton } from '@/components/ui/FloatFields'
 import { createClient } from '@/lib/supabase/client'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader'
 
@@ -31,6 +32,7 @@ export default function TotpChallengePage() {
   const [factorId,     setFactorId]     = useState<string | null>(null)
   const [challengeId,  setChallengeId]  = useState<string | null>(null)
   const [isReady,      setIsReady]      = useState(false)
+  const [chargementEchoue, setChargementEchoue] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [nomEtab,      setNomEtab]      = useState('Bilal Education')
@@ -64,27 +66,63 @@ export default function TotpChallengePage() {
     applyTheme()
   }, [])
 
-  // Au chargement : trouver le facteur TOTP
+  // Au chargement : trouver le facteur TOTP.
+  //
+  // ┌─ CET ECRAN NE DOIT JAMAIS TOURNER SANS FIN ─────────────────────────────┐
+  // │ `listFactors()` n'avait AUCUNE gestion d'erreur : un appel qui echoue ou │
+  // │ n'aboutit pas rejetait la promesse sans que personne ne la rattrape,     │
+  // │ `isReady` restait faux, et la page affichait « Chargement… » a l'infini  │
+  // │ — sans message, sans issue, sur le seul ecran qui separe l'utilisateur   │
+  // │ de son application. Constate en production le 11 aout.                   │
+  // │                                                                          │
+  // │ D'ou le garde-fou en DEUX temps : un `catch` pour un rejet, et un DELAI  │
+  // │ pour un appel qui ne repond simplement jamais — un `catch` seul ne voit  │
+  // │ pas ce cas-la.                                                           │
+  // └──────────────────────────────────────────────────────────────────────────┘
   useEffect(() => {
+    let fini = false
+
+    const echec = (motif: string) => {
+      if (fini) return
+      fini = true
+      setChargementEchoue(motif)
+    }
+
+    const minuteur = setTimeout(
+      () => echec("La vérification n'a pas répondu. Vérifiez votre connexion, puis réessayez."),
+      10_000,
+    )
+
     const init = async () => {
-      const supabase = createClient()
+      try {
+        const supabase = createClient()
+        const { data: factors, error: err } = await supabase.auth.mfa.listFactors()
+        if (fini) return
+        if (err) { echec(err.message || 'Impossible de charger la vérification en deux étapes.'); return }
 
-      const { data: factors } = await supabase.auth.mfa.listFactors()
-      const totpFactor = factors?.all?.find(
-        f => f.factor_type === 'totp' && f.status === 'verified'
-      )
+        const totpFactor = factors?.all?.find(
+          f => f.factor_type === 'totp' && f.status === 'verified'
+        )
 
-      if (!totpFactor) {
-        // Pas de facteur TOTP → enrollment
-        router.replace('/auth/enroll-totp')
-        return
+        if (!totpFactor) {
+          // Pas de facteur TOTP → enrollment
+          fini = true
+          router.replace('/auth/enroll-totp')
+          return
+        }
+
+        fini = true
+        setFactorId(totpFactor.id)
+        setIsReady(true)
+      } catch (e: unknown) {
+        echec(e instanceof Error ? e.message : 'Impossible de charger la vérification en deux étapes.')
+      } finally {
+        clearTimeout(minuteur)
       }
-
-      setFactorId(totpFactor.id)
-      setIsReady(true)
     }
 
     init()
+    return () => clearTimeout(minuteur)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -161,7 +199,18 @@ export default function TotpChallengePage() {
             </div>
           </div>
 
-          {!isReady ? (
+          {chargementEchoue ? (
+            <div className="space-y-3">
+              <div role="alert" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                {chargementEchoue}
+              </div>
+              {/* Rechargement DUR : si la session est en cause, une navigation
+                  souple repartirait du meme etat. */}
+              <FloatButton type="button" variant="submit" onClick={() => window.location.reload()} className="w-full">
+                Réessayer
+              </FloatButton>
+            </div>
+          ) : !isReady ? (
             <div className="text-center py-8">
               <Loader2 size={32} className="animate-spin text-primary-500 mx-auto" />
               <p className="text-sm text-warm-700 dark:text-[#93a2a8] mt-3">Chargement…</p>
