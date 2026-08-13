@@ -516,13 +516,26 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
             />
           )}
 
-          {/* Remplacement, CRENEAU PAR CRENEAU. Une absence sans cours ce
-              jour-la n'affiche rien : il n'y a rien a couvrir. */}
-          {isAbsence && creneauxConcernes.length > 0 && (
+          {/* Remplacement, CRENEAU PAR CRENEAU.
+              Le bloc s'affiche TOUJOURS sur une absence, meme sans cours ce
+              jour-la — il dit alors qu'il n'y a rien a couvrir. Ne rien
+              afficher laissait croire a un ecran casse : c'est ce qu'a conclu
+              l'utilisateur en saisissant une absence un mardi, jour ou
+              l'enseignante concernee n'a aucun cours. Ce qui disparait se lit
+              comme un defaut ; ce qui explique se lit comme une reponse. */}
+          {isAbsence && (
             <div className="border border-warm-200 rounded-xl p-3 space-y-2.5">
               <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">
-                Remplacement <span className="text-red-500">*</span>
+                Remplacement {creneauxConcernes.length > 0 && <span className="text-red-500">*</span>}
               </p>
+
+              {creneauxConcernes.length === 0 && (
+                <p className="text-xs text-warm-700 italic">
+                  {!profileId
+                    ? 'Choisissez un membre pour voir ses cours de ce jour.'
+                    : `Aucun cours ${absencePeriod === 'am' ? 'ce matin' : absencePeriod === 'pm' ? 'cet après-midi' : 'ce jour'} : il n'y a rien à faire remplacer.`}
+                </p>
+              )}
               {creneauxConcernes.map(cr => (
                 <div key={cr.slotId}>
                   <p className="text-[11px] text-warm-700 mb-1">
