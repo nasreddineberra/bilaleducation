@@ -27,6 +27,8 @@ export interface TimeEntry {
   duration_minutes: number
   is_replacement: boolean
   replaced_profile_id: string | null
+  /** Sur une ABSENCE : qui remplace. Sens INVERSE de `replaced_profile_id`. */
+  replacement_profile_id: string | null
   absence_reason: string | null
   absence_period: string // 'full' | 'am' | 'pm'
   notes: string | null

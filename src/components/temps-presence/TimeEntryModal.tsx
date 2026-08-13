@@ -57,6 +57,10 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const [isReplacement, setIsReplacement] = useState(entry?.is_replacement ?? false)
   const [replacedId, setReplacedId] = useState(entry?.replaced_profile_id ?? '')
   const [absenceReason, setAbsenceReason] = useState(entry?.absence_reason ?? '')
+  // Qui remplace la personne absente. Designe ICI, au moment de l'absence, et
+  // non plus deduit apres coup de la ligne de presence du remplacant : c'est
+  // cette designation que l'emploi du temps lit pour lui montrer le creneau.
+  const [replacementId, setReplacementId] = useState(entry?.replacement_profile_id ?? '')
   const [absencePeriod, setAbsencePeriod] = useState<string>(entry?.absence_period ?? 'full')
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [saving, setSaving] = useState(false)
@@ -94,6 +98,14 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     existingEntries.filter(e => !isAbsenceType(e.entry_type)).map(e => e.profile_id),
   )
   const busyIds = new Set([...absentIds, ...presentIds]) // toute entree ce jour
+
+  // Remplacants proposables : tout le monde sauf la personne absente elle-meme
+  // et sauf ceux qui sont deja absents ce jour — les designer serait une erreur
+  // de saisie, et la base la refuse. On garde la selection en cours d'edition
+  // pour ne pas la perdre si les donnees ont change depuis.
+  const remplacantsPossibles = staffList.filter(
+    s => s.id !== profileId && (!absentIds.has(s.id) || s.id === replacementId),
+  )
   const excludedMemberIds = isAbsence ? busyIds : absentIds
   const selectableStaff = staffList.filter(
     s => !excludedMemberIds.has(s.id) || s.id === entry?.profile_id,
@@ -107,6 +119,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     isReplacement !== (entry?.is_replacement ?? false) ||
     replacedId !== (entry?.replaced_profile_id ?? '') ||
     absenceReason !== (entry?.absence_reason ?? '') ||
+    replacementId !== (entry?.replacement_profile_id ?? '') ||
     absencePeriod !== (entry?.absence_period ?? 'full') ||
     notes !== (entry?.notes ?? '')
   )
@@ -167,6 +180,9 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       is_replacement: isReplacement,
       replaced_profile_id: isReplacement && replacedId ? replacedId : null,
       absence_reason: isAbsence ? absenceReason : null,
+      // Le remplacant ne se designe que sur une absence — la base le refuse
+      // aussi, mais on n'envoie pas une valeur qu'on sait invalide.
+      replacement_profile_id: isAbsence && replacementId ? replacementId : null,
       absence_period: isAbsence ? absencePeriod : 'full',
       notes: notes || null,
       recorded_by: currentUserId,
@@ -356,14 +372,36 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
             </div>
           )}
 
-          {/* Motif absence */}
+          {/* Motif + remplacant : une absence et sa couverture se saisissent
+              ENSEMBLE. Separer les deux gestes, c'est accepter qu'on oublie le
+              second — et sans lui le remplacant ne voit pas le creneau. */}
           {isAbsence && (
-            <FloatInput
-              label="MOTIF"
-              value={absenceReason}
-              onChange={e => setAbsenceReason(e.target.value)}
-              placeholder="Maladie, congé..."
-            />
+            <>
+              <FloatInput
+                label="MOTIF"
+                value={absenceReason}
+                onChange={e => setAbsenceReason(e.target.value)}
+                placeholder="Maladie, congé..."
+              />
+
+              <div>
+                <FloatSelect
+                  label="REMPLACÉ PAR"
+                  value={replacementId}
+                  onChange={e => setReplacementId(e.target.value)}
+                >
+                  <option value="">Personne</option>
+                  {remplacantsPossibles.map(m => (
+                    <option key={m.id} value={m.id}>{m.last_name} {m.first_name}</option>
+                  ))}
+                </FloatSelect>
+                <p className="mt-1 text-[11px] text-warm-700">
+                  {replacementId
+                    ? "Le créneau apparaîtra dans son emploi du temps ; c'est en le validant qu'il enregistrera ses heures."
+                    : "Facultatif. À renseigner si quelqu'un assure les cours à sa place."}
+                </p>
+              </div>
+            </>
           )}
 
           {/* Notes */}
