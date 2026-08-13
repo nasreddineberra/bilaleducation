@@ -181,7 +181,7 @@ interface Props {
   /** Jours feries de l'annee : une journee fermee au meme titre qu'une vacance. */
   feries?: { date: string; label: string }[]
   /** Absences du personnel, pour interdire la validation d'un cours non assure. */
-  absences?: { profile_id: string; entry_date: string; absence_period: string }[]
+  absences?: { profile_id: string; entry_date: string; start_time: string | null; end_time: string | null }[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -410,24 +410,25 @@ export default function EmploiDuTempsClient({
     const profilVersEnseignant = new Map(
       teachers.filter(t => t.user_id).map(t => [t.user_id as string, t.id]),
     )
-    const m = new Map<string, Set<string>>()   // `${teacherId}|${date}` → { 'am', 'pm' }
+    // `${teacherId}|${date}` → plages horaires d'absence de ce jour.
+    const m = new Map<string, { debut: string; fin: string }[]>()
     for (const a of absences) {
       const tid = profilVersEnseignant.get(a.profile_id)
-      if (!tid) continue
+      if (!tid || !a.start_time || !a.end_time) continue
       const cle = `${tid}|${a.entry_date}`
-      const demi = m.get(cle) ?? new Set<string>()
-      if (a.absence_period === 'full' || a.absence_period === 'am') demi.add('am')
-      if (a.absence_period === 'full' || a.absence_period === 'pm') demi.add('pm')
-      m.set(cle, demi)
+      const plages = m.get(cle) ?? []
+      plages.push({ debut: a.start_time.slice(0, 5), fin: a.end_time.slice(0, 5) })
+      m.set(cle, plages)
     }
     return m
   }, [absences, teachers])
 
-  // Meme decoupage que la garde en base : midi separe les deux demi-journees.
-  const enseignantAbsent = useCallback((teacherId: string, date: string, start: string) => {
-    const demi = absenceParEnseignant.get(`${teacherId}|${date}`)
-    if (!demi) return false
-    return demi.has(start < '12:00' ? 'am' : 'pm')
+  // Chevauchement d'HORAIRES, comme la garde en base. La demi-journee est
+  // abandonnee : une absence de 9h a 10h ne bloquait plus toute la matinee.
+  const enseignantAbsent = useCallback((teacherId: string, date: string, start: string, fin: string) => {
+    const plages = absenceParEnseignant.get(`${teacherId}|${date}`)
+    if (!plages) return false
+    return plages.some(p => start < p.fin && fin > p.debut)
   }, [absenceParEnseignant])
 
   const resolvedSlots = useMemo(() => {
@@ -470,7 +471,7 @@ export default function EmploiDuTempsClient({
           start_time: exception.override_start_time ?? slot.start_time,
           end_time: exception.override_end_time ?? slot.end_time,
           slot_type: slot.slot_type,
-          teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time),
+          teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time, slot.end_time),
           color: slot.color,
           classes: slot.classes,
           teachers: exception.override_teacher_id
@@ -497,7 +498,7 @@ export default function EmploiDuTempsClient({
           start_time: slot.start_time,
           end_time: slot.end_time,
           slot_type: slot.slot_type,
-          teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
+          teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
           color: slot.color,
           classes: slot.classes,
           teachers: slot.teachers,
@@ -527,7 +528,7 @@ export default function EmploiDuTempsClient({
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
-        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
+        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
         color: slot.color,
         classes: slot.classes,
         teachers: slot.teachers,
@@ -599,7 +600,7 @@ export default function EmploiDuTempsClient({
             start_time: exception.override_start_time ?? slot.start_time,
             end_time: exception.override_end_time ?? slot.end_time,
             slot_type: slot.slot_type,
-            teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time),
+            teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time, slot.end_time),
             color: slot.color,
             classes: slot.classes,
             teachers: exception.override_teacher_id
@@ -625,7 +626,7 @@ export default function EmploiDuTempsClient({
             start_time: slot.start_time,
             end_time: slot.end_time,
             slot_type: slot.slot_type,
-            teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
+            teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
             color: slot.color,
             classes: slot.classes,
             teachers: slot.teachers,
@@ -656,7 +657,7 @@ export default function EmploiDuTempsClient({
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
-        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time),
+        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
         color: slot.color,
         classes: slot.classes,
         teachers: slot.teachers,

@@ -18,7 +18,8 @@ export interface StaffTimePdfRow {
   typeMinutes: Record<string, number>
   /** Somme des types non-absence : le document doit dire ce que l'ecran dit. */
   workedMinutes: number
-  absenceDays: number
+  /** Absences en MINUTES : meme unite que le travail depuis qu'elles portent des horaires. */
+  absenceMinutes: number
   cost: number
 }
 
@@ -29,7 +30,7 @@ export interface StaffTimePdfInput {
   // types non-absence, dans l'ordre ; rate/color pour la legende des taux (si showCosts)
   typeColumns: { code: string; label: string; rate: number; color?: string }[]
   rows: StaffTimePdfRow[]
-  totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceDays: number; cost: number }
+  totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceMinutes: number; cost: number }
   showCosts: boolean
 }
 
@@ -44,9 +45,6 @@ function fmtEur(n: number): string {
   return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 }
 
-function fmtDays(n: number): string {
-  return `${n.toLocaleString('fr-FR')}j`
-}
 
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim())
@@ -143,7 +141,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       return mins > 0 ? fmtDuration(mins) : '·'
     }),
     r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·',
-    r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·',
+    r.absenceMinutes > 0 ? fmtDuration(r.absenceMinutes) : '·',
     ...(input.showCosts ? [fmtEur(r.cost)] : []),
   ])
 
@@ -154,7 +152,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
       return mins > 0 ? fmtDuration(mins) : '·'
     }),
     input.totals.workedMinutes > 0 ? fmtDuration(input.totals.workedMinutes) : '·',
-    input.totals.absenceDays > 0 ? fmtDays(input.totals.absenceDays) : '·',
+    input.totals.absenceMinutes > 0 ? fmtDuration(input.totals.absenceMinutes) : '·',
     ...(input.showCosts ? [fmtEur(input.totals.cost)] : []),
   ]]
 

@@ -126,7 +126,7 @@ export default async function EmploiDuTempsPage() {
   const { data: absences } = codesAbsence.length
     ? await supabase
         .from('staff_time_entries')
-        .select('profile_id, entry_date, absence_period')
+        .select('profile_id, entry_date, start_time, end_time')
         .in('entry_type', codesAbsence)
         .gte('entry_date', currentYear.start_date)
         .lte('entry_date', currentYear.end_date)

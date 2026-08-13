@@ -29,7 +29,6 @@ export interface TimeEntry {
   is_replacement: boolean
   replaced_profile_id: string | null
   absence_reason: string | null
-  absence_period: string // 'full' | 'am' | 'pm'
   notes: string | null
   recorded_by: string | null
 }
@@ -117,21 +116,6 @@ function fmtEur(n: number): string {
   return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 }
 
-// Valeur en jours d'une absence sur une journee selon les periodes saisies :
-// journee entiere = 1 ; matin ou apres-midi = 0,5 ; les deux demi-journees = 1.
-function absenceDayValue(periods: Set<string>): number {
-  if (periods.has('full')) return 1
-  return (periods.has('am') ? 0.5 : 0) + (periods.has('pm') ? 0.5 : 0)
-}
-
-// Formatage « 1j », « 0,5j », « 1,5j » (decimale francaise).
-function fmtDays(n: number): string {
-  return `${n.toLocaleString('fr-FR')}j`
-}
-
-// Libelle court d'une periode d'absence.
-const PERIOD_LABEL: Record<string, string> = { full: 'Journée', am: 'Matin', pm: 'Après-midi' }
-
 function getInitials(first: string, last: string): string {
   return `${(last?.[0] ?? '').toUpperCase()}${(first?.[0] ?? '').toUpperCase()}`
 }
@@ -171,8 +155,12 @@ function getWeekDays(refDate: Date): Date[] {
 // recomposee a l'affichage — le rendu ne connait que `nonAbsenceTypes`, la liste
 // des types de l'ANNEE EN COURS, alors que des saisies anciennes peuvent porter
 // un code retire depuis. Les additionner a l'ecran perdrait ces heures-la.
-interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; workedMinutes: number; absenceDays: number; cost: number }
-interface RecapResult { rows: RecapRow[]; totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceDays: number; cost: number } }
+// Les absences se comptent desormais en MINUTES, comme le travail : depuis que
+// l'absence porte des horaires, la demi-journee n'a plus de sens. `absenceDetail`
+// garde chaque absence pour l'infobulle — une somme d'heures ne dit pas QUAND.
+interface AbsenceLigne { date: string; start: string; end: string; minutes: number }
+interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; workedMinutes: number; absenceMinutes: number; absenceDetail: AbsenceLigne[]; cost: number }
+interface RecapResult { rows: RecapRow[]; totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceMinutes: number; cost: number } }
 
 function buildRecap(
   list: TimeEntry[],
@@ -181,30 +169,35 @@ function buildRecap(
   rateByTypeId: Record<string, number>,
 ): RecapResult {
   const recapMap: Record<string, Record<string, number>> = {}
-  // Absences : periodes saisies par (personne, jour) → converties en fractions de jour.
-  // Plusieurs saisies le meme jour se combinent (matin + apres-midi = 1 jour).
-  const absencePeriodsMap: Record<string, Record<string, Set<string>>> = {}
+  // Absences : conservees ligne par ligne. La somme donne le total, le detail
+  // alimente l'infobulle du recapitulatif.
+  const absencesParProfil: Record<string, AbsenceLigne[]> = {}
 
   for (const e of list) {
     if (!recapMap[e.profile_id]) recapMap[e.profile_id] = {}
 
     const pt = findPresenceType(presenceTypes, e.entry_type)
     if (pt?.is_absence) {
-      const byDate = (absencePeriodsMap[e.profile_id] ??= {})
-      ;(byDate[e.entry_date] ??= new Set()).add(e.absence_period || 'full')
+      ;(absencesParProfil[e.profile_id] ??= []).push({
+        date: e.entry_date,
+        start: e.start_time?.slice(0, 5) ?? '',
+        end: e.end_time?.slice(0, 5) ?? '',
+        minutes: e.duration_minutes,
+      })
     } else {
       const code = e.entry_type.toUpperCase()
       recapMap[e.profile_id][code] = (recapMap[e.profile_id][code] ?? 0) + e.duration_minutes
     }
   }
 
-  const allProfileIds = new Set([...Object.keys(recapMap), ...Object.keys(absencePeriodsMap)])
+  const allProfileIds = new Set([...Object.keys(recapMap), ...Object.keys(absencesParProfil)])
 
   const rows = Array.from(allProfileIds).map(profileId => {
     const s = staffMap[profileId]
     const typeMinutes = recapMap[profileId] ?? {}
-    const byDate = absencePeriodsMap[profileId] ?? {}
-    const absenceDays = Object.values(byDate).reduce((sum, periods) => sum + absenceDayValue(periods), 0)
+    const absenceDetail = (absencesParProfil[profileId] ?? [])
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+    const absenceMinutes = absenceDetail.reduce((sum, a) => sum + a.minutes, 0)
 
     let cost = 0
     for (const pt of presenceTypes.filter(p => !p.is_absence)) {
@@ -218,7 +211,8 @@ function buildRecap(
       name: s ? `${s.last_name} ${s.first_name}` : '·',
       typeMinutes,
       workedMinutes: Object.values(typeMinutes).reduce((a, b) => a + b, 0),
-      absenceDays,
+      absenceMinutes,
+      absenceDetail,
       cost,
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
@@ -231,10 +225,10 @@ function buildRecap(
     return {
       typeMinutes: tm,
       workedMinutes: t.workedMinutes + r.workedMinutes,
-      absenceDays: t.absenceDays + r.absenceDays,
+      absenceMinutes: t.absenceMinutes + r.absenceMinutes,
       cost: t.cost + r.cost,
     }
-  }, { typeMinutes: {} as Record<string, number>, workedMinutes: 0, absenceDays: 0, cost: 0 })
+  }, { typeMinutes: {} as Record<string, number>, workedMinutes: 0, absenceMinutes: 0, cost: 0 })
 
   return { rows, totals }
 }
@@ -474,7 +468,7 @@ export default function TempsPresenceClient({
         etablissementLogo,
         periodLabel,
         typeColumns: presenceTypes.filter(p => !p.is_absence).map(p => ({ code: p.code, label: p.label, rate: rateByTypeId[p.id] ?? 0, color: p.color })),
-        rows: recap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, workedMinutes: r.workedMinutes, absenceDays: r.absenceDays, cost: r.cost })),
+        rows: recap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, workedMinutes: r.workedMinutes, absenceMinutes: r.absenceMinutes, cost: r.cost })),
         totals: recap.totals,
         showCosts: canSeeCosts,
       })
@@ -519,7 +513,26 @@ export default function TempsPresenceClient({
                   <td className="px-4 py-3 text-center tabular-nums font-semibold text-secondary-800 border-l border-warm-200">
                     {r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·'}
                   </td>
-                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceDays > 0 ? 'text-red-600 font-medium' : 'text-warm-700'}`}>{r.absenceDays > 0 ? fmtDays(r.absenceDays) : '·'}</td>
+                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceMinutes > 0 ? 'text-red-600 font-medium' : 'text-warm-700'}`}>
+                    {r.absenceMinutes > 0 ? (
+                      // Une somme d'heures ne dit pas QUAND : l'infobulle liste
+                      // chaque absence, une par ligne.
+                      <Tooltip
+                        maxWidth="max-w-none"
+                        content={
+                          <span className="whitespace-pre">
+                            {r.absenceDetail
+                              .map(a => `${new Date(a.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}   ${a.start}-${a.end}   ${fmtDuration(a.minutes)}`)
+                              .join('\n')}
+                          </span>
+                        }
+                      >
+                        <span className="cursor-help underline decoration-dotted underline-offset-2">
+                          {fmtDuration(r.absenceMinutes)}
+                        </span>
+                      </Tooltip>
+                    ) : '·'}
+                  </td>
                   {canSeeCosts && <td className="px-5 py-3 text-right font-bold text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(r.cost)}</td>}
                 </tr>
               ))}
@@ -538,7 +551,7 @@ export default function TempsPresenceClient({
                 <td className="px-4 py-3 text-center tabular-nums text-secondary-800 border-l border-warm-200">
                   {recap.totals.workedMinutes > 0 ? fmtDuration(recap.totals.workedMinutes) : '·'}
                 </td>
-                <td className="px-4 py-3 text-center text-red-600 tabular-nums">{recap.totals.absenceDays > 0 ? fmtDays(recap.totals.absenceDays) : '·'}</td>
+                <td className="px-4 py-3 text-center text-red-600 tabular-nums">{recap.totals.absenceMinutes > 0 ? fmtDuration(recap.totals.absenceMinutes) : '·'}</td>
                 {canSeeCosts && <td className="px-5 py-3 text-right text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(recap.totals.cost)}</td>}
               </tr>
             </tfoot>
@@ -819,8 +832,10 @@ export default function TempsPresenceClient({
                               className="italic text-warm-700 text-[10px]"
                             />
                           )}
-                          {isAbs && e.absence_period && e.absence_period !== 'full' && (
-                            <span className="text-warm-700 text-[10px] font-medium shrink-0">{PERIOD_LABEL[e.absence_period]}</span>
+                          {isAbs && e.start_time && e.end_time && (
+                            <span className="text-warm-700 text-[10px] font-medium shrink-0 tabular-nums">
+                              {fmtTime(e.start_time)}-{fmtTime(e.end_time)}
+                            </span>
                           )}
                           {isAbs && e.absence_reason && (
                             <TruncatedText text={e.absence_reason} className="italic text-warm-700 text-[10px]" />
@@ -972,11 +987,8 @@ export default function TempsPresenceClient({
               <Row label="Membre">{s ? `${s.last_name} ${s.first_name}` : '·'}</Row>
               <Row label="Type"><span style={{ color: pt?.color }} className="font-semibold">{pt?.label ?? entry.entry_type}</span></Row>
               <Row label="Date"><span className="capitalize">{dateLbl}</span></Row>
-              {isAbs ? (
-                <Row label="Période">{PERIOD_LABEL[entry.absence_period] ?? 'Journée'}{entry.absence_reason ? ` · ${entry.absence_reason}` : ''}</Row>
-              ) : (
-                <Row label="Horaire">{fmtTime(entry.start_time)}-{fmtTime(entry.end_time)} ({fmtDuration(entry.duration_minutes)})</Row>
-              )}
+              <Row label="Horaire">{fmtTime(entry.start_time)}-{fmtTime(entry.end_time)} ({fmtDuration(entry.duration_minutes)})</Row>
+              {isAbs && entry.absence_reason && <Row label="Motif">{entry.absence_reason}</Row>}
               {entry.is_replacement && rs && <Row label="Remplacement">Remplace {rs.last_name} {rs.first_name}</Row>}
             </div>
           </div>

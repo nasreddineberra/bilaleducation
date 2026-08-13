@@ -54,6 +54,13 @@ interface Props {
  */
 const AUCUN = '__aucun__'
 
+/** Minutes entre deux horaires « HH:MM ». */
+function minutesEntre(debut: string, fin: string): number {
+  const [dh, dm] = debut.split(':').map(Number)
+  const [fh, fm] = fin.split(':').map(Number)
+  return (fh * 60 + fm) - (dh * 60 + dm)
+}
+
 interface TeacherRef {
   id: string
   user_id: string | null
@@ -82,7 +89,10 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const [isReplacement, setIsReplacement] = useState(entry?.is_replacement ?? false)
   const [replacedId, setReplacedId] = useState(entry?.replaced_profile_id ?? '')
   const [absenceReason, setAbsenceReason] = useState(entry?.absence_reason ?? '')
-  const [absencePeriod, setAbsencePeriod] = useState<string>(entry?.absence_period ?? 'full')
+  // Creneaux manques. Une absence porte des HORAIRES, plus une demi-journee :
+  // un enseignant ayant deux cours le matin et n'en manquant qu'un doit pouvoir
+  // le dire, ce que « Matin » ne permettait pas.
+  const [creneauxManques, setCreneauxManques] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState(entry?.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -136,11 +146,9 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // creneau bascule donc chez le remplacant sans une ligne de plus cote EDT.
   const teacherIdDuProfil = teachers.find(t => t.user_id === profileId)?.id ?? ''
 
-  const creneauxConcernes = creneauxDuJour(slots, exceptions, teacherIdDuProfil, date)
-    .filter(cr => {
-      if (absencePeriod === 'full') return true
-      return absencePeriod === 'am' ? cr.startTime < '12:00' : cr.startTime >= '12:00'
-    })
+  const creneauxDuJourPersonne = creneauxDuJour(slots, exceptions, teacherIdDuProfil, date)
+  // Ceux effectivement manques : eux seuls appellent un remplacant.
+  const creneauxConcernes = creneauxDuJourPersonne.filter(cr => creneauxManques.has(cr.slotId))
 
   // ── Un remplacant doit etre LIBRE sur ce creneau ─────────────────────────
   //
@@ -161,12 +169,14 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     // 3. absent ce demi-jour
     const t = teachers.find(x => x.id === teacherId)
     if (t?.user_id) {
+      // Chevauchement d'HORAIRES : une absence de 9h a 10h ne rend plus
+      // indisponible sur un cours de 14h, ce que la demi-journee faisait.
       const absentIci = existingEntries.some(e =>
         e.profile_id === t.user_id
         && isAbsenceType(e.entry_type)
-        && (e.absence_period === 'full'
-            || (e.absence_period === 'am' && cr.startTime < '12:00')
-            || (e.absence_period === 'pm' && cr.startTime >= '12:00')),
+        && !!e.start_time && !!e.end_time
+        && cr.startTime < e.end_time.slice(0, 5)
+        && cr.endTime   > e.start_time.slice(0, 5),
       )
       if (absentIci) return 'absent'
     }
@@ -195,6 +205,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const [remplacants, setRemplacants] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    setCreneauxManques(new Set())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId, date])
+
+  useEffect(() => {
     setRemplacants(prev => {
       const suivant: Record<string, string> = {}
       for (const cr of creneauxConcernes) {
@@ -203,7 +218,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       return suivant
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId, date, absencePeriod, isAbsence])
+  }, [profileId, date, creneauxManques, isAbsence])
 
   const isDirty = !isEdit || (
     profileId !== (entry?.profile_id ?? currentUserId) ||
@@ -213,7 +228,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     isReplacement !== (entry?.is_replacement ?? false) ||
     replacedId !== (entry?.replaced_profile_id ?? '') ||
     absenceReason !== (entry?.absence_reason ?? '') ||
-    absencePeriod !== (entry?.absence_period ?? 'full') ||
+
     notes !== (entry?.notes ?? '')
   )
 
@@ -230,9 +245,16 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     return !indisponibilite(choix, cr)
   })
 
+  // Une absence d'enseignant doit designer au moins un creneau manque : sans
+  // creneau, elle ne dit rien. Pour qui n'a pas cours ce jour-la, les horaires
+  // saisis a la main font foi, comme pour une presence.
+  const absenceValide = !isAbsence
+    || (creneauxDuJourPersonne.length > 0 ? creneauxManques.size > 0 : (!!startTime && !!endTime))
+
   const canSave = isDirty
     && (!canManage || !!profileId)
     && !!entryType
+    && absenceValide
     && (isAbsence || (!!startTime && !!endTime))
     && (!isReplacement || !!replacedId)
     && (!isAbsence || remplacementsRepondus)
@@ -245,7 +267,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
     // Calcul duration
     let durationMinutes = 0
-    if (!isAbsence && startTime && endTime) {
+    if (startTime && endTime) {
       const [sh, sm] = startTime.split(':').map(Number)
       const [eh, em] = endTime.split(':').map(Number)
       durationMinutes = (eh * 60 + em) - (sh * 60 + sm)
@@ -277,24 +299,38 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
       }
     }
 
-    const payload = {
+    const commun = {
       profile_id: profileId,
       entry_date: date,
       entry_type: entryType,
-      start_time: isAbsence ? null : startTime,
-      end_time: isAbsence ? null : endTime,
-      duration_minutes: isAbsence ? 0 : durationMinutes,
       is_replacement: isReplacement,
       replaced_profile_id: isReplacement && replacedId ? replacedId : null,
       absence_reason: isAbsence ? absenceReason : null,
-      absence_period: isAbsence ? absencePeriod : 'full',
       notes: notes || null,
       recorded_by: currentUserId,
     }
 
+    // UNE LIGNE PAR CRENEAU MANQUE. Une absence porte desormais des horaires :
+    // deux cours manques le meme jour font deux lignes, chacune avec sa duree
+    // reelle. Pour qui n'a pas cours ce jour-la (secretariat, entretien), les
+    // horaires saisis a la main font foi — une seule ligne, comme avant.
+    const lignes = isAbsence && creneauxConcernes.length > 0
+      ? creneauxConcernes.map(cr => ({
+          ...commun,
+          start_time: cr.startTime,
+          end_time: cr.endTime,
+          duration_minutes: minutesEntre(cr.startTime, cr.endTime),
+        }))
+      : [{
+          ...commun,
+          start_time: startTime,
+          end_time: endTime,
+          duration_minutes: durationMinutes,
+        }]
+
     const { error: err } = isEdit
-      ? await supabase.from('staff_time_entries').update(payload).eq('id', entry!.id)
-      : await supabase.from('staff_time_entries').insert(payload)
+      ? await supabase.from('staff_time_entries').update(lignes[0]).eq('id', entry!.id)
+      : await supabase.from('staff_time_entries').insert(lignes)
 
     if (err) { setSaving(false); setError(err.message); return }
 
@@ -480,27 +516,48 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
             </div>
           )}
 
-          {/* Periode d'absence (journee / demi-journee) */}
-          {isAbsence && (
+          {/* CRENEAUX MANQUES — remplace le selecteur Journee / Matin /
+              Apres-midi, supprime : depuis qu'un remplacant se designe sur le
+              creneau, c'est LUI la maille d'une absence. Un enseignant ayant
+              deux cours le matin et n'en manquant qu'un ne pouvait pas le dire.
+
+              Meme langage visuel que les anciens boutons de periode — memes
+              classes, meme etat presse — mais rempli du contenu reel. */}
+          {isAbsence && creneauxDuJourPersonne.length > 0 && (
             <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
-              <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">Période</span>
-              <div className="flex gap-2" role="group" aria-label="Période d'absence">
-                {(['full', 'am', 'pm'] as const).map(p => {
-                  const selected = absencePeriod === p
-                  const label = p === 'full' ? 'Journée' : p === 'am' ? 'Matin' : 'Après-midi'
+              <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">
+                Créneaux manqués <span className="text-red-500">*</span>
+              </span>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Créneaux manqués">
+                {creneauxDuJourPersonne.map(cr => {
+                  const choisi = creneauxManques.has(cr.slotId)
                   return (
                     <button
-                      key={p}
+                      key={cr.slotId}
                       type="button"
-                      onClick={() => setAbsencePeriod(p)}
-                      aria-pressed={selected}
-                      className={`flex-1 text-center text-xs font-semibold py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${selected ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
+                      onClick={() => setCreneauxManques(prev => {
+                        const suivant = new Set(prev)
+                        if (suivant.has(cr.slotId)) suivant.delete(cr.slotId)
+                        else suivant.add(cr.slotId)
+                        return suivant
+                      })}
+                      aria-pressed={choisi}
+                      className={`text-center text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${choisi ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
                     >
-                      {label}
+                      {classesById[cr.classId] ?? 'Classe'} · {cr.startTime}-{cr.endTime}
                     </button>
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Sans cours ce jour-la (secretariat, entretien, ou enseignant hors
+              creneau), l'absence se saisit comme une presence : des horaires. */}
+          {isAbsence && creneauxDuJourPersonne.length === 0 && profileId && (
+            <div className="grid grid-cols-2 gap-3">
+              <FloatInput label="DÉBUT" required type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+              <FloatInput label="FIN"   required type="time" value={endTime}   onChange={e => setEndTime(e.target.value)} />
             </div>
           )}
 
@@ -535,7 +592,9 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                 <p className="text-xs text-warm-700 italic">
                   {!profileId
                     ? 'Choisissez un membre pour voir ses cours de ce jour.'
-                    : `Aucun cours ${absencePeriod === 'am' ? 'ce matin' : absencePeriod === 'pm' ? 'cet après-midi' : 'ce jour'} : il n'y a rien à faire remplacer.`}
+                    : creneauxDuJourPersonne.length === 0
+                      ? "Aucun cours ce jour : il n'y a rien à faire remplacer."
+                      : 'Sélectionnez le ou les créneaux manqués ci-dessus.'}
                 </p>
               ) : creneauxConcernes.map(cr => (
                 <div key={cr.slotId}>
