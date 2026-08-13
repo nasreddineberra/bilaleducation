@@ -9,6 +9,17 @@ const SESSION_COOKIE = 'app-session'
 // navigateur à sa fermeture. Permet de distinguer « navigateur resté ouvert »
 // (vraie inactivité → message) de « navigateur fermé puis rouvert » (démarrage à
 // froid → login neutre, sans message). app-session, lui, est persistant (30 j).
+/**
+ * Ancien marqueur de session navigateur, RETIRE le 11 aout.
+ *
+ * Il servait a distinguer « navigateur reste ouvert » de « rouvert », pour
+ * choisir le libelle d'un message. Troisieme etat a tenir coherent avec les deux
+ * autres, il a cause un verrouillage en production le 9 aout — un message n'a
+ * jamais valu ce risque, et le motif se deduit desormais de ce qu'on mesure.
+ *
+ * Le nom reste ici pour une seule raison : PURGER les navigateurs qui en portent
+ * encore un. A supprimer quand le parc aura tourne.
+ */
 const BROWSER_MARKER = 'app-open'
 
 export async function proxy(request: NextRequest) {
@@ -399,82 +410,72 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // ── Gestion inactivité (1h) + durée max (24h) ──────────────────────────────
+  // ══ SESSION : INACTIVITE ET DUREE MAXIMALE ═════════════════════════════════
+  //
+  // ┌─ CE QUI A CHANGE, ET POURQUOI ──────────────────────────────────────────┐
+  // │ Ce mecanisme a recu SIX correctifs en un mois, tous sur le meme defaut   │
+  // │ de conception : nous repondions a « cette session est-elle valable ? »   │
+  // │ avec une horloge que NOUS maintenions, dans un cookie — c'est-a-dire     │
+  // │ dans un endroit que nous ne controlons pas. Partage entre sous-domaines, │
+  // │ survivant aux changements de configuration, restaure par le navigateur,  │
+  // │ duplique quand la portee change.                                        │
+  // │                                                                          │
+  // │ Et la regle etait FAIL-CLOSED : cookie present et perime ⇒ deconnexion.  │
+  // │ Or un cookie perime et un cookie ETRANGER sont indistinguables. D'ou des │
+  // │ verrouillages sans recours — chaque tentative repartait du meme etat.    │
+  // └──────────────────────────────────────────────────────────────────────────┘
+  //
+  // TROIS PRINCIPES, desormais :
+  //
+  //   1. UNE SEULE AUTORITE POUR L'IDENTITE. `last_sign_in_at` vient de
+  //      Supabase et ne peut pas diverger de la session qu'il decrit. La duree
+  //      MAXIMALE s'y ancre. Le `loginTime` que nous recopiions a disparu.
+  //
+  //   2. LE TRACEUR EST CONSULTATIF, JAMAIS AUTORITAIRE. Il ne porte plus que
+  //      la derniere activite — la seule donnee que Supabase n'a pas — et sa
+  //      duree de vie est bornee a la fenetre qu'il surveille. Il ne peut donc
+  //      plus MENTIR : il peut seulement MANQUER.
+  //
+  //   3. FAIL-OPEN. Dans le doute, on laisse entrer. Verrouiller un client
+  //      dehors est plus grave que de le garder connecte une nuit.
   if (user && pathname.startsWith('/dashboard')) {
     const now = Math.floor(Date.now() / 1000)
-    const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value
-    let loginTime = now
-    let lastActivity = now
 
-    if (sessionCookie) {
+    // ── Duree maximale : ancree sur SUPABASE ────────────────────────────────
+    const signIn = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : NaN
+    const ageSession = Number.isFinite(signIn) ? (Date.now() - signIn) / 1000 : 0
+    const expired = ageSession > MAX_SESSION_DURATION
+
+    // ── Inactivite : la seule chose que nous ayons a mesurer ────────────────
+    //
+    // Le traceur vit 2 h. S'il manque, deux lectures sont possibles : session
+    // toute neuve, ou navigateur laisse au repos plus longtemps que sa duree de
+    // vie. `ageSession` tranche — et en son absence on laisse entrer.
+    const traceur = request.cookies.get(SESSION_COOKIE)?.value
+    let lastActivity: number | null = null
+    if (traceur) {
       try {
-        const parsed = JSON.parse(sessionCookie)
-        loginTime = parsed.loginTime ?? now
-        lastActivity = parsed.lastActivity ?? now
-      } catch (err) {
-        console.error('[proxy] Cookie de session corrompu, réinitialisation:', err)
+        const parsed = JSON.parse(traceur)
+        if (typeof parsed?.lastActivity === 'number') lastActivity = parsed.lastActivity
+      } catch {
+        // Traceur illisible : on l'ignore. Il sera reecrit plus bas.
       }
     }
 
-    // ┌─ ON NE DECONNECTE JAMAIS QUI VIENT DE S'AUTHENTIFIER ─────────────────┐
-    // │ Le cookie `app-session` est une horloge PARALLELE a la vraie session   │
-    // │ Supabase. Des que les deux divergent — cookie d'un autre domaine,      │
-    // │ purge incomplete, navigateur restaure — le middleware conclut a        │
-    // │ l'inactivite et renvoie vers /login quelqu'un qui vient de taper son   │
-    // │ mot de passe. BOUCLE, et l'utilisateur ne peut RIEN y faire : chaque   │
-    // │ tentative repart du meme etat.                                        │
-    // │                                                                        │
-    // │ Deux fois en une journee, le 11 aout. La cause differait, le symptome  │
-    // │ non — et c'est le signe qu'il faut traiter la classe, pas le cas.      │
-    // │                                                                        │
-    // │ `last_sign_in_at` vient de SUPABASE, pas de nous : il ne peut pas      │
-    // │ diverger de la session qu'il decrit. Une authentification de moins de  │
-    // │ deux minutes prime donc sur toute horloge locale.                      │
-    // └────────────────────────────────────────────────────────────────────────┘
-    const dernierLogin = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : NaN
-    const authFraiche = Number.isFinite(dernierLogin) && (Date.now() - dernierLogin) < 120_000
+    const inactive = lastActivity !== null
+      // Traceur present : il fait foi, c'est la mesure la plus precise.
+      ? now - lastActivity > INACTIVITY_TIMEOUT
+      // Traceur absent ET session plus vieille que sa duree de vie : le cookie a
+      // expire sans etre rafraichi, donc aucune activite depuis au moins ce
+      // delai. Une session plus jeune, elle, vient forcement de commencer.
+      : ageSession > SESSION_COOKIE_MAX_AGE
 
-    const inactive = !authFraiche && now - lastActivity > INACTIVITY_TIMEOUT
-    const expired  = !authFraiche && now - loginTime   > MAX_SESSION_DURATION
-
-    // FERMETURE DU NAVIGATEUR = FIN DE SESSION.
-    //
-    // `app-open` est pose SANS duree de vie : le navigateur l'efface en se
-    // fermant. Sa disparition ALORS QUE `app-session` subsiste (donc qu'il y a
-    // bien eu une session) ne peut vouloir dire qu'une chose : le navigateur a
-    // ete ferme depuis la derniere activite.
-    //
-    // C'est le bon comportement pour un poste PARTAGE — l'ordinateur du
-    // secretariat, qu'on ferme et devant lequel quelqu'un d'autre s'assoit.
-    //
-    // LIMITE : un navigateur regle sur « reprendre la ou vous vous etiez
-    // arrete » restaure ses cookies de session ; la fermeture n'est alors pas
-    // detectee. Reglage minoritaire, et l'inactivite reste le filet.
-    const browserOpen = !!request.cookies.get(BROWSER_MARKER)?.value
-
-    // RETIRE LE 9 AOUT, APRES VERROUILLAGE EN PRODUCTION. La condition
-    // `!!sessionCookie && !browserOpen` renvoyait l'utilisateur sur /login en
-    // boucle apres une fermeture de navigateur. La cause n'est pas etablie : la
-    // purge de /login fonctionne (verifiee en production), et les deux cookies
-    // sont poses ensemble sur toute reponse valide du tableau de bord — ils ne
-    // devraient jamais diverger.
-    //
-    // Piste a explorer : le bloc 2FA s'execute APRES et retourne une NOUVELLE
-    // reponse (`NextResponse.redirect`), qui ne porte pas les cookies poses sur
-    // `response`. Un compte soumis au TOTP n'obtiendrait donc jamais `app-open`,
-    // alors que `app-session` survit 30 jours — les deux divergent, et la
-    // condition se declenche a chaque passage.
-    //
-    // A reprendre a tete reposee, avec un test avant deploiement. Rester
-    // connecte apres avoir ferme son navigateur est un inconfort ; etre
-    // verrouille hors de la production est une panne.
     if (inactive || expired) {
-      // Le message ne s'affiche que si le NAVIGATEUR est reste ouvert. Sur un
-      // demarrage a froid, il a disparu → login neutre, sans message : se
-      // reconnecter apres avoir ferme son navigateur n'a rien d'anormal, et
-      // annoncer une « session expiree » inquieterait pour rien.
-      const reason = browserOpen ? (inactive ? 'inactivity' : 'session') : null
-      const loginUrl = reason ? `/login?reason=${reason}` : '/login'
+      // Le motif se deduit de ce qu'on vient de mesurer, plus d'un troisieme
+      // cookie a tenir coherent avec les deux autres : `app-open` servait a
+      // choisir ce libelle, et il a cause un verrouillage le 9 aout. Un message
+      // n'a jamais valu ce risque.
+      const loginUrl = `/login?reason=${inactive ? 'inactivity' : 'session'}`
       const redirect = NextResponse.redirect(new URL(loginUrl, request.url))
 
       // Déconnecter côté Supabase et propager la suppression des cookies auth
@@ -498,25 +499,15 @@ export async function proxy(request: NextRequest) {
       return redirect
     }
 
-    // Session valide → mettre à jour la dernière activité.
-    // maxAge long (≠ 24h) : le cookie doit survivre a une periode d'inactivite pour
-    // pouvoir CONSTATER l'expiration au retour (sinon son absence = session neuve).
-    const cookieValue = JSON.stringify({ loginTime, lastActivity: now })
-    response.cookies.set(SESSION_COOKIE, cookieValue, withDomain({
+    // Session valide → on rafraichit la derniere activite. RIEN D'AUTRE : la
+    // duree maximale s'ancre sur `last_sign_in_at`, elle n'a pas a etre recopiee
+    // ici. Un champ, un ecrivain, une portee.
+    response.cookies.set(SESSION_COOKIE, JSON.stringify({ lastActivity: now }), withDomain({
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       path: '/',
       maxAge: SESSION_COOKIE_MAX_AGE,
-    }))
-
-    // Marqueur de session navigateur : SANS maxAge/expires → le navigateur le
-    // supprime à sa fermeture. Sa présence atteste que le navigateur est resté ouvert.
-    response.cookies.set(BROWSER_MARKER, '1', withDomain({
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax' as const,
-      path: '/',
     }))
   }
 

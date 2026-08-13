@@ -3,11 +3,28 @@ export const INACTIVITY_SECONDS  = 60 * 60      // 1 heure d'inactivité
 export const MAX_SESSION_SECONDS = 24 * 3600    // 24 heures max depuis la connexion
 export const INACTIVITY_MS       = INACTIVITY_SECONDS * 1000
 
-// Durée de vie du cookie tracker `app-session` : doit être BIEN plus longue que la
-// fenêtre surveillée (inactivité 1h / max 24h). Sinon le cookie disparaît avant que
-// l'expiration puisse être constatée, et son absence est prise pour une session neuve
-// → l'inactivité/durée max ne s'appliquent plus (la session Supabase, elle, persiste).
-export const SESSION_COOKIE_MAX_AGE = 30 * 24 * 3600   // 30 jours
+/**
+ * Durée de vie du traceur `app-session`, BORNÉE à la fenêtre qu'il surveille.
+ *
+ * ┌─ POURQUOI ELLE A ÉTÉ RAMENÉE DE 30 JOURS À 2 HEURES ────────────────────┐
+ * │ Le raisonnement d'origine — « le cookie doit survivre à la fenêtre pour  │
+ * │ pouvoir CONSTATER l'expiration au retour » — supposait que le cookie soit│
+ * │ toujours le nôtre et toujours à jour. En pratique il peut être celui d'un│
+ * │ autre domaine, d'une configuration précédente, ou restauré par le        │
+ * │ navigateur. Un cookie périmé et un cookie ÉTRANGER sont alors            │
+ * │ indistinguables, et la règle « périmé ⇒ déconnexion » verrouillait       │
+ * │ l'utilisateur dehors sans recours : chaque tentative repartait du même   │
+ * │ état. Six correctifs en un mois sur ce seul mécanisme.                   │
+ * │                                                                          │
+ * │ Borné à 2 h, il ne peut plus MENTIR : il peut seulement MANQUER. Et son  │
+ * │ absence se tranche avec `last_sign_in_at`, qui vient de Supabase et ne   │
+ * │ peut pas diverger de la session qu'il décrit.                           │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Marge d'une heure au-dessus de la fenêtre d'inactivité : elle absorbe les
+ * décalages d'horloge sans rouvrir la porte à un cookie ancien.
+ */
+export const SESSION_COOKIE_MAX_AGE = INACTIVITY_SECONDS + 3600   // 2 heures
 
 /**
  * Domaine des cookies de session, ou `undefined` pour les laisser liés à l'hôte.
