@@ -416,8 +416,26 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    const inactive = now - lastActivity > INACTIVITY_TIMEOUT
-    const expired = now - loginTime > MAX_SESSION_DURATION
+    // ┌─ ON NE DECONNECTE JAMAIS QUI VIENT DE S'AUTHENTIFIER ─────────────────┐
+    // │ Le cookie `app-session` est une horloge PARALLELE a la vraie session   │
+    // │ Supabase. Des que les deux divergent — cookie d'un autre domaine,      │
+    // │ purge incomplete, navigateur restaure — le middleware conclut a        │
+    // │ l'inactivite et renvoie vers /login quelqu'un qui vient de taper son   │
+    // │ mot de passe. BOUCLE, et l'utilisateur ne peut RIEN y faire : chaque   │
+    // │ tentative repart du meme etat.                                        │
+    // │                                                                        │
+    // │ Deux fois en une journee, le 11 aout. La cause differait, le symptome  │
+    // │ non — et c'est le signe qu'il faut traiter la classe, pas le cas.      │
+    // │                                                                        │
+    // │ `last_sign_in_at` vient de SUPABASE, pas de nous : il ne peut pas      │
+    // │ diverger de la session qu'il decrit. Une authentification de moins de  │
+    // │ deux minutes prime donc sur toute horloge locale.                      │
+    // └────────────────────────────────────────────────────────────────────────┘
+    const dernierLogin = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : NaN
+    const authFraiche = Number.isFinite(dernierLogin) && (Date.now() - dernierLogin) < 120_000
+
+    const inactive = !authFraiche && now - lastActivity > INACTIVITY_TIMEOUT
+    const expired  = !authFraiche && now - loginTime   > MAX_SESSION_DURATION
 
     // FERMETURE DU NAVIGATEUR = FIN DE SESSION.
     //
