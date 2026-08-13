@@ -134,7 +134,23 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // La seule contrainte reelle est le CHEVAUCHEMENT d'horaires, portee par la
   // base et signalee ici creneau par creneau. Une liste ne doit pas interdire
   // ce que la regle autorise.
-  const selectableStaff = staffList
+  //
+  // ── UNE ABSENCE N'EXISTE QUE FACE A UN COURS PROGRAMME ───────────────────
+  //
+  // Le premier select ne propose donc que les enseignants ayant cours ce
+  // jour-la. Pour le reste du personnel, ne pas travailler un jour ne se
+  // declare pas : on ne saisit simplement pas d'heures. C'est le manque d'un
+  // COURS qui fait l'absence, parce que lui appelle un remplacant.
+  //
+  // La liste complete des membres, elle, ne sert qu'au REMPLACANT — n'importe
+  // quel actif peut depanner.
+  const aCoursCeJour = (profilId: string) => {
+    const tid = teachers.find(t => t.user_id === profilId)?.id
+    if (!tid) return false
+    return creneauxDuJour(slots, exceptions, tid, date).some(cr => cr.slotType === 'cours')
+  }
+
+  const selectableStaff = isAbsence ? staffList.filter(m => aCoursCeJour(m.id)) : staffList
 
   // ── Creneaux du jour, et remplacement creneau par creneau ────────────────
   //
@@ -216,11 +232,10 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     return !indisponibilite(choix, cr)
   })
 
-  // Une absence d'enseignant doit designer au moins un creneau manque : sans
-  // creneau, elle ne dit rien. Pour qui n'a pas cours ce jour-la, les horaires
-  // saisis a la main font foi, comme pour une presence.
-  const absenceValide = !isAbsence
-    || (creneauxDuJourPersonne.length > 0 ? creneauxManques.size > 0 : (!!startTime && !!endTime))
+  // Une absence doit designer au moins un creneau manque : sans creneau, elle
+  // ne dit rien. Le premier select ne proposant que des enseignants ayant cours
+  // ce jour-la, ce cas ne peut venir que d'un oubli de selection.
+  const absenceValide = !isAbsence || creneauxManques.size > 0
 
   const canSave = isDirty
     && (!canManage || !!profileId)
@@ -427,7 +442,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
           {/* Membre (filtre selon le type : une personne absente n'est pas saisissable
               en presence, et une personne presente n'est pas saisissable en absence) */}
-          {canManage ? (
+          {isAbsence && canManage && selectableStaff.length === 0 ? (
+            <p role="status" className="text-xs text-warm-700 bg-warm-50 border border-warm-200 rounded-lg px-3 py-2">
+              Aucun enseignant n&apos;a cours ce jour : il n&apos;y a pas d&apos;absence à déclarer.
+            </p>
+          ) : canManage ? (
             <FloatSelect
               label="MEMBRE ÉQUIPE"
               required
@@ -541,15 +560,6 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                   )
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Sans cours ce jour-la (secretariat, entretien, ou enseignant hors
-              creneau), l'absence se saisit comme une presence : des horaires. */}
-          {isAbsence && creneauxDuJourPersonne.length === 0 && profileId && (
-            <div className="grid grid-cols-2 gap-3">
-              <FloatInput label="DÉBUT" required type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-              <FloatInput label="FIN"   required type="time" value={endTime}   onChange={e => setEndTime(e.target.value)} />
             </div>
           )}
 
