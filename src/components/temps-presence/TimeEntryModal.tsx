@@ -169,6 +169,20 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     // peuvent pas etre a deux endroits. Le reste du personnel est present toute
     // la journee et depanne pendant son propre temps de travail.
     const estEnseignant = staffList.find(m => m.id === profilId)?.role === 'enseignant'
+
+    // 1. SON PROPRE COURS a la meme heure. C'est l'emploi du temps qui le dit,
+    //    pas les saisies : le cours est programme meme si personne ne l'a
+    //    encore valide. Ne regarder que `existingEntries` proposait un
+    //    enseignant en train d'assurer sa propre classe au meme moment.
+    const tid = teachers.find(t => t.user_id === profilId)?.id
+    if (tid) {
+      const sesCours = creneauxDuJour(slots, exceptions, tid, date)
+      if (sesCours.some(c => cr.startTime < c.endTime && cr.endTime > c.startTime)) {
+        return 'a déjà cours'
+      }
+    }
+
+    // 2. Une saisie deja enregistree qui chevauche — absence comprise.
     const occupe = estEnseignant && existingEntries.some(e => {
       if (e.profile_id !== profilId) return false
       if (!e.start_time || !e.end_time) return false
