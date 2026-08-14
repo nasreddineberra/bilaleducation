@@ -2992,6 +2992,31 @@ et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »)
     le seuil est `> 1` et jamais `!== 1` ; et « manquee » s'accorde avec les **heures**, pas avec le
     nombre d'absences (une seule absence peut peser trois heures). Faute vue par l'utilisateur.
   - Calcul confronte aux **11 saisies reelles** de l'annee (script service-role jetable, supprime).
+  - **Bande « Heures assurees par mois »** au-dessus des absences : une cellule par mois, barre
+    proportionnelle au mois le plus charge (echelle relative — un maximum theorique serait arbitraire
+    et ecraserait le releve de qui travaille peu). **Pas de Recharts** : la bibliotheque n'est chargee
+    que sur les statistiques de reglements, l'importer ici alourdirait la fiche pour treize barres.
+    Grille `auto-fill` : la meme bande tient sur une fiche large comme dans une colonne etroite.
+    - **Les mois sont ENGENDRES depuis `start_date`/`end_date`**, jamais supposes : l'annee en cours
+      court du 01/07/2026 au 04/07/2027, soit **TREIZE** mois. Ecrire « septembre a juin » serait la
+      faute du 17 juillet (`${label.split('-')[0]}-08-01`). Arithmetique de nombres, aucun `Date`.
+  - **Encadre « Mon temps de presence » sur Mon compte** : c'est le SEUL endroit ou l'interesse voit
+    ses heures — l'entree « Enseignants » de la barre laterale est reservee a admin/direction/
+    secretaire, un enseignant n'atteint donc **jamais** sa propre fiche.
+    - **Meme composant, meme resolveur** (`src/lib/temps-presence/assiduite.ts`, `chargerAssiduite`) :
+      les deux ecrans affichent les memes chiffres par CONSTRUCTION, pas par vigilance. Le resolveur
+      est SERVEUR ; verifie qu'il ne part pas dans le bundle navigateur (l'import de type est efface).
+    - Affiche pour tout **role pointable** (direction/comptable/secretaire/resp. pedago/enseignant) —
+      copie de l'exclusion du module Temps de presence : ni parent, ni super_admin, ni **admin**
+      (il gere le suivi sans y pointer ses heures). Le serveur n'envoie rien aux autres.
+    - Mode **`dense`** : le bloc ne dessine plus ses propres encadres (l'appelant l'enveloppe dans un
+      seul) et les 3 cartes stat deviennent une ligne de chiffres — des cartes dans une carte se
+      lisent comme un defaut de mise en page.
+    - **Page sans barre de defilement** (demande utilisateur) : **2 colonnes** (formulaires etroits a
+      gauche, releve a droite) et encadres resserres `p-4 space-y-3` → `p-3 space-y-2.5`, **carte 2FA
+      comprise** — elle vit dans son propre fichier et serait restee seule en `p-4`.
+    - Tables **bornees en hauteur** (`max-h` + `.list-scroll` + en-tete collant) et non figees : une
+      hauteur fixe laisserait un encadre a moitie vide pour deux lignes.
 
 - **`next/font/google` ABANDONNE — les polices vivent dans le depot** (`src/app/fonts/`,
   `next/font/local`). **Deux builds Vercel casses en deux jours** sur le meme message :

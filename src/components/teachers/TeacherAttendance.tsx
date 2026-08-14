@@ -4,56 +4,36 @@ import { Clock } from 'lucide-react'
 import ListStatCard from '@/components/ui/ListStatCard'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { fmtDuration } from '@/lib/temps-presence/format'
+import type { Assiduite } from '@/lib/temps-presence/assiduite'
 
 /**
- * ASSIDUITE D'UN ENSEIGNANT — onglet en LECTURE SEULE de sa fiche.
+ * ASSIDUITE D'UNE PERSONNE — bloc en LECTURE SEULE.
  *
- * ┌─ CE QUE CET ECRAN NE FAIT PAS ───────────────────────────────────────────┐
- * │ Il ne saisit rien. Le temps de presence a son module, avec ses gardes et  │
- * │ son calendrier ; dupliquer ici un chemin d'ecriture, ce serait deux       │
- * │ ecrans a tenir coherents sur la meme table.                               │
- * │                                                                           │
- * │ Il ne CALCULE rien non plus : les lignes arrivent resolues de la page,    │
- * │ qui a acces aux noms et aux types de presence. Le navigateur ne reçoit    │
- * │ donc pas la table des saisies pour en extraire trois chiffres.           │
+ * ┌─ DEUX ECRANS, UN SEUL COMPOSANT ─────────────────────────────────────────┐
+ * │ Onglet Assiduite de la fiche enseignant (lu par l'encadrement) et encadre │
+ * │ « Mon temps de presence » de Mon compte (lu par l'interesse). Meme bloc,  │
+ * │ mêmes chiffres, par CONSTRUCTION.                                         │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
- * Ce qui est affiche vient de `staff_time_entries`, et la RLS decide seule de
- * ce qui est lisible : l'encadrement voit tout, un enseignant ne voit que ses
- * propres lignes — donc sa propre fiche. Aucune garde de role n'est posee ici,
- * elle ferait doublon avec la base et divergerait d'elle.
+ * Il ne saisit rien. Le temps de presence a son module, avec ses gardes et son
+ * calendrier ; un second chemin d'ecriture sur la meme table, ce serait deux
+ * ecrans a tenir coherents.
+ *
+ * Il ne CALCULE rien non plus : tout arrive resolu de `chargerAssiduite`.
+ *
+ * AUCUN COUT ici, dans aucune des deux vues : ce bloc dit des heures, pas de
+ * l'argent.
  */
 
-export interface AbsenceLigne {
-  id: string
-  /** `AAAA-MM-JJ`. */
-  date: string
-  start: string
-  end: string
-  minutes: number
-  motif: string | null
-  /** `NOM Prenom` des personnes qui ont assure le creneau, deja construits. */
-  remplacants: string[]
-}
-
-export interface RemplacementLigne {
-  id: string
-  date: string
-  start: string
-  end: string
-  minutes: number
-  /** `NOM Prenom` de la personne remplacee, ou null si son compte a ete supprime. */
-  remplace: string | null
-}
-
-interface Props {
-  /** Une fiche sans compte de connexion ne pointe pas : il n'y a rien a montrer. */
-  hasAccount: boolean
-  yearLabel: string | null
-  workedMinutes: number
-  absenceMinutes: number
-  absences: AbsenceLigne[]
-  remplacements: RemplacementLigne[]
+interface Props extends Assiduite {
+  /**
+   * Vue resserree, pour Mon compte.
+   *
+   * Ce n'est pas qu'une affaire de marges : en dense, le bloc ne dessine PLUS
+   * ses propres encadres, parce que l'appelant l'enveloppe deja dans un seul.
+   * Des cartes dans une carte se lisent comme un defaut de mise en page.
+   */
+  dense?: boolean
 }
 
 const DAY_NAMES = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
@@ -102,30 +82,77 @@ function EtatVide({ texte }: { texte: string }) {
   )
 }
 
+/**
+ * Enveloppe d'un tableau : hauteur BORNEE, en-tete collant.
+ *
+ * Sans borne, une annee chargee pousserait la page — inacceptable sur Mon
+ * compte, qui doit tenir sans barre de defilement. Une hauteur figee ferait
+ * l'inverse : un encadre a moitie vide pour deux lignes. D'ou `max-h`, qui ne
+ * s'applique qu'a partir du moment ou il y a de quoi deborder.
+ */
+function TableauBorne({ children, hauteur, dense }: { children: React.ReactNode; hauteur: string; dense: boolean }) {
+  return (
+    <div className={`${dense ? 'border border-warm-100 rounded-lg' : 'card p-0'} overflow-hidden w-full`}>
+      <div className={`${hauteur} overflow-y-auto list-scroll`}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function TeacherAttendance({
   hasAccount,
   yearLabel,
   workedMinutes,
   absenceMinutes,
+  mois,
   absences,
   remplacements,
+  dense = false,
 }: Props) {
 
   if (!hasAccount) {
-    return <EtatVide texte="Cet enseignant n'a pas de compte de connexion : aucune présence ne lui est rattachée." />
+    return <EtatVide texte="Aucun compte de connexion rattaché : aucune présence n'est enregistrée." />
   }
 
   if (!yearLabel) {
     return <EtatVide texte="Aucune année scolaire en cours : l'assiduité se lit sur une année." />
   }
 
+  // Echelle des barres : le mois le PLUS charge vaut la hauteur pleine. Une
+  // echelle absolue (un maximum theorique d'heures) serait arbitraire et
+  // ecraserait tout le releve chez qui travaille peu.
+  const maxMois = Math.max(...mois.map(m => m.minutes), 1)
+
+  const hauteurTable = dense ? 'max-h-[13rem]' : 'max-h-[22rem]'
+
   return (
     // w-fit sur le conteneur + w-full sur les encadres : ils prennent tous la
     // meme largeur, celle du plus large des contenus, sans valeur en dur.
     // Meme montage que l'onglet Documents, pour que les deux s'alignent.
-    <div className="space-y-4 w-fit">
+    <div className={`${dense ? 'space-y-3' : 'space-y-4 w-fit'}`}>
 
-      {/* ── Synthese de l'annee ── */}
+      {/* ── Synthese de l'annee ──
+          En dense, une ligne de chiffres plutot que trois cartes : trois cartes
+          dans une carte se lisent comme un defaut de mise en page, et la colonne
+          de Mon compte n'a pas la largeur de les aligner. */}
+      {dense ? (
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-warm-700">
+          <span>
+            <span className="text-sm font-bold text-secondary-800 tabular-nums">{fmtDuration(workedMinutes)}</span>{' '}
+            assurées en {yearLabel}
+          </span>
+          <span>
+            <span className={`text-sm font-bold tabular-nums ${absences.length > 0 ? 'text-red-600' : 'text-secondary-800'}`}>{absences.length}</span>{' '}
+            absence{pl(absences.length)}
+            {absences.length > 0 && <> · {fmtDuration(absenceMinutes)} manquée{pl(absenceMinutes / 60)}</>}
+          </span>
+          <span>
+            <span className={`text-sm font-bold tabular-nums ${remplacements.length > 0 ? 'text-primary-600' : 'text-secondary-800'}`}>{remplacements.length}</span>{' '}
+            remplacement{pl(remplacements.length)} assuré{pl(remplacements.length)}
+          </span>
+        </div>
+      ) : (
       <div className="flex flex-wrap gap-2 w-full">
         <ListStatCard
           value={fmtDuration(workedMinutes)}
@@ -157,19 +184,65 @@ export default function TeacherAttendance({
           valueColor={remplacements.length > 0 ? 'text-primary-600' : 'text-secondary-800'}
         />
       </div>
+      )}
+
+      {/* ── Heures par mois ──
+          Les mois sont ceux de l'annee scolaire, engendres depuis ses bornes
+          reelles (ici juillet a juillet, soit treize). La grille se replie
+          d'elle-meme (`auto-fill`) : la meme bande tient sur la largeur d'une
+          fiche comme dans la colonne etroite de Mon compte. */}
+      <div className={`${dense ? '' : 'card p-3'} w-full space-y-2`}>
+        <div className="flex items-baseline gap-3">
+          <h2 className="stat-label">Heures assurées par mois</h2>
+          <div className="flex-1" />
+          {!dense && (
+            <span className="text-xs text-warm-700">
+              Total <span className="font-bold text-secondary-800 tabular-nums">{fmtDuration(workedMinutes)}</span>
+            </span>
+          )}
+        </div>
+
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr))] gap-1.5">
+          {mois.map(m => {
+            const actif = m.minutes > 0
+            return (
+              <li
+                key={m.cle}
+                className="rounded border border-warm-100 px-1 py-1 text-center"
+                aria-label={`${m.libelle} : ${actif ? fmtDuration(m.minutes) : 'aucune heure'}`}
+              >
+                <div className="stat-label leading-tight">{m.libelle}</div>
+                <div className={`text-xs font-bold tabular-nums leading-tight ${actif ? 'text-secondary-800' : 'text-warm-400'}`}>
+                  {actif ? fmtDuration(m.minutes) : '·'}
+                </div>
+                {/* Piste toujours dessinee : sans elle, les mois vides
+                    perdraient un pixel de hauteur et la bande ondulerait. */}
+                <div className="mt-1 h-1 rounded-full bg-warm-100 overflow-hidden">
+                  {actif && (
+                    <div
+                      className="h-full rounded-full bg-primary-500"
+                      style={{ width: `${Math.round((m.minutes / maxMois) * 100)}%` }}
+                    />
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
 
       {/* ── Absences ── */}
       <div className="space-y-2 w-full">
         <h2 className="stat-label">Absences</h2>
 
         {absences.length === 0 ? (
-          <div className="card p-4 text-center w-full">
+          <div className={`${dense ? "border border-warm-100 rounded-lg" : "card"} p-3 text-center w-full`}>
             <p className="text-sm text-warm-700">Aucune absence enregistrée cette année.</p>
           </div>
         ) : (
-          <div className="card p-0 overflow-hidden w-full">
-            <table className="w-full text-left text-xs" aria-label="Absences de l'enseignant">
-              <thead>
+          <TableauBorne hauteur={hauteurTable} dense={dense}>
+            <table className="w-full text-left text-xs" aria-label="Absences">
+              <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
                 <tr className="border-b border-warm-100">
                   <th scope="col" className="list-th w-36">Date</th>
                   <th scope="col" className="list-th w-32">Horaires</th>
@@ -206,7 +279,7 @@ export default function TeacherAttendance({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableauBorne>
         )}
       </div>
 
@@ -215,13 +288,13 @@ export default function TeacherAttendance({
         <h2 className="stat-label">Remplacements assurés</h2>
 
         {remplacements.length === 0 ? (
-          <div className="card p-4 text-center w-full">
+          <div className={`${dense ? "border border-warm-100 rounded-lg" : "card"} p-3 text-center w-full`}>
             <p className="text-sm text-warm-700">Aucun remplacement assuré cette année.</p>
           </div>
         ) : (
-          <div className="card p-0 overflow-hidden w-full">
-            <table className="w-full text-left text-xs" aria-label="Remplacements assurés par l'enseignant">
-              <thead>
+          <TableauBorne hauteur={hauteurTable} dense={dense}>
+            <table className="w-full text-left text-xs" aria-label="Remplacements assurés">
+              <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
                 <tr className="border-b border-warm-100">
                   <th scope="col" className="list-th w-36">Date</th>
                   <th scope="col" className="list-th w-32">Horaires</th>
@@ -240,7 +313,7 @@ export default function TeacherAttendance({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableauBorne>
         )}
       </div>
 

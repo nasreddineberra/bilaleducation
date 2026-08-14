@@ -6,7 +6,8 @@ import { clsx } from 'clsx'
 import { User, FileText, Clock } from 'lucide-react'
 import TeacherForm from './TeacherForm'
 import TeacherDocuments from './TeacherDocuments'
-import TeacherAttendance, { type AbsenceLigne, type RemplacementLigne } from './TeacherAttendance'
+import TeacherAttendance from './TeacherAttendance'
+import type { Assiduite } from '@/lib/temps-presence/assiduite'
 import type { Teacher, TeacherDocument } from '@/types/database'
 
 const TABS = [
@@ -16,16 +17,6 @@ const TABS = [
 ] as const
 
 type TabKey = typeof TABS[number]['key']
-
-/** Assiduité de l'année en cours, résolue par la page (voir `TeacherAttendance`). */
-export interface Assiduite {
-  hasAccount: boolean
-  yearLabel: string | null
-  workedMinutes: number
-  absenceMinutes: number
-  absences: AbsenceLigne[]
-  remplacements: RemplacementLigne[]
-}
 
 interface Props {
   teacher:   Teacher

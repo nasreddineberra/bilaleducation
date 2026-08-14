@@ -10,6 +10,8 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
 import { updateOwnProfile, updateOwnEmail } from '@/app/dashboard/mon-compte/actions'
 import TwoFactorCard from '@/components/mon-compte/TwoFactorCard'
+import TeacherAttendance from '@/components/teachers/TeacherAttendance'
+import type { Assiduite } from '@/lib/temps-presence/assiduite'
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -28,6 +30,8 @@ interface Props {
   profile:            ProfileData
   email:              string
   etablissementName:  string
+  /** `null` pour les rôles qui ne pointent pas (admin, parent, super_admin). */
+  assiduite:          Assiduite | null
 }
 
 const CIVILITE_OPTIONS = ['M.', 'Mme']
@@ -43,7 +47,7 @@ const ROLE_LABELS: Record<string, string> = {
   parent:                   'Parent',
 }
 
-export default function MonCompteClient({ profile, email, etablissementName }: Props) {
+export default function MonCompteClient({ profile, email, etablissementName, assiduite }: Props) {
   const router = useRouter()
   const toast  = useToast()
 
@@ -128,10 +132,16 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
   }
 
   return (
-    <div className="space-y-4 animate-fade-in max-w-2xl">
+    /* DEUX COLONNES, et non un empilement : ajouté à la suite, le temps de
+       présence aurait fait déborder la page. Les formulaires gardent une
+       largeur étroite (on ne saisit pas un prénom dans un champ de 900 px),
+       le relevé prend le reste. */
+    <div className="animate-fade-in flex flex-col lg:flex-row items-start gap-5">
+
+      <div className="space-y-3 w-full lg:max-w-xl">
 
       {/* ── Mes informations (éditable) ── */}
-      <form onSubmit={handleSave} noValidate className="card p-4 space-y-3">
+      <form onSubmit={handleSave} noValidate className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mes informations</h2>
 
         <div className="grid grid-cols-[6rem_1fr_1fr] gap-3">
@@ -155,7 +165,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
       </form>
 
       {/* ── Compte ── */}
-      <div className="card p-4 space-y-3">
+      <div className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Compte</h2>
         <div className="grid grid-cols-2 gap-3">
           {canEditEmail ? (
@@ -190,7 +200,7 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
       </div>
 
       {/* ── Mot de passe ── */}
-      <form onSubmit={changePassword} noValidate className="card p-4 space-y-3">
+      <form onSubmit={changePassword} noValidate className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mot de passe</h2>
 
         <div className="grid grid-cols-2 gap-3">
@@ -247,6 +257,22 @@ export default function MonCompteClient({ profile, email, etablissementName }: P
 
       {/* ── Double authentification (hors rôle parent) ── */}
       {profile.role !== 'parent' && <TwoFactorCard />}
+
+      </div>
+
+      {/* ── Mon temps de présence ──
+          Absent pour qui ne pointe pas (admin, parent) : la page ne le sait pas,
+          c'est le serveur qui l'a tranché en n'envoyant rien.
+
+          C'est le SEUL endroit où l'intéressé voit ses heures : l'entrée
+          « Enseignants » de la barre latérale est réservée à l'encadrement, un
+          enseignant n'atteint donc jamais sa propre fiche. */}
+      {assiduite && (
+        <div className="card p-3 space-y-3 w-full lg:flex-1 lg:min-w-0">
+          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mon temps de présence</h2>
+          <TeacherAttendance {...assiduite} dense />
+        </div>
+      )}
 
       {confirmEmail && (
         <ConfirmModal

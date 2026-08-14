@@ -49,7 +49,7 @@ export default function TwoFactorCard() {
   }
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card p-3 space-y-2.5">
       <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Double authentification (2FA)</h2>
 
       {loading ? (
