@@ -127,10 +127,12 @@ export default function TeacherAttendance({
   const hauteurTable = dense ? 'max-h-[13rem]' : 'max-h-[22rem]'
 
   return (
-    // w-fit sur le conteneur + w-full sur les encadres : ils prennent tous la
-    // meme largeur, celle du plus large des contenus, sans valeur en dur.
-    // Meme montage que l'onglet Documents, pour que les deux s'alignent.
-    <div className={`${dense ? 'space-y-3' : 'space-y-4 w-fit'}`}>
+    // LARGEUR FIXE, et surtout pas `w-fit` : la largeur suivait alors le contenu
+    // le plus large, donc le TABLEAU DES ABSENCES. Un enseignant qui en a une
+    // voyait un bloc large et huit mois par ligne, un enseignant sans absence un
+    // bloc etroit et six — la meme fiche changeait de forme selon la personne.
+    // Une bande de mois n'est lisible que si elle se lit pareil pour tout le monde.
+    <div className={`${dense ? 'space-y-3' : 'space-y-4 w-full max-w-3xl'}`}>
 
       {/* ── Synthese de l'annee ──
           En dense, une ligne de chiffres plutot que trois cartes : trois cartes
@@ -202,7 +204,11 @@ export default function TeacherAttendance({
           )}
         </div>
 
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(4.25rem,1fr))] gap-1.5">
+        {/* 5rem de largeur minimale : sur la fiche (conteneur borne a 48rem) la
+            bande tombe sur HUIT mois par ligne, la forme validee. La regle reste
+            en `auto-fill` et non en nombre fixe de colonnes, pour que la meme
+            bande se replie d'elle-meme dans la colonne etroite de Mon compte. */}
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5">
           {mois.map(m => {
             const actif = m.minutes > 0
             return (
