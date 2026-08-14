@@ -72,6 +72,17 @@ function fmtDate(iso: string): string {
 }
 
 /**
+ * Marque du pluriel.
+ *
+ * En français, ZERO reste au singulier (« 0 remplacement assuré ») : le seuil
+ * est donc `> 1`, jamais `!== 1`. C'est la faute qu'accorder « à l'œil » produit
+ * systématiquement, et elle ne se voit qu'une fois le compteur à 0 devant soi.
+ */
+function pl(n: number): string {
+  return n > 1 ? 's' : ''
+}
+
+/**
  * `09:00 - 12:00`, ou `·` quand la saisie n'en porte pas.
  *
  * La base autorise des horaires nuls (une garde qui l'interdirait bloquerait la
@@ -123,12 +134,26 @@ export default function TeacherAttendance({
         />
         <ListStatCard
           value={absences.length}
-          label={<>{absences.length > 1 ? 'absences' : 'absence'}<br />{fmtDuration(absenceMinutes)} manquées</>}
+          label={
+            <>
+              absence{pl(absences.length)}
+              <br />
+              {/* « manquée » s'accorde avec les HEURES, pas avec le nombre
+                  d'absences : une seule absence peut peser trois heures. */}
+              {fmtDuration(absenceMinutes)} manquée{pl(absenceMinutes / 60)}
+            </>
+          }
           valueColor={absences.length > 0 ? 'text-red-600' : 'text-secondary-800'}
         />
         <ListStatCard
           value={remplacements.length}
-          label={<>{remplacements.length > 1 ? 'remplacements' : 'remplacement'}<br />assurés pour un collègue</>}
+          label={
+            <>
+              remplacement{pl(remplacements.length)}
+              <br />
+              assuré{pl(remplacements.length)} pour {remplacements.length > 1 ? 'des collègues' : 'un collègue'}
+            </>
+          }
           valueColor={remplacements.length > 0 ? 'text-primary-600' : 'text-secondary-800'}
         />
       </div>
