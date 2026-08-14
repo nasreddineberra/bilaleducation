@@ -3017,6 +3017,54 @@ et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »)
       comprise** — elle vit dans son propre fichier et serait restee seule en `p-4`.
     - Tables **bornees en hauteur** (`max-h` + `.list-scroll` + en-tete collant) et non figees : une
       hauteur fixe laisserait un encadre a moitie vide pour deux lignes.
+  - **Largeur FIXE (48rem) et non `w-fit`** : la largeur suivait le contenu le plus large, donc le
+    TABLEAU DES ABSENCES — un enseignant qui en avait une voyait 8 mois par ligne, un enseignant sans
+    absence 6. La meme fiche changeait de forme selon la personne. Cellule de mois portee a 5rem pour
+    retomber sur 8 mois par ligne ; la regle reste en `auto-fill` (et non en nombre fixe de colonnes),
+    la bande devant se replier dans la colonne etroite de Mon compte.
+
+#### 15 aout 2026 — MOT DE PASSE OUBLIE : casse pour tout compte avec 2FA
+
+Signale par l'utilisateur, capture a l'appui : l'ecran « Nouveau mot de passe » refusait
+l'enregistrement avec un message **en anglais** —
+`AAL2 session is required to update email or password when MFA is enabled`.
+
+- **CE N'ETAIT PAS UN BOGUE DE SUPABASE, mais un trou dans NOTRE parcours.** Un compte protege par
+  2FA a deux niveaux de session : **AAL1** (mot de passe seul) et **AAL2** (mot de passe + code
+  TOTP). Supabase **exige AAL2** pour changer un mot de passe ou un email. Or `verifyOtp` sur un lien
+  de recuperation ouvre une session **AAL1**, et `confirmerLien` redirigeait **directement** vers
+  l'ecran de mot de passe : la session n'atteignait jamais AAL2.
+  - **Le refus est JUSTE** : sans lui, qui intercepte un lien de recuperation reprend un compte sans
+    jamais voir son second facteur — la 2FA ne servirait plus a rien. Le lien prouve l'acces a la
+    boite mail, rien de plus.
+- **Correctif** : apres `verifyOtp`, si le compte a un facteur TOTP **verifie**, on redirige vers
+  `/auth/totp-challenge?next=…` (l'ecran acceptait deja une destination, avec sa garde contre la
+  redirection ouverte). Le code saisi, la session passe en AAL2 et l'enregistrement aboutit.
+  - **`listFactors()` et non `getAuthenticatorAssuranceLevel()`** : le raccourci deduit son
+    `nextLevel` des facteurs portes par la session LOCALE, qui peuvent manquer sur une session tout
+    juste ouverte par `verifyOtp` — il aurait repondu `aal1`, on n'aurait pas redirige, et le defaut
+    serait reste **EN SILENCE**. `listFactors()` interroge le serveur. Un aller-retour vaut mieux
+    qu'un correctif qui n'agit pas.
+  - **Verifie** que le middleware laisse passer `/auth/*` aux DEUX endroits ou il redirige un
+    utilisateur connecte : sans quoi le retour sur `/auth/reset-password` aurait file au tableau de
+    bord et la chaine aurait boucle.
+- **`src/lib/auth/password-error.ts`** : les refus de `auth.updateUser()` sont traduits, au 2e usage
+  (ecran de reinitialisation + Mon compte, qui avait sa propre correspondance en ligne). Rapprochement
+  sur un **FRAGMENT** du message et non sur son texte entier — Supabase reformule sans prevenir, et une
+  egalite stricte se romprait en silence. Repli **generique** : reafficher l'anglais « au cas ou »
+  ferait revenir le defaut. Le message d'origine part au journal du navigateur.
+  - **Regle** : aucun message d'erreur de fournisseur ne doit atteindre l'utilisateur, a plus forte
+    raison sur un parcours de recuperation ou il est deja en difficulte.
+- **Etat reel constate** (script service-role jetable) : **3 comptes sur 9** ont un facteur TOTP
+  verifie — ALLOUCHE (direction), SUPPORT Administrateur, SUPPORT Technique. Les 6 autres n'en ont
+  aucun et n'etaient donc pas touches. **Le defaut devenait total** des la generalisation de la 2FA,
+  prevue au plan de mise en production.
+  - **PIEGE DE MESURE** : `auth.admin.listUsers()` **ne renseigne PAS `factors`** — mon premier
+    releve annoncait « aucun facteur » pour les 9 comptes, ce qui contredisait la memoire du projet.
+    C'est `getUserById()` qui les porte. Verifier une contradiction plutot que la publier.
+- **Consequence assumee** : qui perd son mot de passe ET son telephone ne se recupere plus seul ; il
+  faut un administrateur (Utilisateurs → fiche → reinitialiser la 2FA). C'est le comportement correct
+  d'une 2FA, l'alternative serait une porte derobee par email.
 
 - **`next/font/google` ABANDONNE — les polices vivent dans le depot** (`src/app/fonts/`,
   `next/font/local`). **Deux builds Vercel casses en deux jours** sur le meme message :

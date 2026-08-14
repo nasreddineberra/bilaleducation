@@ -48,5 +48,36 @@ export async function confirmerLien(formData: FormData) {
     redirect('/auth/reset-password?motif=consomme')
   }
 
+  // ── LE JETON NE VAUT PAS LA DOUBLE AUTHENTIFICATION ───────────────────────
+  //
+  // `verifyOtp` ouvre une session de niveau AAL1 (« quelqu'un a reçu l'email »).
+  // Supabase EXIGE AAL2 — mot de passe reconnu ET code TOTP — pour changer un
+  // mot de passe ou un email. Sans ce passage, l'écran suivant s'ouvrait
+  // normalement puis refusait l'enregistrement, en anglais :
+  //
+  //   « AAL2 session is required to update email or password when MFA is enabled »
+  //
+  // Et le refus est JUSTE : sans lui, qui intercepte un lien de récupération
+  // reprendrait un compte sans jamais voir son second facteur, ce qui viderait
+  // la 2FA de son sens. Le lien prouve l'accès à la boîte mail, rien de plus.
+  //
+  // On intercale donc le défi, et l'écran de mot de passe s'ouvre APRÈS.
+  //
+  // L'autorité est `listFactors()`, qui interroge le SERVEUR. Le raccourci
+  // `getAuthenticatorAssuranceLevel()` aurait été plus court, mais il déduit son
+  // `nextLevel` des facteurs portés par la session locale : s'ils n'y figurent
+  // pas — ce qui est possible sur une session tout juste ouverte par `verifyOtp` —
+  // il répondrait `aal1`, on ne redirigerait pas, et le défaut resterait EN
+  // SILENCE. Un aller-retour de plus vaut mieux qu'un correctif qui n'agit pas.
+  //
+  // Un compte sans facteur vérifié passe droit : il n'a pas de 2FA à opposer.
+  const { data: facteurs } = await supabase.auth.mfa.listFactors()
+  const doitPasserLeDefi = (facteurs?.all ?? [])
+    .some(f => f.factor_type === 'totp' && f.status === 'verified')
+
+  if (doitPasserLeDefi) {
+    redirect(`/auth/totp-challenge?next=${encodeURIComponent(next)}`)
+  }
+
   redirect(next)
 }

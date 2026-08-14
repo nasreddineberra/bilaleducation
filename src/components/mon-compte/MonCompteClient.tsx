@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import { messageErreurMotDePasse } from '@/lib/auth/password-error'
 import { updateOwnProfile, updateOwnEmail } from '@/app/dashboard/mon-compte/actions'
 import TwoFactorCard from '@/components/mon-compte/TwoFactorCard'
 import TeacherAttendance from '@/components/teachers/TeacherAttendance'
@@ -97,9 +98,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
     const { error } = await supabase.auth.updateUser({ password: newPw })
     setPwSaving(false)
     if (error) {
-      toast.error(error.message.includes('should be different')
-        ? 'Le nouveau mot de passe doit être différent de l\'ancien.'
-        : 'Erreur lors du changement de mot de passe.')
+      toast.error(messageErreurMotDePasse(error.message))
       return
     }
     toast.success('Mot de passe modifié avec succès.')

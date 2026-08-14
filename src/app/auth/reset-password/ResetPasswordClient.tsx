@@ -7,6 +7,7 @@ import { clsx } from 'clsx'
 import AuthShell from '@/components/auth/AuthShell'
 import { createClient } from '@/lib/supabase/client'
 import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import { messageErreurMotDePasse } from '@/lib/auth/password-error'
 
 interface Props {
   motif?: string | null
@@ -92,7 +93,7 @@ export default function ResetPasswordClient({ motif }: Props) {
     setIsSubmitting(false)
 
     if (error) {
-      setError(error.message || 'Une erreur est survenue. Veuillez réessayer.')
+      setError(messageErreurMotDePasse(error.message))
     } else {
       setSuccess(true)
     }
