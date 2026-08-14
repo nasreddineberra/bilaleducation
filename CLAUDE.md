@@ -3406,7 +3406,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] **A JOUER** — `supabase/migrations/add-school-year-holidays.sql` : colonne `jours_feries`
+- [x] Executer `supabase/migrations/add-school-year-holidays.sql` : colonne `jours_feries`
   (jsonb) sur `school_years`, jumelle de `vacations`. Une JOURNEE isolee la ou une vacance est une
   SEMAINE. Pas de table : un ferie n'a ni identite propre, ni relation, ni historique — il herite
   du cloisonnement de son annee.
@@ -3437,7 +3437,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   supprimees). **Verifie en base sur 5 controles.**
 - [x] Executer `supabase/migrations/add-bulletin-archive-figures.sql` (moyenne et assiduite
   imprimees rangees AVEC le bulletin archive ; la fiche Scolarite ne recalcule plus rien).
-- [ ] **A JOUER** — `supabase/migrations/create-support-requests.sql` (table `support_requests` +
+- [x] Executer `supabase/migrations/create-support-requests.sql` (table `support_requests` +
   RLS « depot et relecture par la direction, ni modification ni suppression » + bucket prive
   `support-attachments` 1 Mo cloisonne). **Sans elle, l'ecran « Contacter le support » echoue.**
 - [x] Executer `supabase/migrations/add-etablissements-sante-rpc.sql` (sante des ecoles en UN
