@@ -2965,6 +2965,57 @@ l'Atlantique** : aller-retour nu **139 ms**, sequence du layout **1021 ms** d'at
 Next ne re-rend que le segment qui change. Ses requetes ne pesent donc qu'au **chargement a froid**
 et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »).
 
+#### 14 aout 2026 — Onglet Assiduite (fiche enseignant) + les polices quittent le reseau
+
+- **Onglet Assiduite** (`TeacherAttendance.tsx`, 3e onglet de la fiche, **lecture seule**) : synthese
+  de l'annee (heures assurees · absences + duree manquee · remplacements assures), tableau des
+  **absences** avec le remplacant de chaque creneau (« Non remplace » en rouge : un creneau manque
+  sans personne pour le tenir, c'est une classe sans adulte), tableau des **remplacements assures**
+  pour un collegue. Il ne saisit rien — le temps de presence a son module, avec ses gardes ; un
+  second chemin d'ecriture sur la meme table serait deux ecrans a tenir coherents.
+  - **Resolution cote SERVEUR** (`teachers/[id]/page.tsx`) : **une** requete
+    `.or(profile_id.eq.X,replaced_profile_id.eq.X)` couvre les deux faces (ses saisies, et ce que
+    d'autres ont fait POUR lui). Le navigateur ne recoit pas la table des saisies pour en tirer
+    trois chiffres.
+  - **Le lien absence ↔ remplacement est le CRENEAU** (meme date, memes horaires,
+    `replaced_profile_id`) : **aucune cle etrangere ne les relie**, c'est ainsi que `TimeEntryModal`
+    les ecrit. Verifie dans le code d'ecriture, pas deduit.
+  - `entry_type` porte le **CODE** de l'etablissement depuis `remove-entry-type-check-constraint` :
+    l'absence se reconnait par `is_absence` du type, jamais en dur.
+  - **Aucune garde de role** : la RLS de `staff_time_entries` decide seule (encadrement tout,
+    enseignant ses propres lignes donc sa propre fiche). Une garde ici ferait doublon avec la base
+    et finirait par diverger d'elle.
+  - **`fmtDuration` et `findPresenceType` extraits** dans `src/lib/temps-presence/format.ts` a leur
+    **2e usage** (motif de `TruncatedText`). Recopier une duree, c'est ce qui a produit le calcul
+    comptable divergent dans 3 sous-menus de Financements.
+  - **Accord au pluriel** : « 0 remplacement **assure** » — en francais ZERO reste au **singulier**,
+    le seuil est `> 1` et jamais `!== 1` ; et « manquee » s'accorde avec les **heures**, pas avec le
+    nombre d'absences (une seule absence peut peser trois heures). Faute vue par l'utilisateur.
+  - Calcul confronte aux **11 saisies reelles** de l'annee (script service-role jetable, supprime).
+
+- **`next/font/google` ABANDONNE — les polices vivent dans le depot** (`src/app/fonts/`,
+  `next/font/local`). **Deux builds Vercel casses en deux jours** sur le meme message :
+  `inter_xxx.module.css: Can't resolve '@vercel/turbopack-next/internal/font/google/font'`.
+  - **Le message est TROMPEUR** : il se lit comme un import casse, et le 13 aout il m'a fait
+    chercher une faute de casse dans mon propre commit pendant que la cause etait ailleurs. Next
+    **telecharge la police PENDANT le build** ; quand l'appel echoue, il laisse derriere lui un CSS
+    genere qui pointe vers un module interne desormais introuvable.
+  - **Le 13 aout la panne a ete jugee « transitoire » et laissee telle quelle.** Elle est revenue le
+    14. C'est la vraie lecon : un mode de panne qui depend du reseau ne se constate pas, il se
+    supprime.
+  - Inter et Noto Sans Arabic sont **VARIABLES** : `font-weight: 400 700` tient dans **un seul
+    fichier** par police (48 Ko + 166 Ko), la ou il en aurait fallu quatre en graisses fixes.
+    Sous-ensembles **latin** et **arabe** seuls, identiques a ce qui etait declare.
+  - **`unicode-range` conserve tel que Google le declarait** : sans lui, le navigateur telechargerait
+    la police arabe sur des pages qui n'affichent pas un seul caractere arabe.
+  - **A NE PAS CONFONDRE avec `public/fonts/NotoSansArabic-*.ttf`**, qui sert au PDF bilingue : jsPDF
+    a besoin d'un TTF recuperable par URL A L'EXECUTION, les woff2 sont empreintes et servis par
+    Next. Les deux coexistent a dessein.
+  - **Verifie sur le CSS EMIS** et non sur la source (piege du pont sombre) : `@font-face` pointe vers
+    le fichier local empreinte, `unicode-range` et `font-weight: 400 700` presents, metriques de repli
+    inchangees, et **zero occurrence** de `turbopack-next/internal/font` dans `.next/static`.
+  - **Regle** : aucune dependance reseau au moment du build. Le depot porte ce dont il a besoin.
+
 
 ## Prochaine etape
 
