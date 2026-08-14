@@ -3426,7 +3426,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   **par classe** (`evaluations.period_id` est nullable, `class_id` ne l'est pas).
   **VERIFIE par l'utilisateur** sur les 3 cas : module non vide refuse, UE vide supprimable, cours
   servant des gabarits refuse avec le tableau classe/periode.
-- [ ] **A REJOUER** — `supabase/migrations/guard-class-delete-with-participants.sql` : le
+- [x] Executer `supabase/migrations/guard-class-delete-with-participants.sql` (rejouee le 15 aout) : le
   message du trigger disait « inscrit(s) actif(s) » la ou il s'agit d'**affectations**
   (vocabulaire fixe le 10 aout : « inscrit » = ACTIF, le rattachement a une classe = « affecte »).
   `CREATE OR REPLACE`, rejeu sans risque. Le comportement de la garde est inchange.
