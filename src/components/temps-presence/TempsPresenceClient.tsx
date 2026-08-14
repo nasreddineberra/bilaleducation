@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
+import { fmtDuration, findPresenceType } from '@/lib/temps-presence/format'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -81,10 +82,6 @@ interface Props {
   etablissementLogo: string | null
 }
 
-function findPresenceType(presenceTypes: PresenceType[], code: string): PresenceType | undefined {
-  return presenceTypes.find(pt => pt.code.toUpperCase() === code.toUpperCase())
-}
-
 // Styles inline derives de la couleur hex du type de presence
 function entryStyle(color: string) {
   return {
@@ -103,12 +100,6 @@ const FALLBACK_COLOR = '#6b7280'
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
 const MONTH_NAMES = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
-
-function fmtDuration(mins: number): string {
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return m > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`
-}
 
 function fmtTime(t: string | null): string {
   return t?.slice(0, 5) ?? ''

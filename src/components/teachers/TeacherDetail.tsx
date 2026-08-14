@@ -3,24 +3,37 @@
 import { useState, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
-import { User, FileText } from 'lucide-react'
+import { User, FileText, Clock } from 'lucide-react'
 import TeacherForm from './TeacherForm'
 import TeacherDocuments from './TeacherDocuments'
+import TeacherAttendance, { type AbsenceLigne, type RemplacementLigne } from './TeacherAttendance'
 import type { Teacher, TeacherDocument } from '@/types/database'
 
 const TABS = [
-  { key: 'identite',  label: 'Identité',  icon: User },
-  { key: 'documents', label: 'Documents', icon: FileText },
+  { key: 'identite',   label: 'Identité',   icon: User },
+  { key: 'documents',  label: 'Documents',  icon: FileText },
+  { key: 'assiduite',  label: 'Assiduité',  icon: Clock },
 ] as const
 
 type TabKey = typeof TABS[number]['key']
 
+/** Assiduité de l'année en cours, résolue par la page (voir `TeacherAttendance`). */
+export interface Assiduite {
+  hasAccount: boolean
+  yearLabel: string | null
+  workedMinutes: number
+  absenceMinutes: number
+  absences: AbsenceLigne[]
+  remplacements: RemplacementLigne[]
+}
+
 interface Props {
   teacher:   Teacher
   documents: TeacherDocument[]
+  assiduite: Assiduite
 }
 
-export default function TeacherDetail({ teacher, documents: initialDocuments }: Props) {
+export default function TeacherDetail({ teacher, documents: initialDocuments, assiduite }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
 
@@ -95,7 +108,9 @@ export default function TeacherDetail({ teacher, documents: initialDocuments }: 
               )}
             >
               <Icon size={15} />
-              {tab.key === 'documents' ? `${tab.label} (${documents.length})` : tab.label}
+              {tab.key === 'documents' ? `${tab.label} (${documents.length})`
+                : tab.key === 'assiduite' ? `${tab.label} (${assiduite.absences.length})`
+                : tab.label}
             </button>
           )
         })}
@@ -116,6 +131,12 @@ export default function TeacherDetail({ teacher, documents: initialDocuments }: 
             documents={documents}
             setDocuments={setDocuments}
           />
+        </div>
+      )}
+
+      {activeTab === 'assiduite' && (
+        <div role="tabpanel" id="panel-assiduite" aria-labelledby="tab-assiduite">
+          <TeacherAttendance {...assiduite} />
         </div>
       )}
     </div>
