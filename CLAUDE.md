@@ -3090,6 +3090,61 @@ l'enregistrement avec un message **en anglais** —
   - **Regle** : aucune dependance reseau au moment du build. Le depot porte ce dont il a besoin.
 
 
+#### 16 aout 2026 — Ver npm : pas touches. Mais l'audit a revele un XSS STOCKE chez nous
+
+Demande de l'utilisateur apres avoir eu vent du ver npm. **Le vrai resultat n'est pas celui qu'on
+cherchait** : nous etions indemnes, et c'est le controle de routine fait dans la foulee qui a
+decouvert une faille ouverte depuis cinq semaines.
+
+**LE VER (4 aout 2026) — NON IMPACTES, verifie sur l'arbre installe**
+- Compte GitHub du mainteneur de **keyv** compromis ; ver voleur d'identifiants (*Shai-Hulud* /
+  *ChainDrop*) publie sur **444 paquets, 2 234 versions**. Marqueurs : `setup.mjs`,
+  `Math_Symbol.js`, et `"preinstall": "node setup.mjs"`.
+- Nous avons bien 3 paquets de la famille, tires par ESLint — mais en versions **anterieures** aux
+  versions empoisonnees (keyv 4.5.4 vs 6.0.0, flat-cache 4.0.1 vs 6.1.24, file-entry-cache 8.0.0 vs
+  11.1.6), et toutes en **dependances de developpement**.
+- **Verifie sur `node_modules`, pas sur une liste d'avis** : aucun `setup.mjs`, aucun
+  `Math_Symbol.js`, **aucun hook `preinstall`** (5 scripts d'installation, tous legitimes et anciens).
+- L'attaquant deposait aussi des **hooks VS Code et Claude Code** dans les depots, executables a la
+  simple ouverture d'un projet **sans `npm install`** : verifie que `.claude/settings.json` (permissions
+  seules), `settings.local.json` et `.vscode/settings.json` n'en portent aucun.
+- **Ce qui nous a protege est STRUCTUREL** : le lockfile epingle les versions avec leur empreinte, le
+  build tourne en `npm ci`, et **npm interdit de republier une version existante** — une version
+  ancienne deja epinglee ne peut pas etre empoisonnee retroactivement. Meme logique que les polices
+  versionnees la veille : ce qui est fige dans le depot ne depend plus de l'exterieur.
+
+**XSS STOCKE (`sanitize.ts`) — REEL, ouvert depuis le 9 juillet**
+- L'`ALLOWED_URI_REGEXP` avait ete **recopiee a la main** depuis DOMPurify, et **deux caracteres
+  manquaient** a sa classe negative — le tiret et surtout les **DEUX-POINTS** :
+  - nous : `[a-z+.]+(?:[^a-z+.]|$)` → « javascript » puis « : » **passent**
+  - defaut : `[a-z+.\-]+(?:[^a-z+.\-:]|$)` → les deux-points sont **exclus**
+- Consequence **mesuree** : `javascript:alert(1)` ET `data:text/html,<script>` **survivaient** a la
+  sanitisation. Le HTML sanitise est rendu en `dangerouslySetInnerHTML` a **6 endroits** (cahier de
+  texte, communications parents/staff, notifications) → un enseignant pouvait placer un lien
+  executable dans un devoir, declenche dans la session de qui l'ouvre, **direction comprise**.
+- Cette expression n'apportait **RIEN** que le defaut n'ait deja (`cid:` y figure, et il accepte en
+  plus `sms:`) : elle ne faisait qu'affaiblir. **Retiree**, pas corrigee.
+- **REGLE** : ne jamais recopier une expression de securite d'une bibliotheque. Si un protocole
+  manque, l'ajouter explicitement — jamais retranscrire le defaut.
+- **Non regression prouvee** : 9 charges bloquees (script, onerror, `javascript:` y compris en casse
+  melangee, `data:text/html`, svg onload, iframe, form) ET 5 contenus legitimes intacts (liens https,
+  mailto, tel, tableaux, mise en forme). Le fichier n'avait pas bouge depuis le 9 juillet — le defaut
+  etait **anterieur a la montee**, pas cause par elle.
+
+**16 CVE CORRIGEES** (`npm audit` : 16 → **0**)
+- 15 dans les plages existantes (`package.json` **inchange**), dont **jspdf 4.2.0 → 4.2.1**
+  (critique : injection d'objet PDF), **next 16.2.10 → 16.3.1** (contournement de middleware),
+  **dompurify 3.3.3 → 3.4.14**, postcss, sharp, undici, ws, nanoid, minimatch, js-yaml.
+- **nodemailer 8.0.11 → 9.0.5 (MAJEURE)**. Avis : l'option `raw` contourne
+  `disableFileAccess`/`disableUrlAccess`. **Vecteur inatteignable chez nous** (aucun `raw`, PJ en
+  `Buffer` et jamais par `path`/`href`), mais montee faite quand meme : l'unique rupture de la 9.0
+  est la validation TLS du **contenu distant** (PJ par URL, OAuth2, proxy) — nous n'utilisons aucun
+  des trois.
+  - **Teste FONCTIONNELLEMENT et pas seulement compile** : serveur SMTP minimal local + envoi reel
+    avec nos options exactes (pool, `maxConnections`, cadencement, auth). `verify()`, `sendMail()`,
+    en-tetes `From`/`Reply-To`, corps HTML et piece jointe : tout passe. Monter le mailer sans
+    eprouver un envoi, juste avant le chantier messagerie, n'aurait rien prouve.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

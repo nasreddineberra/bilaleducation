@@ -27,7 +27,26 @@ const CONFIG: Parameters<ReturnType<typeof DOMPurify>['sanitize']>[1] = {
     'class', 'id', 'style', 'target', 'rel',
     'colspan', 'rowspan',
   ],
-  ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp):|[^a-z]|[a-z+.]+(?:[^a-z+.]|$))/i,
+  // ── PAS d'`ALLOWED_URI_REGEXP` ICI, C'EST VOULU ──────────────────────────
+  //
+  // Il y en avait une, recopiee a la main depuis DOMPurify, et deux caracteres
+  // manquaient a sa classe negative — le tiret et, surtout, les DEUX-POINTS :
+  //
+  //   nous    [a-z+.]+(?:[^a-z+.]|$)        <- « javascript » puis « : » passent
+  //   defaut  [a-z+.\-]+(?:[^a-z+.\-:]|$)   <- les deux-points sont exclus
+  //
+  // Consequence mesuree le 16 aout : `javascript:alert(1)` ET
+  // `data:text/html,<script>` SURVIVAIENT a la sanitisation, alors que le
+  // defaut de DOMPurify bloque les deux. Un enseignant pouvait donc placer un
+  // lien executable dans un devoir, declenche dans la session de qui l'ouvre —
+  // direction comprise. Ouvert depuis le 9 juillet.
+  //
+  // Cette expression n'apportait RIEN que le defaut n'ait deja : `cid:` y
+  // figure, et il accepte en plus `sms:`. Elle ne faisait qu'affaiblir.
+  //
+  // REGLE : ne jamais recopier une expression de securite d'une bibliotheque.
+  // Si un protocole manque un jour, l'ajouter par `ADD_URI_SAFE_ATTR` ou en
+  // derivant explicitement du defaut, jamais en le retranscrivant.
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'oninput'],
