@@ -10,6 +10,8 @@ import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import ParentForm from '@/components/parents/ParentForm'
 import { useToast } from '@/lib/toast-context'
+import { sameName } from '@/lib/normalize-name'
+import { messageDoublon } from '@/lib/doublons'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatRadioCard, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { Student, Parent } from '@/types/database'
@@ -97,8 +99,6 @@ const toTitleCase = (v: string) =>
   v.split(' ').map(w => w.length > 0 ? w[0].toUpperCase() + w.slice(1) : '').join(' ')
 const clean = (v: string): string | null => v.trim() || null
 const today = new Date().toISOString().split('T')[0]
-const normalizeNom = (s: string) =>
-  s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false, activeClassName = null, activeClassInfo = '' }: StudentFormProps) {
@@ -222,19 +222,27 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
     setIsSubmitting(true)
     try {
-      // Vérification doublon nom + prénom (insensible casse et accents)
+      // ── Doublon : NOM + PRENOM + DATE DE NAISSANCE ────────────────────
+      //
+      // Meme cle que l'index unique de la base, et meme normalisation
+      // (`normalizeNom` est le pendant exact de `norm_name()` en SQL). Sans cet
+      // alignement, l'ecran laisserait passer ce que la base refuse ensuite,
+      // avec un message que l'utilisateur ne relierait a rien.
+      //
+      // La requete filtre sur la DATE — un critere exact, indexe — puis compare
+      // les noms en memoire. L'ancien `.ilike('last_name', …)` ignorait la casse
+      // mais PAS les accents : « BÉRRA » et « BERRA » n'etaient meme pas
+      // rapproches, alors que le prenom, lui, etait bien normalise.
       const supabase = createClient()
-      const { data: sameLastName } = await supabase
+      const { data: memeNaissance } = await supabase
         .from('students')
         .select('id, last_name, first_name')
-        .ilike('last_name', form.last_name.trim())
-      const normFirst = normalizeNom(form.first_name)
-      const duplicate = sameLastName?.find(s =>
-        s.id !== student?.id &&
-        normalizeNom(s.first_name) === normFirst
+        .eq('date_of_birth', form.date_of_birth)
+      const duplicate = memeNaissance?.find(s =>
+        s.id !== student?.id && sameName(s, { last_name: form.last_name, first_name: form.first_name })
       )
       if (duplicate) {
-        toast.error(`Un élève "${duplicate.last_name} ${duplicate.first_name}" existe déjà.`)
+        toast.error(`${duplicate.last_name} ${duplicate.first_name}, né(e) le ${new Date(form.date_of_birth + 'T00:00').toLocaleDateString('fr-FR')}, est déjà enregistré(e).`)
         setIsSubmitting(false)
         return
       }
@@ -273,7 +281,15 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       router.push(backHref)
       router.refresh()
     } catch (err: any) {
-      if (err?.code === '23505') {
+      // Le controle ci-dessus a deja ecarte le doublon d'identite ; on peut
+      // encore arriver ici si deux saisies aboutissent en meme temps. L'index
+      // tranche alors, et il faut dire LEQUEL des deux 23505 s'est produit :
+      // attribuer tout 23505 au numero d'eleve — ce que faisait ce bloc —
+      // afficherait « ce numero est deja utilise » sur un doublon de personne.
+      const doublon = messageDoublon(err)
+      if (doublon) {
+        toast.error(doublon)
+      } else if (err?.code === '23505') {
         toast.error("Ce numéro d'élève est déjà utilisé.")
       } else {
         toast.error('Une erreur est survenue. Veuillez réessayer.')

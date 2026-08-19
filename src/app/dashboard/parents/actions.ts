@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
+import { messageDoublon } from '@/lib/doublons'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { classInfoOf } from '@/components/dashboard/classInfo'
@@ -196,7 +197,11 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
     )
     await Promise.all(cleanupPromises)
 
-    return { error: 'Erreur lors de la création de la fiche parents.' }
+    // Le declencheur d'unicite des tuteurs porte SON propre message, en
+    // francais et nommant le foyer en conflit. Le remplacer par un texte
+    // generique — ce que faisait cette ligne — priverait l'utilisateur de la
+    // seule information qui lui permet d'agir.
+    return { error: messageDoublon(parentError) ?? 'Erreur lors de la création de la fiche parents.' }
   }
 
   return { parentId: parent.id, accounts }
@@ -249,7 +254,9 @@ export async function updateParentRecord(
     .update(cleanPayload)
     .eq('id', parentId)
 
-  if (error) return { error: 'Erreur lors de la mise à jour.' }
+  // Meme raison qu'a la creation : renommer un tuteur peut le faire entrer en
+  // conflit avec un autre foyer, et c'est le declencheur qui le dit le mieux.
+  if (error) return { error: messageDoublon(error) ?? 'Erreur lors de la mise à jour.' }
   return {}
 }
 

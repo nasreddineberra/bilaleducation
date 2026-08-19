@@ -3145,6 +3145,75 @@ decouvert une faille ouverte depuis cinq semaines.
     en-tetes `From`/`Reply-To`, corps HTML et piece jointe : tout passe. Monter le mailer sans
     eprouver un envoi, juste avant le chantier messagerie, n'aurait rien prouve.
 
+#### 16 aout 2026 (suite) — DOUBLONS apprenants et parents (lot 1 du chantier import)
+
+Les enseignants avaient recu le traitement complet le 3 aout ; apprenants et parents etaient restes
+au motif d'origine — un controle **cote navigateur seul**, et **a moitie faux**.
+
+**CE QUI ETAIT CASSE**
+- `.ilike('last_name', …)` ignore la casse mais **PAS les accents**, alors que le prenom, lui, etait
+  normalise : « BÉRRA Leila » et « BERRA Leila » n'etaient meme pas rapproches.
+- **Parents : controle CLOISONNE PAR RANG** — le tuteur 1 n'etait compare qu'aux tuteurs 1, le
+  tuteur 2 qu'aux tuteurs 2. La meme personne pouvait etre tuteur 1 du foyer A **et** tuteur 2 du
+  foyer B sans un mot, et rien n'empechait de la saisir **aux deux rangs du meme foyer**.
+- Les deux ecrans avaient chacun leur **copie locale** de `normalizeNom`, au lieu du helper partage.
+
+**ARBITRAGES (utilisateur, 16 aout)**
+1. **Apprenants : cle = etablissement + nom + prenom + DATE DE NAISSANCE.** Les enseignants sont
+   contraints sur nom+prenom seuls ; a 200-300 eleves d'une meme communaute, deux cousins
+   « ABBASSI Adam » sont un cas ordinaire. La date les distingue. **Verifie : `date_of_birth` est
+   `NOT NULL` en base** — donc aucune echappatoire par le vide (PostgreSQL considere deux NULL
+   comme distincts, une colonne nullable aurait laisse passer deux eleves sans date).
+2. **Parents : une personne n'apparait qu'UNE fois par etablissement**, tous foyers et tous rangs
+   confondus. **Consequences assumees** : deux familles homonymes sans lien ne peuvent coexister ;
+   un parent remarie present dans deux foyers est refuse.
+3. Refus **dur** des deux cotes.
+4. Egalite **stricte** apres normalisation pour la contrainte ; l'approximation (translitterations
+   « Mohamed / Mohammed ») restera un avertissement d'ecran, jamais une regle de base.
+
+**MIGRATIONS (jouees, eprouvees sur 13 cas)**
+- `add-students-unique-identity.sql` : index unique `(etablissement, norm_name(nom), norm_name(prenom),
+  date_of_birth)`.
+- `guard-parents-unique-tutor.sql` : **declencheur**, car **aucun index ne sait exprimer la regle** —
+  un index unique compare une colonne A ELLE-MEME d'une ligne a l'autre, jamais « t1 de A = t2 de B »
+  ni « t1 = t2 de la meme ligne ». `SECURITY DEFINER` : sans elevation, les requetes du declencheur
+  subissent la RLS de l'appelant et un foyer masque rendrait la garde aveugle.
+- Les deux **refusent de s'appliquer** si des doublons existent deja, en les NOMMANT.
+- **Eprouvees dans une transaction ANNULEE** contre la vraie base (client `pg` installe HORS du
+  depot, pour ne toucher ni `package.json` ni le lockfile) : 45 apprenants et 31 foyers avant,
+  autant apres.
+
+**DEUX FAUTES RATTRAPEES AVANT LIVRAISON**
+- Le controle prealable groupait sur la cle normalisee **ET** sur les colonnes brutes : « BÉRRA » et
+  « BERRA » tombaient dans deux groupes distincts, donc le controle laissait passer exactement les
+  doublons qu'il cherche. Corrige par `max()` pour l'affichage.
+- Un `string_agg` sur un `GROUP BY` sans sous-requete : il aurait rendu une chaine PAR groupe, et
+  `INTO` aurait leve.
+- **Et un FAUX SUCCES de mon premier essai** : les 4 insertions d'eleves echouaient sur une contrainte
+  `gender` sans rapport (`'M'` au lieu de `'male'`), et deux s'affichaient « ok » parce que j'attendais
+  un echec. Le test verifie desormais que le refus vient bien **de notre regle**. Meme piege que le
+  7 aout : eprouver la garde sur le cas qui peut REELLEMENT echouer.
+
+**APPLICATIF**
+- **`src/lib/doublons.ts`** : `messageDoublon()` **ne reimplemente aucune regle**, il TRADUIT. Le
+  rapprochement se fait sur le **nom de la contrainte**, jamais sur le texte anglais de PostgreSQL
+  (qui change avec les versions). Le message du **declencheur des tuteurs passe TEL QUEL** : il est
+  deja en francais et **nomme le foyer en conflit**, ce qui est justement ce qui permet d'agir.
+  Rend `null` quand ce n'est pas un doublon — l'appelant ne doit pas annoncer un doublon sur une
+  panne de reseau.
+- **Apprenants** : requete filtree sur la **date** (critere exact) puis comparaison des noms par
+  `sameName`. **Defaut evite de justesse** : le `catch` attribuait TOUT 23505 au numero d'eleve —
+  avec le nouvel index, un doublon d'identite aurait affiche « ce numero est deja utilise ».
+- **Parents** : le controle client cloisonne est **supprime** (fausse assurance) ; les server actions
+  font remonter le message du declencheur au lieu de l'avaler dans un « Erreur lors de la creation ».
+- **Piege paye** : la suppression du bloc client a emporte le calcul de `t1Phone`/`t2Phone` qui le
+  suivait — rattrape par le type-check, pas par la relecture.
+
+**Reste du chantier** : lot 2 (lecture du fichier et rapprochement), lot 3 (fonction en base
+`import_foyer`, ecriture atomique), lot 4 (ecran d'import). Format arrete : **`.xlsx`**, gabarit
+livre dans le depot, dependance **`read-excel-file`** (seule des quatre bibliotheques Excel encore
+maintenue, et en LECTURE seule). Ecran reserve **admin/direction** — la secretaire n'importe pas.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { createParentWithAccounts, updateParentRecord, type TutorAccountResult, type CreateParentPayload, type UpdateParentPayload } from '@/app/dashboard/parents/actions'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
@@ -34,8 +33,6 @@ const toTitleCase  = (v: string) =>
 const digitsOnly   = (v: string) => v.replace(/\D/g, '')
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 const clean        = (v: string): string | null => v.trim() || null
-const normalizeNom = (s: string) =>
-  s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 const parsePhone = (phone?: string | null): { code: string; number: string } => {
   if (!phone) return { code: '+33', number: '' }
@@ -184,41 +181,19 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
 
     setIsSubmitting(true)
     try {
-      // Vérification doublon tuteur 1 (insensible casse et accents)
-      const supabase = createClient()
-      const { data: sameT1Last } = await supabase
-        .from('parents')
-        .select('id, tutor1_last_name, tutor1_first_name')
-        .ilike('tutor1_last_name', form.tutor1_last_name.trim())
-      const normT1First = normalizeNom(form.tutor1_first_name)
-      const dupT1 = sameT1Last?.find(p =>
-        p.id !== parent?.id &&
-        normalizeNom(p.tutor1_first_name) === normT1First
-      )
-      if (dupT1) {
-        toast.error(`Un tuteur "${dupT1.tutor1_last_name} ${dupT1.tutor1_first_name}" existe déjà dans une autre fiche parents.`)
-        setIsSubmitting(false)
-        return
-      }
-
-      // Vérification doublon tuteur 2 (si renseigné)
-      if (showTutor2 && form.tutor2_last_name.trim() && form.tutor2_first_name.trim()) {
-        const { data: sameT2Last } = await supabase
-          .from('parents')
-          .select('id, tutor2_last_name, tutor2_first_name')
-          .ilike('tutor2_last_name', form.tutor2_last_name.trim())
-        const normT2First = normalizeNom(form.tutor2_first_name)
-        const dupT2 = sameT2Last?.find(p =>
-          p.id !== parent?.id &&
-          p.tutor2_last_name &&
-          normalizeNom(p.tutor2_first_name ?? '') === normT2First
-        )
-        if (dupT2) {
-          toast.error(`Un tuteur 2 "${dupT2.tutor2_last_name} ${dupT2.tutor2_first_name}" existe déjà dans une autre fiche parents.`)
-          setIsSubmitting(false)
-          return
-        }
-      }
+      // ── PLUS DE CONTROLE DE DOUBLON ICI ──────────────────────────────
+      //
+      // Il y en avait un, et il donnait une fausse assurance : il comparait le
+      // tuteur 1 aux SEULS tuteurs 1 et le tuteur 2 aux SEULS tuteurs 2. La
+      // meme personne pouvait donc etre tuteur 1 du foyer A et tuteur 2 du
+      // foyer B sans que rien ne le signale — et rien n'empechait non plus de
+      // la saisir aux deux rangs du meme foyer. Son `.ilike` sur le nom
+      // ignorait de surcroit les accents.
+      //
+      // La regle vit desormais en base (declencheur `trg_guard_parents_unique_tutor`),
+      // qui couvre les quatre rapprochements croises d'un coup et porte le nom
+      // du foyer en conflit. La server action fait remonter SON message tel
+      // quel : le reformuler ici perdrait ce nom, qui est ce qui permet d'agir.
 
       const t1Phone = form.tutor1_phone_number
         ? form.tutor1_phone_code + form.tutor1_phone_number
