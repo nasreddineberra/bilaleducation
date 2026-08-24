@@ -197,6 +197,21 @@ function liste(valeurs: Record<string, string[]>, libelle: string) {
   const table = new Map<string, string>()
   for (const [cible, formes] of Object.entries(valeurs)) {
     for (const f of formes) table.set(normaliserCle(f), cible)
+
+    // ── LA VALEUR STOCKEE EST ELLE-MEME UNE FORME ACCEPTEE ─────────────────
+    //
+    // Sans cette ligne, normaliser une valeur DEJA normalisee la refuse :
+    // « Masculin » donne « male », et « male » n'est pas un libelle connu.
+    //
+    // Ce n'est pas theorique : l'ecran d'import rejoue la normalisation de
+    // toute la ligne des qu'une cellule est corrigee. La colonne Genre serait
+    // alors declaree invalide a chaque correction, et le foyer basculerait en
+    // « bloque » — l'ecran serait inutilisable pour ce qu'il sert a faire.
+    //
+    // Certaines valeurs passaient par chance (« mariés » et « Mariés » se
+    // normalisent pareil), d'autres non (« veuf_veuve » contre « Veuf / Veuve »).
+    // Compter sur cette coincidence serait pire que ne rien faire.
+    table.set(normaliserCle(cible), cible)
   }
   const normaliser = (b: unknown): Valeur => {
     const t = texte(b)

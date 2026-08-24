@@ -1,0 +1,516 @@
+'use client'
+
+import { useState, useMemo, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { Upload, FileDown, AlertTriangle, Check, X } from 'lucide-react'
+import { useToast } from '@/lib/toast-context'
+import { FloatButton } from '@/components/ui/FloatFields'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
+import { COLONNES } from '@/lib/import/colonnes'
+import { lireFichierXlsx, type LigneBrute } from '@/lib/import/lire-fichier'
+import { rapprocher, type FoyerExistant, type EnfantExistant, type FoyerRapproche } from '@/lib/import/rapprocher'
+import { enregistrerFoyers, type FoyerAEnregistrer, type ResultatFoyer } from '@/app/dashboard/import/actions'
+
+/**
+ * ECRAN D'IMPORTATION DE FAMILLES.
+ *
+ * ┌─ LE DEROULE ─────────────────────────────────────────────────────────────┐
+ * │ 1. On depose un fichier. Il est lu DANS LE NAVIGATEUR et reformate aux    │
+ * │    regles de la saisie manuelle. Rien n'est ecrit, rien n'est televerse.  │
+ * │ 2. Chaque foyer reçoit une ACTION, pas un verdict : creer, completer,     │
+ * │    mettre a jour, rien a faire, ou bloque.                                │
+ * │ 3. On coche ce qui est bon, on enregistre. Les foyers ecrits DISPARAISSENT│
+ * │    du tableau.                                                            │
+ * │ 4. Il reste les bloques. On corrige EN PLACE, la ligne est revalidee, et  │
+ * │    elle redevient cochable. D'ou les passes successives.                  │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ */
+
+interface Props {
+  foyers: FoyerExistant[]
+  enfants: EnfantExistant[]
+}
+
+// ─── Couleurs par ACTION, jamais par verdict ─────────────────────────────────
+//
+// Le rouge ne signale plus « existe deja » — en aout, c'est le cas NORMAL. Il
+// est reserve a ce qui demande une decision. Et le motif reste ecrit EN CLAIR
+// sur la ligne : une couleur seule ne dit pas quoi corriger, et elle est
+// invisible pour un daltonien.
+const STYLE_ACTION: Record<string, { fond: string; texte: string; libelle: string }> = {
+  creer:         { fond: 'bg-primary-50',  texte: 'text-primary-700', libelle: 'Créer la famille' },
+  completer:     { fond: 'bg-primary-50',  texte: 'text-primary-700', libelle: 'Ajouter au foyer existant' },
+  mettre_a_jour: { fond: 'bg-amber-50',    texte: 'text-amber-700',   libelle: 'Mettre à jour le foyer' },
+  rien:          { fond: 'bg-warm-50',     texte: 'text-warm-700',    libelle: 'Déjà enregistré' },
+  bloque:        { fond: 'bg-red-50',      texte: 'text-red-700',     libelle: 'Bloqué' },
+}
+
+const STYLE_GRAVITE: Record<string, string> = {
+  bloquant:      'text-red-700',
+  invalide:      'text-orange-700',
+  avertissement: 'text-amber-700',
+}
+
+/** Colonnes montrees en clair sur la ligne enfant. */
+const COLS_ENFANT = ['last_name', 'first_name', 'date_of_birth', 'gender']
+
+const libelleColonne = (cle: string) => COLONNES.find(c => c.cle === cle)?.entete ?? cle
+
+export default function ImportClient({ foyers, enfants }: Props) {
+  const router = useRouter()
+  const toast = useToast()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const [lignes, setLignes] = useState<LigneBrute[] | null>(null)
+  const [nomFichier, setNomFichier] = useState('')
+  const [avertissementsFichier, setAvertissementsFichier] = useState<string[]>([])
+  const [cochees, setCochees] = useState<Set<string>>(new Set())
+  const [deplie, setDeplie] = useState<Set<string>>(new Set())
+  const [enCours, setEnCours] = useState(false)
+  const [confirmer, setConfirmer] = useState(false)
+  const [compteRendu, setCompteRendu] = useState<ResultatFoyer[] | null>(null)
+
+  // Le rapprochement est RECALCULE a chaque modification de cellule : c'est ce
+  // qui fait qu'une ligne corrigee redevient cochable sans rien relancer.
+  const resultat = useMemo(
+    () => (lignes ? rapprocher(lignes, foyers, enfants) : []),
+    [lignes, foyers, enfants],
+  )
+
+  const aFaire = resultat.filter(f => f.enregistrable)
+
+  // ── Depot du fichier ──────────────────────────────────────────────────────
+  const charger = useCallback(async (fichier: File) => {
+    setCompteRendu(null)
+    try {
+      const lecture = await lireFichierXlsx(fichier)
+
+      if (lecture.colonnesManquantes.length > 0) {
+        toast.error('Colonnes obligatoires absentes : ' + lecture.colonnesManquantes.join(', '))
+        return
+      }
+      if (lecture.lignes.length === 0) {
+        toast.warning('Ce fichier ne contient aucune ligne à importer.')
+        return
+      }
+
+      const avert: string[] = []
+      if (lecture.entetesInconnues.length > 0) {
+        avert.push('Colonnes ignorées : ' + lecture.entetesInconnues.join(', '))
+      }
+
+      setNomFichier(fichier.name)
+      setAvertissementsFichier(avert)
+      setLignes(lecture.lignes)
+      setCochees(new Set())
+    } catch {
+      // Un fichier illisible, c'est presque toujours un .xls ancien ou un .csv
+      // renomme : le dire, plutot qu'un « une erreur est survenue » qui laisse
+      // l'utilisateur sans piste.
+      toast.error("Fichier illisible. Attendu : un classeur .xlsx, tel que le gabarit.")
+    }
+  }, [toast])
+
+  // ── Correction en place ───────────────────────────────────────────────────
+  const modifier = (numeroLigne: number, cle: string, brut: string) => {
+    setLignes(prev => {
+      if (!prev) return prev
+      const col = COLONNES.find(c => c.cle === cle)
+      if (!col) return prev
+
+      return prev.map(l => {
+        if (l.numero !== numeroLigne) return l
+
+        const { valeur, erreur } = col.normaliser(brut)
+        const valeurs = { ...l.valeurs, [cle]: valeur }
+
+        // Les erreurs sont RECALCULEES pour cette ligne : garder les anciennes
+        // laisserait un message perime sous une valeur devenue correcte.
+        const erreurs: string[] = []
+        for (const c of COLONNES) {
+          const v = c.cle === cle ? valeur : valeurs[c.cle]
+          if (c.cle === cle && erreur) { erreurs.push(erreur); continue }
+          if (c.cle !== cle) {
+            const rejoue = c.normaliser(v)
+            if (rejoue.erreur) { erreurs.push(rejoue.erreur); continue }
+          }
+          if (c.obligatoire && !v) erreurs.push(`« ${c.entete} » est obligatoire`)
+        }
+
+        return { ...l, valeurs, erreurs }
+      })
+    })
+  }
+
+  // ── Enregistrement ────────────────────────────────────────────────────────
+  const enregistrer = async () => {
+    setConfirmer(false)
+    setEnCours(true)
+
+    const lots: FoyerAEnregistrer[] = resultat
+      .filter(f => cochees.has(f.cle))
+      .map(f => ({
+        cle: f.cle,
+        libelle: `${f.valeurs.tutor1_last_name ?? ''} ${f.valeurs.tutor1_first_name ?? ''}`.trim(),
+        foyerId: f.existantId ?? null,
+        // A la mise a jour on n'envoie QUE ce qui change : la fonction laisse en
+        // place toute cle absente, donc rien d'autre ne peut etre touche.
+        foyer: f.existantId
+          ? Object.fromEntries(f.changements.map(c => [c.cle, c.apres]))
+          : f.valeurs,
+        enfants: f.enfants
+          .filter(e => e.action === 'creer')
+          .map(e => Object.fromEntries(COLS_ENFANT.map(k => [k, e.valeurs[k]]))),
+      }))
+
+    const { error, resultats } = await enregistrerFoyers(lots)
+    setEnCours(false)
+
+    if (error) { toast.error(error); return }
+    if (!resultats) return
+
+    setCompteRendu(resultats)
+
+    // Les foyers ECRITS disparaissent du tableau : il ne reste que ce qui
+    // demande encore quelque chose. C'est ce qui rend les passes successives
+    // lisibles — sinon on relit a chaque fois ce qui est deja fait.
+    const ecrits = new Set(resultats.filter(r => r.ok).map(r => r.cle))
+    setLignes(prev => prev?.filter(l => {
+      const f = resultat.find(x => x.lignes.includes(l.numero))
+      return !f || !ecrits.has(f.cle)
+    }) ?? null)
+    setCochees(new Set())
+
+    const ok = resultats.filter(r => r.ok).length
+    const ko = resultats.length - ok
+    if (ko === 0) toast.success(`${ok} foyer(s) enregistré(s).`)
+    else toast.warning(`${ok} foyer(s) enregistré(s), ${ko} en échec.`)
+
+    router.refresh()
+  }
+
+  const basculer = (cle: string) =>
+    setCochees(prev => {
+      const s = new Set(prev)
+      if (s.has(cle)) s.delete(cle)
+      else s.add(cle)
+      return s
+    })
+
+  const totalEnfants = resultat
+    .filter(f => cochees.has(f.cle))
+    .reduce((n, f) => n + f.enfants.filter(e => e.action === 'creer').length, 0)
+
+  return (
+    <div className="space-y-3 animate-fade-in">
+
+      {/* ── Dépôt du fichier ── */}
+      <div className="card p-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="stat-label">Fichier à importer</h2>
+          <div className="flex-1" />
+          {/* Le lien vit ICI, avant le dépôt : on a besoin du gabarit AVANT
+              d'avoir quoi que ce soit à déposer. */}
+          <a
+            href="/gabarit-import-apprenants.xlsx"
+            download
+            className="inline-flex items-center gap-1.5 text-xs text-primary-700 hover:text-primary-800 underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          >
+            <FileDown size={14} />
+            Télécharger le gabarit
+          </a>
+        </div>
+
+        <label
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            e.preventDefault()
+            const f = e.dataTransfer.files?.[0]
+            if (f) charger(f)
+          }}
+          className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-warm-200 rounded-lg py-6 cursor-pointer hover:border-primary-400 hover:bg-warm-50/50 transition-colors focus-within:ring-2 focus-within:ring-primary-500/50"
+        >
+          <Upload size={22} className="text-warm-700" />
+          <span className="text-sm text-warm-700">
+            {nomFichier
+              ? <>Fichier chargé : <span className="font-medium text-secondary-800">{nomFichier}</span> · déposez-en un autre pour recommencer</>
+              : <>Déposez le fichier ici, ou <span className="text-primary-700 underline">choisissez-le</span></>}
+          </span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".xlsx"
+            className="sr-only"
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) charger(f)
+              e.target.value = ''
+            }}
+          />
+        </label>
+
+        {avertissementsFichier.map((a, i) => (
+          <p key={i} className="text-xs text-amber-700 flex items-center gap-1.5">
+            <AlertTriangle size={13} className="flex-shrink-0" />
+            {a}
+          </p>
+        ))}
+      </div>
+
+      {/* ── Compte rendu du dernier enregistrement ── */}
+      {compteRendu && (
+        <div className="card p-3 space-y-1.5">
+          <h2 className="stat-label">Dernier enregistrement</h2>
+          {compteRendu.map(r => (
+            <p key={r.cle} className="text-xs flex items-start gap-1.5">
+              {r.ok
+                ? <Check size={13} className="text-primary-600 flex-shrink-0 mt-0.5" />
+                : <X size={13} className="text-red-600 flex-shrink-0 mt-0.5" />}
+              <span className={r.ok ? 'text-warm-700' : 'text-red-700'}>
+                <span className="font-medium text-secondary-800">{r.libelle}</span>
+                {r.ok
+                  ? ` · ${r.foyerCree ? 'foyer créé' : 'foyer mis à jour'}`
+                    + (r.enfantsCrees ? ` · ${r.enfantsCrees} apprenant(s) : ${r.numeros?.join(', ')}` : '')
+                  : ` · ${r.message}`}
+              </span>
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* ── Le tableau ── */}
+      {lignes && resultat.length > 0 && (
+        <>
+          <div className="card p-0 overflow-hidden">
+            <div className="max-h-[60vh] overflow-y-auto list-scroll">
+              <table className="w-full text-left text-xs" aria-label="Familles du fichier">
+                <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
+                  <tr className="border-b border-warm-100">
+                    <th scope="col" className="list-th w-10"></th>
+                    <th scope="col" className="list-th w-64">Foyer</th>
+                    <th scope="col" className="list-th w-52">Action</th>
+                    <th scope="col" className="list-th">Détail</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-warm-100">
+                  {resultat.map(f => (
+                    <LigneFoyer
+                      key={f.cle}
+                      foyer={f}
+                      coche={cochees.has(f.cle)}
+                      onBasculer={() => basculer(f.cle)}
+                      deplie={deplie.has(f.cle)}
+                      onDeplier={() => setDeplie(p => {
+                        const s = new Set(p)
+                        if (s.has(f.cle)) s.delete(f.cle)
+                        else s.add(f.cle)
+                        return s
+                      })}
+                      onModifier={modifier}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── Pied d'action ── */}
+          <div className="card p-3 flex flex-wrap items-center gap-3">
+            <span className="text-xs text-warm-700">
+              <span className="font-bold text-secondary-800">{resultat.length}</span> foyer(s) dans le fichier ·{' '}
+              <span className="font-bold text-secondary-800">{aFaire.length}</span> à enregistrer ·{' '}
+              <span className="font-bold text-secondary-800">{cochees.size}</span> coché(s)
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setCochees(new Set(aFaire.map(f => f.cle)))}
+              disabled={aFaire.length === 0}
+              className="text-xs text-primary-700 hover:text-primary-800 underline underline-offset-2 disabled:text-warm-400 disabled:no-underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            >
+              Tout cocher ce qui est valide
+            </button>
+            {cochees.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setCochees(new Set())}
+                className="text-xs text-warm-700 hover:text-secondary-700 underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+              >
+                Tout décocher
+              </button>
+            )}
+
+            <div className="flex-1" />
+
+            <FloatButton
+              type="button"
+              variant="submit"
+              disabled={cochees.size === 0 || enCours}
+              loading={enCours}
+              onClick={() => setConfirmer(true)}
+            >
+              Enregistrer la sélection
+            </FloatButton>
+          </div>
+        </>
+      )}
+
+      {confirmer && (
+        <ConfirmModal
+          title="Enregistrer les familles cochées ?"
+          message={`${cochees.size} foyer(s) et ${totalEnfants} apprenant(s) vont être écrits. Les foyers enregistrés disparaîtront du tableau.`}
+          confirmLabel="Enregistrer"
+          confirmColor="amber"
+          onConfirm={enregistrer}
+          onCancel={() => setConfirmer(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Une ligne de foyer, et ses enfants ──────────────────────────────────────
+
+function LigneFoyer({
+  foyer, coche, onBasculer, deplie, onDeplier, onModifier,
+}: {
+  foyer: FoyerRapproche
+  coche: boolean
+  onBasculer: () => void
+  deplie: boolean
+  onDeplier: () => void
+  onModifier: (ligne: number, cle: string, valeur: string) => void
+}) {
+  const style = STYLE_ACTION[foyer.action]
+  const nom = `${foyer.valeurs.tutor1_last_name ?? '?'} ${foyer.valeurs.tutor1_first_name ?? '?'}`
+  const premiereLigne = foyer.lignes[0]
+
+  return (
+    <tr className={style.fond}>
+      <td className="list-td align-top pt-2">
+        {/* Grisée et non masquée : une case qui disparaît se lit comme un bug,
+            une case grisée se lit comme un refus — et le motif est juste à côté. */}
+        <input
+          type="checkbox"
+          checked={coche}
+          disabled={!foyer.enregistrable}
+          onChange={onBasculer}
+          aria-label={`Enregistrer le foyer ${nom}`}
+          className="accent-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+      </td>
+
+      <td className="list-td align-top pt-1.5">
+        <div className="list-name text-secondary-800">{nom}</div>
+        <div className="text-[11px] text-warm-700">
+          {foyer.lignes.length > 1
+            ? `lignes ${foyer.lignes.join(', ')}`
+            : `ligne ${foyer.lignes[0]}`}
+        </div>
+        <button
+          type="button"
+          onClick={onDeplier}
+          aria-expanded={deplie}
+          className="text-[11px] text-primary-700 hover:text-primary-800 underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        >
+          {deplie ? 'Masquer les coordonnées' : 'Voir et corriger les coordonnées'}
+        </button>
+      </td>
+
+      <td className="list-td align-top pt-2">
+        <span className={`font-medium ${style.texte}`}>{style.libelle}</span>
+      </td>
+
+      <td className="list-td align-top pt-1.5 space-y-1">
+        {/* Ce qui change, avant/après — on ne coche pas une mise à jour en
+            espérant que la machine fera bien. */}
+        {foyer.changements.map(c => (
+          <div key={c.cle} className="text-[11px] text-amber-700">
+            {libelleColonne(c.cle)} : <span className="line-through">{c.avant || '(vide)'}</span> → <span className="font-medium">{c.apres}</span>
+          </div>
+        ))}
+
+        {foyer.anomalies.map((a, i) => (
+          <div key={i} className={`text-[11px] ${STYLE_GRAVITE[a.gravite]}`}>{a.message}</div>
+        ))}
+
+        {/* Les enfants du foyer */}
+        <div className="space-y-1 pt-0.5">
+          {foyer.enfants.map(e => (
+            <div key={e.ligne} className="flex flex-wrap items-center gap-1">
+              {COLS_ENFANT.map(cle => (
+                <Cellule
+                  key={cle}
+                  valeur={e.valeurs[cle]}
+                  placeholder={libelleColonne(cle)}
+                  largeur={cle === 'date_of_birth' ? 'w-24' : cle === 'gender' ? 'w-20' : 'w-28'}
+                  onChange={v => onModifier(e.ligne, cle, v)}
+                />
+              ))}
+              <span className="text-[11px] text-warm-700">
+                {e.action === 'rien' ? 'déjà enregistré' : e.action === 'creer' ? 'à créer' : ''}
+              </span>
+              {e.anomalies.map((a, i) => (
+                <span key={i} className={`text-[11px] ${STYLE_GRAVITE[a.gravite]}`}>{a.message}</span>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Coordonnées du foyer, dépliables */}
+        {deplie && (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-1 pt-1.5 border-t border-warm-100 mt-1.5">
+            {COLONNES.filter(c => c.cible !== 'enfant').map(c => (
+              <label key={c.cle} className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-warm-700 uppercase tracking-wide">{c.entete}</span>
+                <Cellule
+                  valeur={foyer.valeurs[c.cle]}
+                  placeholder={c.entete}
+                  largeur="w-full"
+                  onChange={v => onModifier(premiereLigne, c.cle, v)}
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+/**
+ * Cellule corrigeable.
+ *
+ * La revalidation se fait au BLUR et non a chaque frappe : normaliser pendant
+ * la saisie mettrait le nom en majuscules sous les doigts de l'utilisateur, qui
+ * ne saurait plus ou il en est.
+ */
+function Cellule({
+  valeur, placeholder, largeur, onChange,
+}: {
+  valeur: string | null
+  placeholder: string
+  largeur: string
+  onChange: (v: string) => void
+}) {
+  const [brut, setBrut] = useState<string | null>(null)
+  const affiche = brut ?? valeur ?? ''
+
+  return (
+    <Tooltip content={placeholder}>
+      <input
+        type="text"
+        value={affiche}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        onChange={e => setBrut(e.target.value)}
+        onBlur={() => {
+          if (brut !== null && brut !== (valeur ?? '')) onChange(brut)
+          setBrut(null)
+        }}
+        className={`${largeur} px-1.5 py-0.5 text-[11px] rounded border border-warm-200 bg-[var(--surface-card)] text-secondary-800 placeholder:text-warm-400 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40`}
+      />
+    </Tooltip>
+  )
+}

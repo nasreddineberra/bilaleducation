@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
 
 import {
+  Upload,
   LifeBuoy,
   LayoutDashboard,
   Users,
@@ -214,6 +215,15 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    // Reserve a la direction : la secretaire saisit les fiches une a une, elle
+    // n'importe pas de fichier. Garde repetee sur la PAGE — un ecran reste
+    // atteignable par son adresse meme quand le lien est masque.
+    name:  'Importation',
+    href:  '/dashboard/import',
+    icon:  Upload,
+    roles: ['admin', 'direction'],
+  },
+  {
     name:  'Cahier de texte',
     href:  '/dashboard/cahier-texte',
     icon:  BookOpenText,
@@ -370,6 +380,7 @@ const SECTION_OF: Record<string, string> = {
   'Parents':            'Vie scolaire',
   'Affectations':       'Vie scolaire',
   "Feuille d'appel":    'Vie scolaire',
+  'Importation':        'Vie scolaire',
   'Évaluations':        'Pédagogie',
   'Emploi du temps':    'Pédagogie',
   'Cahier de texte':    'Pédagogie',

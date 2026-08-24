@@ -47,6 +47,8 @@ const FORMES: [RegExp, Forme][] = [
   [/^\/dashboard\/evaluations/, 'tableau-de-bord'],
   [/^\/dashboard\/passage-annee/, 'tableau-de-bord'],
   [/^\/dashboard\/cotisations/, 'tableau-de-bord'],
+  // Importation : un encadre de depot, puis un long tableau de familles.
+  [/^\/dashboard\/import/, 'tableau-de-bord'],
 
   // FICHES À ONGLETS. Elles ne se réduisent pas à un formulaire : bandeau
   // d'identité en tête, puis barre d'onglets, puis le contenu. Les oublier
