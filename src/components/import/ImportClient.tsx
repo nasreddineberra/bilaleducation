@@ -6,6 +6,7 @@ import { AlertTriangle, Check, X } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
 import { COLONNES } from '@/lib/import/colonnes'
 import { lireFichierXlsx, type LigneBrute } from '@/lib/import/lire-fichier'
 import { rapprocher, type FoyerExistant, type EnfantExistant, type FoyerRapproche } from '@/lib/import/rapprocher'
@@ -413,18 +414,23 @@ export default function ImportClient({ foyers, enfants }: Props) {
                           Desactivee et non masquee quand rien n'est valide : un
                           controle qui disparait se lit comme un bug, un controle
                           grise se lit comme un refus. */}
-                      <input
-                        type="checkbox"
-                        ref={el => { if (el) el.indeterminate = partiel }}
-                        checked={aFaire.length > 0 && cochesValides.size === aFaire.length}
-                        disabled={aFaire.length === 0}
-                        onChange={() => setCochees(
-                          cochesValides.size === aFaire.length ? new Set() : new Set(aFaire.map(f => f.cle)),
-                        )}
-                        aria-label={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tous les foyers enregistrables'}
-                        title={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tout ce qui est enregistrable'}
-                        className="accent-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                      />
+                      {/* Le `Tooltip` du projet, jamais un `title=` natif : les
+                          audits d'accessibilite les ont tous remplaces, parce
+                          qu'une bulle native ne s'ouvre pas au CLAVIER et ne
+                          suit pas le theme. */}
+                      <Tooltip content={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tout ce qui est enregistrable'}>
+                        <input
+                          type="checkbox"
+                          ref={el => { if (el) el.indeterminate = partiel }}
+                          checked={aFaire.length > 0 && cochesValides.size === aFaire.length}
+                          disabled={aFaire.length === 0}
+                          onChange={() => setCochees(
+                            cochesValides.size === aFaire.length ? new Set() : new Set(aFaire.map(f => f.cle)),
+                          )}
+                          aria-label={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tous les foyers enregistrables'}
+                          className="accent-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                        />
+                      </Tooltip>
                     </th>
                     <th scope="col" className="list-th w-64">Foyer</th>
                     <th scope="col" className="list-th w-52">Action</th>
@@ -551,7 +557,7 @@ function LigneFoyer({
             d'elle-meme sur un ecran etroit. */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-1.5">
         {foyer.enfants.map(e => (
-          <div key={e.ligne} className="rounded-lg border border-warm-100 p-1.5 space-y-1">
+          <div key={e.ligne} className="rounded-lg border border-warm-200 bg-[var(--surface-card)] p-2 space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wide text-warm-700">
                 Apprenant · ligne {e.ligne}
@@ -601,7 +607,7 @@ function LigneFoyer({
 
         {/* ── Coordonnees du foyer, depliables ──────────────────────────────── */}
         {deplie && (
-          <div className="rounded-lg border border-warm-100 p-1.5 space-y-1">
+          <div className="rounded-lg border border-warm-200 bg-[var(--surface-card)] p-2 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wide text-warm-700">
               Coordonnées du foyer
             </span>
@@ -660,8 +666,8 @@ function Champ({
   const [saisi, setSaisi] = useState<string | null>(null)
   const affiche = saisi ?? valeur ?? ''
 
-  return (
-    <label className="flex flex-col gap-0.5 min-w-0">
+  const champ = (
+    <label className="flex flex-col gap-0.5 min-w-0 w-full">
       <span className="text-[10px] uppercase tracking-wide text-warm-700 truncate">
         {libelle}
         {obligatoire && <span className="text-red-500"> *</span>}
@@ -672,7 +678,6 @@ function Champ({
         aria-label={libelleComplet ?? libelle}
         aria-invalid={!!erreur}
         readOnly={lecture}
-        title={lecture ? titreLecture : undefined}
         onChange={e => setSaisi(e.target.value)}
         onBlur={() => {
           if (lecture) return
@@ -690,4 +695,11 @@ function Champ({
       {erreur && <span className="text-[10px] text-red-700 leading-tight">{erreur}</span>}
     </label>
   )
+
+  // L'explication d'un champ VERROUILLE passe par le Tooltip du projet. Le
+  // wrapper prend `w-full`, sans quoi il mesure le contenu et le champ se
+  // retrecirait dans sa colonne — le piege deja paye sur les capsules de l'EDT.
+  return lecture && titreLecture
+    ? <Tooltip content={titreLecture} className="w-full">{champ}</Tooltip>
+    : champ
 }
