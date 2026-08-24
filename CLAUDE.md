@@ -3214,6 +3214,66 @@ au motif d'origine — un controle **cote navigateur seul**, et **a moitie faux*
 livre dans le depot, dependance **`read-excel-file`** (seule des quatre bibliotheques Excel encore
 maintenue, et en LECTURE seule). Ecran reserve **admin/direction** — la secretaire n'importe pas.
 
+#### 16 aout 2026 (fin) — Import en masse : lots 2 et 3, gabarit, situation familiale
+
+**LOT 2 — lecture et rapprochement** (`src/lib/import/`, aucun ecran)
+- `colonnes.ts` : catalogue UNIQUE des 23 colonnes + normaliseurs. Il sert au gabarit, a la lecture et
+  (bientot) au tableau de l'ecran. Les valeurs sont reformatees COMME A LA SAISIE MANUELLE.
+  L'indicatif pays est reconnu d'apres `COUNTRY_CODES`, la liste du selecteur des formulaires —
+  ajouter un pays au selecteur le rend importable du meme coup. « 00 » traduit en « + », indicatifs
+  essayes du plus LONG au plus court (sans quoi `+20` masquerait `+212` et `+213`).
+- `lire-fichier.ts` : `analyserLignes()` est PURE (eprouvable sans fichier), `lireFichierXlsx()` est
+  une coquille de 3 lignes. **API de read-excel-file v9 VERIFIEE** : aucun point d'entree racine
+  (seulement `/browser`, `/node`, `/universal`, `/web-worker`), et `readXlsxFile` rend un tableau de
+  **FEUILLES** — c'est `readSheet` qu'il faut. Le nom n'a pas change entre les versions.
+- `rapprocher.ts` : regroupe PAR FOYER avant tout controle (sinon une fratrie de trois voit ses deux
+  dernieres lignes refusees comme doublons de tuteur), puis determine une **ACTION** et non un verdict
+  de validite — en aout, « existe deja » est le cas NORMAL.
+- **DEUX DEFAUTS TROUVES PAR L'EPREUVE** : (1) un fichier contenant exactement la valeur de la base
+  ressortait « a mettre a jour », le seed stockant « 06 14 05 06 07 » quand le normaliseur produit
+  « +33614050607 » — reimporter un fichier inchange aurait propose de modifier les 200 foyers ; la
+  comparaison se fait desormais sur la MEME normalisation des deux cotes. (2) Une cellule illisible
+  produisait DEUX messages (« Date inexistante » puis « est obligatoire »).
+- `scripts/verifier-import.mts` rejoue 7 cas contre les vraies donnees, en lecture seule.
+
+**GABARIT** (`public/gabarit-import-apprenants.xlsx`, engendre par `scripts/generer-gabarit-import.mts`)
+- **Engendre depuis `COLONNES`**, jamais ecrit a la main. **Aucune bibliotheque d'ecriture** : un
+  `.xlsx` est un zip de XML, et les deux bibliotheques Excel les plus connues sont a l'abandon
+  (xlsx mars 2022, exceljs octobre 2023).
+- Ordre **tuteur 1, tuteur 2, foyer, enfant** (demande utilisateur) ; les obligatoires portent
+  **« (obligatoire) »** dans l'en-tete. **Le marqueur n'entre PAS dans l'identite de la colonne** :
+  `normaliserCle` retire la parenthese finale, sinon un fichier ou quelqu'un l'a efface deviendrait
+  illisible.
+- **AUCUNE ligne d'exemple** : un exemple oublie serait importe comme une vraie famille.
+- **Listes deroulantes** (validation OOXML) sur les 3 colonnes a liste fermee — Lien x2, Situation,
+  Genre. `dataValidations` se place APRES `sheetData`, ordre impose par le schema. Chaque libelle
+  propose est verifie acceptable par notre normaliseur.
+
+**SITUATION FAMILIALE — QUATRE tables divergentes** (`src/lib/parents/situation-familiale.ts`)
+- Le select disait « Marié(e)s », l'affichage « Mariés », la liste « Monoparental », et **Financements
+  avait des CLES QUI N'EXISTENT PAS** (`concubinage`, `célibataire`, `veuf`) sans `union_libre` ni
+  `veuf_veuve` ni `monoparental` → un foyer en union libre s'affichait **« union_libre »**, tiret bas
+  compris. Une valeur inconnue rend desormais une chaine VIDE : montrer un identifiant de base a
+  l'utilisateur est pire que ne rien montrer.
+
+**LOT 3 — `import_foyer()`** (migration `add-import-foyer-function.sql`)
+- Ecrit le foyer ET ses enfants **d'un seul tenant** : PostgREST n'a pas de transaction
+  multi-requetes, et un foyer a moitie ecrit serait irrattrapable au rejeu (la garde d'unicite des
+  tuteurs mordrait).
+- **SECURITY INVOKER, delibere** : la RLS s'applique et le declencheur d'audit capte `auth.uid()`.
+  Une fonction elevee ecrirait 200 apprenants sans qu'aucun journal ne dise QUI.
+- Colonnes **enumerees une par une**, jamais de SQL dynamique. `coalesce(nouveau, ancien)` : une cle
+  absente n'efface rien. Les champs d'IDENTITE ne sont jamais mis a jour.
+- **Limite de licence** (`max_students`) verifiee : la creation manuelle la controle, un import qui
+  l'ignorerait permettrait de depasser l'abonnement par un simple fichier.
+- Numerotation sous **verrou consultatif par etablissement**, et le maximum est lu comme un NOMBRE —
+  l'ecran de creation manuelle trie les numeros comme des CHAINES, ce qui ferait repartir la
+  numerotation en arriere au 1000e apprenant d'une meme annee.
+- **Eprouvee sur 10 cas sous identite reelle** (direction et enseignant), en transaction annulee, dont
+  l'ATOMICITE : une date impossible sur le 2e enfant ne laisse ni foyer ni enfant.
+- **Piege reproduit dans mon propre test** : `toISOString()` sur une date rendue par `pg` affichait la
+  veille. Le stockage etait juste, l'affichage faux — verifie par `to_char` cote serveur.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
