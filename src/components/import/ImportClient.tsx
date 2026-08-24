@@ -81,6 +81,24 @@ const STYLE_GRAVITE: Record<string, string> = {
 const COLS_ENFANT = ['last_name', 'first_name', 'date_of_birth', 'gender']
 
 /**
+ * Libelles COURTS des champs de l'apprenant.
+ *
+ * Les quatre tiennent sur une seule ligne, donc chaque colonne est etroite :
+ * « Date de naissance » y serait tronquee a « Date de nai… ». Le prefixe
+ * « Enfant » ne manque a personne — le bloc s'intitule deja « Apprenant ·
+ * ligne N ».
+ *
+ * Le libelle COMPLET reste dans l'`aria-label` : un lecteur d'ecran n'a pas de
+ * contexte visuel, il annonce le champ seul.
+ */
+const COURT_ENFANT: Record<string, string> = {
+  last_name:     'Nom',
+  first_name:    'Prénom',
+  date_of_birth: 'Naissance',
+  gender:        'Genre',
+}
+
+/**
  * Les noms des tuteurs : la CLE DE RAPPROCHEMENT d'un foyer.
  *
  * `import_foyer()` ne les met jamais a jour — un import ne renomme personne.
@@ -543,11 +561,15 @@ function LigneFoyer({
               </Pastille>
             </div>
 
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-1.5">
+            {/* QUATRE colonnes fixes : les champs d'un apprenant se lisent d'une
+                seule ligne, quitte a etre etroits. En `auto-fill` ils se
+                repliaient a deux par deux des que le bloc passait en demi-largeur. */}
+            <div className="grid grid-cols-4 gap-1">
               {COLS_ENFANT.map(cle => (
                 <Champ
                   key={cle}
-                  libelle={libelleColonne(cle)}
+                  libelle={COURT_ENFANT[cle] ?? libelleColonne(cle)}
+                  libelleComplet={libelleColonne(cle)}
                   // ── ENFANT DEJA ENREGISTRE : CHAMPS VERROUILLES ──────────
                   //
                   // Modifier son identite ici ne le RENOMMERAIT pas : l'import
@@ -621,9 +643,11 @@ function LigneFoyer({
  * ne saurait plus ou il en est.
  */
 function Champ({
-  libelle, valeur, erreur, obligatoire, lecture, titreLecture, onChange,
+  libelle, libelleComplet, valeur, erreur, obligatoire, lecture, titreLecture, onChange,
 }: {
   libelle: string
+  /** Libelle annonce aux lecteurs d'ecran, quand l'affiche est abrege. */
+  libelleComplet?: string
   valeur: string | null
   erreur?: string
   obligatoire?: boolean
@@ -645,7 +669,7 @@ function Champ({
       <input
         type="text"
         value={affiche}
-        aria-label={libelle}
+        aria-label={libelleComplet ?? libelle}
         aria-invalid={!!erreur}
         readOnly={lecture}
         title={lecture ? titreLecture : undefined}
