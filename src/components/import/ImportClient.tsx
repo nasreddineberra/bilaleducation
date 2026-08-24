@@ -148,7 +148,11 @@ export default function ImportClient({ foyers, enfants }: Props) {
   const [nomFichier, setNomFichier] = useState('')
   const [avertissementsFichier, setAvertissementsFichier] = useState<string[]>([])
   const [cochees, setCochees] = useState<Set<string>>(new Set())
-  const [deplie, setDeplie] = useState<Set<string>>(new Set())
+  // UN SEUL foyer deplie a la fois : le panneau des coordonnees fait dix-neuf
+  // champs, et deux ouverts repoussaient deja le suivant hors de l'ecran. Ouvrir
+  // l'un referme donc l'autre — le motif d'accordeon deja retenu pour la barre
+  // laterale, ou ouvrir un sous-groupe referme ses freres.
+  const [deplie, setDeplie] = useState<string | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [confirmer, setConfirmer] = useState(false)
   const [compteRendu, setCompteRendu] = useState<ResultatFoyer[] | null>(null)
@@ -444,13 +448,8 @@ export default function ImportClient({ foyers, enfants }: Props) {
                       foyer={f}
                       coche={cochees.has(f.cle)}
                       onBasculer={() => basculer(f.cle)}
-                      deplie={deplie.has(f.cle)}
-                      onDeplier={() => setDeplie(p => {
-                        const s = new Set(p)
-                        if (s.has(f.cle)) s.delete(f.cle)
-                        else s.add(f.cle)
-                        return s
-                      })}
+                      deplie={deplie === f.cle}
+                      onDeplier={() => setDeplie(p => (p === f.cle ? null : f.cle))}
                       onModifier={modifier}
                     />
                   ))}
