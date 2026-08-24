@@ -3274,6 +3274,72 @@ maintenue, et en LECTURE seule). Ecran reserve **admin/direction** — la secret
 - **Piege reproduit dans mon propre test** : `toISOString()` sur une date rendue par `pg` affichait la
   veille. Le stockage etait juste, l'affichage faux — verifie par `to_char` cote serveur.
 
+#### 16 aout 2026 (fin, suite) — Import : lot 4, et une longue passe d'ergonomie
+
+**LOT 4 — l'ecran** (`Vie scolaire → Importation`, admin/direction, garde sur la PAGE).
+Fichier lu DANS LE NAVIGATEUR, rapprochement cote client pour que la correction d'une cellule soit
+revalidee **instantanement**. Un foyer a la fois cote serveur : un echec sur la famille n°137 ne doit
+pas annuler les 136 precedentes.
+
+**CE QUE LES ESSAIS DE L'UTILISATEUR ONT TROUVE** (aucun n'aurait ete vu en relisant le code) :
+- **Un foyer cree SANS son email obligatoire.** Reproduit par le journal d'audit, qui garde une copie
+  de ce qui a ete ecrit. La case est grisee quand le foyer est bloque, mais **cocher est un INSTANT** :
+  on coche pendant que c'est valide, on vide l'email ensuite, la case reste cochee. Trois niveaux
+  existaient, **un seul tenait** — et c'etait le seul contournable : le formulaire (navigateur),
+  `CreateParentSchema` qui declarait l'email `.optional()`, et la colonne nullable en base. Corrige
+  aux trois, plus la revalidation de la selection a l'enregistrement.
+- **`+3333630752443`** : la premiere version prefixait « +33 » a tout numero sans indicatif explicite.
+  Or « 33630752443 » est AMBIGU — deviner sur une donnee ambigue fabrique une erreur silencieuse. On
+  refuse desormais en disant les deux formes acceptees.
+- **Excel refuse un « + » en tete de cellule** (il y voit une formule) et mange les zeros de tete :
+  les deux formes internationales que notre lecteur accepte etaient precisement celles qu'Excel
+  detruisait. Les 4 colonnes telephone/code postal passent en **format texte** (`numFmtId 49`) ;
+  le gabarit gagne une feuille de styles, avec `cellStyles` qu'Excel reclame en pratique.
+- **Corriger le prenom d'un enfant existant en creait un second.** Conforme a la regle (l'identite est
+  nom+prenom+naissance, l'import cree sans jamais renommer) mais silencieux. Un **avertissement** nomme
+  desormais l'apprenant proche — meme foyer, meme nom, meme date. Avertissement et non blocage : des
+  jumeaux portent legitimement deux prenoms.
+- **Normalisation NON IDEMPOTENTE** : « Masculin » donne « male », et « male » n'etait pas un libelle
+  connu. Comme l'ecran rejouait la ligne entiere a chaque correction, la colonne Genre serait devenue
+  invalide **a chaque frappe corrigee**. Trouve en testant une PROPRIETE, pas en cliquant. La valeur
+  stockee est desormais elle-meme une forme acceptee ; les 23 colonnes sont verifiees idempotentes.
+
+**ERGONOMIE, apres retours** : valeurs refusees **conservees** dans le champ (on corrige au lieu de
+resaisir) ; libelles sur chaque champ (un placeholder disparait des qu'on remplit) ; message d'erreur
+**sous le champ vise**, qui se cerne en rouge — une anomalie porte donc sa COLONNE ; valeurs affichees
+en francais (`14/07/2015`, `Masculin`) avec la boucle affichage↔stockage verifiee sur 13 valeurs ;
+statuts en **pastilles colorees** (contraste mesure : la neutre etait a 3,60:1, passee a 5,83:1) ;
+enfant deja enregistre et noms de tuteurs d'un foyer existant **verrouilles** — les modifier ne
+renommerait rien, cela creerait un doublon ; **case d'en-tete a trois etats** au lieu de deux liens ;
+tout dans l'EN-TETE (le pied obligeait a defiler sur 200 familles) ; apprenants sur **2 colonnes**,
+leurs 4 champs sur **1 ligne** ; accordeon — un seul foyer deplie a la fois.
+
+**SITUATION FAMILIALE — QUATRE tables divergentes** reduites a une
+(`src/lib/parents/situation-familiale.ts`). Financements avait des CLES QUI N'EXISTENT PAS
+(`concubinage`, `célibataire`, `veuf`) : un foyer en union libre s'y affichait **« union_libre »**,
+tiret bas compris. Une valeur inconnue rend desormais une chaine VIDE — montrer un identifiant de
+base a l'utilisateur est pire que ne rien montrer.
+
+**`FloatButton` accepte `href`** et rend un vrai lien avec les MEMES classes. Cette limite etait notee
+au journal depuis le 3 aout et avait produit le meme bricolage dans les listes Apprenants et Parents,
+qui pourront s'y brancher.
+
+**RECHERCHE : DEUX CARACTERES MINIMUM, sur toute l'application.** Pose dans `SearchField` et non dans
+les filtres : les 20 ecrans en heritent sans changer une ligne. Le champ devient **semi-controle** —
+il garde en interne ce qui est tape, sinon la 1re lettre disparaitrait sous les doigts, et ne remonte
+que le terme EFFECTIF. Une reference distingue « le parent a change la valeur » (restauration depuis
+`sessionStorage`) de « c'est notre propre emission qui revient ».
+
+**SIGNALE, NON TRAITE** : supprimer un apprenant emporte **HUIT tables en cascade** (absences, notes,
+bulletins archives, appreciations, inscriptions, suivi des devoirs, documents, avertissements) et un
+foyer **ONZE**, dont les cotisations de la famille — derriere une confirmation EN LIGNE a deux clics.
+Apprenants et Parents sont les deux seules listes restees sur ce motif ; Enseignants et Utilisateurs
+comptent leurs dependances dans une `ConfirmModal`. Le message « des donnees sont rattachees » y est
+de surcroit **INATTEIGNABLE** cote apprenants : aucune contrainte vers `students` n'est en RESTRICT.
+
+**EN ATTENTE DE DECISION** : `parents.tutor1_email` reste **nullable** en base — seul niveau
+incontournable. Le passer en NOT NULL interdirait d'enregistrer une famille sans adresse email.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
