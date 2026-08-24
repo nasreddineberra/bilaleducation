@@ -80,6 +80,23 @@ const STYLE_GRAVITE: Record<string, string> = {
 /** Colonnes montrees en clair sur la ligne enfant. */
 const COLS_ENFANT = ['last_name', 'first_name', 'date_of_birth', 'gender']
 
+/**
+ * Les noms des tuteurs : la CLE DE RAPPROCHEMENT d'un foyer.
+ *
+ * `import_foyer()` ne les met jamais a jour — un import ne renomme personne.
+ * Sur un foyer DEJA ENREGISTRE, les laisser modifiables faisait donc croire a
+ * une correction possible alors qu'elle n'aurait rien fait ; pire, changer le
+ * nom du tuteur 1 aurait silencieusement designe un AUTRE foyer, ou fabrique
+ * une famille de plus.
+ *
+ * Consequence assumee : un foyer existant ne peut pas gagner un second tuteur
+ * par import. Cela se fait sur la fiche parents, ou l'operation est explicite.
+ */
+const CLES_IDENTITE_FOYER = [
+  'tutor1_last_name', 'tutor1_first_name',
+  'tutor2_last_name', 'tutor2_first_name',
+]
+
 const libelleColonne = (cle: string) => COLONNES.find(c => c.cle === cle)?.entete ?? cle
 
 /**
@@ -543,6 +560,7 @@ function LigneFoyer({
                   // Les coordonnees du FOYER, elles, restent modifiables : les
                   // changer produit une vraie mise a jour, c'est un usage legitime.
                   lecture={e.action === 'rien'}
+                  titreLecture="Déjà enregistré : le prénom se corrige sur la fiche de l'apprenant."
                   valeur={valeurAffichee(cle, e.valeurs, e.bruts)}
                   erreur={e.anomalies.find(a => a.cle === cle)?.message}
                   onChange={(v: string) => onModifier(e.ligne, cle, v)}
@@ -570,6 +588,8 @@ function LigneFoyer({
                   key={c.cle}
                   libelle={c.entete}
                   obligatoire={c.obligatoire}
+                  lecture={!!foyer.existantId && CLES_IDENTITE_FOYER.includes(c.cle)}
+                  titreLecture="Foyer déjà enregistré : les noms des tuteurs se corrigent sur la fiche parents."
                   valeur={valeurAffichee(c.cle, foyer.valeurs, foyer.bruts)}
                   erreur={foyer.erreursChamps[c.cle]}
                   onChange={(v: string) => onModifier(premiereLigne, c.cle, v)}
@@ -600,7 +620,7 @@ function LigneFoyer({
  * ne saurait plus ou il en est.
  */
 function Champ({
-  libelle, valeur, erreur, obligatoire, lecture, onChange,
+  libelle, valeur, erreur, obligatoire, lecture, titreLecture, onChange,
 }: {
   libelle: string
   valeur: string | null
@@ -608,6 +628,8 @@ function Champ({
   obligatoire?: boolean
   /** Champ verrouille : rien d'utile ne peut y etre modifie. */
   lecture?: boolean
+  /** Ce qu'on explique au survol d'un champ verrouille. */
+  titreLecture?: string
   onChange: (v: string) => void
 }) {
   const [saisi, setSaisi] = useState<string | null>(null)
@@ -625,7 +647,7 @@ function Champ({
         aria-label={libelle}
         aria-invalid={!!erreur}
         readOnly={lecture}
-        title={lecture ? "Déjà enregistré : à corriger sur la fiche de l'apprenant." : undefined}
+        title={lecture ? titreLecture : undefined}
         onChange={e => setSaisi(e.target.value)}
         onBlur={() => {
           if (lecture) return
