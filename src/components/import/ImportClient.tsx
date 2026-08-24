@@ -80,6 +80,14 @@ export default function ImportClient({ foyers, enfants }: Props) {
 
   const aFaire = resultat.filter(f => f.enregistrable)
 
+  // Un foyer devenu bloque quitte la selection : sans cela le compteur
+  // annoncerait « 12 coches » alors que 11 seulement partiraient.
+  const cochesValides = useMemo(
+    () => new Set([...cochees].filter(c => aFaire.some(f => f.cle === c))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cochees, resultat],
+  )
+
   // ── Depot du fichier ──────────────────────────────────────────────────────
   const charger = useCallback(async (fichier: File) => {
     setCompteRendu(null)
@@ -148,8 +156,13 @@ export default function ImportClient({ foyers, enfants }: Props) {
     setConfirmer(false)
     setEnCours(true)
 
+    // `enregistrable` EN PLUS de `cochees` : la case est grisee quand le foyer
+    // est bloque, mais cocher est un INSTANT et l'etat change ensuite. On coche
+    // pendant que c'est valide, on vide l'email dans le panneau des
+    // coordonnees, et la case reste cochee. C'est exactement ainsi qu'un foyer
+    // a ete cree sans email le 24 aout.
     const lots: FoyerAEnregistrer[] = resultat
-      .filter(f => cochees.has(f.cle))
+      .filter(f => cochees.has(f.cle) && f.enregistrable)
       .map(f => ({
         cle: f.cle,
         libelle: `${f.valeurs.tutor1_last_name ?? ''} ${f.valeurs.tutor1_first_name ?? ''}`.trim(),
@@ -199,7 +212,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
     })
 
   const totalEnfants = resultat
-    .filter(f => cochees.has(f.cle))
+    .filter(f => cochees.has(f.cle) && f.enregistrable)
     .reduce((n, f) => n + f.enfants.filter(e => e.action === 'creer').length, 0)
 
   return (
@@ -210,45 +223,68 @@ export default function ImportClient({ foyers, enfants }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="stat-label">Fichier à importer</h2>
           <div className="flex-1" />
-          {/* Le lien vit ICI, avant le dépôt : on a besoin du gabarit AVANT
-              d'avoir quoi que ce soit à déposer. */}
+
+          {/* DEUX BOUTONS, dans l'ordre du geste : on telecharge le modele,
+              on le remplit, on l'importe. Le lien de telechargement vit ICI et
+              pas ailleurs — c'est avant d'avoir un fichier qu'on en a besoin.
+
+              Le modele est un fichier statique de `public/`, donc un vrai lien
+              `download` : passer par un bouton et du JavaScript n'apporterait
+              rien et casserait le clic droit « enregistrer sous ». Il en porte
+              simplement l'apparence. */}
           <a
             href="/gabarit-import-apprenants.xlsx"
             download
-            className="inline-flex items-center gap-1.5 text-xs text-primary-700 hover:text-primary-800 underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary-600 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <FileDown size={14} />
-            Télécharger le gabarit
+            Télécharger le modèle
           </a>
+
+          <FloatButton
+            type="button"
+            variant="submit"
+            size="mini"
+            onClick={() => inputRef.current?.click()}
+          >
+            Importer le fichier
+          </FloatButton>
         </div>
 
-        <label
+        {/* La zone de depot reste : glisser un fichier est plus rapide que de
+            traverser un explorateur, et le bouton ci-dessus l'ouvre pour ceux
+            qui preferent. Ce n'est plus un `label` — le bouton porte l'action,
+            deux declencheurs sur le meme champ se marcheraient dessus. */}
+        <div
           onDragOver={e => e.preventDefault()}
           onDrop={e => {
             e.preventDefault()
             const f = e.dataTransfer.files?.[0]
             if (f) charger(f)
           }}
-          className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-warm-200 rounded-lg py-6 cursor-pointer hover:border-primary-400 hover:bg-warm-50/50 transition-colors focus-within:ring-2 focus-within:ring-primary-500/50"
+          className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-warm-200 rounded-lg py-5"
         >
-          <Upload size={22} className="text-warm-700" />
-          <span className="text-sm text-warm-700">
+          <Upload size={20} className="text-warm-700" />
+          <span className="text-xs text-warm-700">
             {nomFichier
-              ? <>Fichier chargé : <span className="font-medium text-secondary-800">{nomFichier}</span> · déposez-en un autre pour recommencer</>
-              : <>Déposez le fichier ici, ou <span className="text-primary-700 underline">choisissez-le</span></>}
+              ? <>Fichier chargé : <span className="font-medium text-secondary-800">{nomFichier}</span></>
+              : <>ou déposez le fichier ici</>}
           </span>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".xlsx"
-            className="sr-only"
-            onChange={e => {
-              const f = e.target.files?.[0]
-              if (f) charger(f)
-              e.target.value = ''
-            }}
-          />
-        </label>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx"
+          className="sr-only"
+          onChange={e => {
+            const f = e.target.files?.[0]
+            if (f) charger(f)
+            // Remis a zero : sans cela, redeposer LE MEME fichier apres
+            // correction ne declencherait aucun evenement.
+            e.target.value = ''
+          }}
+        />
 
         {avertissementsFichier.map((a, i) => (
           <p key={i} className="text-xs text-amber-700 flex items-center gap-1.5">
@@ -320,7 +356,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
             <span className="text-xs text-warm-700">
               <span className="font-bold text-secondary-800">{resultat.length}</span> foyer(s) dans le fichier ·{' '}
               <span className="font-bold text-secondary-800">{aFaire.length}</span> à enregistrer ·{' '}
-              <span className="font-bold text-secondary-800">{cochees.size}</span> coché(s)
+              <span className="font-bold text-secondary-800">{cochesValides.size}</span> coché(s)
             </span>
 
             <button
@@ -331,7 +367,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
             >
               Tout cocher ce qui est valide
             </button>
-            {cochees.size > 0 && (
+            {cochesValides.size > 0 && (
               <button
                 type="button"
                 onClick={() => setCochees(new Set())}
@@ -346,7 +382,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
             <FloatButton
               type="button"
               variant="submit"
-              disabled={cochees.size === 0 || enCours}
+              disabled={cochesValides.size === 0 || enCours}
               loading={enCours}
               onClick={() => setConfirmer(true)}
             >
@@ -359,7 +395,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
       {confirmer && (
         <ConfirmModal
           title="Enregistrer les familles cochées ?"
-          message={`${cochees.size} foyer(s) et ${totalEnfants} apprenant(s) vont être écrits. Les foyers enregistrés disparaîtront du tableau.`}
+          message={`${cochesValides.size} foyer(s) et ${totalEnfants} apprenant(s) vont être écrits. Les foyers enregistrés disparaîtront du tableau.`}
           confirmLabel="Enregistrer"
           confirmColor="amber"
           onConfirm={enregistrer}

@@ -48,10 +48,14 @@ export const UpdateTeacherSchema = CreateTeacherSchema
 // ─── Parents ────────────────────────────────────────────────────────────────
 
 export const CreateParentSchema = z.object({
-  // Tuteur 1
-  tutor1_first_name: z.string().min(2, 'Prénom tuteur 1 trop court').optional(),
-  tutor1_last_name: z.string().min(2, 'Nom tuteur 1 trop court').optional(),
-  tutor1_email: z.string().email().optional(),
+  // ── TUTEUR 1 : les trois champs que le formulaire marque obligatoires le
+  // sont AUSSI ici. Ils etaient `.optional()`, si bien que la contrainte
+  // n'existait que dans le navigateur : la server action acceptait un foyer
+  // sans email, et la colonne est nullable en base. Trois niveaux, un seul
+  // qui tenait — et le seul contournable.
+  tutor1_first_name: z.string().min(2, 'Prénom tuteur 1 trop court'),
+  tutor1_last_name: z.string().min(2, 'Nom tuteur 1 trop court'),
+  tutor1_email: z.string().email('Adresse email du tuteur 1 invalide'),
   tutor1_phone: z.string().nullable().optional(),
   tutor1_relationship: z.string().nullable().optional(),
   tutor1_address: z.string().nullable().optional(),

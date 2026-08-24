@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { messageDoublon } from '@/lib/doublons'
 import { logAudit } from '@/lib/audit'
+import { COLONNES } from '@/lib/import/colonnes'
 
 /**
  * ENREGISTREMENT DES FOYERS COCHES.
@@ -62,9 +63,39 @@ export async function enregistrerFoyers(
   // 200 apprenants seraient crees sans qu'aucun journal ne dise par qui.
   const supabase = await createClient()
 
+  // ── LES COLONNES OBLIGATOIRES SONT REVERIFIEES ICI ──────────────────────
+  //
+  // L'ecran grise la case d'un foyer bloque, mais cocher est un INSTANT : on
+  // coche pendant que c'est valide, on vide ensuite une cellule, et la case
+  // reste cochee. C'est ainsi qu'un foyer a ete cree SANS EMAIL le 24 aout.
+  //
+  // Le correctif d'ecran ne suffirait pas : cette action reste appelable
+  // directement. Une garde d'ecran ne protege rien — regle deja payee plusieurs
+  // fois sur ce projet.
+  const oblFoyer  = COLONNES.filter(c => c.obligatoire && c.cible !== 'enfant')
+  const oblEnfant = COLONNES.filter(c => c.obligatoire && c.cible === 'enfant')
+
+  const manquantes = (valeurs: Record<string, string | null>, cols: typeof COLONNES) =>
+    cols.filter(c => !valeurs[c.cle]?.trim()).map(c => c.entete)
+
   const resultats: ResultatFoyer[] = []
 
   for (const lot of lots) {
+    // A la CREATION seulement : une mise a jour n'envoie que les colonnes
+    // modifiees, y exiger les obligatoires les refuserait toutes.
+    const absentes = lot.foyerId ? [] : manquantes(lot.foyer, oblFoyer)
+    for (const e of lot.enfants) absentes.push(...manquantes(e, oblEnfant))
+
+    if (absentes.length > 0) {
+      resultats.push({
+        cle: lot.cle,
+        libelle: lot.libelle,
+        ok: false,
+        message: 'Information obligatoire absente : ' + [...new Set(absentes)].join(', '),
+      })
+      continue
+    }
+
     const { data, error } = await supabase.rpc('import_foyer', {
       p_foyer: lot.foyer,
       p_enfants: lot.enfants,
