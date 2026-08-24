@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Search, X } from 'lucide-react'
 import Tooltip from './Tooltip'
 
@@ -366,14 +366,60 @@ export interface SearchFieldProps {
   ariaLabel?:   string
 }
 
+/**
+ * Nombre de caracteres a partir duquel on cherche VRAIMENT.
+ *
+ * Une seule lettre ne filtre rien d'utile : sur trois cents familles, « a »
+ * ramene presque tout, et l'ecran clignote a chaque frappe pour un resultat
+ * qu'on n'a pas demande. Les recherches serveur, elles, partent en requete pour
+ * rien.
+ */
+const MIN_RECHERCHE = 2
+
+/**
+ * Champ de recherche.
+ *
+ * ┌─ SEMI-CONTROLE, ET C'EST LA CLE ─────────────────────────────────────────┐
+ * │ Il garde EN INTERNE ce qui est tape — sinon la premiere lettre            │
+ * │ disparaitrait sous les doigts — mais ne remonte au parent que le terme    │
+ * │ EFFECTIF : vide tant qu'on est sous le seuil.                             │
+ * │                                                                           │
+ * │ Consequence : les vingt ecrans qui l'utilisent heritent de la regle sans  │
+ * │ changer une ligne. La poser dans chaque filtre aurait demande vingt       │
+ * │ retouches, et la vingt-et-unieme aurait ete oubliee.                      │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ */
 export function SearchField({ value, onChange, placeholder = 'Rechercher…', className, onFocus, ariaLabel }: SearchFieldProps) {
+  const [saisi, setSaisi] = useState(value)
+
+  // Ce qu'on a remonte en dernier. Sert a distinguer « le parent a change la
+  // valeur lui-meme » (restauration de filtres, bouton effacer exterieur) de
+  // « c'est notre propre emission qui revient ».
+  const dernierEmis = useRef(value)
+
+  useEffect(() => {
+    if (value !== dernierEmis.current) {
+      setSaisi(value)
+      dernierEmis.current = value
+    }
+  }, [value])
+
+  const emettre = (v: string) => {
+    setSaisi(v)
+    const effectif = v.trim().length >= MIN_RECHERCHE ? v : ''
+    if (effectif !== dernierEmis.current) {
+      dernierEmis.current = effectif
+      onChange(effectif)
+    }
+  }
+
   return (
     <div className={['relative flex items-center', className ?? 'w-64'].join(' ')}>
       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-700 pointer-events-none" />
       <input
         type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
+        value={saisi}
+        onChange={e => emettre(e.target.value)}
         onFocus={onFocus}
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder}
@@ -382,13 +428,13 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
           'bg-white text-secondary-800 placeholder:text-warm-700',
           'border-warm-300 transition-all duration-200',
           'focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400',
-          value ? 'pr-8' : 'pr-3',
+          saisi ? 'pr-8' : 'pr-3',
         ].join(' ')}
       />
-      {value && (
+      {saisi && (
         <button
           type="button"
-          onClick={() => onChange('')}
+          onClick={() => emettre('')}
           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors"
           aria-label="Effacer"
         >
