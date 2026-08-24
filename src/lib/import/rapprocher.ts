@@ -197,8 +197,8 @@ export function rapprocher(
     const premiere = groupe[0]
     const anomalies: Anomalie[] = []
 
-    // Le foyer prend les valeurs de sa PREMIERE ligne. Les suivantes doivent
-    // dire la meme chose : sinon on ecrirait silencieusement l'une des deux.
+    // Le foyer prend les valeurs de sa PREMIERE ligne. Les suivantes sont
+    // ignorees pour la partie foyer — elles ne portent que leur enfant.
     const valeursFoyer: Record<string, string | null> = {}
     for (const [k, v] of Object.entries(premiere.valeurs)) {
       if (!k.startsWith('last_name') && !k.startsWith('first_name') &&
@@ -207,20 +207,18 @@ export function rapprocher(
       }
     }
 
-    for (const l of groupe.slice(1)) {
-      for (const k of Object.keys(valeursFoyer)) {
-        const a = valeursFoyer[k]
-        const b = l.valeurs[k]
-        // Une cellule vide ne contredit pas : elle ne dit rien.
-        if (a !== null && b !== null && a !== b) {
-          anomalies.push({
-            gravite: 'avertissement',
-            ligne: l.numero,
-            message: `Le foyer est decrit differemment ligne ${premiere.numero} et ligne ${l.numero} (${k}) : « ${a} » puis « ${b} ». La 1re ligne fait foi.`,
-          })
-        }
-      }
-    }
+    // ── PAS D'AVERTISSEMENT D'INCOHERENCE ENTRE LIGNES ─────────────────────
+    //
+    // Il y en avait un : « le foyer est decrit differemment ligne 2 et ligne 3,
+    // la 1re fait foi ». Retire a la demande de l'utilisateur, et il avait
+    // raison — ce message expliquait un MECANISME au lieu de dire un FAIT.
+    //
+    // Ce qui compte est deja affiche juste au-dessus : la ligne « avant → apres »
+    // montre exactement ce qui sera ecrit. Doubler cela d'une explication sur la
+    // ligne qui l'emporte, c'est faire lire deux fois la meme decision.
+    //
+    // La regle elle-meme ne change pas : le foyer prend les valeurs de sa
+    // PREMIERE ligne.
 
     // Le tuteur 2 ne peut pas etre le tuteur 1 : meme regle qu'en base.
     if (valeursFoyer.tutor2_last_name || valeursFoyer.tutor2_first_name) {
