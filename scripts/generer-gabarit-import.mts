@@ -53,7 +53,37 @@ function ligne(numero: number, valeurs: string[]): string {
   return `<row r="${numero}">${cellules}</row>`
 }
 
-function feuille(lignes: string[], largeurs: number[], figerEntete: boolean): string {
+/**
+ * Listes deroulantes (« validation de donnees » au sens OOXML).
+ *
+ * C'est ce qui empeche la mauvaise saisie A LA SOURCE : plutot que de refuser
+ * « celibataire » a l'import et de faire recommencer l'ecole, le tableur ne
+ * laisse choisir que des valeurs connues.
+ *
+ * La liste est ecrite EN CLAIR dans la formule (`"Père,Mère,…"`). Excel borne
+ * cette forme a 255 caracteres — nos trois listes tiennent tres largement, la
+ * plus longue faisant moins de 90 signes.
+ *
+ * `allowBlank` : une colonne facultative doit pouvoir rester vide.
+ * `showErrorMessage` : Excel refuse une saisie hors liste au lieu de l'avaler.
+ */
+interface Deroulante { colonne: number; valeurs: string[]; obligatoire: boolean }
+
+function validations(listes: Deroulante[], derniereLigne: number): string {
+  if (!listes.length) return ''
+  const items = listes
+    .map(d => {
+      const ref = `${lettre(d.colonne)}2:${lettre(d.colonne)}${derniereLigne}`
+      const valeurs = echapper(d.valeurs.join(','))
+      return `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1"`
+        + ` errorTitle="Valeur non acceptée" error="Choisissez une valeur dans la liste."`
+        + ` sqref="${ref}"><formula1>&quot;${valeurs}&quot;</formula1></dataValidation>`
+    })
+    .join('')
+  return `<dataValidations count="${listes.length}">${items}</dataValidations>`
+}
+
+function feuille(lignes: string[], largeurs: number[], figerEntete: boolean, listes: Deroulante[] = []): string {
   const cols = largeurs
     .map((l, i) => `<col min="${i + 1}" max="${i + 1}" width="${l}" customWidth="1"/>`)
     .join('')
@@ -64,8 +94,10 @@ function feuille(lignes: string[], largeurs: number[], figerEntete: boolean): st
     ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
     : ''
 
+  // `dataValidations` se place APRES `sheetData` : l'ordre des elements est
+  // impose par le schema OOXML, et Excel refuse d'ouvrir un fichier qui l'inverse.
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${vue}<cols>${cols}</cols><sheetData>${lignes.join('')}</sheetData></worksheet>`
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${vue}<cols>${cols}</cols><sheetData>${lignes.join('')}</sheetData>${validations(listes, 1000)}</worksheet>`
 }
 
 // ─── Feuille 1 : les colonnes a remplir ──────────────────────────────────────
@@ -83,7 +115,13 @@ const libelle = (c: (typeof COLONNES)[number]) =>
 
 const entetes = COLONNES.map(libelle)
 const largeurs = COLONNES.map(c => Math.max(14, Math.min(32, libelle(c).length + 3)))
-const feuilleImport = feuille([ligne(1, entetes)], largeurs, true)
+// Une liste deroulante partout ou la colonne a une liste fermee : genre, lien
+// de parente (les deux tuteurs) et situation familiale.
+const deroulantes: Deroulante[] = COLONNES
+  .map((c, i) => ({ colonne: i, valeurs: c.libelles ?? [], obligatoire: c.obligatoire }))
+  .filter(d => d.valeurs.length > 0)
+
+const feuilleImport = feuille([ligne(1, entetes)], largeurs, true, deroulantes)
 
 // ─── Feuille 2 : ce que les colonnes acceptent ───────────────────────────────
 //

@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { studentRepository } from '@/lib/database/students'
 import Tooltip from '@/components/ui/Tooltip'
+import { libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent, Student } from '@/types/database'
 
 interface ParentsTableProps {
@@ -23,15 +24,6 @@ const RELATION_LABEL: Record<string, string> = {
   'autre': 'Autre',
 }
 
-const SITUATION_LABEL: Record<string, string> = {
-  'mariés': 'Mariés',
-  'pacsés': 'Pacsés',
-  'union_libre': 'Union libre',
-  'séparés': 'Séparés',
-  'divorcés': 'Divorcés',
-  'veuf_veuve': 'Veuf/Veuve',
-  'monoparental': 'Monoparental',
-}
 
 export default function ParentsTable({ parents, parentsWithChildren, parentsWithPAI }: ParentsTableProps) {
   const router = useRouter()
@@ -229,7 +221,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   <td className="list-td text-center">
                     <span className="text-xs text-warm-700">
                       {parent.situation_familiale
-                        ? (SITUATION_LABEL[parent.situation_familiale] ?? parent.situation_familiale)
+                        ? libelleSituation(parent.situation_familiale)
                         : '·'}
                     </span>
                   </td>

@@ -5,6 +5,7 @@ import { Trash2, Pencil, AlertTriangle, MessageSquareText, X } from 'lucide-reac
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
+import { libelleSituation } from '@/lib/parents/situation-familiale'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -60,11 +61,6 @@ interface ParentOption {
   adultLines: AdultLine[]
 }
 
-const SITUATION_LABELS: Record<string, string> = {
-  'mariés': 'Mariés', 'pacsés': 'Pacsés', 'concubinage': 'Concubinage',
-  'célibataire': 'Célibataire', 'séparés': 'Séparés', 'divorcés': 'Divorcés',
-  'veuf': 'Veuf(ve)', 'autre': 'Autre',
-}
 
 interface Props {
   currentYear: { id: string; label: string }
@@ -871,7 +867,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             </h1>
             <div className="flex items-center gap-2 text-xs mt-0.5 flex-wrap">
               {selectedParent.situation_familiale
-                ? <span className="text-warm-700">{SITUATION_LABELS[selectedParent.situation_familiale] ?? selectedParent.situation_familiale}</span>
+                ? <span className="text-warm-700">{libelleSituation(selectedParent.situation_familiale)}</span>
                 : <span className="text-warm-700 italic">Situation non renseignée</span>}
               <span className={clsx('font-bold uppercase text-[10px] px-2 py-0.5 rounded-full', STATUS_COLORS[derivedStatus])}>
                 {STATUS_LABELS[derivedStatus]}

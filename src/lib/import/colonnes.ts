@@ -18,6 +18,7 @@
  */
 
 import { COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
+import { libelleSituation } from '@/lib/parents/situation-familiale'
 
 /** A quelle partie de la ligne la colonne appartient. */
 export type Cible = 'tuteur1' | 'tuteur2' | 'foyer' | 'enfant'
@@ -37,8 +38,10 @@ export interface Colonne {
   cible: Cible
   obligatoire: boolean
   normaliser: (brut: unknown) => Valeur
-  /** Formes acceptees, pour les colonnes a liste fermee (genre, lien, situation). */
+  /** Toutes les formes tolerees a la lecture (genre, lien, situation). */
   valeursAcceptees?: string[]
+  /** Libelles canoniques — la liste deroulante du gabarit. */
+  libelles?: string[]
 }
 
 // ─── Normaliseurs ────────────────────────────────────────────────────────────
@@ -212,37 +215,48 @@ function liste(valeurs: Record<string, string[]>, libelle: string) {
   // Les formes acceptees remontent avec le normaliseur : le gabarit et l'ecran
   // les affichent sans les recopier. Recopier une liste fermee, c'est se donner
   // deux verites — et le jour ou l'une gagne une valeur, l'autre la refuse.
-  return { normaliser, formes: Object.values(valeurs).flat() }
+  return {
+    normaliser,
+    formes: Object.values(valeurs).flat(),
+    // Le PREMIER de chaque cle est le libelle canonique : celui qu'on propose
+    // dans la liste deroulante du gabarit. Les autres ne sont que tolerés.
+    libelles: Object.values(valeurs).map(f => f[0]),
+  }
 }
 
 const genre = liste(
   {
-    male: ['Masculin', 'M', 'Garcon', 'H', 'Homme'],
-    female: ['Feminin', 'F', 'Fille', 'Femme'],
-    non_specified: ['Non specifie', 'NS'],
+    male: ['Masculin', 'M', 'Garçon', 'Garcon', 'H', 'Homme'],
+    female: ['Féminin', 'Feminin', 'F', 'Fille', 'Femme'],
+    non_specified: ['Non spécifié', 'Non specifie', 'NS'],
   },
   'Genre',
 )
 
 const lien = liste(
   {
-    'père': ['Pere', 'Papa'],
-    'mère': ['Mere', 'Maman'],
-    'tuteur': ['Tuteur legal', 'Tuteur'],
+    // Memes libelles que `RELATIONSHIP_OPTIONS` de la fiche parents : la liste
+    // deroulante du gabarit doit offrir ce que l'ecran offre.
+    'père': ['Père', 'Pere', 'Papa'],
+    'mère': ['Mère', 'Mere', 'Maman'],
+    'tuteur': ['Tuteur légal', 'Tuteur legal', 'Tuteur'],
     'autre': ['Autre'],
   },
   'Lien de parente',
 )
 
+// Les libelles viennent de la MEME source que la fiche parents : le gabarit
+// propose exactement ce que l'ecran propose. Les formes suivantes ne sont que
+// des tolerances de saisie pour un fichier qui ne viendrait pas du gabarit.
 const situation = liste(
   {
-    'mariés': ['Maries', 'Marie'],
-    'pacsés': ['Pacses', 'Pacse'],
-    'union_libre': ['Union libre', 'Concubinage'],
-    'séparés': ['Separes', 'Separe'],
-    'divorcés': ['Divorces', 'Divorce'],
-    'veuf_veuve': ['Veuf', 'Veuve', 'Veuf/Veuve'],
-    'monoparental': ['Monoparental', 'Famille monoparentale'],
+    'mariés': [libelleSituation('mariés'), 'Marie', 'Maries'],
+    'pacsés': [libelleSituation('pacsés'), 'Pacse', 'Pacses'],
+    'union_libre': [libelleSituation('union_libre'), 'Concubinage'],
+    'séparés': [libelleSituation('séparés'), 'Separe', 'Separes'],
+    'divorcés': [libelleSituation('divorcés'), 'Divorce', 'Divorces'],
+    'veuf_veuve': [libelleSituation('veuf_veuve'), 'Veuf', 'Veuve'],
+    'monoparental': [libelleSituation('monoparental'), 'Monoparental'],
   },
   'Situation familiale',
 )
@@ -270,7 +284,7 @@ export const COLONNES: Colonne[] = [
   { cle: 'tutor1_first_name',   entete: 'Tuteur 1 Prénom',      cible: 'tuteur1', obligatoire: true,  normaliser: prenom },
   { cle: 'tutor1_email',        entete: 'Tuteur 1 Email',       cible: 'tuteur1', obligatoire: true,  normaliser: email },
   { cle: 'tutor1_phone',        entete: 'Tuteur 1 Téléphone',   cible: 'tuteur1', obligatoire: false, normaliser: telephone },
-  { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes },
+  { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes, libelles: lien.libelles },
   { cle: 'tutor1_address',      entete: 'Tuteur 1 Adresse',     cible: 'tuteur1', obligatoire: false, normaliser: texte },
   { cle: 'tutor1_city',         entete: 'Tuteur 1 Ville',       cible: 'tuteur1', obligatoire: false, normaliser: texte },
   { cle: 'tutor1_postal_code',  entete: 'Tuteur 1 Code postal', cible: 'tuteur1', obligatoire: false, normaliser: codePostal },
@@ -280,18 +294,18 @@ export const COLONNES: Colonne[] = [
   { cle: 'tutor2_first_name',   entete: 'Tuteur 2 Prénom',      cible: 'tuteur2', obligatoire: false, normaliser: prenom },
   { cle: 'tutor2_email',        entete: 'Tuteur 2 Email',       cible: 'tuteur2', obligatoire: false, normaliser: email },
   { cle: 'tutor2_phone',        entete: 'Tuteur 2 Téléphone',   cible: 'tuteur2', obligatoire: false, normaliser: telephone },
-  { cle: 'tutor2_relationship', entete: 'Tuteur 2 Lien',        cible: 'tuteur2', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes },
+  { cle: 'tutor2_relationship', entete: 'Tuteur 2 Lien',        cible: 'tuteur2', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes, libelles: lien.libelles },
   { cle: 'tutor2_address',      entete: 'Tuteur 2 Adresse',     cible: 'tuteur2', obligatoire: false, normaliser: texte },
   { cle: 'tutor2_city',         entete: 'Tuteur 2 Ville',       cible: 'tuteur2', obligatoire: false, normaliser: texte },
   { cle: 'tutor2_postal_code',  entete: 'Tuteur 2 Code postal', cible: 'tuteur2', obligatoire: false, normaliser: codePostal },
   { cle: 'tutor2_profession',   entete: 'Tuteur 2 Profession',  cible: 'tuteur2', obligatoire: false, normaliser: texte },
 
-  { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation.normaliser, valeursAcceptees: situation.formes },
+  { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation.normaliser, valeursAcceptees: situation.formes, libelles: situation.libelles },
 
   { cle: 'last_name',           entete: 'Enfant NOM',           cible: 'enfant',  obligatoire: true,  normaliser: nom },
   { cle: 'first_name',          entete: 'Enfant Prénom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
   { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date },
-  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes },
+  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes, libelles: genre.libelles },
 ]
 
 

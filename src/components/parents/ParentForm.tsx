@@ -6,17 +6,9 @@ import { createParentWithAccounts, updateParentRecord, type TutorAccountResult, 
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
 import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
+import { SITUATIONS_FAMILIALES, libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent, TutorRelationship } from '@/types/database'
 
-const SITUATION_LABELS: Record<string, string> = {
-  'mariés': 'Mariés',
-  'pacsés': 'Pacsés',
-  'union_libre': 'Union libre',
-  'séparés': 'Séparés',
-  'divorcés': 'Divorcés',
-  'veuf_veuve': 'Veuf/Veuve',
-  'monoparental': 'Monoparental',
-}
 
 
 const RELATIONSHIP_OPTIONS: { value: TutorRelationship; label: string }[] = [
@@ -42,16 +34,6 @@ const parsePhone = (phone?: string | null): { code: string; number: string } => 
     : { code: '+33', number: digitsOnly(phone) }
 }
 
-// ─── Situation familiale ──────────────────────────────────────────────────────
-const SITUATION_OPTIONS = [
-  { value: 'mariés',      label: 'Marié(e)s'           },
-  { value: 'pacsés',      label: 'Pacsé(e)s'           },
-  { value: 'union_libre', label: 'Union libre'         },
-  { value: 'séparés',     label: 'Séparé(e)s'          },
-  { value: 'divorcés',    label: 'Divorcé(e)s'         },
-  { value: 'veuf_veuve',  label: 'Veuf / Veuve'        },
-  { value: 'monoparental',label: 'Famille monoparentale' },
-]
 
 const GARDE_OPTIONS = [
   { value: 'alternée',    label: 'Garde alternée'       },
@@ -329,7 +311,7 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
             </h1>
             <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
               {parent.situation_familiale
-                ? <span>{SITUATION_LABELS[parent.situation_familiale] ?? parent.situation_familiale}</span>
+                ? <span>{libelleSituation(parent.situation_familiale)}</span>
                 : <span className="text-warm-700 italic">Situation non renseignée</span>}
               {(parent.tutor1_adult_courses || parent.tutor2_adult_courses) && (
                 <span className="font-medium text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">Cours adultes</span>
@@ -590,7 +572,7 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
               }}
             >
               <option value=""></option>
-              {SITUATION_OPTIONS.map(opt => (
+              {SITUATIONS_FAMILIALES.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </FloatSelect>
