@@ -409,6 +409,10 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
 
 export interface FloatButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?:  'submit' | 'secondary' | 'edit' | 'danger' | 'primary' | 'brand'
+  /** Rend un `<a>` au lieu d'un `<button>`, avec la meme apparence exactement. */
+  href?:     string
+  /** Telechargement direct, quand `href` designe un fichier. */
+  download?: boolean
   /**
    * TAILLE, orthogonale à la variante — et non une variante de plus : sans ça
    * il faudrait `mini-submit`, `mini-secondary`, `mini-danger`… pour chaque
@@ -439,6 +443,17 @@ const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
   brand:     'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-primary-400 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]',
 }
 
+/**
+ * `href` : le bouton devient un vrai LIEN.
+ *
+ * Sans lui, tout ce qui doit naviguer ou telecharger etait habille a la main —
+ * le `<Link>` stylé des listes Apprenants et Parents, le lien de telechargement
+ * du gabarit d'import. Or une apparence recopiee finit toujours par diverger de
+ * son modele : le bouton « Télécharger le modèle » avait deja une hauteur et un
+ * arrondi differents de son voisin.
+ *
+ * On rend donc un `<a>` avec EXACTEMENT les memes classes, jamais une copie.
+ */
 export function FloatButton({
   variant = 'submit',
   size = 'normal',
@@ -446,24 +461,32 @@ export function FloatButton({
   disabled,
   children,
   className,
+  href,
+  download,
   ...props
 }: FloatButtonProps) {
+  const classes = [
+    'inline-flex items-center justify-center gap-2',
+    size === 'mini' ? 'px-2.5 py-1 text-xs' : 'px-5 py-2 text-sm',
+    'rounded-lg font-semibold tracking-wide',
+    'transition-all duration-200',
+    'focus:outline-none focus:ring-2 focus:ring-offset-1',
+    'active:scale-[0.97] select-none',
+    'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 disabled:shadow-none',
+    VARIANT_CLS[variant],
+    className ?? '',
+  ].join(' ')
+
+  if (href) {
+    return (
+      <a href={href} download={download} className={classes}>
+        {children}
+      </a>
+    )
+  }
+
   return (
-    <button
-      {...props}
-      disabled={disabled || loading}
-      className={[
-        'inline-flex items-center justify-center gap-2',
-        size === 'mini' ? 'px-2.5 py-1 text-xs' : 'px-5 py-2 text-sm',
-        'rounded-lg font-semibold tracking-wide',
-        'transition-all duration-200',
-        'focus:outline-none focus:ring-2 focus:ring-offset-1',
-        'active:scale-[0.97] select-none',
-        'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 disabled:shadow-none',
-        VARIANT_CLS[variant],
-        className ?? '',
-      ].join(' ')}
-    >
+    <button {...props} disabled={disabled || loading} className={classes}>
       {loading && <Loader2 size={14} className="animate-spin flex-shrink-0" />}
       {children}
     </button>

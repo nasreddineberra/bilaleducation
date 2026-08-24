@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileDown, AlertTriangle, Check, X } from 'lucide-react'
+import { AlertTriangle, Check, X } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -294,36 +294,45 @@ export default function ImportClient({ foyers, enfants }: Props) {
               Chargé : <span className="font-medium text-secondary-800">{nomFichier}</span>
             </span>
           )}
+          {lignes && (
+            <span className="text-xs text-warm-700">
+              <span className="font-bold text-secondary-800">{resultat.length}</span> foyer(s) ·{' '}
+              <span className="font-bold text-secondary-800">{aFaire.length}</span> à enregistrer ·{' '}
+              <span className="font-bold text-secondary-800">{cochesValides.size}</span> coché(s)
+            </span>
+          )}
           <div className="flex-1" />
 
-          {/* Deux boutons, dans l'ordre du geste : on telecharge le modele, on
-              le remplit, on l'importe. Le lien vit ICI et pas ailleurs — c'est
-              AVANT d'avoir un fichier qu'on a besoin du modele.
+          {/* Les trois actions, memes forme et taille — c'est le seul moyen
+              qu'elles se lisent comme une meme famille. Le telechargement reste
+              un vrai LIEN, mais rendu par le meme composant : une apparence
+              recopiee a la main finit toujours par diverger, et c'est
+              exactement ce qui s'etait produit.
 
-              Le modele est un fichier statique de `public/`, donc un vrai lien
-              `download` qui porte l'apparence d'un bouton : le faire passer par
-              du JavaScript n'apporterait rien et casserait le clic droit
-              « enregistrer sous ».
+              Aucune icone : regle du projet, un bouton a libelle porte son
+              libelle seul.
 
-              La zone de glisser-deposer a ete retiree — toute la hauteur va au
-              tableau, qui est le vrai sujet de cet ecran. */}
-          <a
-            href="/gabarit-import-apprenants.xlsx"
-            download
-            className="inline-flex items-center gap-1.5 rounded-lg border border-primary-600 px-3 py-1.5 text-xs font-medium text-primary-700 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-          >
-            <FileDown size={14} />
+              « Enregistrer la sélection » vit ICI et non en pied de tableau,
+              pour rester visible quel que soit le defilement. */}
+          <FloatButton variant="edit" href="/gabarit-import-apprenants.xlsx" download>
             Télécharger le modèle
-          </a>
+          </FloatButton>
 
-          <FloatButton
-            type="button"
-            variant="submit"
-            size="mini"
-            onClick={() => inputRef.current?.click()}
-          >
+          <FloatButton variant="edit" type="button" onClick={() => inputRef.current?.click()}>
             Importer le fichier
           </FloatButton>
+
+          {lignes && (
+            <FloatButton
+              type="button"
+              variant="submit"
+              disabled={cochesValides.size === 0 || enCours}
+              loading={enCours}
+              onClick={() => setConfirmer(true)}
+            >
+              Enregistrer la sélection
+            </FloatButton>
+          )}
         </div>
 
         <input
@@ -373,7 +382,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
       {lignes && resultat.length > 0 && (
         <>
           <div className="card p-0 overflow-hidden">
-            <div className="max-h-[72vh] overflow-y-auto list-scroll">
+            <div className="max-h-[78vh] overflow-y-auto list-scroll">
               <table className="w-full text-left text-xs" aria-label="Familles du fichier">
                 <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
                   <tr className="border-b border-warm-100">
@@ -426,26 +435,6 @@ export default function ImportClient({ foyers, enfants }: Props) {
             </div>
           </div>
 
-          {/* ── Pied d'action ── */}
-          <div className="card p-3 flex flex-wrap items-center gap-3">
-            <span className="text-xs text-warm-700">
-              <span className="font-bold text-secondary-800">{resultat.length}</span> foyer(s) dans le fichier ·{' '}
-              <span className="font-bold text-secondary-800">{aFaire.length}</span> à enregistrer ·{' '}
-              <span className="font-bold text-secondary-800">{cochesValides.size}</span> coché(s)
-            </span>
-
-            <div className="flex-1" />
-
-            <FloatButton
-              type="button"
-              variant="submit"
-              disabled={cochesValides.size === 0 || enCours}
-              loading={enCours}
-              onClick={() => setConfirmer(true)}
-            >
-              Enregistrer la sélection
-            </FloatButton>
-          </div>
         </>
       )}
 
@@ -538,6 +527,11 @@ function LigneFoyer({
             Chaque champ porte son LIBELLE. Un placeholder ne suffit pas : il
             disparait des que la cellule est remplie, et on se retrouve devant
             quatre cases dont on ignore ce qu'elles contiennent. */}
+        {/* DEUX COLONNES : une famille de quatre enfants occupait quatre blocs
+            empiles, et le tableau devenait interminable. A deux de front, la
+            hauteur est divisee par deux sans rien perdre. La grille se replie
+            d'elle-meme sur un ecran etroit. */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-1.5">
         {foyer.enfants.map(e => (
           <div key={e.ligne} className="rounded-lg border border-warm-100 p-1.5 space-y-1">
             <div className="flex items-center gap-2">
@@ -581,6 +575,7 @@ function LigneFoyer({
             ))}
           </div>
         ))}
+        </div>
 
         {/* ── Coordonnees du foyer, depliables ──────────────────────────────── */}
         {deplie && (
