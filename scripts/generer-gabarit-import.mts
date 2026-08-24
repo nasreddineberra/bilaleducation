@@ -1,0 +1,152 @@
+/**
+ * ENGENDRE LE GABARIT D'IMPORT (`public/gabarit-import-apprenants.xlsx`).
+ *
+ * ┌─ POURQUOI AUCUNE BIBLIOTHEQUE D'ECRITURE ────────────────────────────────┐
+ * │ Un `.xlsx` n'est qu'une archive zip contenant du XML. L'ecrire a la main  │
+ * │ coute une centaine de lignes ICI, dans un script qui tourne UNE FOIS et   │
+ * │ dont le resultat est versionne — contre une dependance de plus dans       │
+ * │ l'application, permanente celle-la. Les deux bibliotheques Excel les plus │
+ * │ connues sont a l'abandon (xlsx depuis mars 2022, exceljs depuis octobre   │
+ * │ 2023) : en ajouter une pour ecrire un fichier figé serait mal echange.    │
+ * │                                                                           │
+ * │ `fflate` sert a compresser — il est deja present, tire par la lecture.    │
+ * │ Si un jour il disparait, le gabarit versionne, lui, reste valide.         │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ *
+ * Le fichier est engendre depuis `COLONNES` : ajouter une colonne au catalogue
+ * et relancer ce script suffit. Rien n'est ecrit en double.
+ *
+ *   npx tsx scripts/generer-gabarit-import.mts
+ */
+
+import { writeFileSync } from 'fs'
+import { zipSync, strToU8 } from 'fflate'
+import { COLONNES } from '../src/lib/import/colonnes'
+
+const SORTIE = 'public/gabarit-import-apprenants.xlsx'
+
+// ─── Petits outils XML ───────────────────────────────────────────────────────
+
+const echapper = (t: string): string =>
+  t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** 0 → A, 25 → Z, 26 → AA. Au-dela de 26 colonnes, la 2e lettre compte. */
+function lettre(index: number): string {
+  let n = index
+  let s = ''
+  do {
+    s = String.fromCharCode(65 + (n % 26)) + s
+    n = Math.floor(n / 26) - 1
+  } while (n >= 0)
+  return s
+}
+
+/** Une ligne de cellules texte. `inlineStr` evite la table de chaines partagees. */
+function ligne(numero: number, valeurs: string[]): string {
+  const cellules = valeurs
+    .map((v, i) =>
+      v === ''
+        ? ''
+        : `<c r="${lettre(i)}${numero}" t="inlineStr"><is><t xml:space="preserve">${echapper(v)}</t></is></c>`,
+    )
+    .join('')
+  return `<row r="${numero}">${cellules}</row>`
+}
+
+function feuille(lignes: string[], largeurs: number[], figerEntete: boolean): string {
+  const cols = largeurs
+    .map((l, i) => `<col min="${i + 1}" max="${i + 1}" width="${l}" customWidth="1"/>`)
+    .join('')
+
+  // L'en-tete reste visible au defilement : sur 23 colonnes et 200 lignes, sans
+  // cela on ne sait plus quelle colonne on remplit au bout de trois ecrans.
+  const vue = figerEntete
+    ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+    : ''
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${vue}<cols>${cols}</cols><sheetData>${lignes.join('')}</sheetData></worksheet>`
+}
+
+// ─── Feuille 1 : les colonnes a remplir ──────────────────────────────────────
+//
+// UNE SEULE ligne d'en-tete, et AUCUNE ligne d'exemple. Un exemple oublie dans
+// le fichier serait importe comme une vraie famille — le genre de piege qu'on
+// ne decouvre qu'apres avoir cree « DUPONT Jean » dans la base d'une ecole.
+
+const entetes = COLONNES.map(c => c.entete)
+const largeurs = COLONNES.map(c => Math.max(14, Math.min(28, c.entete.length + 4)))
+const feuilleImport = feuille([ligne(1, entetes)], largeurs, true)
+
+// ─── Feuille 2 : ce que les colonnes acceptent ───────────────────────────────
+//
+// Placee en SECONDE position : la lecture ne regarde que la premiere feuille,
+// cette aide ne peut donc pas etre prise pour des donnees.
+
+const aide: string[] = []
+let n = 1
+aide.push(ligne(n++, ['Colonne', 'Obligatoire', 'Valeurs acceptées / format']))
+
+for (const c of COLONNES) {
+  let format = 'Texte libre'
+  if (c.valeursAcceptees) format = c.valeursAcceptees.join(', ')
+  else if (c.cle === 'date_of_birth') format = 'JJ/MM/AAAA (ou une vraie date du tableur)'
+  else if (c.cle.endsWith('_email')) format = 'adresse@exemple.fr'
+  else if (c.cle.endsWith('_phone')) format = '06 12 34 56 78 · +213 6 61 23 45 67 · indicatif reconnu'
+  else if (c.cle.endsWith('_postal_code')) format = '5 chiffres'
+  else if (c.cle.endsWith('last_name')) format = 'Texte — mis en MAJUSCULES à l’import'
+  else if (c.cle.endsWith('first_name')) format = 'Texte — première lettre mise en capitale'
+
+  aide.push(ligne(n++, [c.entete, c.obligatoire ? 'Oui' : 'Non', format]))
+}
+
+aide.push(ligne(n++, ['', '', '']))
+aide.push(ligne(n++, ['Une ligne par ENFANT.', '', '']))
+aide.push(ligne(n++, ['Une famille de trois enfants occupe donc trois lignes, avec les mêmes colonnes de tuteurs répétées.', '', '']))
+aide.push(ligne(n++, ['Une cellule laissée vide ne supprime jamais une information déjà enregistrée.', '', '']))
+
+const feuilleAide = feuille(aide, [30, 14, 70], true)
+
+// ─── L'assemblage OOXML ──────────────────────────────────────────────────────
+
+const NS_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+
+const fichiers: Record<string, Uint8Array> = {
+  '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`),
+
+  '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_REL}/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`),
+
+  'xl/workbook.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${NS_REL}">
+<sheets>
+<sheet name="Import" sheetId="1" r:id="rId1"/>
+<sheet name="Valeurs acceptées" sheetId="2" r:id="rId2"/>
+</sheets>
+</workbook>`),
+
+  'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="${NS_REL}/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="${NS_REL}/worksheet" Target="worksheets/sheet2.xml"/>
+</Relationships>`),
+
+  'xl/worksheets/sheet1.xml': strToU8(feuilleImport),
+  'xl/worksheets/sheet2.xml': strToU8(feuilleAide),
+}
+
+writeFileSync(SORTIE, zipSync(fichiers, { level: 6 }))
+
+console.log('Gabarit ecrit : ' + SORTIE)
+console.log('  ' + COLONNES.length + ' colonnes, dont ' + COLONNES.filter(c => c.obligatoire).length + ' obligatoires')
+console.log('  feuille 1 « Import » (en-tetes seules, ligne figee)')
+console.log('  feuille 2 « Valeurs acceptées » (' + (n - 1) + ' lignes)')

@@ -37,6 +37,8 @@ export interface Colonne {
   cible: Cible
   obligatoire: boolean
   normaliser: (brut: unknown) => Valeur
+  /** Formes acceptees, pour les colonnes a liste fermee (genre, lien, situation). */
+  valeursAcceptees?: string[]
 }
 
 // ─── Normaliseurs ────────────────────────────────────────────────────────────
@@ -184,7 +186,7 @@ function liste(valeurs: Record<string, string[]>, libelle: string) {
   for (const [cible, formes] of Object.entries(valeurs)) {
     for (const f of formes) table.set(normaliserCle(f), cible)
   }
-  return (b: unknown): Valeur => {
+  const normaliser = (b: unknown): Valeur => {
     const t = texte(b)
     if (!t.valeur) return t
     const trouve = table.get(normaliserCle(t.valeur))
@@ -197,6 +199,11 @@ function liste(valeurs: Record<string, string[]>, libelle: string) {
     }
     return { valeur: trouve }
   }
+
+  // Les formes acceptees remontent avec le normaliseur : le gabarit et l'ecran
+  // les affichent sans les recopier. Recopier une liste fermee, c'est se donner
+  // deux verites — et le jour ou l'une gagne une valeur, l'autre la refuse.
+  return { normaliser, formes: Object.values(valeurs).flat() }
 }
 
 const genre = liste(
@@ -249,36 +256,42 @@ const codePostal = (b: unknown): Valeur => {
 
 export const COLONNES: Colonne[] = [
   { cle: 'tutor1_last_name',    entete: 'Tuteur 1 NOM',         cible: 'tuteur1', obligatoire: true,  normaliser: nom },
-  { cle: 'tutor1_first_name',   entete: 'Tuteur 1 Prenom',      cible: 'tuteur1', obligatoire: true,  normaliser: prenom },
+  { cle: 'tutor1_first_name',   entete: 'Tuteur 1 Prénom',      cible: 'tuteur1', obligatoire: true,  normaliser: prenom },
   { cle: 'tutor1_email',        entete: 'Tuteur 1 Email',       cible: 'tuteur1', obligatoire: true,  normaliser: email },
   { cle: 'last_name',           entete: 'Enfant NOM',           cible: 'enfant',  obligatoire: true,  normaliser: nom },
-  { cle: 'first_name',          entete: 'Enfant Prenom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
+  { cle: 'first_name',          entete: 'Enfant Prénom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
   { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date },
-  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre },
+  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes },
 
-  { cle: 'tutor1_phone',        entete: 'Tuteur 1 Telephone',   cible: 'tuteur1', obligatoire: false, normaliser: telephone },
-  { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien },
+  { cle: 'tutor1_phone',        entete: 'Tuteur 1 Téléphone',   cible: 'tuteur1', obligatoire: false, normaliser: telephone },
+  { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes },
   { cle: 'tutor1_address',      entete: 'Tuteur 1 Adresse',     cible: 'tuteur1', obligatoire: false, normaliser: texte },
   { cle: 'tutor1_city',         entete: 'Tuteur 1 Ville',       cible: 'tuteur1', obligatoire: false, normaliser: texte },
   { cle: 'tutor1_postal_code',  entete: 'Tuteur 1 Code postal', cible: 'tuteur1', obligatoire: false, normaliser: codePostal },
   { cle: 'tutor1_profession',   entete: 'Tuteur 1 Profession',  cible: 'tuteur1', obligatoire: false, normaliser: texte },
 
   { cle: 'tutor2_last_name',    entete: 'Tuteur 2 NOM',         cible: 'tuteur2', obligatoire: false, normaliser: nom },
-  { cle: 'tutor2_first_name',   entete: 'Tuteur 2 Prenom',      cible: 'tuteur2', obligatoire: false, normaliser: prenom },
+  { cle: 'tutor2_first_name',   entete: 'Tuteur 2 Prénom',      cible: 'tuteur2', obligatoire: false, normaliser: prenom },
   { cle: 'tutor2_email',        entete: 'Tuteur 2 Email',       cible: 'tuteur2', obligatoire: false, normaliser: email },
-  { cle: 'tutor2_phone',        entete: 'Tuteur 2 Telephone',   cible: 'tuteur2', obligatoire: false, normaliser: telephone },
-  { cle: 'tutor2_relationship', entete: 'Tuteur 2 Lien',        cible: 'tuteur2', obligatoire: false, normaliser: lien },
+  { cle: 'tutor2_phone',        entete: 'Tuteur 2 Téléphone',   cible: 'tuteur2', obligatoire: false, normaliser: telephone },
+  { cle: 'tutor2_relationship', entete: 'Tuteur 2 Lien',        cible: 'tuteur2', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes },
   { cle: 'tutor2_address',      entete: 'Tuteur 2 Adresse',     cible: 'tuteur2', obligatoire: false, normaliser: texte },
   { cle: 'tutor2_city',         entete: 'Tuteur 2 Ville',       cible: 'tuteur2', obligatoire: false, normaliser: texte },
   { cle: 'tutor2_postal_code',  entete: 'Tuteur 2 Code postal', cible: 'tuteur2', obligatoire: false, normaliser: codePostal },
   { cle: 'tutor2_profession',   entete: 'Tuteur 2 Profession',  cible: 'tuteur2', obligatoire: false, normaliser: texte },
 
-  { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation },
+  { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation.normaliser, valeursAcceptees: situation.formes },
 ]
 
 export const COLONNES_OBLIGATOIRES = COLONNES.filter(c => c.obligatoire)
 
-/** Rapprochement d'un en-tete lu dans le fichier, insensible casse/accents/espaces. */
+/**
+ * Rapprochement d'un en-tete lu dans le fichier, insensible casse/accents/espaces.
+ *
+ * Les `entete` du catalogue sont ecrites en francais CORRECT — accents compris —
+ * parce qu'elles sont ce que l'utilisateur lit dans le gabarit. La tolerance vit
+ * ici : un fichier retape sans accents reste accepte.
+ */
 export function colonnePourEntete(entete: string): Colonne | undefined {
   const cle = normaliserCle(entete)
   return COLONNES.find(c => normaliserCle(c.entete) === cle)
