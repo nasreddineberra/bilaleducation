@@ -50,6 +50,17 @@ export interface Colonne {
   valeursAcceptees?: string[]
   /** Libelles canoniques — la liste deroulante du gabarit. */
   libelles?: string[]
+  /**
+   * Valeur STOCKEE vers valeur LISIBLE.
+   *
+   * La base garde « 2015-07-14 » et « male » ; l'utilisateur doit lire
+   * « 14/07/2015 » et « Masculin ». Sans cette traduction, l'ecran d'import
+   * affichait les valeurs techniques dans des champs francais.
+   *
+   * L'inverse est deja assure : `normaliser` accepte les deux ecritures, et
+   * elle est idempotente — la saisie et le stockage se repondent donc.
+   */
+  afficher?: (valeur: string) => string
 }
 
 // ─── Normaliseurs ────────────────────────────────────────────────────────────
@@ -201,6 +212,17 @@ const date = (b: unknown): Valeur => {
   return { valeur: null, erreur: `Date illisible : « ${t} » (attendu JJ/MM/AAAA)`, brut: t }
 }
 
+/**
+ * `AAAA-MM-JJ` vers `JJ/MM/AAAA`, pour l'affichage.
+ *
+ * Decoupage de la CHAINE : construire un `Date` pour reformater une date deja
+ * normalisee, c'est rouvrir la porte au decalage de fuseau pour rien.
+ */
+const afficherDate = (v: string): string => {
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : v
+}
+
 /** Le 31/02 se lit sans peine mais n'existe pas : `Date` le decalerait en mars. */
 function valide(iso: string): boolean {
   const [a, m, j] = iso.split('-').map(Number)
@@ -271,6 +293,10 @@ function liste(valeurs: Record<string, string[]>, libelle: string) {
     // Le PREMIER de chaque cle est le libelle canonique : celui qu'on propose
     // dans la liste deroulante du gabarit. Les autres ne sont que tolerés.
     libelles: Object.values(valeurs).map(f => f[0]),
+
+    // Chemin RETOUR : de la valeur stockee vers son libelle canonique.
+    // La base garde « male », l'ecran doit montrer « Masculin ».
+    afficher: (v: string) => valeurs[v]?.[0] ?? v,
   }
 }
 
@@ -334,7 +360,7 @@ export const COLONNES: Colonne[] = [
   { cle: 'tutor1_first_name',   entete: 'Tuteur 1 Prénom',      cible: 'tuteur1', obligatoire: true,  normaliser: prenom },
   { cle: 'tutor1_email',        entete: 'Tuteur 1 Email',       cible: 'tuteur1', obligatoire: true,  normaliser: email },
   { cle: 'tutor1_phone',        entete: 'Tuteur 1 Téléphone',   cible: 'tuteur1', obligatoire: false, normaliser: telephone },
-  { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes, libelles: lien.libelles },
+  { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes, libelles: lien.libelles, afficher: lien.afficher },
   { cle: 'tutor1_address',      entete: 'Tuteur 1 Adresse',     cible: 'tuteur1', obligatoire: false, normaliser: texte },
   { cle: 'tutor1_city',         entete: 'Tuteur 1 Ville',       cible: 'tuteur1', obligatoire: false, normaliser: texte },
   { cle: 'tutor1_postal_code',  entete: 'Tuteur 1 Code postal', cible: 'tuteur1', obligatoire: false, normaliser: codePostal },
@@ -344,18 +370,18 @@ export const COLONNES: Colonne[] = [
   { cle: 'tutor2_first_name',   entete: 'Tuteur 2 Prénom',      cible: 'tuteur2', obligatoire: false, normaliser: prenom },
   { cle: 'tutor2_email',        entete: 'Tuteur 2 Email',       cible: 'tuteur2', obligatoire: false, normaliser: email },
   { cle: 'tutor2_phone',        entete: 'Tuteur 2 Téléphone',   cible: 'tuteur2', obligatoire: false, normaliser: telephone },
-  { cle: 'tutor2_relationship', entete: 'Tuteur 2 Lien',        cible: 'tuteur2', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes, libelles: lien.libelles },
+  { cle: 'tutor2_relationship', entete: 'Tuteur 2 Lien',        cible: 'tuteur2', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes, libelles: lien.libelles, afficher: lien.afficher },
   { cle: 'tutor2_address',      entete: 'Tuteur 2 Adresse',     cible: 'tuteur2', obligatoire: false, normaliser: texte },
   { cle: 'tutor2_city',         entete: 'Tuteur 2 Ville',       cible: 'tuteur2', obligatoire: false, normaliser: texte },
   { cle: 'tutor2_postal_code',  entete: 'Tuteur 2 Code postal', cible: 'tuteur2', obligatoire: false, normaliser: codePostal },
   { cle: 'tutor2_profession',   entete: 'Tuteur 2 Profession',  cible: 'tuteur2', obligatoire: false, normaliser: texte },
 
-  { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation.normaliser, valeursAcceptees: situation.formes, libelles: situation.libelles },
+  { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation.normaliser, valeursAcceptees: situation.formes, libelles: situation.libelles, afficher: situation.afficher },
 
   { cle: 'last_name',           entete: 'Enfant NOM',           cible: 'enfant',  obligatoire: true,  normaliser: nom },
   { cle: 'first_name',          entete: 'Enfant Prénom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
-  { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date },
-  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes, libelles: genre.libelles },
+  { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date, afficher: afficherDate },
+  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes, libelles: genre.libelles, afficher: genre.afficher },
 ]
 
 

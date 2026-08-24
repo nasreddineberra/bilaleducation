@@ -82,6 +82,27 @@ const COLS_ENFANT = ['last_name', 'first_name', 'date_of_birth', 'gender']
 
 const libelleColonne = (cle: string) => COLONNES.find(c => c.cle === cle)?.entete ?? cle
 
+/**
+ * Ce que le champ MONTRE.
+ *
+ * La base garde « 2015-07-14 » et « male » ; l'ecran doit afficher
+ * « 14/07/2015 » et « Masculin ». La mise en forme vit dans le catalogue, pas
+ * ici — c'est lui qui sait ce que chaque colonne stocke.
+ *
+ * Le TEXTE REFUSE, lui, n'est jamais reformate : c'est ce que l'utilisateur a
+ * ecrit, on le lui rend intact pour qu'il le corrige.
+ */
+function valeurAffichee(
+  cle: string,
+  valeurs: Record<string, string | null>,
+  bruts: Record<string, string>,
+): string | null {
+  const v = valeurs[cle]
+  if (v === null || v === undefined) return bruts[cle] ?? null
+  const col = COLONNES.find(c => c.cle === cle)
+  return col?.afficher ? col.afficher(v) : v
+}
+
 export default function ImportClient({ foyers, enfants }: Props) {
   const router = useRouter()
   const toast = useToast()
@@ -510,7 +531,19 @@ function LigneFoyer({
                 <Champ
                   key={cle}
                   libelle={libelleColonne(cle)}
-                  valeur={e.valeurs[cle] ?? e.bruts[cle] ?? null}
+                  // ── ENFANT DEJA ENREGISTRE : CHAMPS VERROUILLES ──────────
+                  //
+                  // Modifier son identite ici ne le RENOMMERAIT pas : l'import
+                  // cree sans jamais renommer, donc changer un prenom
+                  // fabriquerait un SECOND dossier. C'est exactement l'accident
+                  // du 24 aout — « Enfant » puis « Enfant 1 », meme date, meme
+                  // foyer. Il n'y a donc aucune modification utile a faire ici,
+                  // et le champ le dit.
+                  //
+                  // Les coordonnees du FOYER, elles, restent modifiables : les
+                  // changer produit une vraie mise a jour, c'est un usage legitime.
+                  lecture={e.action === 'rien'}
+                  valeur={valeurAffichee(cle, e.valeurs, e.bruts)}
                   erreur={e.anomalies.find(a => a.cle === cle)?.message}
                   onChange={(v: string) => onModifier(e.ligne, cle, v)}
                 />
@@ -537,7 +570,7 @@ function LigneFoyer({
                   key={c.cle}
                   libelle={c.entete}
                   obligatoire={c.obligatoire}
-                  valeur={foyer.valeurs[c.cle] ?? foyer.bruts[c.cle] ?? null}
+                  valeur={valeurAffichee(c.cle, foyer.valeurs, foyer.bruts)}
                   erreur={foyer.erreursChamps[c.cle]}
                   onChange={(v: string) => onModifier(premiereLigne, c.cle, v)}
                 />
@@ -567,12 +600,14 @@ function LigneFoyer({
  * ne saurait plus ou il en est.
  */
 function Champ({
-  libelle, valeur, erreur, obligatoire, onChange,
+  libelle, valeur, erreur, obligatoire, lecture, onChange,
 }: {
   libelle: string
   valeur: string | null
   erreur?: string
   obligatoire?: boolean
+  /** Champ verrouille : rien d'utile ne peut y etre modifie. */
+  lecture?: boolean
   onChange: (v: string) => void
 }) {
   const [saisi, setSaisi] = useState<string | null>(null)
@@ -589,15 +624,20 @@ function Champ({
         value={affiche}
         aria-label={libelle}
         aria-invalid={!!erreur}
+        readOnly={lecture}
+        title={lecture ? "Déjà enregistré : à corriger sur la fiche de l'apprenant." : undefined}
         onChange={e => setSaisi(e.target.value)}
         onBlur={() => {
+          if (lecture) return
           if (saisi !== null && saisi !== (valeur ?? '')) onChange(saisi)
           setSaisi(null)
         }}
-        className={`w-full px-1.5 py-0.5 text-[11px] rounded border bg-[var(--surface-card)] text-secondary-800 outline-none focus:ring-1 focus:ring-primary-500/40 ${
-          erreur
-            ? 'border-red-400 focus:border-red-500'
-            : 'border-warm-200 focus:border-primary-500'
+        className={`w-full px-1.5 py-0.5 text-[11px] rounded border outline-none ${
+          lecture
+            ? 'border-warm-200 bg-warm-100 text-warm-700 cursor-not-allowed'
+            : erreur
+              ? 'border-red-400 bg-[var(--surface-card)] text-secondary-800 focus:border-red-500 focus:ring-1 focus:ring-primary-500/40'
+              : 'border-warm-200 bg-[var(--surface-card)] text-secondary-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40'
         }`}
       />
       {erreur && <span className="text-[10px] text-red-700 leading-tight">{erreur}</span>}
