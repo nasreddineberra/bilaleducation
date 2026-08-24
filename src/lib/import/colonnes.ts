@@ -172,7 +172,16 @@ function valide(iso: string): boolean {
 }
 
 const normaliserCle = (s: string): string =>
-  s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[\s_-]+/g, '')
+  s
+    .trim()
+    // « Tuteur 1 NOM (obligatoire) » designe la meme colonne que « Tuteur 1 NOM ».
+    // Le marqueur est une DECORATION du gabarit : s'il entrait dans l'identite,
+    // un fichier ou quelqu'un l'a efface ne serait plus reconnu.
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\s_-]+/g, '')
 
 /**
  * Fabrique un normaliseur de liste fermee, tolerant a l'ecriture.
@@ -255,14 +264,11 @@ const codePostal = (b: unknown): Valeur => {
 // qu'on ne puisse pas remplir le fichier sans les voir.
 
 export const COLONNES: Colonne[] = [
+  // Le foyer d'abord, l'enfant ensuite : c'est l'ordre dans lequel une fiche
+  // d'inscription est remplie, et celui que l'ecole lit de gauche a droite.
   { cle: 'tutor1_last_name',    entete: 'Tuteur 1 NOM',         cible: 'tuteur1', obligatoire: true,  normaliser: nom },
   { cle: 'tutor1_first_name',   entete: 'Tuteur 1 Prénom',      cible: 'tuteur1', obligatoire: true,  normaliser: prenom },
   { cle: 'tutor1_email',        entete: 'Tuteur 1 Email',       cible: 'tuteur1', obligatoire: true,  normaliser: email },
-  { cle: 'last_name',           entete: 'Enfant NOM',           cible: 'enfant',  obligatoire: true,  normaliser: nom },
-  { cle: 'first_name',          entete: 'Enfant Prénom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
-  { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date },
-  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes },
-
   { cle: 'tutor1_phone',        entete: 'Tuteur 1 Téléphone',   cible: 'tuteur1', obligatoire: false, normaliser: telephone },
   { cle: 'tutor1_relationship', entete: 'Tuteur 1 Lien',        cible: 'tuteur1', obligatoire: false, normaliser: lien.normaliser, valeursAcceptees: lien.formes },
   { cle: 'tutor1_address',      entete: 'Tuteur 1 Adresse',     cible: 'tuteur1', obligatoire: false, normaliser: texte },
@@ -281,7 +287,13 @@ export const COLONNES: Colonne[] = [
   { cle: 'tutor2_profession',   entete: 'Tuteur 2 Profession',  cible: 'tuteur2', obligatoire: false, normaliser: texte },
 
   { cle: 'situation_familiale', entete: 'Situation familiale',  cible: 'foyer',   obligatoire: false, normaliser: situation.normaliser, valeursAcceptees: situation.formes },
+
+  { cle: 'last_name',           entete: 'Enfant NOM',           cible: 'enfant',  obligatoire: true,  normaliser: nom },
+  { cle: 'first_name',          entete: 'Enfant Prénom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
+  { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date },
+  { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes },
 ]
+
 
 export const COLONNES_OBLIGATOIRES = COLONNES.filter(c => c.obligatoire)
 

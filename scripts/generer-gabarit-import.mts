@@ -74,8 +74,15 @@ function feuille(lignes: string[], largeurs: number[], figerEntete: boolean): st
 // le fichier serait importe comme une vraie famille — le genre de piege qu'on
 // ne decouvre qu'apres avoir cree « DUPONT Jean » dans la base d'une ecole.
 
-const entetes = COLONNES.map(c => c.entete)
-const largeurs = COLONNES.map(c => Math.max(14, Math.min(28, c.entete.length + 4)))
+// Le marqueur est ecrit DANS l'en-tete : c'est la seule facon qu'il soit vu par
+// qui remplit le fichier hors ligne. Le rapprochement l'ignore (`normaliserCle`
+// retire la parenthese finale), donc un fichier ou quelqu'un l'a efface — ou
+// retape sans lui — reste parfaitement lisible.
+const libelle = (c: (typeof COLONNES)[number]) =>
+  c.obligatoire ? c.entete + ' (obligatoire)' : c.entete
+
+const entetes = COLONNES.map(libelle)
+const largeurs = COLONNES.map(c => Math.max(14, Math.min(32, libelle(c).length + 3)))
 const feuilleImport = feuille([ligne(1, entetes)], largeurs, true)
 
 // ─── Feuille 2 : ce que les colonnes acceptent ───────────────────────────────
@@ -97,7 +104,7 @@ for (const c of COLONNES) {
   else if (c.cle.endsWith('last_name')) format = 'Texte — mis en MAJUSCULES à l’import'
   else if (c.cle.endsWith('first_name')) format = 'Texte — première lettre mise en capitale'
 
-  aide.push(ligne(n++, [c.entete, c.obligatoire ? 'Oui' : 'Non', format]))
+  aide.push(ligne(n++, [libelle(c), c.obligatoire ? 'Oui' : 'Non', format]))
 }
 
 aide.push(ligne(n++, ['', '', '']))
@@ -105,7 +112,7 @@ aide.push(ligne(n++, ['Une ligne par ENFANT.', '', '']))
 aide.push(ligne(n++, ['Une famille de trois enfants occupe donc trois lignes, avec les mêmes colonnes de tuteurs répétées.', '', '']))
 aide.push(ligne(n++, ['Une cellule laissée vide ne supprime jamais une information déjà enregistrée.', '', '']))
 
-const feuilleAide = feuille(aide, [30, 14, 70], true)
+const feuilleAide = feuille(aide, [34, 14, 70], true)
 
 // ─── L'assemblage OOXML ──────────────────────────────────────────────────────
 
