@@ -253,8 +253,8 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                 {/* Actions */}
                 <td className="list-td" onClick={(e) => e.stopPropagation()}>
                   {confirmDeleteId === student.id ? (
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-xs text-warm-700">Supprimer ?</span>
+                    <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                      <span className="text-xs text-warm-700 whitespace-nowrap">Supprimer ?</span>
                       <button
                         onClick={() => handleDelete(student.id)}
                         disabled={isDeleting}

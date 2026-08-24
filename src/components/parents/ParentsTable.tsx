@@ -229,8 +229,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   {/* Actions */}
                   <td className="list-td" onClick={(e) => e.stopPropagation()}>
                     {confirmDeleteId === parent.id ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-warm-700">Supprimer ?</span>
+                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                        <span className="text-xs text-warm-700 whitespace-nowrap">Supprimer ?</span>
                         <button
                           onClick={() => handleDelete(parent.id)}
                           disabled={isDeleting}
