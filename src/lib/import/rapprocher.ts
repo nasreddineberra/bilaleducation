@@ -143,6 +143,26 @@ export function rapprocher(
     enfantParCle.set(cleEnfant(e.last_name, e.first_name, e.date_of_birth), e)
   }
 
+  // ── Index des QUASI-IDENTIQUES ──────────────────────────────────────────
+  //
+  // Meme foyer, meme NOM, meme date de naissance, prenom different. C'est
+  // presque toujours la MEME personne dont l'orthographe a ete corrigee dans le
+  // fichier — et l'import, qui cree sans jamais renommer, en fabriquerait un
+  // second exemplaire. C'est arrive le 24 aout : « Enfant » puis « Enfant 1 »,
+  // nes le meme jour dans le meme foyer.
+  //
+  // On AVERTIT sans bloquer : des jumeaux nes le meme jour dans le meme foyer
+  // portent legitimement deux prenoms. La machine ne peut pas trancher, elle
+  // n'a donc pas a decider.
+  const parNomEtDate = new Map<string, EnfantExistant[]>()
+  for (const e of enfants) {
+    if (!e.parent_id) continue
+    const cle = `${e.parent_id}|${normalizeNom(e.last_name)}|${e.date_of_birth}`
+    const l = parNomEtDate.get(cle)
+    if (l) l.push(e)
+    else parNomEtDate.set(cle, [e])
+  }
+
   // ── 1. Regrouper les lignes par foyer ──────────────────────────────────────
   const groupes = new Map<string, LigneBrute[]>()
   for (const l of lignes) {
@@ -286,6 +306,25 @@ export function rapprocher(
           ligne: l.numero,
           message: 'Un enfant identique existe deja, rattache a un autre foyer.',
         })
+      }
+
+      // Quasi-identique dans le MEME foyer : on le nomme, pour que l'utilisateur
+      // tranche en connaissance de cause.
+      if (!dejaLa && existant && l.valeurs.last_name && l.valeurs.date_of_birth) {
+        const proches = parNomEtDate.get(
+          `${existant.id}|${normalizeNom(l.valeurs.last_name)}|${l.valeurs.date_of_birth}`,
+        )
+        if (proches?.length) {
+          aEnfants.push({
+            gravite: 'avertissement',
+            ligne: l.numero,
+            message:
+              `Un apprenant très proche existe déjà dans ce foyer : `
+              + proches.map(p => `${p.last_name} ${p.first_name}`).join(', ')
+              + ` (même nom, même date de naissance). S'il s'agit de la même personne, `
+              + `corrigez son prénom sur sa fiche : l'import créerait un second dossier.`,
+          })
+        }
       }
 
       const bloque = aEnfants.some(a => a.gravite === 'bloquant' || a.gravite === 'invalide')
