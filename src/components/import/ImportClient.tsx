@@ -151,6 +151,9 @@ export default function ImportClient({ foyers, enfants }: Props) {
     [cochees, resultat],
   )
 
+  // Etat partiel de la case d'en-tete : une partie seulement est cochee.
+  const partiel = cochesValides.size > 0 && cochesValides.size < aFaire.length
+
   // ── Depot du fichier ──────────────────────────────────────────────────────
   const charger = useCallback(async (fichier: File) => {
     setCompteRendu(null)
@@ -374,7 +377,28 @@ export default function ImportClient({ foyers, enfants }: Props) {
               <table className="w-full text-left text-xs" aria-label="Familles du fichier">
                 <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
                   <tr className="border-b border-warm-100">
-                    <th scope="col" className="list-th w-10"></th>
+                    <th scope="col" className="list-th w-10">
+                      {/* Case d'en-tete a TROIS etats — cochee, partielle, vide —
+                          plutot que deux liens de texte en pied de tableau. Elle
+                          est la ou l'on coche, et un seul controle remplace les
+                          deux.
+
+                          Desactivee et non masquee quand rien n'est valide : un
+                          controle qui disparait se lit comme un bug, un controle
+                          grise se lit comme un refus. */}
+                      <input
+                        type="checkbox"
+                        ref={el => { if (el) el.indeterminate = partiel }}
+                        checked={aFaire.length > 0 && cochesValides.size === aFaire.length}
+                        disabled={aFaire.length === 0}
+                        onChange={() => setCochees(
+                          cochesValides.size === aFaire.length ? new Set() : new Set(aFaire.map(f => f.cle)),
+                        )}
+                        aria-label={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tous les foyers enregistrables'}
+                        title={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tout ce qui est enregistrable'}
+                        className="accent-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                      />
+                    </th>
                     <th scope="col" className="list-th w-64">Foyer</th>
                     <th scope="col" className="list-th w-52">Action</th>
                     <th scope="col" className="list-th">Détail</th>
@@ -409,24 +433,6 @@ export default function ImportClient({ foyers, enfants }: Props) {
               <span className="font-bold text-secondary-800">{aFaire.length}</span> à enregistrer ·{' '}
               <span className="font-bold text-secondary-800">{cochesValides.size}</span> coché(s)
             </span>
-
-            <button
-              type="button"
-              onClick={() => setCochees(new Set(aFaire.map(f => f.cle)))}
-              disabled={aFaire.length === 0}
-              className="text-xs text-primary-700 hover:text-primary-800 underline underline-offset-2 disabled:text-warm-400 disabled:no-underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-            >
-              Tout cocher ce qui est valide
-            </button>
-            {cochesValides.size > 0 && (
-              <button
-                type="button"
-                onClick={() => setCochees(new Set())}
-                className="text-xs text-warm-700 hover:text-secondary-700 underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-              >
-                Tout décocher
-              </button>
-            )}
 
             <div className="flex-1" />
 
