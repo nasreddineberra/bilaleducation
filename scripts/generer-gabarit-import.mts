@@ -83,9 +83,30 @@ function validations(listes: Deroulante[], derniereLigne: number): string {
   return `<dataValidations count="${listes.length}">${items}</dataValidations>`
 }
 
-function feuille(lignes: string[], largeurs: number[], figerEntete: boolean, listes: Deroulante[] = []): string {
+/**
+ * Colonnes que le tableur doit traiter comme du TEXTE et non comme un nombre.
+ *
+ * ┌─ SANS CELA, EXCEL ABIME LA SAISIE ───────────────────────────────────────┐
+ * │ · Un « + » en tete de cellule ouvre une FORMULE : taper                   │
+ * │   « +33630752443 » ne donne pas ce texte, mais une tentative de calcul.   │
+ * │ · Les zeros de tete disparaissent : « 00213661234567 » devient            │
+ * │   « 213661234567 », et le code postal « 01200 » devient « 1200 ».         │
+ * │                                                                           │
+ * │ Les deux formes internationales que notre lecteur accepte sont donc       │
+ * │ precisement celles qu'Excel detruit. Signale par l'utilisateur, qui n'a   │
+ * │ pas pu valider un numero commençant par « + ».                            │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ *
+ * Le format « @ » (numFmtId 49) est le format texte integre d'OOXML.
+ */
+const EN_TEXTE = (cle: string) => cle.endsWith('_phone') || cle.endsWith('_postal_code')
+
+function feuille(lignes: string[], largeurs: number[], figerEntete: boolean, listes: Deroulante[] = [], texte: boolean[] = []): string {
   const cols = largeurs
-    .map((l, i) => `<col min="${i + 1}" max="${i + 1}" width="${l}" customWidth="1"/>`)
+    .map((l, i) =>
+      `<col min="${i + 1}" max="${i + 1}" width="${l}" customWidth="1"`
+      + (texte[i] ? ' style="1"' : '')
+      + '/>')
     .join('')
 
   // L'en-tete reste visible au defilement : sur 23 colonnes et 200 lignes, sans
@@ -121,7 +142,7 @@ const deroulantes: Deroulante[] = COLONNES
   .map((c, i) => ({ colonne: i, valeurs: c.libelles ?? [], obligatoire: c.obligatoire }))
   .filter(d => d.valeurs.length > 0)
 
-const feuilleImport = feuille([ligne(1, entetes)], largeurs, true, deroulantes)
+const feuilleImport = feuille([ligne(1, entetes)], largeurs, true, deroulantes, COLONNES.map(c => EN_TEXTE(c.cle)))
 
 // ─── Feuille 2 : ce que les colonnes acceptent ───────────────────────────────
 //
@@ -162,6 +183,7 @@ const fichiers: Record<string, Uint8Array> = {
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
 <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
 </Types>`),
@@ -183,7 +205,26 @@ const fichiers: Record<string, Uint8Array> = {
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="${NS_REL}/worksheet" Target="worksheets/sheet1.xml"/>
 <Relationship Id="rId2" Type="${NS_REL}/worksheet" Target="worksheets/sheet2.xml"/>
+<Relationship Id="rId3" Type="${NS_REL}/styles" Target="styles.xml"/>
 </Relationships>`),
+
+  // Deux formats seulement : le general (index 0, par defaut) et le TEXTE
+  // (index 1), pose sur les colonnes de telephone et de code postal.
+  'xl/styles.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="2">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+</cellXfs>
+<!-- Facultatif au schema, mais Excel le reclame en pratique : sans lui il
+     signale un classeur « a reparer », ce qui serait pire que le probleme
+     qu'on corrige. -->
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`),
 
   'xl/worksheets/sheet1.xml': strToU8(feuilleImport),
   'xl/worksheets/sheet2.xml': strToU8(feuilleAide),
