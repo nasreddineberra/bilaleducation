@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, FileDown, AlertTriangle, Check, X } from 'lucide-react'
+import { FileDown, AlertTriangle, Check, X } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -219,19 +219,27 @@ export default function ImportClient({ foyers, enfants }: Props) {
     <div className="space-y-3 animate-fade-in">
 
       {/* ── Dépôt du fichier ── */}
-      <div className="card p-3 space-y-3">
+      <div className="card p-2.5 space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="stat-label">Fichier à importer</h2>
+          {nomFichier && (
+            <span className="text-xs text-warm-700">
+              Chargé : <span className="font-medium text-secondary-800">{nomFichier}</span>
+            </span>
+          )}
           <div className="flex-1" />
 
-          {/* DEUX BOUTONS, dans l'ordre du geste : on telecharge le modele,
-              on le remplit, on l'importe. Le lien de telechargement vit ICI et
-              pas ailleurs — c'est avant d'avoir un fichier qu'on en a besoin.
+          {/* Deux boutons, dans l'ordre du geste : on telecharge le modele, on
+              le remplit, on l'importe. Le lien vit ICI et pas ailleurs — c'est
+              AVANT d'avoir un fichier qu'on a besoin du modele.
 
               Le modele est un fichier statique de `public/`, donc un vrai lien
-              `download` : passer par un bouton et du JavaScript n'apporterait
-              rien et casserait le clic droit « enregistrer sous ». Il en porte
-              simplement l'apparence. */}
+              `download` qui porte l'apparence d'un bouton : le faire passer par
+              du JavaScript n'apporterait rien et casserait le clic droit
+              « enregistrer sous ».
+
+              La zone de glisser-deposer a ete retiree — toute la hauteur va au
+              tableau, qui est le vrai sujet de cet ecran. */}
           <a
             href="/gabarit-import-apprenants.xlsx"
             download
@@ -249,27 +257,6 @@ export default function ImportClient({ foyers, enfants }: Props) {
           >
             Importer le fichier
           </FloatButton>
-        </div>
-
-        {/* La zone de depot reste : glisser un fichier est plus rapide que de
-            traverser un explorateur, et le bouton ci-dessus l'ouvre pour ceux
-            qui preferent. Ce n'est plus un `label` — le bouton porte l'action,
-            deux declencheurs sur le meme champ se marcheraient dessus. */}
-        <div
-          onDragOver={e => e.preventDefault()}
-          onDrop={e => {
-            e.preventDefault()
-            const f = e.dataTransfer.files?.[0]
-            if (f) charger(f)
-          }}
-          className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-warm-200 rounded-lg py-5"
-        >
-          <Upload size={20} className="text-warm-700" />
-          <span className="text-xs text-warm-700">
-            {nomFichier
-              ? <>Fichier chargé : <span className="font-medium text-secondary-800">{nomFichier}</span></>
-              : <>ou déposez le fichier ici</>}
-          </span>
         </div>
 
         <input
@@ -319,7 +306,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
       {lignes && resultat.length > 0 && (
         <>
           <div className="card p-0 overflow-hidden">
-            <div className="max-h-[60vh] overflow-y-auto list-scroll">
+            <div className="max-h-[72vh] overflow-y-auto list-scroll">
               <table className="w-full text-left text-xs" aria-label="Familles du fichier">
                 <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
                   <tr className="border-b border-warm-100">
