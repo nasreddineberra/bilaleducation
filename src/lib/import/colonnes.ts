@@ -24,10 +24,18 @@ import { libelleSituation } from '@/lib/parents/situation-familiale'
 export type Cible = 'tuteur1' | 'tuteur2' | 'foyer' | 'enfant'
 
 export interface Valeur {
-  /** Valeur prete a ecrire, ou `null` si la cellule est vide. */
+  /** Valeur prete a ecrire, ou `null` si la cellule est vide ou refusee. */
   valeur: string | null
   /** Rempli quand la cellule contient quelque chose d'illisible. */
   erreur?: string
+  /**
+   * Texte d'origine, conserve QUAND LA VALEUR EST REFUSEE.
+   *
+   * Sans lui l'ecran affichait un champ VIDE sous le message d'erreur, et il
+   * fallait tout resaisir alors qu'une lettre manquait souvent. On rend donc a
+   * l'utilisateur ce qu'il a ecrit, pour qu'il le corrige.
+   */
+  brut?: string
 }
 
 export interface Colonne {
@@ -85,7 +93,7 @@ const email = (b: unknown): Valeur => {
   // Meme controle que les formulaires. On ne met PAS en minuscules : la saisie
   // manuelle ne le fait pas, et diverger creerait deux presentations.
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t.valeur)) {
-    return { valeur: null, erreur: `Adresse email illisible : « ${t.valeur} »` }
+    return { valeur: null, erreur: `Adresse email illisible : « ${t.valeur} »`, brut: t.valeur }
   }
   return t
 }
@@ -93,42 +101,68 @@ const email = (b: unknown): Valeur => {
 /**
  * Telephone : indicatif + chiffres, la forme qu'ecrit le formulaire.
  *
- * L'INDICATIF PAYS EST RECONNU s'il est present — « +213 » pour l'Algerie,
- * « +212 » pour le Maroc, etc., d'apres la liste `COUNTRY_CODES` qui alimente
- * deja le selecteur des formulaires. Une seule liste pour les deux : ajouter un
- * pays au selecteur le rend importable du meme coup.
+ * ┌─ ON NE DEVINE PAS L'INDICATIF ───────────────────────────────────────────┐
+ * │ Un numero SANS « + » ni « 00 » est ambigu : « 33630752443 » peut se lire  │
+ * │ « +33 6 30 75 24 43 » ou un numero local de onze chiffres. La premiere    │
+ * │ version prefixait « +33 » a tout ce qui n'avait pas d'indicatif explicite │
+ * │ — elle a produit « +3333630752443 », treize chiffres, sans rien signaler. │
+ * │                                                                           │
+ * │ Deviner sur une donnee ambigue, c'est fabriquer une erreur silencieuse.   │
+ * │ On refuse donc, en disant les DEUX formes acceptees.                      │
+ * └───────────────────────────────────────────────────────────────────────────┘
  *
- * Le « 00 » international est accepte et traduit en « + ». A defaut d'indicatif,
- * on prend « +33 », valeur par defaut du formulaire.
+ * Sont acceptes :
+ *   · l'international explicite — « +213 6 61 23 45 67 » ou « 00213661234567 » ;
+ *   · le national francais — « 06 30 75 24 43 », dix chiffres commençant par 0.
  *
- * Le zero initial est retire quand un indicatif precede — « +33 06 12… » n'a
- * pas de sens. NB : les donnees de seed portent « 06 14 05 06 07 », sans
- * indicatif ; l'affichage (`parsePhone`) sait lire les deux, on s'aligne donc
- * sur ce qu'ecrit l'APPLICATION, pas sur le seed.
+ * Le zero initial tombe apres l'indicatif : « +33 06 12… » n'a pas de sens.
  */
 const telephone = (b: unknown): Valeur => {
   const t = texte(b)
   if (!t.valeur) return t
 
-  // Un tableur rend parfois un nombre : « 612345678 » sans le zero initial.
-  let brut = t.valeur.replace(/[\s.\-() ]/g, '')
+  const aide = "Écrivez « 06 12 34 56 78 » ou, pour l'étranger, « +213 6 61 23 45 67 »."
+
+  let brut = t.valeur.replace(/[\s.\-()]/g, '')
+  const international = brut.startsWith('+') || brut.startsWith('00')
   if (brut.startsWith('00')) brut = '+' + brut.slice(2)
 
-  // Le plus LONG indicatif d'abord : sans ce tri, « +33 » masquerait « +336 »
-  // s'il en existait un, et surtout « +2 » masquerait « +212 » et « +213 ».
-  const pays = [...COUNTRY_CODES]
-    .sort((a, b2) => b2.code.length - a.code.length)
-    .find(c => brut.startsWith(c.code))
+  if (international) {
+    // Le plus LONG indicatif d'abord : sans ce tri, « +2 » masquerait « +212 »
+    // et « +213 » le jour ou un indicatif court entrerait dans la liste.
+    const pays = [...COUNTRY_CODES]
+      .sort((a, b2) => b2.code.length - a.code.length)
+      .find(c => brut.startsWith(c.code))
 
-  const indicatif = pays ? pays.code : '+33'
-  let chiffres = (pays ? brut.slice(pays.code.length) : brut).replace(/\D/g, '')
-  if (pays && chiffres.startsWith('0')) chiffres = chiffres.slice(1)
-  if (!pays && chiffres.startsWith('0')) chiffres = chiffres.slice(1)
+    if (!pays) {
+      return {
+        valeur: null,
+        brut: t.valeur,
+        erreur: `Indicatif pays non reconnu : « ${t.valeur} ». Pays gérés : ${COUNTRY_CODES.map(c => c.code).join(' ')}.`,
+      }
+    }
 
-  if (chiffres.length < 6 || chiffres.length > 14) {
-    return { valeur: null, erreur: `Numero de telephone illisible : « ${t.valeur} »` }
+    let chiffres = brut.slice(pays.code.length).replace(/\D/g, '')
+    if (chiffres.startsWith('0')) chiffres = chiffres.slice(1)
+
+    if (chiffres.length < 6 || chiffres.length > 12) {
+      return { valeur: null, brut: t.valeur, erreur: `Numéro incomplet : « ${t.valeur} ».` }
+    }
+    return { valeur: pays.code + chiffres }
   }
-  return { valeur: indicatif + chiffres }
+
+  // ── Sans indicatif explicite : ce doit etre un numero national ────────────
+  const chiffres = brut.replace(/\D/g, '')
+
+  if (chiffres.length !== 10 || !chiffres.startsWith('0')) {
+    return {
+      valeur: null,
+      brut: t.valeur,
+      erreur: `Numéro de téléphone non reconnu : « ${t.valeur} ». ${aide}`,
+    }
+  }
+
+  return { valeur: '+33' + chiffres.slice(1) }
 }
 
 /**
@@ -157,14 +191,14 @@ const date = (b: unknown): Valeur => {
   if (fr) {
     const [, j, m, a] = fr
     const iso = `${a}-${m.padStart(2, '0')}-${j.padStart(2, '0')}`
-    return valide(iso) ? { valeur: iso } : { valeur: null, erreur: `Date inexistante : « ${t} »` }
+    return valide(iso) ? { valeur: iso } : { valeur: null, erreur: `Date inexistante : « ${t} »`, brut: t }
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-    return valide(t) ? { valeur: t } : { valeur: null, erreur: `Date inexistante : « ${t} »` }
+    return valide(t) ? { valeur: t } : { valeur: null, erreur: `Date inexistante : « ${t} »`, brut: t }
   }
 
-  return { valeur: null, erreur: `Date illisible : « ${t} » (attendu JJ/MM/AAAA)` }
+  return { valeur: null, erreur: `Date illisible : « ${t} » (attendu JJ/MM/AAAA)`, brut: t }
 }
 
 /** Le 31/02 se lit sans peine mais n'existe pas : `Date` le decalerait en mars. */
@@ -222,6 +256,7 @@ function liste(valeurs: Record<string, string[]>, libelle: string) {
       return {
         valeur: null,
         erreur: `${libelle} non reconnu : « ${t.valeur} » (attendu : ${attendu})`,
+        brut: t.valeur,
       }
     }
     return { valeur: trouve }
@@ -282,7 +317,7 @@ const codePostal = (b: unknown): Valeur => {
   // Un tableur transforme volontiers « 01200 » en nombre 1200 : on recomplete.
   const chiffres = t.valeur.replace(/\D/g, '')
   if (chiffres.length === 0 || chiffres.length > 5) {
-    return { valeur: null, erreur: `Code postal illisible : « ${t.valeur} »` }
+    return { valeur: null, erreur: `Code postal illisible : « ${t.valeur} »`, brut: t.valeur }
   }
   return { valeur: chiffres.padStart(5, '0') }
 }

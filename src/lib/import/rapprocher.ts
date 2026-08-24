@@ -62,6 +62,8 @@ export interface Anomalie {
   message: string
   /** Numero de ligne du fichier, quand l'anomalie en vise une seule. */
   ligne?: number
+  /** Colonne visee, quand l'anomalie porte sur une cellule precise. */
+  cle?: string
 }
 
 export interface Changement {
@@ -73,6 +75,8 @@ export interface Changement {
 export interface EnfantRapproche {
   ligne: number
   valeurs: Record<string, string | null>
+  /** Texte d'origine des cellules refusees, pour ne pas faire resaisir. */
+  bruts: Record<string, string>
   action: ActionEnfant
   /** Identifiant de la fiche existante, quand l'enfant est deja connu. */
   existantId?: string
@@ -85,6 +89,10 @@ export interface FoyerRapproche {
   /** Lignes du fichier qui composent ce foyer. */
   lignes: number[]
   valeurs: Record<string, string | null>
+  /** Texte d'origine des cellules refusees, cote foyer. */
+  bruts: Record<string, string>
+  /** Message par colonne du foyer, pour le poser SOUS le champ concerne. */
+  erreursChamps: Record<string, string>
   action: ActionFoyer
   existantId?: string
   changements: Changement[]
@@ -247,8 +255,8 @@ export function rapprocher(
 
     // ── Les enfants du foyer ─────────────────────────────────────────────────
     const enfantsRapproches: EnfantRapproche[] = groupe.map(l => {
-      const aEnfants: Anomalie[] = l.erreurs.map(m => ({
-        gravite: 'invalide' as Gravite, message: m, ligne: l.numero,
+      const aEnfants: Anomalie[] = l.erreurs.map(e => ({
+        gravite: 'invalide' as Gravite, message: e.message, ligne: l.numero, cle: e.cle,
       }))
 
       const doublons = lignesEnDouble.get(l.numero)
@@ -285,6 +293,7 @@ export function rapprocher(
       return {
         ligne: l.numero,
         valeurs: l.valeurs,
+        bruts: l.bruts,
         action: bloque ? 'bloque' : dejaLa ? 'rien' : 'creer',
         existantId: dejaLa?.id,
         anomalies: aEnfants,
@@ -307,10 +316,21 @@ export function rapprocher(
     else if (changements.length > 0) action = 'mettre_a_jour'
     else action = 'rien'
 
+    // Les erreurs des colonnes de FOYER viennent de la premiere ligne, qui fait
+    // foi pour le foyer. Elles sont indexees par colonne pour que l'ecran les
+    // pose sous le champ concerne au lieu de les empiler en bout de ligne.
+    const erreursChamps: Record<string, string> = {}
+    for (const e of premiere.erreurs) {
+      if (!(e.cle in valeursFoyer)) continue
+      erreursChamps[e.cle] = e.message
+    }
+
     resultat.push({
       cle,
       lignes: groupe.map(l => l.numero),
       valeurs: valeursFoyer,
+      bruts: premiere.bruts,
+      erreursChamps,
       action,
       existantId: existant?.id,
       changements,

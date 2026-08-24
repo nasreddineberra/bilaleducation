@@ -21,13 +21,34 @@
 
 import { COLONNES, COLONNES_OBLIGATOIRES, colonnePourEntete, type Colonne } from './colonnes'
 
+/**
+ * Une anomalie SAIT de quelle colonne elle parle.
+ *
+ * Elle etait une simple chaine, et l'ecran les empilait toutes au bout de la
+ * ligne : on lisait « Adresse email illisible » sans savoir lequel des quatre
+ * champs email etait vise. Porter la cle permet de poser le message SOUS le
+ * champ concerne, et de le cerner en rouge.
+ */
+export interface ErreurCellule {
+  cle: string
+  message: string
+}
+
 export interface LigneBrute {
   /** Numero de ligne DANS LE FICHIER, en-tete comprise : la 1re donnee est 2. */
   numero: number
   /** Valeurs normalisees, indexees par cle de colonne. */
   valeurs: Record<string, string | null>
+  /**
+   * Texte d'origine des cellules REFUSEES.
+   *
+   * Il est rendu a l'ecran pour que l'utilisateur corrige au lieu de resaisir :
+   * une lettre manque souvent, et lui presenter un champ vide sous un message
+   * d'erreur, c'est lui faire retaper ce qu'il venait d'ecrire.
+   */
+  bruts: Record<string, string>
   /** Ce qui etait present mais illisible. Une cellule vide n'en produit pas. */
-  erreurs: string[]
+  erreurs: ErreurCellule[]
 }
 
 export interface Lecture {
@@ -76,7 +97,8 @@ export function analyserLignes(rows: unknown[][]): Lecture {
     if (ligneVide(cellules)) continue
 
     const valeurs: Record<string, string | null> = {}
-    const erreurs: string[] = []
+    const bruts: Record<string, string> = {}
+    const erreurs: ErreurCellule[] = []
 
     // Toutes les colonnes du CATALOGUE sont posees, meme absentes du fichier :
     // le tableau de l'ecran a des colonnes fixes, et une cle manquante y
@@ -89,9 +111,10 @@ export function analyserLignes(rows: unknown[][]): Lecture {
 
     parIndex.forEach((col, idx) => {
       if (!col) return
-      const { valeur, erreur } = col.normaliser(cellules[idx])
+      const { valeur, erreur, brut } = col.normaliser(cellules[idx])
       valeurs[col.cle] = valeur
-      if (erreur) { erreurs.push(erreur); fautives.add(col.cle) }
+      if (brut !== undefined) bruts[col.cle] = brut
+      if (erreur) { erreurs.push({ cle: col.cle, message: erreur }); fautives.add(col.cle) }
     })
 
     // Obligatoire absente : signalee ICI et pas a la normalisation, qui ne sait
@@ -102,11 +125,11 @@ export function analyserLignes(rows: unknown[][]): Lecture {
     // dont tout l'objet est de dire quoi corriger.
     for (const col of COLONNES_OBLIGATOIRES) {
       if (presentes.has(col.cle) && !valeurs[col.cle] && !fautives.has(col.cle)) {
-        erreurs.push(`« ${col.entete} » est obligatoire`)
+        erreurs.push({ cle: col.cle, message: `« ${col.entete} » est obligatoire` })
       }
     }
 
-    lignes.push({ numero: i + 1, valeurs, erreurs })
+    lignes.push({ numero: i + 1, valeurs, bruts, erreurs })
   }
 
   return { lignes, entetesInconnues, colonnesManquantes }

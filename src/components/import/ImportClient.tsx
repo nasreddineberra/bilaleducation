@@ -6,7 +6,6 @@ import { FileDown, AlertTriangle, Check, X } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import Tooltip from '@/components/ui/Tooltip'
 import { COLONNES } from '@/lib/import/colonnes'
 import { lireFichierXlsx, type LigneBrute } from '@/lib/import/lire-fichier'
 import { rapprocher, type FoyerExistant, type EnfantExistant, type FoyerRapproche } from '@/lib/import/rapprocher'
@@ -121,7 +120,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
   }, [toast])
 
   // ── Correction en place ───────────────────────────────────────────────────
-  const modifier = (numeroLigne: number, cle: string, brut: string) => {
+  const modifier = (numeroLigne: number, cle: string, saisi: string) => {
     setLignes(prev => {
       if (!prev) return prev
       const col = COLONNES.find(c => c.cle === cle)
@@ -130,23 +129,24 @@ export default function ImportClient({ foyers, enfants }: Props) {
       return prev.map(l => {
         if (l.numero !== numeroLigne) return l
 
-        const { valeur, erreur } = col.normaliser(brut)
-        const valeurs = { ...l.valeurs, [cle]: valeur }
+        const { valeur, erreur, brut } = col.normaliser(saisi)
 
-        // Les erreurs sont RECALCULEES pour cette ligne : garder les anciennes
-        // laisserait un message perime sous une valeur devenue correcte.
-        const erreurs: string[] = []
-        for (const c of COLONNES) {
-          const v = c.cle === cle ? valeur : valeurs[c.cle]
-          if (c.cle === cle && erreur) { erreurs.push(erreur); continue }
-          if (c.cle !== cle) {
-            const rejoue = c.normaliser(v)
-            if (rejoue.erreur) { erreurs.push(rejoue.erreur); continue }
-          }
-          if (c.obligatoire && !v) erreurs.push(`« ${c.entete} » est obligatoire`)
+        const valeurs = { ...l.valeurs, [cle]: valeur }
+        const bruts = { ...l.bruts }
+        if (brut !== undefined) bruts[cle] = brut
+        else delete bruts[cle]
+
+        // Seule l'erreur de CETTE cellule est recalculee. Rejouer toute la
+        // ligne serait inutile — les autres valeurs n'ont pas bouge — et
+        // fragile : il a suffi d'une normalisation non idempotente pour que
+        // corriger un nom invalide la colonne Genre.
+        const erreurs = l.erreurs.filter(e => e.cle !== cle)
+        if (erreur) erreurs.push({ cle, message: erreur })
+        else if (col.obligatoire && !valeur) {
+          erreurs.push({ cle, message: `« ${col.entete} » est obligatoire` })
         }
 
-        return { ...l, valeurs, erreurs }
+        return { ...l, valeurs, bruts, erreurs }
       })
     })
   }
@@ -445,56 +445,78 @@ function LigneFoyer({
         <span className={`font-medium ${style.texte}`}>{style.libelle}</span>
       </td>
 
-      <td className="list-td align-top pt-1.5 space-y-1">
-        {/* Ce qui change, avant/après — on ne coche pas une mise à jour en
-            espérant que la machine fera bien. */}
-        {foyer.changements.map(c => (
-          <div key={c.cle} className="text-[11px] text-amber-700">
-            {libelleColonne(c.cle)} : <span className="line-through">{c.avant || '(vide)'}</span> → <span className="font-medium">{c.apres}</span>
+      <td className="list-td align-top pt-1.5 space-y-2">
+        {/* Ce qui change, avant/apres — on ne coche pas une mise a jour en
+            esperant que la machine fera bien. */}
+        {foyer.changements.length > 0 && (
+          <div className="space-y-0.5">
+            {foyer.changements.map(c => (
+              <div key={c.cle} className="text-[11px] text-amber-700">
+                {libelleColonne(c.cle)} : <span className="line-through">{c.avant || '(vide)'}</span> → <span className="font-medium">{c.apres}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
 
+        {/* Anomalies du FOYER (pas d'une cellule) : elles n'ont pas de champ ou
+            se poser, elles restent donc en tete. */}
         {foyer.anomalies.map((a, i) => (
           <div key={i} className={`text-[11px] ${STYLE_GRAVITE[a.gravite]}`}>{a.message}</div>
         ))}
 
-        {/* Les enfants du foyer */}
-        <div className="space-y-1 pt-0.5">
-          {foyer.enfants.map(e => (
-            <div key={e.ligne} className="flex flex-wrap items-center gap-1">
-              {COLS_ENFANT.map(cle => (
-                <Cellule
-                  key={cle}
-                  valeur={e.valeurs[cle]}
-                  placeholder={libelleColonne(cle)}
-                  largeur={cle === 'date_of_birth' ? 'w-24' : cle === 'gender' ? 'w-20' : 'w-28'}
-                  onChange={v => onModifier(e.ligne, cle, v)}
-                />
-              ))}
-              <span className="text-[11px] text-warm-700">
+        {/* ── Les enfants ────────────────────────────────────────────────────
+            Chaque champ porte son LIBELLE. Un placeholder ne suffit pas : il
+            disparait des que la cellule est remplie, et on se retrouve devant
+            quatre cases dont on ignore ce qu'elles contiennent. */}
+        {foyer.enfants.map(e => (
+          <div key={e.ligne} className="rounded-lg border border-warm-100 p-1.5 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-warm-700">
+                Apprenant · ligne {e.ligne}
+              </span>
+              <span className="text-[10px] text-warm-700">
                 {e.action === 'rien' ? 'déjà enregistré' : e.action === 'creer' ? 'à créer' : ''}
               </span>
-              {e.anomalies.map((a, i) => (
-                <span key={i} className={`text-[11px] ${STYLE_GRAVITE[a.gravite]}`}>{a.message}</span>
+            </div>
+
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-1.5">
+              {COLS_ENFANT.map(cle => (
+                <Champ
+                  key={cle}
+                  libelle={libelleColonne(cle)}
+                  valeur={e.valeurs[cle] ?? e.bruts[cle] ?? null}
+                  erreur={e.anomalies.find(a => a.cle === cle)?.message}
+                  onChange={(v: string) => onModifier(e.ligne, cle, v)}
+                />
               ))}
             </div>
-          ))}
-        </div>
 
-        {/* Coordonnées du foyer, dépliables */}
-        {deplie && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-1 pt-1.5 border-t border-warm-100 mt-1.5">
-            {COLONNES.filter(c => c.cible !== 'enfant').map(c => (
-              <label key={c.cle} className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-warm-700 uppercase tracking-wide">{c.entete}</span>
-                <Cellule
-                  valeur={foyer.valeurs[c.cle]}
-                  placeholder={c.entete}
-                  largeur="w-full"
-                  onChange={v => onModifier(premiereLigne, c.cle, v)}
-                />
-              </label>
+            {/* Ce qui ne vise aucun champ : doublon interne, enfant deja
+                rattache ailleurs. */}
+            {e.anomalies.filter(a => !a.cle).map((a, i) => (
+              <div key={i} className={`text-[11px] ${STYLE_GRAVITE[a.gravite]}`}>{a.message}</div>
             ))}
+          </div>
+        ))}
+
+        {/* ── Coordonnees du foyer, depliables ──────────────────────────────── */}
+        {deplie && (
+          <div className="rounded-lg border border-warm-100 p-1.5 space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-warm-700">
+              Coordonnées du foyer
+            </span>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-1.5">
+              {COLONNES.filter(c => c.cible !== 'enfant').map(c => (
+                <Champ
+                  key={c.cle}
+                  libelle={c.entete}
+                  obligatoire={c.obligatoire}
+                  valeur={foyer.valeurs[c.cle] ?? foyer.bruts[c.cle] ?? null}
+                  erreur={foyer.erreursChamps[c.cle]}
+                  onChange={(v: string) => onModifier(premiereLigne, c.cle, v)}
+                />
+              ))}
+            </div>
           </div>
         )}
       </td>
@@ -503,37 +525,56 @@ function LigneFoyer({
 }
 
 /**
- * Cellule corrigeable.
+ * Un champ corrigeable : libelle au-dessus, message d'erreur en dessous.
+ *
+ * ┌─ TROIS CHOSES QUE L'ANCIENNE VERSION FAISAIT MAL ────────────────────────┐
+ * │ · Elle n'avait qu'un PLACEHOLDER, qui disparait des que la cellule est    │
+ * │   remplie : on se retrouvait devant quatre cases sans savoir ce qu'elles  │
+ * │   contenaient.                                                            │
+ * │ · Elle affichait un champ VIDE quand la valeur avait ete refusee, si bien │
+ * │   qu'il fallait tout resaisir alors qu'une lettre manquait souvent.       │
+ * │ · Elle empilait les messages en bout de ligne, loin du champ vise.        │
+ * └───────────────────────────────────────────────────────────────────────────┘
  *
  * La revalidation se fait au BLUR et non a chaque frappe : normaliser pendant
  * la saisie mettrait le nom en majuscules sous les doigts de l'utilisateur, qui
  * ne saurait plus ou il en est.
  */
-function Cellule({
-  valeur, placeholder, largeur, onChange,
+function Champ({
+  libelle, valeur, erreur, obligatoire, onChange,
 }: {
+  libelle: string
   valeur: string | null
-  placeholder: string
-  largeur: string
+  erreur?: string
+  obligatoire?: boolean
   onChange: (v: string) => void
 }) {
-  const [brut, setBrut] = useState<string | null>(null)
-  const affiche = brut ?? valeur ?? ''
+  const [saisi, setSaisi] = useState<string | null>(null)
+  const affiche = saisi ?? valeur ?? ''
 
   return (
-    <Tooltip content={placeholder}>
+    <label className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-[10px] uppercase tracking-wide text-warm-700 truncate">
+        {libelle}
+        {obligatoire && <span className="text-red-500"> *</span>}
+      </span>
       <input
         type="text"
         value={affiche}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        onChange={e => setBrut(e.target.value)}
+        aria-label={libelle}
+        aria-invalid={!!erreur}
+        onChange={e => setSaisi(e.target.value)}
         onBlur={() => {
-          if (brut !== null && brut !== (valeur ?? '')) onChange(brut)
-          setBrut(null)
+          if (saisi !== null && saisi !== (valeur ?? '')) onChange(saisi)
+          setSaisi(null)
         }}
-        className={`${largeur} px-1.5 py-0.5 text-[11px] rounded border border-warm-200 bg-[var(--surface-card)] text-secondary-800 placeholder:text-warm-400 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40`}
+        className={`w-full px-1.5 py-0.5 text-[11px] rounded border bg-[var(--surface-card)] text-secondary-800 outline-none focus:ring-1 focus:ring-primary-500/40 ${
+          erreur
+            ? 'border-red-400 focus:border-red-500'
+            : 'border-warm-200 focus:border-primary-500'
+        }`}
       />
-    </Tooltip>
+      {erreur && <span className="text-[10px] text-red-700 leading-tight">{erreur}</span>}
+    </label>
   )
 }
