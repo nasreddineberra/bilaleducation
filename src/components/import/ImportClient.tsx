@@ -37,12 +37,38 @@ interface Props {
 // est reserve a ce qui demande une decision. Et le motif reste ecrit EN CLAIR
 // sur la ligne : une couleur seule ne dit pas quoi corriger, et elle est
 // invisible pour un daltonien.
-const STYLE_ACTION: Record<string, { fond: string; texte: string; libelle: string }> = {
-  creer:         { fond: 'bg-primary-50',  texte: 'text-primary-700', libelle: 'Créer la famille' },
-  completer:     { fond: 'bg-primary-50',  texte: 'text-primary-700', libelle: 'Ajouter au foyer existant' },
-  mettre_a_jour: { fond: 'bg-amber-50',    texte: 'text-amber-700',   libelle: 'Mettre à jour le foyer' },
-  rien:          { fond: 'bg-warm-50',     texte: 'text-warm-700',    libelle: 'Déjà enregistré' },
-  bloque:        { fond: 'bg-red-50',      texte: 'text-red-700',     libelle: 'Bloqué' },
+const STYLE_ACTION: Record<string, { fond: string; pastille: string; libelle: string }> = {
+  creer:         { fond: 'bg-primary-50', pastille: 'bg-primary-100 text-primary-800', libelle: 'Créer la famille' },
+  completer:     { fond: 'bg-primary-50', pastille: 'bg-primary-100 text-primary-800', libelle: 'Ajouter au foyer existant' },
+  mettre_a_jour: { fond: 'bg-amber-50',   pastille: 'bg-amber-100 text-amber-800',     libelle: 'Mettre à jour le foyer' },
+  rien:          { fond: 'bg-warm-50',    pastille: 'bg-warm-200 text-warm-800',       libelle: 'Déjà enregistré' },
+  bloque:        { fond: 'bg-red-50',     pastille: 'bg-red-100 text-red-800',         libelle: 'Bloqué' },
+}
+
+/**
+ * Statut d'un APPRENANT, dans les memes couleurs que celui du foyer.
+ *
+ * Ils etaient en gris, tous les trois : il fallait LIRE chaque ligne pour savoir
+ * ce qui allait etre cree. En pastille coloree, l'oeil balaie la colonne et voit
+ * d'un coup ce que l'enregistrement va faire — c'est tout l'interet d'un tableau
+ * de relecture.
+ *
+ * Le libelle reste ECRIT : la couleur seule ne dit rien a qui la distingue mal,
+ * et « à créer » n'a pas de couleur evidente.
+ */
+const STYLE_ENFANT: Record<string, { pastille: string; libelle: string }> = {
+  creer:  { pastille: 'bg-primary-100 text-primary-800', libelle: 'à créer' },
+  rien:   { pastille: 'bg-warm-200 text-warm-800',       libelle: 'déjà enregistré' },
+  bloque: { pastille: 'bg-red-100 text-red-800',         libelle: 'bloqué' },
+}
+
+/** Pastille de statut : meme forme pour le foyer et pour l'apprenant. */
+function Pastille({ style, children }: { style: string; children: React.ReactNode }) {
+  return (
+    <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap ${style}`}>
+      {children}
+    </span>
+  )
 }
 
 const STYLE_GRAVITE: Record<string, string> = {
@@ -442,7 +468,7 @@ function LigneFoyer({
       </td>
 
       <td className="list-td align-top pt-2">
-        <span className={`font-medium ${style.texte}`}>{style.libelle}</span>
+        <Pastille style={style.pastille}>{style.libelle}</Pastille>
       </td>
 
       <td className="list-td align-top pt-1.5 space-y-2">
@@ -474,9 +500,9 @@ function LigneFoyer({
               <span className="text-[10px] font-bold uppercase tracking-wide text-warm-700">
                 Apprenant · ligne {e.ligne}
               </span>
-              <span className="text-[10px] text-warm-700">
-                {e.action === 'rien' ? 'déjà enregistré' : e.action === 'creer' ? 'à créer' : ''}
-              </span>
+              <Pastille style={STYLE_ENFANT[e.action].pastille}>
+                {STYLE_ENFANT[e.action].libelle}
+              </Pastille>
             </div>
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-1.5">
