@@ -141,3 +141,135 @@ export async function saveStudentsActive(
   }
   return { activated: toTrue.length, deactivated: toFalse.length }
 }
+
+// ─── Suppression d'un apprenant ────────────────────────────────────────────
+//
+// DOCTRINE STRICTE (arbitrage du 13 septembre) : on ne supprime qu'une fiche
+// VIERGE. La moindre ligne rattachee renvoie vers « Rendre inactif ».
+//
+// La garantie vit dans le declencheur `trg_guard_student_delete` : cette liste
+// ne sert qu'a EXPLIQUER a l'utilisateur, avant qu'il ne clique.
+//
+// Les deux cles en SET NULL (`notifications`, `student_year_history`) ne sont
+// pas comptees : ces lignes survivent a la suppression, simplement detachees.
+export async function getStudentDeleteDeps(id: string): Promise<{
+  affectations: number
+  evaluation:   number
+  vieScolaire:  number
+  documents:    number
+  erreur?:      string
+}> {
+  const supabase = await createClient()
+  const head = { count: 'exact' as const, head: true }
+
+  const r = await Promise.all([
+    supabase.from('enrollments').select('id', head).eq('student_id', id),
+    supabase.from('grades').select('id', head).eq('student_id', id),
+    supabase.from('bulletin_archives').select('id', head).eq('student_id', id),
+    supabase.from('bulletin_appreciations').select('id', head).eq('student_id', id),
+    supabase.from('absences').select('id', head).eq('student_id', id),
+    supabase.from('student_warnings').select('id', head).eq('student_id', id),
+    supabase.from('homework_status').select('id', head).eq('student_id', id),
+    supabase.from('student_documents').select('id', head).eq('student_id', id),
+  ])
+
+  // PIEGE POSTGREST : sur un comptage `head`, une requete impossible (table
+  // absente, colonne renommee) repond 204 avec `count: null` et `error: null`.
+  // Un `?? 0` transformerait donc une PANNE en « aucune donnee rattachee »,
+  // c'est-a-dire en feu vert pour supprimer. Le signal est `count === null`.
+  if (r.some(x => x.count === null)) {
+    return {
+      affectations: 0, evaluation: 0, vieScolaire: 0, documents: 0,
+      erreur: 'Impossible de verifier les donnees rattachees a cet apprenant.',
+    }
+  }
+
+  const [enrollments, grades, archives, appreciations, absences, warnings, homework, documents] = r
+  const n = (x: { count: number | null }) => x.count ?? 0
+
+  return {
+    affectations: n(enrollments),
+    evaluation:   n(grades) + n(archives) + n(appreciations),
+    vieScolaire:  n(absences) + n(warnings) + n(homework),
+    documents:    n(documents),
+  }
+}
+
+export async function deleteStudent(id: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  const { data: cible } = await supabase
+    .from('students')
+    .select('last_name, first_name, student_number')
+    .eq('id', id)
+    .maybeSingle()
+  if (!cible) return { error: 'Apprenant introuvable.' }
+
+  // Recompte cote SERVEUR : la modale a pu etre ouverte il y a dix minutes, et
+  // cette action reste appelable directement. Le declencheur refuserait de
+  // toute facon, mais autant rendre un message clair plutot qu'une erreur SQL.
+  const deps = await getStudentDeleteDeps(id)
+  if (deps.erreur) return { error: deps.erreur }
+  if (deps.affectations + deps.evaluation + deps.vieScolaire + deps.documents > 0) {
+    return { error: 'Des données sont rattachées à cet apprenant. Rendez-le inactif plutôt que de le supprimer.' }
+  }
+
+  // Tracer AVANT d'effacer : après coup, il n'y a plus rien à décrire.
+  await logAudit(supabase, {
+    action:      'DELETE',
+    entityType:  'students',
+    entityId:    id,
+    description: `Suppression de l'apprenant ${cible.last_name} ${cible.first_name} (${cible.student_number})`,
+    oldData:     cible as Record<string, unknown>,
+  })
+
+  // `.select()` : une suppression écartée par la RLS ne lève PAS d'erreur,
+  // elle supprime zéro ligne. Sans cela, un refus ressemblerait à un succès.
+  const { data: supprimes, error } = await supabase
+    .from('students').delete().eq('id', id).select('id')
+
+  if (error) return { error: 'Erreur lors de la suppression de l\'apprenant.' }
+  if (!supprimes || supprimes.length === 0) {
+    return { error: 'La suppression n\'a pas été autorisée.' }
+  }
+  return {}
+}
+
+/** Rend un apprenant actif ou inactif, une fiche à la fois.
+ *
+ *  Distinct de `saveStudentsActive`, qui ÉCARTE SILENCIEUSEMENT la
+ *  désactivation d'un apprenant affecté à une classe de l'année : sur une
+ *  action unitaire, ce silence passerait pour un succès. Ici on le dit.
+ */
+export async function setStudentActive(id: string, active: boolean): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  if (!active) {
+    const { infoByStudent } = await currentYearEnrollment(supabase)
+    const classe = infoByStudent.get(id)
+    if (classe) {
+      return { error: `Cet apprenant est affecté à la classe ${classe.name}. Retirez-le de sa classe avant de le rendre inactif.` }
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('students').update({ is_active: active }).eq('id', id).select('last_name, first_name')
+
+  if (error || !data || data.length === 0) {
+    return { error: 'Erreur lors de la mise à jour du statut.' }
+  }
+
+  await logAudit(supabase, {
+    action:      'UPDATE',
+    entityType:  'students',
+    entityId:    id,
+    description: `${data[0].last_name} ${data[0].first_name} rendu ${active ? 'actif' : 'inactif'}`,
+  })
+  return {}
+}

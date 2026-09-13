@@ -5,12 +5,20 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2, Link2Off, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
-import { createClient } from '@/lib/supabase/client'
+import { deleteStudent, getStudentDeleteDeps, setStudentActive } from '@/app/dashboard/students/actions'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { StudentWithClass, Discipline } from './StudentsClient'
 
 interface StudentsTableProps {
   students: StudentWithClass[]
+}
+
+interface DeleteDeps {
+  affectations: number
+  evaluation:   number
+  vieScolaire:  number
+  documents:    number
 }
 
 // Affiche absences / retards / avertissements (année en cours), non-nuls uniquement.
@@ -70,35 +78,56 @@ function calcAge(dob: string): string {
 
 export default function StudentsTable({ students }: StudentsTableProps) {
   const router = useRouter()
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<StudentWithClass | null>(null)
+  const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [deleteError,  setDeleteError]  = useState<string | null>(null)
 
-  const handleDelete = async (studentId: string) => {
-    setIsDeleting(true)
+  // Ouvre la modale APRÈS avoir compté les dépendances : on n'annonce pas une
+  // suppression avant de savoir si elle est possible.
+  const startDelete = async (student: StudentWithClass) => {
     setDeleteError(null)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from('students').delete().eq('id', studentId)
-
-      if (error) {
-        if (error.code === '23503') {
-          setDeleteError('Impossible de supprimer : des données sont rattachées à cet élève.')
-        } else {
-          setDeleteError('Une erreur est survenue lors de la suppression.')
-        }
-        setConfirmDeleteId(null)
-        return
-      }
-
-      setConfirmDeleteId(null)
-      router.refresh()
-    } catch {
-      setDeleteError('Une erreur est survenue lors de la suppression.')
-    } finally {
-      setIsDeleting(false)
-    }
+    const d = await getStudentDeleteDeps(student.id)
+    if (d.erreur) { setDeleteError(d.erreur); return }
+    setDeps(d)
+    setDeleteTarget(student)
   }
+
+  const closeModal = () => { setDeleteTarget(null); setDeps(null) }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setIsProcessing(true)
+    setDeleteError(null)
+    const { error } = await deleteStudent(deleteTarget.id)
+    setIsProcessing(false)
+    if (error) { setDeleteError(error); closeModal(); return }
+    closeModal()
+    router.refresh()
+  }
+
+  const confirmDeactivate = async () => {
+    if (!deleteTarget) return
+    setIsProcessing(true)
+    setDeleteError(null)
+    const { error } = await setStudentActive(deleteTarget.id, false)
+    setIsProcessing(false)
+    if (error) { setDeleteError(error); closeModal(); return }
+    closeModal()
+    router.refresh()
+  }
+
+  const hasBlocking = !!deps
+    && (deps.affectations + deps.evaluation + deps.vieScolaire + deps.documents) > 0
+
+  // Deux raisons peuvent rendre « Rendre inactif » impossible, et l'offrir
+  // quand même produirait un échec là où l'utilisateur attend une issue :
+  //   · l'apprenant est affecté à une classe de l'année (règle du 9 juillet :
+  //     un inscrit n'est pas désactivable — il faut d'abord le retirer) ;
+  //   · il est déjà inactif.
+  const affecteCetteAnnee = !!deleteTarget?.class_name
+  const dejaInactif       = deleteTarget?.is_active === false
+  const desactivationImpossible = affecteCetteAnnee || dejaInactif
 
   if (students.length === 0) {
     return (
@@ -252,45 +281,26 @@ export default function StudentsTable({ students }: StudentsTableProps) {
 
                 {/* Actions */}
                 <td className="list-td" onClick={(e) => e.stopPropagation()}>
-                  {confirmDeleteId === student.id ? (
-                    <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                      <span className="text-xs text-warm-700 whitespace-nowrap">Supprimer ?</span>
+                  <div className="flex items-center justify-end gap-1">
+                    <Tooltip content="Modifier">
                       <button
-                        onClick={() => handleDelete(student.id)}
-                        disabled={isDeleting}
-                        className="text-xs font-medium px-2.5 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                        onClick={() => router.push(`/dashboard/students/${student.id}`)}
+                        aria-label="Modifier l'élève"
+                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                       >
-                        {isDeleting ? '...' : 'Confirmer'}
+                        <Pencil size={14} />
                       </button>
+                    </Tooltip>
+                    <Tooltip content="Supprimer">
                       <button
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="text-xs font-medium px-2.5 py-1 bg-warm-100 text-warm-700 rounded-lg hover:bg-warm-200 transition-colors"
+                        onClick={() => startDelete(student)}
+                        aria-label="Supprimer l'élève"
+                        className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                       >
-                        Annuler
+                        <Trash2 size={14} />
                       </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-end gap-1">
-                      <Tooltip content="Modifier">
-                        <button
-                          onClick={() => router.push(`/dashboard/students/${student.id}`)}
-                          aria-label="Modifier l'élève"
-                          className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Supprimer">
-                        <button
-                          onClick={() => { setConfirmDeleteId(student.id); setDeleteError(null) }}
-                          aria-label="Supprimer l'élève"
-                          className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  )}
+                    </Tooltip>
+                  </div>
                 </td>
 
               </tr>
@@ -298,6 +308,66 @@ export default function StudentsTable({ students }: StudentsTableProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Suppression : on ne supprime qu'une fiche VIERGE. */}
+      {deleteTarget && deps && (
+        <ConfirmModal
+          title={hasBlocking
+            ? 'Suppression impossible'
+            : `Supprimer "${deleteTarget.last_name} ${deleteTarget.first_name}" ?`}
+          confirmLabel={hasBlocking
+            ? (isProcessing ? '...' : 'Rendre inactif')
+            : (isProcessing ? 'Suppression...' : 'Supprimer définitivement')}
+          confirmColor={hasBlocking ? 'amber' : 'red'}
+          confirmDisabled={isProcessing || (hasBlocking && desactivationImpossible)}
+          onConfirm={hasBlocking ? confirmDeactivate : confirmDelete}
+          onCancel={closeModal}
+        >
+          {hasBlocking ? (
+            <div className="space-y-3">
+              <p className="text-sm text-secondary-700">
+                <strong>{deleteTarget.last_name} {deleteTarget.first_name}</strong> ne peut pas être
+                supprimé : des données lui sont rattachées.
+              </p>
+              <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
+                {deps.affectations > 0 && (
+                  <li><strong>{deps.affectations}</strong> affectation{deps.affectations > 1 ? 's' : ''} à une classe</li>
+                )}
+                {deps.evaluation > 0 && (
+                  <li><strong>{deps.evaluation}</strong> donnée{deps.evaluation > 1 ? 's' : ''} d&apos;évaluation (notes, bulletins)</li>
+                )}
+                {deps.vieScolaire > 0 && (
+                  <li><strong>{deps.vieScolaire}</strong> donnée{deps.vieScolaire > 1 ? 's' : ''} de vie scolaire (absences, avertissements, devoirs)</li>
+                )}
+                {deps.documents > 0 && (
+                  <li><strong>{deps.documents}</strong> document{deps.documents > 1 ? 's' : ''}</li>
+                )}
+              </ul>
+              {affecteCetteAnnee ? (
+                <p className="text-xs text-warm-700">
+                  Il est affecté à la classe <strong>{deleteTarget.class_name}</strong> : retirez-le
+                  d&apos;abord depuis <strong>Affectations</strong>, il pourra alors être rendu inactif.
+                </p>
+              ) : dejaInactif ? (
+                <p className="text-xs text-warm-700">
+                  Sa fiche est déjà <strong>inactive</strong> : son historique reste consultable.
+                </p>
+              ) : (
+                <p className="text-xs text-warm-700">
+                  Vous pouvez le <strong>rendre inactif</strong> : il sort des listes actives et tout
+                  son historique est conservé.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-secondary-700">
+              Aucune donnée n&apos;est rattachée à cet apprenant. Sa fiche sera supprimée
+              définitivement. Cette action est irréversible.
+            </p>
+          )}
+        </ConfirmModal>
+      )}
+
     </div>
   )
 }

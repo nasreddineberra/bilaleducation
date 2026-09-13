@@ -7,7 +7,9 @@ import { ChevronDown, ChevronRight, Pencil, Trash2, Users, LogOut, Camera, Gradu
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { studentRepository } from '@/lib/database/students'
+import { deleteParent, getParentDeleteDeps } from '@/app/dashboard/parents/actions'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent, Student } from '@/types/database'
 
@@ -15,6 +17,13 @@ interface ParentsTableProps {
   parents: Parent[]
   parentsWithChildren: Set<string>
   parentsWithPAI: Set<string>
+}
+
+interface DeleteDeps {
+  enfants:        number
+  finance:        number
+  coursAdultes:   number
+  communications: number
 }
 
 const RELATION_LABEL: Record<string, string> = {
@@ -32,7 +41,8 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
   const [childrenMap, setChildrenMap] = useState<Record<string, StudentWithEnrollment[]>>({})
   const [loadingChildrenId, setLoadingChildrenId] = useState<string | null>(null)
   const [togglingStudentId, setTogglingStudentId] = useState<string | null>(null)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Parent | null>(null)
+  const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
@@ -85,32 +95,32 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
     }
   }
 
-  const handleDelete = async (parentId: string) => {
+  // Ouvre la modale APRÈS avoir compté les dépendances.
+  const startDelete = async (parent: Parent) => {
+    setDeleteError(null)
+    const d = await getParentDeleteDeps(parent.id)
+    if (d.erreur) { setDeleteError(d.erreur); return }
+    setDeps(d)
+    setDeleteTarget(parent)
+  }
+
+  const closeDeleteModal = () => { setDeleteTarget(null); setDeps(null) }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
     setIsDeleting(true)
     setDeleteError(null)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from('parents').delete().eq('id', parentId)
-
-      if (error) {
-        if (error.code === '23503') {
-          setDeleteError('Impossible de supprimer : des élèves sont rattachés à cette fiche.')
-        } else {
-          setDeleteError('Une erreur est survenue lors de la suppression.')
-        }
-        setConfirmDeleteId(null)
-        return
-      }
-
-      setConfirmDeleteId(null)
-      router.refresh()
-    } catch (err) {
-      console.error('[ParentsTable] Erreur lors de la suppression du parent:', err)
-      setDeleteError('Une erreur est survenue lors de la suppression.')
-    } finally {
-      setIsDeleting(false)
-    }
+    const { error } = await deleteParent(deleteTarget.id)
+    setIsDeleting(false)
+    if (error) { setDeleteError(error); closeDeleteModal(); return }
+    closeDeleteModal()
+    router.refresh()
   }
+
+  // Pas de repli « rendre inactif » ici : `parents` n'a pas de colonne
+  // `is_active`. Le refus dit donc ce qu'il faut retirer d'abord.
+  const hasBlocking = !!deps
+    && (deps.enfants + deps.finance + deps.coursAdultes + deps.communications) > 0
 
   const handleToggleActive = async (student: StudentWithEnrollment, parentId: string) => {
     if (student.enrollment_class) return // inscrit dans une classe → pas de toggle
@@ -228,24 +238,6 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
 
                   {/* Actions */}
                   <td className="list-td" onClick={(e) => e.stopPropagation()}>
-                    {confirmDeleteId === parent.id ? (
-                      <div className="flex items-center justify-end gap-2 whitespace-nowrap">
-                        <span className="text-xs text-warm-700 whitespace-nowrap">Supprimer ?</span>
-                        <button
-                          onClick={() => handleDelete(parent.id)}
-                          disabled={isDeleting}
-                          className="text-xs font-medium px-2.5 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-                        >
-                          {isDeleting ? '...' : 'Confirmer'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs font-medium px-2.5 py-1 bg-warm-100 text-warm-700 rounded-lg hover:bg-warm-200 transition-colors"
-                        >
-                          Annuler
-                        </button>
-                      </div>
-                    ) : (
                       <div className="flex items-center justify-end gap-1">
                         {parentsWithChildren.has(parent.id) && (
                           <button
@@ -270,25 +262,20 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                             <Pencil size={14} />
                           </button>
                         </Tooltip>
-                        {parentsWithChildren.has(parent.id) ? (
-                          <Tooltip content="des enfants sont rattachés à cette fiche" position="top-right" maxWidth="w-40">
-                            <span className="p-1.5 text-warm-200 cursor-not-allowed rounded-lg">
-                              <Trash2 size={14} />
-                            </span>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip content="Supprimer la fiche">
-                            <button
-                              onClick={() => { setConfirmDeleteId(parent.id); setDeleteError(null) }}
-                              aria-label="Supprimer la fiche"
-                              className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </Tooltip>
-                        )}
+                        {/* Bouton TOUJOURS actif : le grisé ne connaissait que les
+                            enfants, alors qu'un foyer sans enfant peut porter des
+                            cotisations ou des cours adultes. La modale, elle, dit
+                            tout ce qui est rattaché. */}
+                        <Tooltip content="Supprimer la fiche">
+                          <button
+                            onClick={() => startDelete(parent)}
+                            aria-label="Supprimer la fiche"
+                            className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
-                    )}
                   </td>
                 </tr>
 
@@ -385,6 +372,56 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
           </tbody>
         </table>
       </div>
+
+      {/* Suppression : on ne supprime qu'une fiche VIERGE. */}
+      {deleteTarget && deps && (
+        <ConfirmModal
+          title={hasBlocking
+            ? 'Suppression impossible'
+            : `Supprimer le foyer "${deleteTarget.tutor1_last_name} ${deleteTarget.tutor1_first_name}" ?`}
+          confirmLabel={hasBlocking
+            ? 'Suppression impossible'
+            : (isDeleting ? 'Suppression...' : 'Supprimer définitivement')}
+          confirmColor="red"
+          confirmDisabled={isDeleting || hasBlocking}
+          onConfirm={confirmDelete}
+          onCancel={closeDeleteModal}
+        >
+          {hasBlocking ? (
+            <div className="space-y-3">
+              <p className="text-sm text-secondary-700">
+                Le foyer <strong>{deleteTarget.tutor1_last_name} {deleteTarget.tutor1_first_name}</strong> ne
+                peut pas être supprimé : des données lui sont rattachées.
+              </p>
+              <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
+                {deps.enfants > 0 && (
+                  <li><strong>{deps.enfants}</strong> apprenant{deps.enfants > 1 ? 's' : ''} rattaché{deps.enfants > 1 ? 's' : ''}</li>
+                )}
+                {deps.finance > 0 && (
+                  <li><strong>{deps.finance}</strong> donnée{deps.finance > 1 ? 's' : ''} financière{deps.finance > 1 ? 's' : ''} (cotisations, relances, attestations)</li>
+                )}
+                {deps.coursAdultes > 0 && (
+                  <li><strong>{deps.coursAdultes}</strong> donnée{deps.coursAdultes > 1 ? 's' : ''} de cours adultes (inscriptions, notes, bulletins, assiduité)</li>
+                )}
+                {deps.communications > 0 && (
+                  <li><strong>{deps.communications}</strong> communication{deps.communications > 1 ? 's' : ''} reçue{deps.communications > 1 ? 's' : ''}</li>
+                )}
+              </ul>
+              <p className="text-xs text-warm-700">
+                Un foyer n&apos;a pas de statut inactif : pour le supprimer, il faut d&apos;abord
+                retirer ce qui lui est rattaché. Un foyer sans activité peut simplement être laissé
+                en place, il n&apos;apparaît nulle part ailleurs.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-secondary-700">
+              Aucune donnée n&apos;est rattachée à ce foyer. Sa fiche sera supprimée définitivement.
+              Cette action est irréversible.
+            </p>
+          )}
+        </ConfirmModal>
+      )}
+
     </div>
   )
 }

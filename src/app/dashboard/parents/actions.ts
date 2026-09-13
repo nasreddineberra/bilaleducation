@@ -415,3 +415,98 @@ export async function saveParentsAdultCourses(
 
   return { updated }
 }
+
+// ─── Suppression d'un foyer ────────────────────────────────────────────────
+//
+// DOCTRINE STRICTE (arbitrage du 13 septembre) : on ne supprime qu'une fiche
+// VIERGE. Contrairement a l'apprenant, il n'y a PAS de repli « rendre
+// inactif » — `parents` ne porte pas de colonne `is_active`, et l'ajouter
+// deborderait largement (listes, filtres, import, affectations adultes).
+// Le refus dit donc quoi retirer.
+//
+// La garantie vit dans le declencheur `trg_guard_parent_delete` ; cette liste
+// ne sert qu'a EXPLIQUER avant le clic.
+export async function getParentDeleteDeps(id: string): Promise<{
+  enfants:        number
+  finance:        number
+  coursAdultes:   number
+  communications: number
+  erreur?:        string
+}> {
+  const supabase = await createClient()
+  const head = { count: 'exact' as const, head: true }
+
+  const r = await Promise.all([
+    supabase.from('students').select('id', head).eq('parent_id', id),
+    supabase.from('family_fees').select('id', head).eq('parent_id', id),
+    supabase.from('financement_communications').select('id', head).eq('parent_id', id),
+    supabase.from('parent_class_enrollments').select('id', head).eq('parent_id', id),
+    supabase.from('adult_grades').select('id', head).eq('parent_id', id),
+    supabase.from('adult_absences').select('id', head).eq('parent_id', id),
+    supabase.from('adult_bulletin_archives').select('id', head).eq('parent_id', id),
+    supabase.from('adult_bulletin_appreciations').select('id', head).eq('parent_id', id),
+    supabase.from('adult_homework_status').select('id', head).eq('parent_id', id),
+    supabase.from('announcement_recipients').select('id', head).eq('parent_id', id),
+    supabase.from('notifications').select('id', head).eq('parent_id', id),
+  ])
+
+  // PIEGE POSTGREST : sur un comptage `head`, une requete impossible repond
+  // 204 avec `count: null` ET `error: null`. Un `?? 0` ferait donc d'une panne
+  // un feu vert pour supprimer. Le signal est `count === null`.
+  if (r.some(x => x.count === null)) {
+    return {
+      enfants: 0, finance: 0, coursAdultes: 0, communications: 0,
+      erreur: 'Impossible de verifier les donnees rattachees a ce foyer.',
+    }
+  }
+
+  const [enfants, fees, finComm, inscrAd, gradesAd, absAd, bullAd, apprAd, hwAd, annonces, notifs] = r
+  const n = (x: { count: number | null }) => x.count ?? 0
+
+  return {
+    enfants:        n(enfants),
+    finance:        n(fees) + n(finComm),
+    coursAdultes:   n(inscrAd) + n(gradesAd) + n(absAd) + n(bullAd) + n(apprAd) + n(hwAd),
+    communications: n(annonces) + n(notifs),
+  }
+}
+
+export async function deleteParent(id: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+
+  const { data: cible } = await supabase
+    .from('parents')
+    .select('tutor1_last_name, tutor1_first_name, tutor1_email')
+    .eq('id', id)
+    .maybeSingle()
+  if (!cible) return { error: 'Foyer introuvable.' }
+
+  const deps = await getParentDeleteDeps(id)
+  if (deps.erreur) return { error: deps.erreur }
+  if (deps.enfants + deps.finance + deps.coursAdultes + deps.communications > 0) {
+    return { error: 'Des données sont rattachées à ce foyer : il ne peut pas être supprimé.' }
+  }
+
+  // Tracer AVANT d'effacer.
+  await logAudit(supabase, {
+    action:      'DELETE',
+    entityType:  'parents',
+    entityId:    id,
+    description: `Suppression du foyer ${cible.tutor1_last_name} ${cible.tutor1_first_name}`,
+    oldData:     cible as Record<string, unknown>,
+  })
+
+  // `.select()` : une suppression écartée par la RLS ne lève pas d'erreur,
+  // elle supprime zéro ligne.
+  const { data: supprimes, error } = await supabase
+    .from('parents').delete().eq('id', id).select('id')
+
+  if (error) return { error: 'Erreur lors de la suppression du foyer.' }
+  if (!supprimes || supprimes.length === 0) {
+    return { error: 'La suppression n\'a pas été autorisée.' }
+  }
+  return {}
+}

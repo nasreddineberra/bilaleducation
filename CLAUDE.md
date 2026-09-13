@@ -3339,7 +3339,85 @@ de surcroit **INATTEIGNABLE** cote apprenants : aucune contrainte vers `students
 
 **EN ATTENTE DE DECISION** : `parents.tutor1_email` reste **nullable** en base — seul niveau
 incontournable. Le passer en NOT NULL interdirait d'enregistrer une famille sans adresse email.
+→ **TRANCHE le 13/09** : passe en NOT NULL + CHECK non vide (voir plus bas).
 
+#### 13 septembre 2026 — Lot 1 eprouve, email du tuteur 1 obligatoire, et la suppression tenait une promesse qu'elle ne pouvait pas tenir
+
+**LOT 1 (doublons) EPROUVE DES DEUX COTES.** Les 3 cas apprenants manquaient (parents faits le
+16/08) : homonyme ne un autre jour **accepte**, meme nom+prenom+date **refuse**, accent seul de
+difference **refuse** — les deux refus portant `23505` **sur `idx_students_unique_identite`**, et
+non sur une contrainte voisine. C'est ce controle du NOM DE LA CONTRAINTE qui manquait le 16/08,
+ou un `CHECK` sur `gender` avait fait passer un echec pour un succes.
+
+**METHODE A REEMPLOYER — le script qui ne peut rien ecrire.** Un bloc `DO` colle dans l'editeur SQL
+de Supabase, se terminant par une **exception volontaire** qui annule tout et affiche le rapport a
+la place du message d'erreur (bandeau rouge attendu). Pas de `BEGIN`/`ROLLBACK` qu'on risque
+d'oublier : l'abandon est le chemin de sortie **unique** du bloc. Ni `pg` ni `psql` a installer,
+aucune connexion ouverte sur la production depuis le poste, et l'utilisateur voit ce qui s'execute
+avant que ca s'execute.
+
+**`parents.tutor1_email` en NOT NULL + CHECK non vide** (migration `require-parent-tutor1-email.sql`,
+jouee). C'etait le **seul niveau incontournable** : la fiche parent ecrit directement depuis le
+navigateur. Les trois gardes applicatives n'avaient pas empeche la creation d'un foyer sans email le
+24/08 — cocher un foyer a l'import est un INSTANT, on coche pendant que c'est valide puis on vide la
+cellule. Le `CHECK` double le `NOT NULL` parce que **le vide n'est pas que `NULL`** : la chaine vide
+s'ecrit tres bien par l'API et c'est la meme valeur pour l'utilisateur. Aucun controle de forme
+(il refuserait des adresses legitimes et vit deja dans le schema Zod). Consequence assumee : une
+famille sans adresse ne peut plus etre enregistree. Tuteur 2 inchange.
+
+**LA SUPPRESSION D'UN APPRENANT NE PROTEGEAIT RIEN** (mesure dans `pg_constraint`, pas deduite du
+depot — qui avait deja menti sur la RLS le 5 aout). Les **dix** cles pointant vers `students` sont
+en CASCADE (8) ou SET NULL (2). **Aucune en RESTRICT.** Or l'ecran guettait le code `23503` pour
+afficher « des donnees sont rattachees a cet eleve » : une cle en cascade ne leve JAMAIS ce code,
+elle SUPPRIME. Le message etait donc **inatteignable**, et un clic detruisait en silence
+inscriptions, notes, absences, **bulletins archives**, appreciations, suivi des devoirs, documents
+et avertissements.
+- Cote `parents`, une seule barriere existait — `students.parent_id` en RESTRICT, donc un foyer AVEC
+  enfants ne se supprime pas. Mais un foyer **sans enfant** emportait ses `family_fees` (les
+  COTISATIONS), ses inscriptions aux cours adultes, leurs notes et bulletins, et son historique de
+  relances et d'attestations. Onze tables.
+
+**DOCTRINE STRICTE retenue** (arbitrage utilisateur) : **on ne supprime qu'une fiche VIERGE**. La
+moindre ligne rattachee refuse et renvoie vers « Rendre inactif ». Les deux doctrines ne divergeaient
+que sur UN cas — la fiche creee puis affectee a une classe, reconnue ensuite comme doublon — pour un
+ecart d'**un clic** ; et ce cas est rare, **l'import ne creant jamais d'affectation**. L'asymetrie
+tranche : trop strict coute un clic, trop permissif detruit des bulletins, sans retour. Les 2 cles en
+SET NULL ne comptent pas — ces lignes survivent, detachees.
+
+**Migration `guard-student-parent-delete.sql`** (jouee) : 2 declencheurs `BEFORE DELETE`, **et non
+des cles en RESTRICT** — une cle n'a pas de sortie de secours et refuserait aussi une CASCADE
+legitime. Verifie avant ecriture : la purge d'annee ne supprime ni apprenant ni foyer, et
+`clean-all-data.sql` passe en `session_replication_role = 'replica'` (hors declencheurs) ; le seul
+cas a laisser passer est la disparition de l'etablissement. Le declencheur de `parents` compte AUSSI
+les enfants, pourtant deja bloques par la cle : sans cela l'utilisateur verrait tantot notre texte,
+tantot une erreur de cle brute, **selon ce qui echoue en premier**.
+**Eprouve sur 5 cas** (memes exception volontaire) : vierge supprime / affecte refuse / foyer vierge
+supprime / foyer avec enfant refuse **par notre message** (`23001`, pas `23503`) / foyer sans enfant
+inscrit en cours adultes refuse — cette derniere etant la garantie entierement neuve.
+
+**Les 2 ecrans** passent du doublet « Supprimer ? / Confirmer » a une `ConfirmModal` qui NOMME ce qui
+bloque (motif Enseignants), et la suppression passe en **server action** — c'est ce qui permet de
+compter, de refuser, et de tracer AVANT d'effacer.
+- **`setStudentActive` ecrite plutot que reutiliser `saveStudentsActive`** : cette derniere ECARTE
+  SILENCIEUSEMENT la desactivation d'un apprenant affecte a une classe de l'annee (regle du 9/07).
+  Sur une action unitaire, ce silence passerait pour un succes. Le bouton « Rendre inactif » se grise
+  donc dans les 2 cas ou il echouerait (affecte cette annee, ou deja inactif), en disant pourquoi.
+- **Foyer : pas de repli** — `parents` n'a pas de `is_active` (decision : ne pas l'ajouter, ca
+  deborderait sur listes, filtres, import, affectations adultes). Le refus dit quoi retirer. La
+  corbeille redevient **cliquable en toutes circonstances** : le grise ne connaissait QUE les enfants
+  et laissait croire qu'un foyer sans enfant etait libre de cotisations.
+- **Piege PostgREST re-paye** : sur un comptage `head`, une requete impossible rend `count: null` ET
+  `error: null`. Un `?? 0` ferait d'une panne un **feu vert** pour supprimer → le comptage refuse de
+  conclure si une seule ligne est `null`. Et chaque suppression fait `.select()` : ecartee par la
+  RLS, elle n'ecrit rien **et ne leve rien**.
+
+**FAUSSE ALERTE INSTRUCTIVE** : mon script de test a echoue en `23502` sur
+`parent_class_enrollments.etablissement_id`, colonne que le code de l'app **n'ecrit pas non plus** —
+j'ai cru a une affectation adultes cassee. Elle est remplie par un **declencheur `BEFORE INSERT`**
+(`set_etablissement_id`, pose a la creation de la table), que mon diagnostic ne pouvait pas voir :
+il interrogeait `information_schema.columns.column_default`, or **un declencheur n'est pas un
+defaut**. Depuis l'editeur SQL il n'y a pas de session, donc pas d'etablissement. **Regle** : avant
+de conclure qu'une colonne NOT NULL sans defaut est un bug, chercher un declencheur sur la table.
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3656,6 +3734,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/guard-student-parent-delete.sql` : on ne supprime qu'une fiche
+  **VIERGE** (apprenant / foyer). Les 10 cles vers `students` etaient toutes en CASCADE ou SET NULL,
+  donc le message « des donnees sont rattachees » de l'ecran etait **inatteignable** et un clic
+  detruisait notes, absences et bulletins en silence. Declencheurs et non cles RESTRICT (sortie de
+  secours pour la CASCADE d'etablissement). **Eprouve sur 5 cas.**
 - [x] Executer `supabase/migrations/require-parent-tutor1-email.sql` : `parents.tutor1_email` en
   **NOT NULL + CHECK non vide**. C'etait le SEUL niveau incontournable — la fiche parent ecrit
   directement depuis le navigateur, et les trois gardes applicatives n'avaient pas empeche la

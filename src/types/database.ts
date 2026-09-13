@@ -173,7 +173,9 @@ export interface Parent {
   tutor1_first_name: string
   tutor1_relationship?: TutorRelationship
   tutor1_phone?: string
-  tutor1_email?: string
+  // Obligatoire en base depuis le 13 septembre (NOT NULL + CHECK non vide) :
+  // c'est le seul canal de l'etablissement vers la famille.
+  tutor1_email: string
   tutor1_address?: string
   tutor1_city?: string
   tutor1_postal_code?: string
