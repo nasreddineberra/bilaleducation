@@ -67,7 +67,7 @@ semaine sans activité**.
       en millisecondes pour un public français), Domain Privacy (l'AFNIC masque déjà les
       données des personnes physiques sur un `.fr`), Renewal Warranty (couvre un risque
       qu'un renouvellement automatique supprime gratuitement). Économie : ~10 €/an.
-- [ ] **Boîte aux lettres éditeur** `contact@bilaleducation.fr` — pas urgente : aucune
+- [x] **Boîte aux lettres éditeur** `contact@bilaleducation.fr` — pas urgente : aucune — **FAIT** (boîte créée chez Infomaniak, 9 août).
       dépendance avec le déploiement, les enregistrements MX n'entrent pas en conflit
       avec ceux de l'hébergement.
 - [ ] **Titulaire du domaine** — la structure qui vend, pas une personne physique
@@ -92,7 +92,7 @@ semaine sans activité**.
 - [ ] **Toi** — Rappel agenda **début juin 2027**, deux mois avant l'échéance. C'est le
       seul filet contre une carte bancaire expirée, que le renouvellement automatique
       ne couvre pas.
-- [ ] **Toi** — Créer la boîte `contact@` (adresse de l'éditeur, pas d'une école).
+- [x] **Toi** — Créer la boîte `contact@` (adresse de l'éditeur, pas d'une école). — **FAIT** le 9 août, avec l'alias `superadmin@`.
       Peut attendre la phase 5.
 
 ---
@@ -153,16 +153,26 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       qui paraît anodin, retirait les `GRANT`/`REVOKE` : la base restaurée aurait repris
       les droits par défaut de Supabase au lieu du régime « serveur uniquement » de
       `etablissement_smtp`.
-- [ ] **Toi** — Créer le projet Supabase de **production**. **Formule gratuite** pour
-      la phase de test.
-- [ ] **Moi** — Appliquer le schéma exporté sur la production, puis vérifier les
-      politiques RLS en base (`pg_policies`) — jamais depuis le dépôt.
+- [x] ~~Créer le projet Supabase de **production**~~ — **DÉCISION INVERSÉE** : le projet
+      **actuel EST la production**. Il porte déjà l'école réelle, sa messagerie, les
+      comptes et les données ; la recréer ailleurs serait du travail pour rien, et
+      Vercel pointe déjà dessus.
+- [x] ~~Appliquer le schéma exporté sur la production~~ — sans objet : le schéma
+      **vit** dans cette base. L'export de `supabase/restore/` garde tout son sens
+      comme **artefact de reconstruction** et comme base de départ du futur projet de
+      développement.
 - [x] **Moi** — Slug renommé `demo` → **`bilal-neuville`** le 6 août. L'adresse de
       l'école sera donc `bilal-neuville.bilaleducation.fr`. `.env.local` aligné pour que
       le développement local continue de résoudre la même école.
       Ce renommage a révélé un **bug de production** : voir phase 4.
-- [ ] **Toi** — Le projet Supabase actuel devient l'environnement de **développement**.
-      Ton `.env.local` pointe dessus ; la production ne connaît que Vercel.
+- [ ] **Plus tard** — Créer un projet Supabase de **développement**, à partir de
+      l'export, pour les évolutions futures. Tant qu'il n'existe pas, **`.env.local`
+      pointe sur la production** : tout script lancé depuis le poste touche les
+      données réelles.
+      → D'où la méthode adoptée le 13 septembre pour toute épreuve en base : un bloc
+      `DO` qui se **termine par une exception volontaire**, donc incapable d'écrire.
+      Précédent : le 6 août, mes scripts de test ont fermé une intervention de support
+      en cours d'utilisation.
 - [ ] **Moi** — Mettre en place une **sauvegarde automatique locale** (`pg_dump`,
       désormais installé). Elle ne remplace pas celles de Supabase : elle couvre la
       période où il y aura de vraies données sans que le Pro soit encore souscrit.
@@ -183,12 +193,12 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       inchangée, sans aucun lien de connexion.
       `/superadmin` est refermé sur les domaines d'école : un parent y voyait l'écran de
       connexion de l'éditeur. Vérifié en production sur les 4 adresses.
-- [ ] **Moi** — Interdire les slugs **réservés** à la création d'une école (`www`, `console`,
+- [x] **Moi** — Interdire les slugs **réservés** à la création d'une école (`www`, `console`, — **FAIT** : `src/lib/tenant/slug.ts`, 38 slugs réservés, validateur isomorphe appelé par la server action (le formulaire seul ne protégerait de rien).
       `api`, `mail`, `admin`). Rien ne l'empêche aujourd'hui, et un slug ne se modifie pas :
       une école nommée `www` capterait l'adresse de la vitrine.
 - [x] **Moi** — Domaine en dur retiré du middleware, déduit de `NEXT_PUBLIC_SITE_URL`,
       déjà définie dans Vercel — pas de variable supplémentaire.
-- [ ] **Moi** — **Cookie de session valable sur les sous-domaines** (`.bilaleducation.fr`),
+- [x] **Moi** — **Cookie de session valable sur les sous-domaines** (`.bilaleducation.fr`), — **FAIT** le 11 août : `sessionCookieDomain()` dérivé de `NEXT_PUBLIC_SITE_URL`, et purge des DEUX variantes (avec domaine et sans) — un navigateur déjà pollué serait resté bloqué.
       sans quoi le passage de la console vers une école déconnecte.
 - [x] **Moi** — **Accès support du `super_admin`** (6 août) : bouton « Intervenir » par
       école dans la console, rattachement à l'entrée, bandeau permanent nommant l'école et
@@ -293,7 +303,7 @@ cohérent. Trois blocs, dans cet ordre.
 
 ### Bloc 3 · Ajouts fonctionnels — à arbitrer une fois le reste sain
 
-- [ ] **Journal des interventions de support** dans la console (qui, quelle école, ouverte quand,
+- [x] **Journal des interventions de support** dans la console (qui, quelle école, ouverte quand, — **FAIT** le 7 août : affiché sur l'accueil de la console, table `support_interventions`.
       fermée quand) et **expiration automatique** : aujourd'hui une intervention oubliée reste
       ouverte indéfiniment.
 - [x] **Vue de santé par école** (7 août) : messagerie configurée ou non, dernière connexion,
@@ -310,7 +320,7 @@ cohérent. Trois blocs, dans cet ordre.
         d'une école construisait son lien avec `NEXT_PUBLIC_SITE_URL`, c'est-à-dire le domaine
         RACINE devenu la vitrine. Le lien partait et menait hors de toute école. Il se fabrique
         désormais depuis l'en-tête `host` de la requête, donc le sous-domaine visité.
-- [ ] **Toi** — **BLOQUANT pour ce qui précède** : créer la boîte `contact@bilaleducation.fr`,
+- [x] **Toi** — **BLOQUANT pour ce qui précède** : créer la boîte `contact@bilaleducation.fr`, — **FAIT** le 9 août.
       puis la renseigner dans **Supabase → Project Settings → Authentication → SMTP**.
       L'expéditeur par défaut de Supabase est limité à **2 ou 3 emails par heure** : c'est un
       service de test, inutilisable dès la deuxième école créée dans l'heure.
@@ -406,7 +416,7 @@ cohérent. Trois blocs, dans cet ordre.
       - **Propagation : jusqu'à 48 h.** À faire tôt, pas en dernier. Ne pas tenter le premier
         envoi réel avant que le contrôle automatique d'Infomaniak soit au vert : un premier
         envoi non authentifié abîme durablement la réputation d'un domaine neuf.
-- [ ] **Toi + Moi** — **SMTP du projet Supabase** (Project Settings → Authentication → SMTP),
+- [x] **Toi + Moi** — **SMTP du projet Supabase** (Project Settings → Authentication → SMTP), — **FAIT** le 9 août : premier email réel envoyé et reçu.
       avec `contact@bilaleducation.fr` en expéditeur. Il couvre l'**authentification de toutes
       les écoles** : création de compte, mot de passe oublié.
       - **Paramètres Infomaniak** (vérifiés le 8 août) : `mail.infomaniak.com`, **port 587 +
@@ -473,7 +483,7 @@ cohérent. Trois blocs, dans cet ordre.
       l'allow-list `https://*.bilaleducation.fr/**`. **Aucune variante `www.`** : le certificat
       générique ne couvre qu'un niveau, `www.ecole.bilaleducation.fr` déclenche un
       avertissement de sécurité chez le destinataire.
-- [ ] **Moi, si le symptôme apparaît** — Route `/auth/confirm` portant `.TokenHash`, contre les
+- [x] **Moi, si le symptôme apparaît** — Route `/auth/confirm` portant `.TokenHash`, contre les — **FAIT** le 9 août, et pas « si le symptôme apparaît » : Microsoft Safe Links a brûlé le jeton au PREMIER test réel. La vérification est passée en POST.
       **analyseurs de liens** des messageries d'entreprise, qui ouvrent le lien avant
       l'utilisateur et **consomment le jeton à usage unique**. Symptôme reconnaissable :
       « le lien dit qu'il a expiré alors que je viens de recevoir le mail. » Laissé de côté
@@ -525,8 +535,11 @@ cohérent. Trois blocs, dans cet ordre.
       responsable pédagogique, secrétaire, enseignant. La matrice RLS a été réécrite
       le 5 août et n'a jamais été éprouvée. Le mode de défaillance est silencieux :
       une politique trop stricte ne lève pas d'erreur, elle renvoie zéro ligne.
-- [ ] **Toi** — Enrôlement TOTP des 7 comptes qui y échappaient. Un seul (admin) a
-      un facteur configuré. Prévoir le téléphone et du temps.
+- [ ] **Toi** — Enrôlement TOTP des comptes qui y échappaient. **Mesuré le 15 août :
+      3 comptes sur 9** ont un facteur vérifié (ALLOUCHE direction, SUPPORT Administrateur,
+      SUPPORT Technique) — six restent à enrôler. Prévoir le téléphone et du temps.
+      **Piège de mesure** : `auth.admin.listUsers()` ne renseigne PAS `factors`, seul
+      `getUserById()` les porte — un premier relevé avait conclu « aucun facteur » à tort.
 - [ ] **Toi** — **Vérifier le parcours support à l'écran** : depuis la console, entrer
       dans l'école, constater le bandeau, agir (une modification quelconque), sortir par
       le bandeau puis par la console. Vérifier au journal de l'école que l'acteur est bien
@@ -555,7 +568,7 @@ cohérent. Trois blocs, dans cet ordre.
       à la main. C'est là que vit le vrai risque d'une mise à jour — une migration à
       moitié appliquée sur des données réelles ne se rattrape pas facilement.
 - [ ] **Toi** — Surveillance : être prévenu quand le site tombe, sans l'apprendre par un client.
-- [ ] **Moi** — Reprendre les chantiers en attente (doublons apprenants/parents,
+- [x] **Moi** — Reprendre les chantiers en attente (doublons apprenants/parents, — **FAIT** les 16 août et 13 septembre (doublons apprenants et parents, index + déclencheur, éprouvés).
       unicité d'inscription, passage d'année, police latine).
 
 ---
