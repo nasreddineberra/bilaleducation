@@ -343,21 +343,6 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                   <li><strong>{deps.documents}</strong> document{deps.documents > 1 ? 's' : ''}</li>
                 )}
               </ul>
-              {affecteCetteAnnee ? (
-                <p className="text-xs text-warm-700">
-                  Il est affecté à la classe <strong>{deleteTarget.class_name}</strong> : retirez-le
-                  d&apos;abord depuis <strong>Affectations</strong>, il pourra alors être rendu inactif.
-                </p>
-              ) : dejaInactif ? (
-                <p className="text-xs text-warm-700">
-                  Sa fiche est déjà <strong>inactive</strong> : son historique reste consultable.
-                </p>
-              ) : (
-                <p className="text-xs text-warm-700">
-                  Vous pouvez le <strong>rendre inactif</strong> : il sort des listes actives et tout
-                  son historique est conservé.
-                </p>
-              )}
             </div>
           ) : (
             <p className="text-sm text-secondary-700">
