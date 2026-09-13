@@ -407,11 +407,6 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
                   <li><strong>{deps.communications}</strong> communication{deps.communications > 1 ? 's' : ''} reçue{deps.communications > 1 ? 's' : ''}</li>
                 )}
               </ul>
-              <p className="text-xs text-warm-700">
-                Un foyer n&apos;a pas de statut inactif : pour le supprimer, il faut d&apos;abord
-                retirer ce qui lui est rattaché. Un foyer sans activité peut simplement être laissé
-                en place, il n&apos;apparaît nulle part ailleurs.
-              </p>
             </div>
           ) : (
             <p className="text-sm text-secondary-700">
