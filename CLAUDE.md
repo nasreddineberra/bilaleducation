@@ -3656,6 +3656,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/require-parent-tutor1-email.sql` : `parents.tutor1_email` en
+  **NOT NULL + CHECK non vide**. C'etait le SEUL niveau incontournable — la fiche parent ecrit
+  directement depuis le navigateur, et les trois gardes applicatives n'avaient pas empeche la
+  creation d'un foyer sans email le 24 aout (cocher est un INSTANT : on coche, puis on vide).
+  Consequence assumee : une famille sans adresse ne peut plus etre enregistree. Tuteur 2 inchange.
 - [x] Executer `supabase/migrations/add-school-year-holidays.sql` : colonne `jours_feries`
   (jsonb) sur `school_years`, jumelle de `vacations`. Une JOURNEE isolee la ou une vacance est une
   SEMAINE. Pas de table : un ferie n'a ni identite propre, ni relation, ni historique — il herite
