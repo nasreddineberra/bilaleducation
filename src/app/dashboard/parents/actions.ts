@@ -456,7 +456,7 @@ export async function getParentDeleteDeps(id: string): Promise<{
   if (r.some(x => x.count === null)) {
     return {
       enfants: 0, finance: 0, coursAdultes: 0, communications: 0,
-      erreur: 'Impossible de verifier les donnees rattachees a ce foyer.',
+      erreur: 'Impossible de vérifier les données rattachées à ce foyer.',
     }
   }
 

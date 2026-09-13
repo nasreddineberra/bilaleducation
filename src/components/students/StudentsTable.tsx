@@ -129,6 +129,11 @@ export default function StudentsTable({ students }: StudentsTableProps) {
   const dejaInactif       = deleteTarget?.is_active === false
   const desactivationImpossible = affecteCetteAnnee || dejaInactif
 
+  // Le nom est affiché juste à côté : « AZIZI Lina ne peut pas être supprimé »
+  // se voit immédiatement. Masculin par défaut quand le genre est absent.
+  const fem = deleteTarget?.gender === 'female'
+  const e   = fem ? 'e' : ''
+
   if (students.length === 0) {
     return (
       <div className="card py-16 text-center">
@@ -327,7 +332,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
             <div className="space-y-3">
               <p className="text-sm text-secondary-700">
                 <strong>{deleteTarget.last_name} {deleteTarget.first_name}</strong> ne peut pas être
-                supprimé : des données lui sont rattachées.
+                supprimé{e} : des données lui sont rattachées.
               </p>
               <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
                 {deps.affectations > 0 && (
@@ -346,8 +351,8 @@ export default function StudentsTable({ students }: StudentsTableProps) {
             </div>
           ) : (
             <p className="text-sm text-secondary-700">
-              Aucune donnée n&apos;est rattachée à cet apprenant. Sa fiche sera supprimée
-              définitivement. Cette action est irréversible.
+              Aucune donnée n&apos;est rattachée à cet{fem ? 'te' : ''} apprenant{e}. Sa fiche sera
+              supprimée définitivement. Cette action est irréversible.
             </p>
           )}
         </ConfirmModal>

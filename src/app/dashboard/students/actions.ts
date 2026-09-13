@@ -180,7 +180,7 @@ export async function getStudentDeleteDeps(id: string): Promise<{
   if (r.some(x => x.count === null)) {
     return {
       affectations: 0, evaluation: 0, vieScolaire: 0, documents: 0,
-      erreur: 'Impossible de verifier les donnees rattachees a cet apprenant.',
+      erreur: 'Impossible de vérifier les données rattachées à cette fiche.',
     }
   }
 
@@ -203,10 +203,14 @@ export async function deleteStudent(id: string): Promise<{ error?: string }> {
 
   const { data: cible } = await supabase
     .from('students')
-    .select('last_name, first_name, student_number')
+    .select('last_name, first_name, student_number, gender')
     .eq('id', id)
     .maybeSingle()
   if (!cible) return { error: 'Apprenant introuvable.' }
+
+  // Accord en genre : le message nomme une personne, « rattachées à cet
+  // apprenant » sur une fille se lit comme une faute.
+  const fem = cible.gender === 'female'
 
   // Recompte cote SERVEUR : la modale a pu etre ouverte il y a dix minutes, et
   // cette action reste appelable directement. Le declencheur refuserait de
@@ -214,7 +218,11 @@ export async function deleteStudent(id: string): Promise<{ error?: string }> {
   const deps = await getStudentDeleteDeps(id)
   if (deps.erreur) return { error: deps.erreur }
   if (deps.affectations + deps.evaluation + deps.vieScolaire + deps.documents > 0) {
-    return { error: 'Des données sont rattachées à cet apprenant. Rendez-le inactif plutôt que de le supprimer.' }
+    return {
+      error: fem
+        ? 'Des données sont rattachées à cette apprenante. Rendez-la inactive plutôt que de la supprimer.'
+        : 'Des données sont rattachées à cet apprenant. Rendez-le inactif plutôt que de le supprimer.',
+    }
   }
 
   // Tracer AVANT d'effacer : après coup, il n'y a plus rien à décrire.
@@ -250,26 +258,47 @@ export async function setStudentActive(id: string, active: boolean): Promise<{ e
 
   const supabase = await createClient()
 
+  // Lu AVANT l'écriture : le genre sert au message de refus, qui peut partir
+  // avant toute mise à jour.
+  const { data: cible } = await supabase
+    .from('students')
+    .select('last_name, first_name, gender')
+    .eq('id', id)
+    .maybeSingle()
+  if (!cible) return { error: 'Apprenant introuvable.' }
+
+  const fem = cible.gender === 'female'
+
   if (!active) {
     const { infoByStudent } = await currentYearEnrollment(supabase)
     const classe = infoByStudent.get(id)
     if (classe) {
-      return { error: `Cet apprenant est affecté à la classe ${classe.name}. Retirez-le de sa classe avant de le rendre inactif.` }
+      return {
+        error: fem
+          ? `Cette apprenante est affectée à la classe ${classe.name}. Retirez-la de sa classe avant de la rendre inactive.`
+          : `Cet apprenant est affecté à la classe ${classe.name}. Retirez-le de sa classe avant de le rendre inactif.`,
+      }
     }
   }
 
   const { data, error } = await supabase
-    .from('students').update({ is_active: active }).eq('id', id).select('last_name, first_name')
+    .from('students').update({ is_active: active }).eq('id', id).select('id')
 
   if (error || !data || data.length === 0) {
     return { error: 'Erreur lors de la mise à jour du statut.' }
   }
 
+  // « actif » au feminin est « active », pas « actifve » : la forme entiere,
+  // pas un suffixe colle.
+  const etat = active
+    ? (fem ? 'active' : 'actif')
+    : (fem ? 'inactive' : 'inactif')
+
   await logAudit(supabase, {
     action:      'UPDATE',
     entityType:  'students',
     entityId:    id,
-    description: `${data[0].last_name} ${data[0].first_name} rendu ${active ? 'actif' : 'inactif'}`,
+    description: `${cible.last_name} ${cible.first_name} rendu${fem ? 'e' : ''} ${etat}`,
   })
   return {}
 }
