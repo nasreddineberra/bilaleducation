@@ -518,7 +518,7 @@ cohérent. Trois blocs, dans cet ordre.
 
 ## Phase 6 · Tests
 
-- [ ] **Toi** — **`Authentication → Providers → Email → Allow new users to sign up`
+- [x] **Toi** — **`Authentication → Providers → Email → Allow new users to sign up` — **VÉRIFIÉ le 16 septembre** : désactivé, ainsi que `Anonymous sign-ins` et `Manual linking`.
       doit être DÉSACTIVÉ.** Tous les comptes sont créés côté serveur, par un
       administrateur : personne ne doit pouvoir s'inscrire seul. Si le réglage est actif,
       `signUp` reste appelable depuis l'API avec la clé publique, **quoi que fasse notre
