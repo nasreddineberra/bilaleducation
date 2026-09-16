@@ -2837,7 +2837,7 @@ Signale par l'utilisateur, verrouille hors de sa production. **Resolu.**
   faute de frappe, mais c'est a l'utilisateur de trancher).
   - **`hasChanges` etendu aux feries**, comparaison sur la liste TRIEE : sans cela, modifier
     uniquement les feries laissait « Valider » grise et la fonctionnalite paraissait cassee.
-- **Volet 3 (branchement EDT / feuille d'appel / temps de presence) : RESTE A FAIRE.**
+- **Volet 3 (branchement EDT / feuille d'appel / temps de presence) : FAIT le 13 aout** (voir plus bas).
 
 #### 11 aout 2026 (soir) — REFONTE de la strategie de session
 
@@ -2964,6 +2964,27 @@ l'Atlantique** : aller-retour nu **139 ms**, sequence du layout **1021 ms** d'at
 **RAPPEL DE METHODE, valide par les faits** : le layout **n'est PAS re-execute** a chaque page —
 Next ne re-rend que le segment qui change. Ses requetes ne pesent donc qu'au **chargement a froid**
 et apres un F5, ce qui correspond exactement au symptome decrit (« des fois »).
+
+#### 13 aout 2026 — Vacances et feries : volet 3, le branchement (consigne le 16 septembre)
+
+Fait le 13 aout (commits `ecce5a5`, `ef21132`) et **jamais consigne** : la seance s'est terminee sur
+le build Vercel casse par les polices. Retrouve le 16 septembre en verifiant le point 3 du plan.
+
+- **`src/lib/school-year/jours-fermes.ts`** — source UNIQUE de « ce jour est-il ferme, et pourquoi ».
+  Seul l'EDT savait lire les vacances, avec sa propre boucle ; la recopier deux fois de plus, c'est
+  le motif du calcul comptable divergent dans trois sous-menus de Financements. Dates en `AAAA-MM-JJ`
+  (comparaison lexicographique exacte, aucun `Date` donc aucun fuseau).
+- **Les FERIES priment sur les vacances** dans le motif affiche : un 1er novembre pendant la
+  Toussaint dit « Jour férié · Toussaint », pas « Vacances ». `label` rend `null` quand rien n'est
+  saisi — le repli d'affichage appartient a l'ecran, sinon « Vacances · Vacances » (`ef21132`).
+- **EDT** : `getVacationLabel` passe par la source unique et gagne les feries — jour grise, **depot
+  bloque**, libelle affiche. **Feuille d'appel** (eleves ET adultes) : la modale de saisie signale
+  le motif a cote de la date. **Temps de presence** : banniere en tete de la modale.
+- **AVERTIR SANS INTERDIRE, choix delibere** sur l'appel et le temps de presence : une revision
+  pendant les vacances, un rattrapage ou une permanence un jour ferie existent. Bloquer priverait
+  l'ecole d'un cas reel sans contournement ; un avertissement ignore ne coute rien. Seul l'EDT
+  bloque : un creneau recurrent pose sur un jour ferme se reproduirait chaque semaine. Le passage au
+  blocage tient en une condition par ecran si l'usage montre l'inverse.
 
 #### 14 aout 2026 — Onglet Assiduite (fiche enseignant) + les polices quittent le reseau
 
@@ -3515,8 +3536,6 @@ communications au staff : rediriger celles du directeur vers soi tenait en une r
 
 - **Passe theme sombre / ergonomie : TERMINEE** — les 5 sections de la sidebar sont traitees, plus une passe
   globale (toasts, modales sans `role="dialog"`, couverture du pont). Reste la verification A L'ECRAN.
-- **Repliquer le controle de doublon** (server action + accents + index unique) sur **apprenants et parents** :
-  ils utilisent encore le motif client-only avec `ilike`. `norm_name()` (SQL) et `normalize-name.ts` sont prets.
 - **Multi-etablissement : TERMINE le 5 aout** (RLS + middleware + comptes auth + routes de
   notification + les 2 `.single()`). Reste a valider a l'ecran, notamment l'enrolement TOTP qui
   redevient obligatoire pour 7 comptes.
@@ -3525,80 +3544,10 @@ communications au staff : rediriger celles du directeur vers soi tenait en une r
 - **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
   imposee en base** — aucun index unique sur `enrollments`. Un index partiel sur `student_id`
   `WHERE status = 'active'` la rendrait impossible plutot qu'improbable. A arbitrer.
-- **CALENDRIER DES VACANCES ET JOURS FERIES** (demande du 11 aout, **a concevoir — rien de code**) :
-  chantier en deux volets, le second donnant son sens au premier.
-
-  **VOLET 1 — la modale des vacances, trois defauts constates a l'ecran**
-  (`SchoolYearForm.tsx`, modale « Vacances scolaires ») :
-  1. **la liste « Periodes de vacances » est SOUS la ligne de flottaison** : il faut faire defiler
-     pour decouvrir qu'une periode se nomme. A sortir de la zone de defilement, en pied fixe.
-  2. **le regroupement n'est pas explique** : `toggleWeekVacation` FUSIONNE les semaines contigues
-     (verifie dans le code — 5 semaines cochees donnent bien 2 periodes, rien n'est perdu), mais
-     l'en-tete annonce « 5 semaines selectionnees » et la liste n'affiche que 2 lignes. Chaque ligne
-     doit dire ce qu'elle contient : « S48 a S49 · 2 semaines · 23 nov.-06 dec. ».
-  3. **calendrier a 5 colonnes** au lieu de 4 : une annee de 10 mois tiendrait en 2 rangees et le
-     defilement disparaitrait dans le cas courant.
-  - **Verifie au passage, correct** : `getWeeksBetween` se cale bien sur `start_date`/`end_date`.
-    Le calendrier commencait fin juin parce que l'annee en cours commence le 1er juillet EN BASE.
-    Nuance : la boucle retient toute semaine dont le LUNDI precede la fin d'annee, la derniere peut
-    donc deborder de quelques jours — defendable, une semaine est une unite.
-
-  **VOLET 2 — les jours feries**
-  - **Le modele ne peut pas etre celui des vacances** : une vacance se marque a la SEMAINE, un ferie
-    est une JOURNEE isolee. Les vacances vivent dans `school_years.vacations` (**jsonb**) ; une
-    colonne jumelle `jours_feries` suivrait le meme chemin, sans nouvelle table ni RLS a ecrire.
-  - **SAISIE MANUELLE, decidee par l'utilisateur** — et c'est ce qui evite le vrai piege : les feries
-    civils francais se calculent (fixes ou derives de Paques), mais les fetes musulmanes suivent le
-    calendrier **lunaire** et ne se calculent pas de facon fiable a l'avance. Un ecran qui ne
-    proposerait que du calcule serait inutilisable dans cette application.
-  - Section sous les vacances dans la meme modale, qui deviendrait « Vacances et jours feries ».
-
-  **VOLET 3 — le BRANCHEMENT, qui est la raison d'etre des deux premiers**
-  Ni les vacances ni les feries ne servent a rien tant qu'ils ne sont pas consommes :
-  - **emploi du temps** : ne pas placer de creneau, signaler ceux qui tombent dedans (l'EDT sait deja
-    le faire pour les vacances — voir `getVacationLabel`) ;
-  - **feuille d'appel** : pas d'appel un jour ferie ni pendant les vacances ;
-  - **temps de presence** : ne pas compter d'heures.
-  Ce sont EUX qui decideront de la forme exacte de la donnee, pas l'ecran de saisie.
-
-- **IMPORTATION EN MASSE PARENTS + APPRENANTS** (demande du 11 aout, **a concevoir — gros chantier**) :
-  nouveau menu **« Importation »** dans la section **Vie scolaire**, reserve **admin/direction**
-  (garde sur la PAGE, pas seulement sur le lien de la sidebar). Import d'un fichier Excel
-  **predefini** creant en une fois les foyers et les apprenants qui leur sont rattaches, avec
-  **controles AVANT enregistrement reel**.
-  - **Le besoin est reel** : certaines ecoles comptent 150 a 200 eleves. Les saisir un par un, fiche
-    parents puis fiche de chaque enfant, n'est pas tenable a la rentree.
-
-  **CE QUI DECIDERA DU TRAVAIL — a trancher avant d'ecrire une ligne**
-  - **La forme du fichier.** Le modele est un FOYER (`parents`, avec jusqu'a 2 tuteurs :
-    `tutor1_*` / `tutor2_*`) et N enfants (`students.parent_id`). Le plus robuste pour qui remplit un
-    tableur est **une ligne par ENFANT, avec le foyer repete** ; le regroupement se fait a l'import.
-    Deux onglets separes seraient plus propres en theorie et bien plus fragiles en pratique.
-  - **Le gabarit se telecharge depuis l'ecran** : sans fichier de depart, chacun inventera ses
-    colonnes. C'est une partie du travail, pas un accessoire.
-  - **Deux passes obligatoires** : une **verification** qui ne touche rien et rend un rapport ligne
-    par ligne, puis un **enregistrement** sur ce qui a ete valide. C'est ce que demande l'utilisateur,
-    et c'est aussi ce qui rend l'echec partiel supportable.
-  - **DOUBLONS — le point le plus delicat.** Il y en a DEUX sortes : les doublons **internes au
-    fichier** et ceux **contre l'existant**. La regle du projet est nom+prenom insensible a la casse
-    ET aux accents (`normalizeNom` cote client, `norm_name()` en SQL). **Rappel** : seuls les
-    ENSEIGNANTS ont aujourd'hui un index unique en base ; apprenants et parents reposent encore sur
-    un controle client-only — un import de masse rend ce trou beaucoup plus grave.
-  - **NUMEROTATION** : `ELV-YYYYMM-NNN`, increment ANNUEL. Une insertion en lot doit produire une
-    suite sans collision — a faire cote serveur, pas en calculant N numeros a l'avance dans le
-    navigateur.
-  - **ECRITURE PAR SERVER ACTION**, jamais depuis le navigateur : c'est la regle de tracabilite du
-    projet (client session ⇒ `auth.uid()` capte ⇒ journal d'activite renseigne). 200 lignes ecrites
-    sans acteur seraient invisibles au journal.
-  - **Comptes parents** : `CREATE_PARENT_ACCOUNTS = false` en V1, l'import ne cree donc **que des
-    fiches**, pas de comptes auth. Cela simplifie beaucoup — a rouvrir le jour ou les comptes
-    reviennent.
-  - **HORS PERIMETRE propose** : l'affectation aux classes, qui a deja son ecran. L'import cree des
-    fiches, pas des inscriptions.
-  - **Dependance technique** : aucune bibliotheque de lecture Excel dans le projet aujourd'hui.
-    Soit on ajoute `xlsx`, soit on impose du **CSV** — a arbitrer (le CSV evite une dependance mais
-    expose l'utilisateur aux separateurs et aux encodages).
-
+- **CALENDRIER DES VACANCES ET JOURS FERIES : FAIT** — volets 1 et 2 le 11 aout, volet 3
+  (branchement EDT / appel / temps de presence) le 13 aout. Avertir sans interdire, sauf l'EDT.
+- **IMPORTATION EN MASSE PARENTS + APPRENANTS : FAIT** — 4 lots livres le 16 aout, lot 1 eprouve
+  des deux cotes le 13 septembre. Reste l'essai reel d'un import complet par l'utilisateur.
 - **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
