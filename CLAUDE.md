@@ -3560,6 +3560,25 @@ expressions sans effet). Lus UN PAR UN, et deux etaient des defauts reels :
 **Reste : 501 `any` + 29 hooks** (13 `exhaustive-deps`, 13 `set-state-in-effect`, 3 memoisations) —
 a lire avec un avis par cas, ils peuvent CHANGER un comportement.
 
+**LINT, TROISIEME PASSE — les 29 hooks, lus un par un.**
+- **Les 13 `set-state-in-effect` sont TOUS deliberes** (6 hydratations `sessionStorage`, 3 lectures de
+  `window` apres montage, 1 garde de portail, 2 reinitialisations de selection, le champ de recherche
+  semi-controle) → regle ETEINTE dans la config, avec ce releve. Le React Compiler qu'elle vise n'est
+  pas active.
+- **Un defaut reel** : `enseignantAbsent` manquait aux dependances de DEUX `useMemo` de l'EDT — quand
+  une absence etait saisie, les creneaux « enseignant absent » **ne se recalculaient pas** tant qu'une
+  autre dependance ne bougeait pas. Ajoute.
+- **`toast` : l'objet change a chaque notification, ses METHODES sont stables** (`useCallback` dans le
+  fournisseur). Ajouter l'objet aux deps aurait recree 4 callbacks a chaque toast : on destructure
+  `toastSuccess`/`toastError` et on depend d'elles.
+- `etablissementId` (prop) ajoute a 2 `useCallback` de Ressources ; `wsd` a un `useMemo` de l'annee
+  scolaire ; `activeDays` et `dayEntries` passes en `useMemo` ; `periodFullLabel` hisse au module (ne
+  depend que d'une constante).
+- **PIEGE** : `exhaustive-deps` signale la ligne du TABLEAU de dependances, pas celle du hook. Une
+  recherche « vers l'avant » depuis la ligne signalee tombe sur le hook SUIVANT — trois deps ajoutees au
+  mauvais endroit avant de s'en apercevoir, rattrapees par le lint lui-meme.
+**Reste : 501 `any`** (chantier a part) et 1 avis du compilateur sans regle de dependance associee.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

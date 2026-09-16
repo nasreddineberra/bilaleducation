@@ -45,11 +45,14 @@ export default defineConfig([
       // que TypeScript attrape deja.
       'react/no-unescaped-entities': 'off',
 
-      // `setState` synchrone dans un effet. Le motif d'hydratation du projet
-      // (`setHydrated(true)` apres lecture de `sessionStorage`) est exactement
-      // cela, et il est DELIBERE (16 juillet : un ref ne suffisait pas). A lire
-      // cas par cas, pas a interdire en bloc.
-      'react-hooks/set-state-in-effect': 'warn',
+      // `setState` synchrone dans un effet. Les 13 cas ont ete LUS UN PAR UN le
+      // 16 septembre, tous deliberes : 6 hydratations depuis `sessionStorage`
+      // (motif du 16 juillet, un ref ne suffisait pas), 3 lectures de `window`
+      // apres montage (hostname, parametre d'URL, capacite push — impossibles au
+      // rendu serveur), 1 garde de portail, 2 reinitialisations de selection
+      // (saisie des notes), 1 champ de recherche semi-controle (16 aout). La
+      // regle vise les rendus en cascade du React Compiler, non active ici.
+      'react-hooks/set-state-in-effect': 'off',
 
       // Avis du React Compiler, qui n'est PAS active sur ce projet : sans lui,
       // une memoisation manuelle « non preservable » n'a aucun effet.

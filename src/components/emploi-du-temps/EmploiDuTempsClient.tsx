@@ -262,7 +262,9 @@ export default function EmploiDuTempsClient({
   const classesRef = useRef(classes)
   classesRef.current = classes
 
-  const toast = useToast()
+  // Les METHODES sont stables (useCallback dans le fournisseur), l'objet ne l'est
+  // pas : il change a chaque notification. On depend des methodes.
+  const { success: toastSuccess, error: toastError } = useToast()
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; confirmLabel?: string; onConfirm: () => void } | null>(null)
 
   // Id (teachers.id) de l'enseignant connecté — resolu depuis son compte (user_id),
@@ -537,7 +539,7 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [slots, exceptions, weekDayDates, teachers, rooms, isSchoolDay])
+  }, [slots, exceptions, weekDayDates, teachers, rooms, isSchoolDay, enseignantAbsent])
 
   // ─── Month-scoped resolved slots ─────────────────────────────────────────
 
@@ -666,7 +668,7 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [viewType, currentMonth, slots, exceptions, teachers, rooms, isSchoolDay, weekStartDay])
+  }, [viewType, currentMonth, slots, exceptions, teachers, rooms, isSchoolDay, weekStartDay, enseignantAbsent])
 
   // Filter month slots by view mode
   const filteredMonthSlots = useMemo(() => {
@@ -681,7 +683,7 @@ export default function EmploiDuTempsClient({
 
   // ─── Computed ─────────────────────────────────────────────────────────────
 
-  const activeDays = selectedDay !== null ? [selectedDay] : orderedDays
+  const activeDays = useMemo(() => (selectedDay !== null ? [selectedDay] : orderedDays), [selectedDay, orderedDays])
 
   // Semaine entière en vacances ?
   const isFullWeekVacation = useMemo(() => {
@@ -826,13 +828,13 @@ export default function EmploiDuTempsClient({
     // ── Check: is this day in vacation? ──
     const dateStr = weekDayDates[dayOfWeek]
     if (dateStr && getVacationLabel(dateStr)) {
-      toast.error('Impossible de placer un créneau pendant les vacances.')
+      toastError('Impossible de placer un créneau pendant les vacances.')
       return
     }
 
     // ── Check: is this day a working day? ──
     if (!orderedDays.includes(dayOfWeek)) {
-      toast.error('Ce jour n\'est pas un jour travaillé.')
+      toastError('Ce jour n\'est pas un jour travaillé.')
       return
     }
 
@@ -843,7 +845,7 @@ export default function EmploiDuTempsClient({
       const endTime = minsToTime(sh * 60 + sm + 60)
 
       if (hasCollision(dayOfWeek, startTime, endTime)) {
-        toast.error('Un créneau existe déjà sur ce créneau horaire.')
+        toastError('Un créneau existe déjà sur ce créneau horaire.')
         return
       }
 
@@ -876,11 +878,11 @@ export default function EmploiDuTempsClient({
           entityType: 'schedule_slots',
           description: `Nouveau créneau ${subject.ueName} le ${DAY_LABELS[dayOfWeek]} à ${startTime} pour ${selectedClass?.name}`,
         })
-        toast.success(`Créneau ${subject.ueName} créé (${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime})`)
+        toastSuccess(`Créneau ${subject.ueName} créé (${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime})`)
         await refreshData()
       } catch (err) {
         console.error('[EmploiDuTemps] Erreur lors de la création du créneau:', err)
-        toast.error('Erreur lors de la création du créneau.')
+        toastError('Erreur lors de la création du créneau.')
       }
 
     } else if (data?.type === 'existing-slot') {
@@ -893,7 +895,7 @@ export default function EmploiDuTempsClient({
       if (dayOfWeek === slot.dayOfWeek && startTime === slot.start_time.slice(0, 5)) return
 
       if (hasCollision(dayOfWeek, startTime, endTime, slot.sourceSlotId)) {
-        toast.error('Un créneau existe déjà sur ce créneau horaire.')
+        toastError('Un créneau existe déjà sur ce créneau horaire.')
         return
       }
 
@@ -909,14 +911,14 @@ export default function EmploiDuTempsClient({
           entityId: slot.sourceSlotId,
           description: `Créneau déplacé vers ${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime}`,
         })
-        toast.success(`Créneau déplacé (${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime})`)
+        toastSuccess(`Créneau déplacé (${DAY_LABELS[dayOfWeek]} ${startTime}-${endTime})`)
         await refreshData()
       } catch (err) {
         console.error('[EmploiDuTemps] Erreur lors du déplacement du créneau:', err)
-        toast.error('Erreur lors du déplacement du créneau.')
+        toastError('Erreur lors du déplacement du créneau.')
       }
     }
-  }, [selectedClassId, selectedClass, schoolYearId, schoolYearStartDate, coursList, supabase, toast, refreshData, parseDropId, minsToTime, timeToMins, hasCollision, weekDayDates, getVacationLabel, orderedDays, filteredSlots])
+  }, [selectedClassId, selectedClass, schoolYearId, schoolYearStartDate, coursList, supabase, toastSuccess, toastError, refreshData, parseDropId, minsToTime, timeToMins, hasCollision, weekDayDates, getVacationLabel, orderedDays])
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 
@@ -991,7 +993,7 @@ export default function EmploiDuTempsClient({
           effective_from: pivotDate,
           effective_until: null,
         })
-        if (error) { toast.error('Erreur : ' + error.message); return }
+        if (error) { toastError('Erreur : ' + error.message); return }
       } else {
         // Hors année scolaire : simple mise à jour + effective_from = rentrée
         const effectiveFrom = schoolYearStartDate ?? pivotDate
@@ -999,7 +1001,7 @@ export default function EmploiDuTempsClient({
           ...basePayload,
           effective_from: effectiveFrom,
         }).eq('id', data.id)
-        if (error) { toast.error('Erreur : ' + error.message); return }
+        if (error) { toastError('Erreur : ' + error.message); return }
       }
 
       // Mettre à jour la fiche classe
@@ -1031,7 +1033,7 @@ export default function EmploiDuTempsClient({
     } else if (data.id) {
       // ── Modifier un créneau existant (ponctuel ou this_only via exception) ──
       const { error } = await supabase.from('schedule_slots').update(basePayload).eq('id', data.id)
-      if (error) { toast.error('Erreur : ' + error.message); return }
+      if (error) { toastError('Erreur : ' + error.message); return }
 
       const cls = classesRef.current.find(c => c.id === data.class_id)
       const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
@@ -1051,7 +1053,7 @@ export default function EmploiDuTempsClient({
         effective_from: effectiveFrom,
         effective_until: null,
       })
-      if (error) { toast.error('Erreur : ' + error.message); return }
+      if (error) { toastError('Erreur : ' + error.message); return }
 
       const cls = classesRef.current.find(c => c.id === data.class_id)
       const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
@@ -1069,7 +1071,7 @@ export default function EmploiDuTempsClient({
     setEditingSlot(null)
     setEditMode(null)
     setEditDate(null)
-  }, [supabase, schoolYearId, slots, schoolYearStartDate, schoolYearEndDate, getEffectiveDate, refreshData])
+  }, [supabase, schoolYearId, slots, schoolYearStartDate, schoolYearEndDate, getEffectiveDate, refreshData, toastError])
 
   /** Save a "this day only" modification as an exception */
   const handleSaveException = useCallback(async (data: {
@@ -1111,10 +1113,10 @@ export default function EmploiDuTempsClient({
 
     if (existing) {
       const { error } = await supabase.from('schedule_exceptions').update(payload).eq('id', existing.id)
-      if (error) { toast.error('Erreur : ' + error.message); return }
+      if (error) { toastError('Erreur : ' + error.message); return }
     } else {
       const { error } = await supabase.from('schedule_exceptions').insert(payload)
-      if (error) { toast.error('Erreur : ' + error.message); return }
+      if (error) { toastError('Erreur : ' + error.message); return }
     }
 
     // Log détaillé
@@ -1131,7 +1133,7 @@ export default function EmploiDuTempsClient({
     setEditingSlot(null)
     setEditMode(null)
     setEditDate(null)
-  }, [supabase, slots, exceptions, refreshData])
+  }, [supabase, slots, exceptions, refreshData, toastError])
 
   const handleDeleteSlot = useCallback(async (slotId: string, pivotDate?: string) => {
     const slot = slots.find(s => s.id === slotId)
@@ -1187,11 +1189,11 @@ export default function EmploiDuTempsClient({
       const { error } = await supabase.from('schedule_exceptions')
         .update({ exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null, override_room_id: null })
         .eq('id', existing.id)
-      if (error) { toast.error('Erreur : ' + error.message); return }
+      if (error) { toastError('Erreur : ' + error.message); return }
     } else {
       const { error } = await supabase.from('schedule_exceptions')
         .insert({ schedule_slot_id: slotId, exception_date: date, exception_type: 'cancelled' })
-      if (error) { toast.error('Erreur : ' + error.message); return }
+      if (error) { toastError('Erreur : ' + error.message); return }
     }
 
     // Log détaillé
@@ -1206,7 +1208,7 @@ export default function EmploiDuTempsClient({
 
     await refreshData()
     setContextMenu(null)
-  }, [supabase, slots, exceptions, refreshData])
+  }, [supabase, slots, exceptions, refreshData, toastError])
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
 
@@ -1226,7 +1228,7 @@ export default function EmploiDuTempsClient({
       // Cas defensif : une fiche enseignant creee via le formulaire a toujours un compte
       // (createTeacherWithAccount). Il n'existe AUCUN ecran pour rattacher un compte a une
       // fiche existante → ne pas renvoyer l'utilisateur vers une fonction inexistante.
-      toast.error(`${teacherName} n'a pas de compte utilisateur : sa présence ne peut pas être enregistrée. Contactez l'administrateur.`)
+      toastError(`${teacherName} n'a pas de compte utilisateur : sa présence ne peut pas être enregistrée. Contactez l'administrateur.`)
       return
     }
 
@@ -1235,7 +1237,7 @@ export default function EmploiDuTempsClient({
     // sinon l'heure serait comptee mais invisible dans le recap Temps de presence.
     const entryType = reservedPresenceTypes.find(t => t.reserved_kind === resolved.slot_type)?.code
     if (!entryType) {
-      toast.error(
+      toastError(
         `Aucun type de presence n'est associe aux creneaux « ${resolved.slot_type} » pour cette annee. `
         + 'Configurez-le dans Parametres → Types de presence.',
       )
@@ -1258,7 +1260,7 @@ export default function EmploiDuTempsClient({
       .select('id')
       .single()
 
-    if (teErr) { toast.error('Erreur : ' + teErr.message); return }
+    if (teErr) { toastError('Erreur : ' + teErr.message); return }
 
     const { data: val, error: valErr } = await supabase
       .from('schedule_validations')
@@ -1271,7 +1273,7 @@ export default function EmploiDuTempsClient({
       .select('*')
       .single()
 
-    if (valErr) { toast.error('Erreur : ' + valErr.message); return }
+    if (valErr) { toastError('Erreur : ' + valErr.message); return }
     if (val) setValidations(prev => [...prev, val as any])
     }
 
@@ -1280,7 +1282,7 @@ export default function EmploiDuTempsClient({
       confirmLabel: 'Valider',
       onConfirm: doValidate,
     })
-  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes])
+  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)

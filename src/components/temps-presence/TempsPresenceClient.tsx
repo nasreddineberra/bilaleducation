@@ -360,7 +360,7 @@ export default function TempsPresenceClient({
   }, [filteredEntries])
 
   // ── Day panel data ──────────────────────────────────────────────────
-  const dayEntries = entriesByDate[selectedDay] ?? []
+  const dayEntries = useMemo(() => entriesByDate[selectedDay] ?? [], [entriesByDate, selectedDay])
   const dayByStaff = useMemo(() => {
     const map: Record<string, TimeEntry[]> = {}
     for (const e of dayEntries) {

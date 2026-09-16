@@ -139,7 +139,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
       cancelRoom()
     } catch (e: any) { setRoomError(e.message || 'Erreur') }
     finally { setRoomSaving(false) }
-  }, [roomForm, editingRoom, supabase])
+  }, [roomForm, editingRoom, supabase, etablissementId])
 
   const deleteRoom = useCallback(async (id: string) => {
     const { error } = await supabase.from('rooms').delete().eq('id', id)
@@ -204,7 +204,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
       cancelMat()
     } catch (e: any) { setMatError(e.message || 'Erreur') }
     finally { setMatSaving(false) }
-  }, [matForm, editingMat, supabase])
+  }, [matForm, editingMat, supabase, etablissementId])
 
   const deleteMat = useCallback(async (id: string) => {
     const { error } = await supabase.from('materials').delete().eq('id', id)

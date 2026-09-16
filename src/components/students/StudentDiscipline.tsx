@@ -82,6 +82,14 @@ const SEVERITY_CONFIG: Record<WarningSeverity, { label: string; color: string; d
 
 // ─── Composant principal ────────────────────────────────────────────────────
 
+const PERIOD_FULL_LABELS: Record<string, string> = {
+  T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
+  S1: 'Semestre 1', S2: 'Semestre 2',
+}
+
+// Au niveau du module : ne depend que de la constante, donc pas une dependance de hook.
+const periodFullLabel = (label: string) => PERIOD_FULL_LABELS[label] ?? label
+
 export default function StudentDiscipline({
   studentId, etablissementId, absences: initialAbsences, warnings: initialWarnings, periods, enrollments, currentYearLabel,
 }: Props) {
@@ -108,11 +116,6 @@ export default function StudentDiscipline({
   )
 
   // Lookup maps
-  const PERIOD_FULL_LABELS: Record<string, string> = {
-    T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
-    S1: 'Semestre 1', S2: 'Semestre 2',
-  }
-  const periodFullLabel = (label: string) => PERIOD_FULL_LABELS[label] ?? label
   const currentYearPeriods = useMemo(
     () => periods.filter(p => currentPeriodIds.has(p.id)),
     [periods, currentPeriodIds]

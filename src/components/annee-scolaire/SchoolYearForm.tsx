@@ -301,7 +301,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       }
     }
     return set
-  }, [vacations])
+  }, [vacations, wsd])
 
   const toggleWeekVacation = (monday: Date) => {
     const mondayISO = toISO(monday)
