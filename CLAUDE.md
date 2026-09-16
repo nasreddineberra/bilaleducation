@@ -3470,6 +3470,28 @@ communications au staff : rediriger celles du directeur vers soi tenait en une r
   script dit desormais **sous quelle identite il tourne et quelle policy est en place** avant de
   conclure. Un test qui ne prouve pas ses propres conditions ne prouve rien.
 
+**DETTE n°1 — UN APPRENANT N'A QU'UNE CLASSE A LA FOIS, garanti en base.** La regle du 4 aout
+n'etait imposee nulle part (`enrollments` n'a qu'une unicite `(student_id, class_id)`), et
+plusieurs calculs la SUPPOSENT (effectifs, palmares d'absences, moyenne par inscription) : un
+double fausserait tout en silence.
+- **L'index partiel envisage aurait CASSE LA RENTREE.** Retirer une affectation est un DELETE
+  (jamais un changement de statut, `status` vaut toujours `active`) et **la purge conserve les
+  inscriptions** : un eleve garde son affectation active de l'an passe, celle de la nouvelle classe
+  serait la SECONDE. La vraie regle est « une classe a la fois **par annee** » ; l'annee vit sur
+  `classes.academic_year`, un index ne joint pas → **declencheur**
+  (`guard-enrollments-one-active-per-year.sql`, jouee), SECURITY DEFINER.
+- L'ecran est coherent : un eleve affecte ailleurs est GRISE dans le vivier, il faut d'abord le
+  retirer. Le declencheur ne bloque donc qu'un contournement.
+- **Eprouve sur 3 cas**, dont la rentree : 2e classe meme annee **refusee** (notre message, pas
+  l'unicite voisine), retirer-puis-affecter **accepte**, et classe de l'annee SUIVANTE **acceptee** —
+  ce dernier a demande de CREER une classe 2027-2028 dans le bloc annule (aucune n'existe en base),
+  avec `etablissement_id` explicite : le formulaire ne le pose pas, un declencheur `BEFORE INSERT`
+  s'en charge, et l'editeur SQL n'a pas de session (piege du matin, `parent_class_enrollments`).
+- **Piege de test** : le premier essai a tire un eleve AVEC des notes ; `fn_block_student_unenroll`
+  (10 aout) a refuse le DELETE du cas 3 et l'erreur a emporte tout le rapport. Chaque cas vit
+  desormais dans son propre bloc d'exception, et l'eleve est choisi RETIRABLE (les 4 criteres exacts
+  de ce garde-fou).
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3541,14 +3563,11 @@ communications au staff : rediriger celles du directeur vers soi tenait en une r
   redevient obligatoire pour 7 comptes.
 - **Tester un compte de CHAQUE ROLE** apres la passe RLS du 5 aout : une policy trop stricte ne
   leve pas d'erreur, elle renvoie zero ligne et l'ecran se vide en silence.
-- **Inscription unique par eleve** : la regle metier (« un eleve, une classe a la fois ») n'est **pas
-  imposee en base** — aucun index unique sur `enrollments`. Un index partiel sur `student_id`
-  `WHERE status = 'active'` la rendrait impossible plutot qu'improbable. A arbitrer.
+- **Inscription unique par eleve : FAIT le 16 septembre** (declencheur par annee, 3 cas eprouves).
 - **CALENDRIER DES VACANCES ET JOURS FERIES : FAIT** — volets 1 et 2 le 11 aout, volet 3
   (branchement EDT / appel / temps de presence) le 13 aout. Avertir sans interdire, sauf l'EDT.
 - **IMPORTATION EN MASSE PARENTS + APPRENANTS : FAIT** — 4 lots livres le 16 aout, lot 1 eprouve
   des deux cotes le 13 septembre. Reste l'essai reel d'un import complet par l'utilisateur.
-- **Choix de police LATINE** : reste a faire (les pages de test arabe/connexion ont ete supprimees).
 - Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
   puis **reset table par table** pour repartir sur une nouvelle annee — objectif : garder la **BDD la plus
@@ -3714,6 +3733,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/guard-enrollments-one-active-per-year.sql` : un apprenant n'a
+  qu'une classe active **par annee scolaire** (declencheur ; l'index partiel aurait refuse chaque
+  eleve qui revient a la rentree, la purge conservant les inscriptions). **Eprouve sur 3 cas.**
 - [x] Executer `supabase/migrations/harden-profiles-update-own-only.sql` : `profiles_update`
   passait de « tout compte de l'ecole modifie tout profil de l'ecole » a **`id = auth.uid()`**.
   Trouve en verifiant la policy INSERT (saine) ; l'email du directeur etait redirigeable par un
