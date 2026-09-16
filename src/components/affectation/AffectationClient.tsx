@@ -450,7 +450,9 @@ export default function AffectationClient({ classes, students, enrollments, curr
   const pagedStudents  = poolStudents.slice((poolCurPage - 1) * POOL_PAGE_SIZE, poolCurPage * POOL_PAGE_SIZE)
 
   // ── Infos classe ──────────────────────────────────────────────────────────
-  function ClassInfo() {
+  // Fonction de rendu et non composant : definie dans le composant, un
+  // composant `ClassInfo` serait un nouveau type a chaque rendu.
+  function renderClassInfo() {
     if (!selectedClass) return null
     const mainTeacher = selectedClass.class_teachers.find(t => t.is_main_teacher)
     const teacherName = mainTeacher?.teachers
@@ -668,7 +670,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
                     </Tooltip>
                   </div>
                 </div>
-                <ClassInfo />
+                {renderClassInfo()}
               </div>
 
               <DropZone

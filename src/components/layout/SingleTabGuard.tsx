@@ -41,7 +41,9 @@ export default function SingleTabGuard({ children }: { children: React.ReactNode
   const idRef = useRef<string>('')
   const canalRef = useRef<BroadcastChannel | null>(null)
   const bloqueRef = useRef(false)
-  bloqueRef.current = bloque
+  // Miroir de l'etat pour les ecouteurs (canal, intervalle), qui capturent une
+  // valeur figee. Ecrit dans un effet et non pendant le rendu.
+  useEffect(() => { bloqueRef.current = bloque }, [bloque])
   /** Dernière fois qu'un autre onglet s'est manifesté. Voir la relance périodique. */
   const dernierSigneDeVieRef = useRef(0)
 

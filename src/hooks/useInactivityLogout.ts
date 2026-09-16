@@ -21,7 +21,9 @@ const ACTIVITY_EVENTS = [
 export function useInactivityLogout(onLogout: () => void) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onLogoutRef = useRef(onLogout)
-  onLogoutRef.current = onLogout
+  // Derniere version du rappel, sans reposer le minuteur a chaque rendu.
+  // Ecrite dans un effet et non pendant le rendu.
+  useEffect(() => { onLogoutRef.current = onLogout }, [onLogout])
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)

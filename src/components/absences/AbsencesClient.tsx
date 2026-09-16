@@ -1112,7 +1112,7 @@ function SaisieModal({
       const uid = user?.id ?? null
 
       let added: Absence[] = []
-      let updated: Absence[] = []
+      const updated: Absence[] = []
       const deletedIds: string[] = []
 
       if (toInsert.length > 0) {

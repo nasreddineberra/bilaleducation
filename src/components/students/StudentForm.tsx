@@ -1048,7 +1048,6 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
               </button>
             </div>
             <div className="p-4 flex flex-col items-center gap-3">
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
               <video
                 ref={videoRef}
                 autoPlay

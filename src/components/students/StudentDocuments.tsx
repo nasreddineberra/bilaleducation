@@ -115,6 +115,9 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
 
   const expirationStatus = (expiresAt: string | null): 'ok' | 'soon' | 'expired' | null => {
     if (!expiresAt) return null
+    // Un badge d'expiration n'a besoin d'etre juste qu'au moment ou on le lit ;
+    // figer « maintenant » dans un etat le rendrait FAUX sur un onglet laisse ouvert.
+    // eslint-disable-next-line react-hooks/purity
     const diff = (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     if (diff < 0) return 'expired'
     if (diff < 30) return 'soon'
@@ -434,6 +437,10 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
               {previewUrl.match(/\.pdf|\/pdf/i) ? (
                 <iframe src={previewUrl} className="w-full h-full min-h-[500px] rounded" />
               ) : (
+                // URL SIGNEE valable 60 s, hote du bucket, dimensions inconnues :
+                // `next/image` exigerait de declarer l'hote et optimiserait une
+                // image qui n'existe plus a la requete suivante.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={previewUrl} alt="Document" className="max-w-full max-h-full object-contain rounded" />
               )}
             </div>

@@ -72,8 +72,12 @@ export default async function SuperAdminPage() {
   // information que l'historique ne dit pas d'un coup d'oeil, et c'est celle qui
   // compte : elle se referme d'office au-dela du delai.
   const ouverte = (interventions ?? []).find(i => !i.closed_at)
+  // Composant SERVEUR, rendu une fois par requete : « maintenant » y est stable
+  // par construction, la regle vise la memoisation d'un composant client.
+  // eslint-disable-next-line react-hooks/purity
+  const maintenant = Date.now()
   const heuresOuvertes = ouverte
-    ? (Date.now() - new Date(ouverte.opened_at).getTime()) / 3_600_000
+    ? (maintenant - new Date(ouverte.opened_at).getTime()) / 3_600_000
     : null
 
   return (

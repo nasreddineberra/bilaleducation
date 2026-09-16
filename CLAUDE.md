@@ -836,7 +836,7 @@ apres **3 inversions** introduites ici : prof principal construit en `${first_na
 expediteur inverse dans l'historique **et** la fiche message. CLAUDE.md ne l'enoncait qu'en creux (« Fiche eleve
 NOM Prenom »). Controle : `grep -rn "first_name}[^\`]*last_name}"` — toute occurrence en **affichage** est un bug.
 
-- **Dette** : `npm run lint` est **casse** (`next lint` a disparu en Next 16) — non traite.
+- **Dette** : `npm run lint` casse par Next 16 — **REPARE le 16 septembre** (`eslint.config.mjs`).
 - **Migration executee** : `add-etablissement-smtp.sql`.
 
 #### 16 juillet 2026 — Communications LOT 3 (a11y + charte historique & fiche message)
@@ -3508,6 +3508,28 @@ parti existait sans que personne ne la voie.
   l'editeur fournit `getSupportAttachmentUrlEditeur` (`requireEditor` + cle service).
 - « Reçue / Non reçue » plutot que « Transmise / Non transmise » : cote editeur la question est
   « l'ai-je eue dans ma boite ? ».
+
+**DETTE n°4 — `npm run lint` FONCTIONNE DE NOUVEAU** (`eslint.config.mjs`, config plate d'ESLint 9 ;
+`next lint` avait disparu en Next 16 le 15 juillet, deux mois sans lint). Premier passage :
+**695 signalements**, dont 563 sur deux regles sans rapport avec un bug — `no-explicit-any` (503)
+et `no-unescaped-entities` (60, chaque apostrophe francaise en JSX). Arbitrages POSES DANS LA
+CONFIG, avec leur raison : `any` en avertissement (chantier a part), apostrophes eteintes,
+`set-state-in-effect` en avertissement (c'est le motif d'hydratation DELIBERE du 16 juillet),
+`preserve-manual-memoization` en avertissement (avis du React Compiler, qui n'est pas active).
+- **Les erreurs REELLES corrigees** : `Btn` de `RichTextEditor` etait defini DANS le composant — un
+  nouveau type a chaque rendu, les 12 boutons demontes/remontes a chaque frappe (focus perdu,
+  infobulle refermee) → sorti au module. `ClassInfo` des 2 ecrans d'affectation (composant sans
+  etat) → fonction de rendu. 3 refs ECRITES PENDANT LE RENDU (`bloqueRef`, `onLogoutRef`,
+  `initialForm`) → effet, ou `useState` initialise une fois pour l'instantane du formulaire.
+- **Desactivations en ligne MOTIVEES** (jamais nues) : `Date.now()` en page SERVEUR (rendue une fois
+  par requete) et dans un badge d'expiration (figer « maintenant » le rendrait faux sur un onglet
+  ouvert) ; `<img>` sur URL signee de 60 s (`next/image` exigerait l'hote et optimiserait une image
+  qui n'existe plus a la requete suivante). **La directive doit etre sur la ligne PRECEDANT
+  l'expression fautive**, pas la declaration : `Date.now()` sorti sur sa propre ligne.
+- **Resultat : 0 erreur, 610 avertissements** (503 `any` + 107 reels : 69 variables inutilisees,
+  13 `exhaustive-deps`, 13 `set-state-in-effect`, 9 expressions inutilisees, 3 memoisations).
+  Les 107 sont une SECONDE PASSE, a lire un par un — une variable « inutilisee » peut etre une
+  variable qui aurait DU l'etre (16 aout : `t1Phone` retiree par un sed).
 
 ## Prochaine etape
 

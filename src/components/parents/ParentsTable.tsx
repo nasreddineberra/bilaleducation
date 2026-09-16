@@ -63,7 +63,7 @@ export default function ParentsTable({ parents, parentsWithChildren, parentsWith
         // Fetch active enrollments with class + main teacher
         const supabase = createClient()
         const studentIds = children.map(c => c.id)
-        let enrollmentMap: Record<string, { className: string; teacherLabel: string | null }> = {}
+        const enrollmentMap: Record<string, { className: string; teacherLabel: string | null }> = {}
         if (studentIds.length > 0) {
           const { data: enrollments } = await supabase
             .from('enrollments')

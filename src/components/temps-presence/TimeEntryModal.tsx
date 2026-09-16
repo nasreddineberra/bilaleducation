@@ -209,7 +209,6 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
   useEffect(() => {
     setCreneauxManques(new Set())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId, date])
 
   useEffect(() => {

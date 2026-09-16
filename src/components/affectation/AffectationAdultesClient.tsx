@@ -283,7 +283,9 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
 
   const isFull = selectedClass ? roster.length >= selectedClass.max_students : false
 
-  function ClassInfo() {
+  // Fonction de rendu et non composant : definie dans le composant, un
+  // composant `ClassInfo` serait un nouveau type a chaque rendu.
+  function renderClassInfo() {
     if (!selectedClass) return null
     const line = classInfoLine(selectedClass)
     if (!line) return null
@@ -451,7 +453,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                     </Tooltip>
                   </div>
                 </div>
-                <ClassInfo />
+                {renderClassInfo()}
               </div>
 
               <ClassRoster rosterTutors={rosterTutors} onRemove={removeFromRoster} />

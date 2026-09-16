@@ -64,7 +64,9 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
   })
 
   const originalNumber = useRef(teacher?.employee_number ?? defaultEmployeeNumber ?? '')
-  const initialForm    = useRef<FormData>({ ...form })
+  // Instantane du formulaire a l'ouverture, jamais reecrit : un etat initialise
+  // une fois, pas une ref (lue pendant le rendu pour `isUnchanged`).
+  const [initialForm]  = useState<FormData>(() => ({ ...form }))
 
   const [numberEditable, setNumberEditable] = useState(false)
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
@@ -101,7 +103,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
   const isFormValid = !v.civilite && !v.employeeNumber && !v.lastName && !v.firstName && !v.email && !v.hireDate
 
   const isUnchanged = isEditing && (Object.keys(form) as (keyof FormData)[]).every(
-    k => form[k] === initialForm.current[k]
+    k => form[k] === initialForm[k]
   )
 
   const handleSubmit = async (e: React.FormEvent) => {

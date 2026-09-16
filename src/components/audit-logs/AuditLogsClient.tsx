@@ -251,7 +251,6 @@ export default function AuditLogsClient({
     document.addEventListener('keydown', onKey)
     dialogRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPurge, purging])
 
   const fermerPurge = () => {

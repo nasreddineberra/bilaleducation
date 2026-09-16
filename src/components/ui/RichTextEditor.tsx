@@ -27,6 +27,30 @@ const COLORS = [
   '#2563eb', '#9333ea', '#dc2626', '#f59e0b', '#10b981',
 ]
 
+/**
+ * Bouton de la barre d'outils. AU NIVEAU DU MODULE, et non dans le composant :
+ * defini a l'interieur, il etait un NOUVEAU type a chaque rendu — React
+ * demontait et remontait les douze boutons a chaque frappe (focus perdu,
+ * infobulle refermee en plein clic).
+ */
+function Btn({ active, onClick, children, title }: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) {
+  return (
+    <Tooltip content={title}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={title}
+      className={clsx(
+        'p-1.5 rounded transition-colors',
+        active ? 'bg-primary-100 text-primary-700' : 'text-warm-700 hover:bg-warm-100'
+      )}
+    >
+      {children}
+    </button>
+    </Tooltip>
+  )
+}
+
 export default function RichTextEditor({ content, onChange, placeholder }: Props) {
   const editor = useEditor({
     extensions: [
@@ -51,21 +75,6 @@ export default function RichTextEditor({ content, onChange, placeholder }: Props
 
   if (!editor) return null
 
-  const Btn = ({ active, onClick, children, title }: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) => (
-    <Tooltip content={title}>
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={title}
-      className={clsx(
-        'p-1.5 rounded transition-colors',
-        active ? 'bg-primary-100 text-primary-700' : 'text-warm-700 hover:bg-warm-100'
-      )}
-    >
-      {children}
-    </button>
-    </Tooltip>
-  )
 
   const handleLink = () => {
     const url = window.prompt('URL du lien :', editor.getAttributes('link').href ?? 'https://')
