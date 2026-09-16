@@ -3418,6 +3418,37 @@ j'ai cru a une affectation adultes cassee. Elle est remplie par un **declencheur
 il interrogeait `information_schema.columns.column_default`, or **un declencheur n'est pas un
 defaut**. Depuis l'editeur SQL il n'y a pas de session, donc pas d'etablissement. **Regle** : avant
 de conclure qu'une colonne NOT NULL sans defaut est un bug, chercher un declencheur sur la table.
+#### 16 septembre 2026 — Verification Supabase : `profiles` etait modifiable par tout le monde
+
+Point 1 du plan de mise en production : deux verifications ajoutees le 8 aout, jamais faites.
+
+**INSERT de `profiles` : SAIN.** `pg_policies` ne porte ni INSERT, ni ALL, ni DELETE sur la table :
+la RLS refuse par defaut, un compte connecte ne peut pas creer sa propre ligne. Le declencheur
+anti-escalade (`BEFORE UPDATE`) n'avait donc aucun trou a couvrir de ce cote.
+
+**MAIS `profiles_update` ETAIT TROP LARGE** — trouve en lisant la meme requete :
+`USING (etablissement_id = current_etablissement_id())`, sans role ni `id = auth.uid()`. **Tout
+compte authentifie de l'ecole pouvait modifier n'importe quel profil de l'ecole.** Motif du 5 aout
+(le cloisonnement a REMPLACE le controle), sur une table qui n'etait pas dans les huit reprises ce
+jour-la. Le declencheur protegeait `role`/`is_active`/`etablissement_id` ; tout le reste etait
+ouvert — nom, telephone, remarques internes, et **`profiles.email`**, l'adresse que lisent les
+communications au staff : rediriger celles du directeur vers soi tenait en une requete REST.
+- **Verifie avant d'ecrire** : les seules ecritures de `profiles` sous identite utilisateur portent
+  sur le profil de l'appelant (Mon compte). Fiche Utilisateurs → policy admin/direction ; support →
+  cle service ; synchro `teachers → profiles` → declencheur DEFINER. Restreindre ne casse rien.
+- **Migration `harden-profiles-update-own-only.sql`** (jouee) : `profiles_update` → `id = auth.uid()`.
+  Le declencheur RESTE indispensable (sans lui, « son propre profil » inclurait `role`).
+- **Benefice second** : le super-admin DETACHE (`etablissement_id` NULL) ne passait pas l'ancienne
+  condition (`NULL = NULL` est NULL) — il ne pouvait pas modifier son propre profil depuis l'app.
+- **Eprouve sous identite reelle** (`SET LOCAL ROLE authenticated` + `request.jwt.claims`, dans un
+  bloc a exception volontaire) : propre profil 1 ligne, profil du directeur **0 ligne**,
+  auto-promotion refusee par le declencheur.
+- **PIEGE DE TEST, paye deux fois** : une mise a jour ecartee par la RLS ne leve RIEN, elle touche
+  0 ligne → il faut COMPTER (`GET DIAGNOSTICS ROW_COUNT`). Et un premier rapport « tout OK sauf le
+  cas 2 » etait AMBIGU : migration non jouee, ou test tournant en `postgres` qui ignore la RLS ? Le
+  script dit desormais **sous quelle identite il tourne et quelle policy est en place** avant de
+  conclure. Un test qui ne prouve pas ses propres conditions ne prouve rien.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3734,6 +3765,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/harden-profiles-update-own-only.sql` : `profiles_update`
+  passait de « tout compte de l'ecole modifie tout profil de l'ecole » a **`id = auth.uid()`**.
+  Trouve en verifiant la policy INSERT (saine) ; l'email du directeur etait redirigeable par un
+  enseignant en une requete REST. **Eprouve sous identite `authenticated`, 3 cas.**
 - [x] Executer `supabase/migrations/guard-student-parent-delete.sql` : on ne supprime qu'une fiche
   **VIERGE** (apprenant / foyer). Les 10 cles vers `students` etaient toutes en CASCADE ou SET NULL,
   donc le message « des donnees sont rattachees » de l'ecran etait **inatteignable** et un clic

@@ -525,8 +525,13 @@ cohérent. Trois blocs, dans cet ordre.
       code** — un compte `auth` peut alors naître sans que l'école l'ait décidé.
       Repéré le 8 août en supprimant un `createUser` mort qui appelait précisément `signUp`
       depuis le navigateur.
-- [ ] **Moi + Toi** — **Vérifier la policy INSERT de `profiles`**, avec un compte non
-      administrateur. Le garde-fou anti-escalade posé le 8 juillet est un trigger
+- [x] **Moi + Toi** — **Vérifier la policy INSERT de `profiles`** — **FAIT le 16 septembre** :
+      aucune policy INSERT/ALL/DELETE, la RLS refuse par défaut. **Mais la vérification a révélé
+      `profiles_update` ouverte à tout compte de l'école** (tenant seul, sans `id = auth.uid()`) :
+      l'email du directeur était redirigeable par un enseignant en une requête REST. Migration
+      `harden-profiles-update-own-only.sql` jouée, éprouvée sous identité `authenticated` (3 cas).
+      Texte d'origine :
+      avec un compte non administrateur. Le garde-fou anti-escalade posé le 8 juillet est un trigger
       **`BEFORE UPDATE`** : il ne voit pas un INSERT. Si la policy d'insertion est permissive,
       un utilisateur authentifié pourrait créer une ligne `profiles` en choisissant son rôle,
       sans jamais passer par une server action. À éprouver en même temps que la matrice de
