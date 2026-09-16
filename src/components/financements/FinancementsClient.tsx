@@ -895,17 +895,17 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             {/* Récapitulatif famille */}
             <div className="card overflow-hidden">
               <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
-                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Récapitulatif famille</h3>
+                <h3 className="section-title">Récapitulatif famille</h3>
               </div>
               <table className="w-full text-left" aria-label="Récapitulatif famille">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Élève</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Classe</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Cotisation</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Frais</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Réduc.</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Total</th>
+                    <th className="list-th-compact">Élève</th>
+                    <th className="list-th-compact">Classe</th>
+                    <th className="list-th-compact text-right">Cotisation</th>
+                    <th className="list-th-compact text-right">Frais</th>
+                    <th className="list-th-compact text-right">Réduc.</th>
+                    <th className="list-th-compact text-right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -980,7 +980,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             {/* Communication comptable — historique des envois (relance / attestation) */}
             <div className="card overflow-hidden">
               <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
-                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Communication comptable</h3>
+                <h3 className="section-title">Communication comptable</h3>
               </div>
               {familyComms.length === 0 ? (
                 <div className="px-4 py-3 text-center">
@@ -1027,7 +1027,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             {(familyHistory[selectedParentId]?.length ?? 0) > 0 && (
               <div className="card overflow-hidden">
                 <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
-                  <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Historique des paiements</h3>
+                  <h3 className="section-title">Historique des paiements</h3>
                 </div>
                 <ul className="divide-y divide-warm-50" aria-label="Historique des paiements des années précédentes">
                   {familyHistory[selectedParentId].map(y => (
@@ -1065,7 +1065,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           <div className="card overflow-hidden">
             <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 relative flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Paiements</h3>
+                <h3 className="section-title">Paiements</h3>
                 {selectedParent.maxInstallments > 0 && payments.length > 0 && (
                   <Tooltip content={<span className="whitespace-nowrap">{payments.length} échéance{payments.length > 1 ? 's' : ''} enregistrée{payments.length > 1 ? 's' : ''} sur {selectedParent.maxInstallments} autorisée{selectedParent.maxInstallments > 1 ? 's' : ''} · maximum des types de cotisation de la famille</span>} maxWidth="max-w-none">
                     <span className={clsx('px-1.5 py-0.5 rounded-full text-[10px] font-semibold tabular-nums cursor-default',
@@ -1095,12 +1095,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <table className="w-full text-left" aria-label="Paiements enregistrés">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-center w-8">#</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Date</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Montant</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Moyen</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Référence</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">N° Reçu</th>
+                    <th className="list-th-compact text-center w-8">#</th>
+                    <th className="list-th-compact">Date</th>
+                    <th className="list-th-compact text-right">Montant</th>
+                    <th className="list-th-compact">Moyen</th>
+                    <th className="list-th-compact">Référence</th>
+                    <th className="list-th-compact">N° Reçu</th>
                     <th className="px-1 py-2 w-6"></th>
                     <th className="px-1 py-2 w-14"></th>
                   </tr>
@@ -1184,7 +1184,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
           {/* Réductions & Avoirs — meme carte que Paiements (section separee) */}
             <div className="px-4 h-9 mt-2 bg-warm-50/60 border-y border-warm-100 relative flex items-center justify-between">
-              <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Réductions & Avoirs</h3>
+              <h3 className="section-title">Réductions & Avoirs</h3>
               {adjustmentsTotal !== 0 && (
                 <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-secondary-700 tabular-nums">
                   Total : {fmtEur(Math.abs(adjustmentsTotal))}
@@ -1207,10 +1207,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <table className="w-full text-left" aria-label="Réductions et avoirs">
                 <thead>
                   <tr className="border-b border-warm-100 bg-warm-50/30">
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Date</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Type</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider">Motif</th>
-                    <th className="px-2 py-1.5 text-xs font-semibold text-warm-700 uppercase tracking-wider text-right">Montant</th>
+                    <th className="list-th-compact">Date</th>
+                    <th className="list-th-compact">Type</th>
+                    <th className="list-th-compact">Motif</th>
+                    <th className="list-th-compact text-right">Montant</th>
                     <th className="px-3 py-2 w-10"></th>
                   </tr>
                 </thead>
@@ -1475,7 +1475,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 onChange={e => setRelanceSubject(e.target.value)}
               />
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-warm-700 uppercase tracking-widest">Message</label>
+                <label className="block section-title">Message</label>
                 <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
                   <RichTextEditor content={relanceBody} onChange={setRelanceBody} />
                 </Suspense>

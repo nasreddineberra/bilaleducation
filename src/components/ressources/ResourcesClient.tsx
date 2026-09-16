@@ -264,7 +264,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           {/* Add / Edit form */}
           {(addingRoom || editingRoom) && (
             <div className="card p-3 space-y-2.5">
-              <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+              <h3 className="section-title">
                 {editingRoom ? 'Modifier la salle' : 'Nouvelle salle'}
               </h3>
               <div className="grid grid-cols-2 gap-2">
@@ -395,7 +395,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           {/* Add / Edit form */}
           {(addingMat || editingMat) && (
             <div className="card p-3 space-y-2.5">
-              <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+              <h3 className="section-title">
                 {editingMat ? 'Modifier le matériel' : 'Nouveau matériel'}
               </h3>
               <div className="grid grid-cols-2 gap-2">

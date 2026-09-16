@@ -233,6 +233,18 @@
   .stat-label {
     @apply text-[10px] font-bold text-[var(--ink-muted)] uppercase tracking-wide;
   }
+  /* Variante COMPACTE de .list-th (px-2 au lieu de px-4) pour les tableaux
+     serres du panneau de detail des Reglements, qui recopiaient l'habillage a
+     la main en 16 exemplaires. Memes metriques par ailleurs : le jour ou
+     .list-th change, ils suivent. */
+  .list-th-compact {
+    @apply text-left px-2 py-1.5 text-[11px] font-semibold text-[var(--ink-muted)] uppercase tracking-wider;
+  }
+  /* Titre de section d'un encadre (« Paiements », « Vacances scolaires »…).
+     Etait recopie tel quel dans 3 modules. */
+  .section-title {
+    @apply text-xs font-bold text-[var(--ink-muted)] uppercase tracking-widest;
+  }
 
   /* RELIEF DU LOGO sur les blocs de marque en fond sombre (connexion, vitrine,
      connexion de la console). Ces trois écrans se déclarent identiques dans

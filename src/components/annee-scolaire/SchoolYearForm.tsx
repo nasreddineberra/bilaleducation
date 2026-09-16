@@ -658,7 +658,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             {/* Mini-tableau vacances */}
             <div className="pt-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Vacances et jours fériés</h3>
+                <h3 className="section-title">Vacances et jours fériés</h3>
                 {weeks.length > 0 && (
                   <FloatButton type="button" variant="submit" onClick={() => setShowVacModal(true)} disabled={readOnly} size="mini">
                     Gérer
@@ -769,7 +769,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+                <h2 className="section-title">
                   Répartition <span className="text-red-400">*</span>
                 </h2>
                 {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies · verrouillé</span>}
@@ -816,7 +816,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           vNoEval && hasSubmitted && 'ring-1 ring-red-300 rounded-lg p-2'
         )}>
         <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          <h2 className="section-title">
             Type d'évaluation <span className="text-red-400">*</span>
           </h2>
           {vNoEval && hasSubmitted && (

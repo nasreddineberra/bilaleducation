@@ -62,6 +62,10 @@
 -- toute regle qui ne vit pas en base se contourne par un appel a l'API REST.
 -- L'application donne le message, ce declencheur donne la garantie.
 --
+-- Messages NEUTRES en genre (16 septembre) : « Suppression impossible pour
+-- « X Y » » plutot que « L'apprenant ... supprime », qui se lisait au masculin
+-- sur une fille. Le SQL du projet est sans accents ; le neutre evite l'accord.
+--
 -- Idempotent.
 -- ============================================================================
 
@@ -108,7 +112,7 @@ BEGIN
       CASE WHEN n_docs   > 0 THEN n_docs   || ' document(s)'               END
     );
     RAISE EXCEPTION
-      'L''apprenant « % % » ne peut pas etre supprime. Donnees rattachees : %. Rendez-le inactif plutot que de le supprimer.',
+      'Suppression impossible pour « % % ». Donnees rattachees : %. Rendre la fiche inactive plutot que de la supprimer.',
       OLD.last_name, OLD.first_name, v_details
       USING ERRCODE = 'restrict_violation';
   END IF;
@@ -171,7 +175,7 @@ BEGIN
       CASE WHEN n_comm    > 0 THEN n_comm    || ' communication(s)'           END
     );
     RAISE EXCEPTION
-      'Le foyer « % % » ne peut pas etre supprime. Donnees rattachees : %.',
+      'Suppression impossible pour le foyer « % % ». Donnees rattachees : %.',
       OLD.tutor1_last_name, OLD.tutor1_first_name, v_details
       USING ERRCODE = 'restrict_violation';
   END IF;

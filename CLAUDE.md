@@ -3531,6 +3531,14 @@ CONFIG, avec leur raison : `any` en avertissement (chantier a part), apostrophes
   Les 107 sont une SECONDE PASSE, a lire un par un — une variable « inutilisee » peut etre une
   variable qui aurait DU l'etre (16 aout : `t1Phone` retiree par un sed).
 
+**DETTES n°2, 3 et 5.** `drop-bulletin-archives-file-url.sql` (colonne morte depuis le 25 juillet,
+0 lecture dans le code, les deux tables d'archives). Messages du declencheur de suppression
+**neutres en genre** (« Suppression impossible pour « X Y » ») — le SQL du projet est sans accents,
+le neutre evite l'accord ; `guard-student-parent-delete.sql` a rejouer. **`.list-th-compact`**
+(= `.list-th` en `px-2`) remplace les 16 en-tetes recopies a la main dans Reglements, et
+**`.section-title`** les 11 titres d'encadre (`text-xs font-bold uppercase tracking-widest`)
+recopies dans Reglements, Annee scolaire et Ressources. Verifie dans le CSS SERVI.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3606,11 +3614,10 @@ CONFIG, avec leur raison : `any` en avertissement (chantier a part), apostrophes
   (branchement EDT / appel / temps de presence) le 13 aout. Avertir sans interdire, sauf l'EDT.
 - **IMPORTATION EN MASSE PARENTS + APPRENANTS : FAIT** — 4 lots livres le 16 aout, lot 1 eprouve
   des deux cotes le 13 septembre. Reste l'essai reel d'un import complet par l'utilisateur.
-- Suivi : `DROP COLUMN file_url` sur `bulletin_archives` une fois le nouveau flux confirme.
 - **Chantier « passage d'annee »** (a concevoir) : archivage complet des donnees importantes a conserver,
   puis **reset table par table** pour repartir sur une nouvelle annee — objectif : garder la **BDD la plus
   legere possible**. Voir memoire `year-rollover-archiving`.
-- **Financements** : 3 sous-menus audites. Reste l'arbitrage `.list-th-compact`.
+- **Financements** : 3 sous-menus audites ; `.list-th-compact` pose le 16 septembre.
 - **Verifier visuellement** la passe de lisibilite module par module (surtout les etats inactifs
   et les modales).
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
@@ -3771,6 +3778,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/drop-bulletin-archives-file-url.sql` (colonne morte depuis le
+  25 juillet, les deux tables d'archives) et **rejouer** `guard-student-parent-delete.sql` (messages
+  neutres en genre).
 - [x] Executer `supabase/migrations/guard-enrollments-one-active-per-year.sql` : un apprenant n'a
   qu'une classe active **par annee scolaire** (declencheur ; l'index partiel aurait refuse chaque
   eleve qui revient a la rentree, la purge conservant les inscriptions). **Eprouve sur 3 cas.**
