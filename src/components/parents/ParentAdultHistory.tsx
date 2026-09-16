@@ -84,7 +84,8 @@ export default function ParentAdultHistory({
     const w = window.open('', '_blank')
     const { data, error } = await supabase.storage.from('bulletins').createSignedUrl(fp, 60)
     if (error || !data?.signedUrl) { w?.close(); return }
-    w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
+    if (w) w.location.href = data.signedUrl
+    else window.open(data.signedUrl, '_blank')
   }
 
   if (rows.length === 0 && current.length === 0 && nonAffectes.length === 0) {

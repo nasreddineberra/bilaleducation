@@ -250,7 +250,6 @@ interface CalendarCell {
 
 function buildCalendarWeeks(year: number, month: number, startDay: number): CalendarCell[][] {
   const firstOfMonth = new Date(year, month, 1)
-  const lastOfMonth = new Date(year, month + 1, 0)
 
   // Find the start of the first week (may be in previous month)
   const firstDow = firstOfMonth.getDay()

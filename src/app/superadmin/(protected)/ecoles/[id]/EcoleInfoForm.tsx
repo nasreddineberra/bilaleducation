@@ -53,7 +53,10 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
   const touch = (f: string) => setTouched(p => new Set([...p, f]))
 
   const vNom     = form.nom.trim().length < 2
-  const isValid  = !vNom
+  // `isValidEmail` existait sans etre branche : le champ acceptait n'importe
+  // quoi. Cette adresse est le Reply-To de tous les envois de l'ecole.
+  const vContact = !isValidEmail(form.contact)
+  const isValid  = !vNom && !vContact
   const isUnchanged = (Object.keys(form) as (keyof FormData)[]).every(k => form[k] === initialForm.current[k])
 
   const inputCls = (field: string, bad: boolean) => bad && touched.has(field) ? 'input input-error' : 'input'
@@ -147,8 +150,8 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
             <Field label="Téléphone">
               <input type="tel" value={form.telephone} onChange={e => set('telephone', e.target.value)} className="input" />
             </Field>
-            <Field label="Email contact">
-              <input type="email" value={form.contact} onChange={e => set('contact', e.target.value)} onBlur={() => touch('contact')} className="input" />
+            <Field label="Email contact" error={touched.has('contact') && vContact ? 'Adresse invalide.' : undefined}>
+              <input type="email" value={form.contact} onChange={e => set('contact', e.target.value)} onBlur={() => touch('contact')} className={inputCls('contact', vContact)} />
             </Field>
           </div>
 

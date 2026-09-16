@@ -3539,6 +3539,27 @@ le neutre evite l'accord ; `guard-student-parent-delete.sql` a rejouer. **`.list
 **`.section-title`** les 11 titres d'encadre (`text-xs font-bold uppercase tracking-widest`)
 recopies dans Reglements, Annee scolaire et Ressources. Verifie dans le CSS SERVI.
 
+**LINT, SECONDE PASSE — les 78 avertissements mecaniques** (variables et imports inutilises,
+expressions sans effet). Lus UN PAR UN, et deux etaient des defauts reels :
+- **`isValidEmail` ecrit et jamais branche** (`EcoleInfoForm`, console) : le champ « Email contact »
+  d'une ecole acceptait n'importe quoi, seul le nom etait valide. Or cette adresse est le `Reply-To`
+  de TOUS les envois de l'ecole. Branche (validation + message + bordure). C'est exactement le cas
+  `t1Phone` : une variable inutilisee qui aurait du l'etre.
+- **La page 2FA faisait encore SON appel** a `/api/public/etablissement` pour un nom et un logo
+  qu'elle n'affiche plus depuis le 9 aout (`AuthBrandHeader`) — et sur le domaine de la console cet
+  appel est redirige vers l'ecran 2FA lui-meme et echoue en journal, le defaut corrige le 10 aout
+  dans l'en-tete seulement. Bloc retire.
+- **`placeholder` de `RichTextEditor`** : accepte, passe par 2 appelants, JAMAIS applique
+  (l'extension TipTap n'est pas installee). Prop et appels retires plutot qu'une dependance pour un
+  placeholder que le projet evite depuis le 16 aout.
+- **Machinerie du Secondaire** (`subjects`, `setSubject`, `GENERAL` du cahier de texte) : CONSERVEE,
+  desactivation en ligne motivee — matiere forcee « General » en V1 (11/07), elle doit revenir.
+- Les 9 « expressions sans effet » : le meme idiome (`cond ? a() : b()` en instruction), reecrit en
+  `if`. Le reste : imports morts, helpers d'avant une refonte (`ligne` du support, `bilingual` du
+  PDF, `getVacationLabel` de l'annee), props destructurees sans usage.
+**Reste : 501 `any` + 29 hooks** (13 `exhaustive-deps`, 13 `set-state-in-effect`, 3 memoisations) —
+a lire avec un avis par cas, ils peuvent CHANGER un comportement.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

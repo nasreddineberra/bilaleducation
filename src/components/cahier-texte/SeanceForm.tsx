@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 // Valeur sentinelle pour « Général » : garde une valeur non vide dans le select
 // (sinon le label flottant de FloatSelect ne monte pas et chevauche le texte).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
 const GENERAL = '__general__'
 
 interface Props {
@@ -42,6 +43,7 @@ function LockedField({ label, value }: { label: string; value: string }) {
 }
 
 export default function SeanceForm({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   etablissementId, classId, className, teacherId, teacherLabel, subjects,
   onClose, onSaved, initialData,
 }: Props) {
@@ -49,6 +51,7 @@ export default function SeanceForm({
   const toast  = useToast()
   const isEdit = !!initialData
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   const [subject, setSubject] = useState<string>(initialData?.subject ?? '')  // '' = Général
   const [sessionDate, setSessionDate] = useState(initialData?.session_date ?? new Date().toISOString().slice(0, 10))
   const [title, setTitle] = useState(initialData?.title ?? '')
@@ -163,7 +166,6 @@ export default function SeanceForm({
                 <RichTextEditor
                   content={contentHtml}
                   onChange={setContentHtml}
-                  placeholder="Decrivez ce qui a ete fait en classe..."
                 />
               </Suspense>
             </div>

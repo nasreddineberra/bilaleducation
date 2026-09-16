@@ -8,7 +8,7 @@ import { marqueEcole } from '@/lib/email/marque-ecole'
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, etablissementId, error } = await requireRole(['admin', 'direction', 'responsable_pedagogique', 'enseignant'])
+    const { etablissementId, error } = await requireRole(['admin', 'direction', 'responsable_pedagogique', 'enseignant'])
     if (error) return error
     if (!etablissementId) {
       return NextResponse.json({ error: 'Etablissement non identifie.' }, { status: 403 })

@@ -47,7 +47,8 @@ async function ouvrirBulletin(fp: string) {
   const w = window.open('', '_blank')
   const { data, error } = await createClient().storage.from('bulletins').createSignedUrl(fp, 60)
   if (error || !data?.signedUrl) { w?.close(); return }
-  w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
+  if (w) w.location.href = data.signedUrl
+  else window.open(data.signedUrl, '_blank')
 }
 
 export default function PeriodeCell({

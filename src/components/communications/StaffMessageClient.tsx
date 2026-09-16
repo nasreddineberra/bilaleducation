@@ -109,7 +109,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   )
 }
 
-export default function StaffMessageClient({ role, staffMembers, etablissementId, smtpConfigured, signatureHtml }: Props) {
+export default function StaffMessageClient({ staffMembers, etablissementId, smtpConfigured, signatureHtml }: Props) {
   const toast = useToast()
   const [channel, setChannel] = useState<StaffChannel>('notification')
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
@@ -164,14 +164,14 @@ export default function StaffMessageClient({ role, staffMembers, etablissementId
   const toggleRole = (r: string) => {
     setSelectedRoles(prev => {
       const next = new Set(prev)
-      next.has(r) ? next.delete(r) : next.add(r)
+      if (next.has(r)) next.delete(r); else next.add(r)
       return next
     })
   }
   const toggleMember = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
   }

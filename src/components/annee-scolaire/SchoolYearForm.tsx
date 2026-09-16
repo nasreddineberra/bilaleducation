@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -41,7 +41,7 @@ type FormData = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function suggestNextLabel(existing?: string): string {
+function suggestNextLabel(): string {
   const now  = new Date()
   const year = now.getFullYear()
   return `${year}-${year + 1}`
@@ -355,14 +355,6 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       remaining.sort((a, b) => a.start_date.localeCompare(b.start_date))
       setVacations(remaining)
     }
-  }
-
-  const getVacationLabel = (mondayISO: string): string | undefined => {
-    for (const v of vacations) {
-      const vStart = getWeekStart(new Date(v.start_date + 'T00:00:00'), wsd)
-      if (toISO(vStart) === mondayISO && v.label) return v.label
-    }
-    return undefined
   }
 
   const saveVacLabel = (mondayISO: string, label: string) => {

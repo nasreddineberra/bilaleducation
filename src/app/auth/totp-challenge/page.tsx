@@ -30,25 +30,10 @@ export default function TotpChallengePage() {
   const router = useRouter()
   const [otp,          setOtp]          = useState('')
   const [factorId,     setFactorId]     = useState<string | null>(null)
-  const [challengeId,  setChallengeId]  = useState<string | null>(null)
   const [isReady,      setIsReady]      = useState(false)
   const [chargementEchoue, setChargementEchoue] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
-  const [nomEtab,      setNomEtab]      = useState('Bilal Education')
-  const [logoUrl,      setLogoUrl]      = useState<string | null>(null)
-
-  // Charger le nom et logo de l'établissement
-  useEffect(() => {
-    fetch('/api/public/etablissement')
-      .then(r => r.json())
-      .then(d => {
-        if (d.nom) setNomEtab(d.nom)
-        if (d.logo_url) setLogoUrl(d.logo_url)
-      })
-      .catch((err) => console.error('[TOTP] Échec chargement infos établissement:', err))
-  }, [])
-
   // Thème de l'utilisateur : dès la 2FA il est identifié, on applique sa
   // préférence (et on l'amorce dans localStorage → dashboard sans flash).
   useEffect(() => {
@@ -150,7 +135,6 @@ export default function TotpChallengePage() {
       })
       if (verifyError) throw verifyError
 
-      setChallengeId(challengeData.id)
       router.push(destinationApres2FA())
       router.refresh()
     } catch (err: unknown) {
@@ -161,14 +145,6 @@ export default function TotpChallengePage() {
       setIsSubmitting(false)
     }
   }
-
-  // Initiales de l'établissement pour le fallback logo
-  const initiales = nomEtab
-    .split(' ')
-    .filter(w => w.length > 1)
-    .slice(0, 2)
-    .map(w => w[0].toUpperCase())
-    .join('')
 
   return (
     <div

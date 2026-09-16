@@ -230,7 +230,7 @@ function buildRecap(
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function TempsPresenceClient({
-  currentUserId, currentUserName, role, canSeeAll, canWriteAll, canSeeRecap,
+  currentUserId, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
   slots = [], exceptions = [], classesById = {}, teachers = [],
   vacations = [], feries = [],
@@ -263,7 +263,6 @@ export default function TempsPresenceClient({
   const [selectedDay, setSelectedDay] = useState<string>(dateKey(new Date()))
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [yearEntries, setYearEntries] = useState<TimeEntry[]>([]) // annee scolaire (recap annuel)
-  const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -292,7 +291,6 @@ export default function TempsPresenceClient({
 
   // ── Fetch entries for current month ──────────────────────────────────
   const fetchEntries = useCallback(async () => {
-    setLoading(true)
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const endDate = `${month === 11 ? year + 1 : year}-${String(month === 11 ? 1 : month + 2).padStart(2, '0')}-01`
 
@@ -310,7 +308,6 @@ export default function TempsPresenceClient({
 
     const { data } = await query
     setEntries((data ?? []) as TimeEntry[])
-    setLoading(false)
   }, [year, month, canSeeAll, currentUserId, supabase])
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
@@ -574,7 +571,7 @@ export default function TempsPresenceClient({
     })
     return (
       <div className="flex flex-wrap gap-0.5">
-        {badges.map((data, i) => {
+        {badges.map((data) => {
           const s = staffMap[data.profileId]
           const initials = s ? getInitials(s.first_name, s.last_name) : '??'
           const fullName = s ? `${s.last_name} ${s.first_name}` : ''
@@ -787,7 +784,6 @@ export default function TempsPresenceClient({
               Object.entries(dayByStaff).map(([pid, pEntries]) => {
                 const s = staffMap[pid]
                 const name = s ? `${s.last_name} ${s.first_name}` : '·'
-                const totalMins = pEntries.reduce((sum, e) => sum + e.duration_minutes, 0)
                 return (
                   <div key={pid} className="flex items-start gap-2 py-2">
                     {/* Identite (colonne gauche) : avatar + nom sur une seule ligne, aligne en haut */}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { Users, FileText, AlertTriangle, DollarSign, BookOpenText, ClipboardList, BookOpen, Lightbulb } from 'lucide-react'
+import { Users, FileText, DollarSign, BookOpenText, ClipboardList, BookOpen, Lightbulb } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 
 const ABSENCE_TYPE: Record<string, string> = {

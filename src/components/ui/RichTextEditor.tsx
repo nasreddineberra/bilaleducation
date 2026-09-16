@@ -18,7 +18,6 @@ import {
 interface Props {
   content: string
   onChange: (html: string) => void
-  placeholder?: string
 }
 
 const COLORS = [
@@ -51,7 +50,7 @@ function Btn({ active, onClick, children, title }: { active?: boolean; onClick: 
   )
 }
 
-export default function RichTextEditor({ content, onChange, placeholder }: Props) {
+export default function RichTextEditor({ content, onChange }: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit,

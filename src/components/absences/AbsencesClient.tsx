@@ -232,7 +232,7 @@ export default function AbsencesClient({
   const classStats = useMemo(() => {
     if (!isAllClasses) return []
     const base = new Map(classes.map(c => [c.id, { cls: c, effectif: 0, abs: 0, absNJ: 0, ret: 0 }]))
-    for (const s of students) base.get(s.class_id) && base.get(s.class_id)!.effectif++
+    for (const s of students) { const b = base.get(s.class_id); if (b) b.effectif++ }
     for (const a of periodAbsences) {
       const row = base.get(a.class_id)
       if (!row) continue

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useId, useMemo } from 'react'
+import { useState, useCallback, useId, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { clsx } from 'clsx'
@@ -212,8 +212,8 @@ function fmtMonth(m: string): string {
 
 export default function SyntheseClient({
   yearLabel, schoolYearId, cotisations, teachingCosts,
-  initialExpenses, totalExpenses: initTotalExp,
-  initialRevenues, totalRevenues: initTotalRev,
+  initialExpenses,
+  initialRevenues,
 }: Props) {
   const supabase = createClient()
   // Les degrades sont peints en style INLINE : le pont de theme ne les atteint pas.

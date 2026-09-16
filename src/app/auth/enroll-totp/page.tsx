@@ -5,7 +5,6 @@ import { APP_VERSION } from '@/lib/app-version'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, ShieldCheck, ScanLine, Loader2 } from 'lucide-react'
-import { clsx } from 'clsx'
 
 /**
  * Destination après validation : `next` s'il est fourni, sinon le tableau de

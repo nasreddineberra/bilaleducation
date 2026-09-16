@@ -46,8 +46,8 @@ function teacherShort(p: { first_name: string; last_name: string; civilite?: str
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, isToday, canValidate, isTeacher, isOwnSlot = false,
-  validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onClick, onContextMenu, onKeyMenu, onDelete,
+  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false,
+  validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onContextMenu, onKeyMenu,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `slot-${slot.sourceSlotId}`,

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { user, etablissementId, error } = await requireRole(['admin', 'direction', 'secretaire'])
+    const { etablissementId, error } = await requireRole(['admin', 'direction', 'secretaire'])
     if (error) return error
     if (!etablissementId) {
       return NextResponse.json({ error: 'Établissement non identifié.' }, { status: 403 })

@@ -51,11 +51,13 @@ const ALL_CLASSES = '__all__'
 
 export default function CahierTexteClient({
   role, classes, journalEntries, homeworkEntries,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   teacherId, teacherAssignments, allTeachers, allAssignments, etablissementId,
 }: Props) {
   const [tab, setTab] = useState<'journal' | 'devoirs'>('journal')
   const [search, setSearch] = useState('')
   const [filterClass, setFilterClass] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   const [filterSubject, setFilterSubject] = useState('')
 
   // Restaure la classe sélectionnée depuis l'URL (?class=) au montage — permet de
@@ -111,6 +113,7 @@ export default function CahierTexteClient({
   )
 
   // Sujets uniques pour le filtre
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   const subjects = useMemo(() => {
     const set = new Set<string>()
     journalEntries.forEach(j => { if (j.subject) set.add(j.subject) })

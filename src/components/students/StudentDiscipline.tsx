@@ -133,14 +133,6 @@ export default function StudentDiscipline({
   const [formMotif, setFormMotif] = useState('')
   const [formFiles, setFormFiles] = useState<File[]>([])
 
-  const classMap = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const e of enrollments) {
-      if (e.classes) m.set(e.class_id, e.classes.name)
-    }
-    return m
-  }, [enrollments])
-
   // ─── Compteurs globaux ──────────────────────────────────────────────────────
 
   const counts = useMemo(() => {

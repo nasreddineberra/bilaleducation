@@ -34,7 +34,7 @@ const RELATION_LABEL: Record<string, string> = {
 }
 
 
-export default function ParentsTable({ parents, parentsWithChildren, parentsWithPAI }: ParentsTableProps) {
+export default function ParentsTable({ parents, parentsWithChildren }: ParentsTableProps) {
   const router = useRouter()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }

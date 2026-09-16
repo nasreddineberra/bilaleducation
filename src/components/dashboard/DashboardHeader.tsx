@@ -26,16 +26,7 @@ function formatDate(d: string | null): string {
   })
 }
 
-const PERIOD_FULL_LABELS: Record<string, string> = {
-  T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
-  S1: 'Semestre 1', S2: 'Semestre 2',
-}
-
-function expandPeriodLabel(label: string): string {
-  return PERIOD_FULL_LABELS[label.toUpperCase()] ?? label
-}
-
-export default function DashboardHeader({ firstName, roleLabel, yearLabel, periodLabel, unreadNotifs, recentNotifs }: Props) {
+export default function DashboardHeader({ firstName, roleLabel, unreadNotifs, recentNotifs }: Props) {
   // Rendu cote SERVEUR : sans fuseau, « aujourd'hui » affiche la veille entre
   // minuit et 2 h du matin, heure de Paris.
   const today = formatJourLongFr(new Date())

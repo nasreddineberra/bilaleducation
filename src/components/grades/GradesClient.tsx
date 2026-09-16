@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
-  Check, ChevronRight, ChevronDown, ChevronLeft,
+  ChevronRight, ChevronDown, ChevronLeft,
   BookOpen, AlertCircle, AlertTriangle, RotateCcw, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -448,7 +448,7 @@ export default function GradesClient({
 
   // ── UE toggle ────────────────────────────────────────────────────────────────
   const toggleUE = (id: string) =>
-    setExpandedUEs(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+    setExpandedUEs(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s })
 
   // ── Archivage : les bulletins sont-ils archivés pour cette classe+période ? ─
   const isArchived = useMemo(() =>

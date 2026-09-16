@@ -12,6 +12,7 @@ const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
 // Matière obligatoire côté BDD (homework.subject NOT NULL) : « Général » = valeur
 // littérale 'General' ; la sentinelle sert juste à faire monter le label flottant.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
 const GENERAL = '__general__'
 
 interface Props {
@@ -42,6 +43,7 @@ function LockedField({ label, value }: { label: string; value: string }) {
 }
 
 export default function DevoirForm({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   etablissementId, classId, className, teacherId, teacherLabel, subjects,
   onClose, onSaved, initialData,
 }: Props) {
@@ -51,6 +53,7 @@ export default function DevoirForm({
 
   // '' = Général (converti en littéral 'General' à l'enregistrement)
   const initialSubject = initialData?.subject && initialData.subject !== 'General' ? initialData.subject : ''
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   const [subject, setSubject] = useState<string>(initialSubject)
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [type, setType] = useState<string>(initialData?.homework_type ?? 'exercice')
@@ -180,7 +183,6 @@ export default function DevoirForm({
                 <RichTextEditor
                   content={descriptionHtml}
                   onChange={setDescriptionHtml}
-                  placeholder="Instructions pour le devoir..."
                 />
               </Suspense>
             </div>

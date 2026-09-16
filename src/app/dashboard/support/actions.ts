@@ -306,12 +306,6 @@ function corpsEmail(d: {
   context: { page: string; version: string; navigateur: string }
   pieceJointe: string | null
 }): string {
-  const ligne = (cle: string, valeur: string) => `
-    <tr>
-      <td style="padding:3px 12px 3px 0; color:#786d64; font-size:12px; white-space:nowrap; vertical-align:top;">${escapeHtml(cle)}</td>
-      <td style="padding:3px 0; color:#1f2e35; font-size:12px;">${escapeHtml(valeur)}</td>
-    </tr>`
-
   return coque({
     titre: d.objet,
     apercu: `${d.categorie} — ${d.ecole}`,

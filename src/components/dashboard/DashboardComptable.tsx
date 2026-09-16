@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useMemo } from 'react'
-import { clsx } from 'clsx'
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine,

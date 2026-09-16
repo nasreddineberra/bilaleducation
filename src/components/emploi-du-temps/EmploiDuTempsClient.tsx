@@ -11,7 +11,6 @@ import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
-import SlotCapsule from './SlotCapsule'
 import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
@@ -247,7 +246,7 @@ function isSlotEffective(slot: SlotData, dateStr: string): boolean {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function EmploiDuTempsClient({
-  currentUserId, currentUserName, role, canEdit, schoolYearId,
+  currentUserId, role, canEdit, schoolYearId,
   classes, teachers, slots: initialSlots, exceptions: initialExceptions,
   rooms, coursList, ueList, todayValidations: initialValidations,
   reservedPresenceTypes = [],

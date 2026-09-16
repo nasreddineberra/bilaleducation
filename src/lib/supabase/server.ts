@@ -19,7 +19,7 @@ export async function createClient() {
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value, ...options, ...(domain ? { domain } : {}) })
-          } catch (error) {
+          } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -30,7 +30,7 @@ export async function createClient() {
             // La suppression DOIT porter le même domaine que la pose, sinon le
             // navigateur ne reconnaît pas le cookie à effacer et le garde.
             cookieStore.set({ name, value: '', ...options, ...(domain ? { domain } : {}) })
-          } catch (error) {
+          } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.

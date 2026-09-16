@@ -99,7 +99,6 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
   if (!year) return []
 
   const periods = (year.periods ?? []).sort((a: any, b: any) => a.order_index - b.order_index)
-  const periodIds = periods.map((p: any) => p.id)
 
   const { data: enr } = await supabase
     .from('parent_class_enrollments')
@@ -109,8 +108,6 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
 
   const inscriptions = (enr ?? []).filter((e: any) => e.classes?.cotisation_types?.is_adult)
   if (inscriptions.length === 0) return []
-
-  const classIds = inscriptions.map((e: any) => e.class_id)
 
   // UNE seule source : le bulletin archivé, qui porte ses propres chiffres.
   // Les requêtes `evaluations`, `grades` et `adult_absences` qui servaient à les

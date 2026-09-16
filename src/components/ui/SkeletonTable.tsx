@@ -1,11 +1,5 @@
 // Composant skeleton réutilisable pour les pages à tableau
 
-function SkeletonLine({ width = 'w-full', height = 'h-3' }: { width?: string; height?: string }) {
-  return (
-    <div className={`${height} ${width} rounded bg-warm-100 animate-pulse`} />
-  )
-}
-
 // Skeleton pour une page liste avec stats + barre de recherche + tableau
 export function SkeletonListPage({ rows = 8, cols = 4 }: { rows?: number; cols?: number }) {
   return (

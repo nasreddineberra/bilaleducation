@@ -91,7 +91,6 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
   }, [getSignedUrl])
 
   // Maps
-  const typeMap = useMemo(() => new Map(docTypes.map(d => [d.doc_key, d])), [docTypes])
   const docsByCategory = useMemo(() => {
     const m = new Map<DocumentCategory, DocRow[]>()
     for (const cat of CATEGORIES) m.set(cat.key, [])
@@ -238,8 +237,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
       {CATEGORIES.map(cat => {
         const types = docTypes.filter(d => d.category === cat.key).sort((a, b) => a.order_index - b.order_index)
         const docs = docsByCategory.get(cat.key) ?? []
-        const providedKeys = new Set(docs.map(d => d.doc_type_key))
-
+  
         return (
           <div key={cat.key} className="card">
             <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">

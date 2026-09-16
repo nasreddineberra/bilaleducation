@@ -91,7 +91,6 @@ export default async function BulletinsPage() {
 
   const periods         = (schoolYear?.periods ?? []).sort((a, b) => a.order_index - b.order_index)
   const evalTypeConfigs = schoolYear?.eval_type_configs ?? []
-  const schoolYearId    = schoolYear?.id ?? null
   const yearLabel       = schoolYear?.label ?? null
 
   // 3. Classes (filtrées selon le rôle)

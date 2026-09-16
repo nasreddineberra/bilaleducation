@@ -98,12 +98,6 @@ function buildWorkingDayNames(weekStartDay: number, workingDays: number): string
 
 function todayISO() { return new Date().toISOString().slice(0, 10) }
 
-function isYearActive(sy: { start_date: string | null; end_date: string | null } | null | undefined): boolean {
-  if (!sy?.start_date || !sy?.end_date) return false
-  const today = todayISO()
-  return today >= sy.start_date && today <= sy.end_date
-}
-
 function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -196,7 +190,6 @@ export default function ClassForm({
     message: string
   } | null>(null)
 
-  const yearActive        = isYearActive(currentSchoolYear)
   const hasActiveMain     = assignments.some(a => !a.effective_until && a.is_main_teacher)
   // N'exclut que les enseignants avec une affectation ACTIVE (titulaire actif ou
   // remplacement en cours) — ceux qui ne sont qu'en historique restent sélectionnables.
@@ -246,8 +239,6 @@ export default function ClassForm({
     setShowAddRow(false)
   }
 
-  const handleRemoveAssignment = (teacher_id: string) =>
-    setAssignments(prev => prev.filter(a => a.teacher_id !== teacher_id))
   const removeAssignmentAt = (idx: number) =>
     setAssignments(prev => prev.filter((_, i) => i !== idx))
   // Toute suppression est confirmée.

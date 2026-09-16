@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
@@ -55,8 +55,8 @@ function getReceiptPrefix() {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function PaymentModal({
-  familyFeeId, parentId, schoolYearId,
-  subtotal, totalDue, remaining, paymentNumber,
+  familyFeeId,
+  totalDue, remaining, paymentNumber,
   editingPayment,
   onEnsureFamilyFee, onClose, onSaved,
 }: Props) {

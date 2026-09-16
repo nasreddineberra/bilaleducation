@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Power, Bell, ChevronRight, Sun, Moon } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -214,8 +214,7 @@ interface DashboardNavProps {
   supportEcole?: string | null
 }
 
-export default function DashboardNav({ user, profile, unreadNotifCount = 0, supportEcole = null }: DashboardNavProps) {
-  const router    = useRouter()
+export default function DashboardNav({ profile, unreadNotifCount = 0, supportEcole = null }: DashboardNavProps) {
   const pathname  = usePathname()
   const { collapsed } = useSidebar()
   const { theme, toggle } = useTheme()

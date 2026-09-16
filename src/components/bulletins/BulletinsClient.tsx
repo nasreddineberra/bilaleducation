@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useRef } from 'react'
 import {
   Download, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare,
 } from 'lucide-react'
@@ -154,7 +154,7 @@ export type BulletinData = {
 export default function BulletinsClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
   evaluations, students, grades, absences, etablissement, yearLabel,
-  etablissementId, initialArchives, initialAppreciations, orderConfigs,
+  etablissementId, initialArchives, initialAppreciations,
 }: Props) {
 
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
@@ -246,7 +246,8 @@ export default function BulletinsClient({
     const supabase = createClient()
     const { data, error } = await supabase.storage.from('bulletins').createSignedUrl(path, 60)
     if (error || !data?.signedUrl) { w?.close(); setArchiveError('Impossible d’ouvrir le bulletin archivé.'); return }
-    w ? (w.location.href = data.signedUrl) : window.open(data.signedUrl, '_blank')
+    if (w) w.location.href = data.signedUrl
+    else window.open(data.signedUrl, '_blank')
   }, [archivePathMap])
 
   // Appréciations pour la classe+période sélectionnée

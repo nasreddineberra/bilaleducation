@@ -431,7 +431,7 @@ function getInitiales(nom: string): string {
     .join('') || 'BE'
 }
 
-export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante, auteur }: DashboardSidebarProps) {
+export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante }: DashboardSidebarProps) {
   const pathname   = usePathname()
 
   const { collapsed, setCollapsed } = useSidebar()

@@ -82,19 +82,6 @@ function shapeArabic(doc: JsPDFType, s: string): string {
 const hasArabic = (s: string | null | undefined) =>
   !!s && /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(s)
 
-/** « Lecture · القراءة » : les deux noms sur une meme ligne.
- *  L'arabe est mis en formes contextuelles ; sans police chargee on rend le
- *  francais seul, plutot qu'une suite de carres. */
-function bilingual(doc: JsPDFType, fr: string, ar: string | null | undefined, fontReady: boolean): string {
-  if (!fontReady || !hasArabic(ar)) return fr
-  return `${fr} · ${shapeArabic(doc, (ar as string).trim())}`
-}
-
-/** Style de police a appliquer a UNE cellule selon son contenu.
- *  Jamais au tableau entier : Noto Sans Arabic n'a pas les etoiles ★ ☆ des
- *  evaluations etoilees, qui doivent rester dans la police latine. */
-const arFont = (label: string) => (hasArabic(label) ? { font: AR_FONT_NAME } : {})
-
 // ─── Chargement du logo en base64 ────────────────────────────────────────────
 
 async function loadImageAsBase64(url: string): Promise<string | null> {

@@ -80,7 +80,7 @@ function stripHtml(html: string): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function NotificationsClient({ notifications, role, parentId, yearLabel }: Props) {
+export default function NotificationsClient({ notifications, role, yearLabel }: Props) {
   const [search, setSearch] = useState('')
   // Valeur « all » non vide : sinon le label flottant du FloatSelect chevauche l'option.
   const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all')
