@@ -3778,9 +3778,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] Executer `supabase/migrations/drop-bulletin-archives-file-url.sql` (colonne morte depuis le
+- [x] Executer `supabase/migrations/drop-bulletin-archives-file-url.sql` (colonne morte depuis le
   25 juillet, les deux tables d'archives) et **rejouer** `guard-student-parent-delete.sql` (messages
-  neutres en genre).
+  neutres en genre). Jouees le 16 septembre.
 - [x] Executer `supabase/migrations/guard-enrollments-one-active-per-year.sql` : un apprenant n'a
   qu'une classe active **par annee scolaire** (declencheur ; l'index partiel aurait refuse chaque
   eleve qui revient a la rentree, la purge conservant les inscriptions). **Eprouve sur 3 cas.**
