@@ -16,9 +16,26 @@ import type { SupportRequestRow } from './SupportRequestsClient'
 export default function SupportRequestDetailModal({
   demande,
   onClose,
+  vue = 'ecole',
+  ecole = null,
+  signer = getSupportAttachmentUrl,
 }: {
   demande: SupportRequestRow
   onClose: () => void
+  /**
+   * Qui regarde. L'ÉCOLE lit « votre demande » et un conseil sur SA messagerie ;
+   * l'ÉDITEUR lit d'où elle vient et si elle lui est bien parvenue. Même
+   * modale, deux lecteurs : le texte doit s'adresser à celui qui l'a ouverte.
+   */
+  vue?: 'ecole' | 'editeur'
+  /** Nom de l'établissement, affiché seulement en vue éditeur. */
+  ecole?: string | null
+  /**
+   * Action qui signe la pièce jointe. L'école passe par la session (la RLS
+   * borne à son établissement) ; l'éditeur doit fournir la sienne, la RLS ne
+   * lui montrant rien.
+   */
+  signer?: (id: string) => Promise<{ url?: string; error?: string }>
 }) {
   const [erreurPJ, setErreurPJ] = useState('')
 
@@ -27,7 +44,7 @@ export default function SupportRequestDetailModal({
     // Onglet ouvert AVANT l'attente : ouvert après, le navigateur le prend pour
     // une fenêtre surgissante et le bloque. Leçon de l'attestation de paiement.
     const onglet = window.open('', '_blank')
-    const res = await getSupportAttachmentUrl(demande.id)
+    const res = await signer(demande.id)
     if (res.url) {
       if (onglet) onglet.location.href = res.url
       else window.open(res.url, '_blank')
@@ -46,7 +63,7 @@ export default function SupportRequestDetailModal({
 
   return (
     <FormModal
-      title="Demande envoyée au support"
+      title={vue === 'editeur' ? 'Demande de support' : 'Demande envoyée au support'}
       onClose={onClose}
       maxWidth="max-w-lg"
       footer={
@@ -94,7 +111,12 @@ export default function SupportRequestDetailModal({
           : 'bg-amber-50 text-amber-700'
       )}>
         {demande.email_status === 'sent' ? (
-          'Notification transmise au support.'
+          vue === 'editeur' ? 'Reçue par email.' : 'Notification transmise au support.'
+        ) : vue === 'editeur' ? (
+          <>
+            <strong>Non reçue par email.</strong> L&apos;école a bien déposé cette demande, mais sa
+            messagerie n&apos;a pas pu l&apos;envoyer : vous ne l&apos;avez vue qu&apos;ici.
+          </>
         ) : (
           <>
             <strong>Notification non transmise.</strong> Votre demande est bien enregistrée et
@@ -105,6 +127,7 @@ export default function SupportRequestDetailModal({
       </div>
 
       <dl className="space-y-1 text-xs border-t border-warm-100 pt-3">
+        {vue === 'editeur' && ecole && info('École', ecole)}
         {info('Auteur',     `${demande.author_name} (${demande.author_role})`)}
         {info('Email',      demande.author_email)}
         {info('Page',       demande.context?.page || 'Non renseignée')}

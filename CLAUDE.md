@@ -3492,6 +3492,23 @@ double fausserait tout en silence.
   desormais dans son propre bloc d'exception, et l'eleve est choisi RETIRABLE (les 4 criteres exacts
   de ce garde-fou).
 
+**DETTE n°7 — LES DEMANDES DE SUPPORT DANS LA CONSOLE** (`/superadmin/support`, entree « Demandes
+de support » dans la barre laterale de l'editeur). Une demande est ECRITE en base avant d'etre
+envoyee par email (8 aout) — c'est ce qui permet de signaler « ma messagerie ne marche plus ». Mais
+ce garde-fou n'avait de sens que si quelqu'un lisait la table : une demande dont l'email n'etait pas
+parti existait sans que personne ne la voie.
+- **Client SERVICE-ROLE** sur la page : l'editeur n'appartient a aucune ecole, la RLS de
+  `support_requests` ne lui montre rien. Garde = celle du layout `(protected)` (colonne brute).
+- **`SupportRequestsConsoleClient` CALQUE sur celui de l'ecole** (memes classes, memes filtres
+  memorises), plus une colonne et un filtre Etablissement (propose seulement s'il y a plus d'une
+  ecole), sans bouton d'envoi. Sous-titre : « N demandes · N non reçues par email ».
+- **`SupportRequestDetailModal` gagne une vue `editeur`** : son texte s'adressait a l'ecole
+  (« vérifiez la messagerie de l'établissement »). Meme modale, deux lecteurs — le texte doit parler
+  a celui qui l'a ouverte. Et une prop `signer` : l'action de l'ecole signe la PJ via la session,
+  l'editeur fournit `getSupportAttachmentUrlEditeur` (`requireEditor` + cle service).
+- « Reçue / Non reçue » plutot que « Transmise / Non transmise » : cote editeur la question est
+  « l'ai-je eue dans ma boite ? ».
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3539,8 +3556,7 @@ double fausserait tout en silence.
 > ecoles, enrolement TOTP des comptes restants, et un compte de CHAQUE ROLE a eprouver depuis
 > la passe RLS du 5 aout (une policy trop stricte ne leve pas d'erreur : elle vide l'ecran).
 >
-> **Idee en attente** : liste des demandes de support dans la console de l'editeur. La table
-> `support_requests` existe et se lit ; aujourd'hui elles n'arrivent que par email.
+> **Demandes de support dans la console : FAIT le 16 septembre** (`/superadmin/support`).
 >
 > **Phase 4 bis (console super-admin) : TERMINEE le 7 aout** — securite, charte et ajouts.
 

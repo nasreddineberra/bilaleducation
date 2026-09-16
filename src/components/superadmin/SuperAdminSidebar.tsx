@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Building2, Activity, Power } from 'lucide-react'
+import { Building2, Activity, LifeBuoy, Power } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import { APP_VERSION } from '@/lib/app-version'
@@ -86,6 +86,12 @@ export default function SuperAdminSidebar({ nom }: SuperAdminSidebarProps) {
           libelle="Santé des écoles"
           icone={<Activity className="w-[18px] h-[18px] flex-shrink-0" />}
           actif={pathname.startsWith('/superadmin/sante')}
+        />
+        <Item
+          href="/superadmin/support"
+          libelle="Demandes de support"
+          icone={<LifeBuoy className="w-[18px] h-[18px] flex-shrink-0" />}
+          actif={pathname.startsWith('/superadmin/support')}
         />
       </nav>
 

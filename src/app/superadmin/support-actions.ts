@@ -139,3 +139,39 @@ export async function leaveSchool(): Promise<{ error?: string }> {
 
   return {}
 }
+
+/**
+ * URL signée d'une pièce jointe de demande de support, vue depuis la CONSOLE.
+ *
+ * L'action de l'école (`dashboard/support/actions.ts`) lit la ligne avec le
+ * client SESSION et s'en remet à la RLS. Ici la RLS ne montre RIEN : l'éditeur
+ * n'appartient à aucun établissement, `current_etablissement_id()` vaut NULL.
+ * D'où la clé service, gardée par `requireEditor()` — et non `requireRoleServer`,
+ * qui compare le rôle EFFECTIF et refuserait l'éditeur en intervention.
+ */
+export async function getSupportAttachmentUrlEditeur(
+  id: string
+): Promise<{ url?: string; error?: string }> {
+  const { error: garde } = await requireEditor()
+  if (garde) return { error: garde }
+
+  const admin = createAdminClient()
+
+  const { data } = await admin
+    .from('support_requests')
+    .select('attachment_path')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!data?.attachment_path) return { error: 'Aucune pièce jointe.' }
+
+  const { data: signe, error } = await admin.storage
+    .from('support-attachments')
+    .createSignedUrl(data.attachment_path, 60)
+
+  if (error || !signe) {
+    console.error('[console/support] signature de la pièce jointe:', error)
+    return { error: "Le fichier n'a pas pu être ouvert." }
+  }
+  return { url: signe.signedUrl }
+}
