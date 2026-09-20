@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -74,13 +75,16 @@ function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// Une balise devient un ESPACE, pas rien : sinon « </p><p> » soude deux
+// paragraphes (« staffCordialement »). Les espaces multiples se replient.
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+  return html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function NotificationsClient({ notifications, role, yearLabel }: Props) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   // Valeur « all » non vide : sinon le label flottant du FloatSelect chevauche l'option.
   const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all')
@@ -125,6 +129,9 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
     } else {
       await supabase.from('announcement_recipients').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notif.id)
     }
+    // Le badge de la cloche est rendu par le layout, que cette page ne
+    // re-rend pas : on le lui demande.
+    router.refresh()
   }
 
   const isParent = role === 'parent'

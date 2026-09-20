@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import NotificationDetailClient from '@/components/notifications/NotificationDetailClient'
+import RafraichirBadge from '@/components/notifications/RafraichirBadge'
 
 export default async function NotificationDetailPage({
   params,
@@ -52,14 +53,19 @@ export default async function NotificationDetailPage({
     })
   )
 
-  // Marquer comme lu si rid fourni
+  // Marquer comme lu si rid fourni. `.select('id')` dit si une ligne a
+  // reellement basculé : c'est ce qui déclenche (une seule fois) le recalcul
+  // du badge de la cloche, rendu par le layout.
+  let vientDEtreMarquee = false
   if (rid && rt) {
     const table = rt === 'parent' ? 'announcement_recipients' : 'announcement_staff_recipients'
-    await supabase
+    const { data: marquees } = await supabase
       .from(table)
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('id', rid)
       .eq('is_read', false)
+      .select('id')
+    vientDEtreMarquee = (marquees?.length ?? 0) > 0
   }
 
   return (
@@ -74,6 +80,8 @@ export default async function NotificationDetailPage({
         <ChevronLeft size={15} />
         Retour aux notifications
       </Link>
+
+      <RafraichirBadge actif={vientDEtreMarquee} />
 
       <NotificationDetailClient
         message={message as any}
