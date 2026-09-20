@@ -47,81 +47,100 @@ export async function POST(req: NextRequest) {
     const HW_TYPE_LABELS: Record<string, string> = {
       exercice: 'Exercice',
       lecon: 'Leçon à apprendre',
-      expose: 'Expose',
+      expose: 'Exposé',
       autre: 'Devoir',
     }
     const typeLabel = HW_TYPE_LABELS[hw.homework_type] ?? 'Devoir'
-
-    const title = `Nouveau devoir · ${className}`
-    const body = `${hw.title} (${typeLabel}) · A rendre le ${dueFormatted}`
+    // 'General' est la valeur stockee (sentinelle sans accent, cf. DevoirForm) ;
+    // la famille lit « Général ».
+    const matiere = hw.subject === 'General' ? 'Général' : hw.subject
 
     const ecole = await marqueEcole(supabase, etablissementId)
 
-    // Coque a la marque de L'ECOLE : la famille recoit un devoir de son
-    // etablissement. Le pied affichait « Bilal Education · Notification
-    // automatique » - le fournisseur du logiciel signait le message.
-    const emailHtml = coque({
-      titre: title,
-      apercu: body,
-      corps: [
-        tableauInfos([
-          ["Classe", className],
-          ["Matiere", hw.subject],
-          ["Type", typeLabel],
-          ["Titre", hw.title],
-          ["A rendre le", `<strong>${dueFormatted}</strong>`],
-          ["Enseignant", teacherLabel],
-        ]),
-        // Consignes redigees dans l'editeur riche : deja du HTML.
-        hw.description_html
-          ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${hw.description_html}</div>`
-          : "",
-      ].filter(Boolean).join('\n'),
-      ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },
-    })
-
-    // 3. Construire les destinataires selon le type de classe.
-    // - Classe enfant : élèves inscrits → parent (email aux 2 tuteurs du foyer).
-    // - Classe adulte : participants (tuteurs) → email UNIQUEMENT au tuteur inscrit.
-    type Recipient = { parent_id: string; tutor_number?: number; emailsOverride?: string[] }
+    // 3. Destinataires selon le type de classe, AVEC les personnes concernees :
+    // le mail est construit PAR FOYER pour pouvoir nommer l'enfant. Un parent
+    // ne connait pas forcement le code de la classe de son enfant (vu sur le
+    // premier envoi reel, 20/09) ; « lequel de mes enfants ? » est sa premiere
+    // question. Une fratrie dans la meme classe donne plusieurs noms.
+    // - Classe enfant : eleves inscrits → foyer (email aux 2 tuteurs).
+    // - Classe adulte : participant = le tuteur inscrit, email a lui seul.
+    type Recipient = {
+      parent_id: string
+      tutor_number?: number
+      emailsOverride?: string[]
+      concernes: string[]       // « NOM Prenom » des eleves / du participant
+    }
     const recipients: Recipient[] = []
 
     if (isAdult) {
       const { data: participants } = await supabase
         .from('parent_class_enrollments')
-        .select('parent_id, tutor_number, parents:parent_id(tutor1_email, tutor2_email)')
+        .select('parent_id, tutor_number, parents:parent_id(tutor1_email, tutor2_email, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
         .eq('class_id', hw.class_id)
         .eq('status', 'active')
 
       for (const p of (participants ?? []) as any[]) {
-        const email = p.tutor_number === 1 ? p.parents?.tutor1_email : p.parents?.tutor2_email
+        const t = p.tutor_number === 1 ? 1 : 2
+        const email = p.parents?.[`tutor${t}_email`]
+        const nom = `${p.parents?.[`tutor${t}_last_name`] ?? ''} ${p.parents?.[`tutor${t}_first_name`] ?? ''}`.trim()
         recipients.push({
           parent_id: p.parent_id,
           tutor_number: p.tutor_number,
           // Toujours forcé (même vide) : ne jamais retomber sur les 2 emails du foyer.
           emailsOverride: email ? [email] : [],
+          concernes: nom ? [nom] : [],
         })
       }
     } else {
       const { data: enrollments } = await supabase
         .from('enrollments')
-        .select('student_id, students:student_id(id, parent_id)')
+        .select('student_id, students:student_id(id, parent_id, last_name, first_name)')
         .eq('class_id', hw.class_id)
         .eq('status', 'active')
 
-      const parentIds = [...new Set(
-        (enrollments as any[] ?? [])
-          .map(e => e.students?.parent_id)
-          .filter(Boolean)
-      )]
-      for (const id of parentIds) recipients.push({ parent_id: id })
+      const parFoyer = new Map<string, string[]>()
+      for (const e of (enrollments as any[] ?? [])) {
+        const st = e.students
+        if (!st?.parent_id) continue
+        const liste = parFoyer.get(st.parent_id) ?? []
+        liste.push(`${st.last_name} ${st.first_name}`)
+        parFoyer.set(st.parent_id, liste)
+      }
+      for (const [parent_id, concernes] of parFoyer) recipients.push({ parent_id, concernes })
     }
 
     if (recipients.length === 0) return NextResponse.json({ ok: true, sent: 0 })
 
-    // 4. Send notifications
+    // 4. Un mail par foyer, qui nomme qui est concerne.
     let sent = 0
     for (const r of recipients) {
+      const qui = r.concernes.join(' · ')
+      const title = qui ? `Nouveau devoir · ${qui}` : `Nouveau devoir · ${className}`
+      const body = `${hw.title} (${typeLabel}) · À rendre le ${dueFormatted}`
+
+      // Coque a la marque de L'ECOLE : la famille recoit un devoir de son
+      // etablissement, pas du fournisseur du logiciel.
+      const emailHtml = coque({
+        titre: title,
+        apercu: body,
+        corps: [
+          tableauInfos(([
+            [isAdult ? 'Participant' : (r.concernes.length > 1 ? 'Élèves' : 'Élève'), qui],
+            ['Classe', className],
+            ['Matière', matiere],
+            ['Type', typeLabel],
+            ['Titre', hw.title],
+            ['À rendre le', `<strong>${dueFormatted}</strong>`],
+            ['Enseignant', teacherLabel],
+          ] as [string, string][]).filter(([, v]) => !!v)),
+          // Consignes redigees dans l'editeur riche : deja du HTML.
+          hw.description_html
+            ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${hw.description_html}</div>`
+            : '',
+        ].filter(Boolean).join('\n'),
+        ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },
+      })
+
       await createNotification({
         etablissement_id: etablissementId,
         type: 'homework',
