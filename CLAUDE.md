@@ -3579,6 +3579,36 @@ a lire avec un avis par cas, ils peuvent CHANGER un comportement.
   mauvais endroit avant de s'en apercevoir, rattrapees par le lint lui-meme.
 **Reste : 501 `any`** (chantier a part) et 1 avis du compilateur sans regle de dependance associee.
 
+#### 20 septembre 2026 — PREMIER ENVOI REEL : Vercel interdit le require() d'un module ESM
+
+Messagerie de l'ecole configuree (Gmail, mot de passe d'application) et test de connexion recu en
+boite de reception. Premier envoi au staff : **erreur React #441** (erreur serveur, message masque
+en production), rien d'ecrit en base. Le journal Vercel a donne la cause :
+`ERR_REQUIRE_ESM : require() of ES Module @exodus/bytes/encoding-lite.js from html-encoding-sniffer`.
+
+- **Ce n'etait pas Node** (piste suivie d'abord, a tort) : les fonctions tournent bien en 24.x,
+  verifie dans le resume du deploiement. **Vercel lance ses fonctions avec
+  `--no-experimental-require-module`**, qui desactive le `require()` d'un ESM quelle que soit la
+  version de Node. jsdom >= 27.4 a dans sa chaine un module ESM pur charge par `require()` : il ne
+  peut pas se charger sur Vercel. Documente par plusieurs projets touches depuis l'ete.
+- **Reproduit en local** avec le drapeau : `node --no-experimental-require-module -e "require('jsdom')"`
+  echoue sur Node 24.13. C'est ce qui manquait aux tests de sanitisation serveur des 10 juillet et
+  16 aout, faits en Node nu. **Regle** : eprouver un module externe serveur SOUS le drapeau de Vercel.
+- **Correctif : jsdom epingle en `26.1.0`** (descente depuis 29.0.2, derniere chaine 100 % CommonJS).
+  Un seul fichier l'importe (`sanitize.ts`), aucune autre dependance de l'arbre n'en depend
+  (`npm ls jsdom`) : aucun effet de bord. DOMPurify (3.4.14) porte les regles de sanitisation, jsdom
+  ne fournit que le `window`. Preuve : la meme commande passe apres epinglage, et `sanitize()` neutralise
+  toujours `onclick` / `javascript:` / `<script>`. Type-check et build verts.
+  - Ecartes : `NODE_OPTIONS=--experimental-require-module` (l'argument de ligne de commande de Vercel
+    prime) ; laisser Turbopack embarquer jsdom (requires conditionnels, pari sur le bundler) ; un autre
+    DOM ou un autre sanitiseur cote serveur (deux configurations de securite a tenir alignees).
+- **Portee reelle** : les trois seules actions qui sanitisent cote serveur — message parents, message
+  staff, relance de paiement — n'avaient JAMAIS fonctionne en production. Le navigateur sanitise avec
+  son `window` natif, non touche.
+- **`npm audit` apres l'epinglage : 9 avis, aucun sur la chaine jsdom**, tous nouveaux depuis le
+  16 aout — dont un **critique sur Next 16.3.1** (RCE via l'API d'optimisation d'images en AVIF) et
+  4 sur nodemailer. **A traiter en chantier a part**, juste apres les envois reels.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
