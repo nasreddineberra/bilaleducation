@@ -323,7 +323,8 @@ export default function NewMessageClient({
       else                    toast.success(base)
 
       setSubject('')
-      setBodyHtml('')
+      // Un nouveau message repart de la signature, comme à l'ouverture.
+      setBodyHtml(signatureHtml)
       setAttachments([])
       setTargetType(null)
       setSelectedClassId(null)

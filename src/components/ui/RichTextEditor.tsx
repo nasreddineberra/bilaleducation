@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -71,6 +72,17 @@ export default function RichTextEditor({ content, onChange }: Props) {
       },
     },
   })
+
+  // TipTap ne lit `content` qu'à la création. Quand le parent remet le corps
+  // à zéro après un envoi, l'éditeur gardait l'ancien texte (vu le 20/09).
+  // Garde d'égalité : à chaque frappe le parent reçoit `getHTML()`, la prop
+  // vaut donc déjà le contenu et rien n'est réécrit — pas de boucle, pas de
+  // curseur déplacé.
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content, { emitUpdate: false })
+    }
+  }, [editor, content])
 
   if (!editor) return null
 

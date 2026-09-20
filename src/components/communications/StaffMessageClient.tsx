@@ -237,7 +237,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
       if (result.failed) toast.error(`${base} · ${result.failed} échec(s).`)
       else               toast.success(base)
 
-      setSubject(''); setBodyHtml(''); setAttachments([])
+      setSubject(''); setBodyHtml(signatureHtml); setAttachments([])
       setSelectedRoles(new Set()); setSelectedIds(new Set())
     } catch (err: any) {
       toast.error(err.message ?? "Erreur lors de l'envoi")
