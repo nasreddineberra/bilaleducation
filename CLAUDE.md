@@ -3609,6 +3609,44 @@ en production), rien d'ecrit en base. Le journal Vercel a donne la cause :
   16 aout — dont un **critique sur Next 16.3.1** (RCE via l'API d'optimisation d'images en AVIF) et
   4 sur nodemailer. **A traiter en chantier a part**, juste apres les envois reels.
 
+#### 20 septembre 2026 (suite) — LE CIRCUIT ECOLE EST BOUCLE : cinq envois reels, cinq recus
+
+Apres le correctif jsdom : test de connexion, message au staff, message aux parents (par classe),
+devoir, relance de paiement — tous partis par le SMTP de l'ecole (Gmail, mot de passe
+d'application) et tous recus. Gabarits a la marque de l'ecole vus pour la premiere fois : logo sur
+plaque blanche dans le bandeau teal, signature en pied, `Reply-To` = contact de l'ecole verifie en
+cliquant « Repondre ». Ce qui a ete corrige en chemin, chaque fois sur un constat a l'ecran ou dans
+la source d'un mail :
+- **Delivrabilite** (source d'un mail classe indesirable par Outlook.com avec SPF/DKIM/DMARC tous
+  `pass`) : le message partait en `text/html` SEUL et emportait les 6 commentaires de developpement
+  de `shell.mjs`. Nouveau `src/lib/email/corps-mail.ts` (`preparerCorps` : commentaires retires +
+  version texte derivee), branche au seul point d'envoi. `shell.mjs` intact — il engendre aussi les
+  gabarits Supabase, verifies octet par octet. **Le score Outlook n'a pas bouge (SCL 5)** : reste la
+  reputation d'une adresse Gmail jamais vue, relayee depuis AWS, avec un `Reply-To` sur un autre
+  domaine (voulu pour le staff). Rien de plus a corriger dans l'app ; expediteur approuve sur les
+  boites du staff. Gmail, lui, classe en boite de reception.
+- **Badge de la cloche fige** apres lecture d'une notification : le compteur vit dans le LAYOUT,
+  que l'ouverture d'une page ne re-rend pas (revers de la note du 10 aout). `router.refresh()`
+  apres le marquage, garde par « une ligne vient d'etre marquee » (`.select('id')`) pour ne pas
+  boucler. `stripHtml` de la liste soudait les paragraphes (« staffCordialement ») : une balise
+  devient un espace.
+- **Le corps ne se remettait pas a zero** apres un envoi (Parents et Staff) : TipTap ne lit
+  `content` qu'a la creation. `RichTextEditor` se synchronise quand la prop change (garde d'egalite,
+  pas de boucle), et les deux ecrans repartent de la SIGNATURE, pas d'un corps vide.
+- **L'email de devoir ne nommait pas l'enfant** (releve par l'utilisateur : un parent ne connait
+  pas forcement le code de la classe). Le mail etait construit une fois pour la classe ; il l'est
+  desormais PAR FOYER — objet « Nouveau devoir · NOM Prenom » (fratrie : plusieurs noms), ligne
+  « Eleve » en tete du tableau, « Participant » pour une classe adulte. Accents retablis dans ce
+  gabarit (Matiere, A rendre le, Expose, General → avec accents : le SQL est sans accent, pas les
+  emails).
+- **A reprendre en passe de fin** : les toasts d'envoi accordent en « (s) » (« 3 email(s)
+  envoye(s) ») la ou le projet accorde en toutes lettres.
+
+**Regle de test tiree de la soiree** : un module externe serveur s'eprouve SOUS le drapeau de
+Vercel (`node --no-experimental-require-module`), et un envoi d'email s'eprouve en lisant la SOURCE
+du message recu (structure MIME, commentaires, `Authentication-Results`, `SCL`), pas seulement en
+constatant qu'il arrive.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3622,6 +3660,9 @@ en production), rien d'ecrit en base. Le journal Vercel a donne la cause :
 > 2 notifications de securite activees. **Premier email reel envoye et reçu**, parcours
 > complet : mot de passe oublie → email → page de confirmation → nouveau mot de passe →
 > notification « Mot de passe modifie ».
+>
+> **MESSAGERIE DE L'ECOLE : EPROUVEE LE 20 SEPTEMBRE** (cinq envois reels recus, voir plus haut).
+> Le paragraphe qui suit est conserve pour memoire.
 >
 > **AU PROCHAIN DEMARRAGE (decide le 9 aout au soir) : LA MESSAGERIE DE L'ECOLE.**
 > C'est le circuit 2, **jamais eprouve** — distinct de l'authentification, qui elle fonctionne.
