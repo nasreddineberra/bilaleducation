@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { coque, p, pDoux } from '@/lib/email/shell.mjs'
+import { preparerCorps } from '@/lib/email/corps-mail'
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 // La messagerie est propre a chaque etablissement (l'app est multi-etablissement),
@@ -126,6 +127,9 @@ export async function sendNotificationEmail(params: {
   const resolved = await getTransporter(params.etablissementId)
   if (!resolved) return { success: false, error: SMTP_NOT_CONFIGURED }
 
+  // Commentaires retirés + version texte : voir `corps-mail.ts`.
+  const corps = preparerCorps(params.html)
+
   try {
     await resolved.transporter.sendMail({
       from:    formatFrom(resolved.config),
@@ -133,7 +137,8 @@ export async function sendNotificationEmail(params: {
       bcc:     bcc.length > 0 ? bcc.join(', ') : undefined,
       replyTo: params.replyTo || undefined,
       subject: params.subject,
-      html:    params.html,
+      html:    corps.html,
+      text:    corps.text,
       attachments: params.attachments?.map(a => ({
         filename:    a.filename,
         content:     a.content,
@@ -165,21 +170,23 @@ export async function verifySmtpConfig(c: SmtpConfig): Promise<{ ok: boolean; er
 /** Envoie un message de test avec une config donnee. */
 export async function sendTestEmail(c: SmtpConfig, to: string): Promise<{ ok: boolean; error?: string }> {
   const transporter = buildTransporter(c)
+  // Coque de l'ÉDITEUR : c'est un diagnostic de l'application, pas un
+  // message de l'école à quelqu'un.
+  const corps = preparerCorps(coque({
+    titre: 'La messagerie fonctionne',
+    apercu: "Votre configuration SMTP est opérationnelle.",
+    corps: [
+      p('Ce message confirme que la configuration SMTP de votre établissement est opérationnelle. Les communications aux familles peuvent être envoyées.'),
+      pDoux(`Message de test &middot; expédié par ${c.from_email}`),
+    ].join('\n'),
+  }))
   try {
     await transporter.sendMail({
       from:    formatFrom(c),
       to,
       subject: 'Test de la messagerie',
-      // Coque de l'ÉDITEUR : c'est un diagnostic de l'application, pas un
-      // message de l'école à quelqu'un.
-      html: coque({
-        titre: 'La messagerie fonctionne',
-        apercu: "Votre configuration SMTP est opérationnelle.",
-        corps: [
-          p('Ce message confirme que la configuration SMTP de votre établissement est opérationnelle. Les communications aux familles peuvent être envoyées.'),
-          pDoux(`Message de test &middot; expédié par ${c.from_email}`),
-        ].join('\n'),
-      }),
+      html:    corps.html,
+      text:    corps.text,
     })
     return { ok: true }
   } catch (e: any) {
