@@ -111,7 +111,12 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 export default function StaffMessageClient({ staffMembers, etablissementId, smtpConfigured, signatureHtml }: Props) {
   const toast = useToast()
-  const [channel, setChannel] = useState<StaffChannel>('notification')
+  // « Les deux » par defaut (choix utilisateur, 21/09) : un message interne doit
+  // atteindre le destinataire meme s'il n'ouvre pas l'application ce jour-la, et
+  // la cloche garde la trace consultable. Consequence assumee : une ecole sans
+  // messagerie configuree voit d'emblee la banniere de blocage — c'est coherent,
+  // la messagerie est un prerequis d'ouverture.
+  const [channel, setChannel] = useState<StaffChannel>('both')
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [subject, setSubject] = useState('')
