@@ -3670,6 +3670,35 @@ Releves la veille par `npm audit` apres l'epinglage de jsdom, tous apparus depui
   premiere mise en service reelle : un **envoi d'email** (nodemailer) et l'**editeur riche**
   (TipTap : gras, lien, envoi).
 
+#### 21 septembre 2026 (suite) — Palette de l'editeur riche : en tas a l'ecran, et un tiers illisible
+
+Trouve en reprouvant l'editeur riche apres la montee de TipTap (capture utilisateur).
+
+- **MISE EN PAGE** : le panneau etait en `grid-cols-5`, soit cinq colonnes en `1fr`, sur un element
+  en `position:absolute` **sans largeur**. Sa largeur se calcule alors sur son contenu, et des
+  colonnes en `1fr` n'y contribuent pour RIEN : le conteneur se repliait et les pastilles de 20 px
+  debordaient de leurs colonnes en se chevauchant. Colonnes de largeur **explicite**
+  (`grid-cols-[repeat(6,1.25rem)]`) + `w-max`. **Regle** : dans une boite a largeur intrinseque
+  (absolu, `w-fit`, `inline-*`), une grille doit porter des pistes de taille explicite.
+- **COULEURS — quatre sur quinze etaient sous le seuil de lisibilite.** Les 15 valeurs Tailwind
+  d'origine avaient ete choisies a la main, hors tokens. Mesure sur blanc (le fond de la carte du
+  mail, verrouille en clair par `color-scheme: only light`) : `#f59e0b` **2,15**, `#10b981` 2,54,
+  `#16a34a` 3,30, `#ea580c` 3,56 — sous le seuil AA du petit texte (4,5:1). Un parent ne lisait pas
+  un devoir ecrit en ambre. Et les 15 n'etaient que 3 declinaisons de 5 teintes, plusieurs
+  indiscernables.
+- **Six couleurs retenues, toutes >= 5:1 sur blanc**, prises dans les tokens et la palette dataviz
+  deja validee : Encre `#1f2e35` (14,0) · Marque `#0c5b51` (7,98) · Bleu `#1d5aa8` (6,82) · Violet
+  `#4a3aa7` (8,56) · Rouge `#b3261e` (6,54) · Orange `#a35c00` (5,14).
+  - **L'orange et le bleu de la charte sont ASSOMBRIS** : a leur valeur d'aplat (`#cc8200` = 3,11 ;
+    `#2a78d6` = 4,42) ils echouent comme texte. **Ce sont des couleurs d'ENCRE, pas d'aplat** — la
+    distinction manquait.
+  - **Plus de vert**, consequence assumee : aucun n'est a la fois lisible, distinct du teal de
+    marque et dans la charte. Le teal tient ce role.
+- Chaque pastille gagne un `Tooltip` nomme et un `aria-label` (elles n'avaient qu'un `title=` portant
+  le code hexadecimal, que personne ne lit).
+- **Piege ecarte** : le wrapper de `Tooltip` est en `inline-flex`, mais en element de grille il est
+  blockifie — le defaut de ligne de base paye sur les capsules de l'EDT (2 aout) ne s'applique pas ici.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`

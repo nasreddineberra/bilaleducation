@@ -21,10 +21,31 @@ interface Props {
   onChange: (html: string) => void
 }
 
-const COLORS = [
-  '#000000', '#374151', '#991b1b', '#92400e', '#166534',
-  '#1e40af', '#6b21a8', '#be123c', '#ea580c', '#16a34a',
-  '#2563eb', '#9333ea', '#dc2626', '#f59e0b', '#10b981',
+/**
+ * Couleurs de texte proposees dans la barre d'outils.
+ *
+ * CE SONT DES COULEURS D'ENCRE, PAS D'APLAT. Le HTML compose ici part dans des
+ * EMAILS, dont la carte est verrouillee en fond blanc (`color-scheme: only
+ * light`) : chaque valeur est donc mesuree sur #ffffff et tient le seuil WCAG AA
+ * du petit texte (4,5:1). Les 15 valeurs Tailwind d'origine, choisies a la main,
+ * en avaient QUATRE sous le seuil — ambre a 2,15 et emeraude a 2,54 : un parent
+ * ne lisait pas un devoir ecrit dans ces teintes.
+ *
+ * L'orange et le bleu de la charte sont ASSOMBRIS a dessein : a leur valeur
+ * d'aplat (#cc8200 = 3,11 et #2a78d6 = 4,42) ils echouent comme texte.
+ *
+ * Pas de vert : aucun n'est a la fois lisible, distinct du teal de marque et
+ * dans la charte — le teal tient ce role.
+ *
+ * Toute valeur ajoutee ici se mesure d'abord sur blanc.
+ */
+const COLORS: { hex: string; nom: string }[] = [
+  { hex: '#1f2e35', nom: 'Encre' },      // 14,00 — defaut du corps de mail
+  { hex: '#0c5b51', nom: 'Marque' },     //  7,98 — teal profond
+  { hex: '#1d5aa8', nom: 'Bleu' },       //  6,82
+  { hex: '#4a3aa7', nom: 'Violet' },     //  8,56
+  { hex: '#b3261e', nom: 'Rouge' },      //  6,54
+  { hex: '#a35c00', nom: 'Orange' },     //  5,14
 ]
 
 /**
@@ -147,16 +168,22 @@ export default function RichTextEditor({ content, onChange }: Props) {
               <Palette size={14} />
             </button>
           </Tooltip>
-          <div className="absolute top-full left-0 mt-1 hidden group-hover:grid grid-cols-5 gap-1 p-2 bg-white border border-warm-200 rounded-lg shadow-lg z-50">
-            {COLORS.map(color => (
-              <button
-                key={color}
-                type="button"
-                onClick={() => editor.chain().focus().setColor(color).run()}
-                className="w-5 h-5 rounded-full border border-warm-200 hover:scale-110 transition-transform"
-                style={{ backgroundColor: color }}
-                title={color}
-              />
+          {/* Colonnes de largeur EXPLICITE et `w-max` : le panneau est en
+              `position:absolute`, donc sa largeur se calcule sur son contenu, et
+              des colonnes en `1fr` (ce que rend `grid-cols-6`) n'y contribuent
+              pour rien. Le conteneur se repliait et les pastilles debordaient en
+              se chevauchant (vu a l'ecran le 21/09). */}
+          <div className="absolute top-full left-0 mt-1 hidden group-hover:grid w-max grid-cols-[repeat(6,1.25rem)] gap-1.5 p-2 bg-white border border-warm-200 rounded-lg shadow-lg z-50">
+            {COLORS.map(({ hex, nom }) => (
+              <Tooltip key={hex} content={nom}>
+                <button
+                  type="button"
+                  aria-label={`Couleur ${nom}`}
+                  onClick={() => editor.chain().focus().setColor(hex).run()}
+                  className="block w-5 h-5 rounded-full border border-warm-200 hover:scale-110 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                  style={{ backgroundColor: hex }}
+                />
+              </Tooltip>
             ))}
           </div>
         </div>
