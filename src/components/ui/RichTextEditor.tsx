@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -105,6 +105,36 @@ export default function RichTextEditor({ content, onChange }: Props) {
     }
   }, [editor, content])
 
+  // ── Panneau de couleurs : au CLIC, pas au survol ────────────────────────
+  //
+  // Au survol, le panneau s'ouvrait 4 px sous le bouton alors que le groupe ne
+  // fait que la hauteur du bouton (un enfant absolu ne l'agrandit pas) : ces
+  // 4 px etaient une ZONE MORTE, il fallait un geste rapide pour traverser
+  // (signale a l'ecran le 21/09). Coller le panneau aurait rafistole le
+  // symptome ; le survol reste inatteignable au CLAVIER et inexistant au
+  // TOUCHER. Le clic regle les trois.
+  //
+  // PAS de calque de fermeture plein ecran (motif du menu « ... » de l'EDT) :
+  // la, absorber le clic est le but, sinon il atteindrait le creneau dessous.
+  // Ici, cliquer dans le texte doit fermer le panneau ET poser le curseur.
+  // Un ecouteur de document laisse donc passer le clic.
+  const [colorOpen, setColorOpen] = useState(false)
+  const colorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!colorOpen) return
+    const auClic = (e: MouseEvent) => {
+      if (!colorRef.current?.contains(e.target as Node)) setColorOpen(false)
+    }
+    const auClavier = (e: KeyboardEvent) => { if (e.key === 'Escape') setColorOpen(false) }
+    document.addEventListener('mousedown', auClic)
+    document.addEventListener('keydown', auClavier)
+    return () => {
+      document.removeEventListener('mousedown', auClic)
+      document.removeEventListener('keydown', auClavier)
+    }
+  }, [colorOpen])
+
   if (!editor) return null
 
 
@@ -162,9 +192,19 @@ export default function RichTextEditor({ content, onChange }: Props) {
         <span className="w-px h-5 bg-warm-200 mx-1" />
 
         {/* Color picker */}
-        <div className="relative group">
+        <div className="relative" ref={colorRef}>
           <Tooltip content="Couleur du texte">
-            <button type="button" aria-label="Couleur du texte" className="p-1.5 rounded text-warm-700 hover:bg-warm-100">
+            <button
+              type="button"
+              aria-label="Couleur du texte"
+              aria-haspopup="true"
+              aria-expanded={colorOpen}
+              onClick={() => setColorOpen(o => !o)}
+              className={clsx(
+                'p-1.5 rounded hover:bg-warm-100',
+                colorOpen ? 'bg-warm-100 text-secondary-800' : 'text-warm-700'
+              )}
+            >
               <Palette size={14} />
             </button>
           </Tooltip>
@@ -173,19 +213,23 @@ export default function RichTextEditor({ content, onChange }: Props) {
               des colonnes en `1fr` (ce que rend `grid-cols-6`) n'y contribuent
               pour rien. Le conteneur se repliait et les pastilles debordaient en
               se chevauchant (vu a l'ecran le 21/09). */}
-          <div className="absolute top-full left-0 mt-1 hidden group-hover:grid w-max grid-cols-[repeat(6,1.25rem)] gap-1.5 p-2 bg-white border border-warm-200 rounded-lg shadow-lg z-50">
-            {COLORS.map(({ hex, nom }) => (
-              <Tooltip key={hex} content={nom}>
-                <button
-                  type="button"
-                  aria-label={`Couleur ${nom}`}
-                  onClick={() => editor.chain().focus().setColor(hex).run()}
-                  className="block w-5 h-5 rounded-full border border-warm-200 hover:scale-110 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-                  style={{ backgroundColor: hex }}
-                />
-              </Tooltip>
-            ))}
-          </div>
+          {colorOpen && (
+            <div className="absolute top-full left-0 mt-1 grid w-max grid-cols-[repeat(6,1.25rem)] gap-1.5 p-2 bg-white border border-warm-200 rounded-lg shadow-lg z-50">
+              {COLORS.map(({ hex, nom }) => (
+                <Tooltip key={hex} content={nom}>
+                  <button
+                    type="button"
+                    aria-label={`Couleur ${nom}`}
+                    // `.focus()` de la chaine rend la main au texte : on
+                    // continue a ecrire sans reprendre la souris.
+                    onClick={() => { editor.chain().focus().setColor(hex).run(); setColorOpen(false) }}
+                    className="block w-5 h-5 rounded-full border border-warm-200 hover:scale-110 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    style={{ backgroundColor: hex }}
+                  />
+                </Tooltip>
+              ))}
+            </div>
+          )}
         </div>
 
         <span className="w-px h-5 bg-warm-200 mx-1" />

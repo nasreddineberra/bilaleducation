@@ -3698,6 +3698,21 @@ Trouve en reprouvant l'editeur riche apres la montee de TipTap (capture utilisat
   le code hexadecimal, que personne ne lit).
 - **Piege ecarte** : le wrapper de `Tooltip` est en `inline-flex`, mais en element de grille il est
   blockifie — le defaut de ligne de base paye sur les capsules de l'EDT (2 aout) ne s'applique pas ici.
+- **PANNEAU AU CLIC ET NON AU SURVOL** (dans la foulee, signale a l'ecran) : le panneau s'ouvrait
+  4 px sous le bouton alors que le groupe ne fait que la hauteur du bouton — un enfant absolu ne
+  l'agrandit pas. Ces 4 px etaient une **zone morte** : il fallait un geste rapide pour la traverser
+  avant que le panneau ne se referme. Coller le panneau aurait rafistole le symptome ; le survol
+  reste **inatteignable au clavier** et **inexistant au toucher**. Le clic regle les trois : clic sur
+  l'icone (qui reste visuellement active) pour ouvrir, clic sur une couleur pour appliquer ET fermer,
+  `.focus()` de la chaine rendant la main au texte ; Echap et clic au dehors ferment ;
+  `aria-haspopup` / `aria-expanded`.
+  - **PAS de calque de fermeture plein ecran**, contrairement au menu « ... » de l'EDT : la, absorber
+    le clic est le BUT (sinon il atteindrait le creneau dessous). Ici, cliquer dans le texte doit
+    fermer le panneau **et** poser le curseur — un ecouteur de document laisse passer le clic. Le
+    calque aurait de surcroit ete pris au piege du bloc conteneur d'`animate-fade-in` (`fixed` ne
+    couvrant alors que l'encadre anime), que l'EDT evite par un portail.
+  - Ce n'est pas une modale : la regle « jamais de fermeture au clic hors fenetre » vise les modales
+    de SAISIE, ou l'on perdrait du texte. Ici il n'y a rien a perdre.
 
 ## Prochaine etape
 
