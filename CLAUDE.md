@@ -3647,6 +3647,29 @@ Vercel (`node --no-experimental-require-module`), et un envoi d'email s'eprouve 
 du message recu (structure MIME, commentaires, `Authentication-Results`, `SCL`), pas seulement en
 constatant qu'il arrive.
 
+#### 21 septembre 2026 — 9 avis de securite corriges, dont un CRITIQUE sur Next
+
+Releves la veille par `npm audit` apres l'epinglage de jsdom, tous apparus depuis la passe du
+16 aout. **Les 9 tenaient dans les plages deja declarees** : `npm audit fix` n'a pas touche
+`package.json` (verifie par `diff` avant/apres), seul le lockfile bouge. 9 → **0**.
+- **`next` 16.3.1 → 16.3.5, CRITIQUE** : RCE non authentifiee (serveurs Windows, et API
+  d'optimisation d'images sur fichiers AVIF).
+- **`nodemailer` 9.0.5 → 9.1.1** : contournement de la liste d'autorisation de domaines
+  (IDN/punycode, et commentaires RFC 5322 mal analysees) → livraison a un domaine controle par un
+  tiers ; DoS quadratique de l'analyseur d'adresses.
+- **`@tiptap/core` → 3.31.3** : `mergeAttributes()` transformait une cle `__proto__` en attribut
+  DOM **executable** (pollution de prototype rendue en HTML) ; ReDoS quadratique sur l'analyse des
+  attributs Markdown.
+- `sharp` 0.35.4 (libheif), `js-yaml` 4.3.2, `browserslist` 4.29.0, `postcss-selector-parser`
+  6.1.4, `@humanfs/node`, `baseline-browser-mapping` (outillage de build et de developpement).
+- **jsdom reste en 26.1.0** (epinglage du 20/09) : revrifie apres la passe qu'il se charge toujours
+  sous `--no-experimental-require-module` et que `sanitize()` neutralise `onclick` / `javascript:` /
+  `<script>`. DOMPurify inchange en 3.4.14.
+- Type-check, build et lint verts (502 avertissements, 0 erreur : les `any` du chantier a part).
+- **Deux chemins a reprouver a l'ecran**, parce que leurs paquets ont bouge la veille de leur
+  premiere mise en service reelle : un **envoi d'email** (nodemailer) et l'**editeur riche**
+  (TipTap : gras, lien, envoi).
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
