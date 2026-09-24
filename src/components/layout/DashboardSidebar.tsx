@@ -232,7 +232,7 @@ const navItems: NavItem[] = [
   {
     name:  'Communications',
     icon:  MessageSquare,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable'],
     children: [
       {
         // L'enseignant ne communique que les devoirs (cahier de texte) ;
@@ -255,7 +255,7 @@ const navItems: NavItem[] = [
         name:  'Messages envoyés',
         href:  '/dashboard/communications',
         icon:  Inbox,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'comptable'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable'],
       },
     ],
   },
