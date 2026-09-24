@@ -41,6 +41,13 @@ type ParticipantRow = {
   photo_url: string | null
 }
 
+
+/** Date du jour en composantes LOCALES. `toISOString()` bascule en UTC et
+ *  decale la borne d'un jour sur un fuseau negatif (piege deja paye). */
+const AUJOURDHUI = (() => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+})()
 export default async function AbsencesAdultesPage() {
   const supabase        = await createClient()
   const h               = await headers()
@@ -89,7 +96,10 @@ export default async function AbsencesAdultesPage() {
       const { data: assignments } = await supabase
         .from('class_teachers').select('class_id')
         .eq('teacher_id', teacher.id).eq('is_main_teacher', true)
+        .or(`effective_from.is.null,effective_from.lte.${AUJOURDHUI}`)
+        .or(`effective_until.is.null,effective_until.gte.${AUJOURDHUI}`)
 
+      // Bornes d'effet : un ANCIEN titulaire voyait encore la classe.
       const classIds = (assignments ?? []).map((a: { class_id: string }) => a.class_id)
       if (classIds.length > 0) {
         const query = supabase
@@ -115,10 +125,20 @@ export default async function AbsencesAdultesPage() {
   // Professeur principal de chaque classe (avec civilité)
   {
     type CTRow = { class_id: string; teachers: { civilite: string | null; first_name: string; last_name: string } | null }
+    // TITULAIRE ACTIF seulement. Sans les bornes d'effet, cette requete ramenait
+    // AUSSI les anciens titulaires (`effective_until` passe), et `new Map(...)`
+    // gardait la DERNIERE ligne : l'ecran pouvait nommer l'ancien titulaire — ou
+    // n'en nommer AUCUN, ce qui est arrive le 24/09 sur une classe adulte. Un
+    // enseignant ne lit que SA propre ligne dans `teachers` (exception du
+    // 5 aout) : la ligne de l'ancien titulaire lui revient avec `teachers` a
+    // null, arrive en dernier, et efface le nom. Meme bornage que la colonne
+    // « Classe actuelle » de la fiche enseignant.
     const { data: mainTeacherRows } = await supabase
       .from('class_teachers')
       .select('class_id, teachers(civilite, first_name, last_name)')
       .eq('is_main_teacher', true)
+      .or(`effective_from.is.null,effective_from.lte.${AUJOURDHUI}`)
+      .or(`effective_until.is.null,effective_until.gte.${AUJOURDHUI}`)
       .in('class_id', classes.map(c => c.id)) as { data: CTRow[] | null }
 
     const teacherMap = new Map(
