@@ -3714,6 +3714,115 @@ Trouve en reprouvant l'editeur riche apres la montee de TipTap (capture utilisat
   - Ce n'est pas une modale : la regle « jamais de fermeture au clic hors fenetre » vise les modales
     de SAISIE, ou l'on perdrait du texte. Ici il n'y a rien a perdre.
 
+#### 24 septembre 2026 — UN COMPTE DE CHAQUE ROLE : le comptable ne voyait AUCUNE annee scolaire
+
+Point 1 du plan, ouvert sur le profil COMPTABLE. Tableau de bord : tous les montants a zero,
+« 0 dossiers » — **mais les derniers paiements affiches**, avec de vrais noms et montants. Le
+contraste disait tout : la liste des paiements n'est bornee par aucune annee, tout le reste l'est.
+
+**LA CAUSE — `school_years` n'avait qu'UNE policy, `FOR ALL`, reservee a admin/direction.**
+Quatre roles sur six ne voyaient donc AUCUNE annee. `getCurrentYear()` rendait `null`, et la
+branche comptable partait sur `financials = null`. **40 fichiers lisent cette table** :
+affectations, feuille d'appel, bulletins, saisie de notes, EDT, cahier de texte, communications,
+les trois ecrans de Financements. Pour ces quatre roles, **la moitie de l'application etait vide,
+sans le moindre message** — le scenario annonce le 5 aout, mot pour mot.
+
+**METHODE — le balayage sous identite reelle.** Un bloc `DO` qui prend tour a tour l'identite de
+chaque role (`SET LOCAL ROLE authenticated` + claims JWT), compte les lignes de CHAQUE table a RLS,
+et ne remonte que celles ou un role voit ZERO alors que des lignes existent. En une execution :
+
+    Table                reel  adm  dir  cpt  sec  rpe  ens
+    school_years            3    3    3    0    0    0    0
+    periods                 2    2    2    0    0    0    0
+    eval_type_configs       1    1    1    0    0    0    0
+    adult_grades            6    6    6    0    0    6    6
+
+Il a aussi CONFIRME ce qui est juste, ce qui compte autant : `etablissement_smtp`,
+`etablissement_notes` et `support_interventions` en `ERR` pour **tous**, admin compris (regime
+serveur uniquement) ; `audit_logs` et `year_audits` a admin/direction ; les 3 tables de finance au
+comptable ; `absences`/`grades`/`evaluations` a zero pour lui. Et le CODE a tranche les cas
+douteux plutot que la supposition : `class_journal`/`homework` a zero pour la secretaire est
+legitime (le cahier de texte ne lui est pas ouvert dans la sidebar), `presence_type_rates` a zero
+pour elle et le resp. pedago aussi (`canSeeCosts` = admin/direction/comptable/enseignant).
+
+**Migration `add-role-checks-to-reference-tables.sql`** (jouee) — motif du 5 aout, deux policies par
+table (`_select` / `_write`) portant tenant ET role :
+- `school_years`, `periods`, `eval_type_configs` : lecture pour les 6 roles du personnel, ecriture
+  admin/direction. `periods` et `eval_type_configs` n'ont pas de colonne d'etablissement : leur
+  cloisonnement CASCADE par `school_years` (motif du referentiel).
+- **QUATRE TROUS MULTI-TENANT fermes au passage** : les policies portaient le role SANS
+  l'etablissement. Un admin de l'ecole A lisait et ECRIVAIT les annees de l'ecole B.
+  - Consequence deja presente dans le code : a l'activation d'une annee, `SchoolYearForm` faisait
+    `.update({ is_current: false })` **sans filtre d'etablissement** — activer une annee dans
+    l'ecole A desactivait l'annee en cours de TOUTES les ecoles. Invisible a un seul client,
+    destructeur au second. Corrige AUSSI cote app : on ne s'appuie pas sur la RLS pour rattraper
+    une requete fausse (regle du 4 aout).
+- **`adult_grades` n'avait jamais ete reprise** (elle date du 10 juillet) :
+  `adult_grades_teacher_select` accordait la lecture a TOUT enseignant **sans restriction de
+  classe**, alors que ses propres policies d'ecriture verifiaient `teaches_class`. Elle est
+  desormais le calque exact de `grades`. Effet de bord repare : la SECRETAIRE lisait `grades` mais
+  pas son miroir adulte — sa grille de saisie etait vide sur une classe adulte, alors que l'ecran
+  Saisie notes lui est ouvert.
+
+**LA BANNIERE « SANS TAUX » PORTAIT TROIS DEFAUTS** (Situation financiere, vue a l'ecran) :
+« AB. (3 h) sans taux : ces heures ne sont pas valorisees ».
+1. **`AB.` est le type reserve d'ABSENCE**, dont le taux est force a 0 et le champ desactive depuis
+   le 1er juillet. La banniere traitait « taux <= 0 » comme « taux manquant » : elle signalait donc
+   TOUJOURS les absences, et invitait a regler ce que l'interface interdit de regler. Une heure
+   d'absence vaut zero par nature. La requete ne chargeait pas `is_absence` — elle le charge.
+2. Son lien menait a **`Types de presence`**, ou l'on definit les TYPES ; les TAUX se reglent dans
+   `Parametres -> Financiers`. Corrige.
+3. Il envoyait le comptable sur un ecran **qu'il ne pouvait pas atteindre**.
+
+**LE COMPTABLE GERE LES PARAMETRES FINANCIERS** (arbitrage utilisateur) : `Parametres -> Financiers`
+ouvert dans la sidebar, et ecriture des taux ouverte. Fixer un tarif est une decision de direction,
+mais c'est le comptable qui tient les cotisations a jour, et c'est lui que l'application alerte
+quand un taux manque : l'alerter sans lui donner la main n'a pas de sens.
+
+**Migration `add-role-checks-to-finance-settings.sql`** (jouee) :
+- **`cotisation_types` n'avait AUCUN CONTROLE DE ROLE** — une seule policy, `USING (etablissement_id
+  = current_etablissement_id())`, sans clause `FOR` donc sur les QUATRE commandes. **Tout compte
+  authentifie de l'ecole pouvait creer, modifier et SUPPRIMER les types de cotisation**, donc
+  changer ou effacer les tarifs de toutes les familles. L'ecran ecrit directement depuis le
+  navigateur : la garde applicative se contourne par l'API REST. Lecture pour tout le personnel
+  (9 fichiers la lisent), ecriture admin/direction/comptable.
+- `presence_type_rates` : ecriture ouverte au comptable (sa forme etait deja correcte).
+
+**LEÇON DE METHODE — un balayage ne voit qu'un sens.** Celui qui a trouve `school_years` signale
+les tables ou un role voit ZERO : il detecte le TROP STRICT et il est **aveugle au TROP PERMISSIF
+par construction**. `cotisation_types` affichait 9 lignes pour tout le monde, aucune alerte. Les
+deux defauts sont symetriques et demandent DEUX mesures differentes.
+
+**BALAYAGE MIROIR — CHANTIER OUVERT, rien de corrige.** Requete sur `pg_policies` cherchant les
+policies sans `get_user_role()` ou sans `current_etablissement_id()`. Resultat : c'est la seconde
+moitie de la passe du 5 aout, restee en plan.
+- **DEUX DURCISSEMENTS DE JUILLET SONT INOPERANTS**, et c'est le plus surprenant : l'intention est
+  au journal, la base dit le contraire. `announcements` porte `announcements_insert_scoped`
+  (15 juillet, controle du type par role) **et** `announcements_tenant`, une `FOR ALL` sans role —
+  **les policies permissives s'ADDITIONNENT, la seconde annule la premiere**. Idem pour
+  `announcement_staff_recipients` : le journal du 16 juillet dit « remplace la policy FOR ALL » —
+  **le remplacement n'a jamais eu lieu**, l'ancienne est toujours la.
+- **Une vingtaine de tables ecrivent sans controle de role**, dont `family_fees`, `fee_adjustments`,
+  `fee_installments` (reecrire ce qu'une famille doit, s'accorder une reduction, effacer un
+  paiement), `schedule_slots`/`schedule_exceptions` (reecrire l'EDT), `class_teachers` (s'affecter a
+  une classe), `parent_class_enrollments`, `bulletin_archives`/`adult_bulletin_archives` (supprimer
+  un bulletin archive), `student_documents`, `teacher_documents`, `student_warnings`.
+- **QUATRE TABLES MORTES** : `modules`, `subjects`, `teaching_units`, `staff_hourly_rates` —
+  **zero usage** dans `src`. Ancetres du referentiel et des taux, a supprimer comme les deux tables
+  du 5 aout (apres verification de non-vacuite).
+- **DEUX FAUX POSITIFS DE MON PROPRE OUTIL**, a connaitre avant de corriger du sain : « aucun
+  role » est FAUX quand la policy ecrit `profiles.role IN (...)` en toutes lettres au lieu
+  d'appeler `get_user_role()` (`journal_staff_crud`, `homework_staff_crud`, `materials_*`,
+  `rooms_*`) ; « aucun tenant » est FAUX quand le cloisonnement passe par
+  `profiles.etablissement_id WHERE profiles.id = auth.uid()` — clause correcte, ecrite au long,
+  mais qui se prive de la fonction `STABLE` inlinable du 5 aout.
+- Legitimes : `profiles_update` (`id = auth.uid()`), `push_subscriptions`, `homework_status` cote
+  parent — l'identite suffit, aucun role n'y a de sens.
+
+**PIEGE DE VERIFICATION** : jouer la migration ne suffit pas, le CODE doit etre deploye. L'ecran du
+comptable est reste sans `Parametres -> Financiers` apres deconnexion/reconnexion parce que la
+sidebar n'avait pas ete poussee. La base et l'application se deploient separement.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -3956,6 +4065,13 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/add-role-checks-to-reference-tables.sql` : `school_years`,
+  `periods`, `eval_type_configs` etaient reservees a admin/direction — **4 roles sur 6 ne voyaient
+  aucune annee scolaire**, et 40 fichiers la lisent. `adult_grades` alignee sur `grades` (un
+  enseignant lisait TOUTES les notes adultes). 4 trous multi-tenant fermes. Jouee le 24 septembre.
+- [x] Executer `supabase/migrations/add-role-checks-to-finance-settings.sql` : `cotisation_types`
+  n'avait **aucun controle de role** (tout compte de l'ecole pouvait effacer les tarifs) ;
+  ecriture des taux ouverte au comptable. Jouee le 24 septembre.
 - [x] Executer `supabase/migrations/drop-bulletin-archives-file-url.sql` (colonne morte depuis le
   25 juillet, les deux tables d'archives) et **rejouer** `guard-student-parent-delete.sql` (messages
   neutres en genre). Jouees le 16 septembre.

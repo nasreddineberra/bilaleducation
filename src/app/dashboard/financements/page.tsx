@@ -139,7 +139,7 @@ export default async function SynthesePage() {
     // a des heures deja saisies — les valoriser reste juste.
     supabase
       .from('presence_types')
-      .select('id, code, label')
+      .select('id, code, label, is_absence')
       .eq('school_year_id', currentYear.id),
 
     supabase
@@ -153,11 +153,18 @@ export default async function SynthesePage() {
   // libelle) — confusion a l'origine du bug EDT du 15/07.
   const rateByCode: Record<string, number> = {}
   const labelByCode: Record<string, string> = {}
+  // Les types d'ABSENCE ont leur taux FORCE a 0 et le champ desactive (regle du
+  // 1er juillet) : une heure d'absence vaut zero par nature, elle n'est pas une
+  // heure oubliee. Sans ce releve, la banniere « sans taux » les signalait a
+  // CHAQUE fois et renvoyait parametrer un taux que l'interface interdit de
+  // saisir — vu a l'ecran le 24 septembre.
+  const absenceCodes = new Set<string>()
   for (const pt of (presenceTypes ?? []) as any[]) {
     const code = pt.code.toUpperCase()
     const rate = (presenceTypeRates ?? [] as any[]).find((r: any) => r.presence_type_id === pt.id)?.rate ?? 0
     rateByCode[code]  = Number(rate)
     labelByCode[code] = pt.label ?? code
+    if (pt.is_absence) absenceCodes.add(code)
   }
 
   const costByMonth: Record<string, number> = {}
@@ -175,7 +182,11 @@ export default async function SynthesePage() {
     const rate  = rateByCode[code]
 
     if (rate === undefined || rate <= 0) {
-      unratedHoursByCode[code] = (unratedHoursByCode[code] ?? 0) + hours
+      // Une absence ne se valorise pas : on ne la compte ni au cout, ni au
+      // signalement.
+      if (!absenceCodes.has(code)) {
+        unratedHoursByCode[code] = (unratedHoursByCode[code] ?? 0) + hours
+      }
       continue
     }
 

@@ -355,7 +355,7 @@ export default function SyntheseClient({
               <p className="text-[10px] text-amber-800 leading-snug">
                 {teachingCosts.unratedTypes.map(t => `${t.code} (${t.hours.toLocaleString('fr-FR')} h)`).join(', ')}
                 {' '}sans taux : ces heures ne sont pas valorisées.{' '}
-                <Link href="/dashboard/types-presence" className="font-semibold underline hover:no-underline">
+                <Link href="/dashboard/cotisations" className="font-semibold underline hover:no-underline">
                   Paramétrer les taux
                 </Link>
               </p>

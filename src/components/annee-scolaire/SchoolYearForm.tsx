@@ -523,11 +523,16 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         yearId = newYear.id
       }
 
-      // 2. Si marquée "en cours" : désactiver les autres
+      // 2. Si marquée "en cours" : désactiver les autres — DE CETTE ÉCOLE.
+      //    Le filtre d'établissement manquait : activer une année dans l'école A
+      //    désactivait l'année en cours de TOUTES les écoles (invisible à un seul
+      //    client, destructeur au second). La RLS le borne désormais aussi, mais
+      //    on ne s'appuie pas sur elle pour rattraper une requête fausse.
       if (form.is_current) {
         const { error: errReset } = await supabase
           .from('school_years')
           .update({ is_current: false })
+          .eq('etablissement_id', etablissementId!)
           .neq('id', yearId)
         if (errReset) throw errReset
       }

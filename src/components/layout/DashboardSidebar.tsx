@@ -340,7 +340,7 @@ const navItems: NavItem[] = [
     name:  'Financiers',
     href:  '/dashboard/cotisations',
     icon:  Wallet,
-    roles: ['admin', 'direction'],
+    roles: ['admin', 'direction', 'comptable'],
   },
   {
     name:  'Types de présence',
