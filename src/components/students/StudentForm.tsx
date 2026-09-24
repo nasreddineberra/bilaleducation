@@ -316,12 +316,12 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
-      {lectureSeule && (
-        <p role="status" className="text-xs text-warm-700 bg-warm-50 border border-warm-200 rounded-lg px-3 py-2">
-          Fiche en lecture seule.
-        </p>
-      )}
-      {/* `fieldset disabled` desactive NATIVEMENT tout ce qu'il contient —
+      {/* PAS de bandeau « lecture seule » : des champs inertes et l'absence de
+          bouton le disent deja, et la ligne ajoutee faisait apparaitre une barre
+          de defilement sur un ecran concu sans (regle : aucun texte explicatif
+          qui n'appelle pas d'action).
+
+          `fieldset disabled` desactive NATIVEMENT tout ce qu'il contient —
           champs, selects, cases et boutons — y compris ceux qu'on ajoutera plus
           tard. Verrouiller champ par champ aurait laisse passer le prochain,
           EN SILENCE. `display: contents` pour que la mise en page ne bouge pas. */}
