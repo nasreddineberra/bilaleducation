@@ -864,7 +864,16 @@ export default function TempsPresenceClient({
           {/* Day total */}
           {dayEntries.length > 0 && (
             <div className="px-4 py-2 border-t border-warm-100 bg-warm-50 text-xs font-bold text-warm-700 flex items-center gap-1.5">
-              <Clock size={12} /> Total jour : {fmtDuration(dayEntries.reduce((s, e) => s + e.duration_minutes, 0))}
+              {/* Les ABSENCES sont exclues : le total dit les heures TRAVAILLEES.
+                  Un membre absent 3 h le matin et present 3 h l'apres-midi
+                  affichait 6 h (vu a l'ecran le 24/09). Le recapitulatif ecarte
+                  deja les absences (`filter(p => !p.is_absence)`) ; cette ligne
+                  etait la seule restee en dehors de la regle. */}
+              <Clock size={12} /> Total jour : {fmtDuration(
+                dayEntries
+                  .filter(e => !(findPresenceType(presenceTypes, e.entry_type)?.is_absence ?? false))
+                  .reduce((s, e) => s + e.duration_minutes, 0)
+              )}
             </div>
           )}
         </div>

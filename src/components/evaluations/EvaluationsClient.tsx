@@ -9,6 +9,7 @@ import { clsx } from 'clsx'
 import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import type {
   UniteEnseignement, CoursModule, Cours,
@@ -257,6 +258,24 @@ export default function EvaluationsClient({
   const [orderDirty,   setOrderDirty]   = useState(false)
   const [savingOrder,  setSavingOrder]  = useState(false)
 
+  // ── Garde anti-perte de l'ORDRE ─────────────────────────────────────────────
+  // Motif de la Saisie des notes (10 juillet). Seul un REORDONNANCEMENT peut se
+  // perdre ici : ajouter ou supprimer une evaluation ecrit en base sur-le-champ.
+  // Sans cette garde, un glisser-deposer suivi d'un changement de classe ou de
+  // periode disparaissait EN SILENCE.
+  type NavIntent = { type: 'class' | 'period'; value: string | null }
+  const [pendingNav, setPendingNav] = useState<NavIntent | null>(null)
+
+  const applyNav = (intent: NavIntent) => {
+    if (intent.type === 'class') setSelectedClassId(intent.value)
+    else                         setSelectedPeriodId(intent.value)
+    cancelForm()
+  }
+  const navigate = (intent: NavIntent) => {
+    if (orderDirty) setPendingNav(intent)
+    else            applyNav(intent)
+  }
+
   // Charger la config d'ordre propre à la classe × période sélectionnée
   useEffect(() => {
     const config = evalOrderConfigs.find(
@@ -409,13 +428,18 @@ export default function EvaluationsClient({
         title:             coursItem.nom_fr,
         display_ue_id:     coursItem.unite_enseignement_id,
         display_module_id: coursItem.module_id ?? null,
+        // L'ordre est ecrit DES L'AJOUT. Sans cela, valider une evaluation
+        // faisait apparaitre « Enregistrer le gabarit » alors que l'evaluation
+        // etait deja en base — on croyait devoir enregistrer un gabarit qui
+        // l'etait deja (constate a l'ecran le 24/09). Ce bouton ne parle QUE de
+        // l'ordre : il ne doit apparaitre que si l'on a deplace quelque chose.
+        sort_order:        currentEvals.length,
       })
       .select('id, class_id, period_id, cours_id, eval_kind, max_score, coefficient, evaluation_date, display_module_id, display_ue_id, sort_order')
       .single()
 
     if (err) { setError(err.message); setSubmitting(false); return }
     setEvalsList(prev => [...prev, data as EvaluationRow])
-    setOrderDirty(true)
     setAdding(null); setSubmitting(false)
   }
 
@@ -460,8 +484,9 @@ export default function EvaluationsClient({
     }
     const { error: err } = await supabase.from('evaluations').delete().eq('id', evalId)
     if (err) { setError(err.message); setSubmitting(false); return }
+    // Pas de `setOrderDirty` : les rangs restants demeurent croissants, un trou
+    // dans la numerotation est sans effet sur l'affichage.
     setEvalsList(prev => prev.filter(e => e.id !== evalId))
-    setOrderDirty(true)
     setConfirmDelete(null); setSubmitting(false)
   }
 
@@ -574,7 +599,7 @@ export default function EvaluationsClient({
         <FloatSelect
           label="Classe"
           value={selectedClassId ?? ''}
-          onChange={e => { setSelectedClassId(e.target.value || null); cancelForm() }}
+          onChange={e => navigate({ type: 'class', value: e.target.value || null })}
           wrapperClassName="w-fit"
         >
           <option value=""></option>
@@ -597,7 +622,7 @@ export default function EvaluationsClient({
             {periods.map(p => (
               <button
                 key={p.id}
-                onClick={() => { setSelectedPeriodId(p.id); cancelForm() }}
+                onClick={() => navigate({ type: 'period', value: p.id })}
                 aria-pressed={selectedPeriodId === p.id}
                 className={clsx(
                   'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
@@ -775,12 +800,14 @@ export default function EvaluationsClient({
                   return <span className="normal-case font-normal ml-1 text-warm-700">· {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
                 })()}
               </p>
-              {currentEvals.length > 0 && (
+              {/* AFFICHE seulement si l'ordre a change — et non grise en
+                  permanence : un bouton present en toutes circonstances laissait
+                  croire qu'il restait quelque chose a enregistrer. */}
+              {orderDirty && (
                 <FloatButton
                   variant="submit"
                   type="button"
                   onClick={handleSaveOrder}
-                  disabled={!orderDirty}
                   loading={savingOrder}
                 >
                   Enregistrer le gabarit
@@ -1093,6 +1120,20 @@ export default function EvaluationsClient({
           </div>
         </div>
       </div>
+
+      {pendingNav && (
+        <ConfirmModal
+          open
+          variant="warning"
+          confirmColor="amber"
+          title="Ordre non enregistré"
+          message="L'ordre des évaluations a été modifié sans être enregistré. Quitter sans l'enregistrer ?"
+          confirmLabel="Quitter sans enregistrer"
+          cancelLabel="Rester"
+          onConfirm={() => { const nav = pendingNav; setPendingNav(null); applyNav(nav) }}
+          onCancel={() => setPendingNav(null)}
+        />
+      )}
     </div>
   )
 }
