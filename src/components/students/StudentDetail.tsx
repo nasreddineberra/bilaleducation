@@ -48,6 +48,8 @@ interface Props {
   siblings: any[]
   currentYearLabel: string
   history: any[]
+  /** Fiche en lecture seule : l'ecriture de `students` n'est pas ouverte a ce role. */
+  lectureSeule?: boolean
 }
 
 const TABS = [
@@ -63,6 +65,7 @@ type TabKey = typeof TABS[number]['key']
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
   enrollments, periods, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel, history,
+  lectureSeule = false,
 }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
@@ -184,6 +187,7 @@ export default function StudentDetail({
             hasActiveEnrollment={!!activeEnrollment}
             activeClassName={activeEnrollment?.classes?.name ?? null}
             activeClassInfo={activeClassInfo}
+            lectureSeule={lectureSeule}
           />
         </div>
       )}

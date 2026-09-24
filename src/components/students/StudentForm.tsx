@@ -75,6 +75,13 @@ interface StudentFormProps {
   activeClassName?: string | null
   /** « Civilite NOM Prenom · Cotisation · Niveau · Jour HH:MM-HH:MM » */
   activeClassInfo?: string
+  /**
+   * Fiche en LECTURE SEULE. L'ecriture de `students` est reservee a admin,
+   * direction, resp. pedagogique et secretaire (matrice du 5 aout) ; l'enseignant
+   * LIT ses eleves sans les modifier. L'ecran l'ignorait : il presentait un
+   * formulaire editable et un bouton « Modifier » a tout le monde.
+   */
+  lectureSeule?: boolean
 }
 
 type FormData = {
@@ -101,7 +108,7 @@ const clean = (v: string): string | null => v.trim() || null
 const today = new Date().toISOString().split('T')[0]
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false, activeClassName = null, activeClassInfo = '' }: StudentFormProps) {
+export default function StudentForm({ student, parents, defaultStudentNumber, backHref = '/dashboard/students', etablissementId = '', siblings = [], mainTeachers = [], hasActiveEnrollment = false, activeClassName = null, activeClassInfo = '', lectureSeule = false }: StudentFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!student
@@ -270,12 +277,19 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         photo_url:               photoUrl,
       }
 
+      // `.select('id')` OBLIGATOIRE : une ecriture ecartee par la RLS ne leve
+      // AUCUNE erreur, elle touche zero ligne. Sans ce controle, un role sans
+      // droit d'ecriture voyait « enregistre » et revenait a la liste alors que
+      // rien n'avait change — un FAUX SUCCES (constate le 24/09 sur un compte
+      // enseignant). Meme piege que sur les suppressions.
       if (isEditing) {
-        const { error } = await supabase.from('students').update(payload).eq('id', student.id)
+        const { data, error } = await supabase.from('students').update(payload).eq('id', student.id).select('id')
         if (error) throw error
+        if (!data || data.length === 0) throw new Error('ECRITURE_REFUSEE')
       } else {
-        const { error } = await supabase.from('students').insert(payload)
+        const { data, error } = await supabase.from('students').insert(payload).select('id')
         if (error) throw error
+        if (!data || data.length === 0) throw new Error('ECRITURE_REFUSEE')
       }
 
       router.push(backHref)
@@ -287,7 +301,9 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       // attribuer tout 23505 au numero d'eleve — ce que faisait ce bloc —
       // afficherait « ce numero est deja utilise » sur un doublon de personne.
       const doublon = messageDoublon(err)
-      if (doublon) {
+      if (err?.message === 'ECRITURE_REFUSEE') {
+        toast.error("Votre role ne permet pas de modifier cette fiche.")
+      } else if (doublon) {
         toast.error(doublon)
       } else if (err?.code === '23505') {
         toast.error("Ce numéro d'élève est déjà utilisé.")
@@ -300,6 +316,16 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-2 max-w-5xl">
+      {lectureSeule && (
+        <p role="status" className="text-xs text-warm-700 bg-warm-50 border border-warm-200 rounded-lg px-3 py-2">
+          Fiche en lecture seule.
+        </p>
+      )}
+      {/* `fieldset disabled` desactive NATIVEMENT tout ce qu'il contient —
+          champs, selects, cases et boutons — y compris ceux qu'on ajoutera plus
+          tard. Verrouiller champ par champ aurait laisse passer le prochain,
+          EN SILENCE. `display: contents` pour que la mise en page ne bouge pas. */}
+      <fieldset disabled={lectureSeule} className="contents">
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
 
@@ -639,14 +665,19 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         />
       </div>
 
+      </fieldset>
+
       {/* ── Actions ── */}
+      {/* Hors du fieldset : « Retour » doit rester cliquable en lecture seule. */}
       <div className="flex items-center gap-2 pt-1">
-        <span className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
+        {!lectureSeule && (
+          <span className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
+        )}
         <div className="flex-1" />
         <FloatButton type="button" variant="secondary" onClick={() => router.push(backHref)}>
-          Annuler
+          {lectureSeule ? 'Retour' : 'Annuler'}
         </FloatButton>
-        {isEditing ? (
+        {lectureSeule ? null : isEditing ? (
           <FloatButton
             type="submit"
             variant="edit"

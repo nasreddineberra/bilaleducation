@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import StudentDetail from '@/components/students/StudentDetail'
+import { effectiveRole } from '@/lib/auth/effective-role'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -23,6 +24,20 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   const backHref  = from === 'parents' ? '/dashboard/parents' : '/dashboard/students'
   const backLabel = from === 'parents' ? 'Retour aux parents' : 'Retour à la liste'
   const supabase = await createClient()
+
+  // QUI REGARDE CETTE FICHE. L'ecriture de `students` est reservee a admin,
+  // direction, responsable pedagogique et secretaire (matrice du 5 aout) :
+  // l'enseignant LIT ses eleves, il ne les modifie pas. L'ecran l'ignorait et
+  // presentait un formulaire editable a tout le monde — et comme une ecriture
+  // ecartee par la RLS ne leve rien, elle passait pour un succes.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profil } = await supabase
+    .from('profiles')
+    .select('role, etablissement_id')
+    .eq('id', user?.id ?? '')
+    .single()
+  const ROLES_ECRITURE = ['admin', 'direction', 'responsable_pedagogique', 'secretaire']
+  const lectureSeule = !ROLES_ECRITURE.includes(effectiveRole(profil) ?? '')
 
   // Données identité + parents
   const [{ data: student }, { data: parents }] = await Promise.all([
@@ -143,6 +158,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
       </Link>
 
       <StudentDetail
+        lectureSeule={lectureSeule}
         student={student}
         parents={(parents ?? []) as any[]}
         backHref={backHref}
