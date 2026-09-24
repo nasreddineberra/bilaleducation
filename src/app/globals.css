@@ -81,6 +81,14 @@
     --ink:            #1f2e35;   /* texte principal */
     --ink-muted:      #786d64;   /* texte secondaire (warm-700) */
     --line:           #f0ece8;   /* bordures douces (warm-100) */
+    /* Liseré des CARTES, distinct de `--line`. Celui-ci habille aussi les
+       lignes de la grille de l'EDT et, en thème sombre, tous les
+       `border-warm-200` et séparateurs de tableau remappés par le pont :
+       le renforcer globalement aurait alourdi tout cela. Mesuré sur la
+       surface de carte — 1,18:1 auparavant, à la limite du visible ;
+       warm-300 porte à 1,68:1, et c'est déjà la valeur des bordures de
+       champ : cartes et champs portent désormais le même trait. */
+    --card-border:    #d0c6ba;   /* warm-300 */
     --line-strong:    #d0c6ba;   /* bordures de champ (warm-300) */
     --card-shadow:    0 2px 8px rgba(47,69,80,.08), 0 1px 3px rgba(47,69,80,.04);
     /* Pouce des barres de defilement fines (.list-scroll). Gris chaud sur les
@@ -120,6 +128,7 @@
     --ink:            #e7eef0;
     --ink-muted:      #93a2a8;
     --line:           #243139;
+    --card-border:    #384a54;   /* 1,81:1 sur la surface de carte sombre */
     --line-strong:    #2c3a42;
     --card-shadow:    0 2px 10px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.25);
     /* Sur l'ardoise, un gris chaud a 28 % se fond dans le fond : le pouce
@@ -207,7 +216,7 @@
   /* ── Cards ── */
   .card {
     @apply bg-[var(--surface-card)] rounded-lg p-6
-           border border-[var(--line)]
+           border border-[var(--card-border)]
            shadow-[var(--card-shadow)];
   }
 
@@ -266,7 +275,7 @@
   /* Card sans padding interne (pour les composants qui gèrent leur propre layout) */
   .card-flush {
     @apply bg-[var(--surface-card)] rounded-lg
-           border border-[var(--line)]
+           border border-[var(--card-border)]
            shadow-[var(--card-shadow)];
   }
 
