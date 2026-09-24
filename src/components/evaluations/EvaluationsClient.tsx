@@ -903,8 +903,13 @@ export default function EvaluationsClient({
                     return (
                       <div
                         key={ev.id}
-                        className="flex items-center gap-1 px-2 py-px rounded-lg hover:bg-warm-50 group transition-colors"
+                        /* Presentation RECOPIEE de `CoursRefRow` (colonne du
+                           referentiel) : meme interligne, meme survol, meme
+                           pastille. Les deux colonnes montrent la meme
+                           hierarchie, elles doivent se lire pareil. */
+                        className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-primary-50 transition-colors"
                       >
+                        <span className="w-1 h-1 rounded-full bg-warm-300 flex-shrink-0" />
                         <div className="flex items-center flex-shrink-0">
                           {sibIdx > 0 && (
                             <Tooltip content="Monter">
@@ -931,7 +936,7 @@ export default function EvaluationsClient({
                         </div>
                         <div className="flex-1 min-w-0">
                           {coursItem?.code && (
-                            <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case mr-1.5">{coursItem.code}</span>
+                            <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 rounded flex-shrink-0 normal-case mr-1.5">{coursItem.code}</span>
                           )}
                           <span className="text-xs text-secondary-700">{coursItem ? refLabel(coursItem) : 'Cours introuvable'}</span>
                         </div>
@@ -1051,7 +1056,7 @@ export default function EvaluationsClient({
                             </Tooltip>
                           )}
                         </div>
-                        <span className="flex-1">
+                        <span className="flex-1 text-xs font-bold text-secondary-700 normal-case">
                           {ue.code && (
                             <span className="text-[10px] font-mono text-warm-700 bg-warm-200 px-1 rounded flex-shrink-0 normal-case mr-1.5">{ue.code}</span>
                           )}
