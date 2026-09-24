@@ -3932,6 +3932,43 @@ permis la passe clair/sombre sans toucher aux 75 fichiers. Famille complete au m
   31 tableaux ecrivent `card p-0`. Deux facons de dire la meme chose, la moins explicite a gagne.
   `.card-hover` n'a qu'un seul usage. A trancher en fin de V1 : adopter ou supprimer.
 
+#### 24 septembre 2026 (fin) — Le titulaire affiche pouvait etre un ANCIEN titulaire
+
+Verification demandee la veille : la classe `ADUL-DA-BL1` a-t-elle un titulaire ? **Elle en a un**
+(BELAID Djamila depuis le 20/07) — ma premiere conclusion (« donnee manquante ») etait FAUSSE. La
+fiche classe a montre ce que je n'avais pas envisage : **un ANCIEN titulaire, BERRA Leila**, plus
+deux remplacements historiques.
+
+**LA CAUSE.** La requete du titulaire prenait toute ligne `is_main_teacher = true`, **closes
+comprises** (aucun filtre sur `effective_from` / `effective_until`), et `new Map(...)` garde la
+DERNIERE ligne rencontree pour une classe. Deux facons d'echouer :
+1. **mauvais nom** — si la ligne close arrive en dernier, l'ecran annonce l'ancien titulaire ;
+2. **aucun nom** — le cas observe. Un enseignant ne lit que **SA propre ligne** dans `teachers`
+   (exception assumee du 5 aout, posee pour que son planning ne soit pas vide). La ligne de l'ancien
+   titulaire lui revient donc avec `teachers` a **null**, arrive en dernier, et **efface le nom**.
+
+`MAT-SM-BD1` fonctionnait par CHANCE : une seule ligne de titulaire, la sienne, qu'elle peut lire.
+
+**Correctif** : bornes d'effet posees aux **cinq** endroits — les deux feuilles d'appel (eleves et
+adultes) et les bulletins, qui portaient le meme defaut en sommeil. La bonne facon existait deja
+dans le projet : la colonne « Classe actuelle » de la fiche enseignant bornait, elle. Le **perimetre
+des classes d'un enseignant** est borne aussi (lignes 87-91) : un ancien titulaire voyait encore la
+classe. Date du jour en composantes **LOCALES**, jamais `toISOString`.
+- NB PostgREST : deux `.or(...)` chaines sont **combines par ET**, ce qui donne bien
+  « (from nul ou passe) ET (until nul ou a venir) ».
+
+**CE QUE CE DEFAUT ENSEIGNE** : il ne devient visible **qu'avec de l'historique**. Tant qu'une classe
+n'a jamais change de titulaire, tout fonctionne. Un jeu de donnees propre ne l'aurait jamais montre ;
+c'est la base reelle, qui porte desormais des remplacements et un changement de titulaire, qui l'a
+fait sortir. **A retenir pour les prochaines verifications a l'ecran** : privilegier les objets qui
+ont vecu (classe avec historique, eleve reinscrit, foyer avec deux tuteurs) — ce sont eux qui
+revelent, pas les objets neufs.
+
+**ET UNE LECON DE METHODE, a mes depens** : j'avais conclu « la classe n'a pas de titulaire » a
+partir du seul code, sans que rien ne l'etablisse. La fiche classe a suffi a demonter la conclusion
+en une capture. **Ne pas conclure sur une donnee qu'on n'a pas regardee**, meme quand le
+raisonnement semble fermer.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
