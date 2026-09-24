@@ -934,12 +934,23 @@ export default function EvaluationsClient({
                             </Tooltip>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          {coursItem?.code && (
-                            <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 rounded flex-shrink-0 normal-case mr-1.5">{coursItem.code}</span>
-                          )}
-                          <span className="text-xs text-secondary-700">{coursItem ? refLabel(coursItem) : 'Cours introuvable'}</span>
-                        </div>
+                        {/* STRUCTURE RECOPIEE de `CoursRefRow`, et pas seulement
+                            ses classes. Le nom vivait dans un <span> EN LIGNE au
+                            sein d'un <div> sans classe de texte : ce div imposait
+                            sa hauteur de ligne heritee, bien superieure aux 16 px
+                            de `text-xs`, et la ligne enflait — d'ou un survol plus
+                            haut qu'a gauche. Meme piege que sur les capsules de
+                            l'EDT (2 aout). Le `block ... truncate` ramene aussi la
+                            troncature : le nom arabe debordait ici, la ou il est
+                            coupe dans le referentiel. */}
+                        {coursItem?.code && (
+                          <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 rounded flex-shrink-0">{coursItem.code}</span>
+                        )}
+                        <Tooltip content={coursItem ? refTooltip(coursItem) : ''} maxWidth="max-w-none" className="flex-1 min-w-0">
+                          <span className="block w-full text-xs text-secondary-700 truncate text-left">
+                            {coursItem ? refLabel(coursItem) : 'Cours introuvable'}
+                          </span>
+                        </Tooltip>
                         <span className={clsx(
                           'text-[10px] font-semibold border px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0',
                           badge.cls
