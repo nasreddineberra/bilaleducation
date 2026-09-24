@@ -44,7 +44,11 @@ export async function confirmerLien(formData: FormData) {
   })
 
   if (error) {
-    console.error('[auth/confirm] vérification refusée:', error.message)
+    // Le CODE en plus du message : Supabase rend `otp_expired` aussi bien pour
+    // un lien périmé que pour un lien déjà consommé (il n'a pas de code pour le
+    // second). Si un code distinct apparaît un jour, il sera dans le journal et
+    // vaudra un motif d'écran a part.
+    console.error('[auth/confirm] vérification refusée:', error.code ?? '(sans code)', error.message)
     redirect('/auth/reset-password?motif=consomme')
   }
 

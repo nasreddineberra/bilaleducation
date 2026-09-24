@@ -16,19 +16,38 @@ interface Props {
 /**
  * Un message par cause, et chacun dit QUOI FAIRE.
  *
- * L'écran annonçait « lien invalide ou expiré » dans les trois cas. Or « expiré »
- * est faux la plupart du temps, et laisse l'utilisateur recommencer à l'identique
- * — donc échouer à l'identique. Le cas « déjà utilisé » se produit sans qu'il ait
- * rien fait : les filtres anti-spam ouvrent les liens pour les inspecter, ce qui
- * consomme un jeton à usage unique. Sortir le message des indésirables est alors
- * la seule action qui change quelque chose, et il faut la lui dire.
+ * L'écran annonçait « lien invalide ou expiré » dans les trois cas. Or il laisse
+ * l'utilisateur recommencer à l'identique — donc échouer à l'identique. Le cas
+ * « déjà utilisé » se produit sans qu'il ait rien fait : les filtres anti-spam
+ * ouvrent les liens pour les inspecter, ce qui consomme un jeton à usage unique.
+ * Sortir le message des indésirables est alors la seule action qui change
+ * quelque chose, et il faut la lui dire.
+ *
+ * ── POURQUOI « périmé » ET « déjà servi » NE SE DISTINGUENT PAS ────────────
+ *
+ * Le titre disait « Ce lien a déjà servi » alors que la cause réelle était le
+ * plus souvent l'expiration (constaté à l'écran le 24/09, après dix minutes).
+ * Il AFFIRMAIT une cause sur deux.
+ *
+ * Or Supabase ne les distingue pas, et c'est délibéré : la liste `ErrorCode`
+ * de `@supabase/auth-js` comporte `otp_expired` et RIEN pour « déjà utilisé »
+ * — le jeton a usage unique est supprimé des qu'il sert, un lien consommé
+ * revient donc avec le même code et le même texte qu'un lien périmé.
+ * Verifié dans la déclaration de la bibliothèque, pas suppose.
+ *
+ * On cesse donc d'AFFIRMER : le titre constate, le texte nomme les deux causes
+ * sans trancher, et l'action proposée est la même dans les deux cas. Remplacer
+ * une affirmation fausse par l'affirmation inverse n'aurait rien valu de mieux.
+ * `actions.ts` journalise `error.code` : si un code distinct apparait un jour,
+ * on aura un motif de plus a separer au lieu de tout ranger sous celui-ci.
  */
 const MOTIFS: Record<string, { titre: string; texte: string }> = {
   consomme: {
-    titre: 'Ce lien a déjà servi',
+    titre: "Ce lien n'est plus valable",
     texte:
-      "Un lien de réinitialisation ne fonctionne qu'une seule fois, et il expire au bout de dix minutes. " +
-      "S'il est arrivé dans vos indésirables, le filtre a pu l'ouvrir avant vous pour l'inspecter : déplacez d'abord le message dans votre boîte de réception, puis demandez un nouveau lien.",
+      "Un lien de réinitialisation expire au bout de dix minutes, et ne fonctionne qu'une seule fois. " +
+      "S'il est arrivé dans vos indésirables, le filtre a pu l'ouvrir avant vous pour l'inspecter : déplacez d'abord le message dans votre boîte de réception. " +
+      "Dans les deux cas, demandez un nouveau lien et cliquez dessus sans attendre.",
   },
   echange: {
     titre: 'Ouvrez le lien dans le même navigateur',
