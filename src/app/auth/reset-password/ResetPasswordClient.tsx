@@ -44,10 +44,7 @@ interface Props {
 const MOTIFS: Record<string, { titre: string; texte: string }> = {
   consomme: {
     titre: "Ce lien n'est plus valable",
-    texte:
-      "Un lien de réinitialisation expire au bout de dix minutes, et ne fonctionne qu'une seule fois. " +
-      "S'il est arrivé dans vos indésirables, le filtre a pu l'ouvrir avant vous pour l'inspecter : déplacez d'abord le message dans votre boîte de réception. " +
-      "Dans les deux cas, demandez un nouveau lien et cliquez dessus sans attendre.",
+    texte: "Un lien de réinitialisation expire au bout de dix minutes, et est à usage unique.",
   },
   echange: {
     titre: 'Ouvrez le lien dans le même navigateur',
