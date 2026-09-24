@@ -6,6 +6,11 @@ import { X, CalendarDays } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { FloatButton } from '@/components/ui/FloatFields'
 import SeanceForm from './SeanceForm'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
+import { useToast } from '@/lib/toast-context'
+import { useRouter } from 'next/navigation'
+import { supprimerSeance } from '@/app/dashboard/cahier-texte/actions'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 
@@ -51,6 +56,34 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
   const teacherLabel = teacherLabelOf(journal.teachers)
   const canEdit = STAFF.includes(role) || journal.teacher_id === teacherId
 
+  // SUPPRESSION — fenetre de 7 jours pour l'enseignant, aucune pour
+  // l'encadrement (c'est lui qui corrige les erreurs anciennes). La regle est
+  // verifiee cote SERVEUR aussi : masquer un bouton ne protege rien. Le bouton
+  // reste visible et grise plutot que masque (regle du 4 aout).
+  const joursEcoules = (() => {
+    const [ay, am, ad] = String(journal.session_date ?? '').slice(0, 10).split('-').map(Number)
+    if (!ay) return 0
+    const now = new Date()
+    return Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
+  })()
+  const horsFenetre = !STAFF.includes(role) && joursEcoules > 7
+
+  const [confirmSuppr, setConfirmSuppr] = useState(false)
+  const [suppression, setSuppression] = useState(false)
+  const toast  = useToast()
+  const router = useRouter()
+
+  const handleSupprimer = async () => {
+    setSuppression(true)
+    const res = await supprimerSeance(journal.id)
+    setSuppression(false)
+    setConfirmSuppr(false)
+    if (res.error) { toast.error(res.error); return }
+    toast.success('Séance supprimée.')
+    onClose()
+    router.refresh()
+  }
+
   if (!mounted) return null
 
   return createPortal(
@@ -75,6 +108,15 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
+            {canEdit && (
+              horsFenetre ? (
+                <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être supprimée.">
+                  <FloatButton variant="danger" type="button" disabled>Supprimer</FloatButton>
+                </Tooltip>
+              ) : (
+                <FloatButton variant="danger" type="button" onClick={() => setConfirmSuppr(true)}>Supprimer</FloatButton>
+              )
+            )}
             <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
@@ -97,6 +139,19 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
           <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
         </div>
       </div>
+
+      {confirmSuppr && (
+        <ConfirmModal
+          open
+          variant="danger"
+          title="Supprimer cette séance"
+          confirmLabel={suppression ? 'Suppression…' : 'Supprimer définitivement'}
+          onConfirm={handleSupprimer}
+          onCancel={() => setConfirmSuppr(false)}
+        >
+          <p className="text-sm text-warm-700">« {journal.title} » · {journal.classes?.name ?? ''}</p>
+        </ConfirmModal>
+      )}
 
       {showEdit && (
         <SeanceForm

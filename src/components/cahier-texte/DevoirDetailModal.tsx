@@ -12,6 +12,10 @@ import { createClient } from '@/lib/supabase/client'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import DevoirForm from './DevoirForm'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { useToast } from '@/lib/toast-context'
+import { useRouter } from 'next/navigation'
+import { supprimerDevoir } from '@/app/dashboard/cahier-texte/actions'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
 
@@ -67,6 +71,10 @@ interface Props {
 export default function DevoirDetailModal({ homework, role, teacherId, isAdult, subjects, etablissementId, onClose }: Props) {
   const [mounted, setMounted] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [confirmSuppr, setConfirmSuppr] = useState(false)
+  const [suppression, setSuppression] = useState(false)
+  const toast  = useToast()
+  const router = useRouter()
   const [participants, setParticipants] = useState<Participant[]>([])
   const [statuses, setStatuses] = useState<Status[]>([])
   const [myKeys, setMyKeys] = useState<string[]>([])   // clés que l'utilisateur connecté peut pointer
@@ -76,6 +84,26 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
   const canEdit = STAFF.includes(role) || homework.teacher_id === teacherId
   const teacherLabel = teacherLabelOf(homework.teachers)
   const trackingLabel = isAdult ? 'Suivi des participants' : 'Suivi des familles'
+
+  // SUPPRESSION — la fenetre est verifiee cote SERVEUR aussi : masquer un bouton
+  // ne protege rien. Ici on la reflete pour dire POURQUOI c'est impossible.
+  // Le bouton reste visible et grise plutot que masque : un bouton qui
+  // disparait se lit comme un bug (regle du 4 aout).
+  const dateRenduPassee = new Date(homework.due_date) < new Date(new Date().toDateString())
+  const horsFenetre = !STAFF.includes(role) && dateRenduPassee
+  const canDelete   = canEdit && !isParent
+
+  const handleSupprimer = async () => {
+    setSuppression(true)
+    const res = await supprimerDevoir(homework.id)
+    setSuppression(false)
+    setConfirmSuppr(false)
+    if (res.error)             { toast.error(res.error); return }
+    if (res.avertissement)     toast.warning(res.avertissement)
+    else                       toast.success('Devoir supprimé.')
+    onClose()
+    router.refresh()
+  }
 
   const typeInfo = HW_TYPE[homework.homework_type] ?? HW_TYPE.autre
   const isPast = new Date(homework.due_date) < new Date(new Date().toDateString())
@@ -226,6 +254,15 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
+            {canDelete && (
+              horsFenetre ? (
+                <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique.">
+                  <FloatButton variant="danger" type="button" disabled>Supprimer</FloatButton>
+                </Tooltip>
+              ) : (
+                <FloatButton variant="danger" type="button" onClick={() => setConfirmSuppr(true)}>Supprimer</FloatButton>
+              )
+            )}
             <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
               <X size={16} />
             </button>
@@ -329,6 +366,22 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
         </div>
       </div>
+
+      {confirmSuppr && (
+        <ConfirmModal
+          open
+          variant="danger"
+          title="Supprimer ce devoir"
+          confirmLabel={suppression ? 'Suppression…' : 'Supprimer définitivement'}
+          onConfirm={handleSupprimer}
+          onCancel={() => setConfirmSuppr(false)}
+        >
+          <div className="text-sm text-warm-700 space-y-2">
+            <p>« {homework.title} » · {homework.classes?.name ?? ''}</p>
+            <p>Le suivi de lecture des familles part avec le devoir. Les familles sont prévenues par email que le devoir est annulé.</p>
+          </div>
+        </ConfirmModal>
+      )}
 
       {showEdit && (
         <DevoirForm
