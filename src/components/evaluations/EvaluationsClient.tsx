@@ -1060,8 +1060,10 @@ export default function EvaluationsClient({
                       </div>
 
                       <div className="space-y-1">
-                        {/* Zone "sans module" */}
-                        <div>
+                        {/* Zone "sans module" — meme retrait que les cours
+                            directs du referentiel (`px-2`), pour que les deux
+                            colonnes se lisent a la meme hauteur. */}
+                        <div className="px-2">
                           {directEvals.map(ev => renderEval(ev, directEvals))}
                           {addingHere && addingCours && !addingCours.module_id && renderAddForm(addingCours)}
                         </div>
@@ -1074,7 +1076,10 @@ export default function EvaluationsClient({
                           return (
                             <div key={mod.id} className="mt-1.5 ml-4 rounded-lg">
                               {/* En-tête module */}
-                              <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider px-2 pb-0.5 pt-1">
+                              {/* Filet vertical + `pl-3` : les memes que dans le
+                                  referentiel. La hierarchie UE > module > cours
+                                  ne se lisait que d'un cote. */}
+                              <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pb-0.5 pt-1 border-l-2 border-warm-100">
                                 <div className="flex items-center flex-shrink-0">
                                   {modIds.indexOf(mod.id) > 0 && (
                                     <Tooltip content="Monter le module">
@@ -1104,7 +1109,7 @@ export default function EvaluationsClient({
                                   {refLabel(mod)}
                                 </span>
                               </div>
-                              <div className="pl-4">
+                              <div className="pl-6 pr-2">
                                 {modEvals.map(ev => renderEval(ev, modEvals))}
                                 {addingInMod && addingCours && renderAddForm(addingCours)}
                               </div>
