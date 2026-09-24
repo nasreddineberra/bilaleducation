@@ -3823,6 +3823,115 @@ moitie de la passe du 5 aout, restee en plan.
 comptable est reste sans `Parametres -> Financiers` apres deconnexion/reconnexion parce que la
 sidebar n'avait pas ete poussee. La base et l'application se deploient separement.
 
+#### 24 septembre 2026 (suite) — Parcours ENSEIGNANT : sept defauts, dont un faux succes
+
+Le compte comptable valide, le compte enseignant ouvert a son tour. Les quatre tables de reference
+corrigees le matin lui profitaient deja (il ne voyait ni annee, ni periode, ni type d'evaluation).
+
+**LA FICHE APPRENANT ETAIT MODIFIABLE PAR L'ENSEIGNANT — et le refus passait pour un succes.**
+Ni la page ni le formulaire ne recevaient le role : la fiche etait editable pour quiconque
+l'atteignait. L'ecriture de `students` est pourtant reservee a admin/direction/resp. pedago/
+secretaire depuis le 5 aout. Or `.update(...).eq('id', ...)` etait ecrit **sans `.select()`** : une
+ecriture ecartee par la RLS touche zero ligne SANS lever d'erreur. L'enseignant modifiait un nom,
+l'application annoncait un succes et le renvoyait a la liste, **rien n'etait enregistre**.
+- Correctif en DEUX couches. (1) `.select('id')` sur l'update ET l'insert : zero ligne devient
+  « Votre role ne permet pas de modifier cette fiche ». C'est le correctif qui compte — il vaut
+  pour tous les roles et pour les cas qu'on n'a pas encore rencontres. (2) La fiche passe en
+  lecture seule, par un **`<fieldset disabled>` ENGLOBANT** et non champ par champ : il desactive
+  nativement tout ce qu'il contient, **y compris ce qu'on ajoutera plus tard**. Verrouiller les
+  quatorze champs un par un aurait laisse passer le prochain, en silence.
+- **Pas de bandeau « lecture seule »** (retire a la demande) : des champs inertes et l'absence de
+  bouton le disent deja, et la ligne ajoutee faisait apparaitre une barre de defilement sur un
+  ecran concu sans. La raison vit dans le code, pour que personne ne le remette « pour aider ».
+
+**COMMUNICATIONS : l'ecran disparait pour l'enseignant** (arbitrage utilisateur). Il n'ecrit ni aux
+parents (il ne communique que les devoirs) ni au staff (decision du 16 juillet, maintenue apres
+re-examen) : l'historique, filtre sur `published_by = lui`, ne lui montrait qu'une liste VIDE. Lien
+retire de la barre laterale ET garde sur la page — un ecran reste atteignable par son adresse. Il
+continue de RECEVOIR les messages internes, par la cloche.
+- A savoir pour plus tard : ce filtre etait **applicatif seulement**. `announcements_tenant` laisse
+  tout compte de l'ecole lire toutes les annonces (voir le balayage miroir). Quand on reprendra
+  cette table, la policy de lecture devra refleter cette decision.
+
+**LE LIEN DE REINITIALISATION N'AFFIRME PLUS UNE CAUSE SUR DEUX.** L'ecran titrait « Ce lien a deja
+servi » alors que la cause reelle etait le plus souvent l'expiration. **Supabase ne distingue pas
+les deux, et c'est delibere** : la liste `ErrorCode` de `@supabase/auth-js` comporte `otp_expired`
+et **RIEN** pour « deja utilise » — le jeton a usage unique est supprime des qu'il sert, un lien
+consomme revient donc avec le meme code qu'un lien perime. Verifie dans la declaration, pas suppose.
+Remplacer une affirmation fausse par l'affirmation inverse n'aurait rien valu de mieux : le titre
+CONSTATE (« Ce lien n'est plus valable ») et le texte, **raccourci par l'utilisateur**, tient en une
+phrase. `error.code` est journalise : un code distinct vaudrait un motif a part.
+- **La validite reste a 10 minutes** (choix utilisateur, la montee a 60 min est ecartee).
+
+**TEMPS DE PRESENCE — le total du jour comptait les absences.** `Total jour` faisait un `reduce` sur
+TOUTES les saisies. L'exemple de l'utilisateur tranche : absent 3 h le matin, present 3 h
+l'apres-midi → **6 h travaillees affichees**. Le recapitulatif ecartait deja les absences ; cette
+ligne etait la seule restee en dehors de la regle.
+
+**GABARITS D'EVALUATION — le bouton inquietait sans raison.** Signale comme une perte de saisie ;
+c'etait l'inverse. **« Valider » ecrit l'evaluation en base sur-le-champ** (`insert().select()`), et
+**« Enregistrer le gabarit » n'enregistre que l'ORDRE**. Un bouton toujours present, grise, a cote
+d'un gabarit deja enregistre ne pouvait que faire croire a une perte. Poser la garde anti-perte
+demandee aurait protege d'un danger inexistant et laisse le vrai defaut intact.
+- L'ordre est desormais ecrit **des l'ajout** (`sort_order: currentEvals.length`), la suppression ne
+  salit plus l'ordre (les rangs restants demeurent croissants), le bouton **n'APPARAIT** que si l'on
+  a deplace quelque chose, et une `ConfirmModal` retient au depart si un reordonnancement n'est pas
+  enregistre (motif de la Saisie des notes). Libelle conserve, a la demande.
+
+**CAHIER DE TEXTE — la suppression n'existait nulle part.** Aucun bouton, ni pour les devoirs ni pour
+les seances ; la base l'autorisait pourtant depuis la phase B du 13 juillet. Construit en **server
+action** (`cahier-texte/actions.ts`) et non en `delete()` depuis le navigateur, pour trois raisons
+dans cet ordre : la FENETRE se verifie cote serveur (masquer un bouton ne protege rien) ; l'ORDRE
+compte — on supprime d'abord, on previent ensuite, avec des destinataires **captures AVANT** que la
+ligne disparaisse ; et la trace s'ecrit pendant qu'on sait encore ce qu'on efface.
+- **Fenetre** (arbitrages utilisateur) : devoir tant que la date de rendu n'est pas passee ; seance
+  sous **7 jours**, meme fenetre que la preparation d'un remplaçant. Le delai est une regle
+  d'ENSEIGNANT — l'encadrement supprime sans fenetre, c'est lui qui corrige les erreurs anciennes.
+  Confirmation pour TOUS. Bouton **grise et non masque** hors fenetre, avec l'infobulle qui dit
+  pourquoi (regle du 4 aout).
+- **Email « Devoir annule »** aux familles, construit par foyer comme celui de creation : un devoir
+  annonce puis efface sans un mot ferait travailler un enfant sur un devoir annule. L'echec de
+  l'envoi ne defait pas la suppression — elle a eu lieu, on le dit en avertissement ambre.
+  **Une seance n'envoie rien** : elle n'a jamais rien envoye (decision du 11 juillet).
+
+**GABARITS — la colonne de droite se lit enfin comme le referentiel** (quatre passes, l'utilisateur
+a du reprendre trois fois, ce qui dit l'essentiel : j'ai corrige les CLASSES avant de comprendre
+qu'il fallait la STRUCTURE).
+1. Retraits : evaluations sans module sans aucun retrait, en-tete de module sans filet vertical,
+   evaluations sous module en `pl-4` au lieu de `pl-6`.
+2. Presentation : pas de pastille ronde, code sur `warm-200` au lieu de `warm-100`, survol beige au
+   lieu de turquoise, unite sans `font-bold`.
+3. Interlignes : `space-y-1` au lieu de `space-y-px` (quatre fois plus d'air), `mt-1.5` au lieu de
+   `mt-0.5`, et surtout des **fleches de reordonnancement en 14-15 px** qui dictaient la hauteur de
+   ligne la ou le referentiel tient en 13.
+4. **LA VRAIE CAUSE, trouvee en dernier** : le nom vivait dans un `<span>` EN LIGNE au sein d'un
+   `<div>` **sans classe de texte**. Ce div imposait sa hauteur de ligne HERITEE, tres superieure aux
+   16 px de `text-xs` — le fond du survol en heritait. Meme piege que sur les capsules de l'EDT
+   (2 aout). La structure de `CoursRefRow` est desormais recopiee telle quelle, ce qui ramene au
+   passage la **troncature** (le nom arabe debordait) et l'**infobulle** des deux noms complets.
+   **Regle** : « comme X » ne veut pas dire les memes classes, mais le meme MONTAGE.
+
+**LISERE DES CARTES RENFORCE** (demande utilisateur), par un **jeton dedie `--card-border`** et non
+en touchant `--line`. Mesure : la bordure tenait a **1,18:1** sur blanc, a la limite du visible ;
+elle passe a `warm-300` (**1,68:1**), deja la valeur des bordures de champ — cartes et champs portent
+donc le meme trait. En sombre, `#384a54` (1,81:1).
+- **Pourquoi un jeton dedie** : `--line` habille AUSSI les lignes de la grille de l'EDT et, en theme
+  sombre, tous les `border-warm-200` et separateurs de tableau remappes par le pont. Le renforcer
+  globalement aurait alourdi tout cela.
+- **Verifie dans le CSS EMIS** (`.next/static/chunks/*.css`) et non dans la source : le pont a deja
+  ete casse deux fois faute de ce controle. Portee : les **75 fichiers** qui emploient `.card`, dont
+  les 31 tableaux en `card p-0`. Les panneaux flottants (listes de l'EDT, selecteur de pays, palette
+  de couleurs) ne sont PAS des cartes et gardent leur bordure propre.
+
+**LE STYLE DES ENCADRES EST BIEN CENTRALISE** (question de l'utilisateur, verifiee) : `.card` est
+definie une seule fois dans `globals.css`, sans aucune couleur en dur — que des jetons, ce qui a
+permis la passe clair/sombre sans toucher aux 75 fichiers. Famille complete au meme endroit :
+`.card-flush`, `.card-hover`, `.list-th/-td/-name/-th-compact`, `.section-title`, `.stat-label`,
+`.input`, `.list-scroll`.
+- **Incoherence relevee, non traitee** : `.card-flush` existe et n'est utilisee **NULLE PART** — les
+  31 tableaux ecrivent `card p-0`. Deux facons de dire la meme chose, la moins explicite a gagne.
+  `.card-hover` n'a qu'un seul usage. A trancher en fin de V1 : adopter ou supprimer.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
