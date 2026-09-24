@@ -918,7 +918,7 @@ export default function EvaluationsClient({
                 aria-label="Monter l'évaluation"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
-                                <ChevronUp size={15} />
+                                <ChevronUp size={13} />
                               </button>
                             </Tooltip>
                           )}
@@ -929,7 +929,7 @@ export default function EvaluationsClient({
                 aria-label="Descendre l'évaluation"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
-                                <ChevronDown size={15} />
+                                <ChevronDown size={13} />
                               </button>
                             </Tooltip>
                           )}
@@ -1040,7 +1040,7 @@ export default function EvaluationsClient({
                 aria-label="Monter l'UE"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
-                                <ChevronUp size={14} />
+                                <ChevronUp size={13} />
                               </button>
                             </Tooltip>
                           )}
@@ -1051,7 +1051,7 @@ export default function EvaluationsClient({
                 aria-label="Descendre l'UE"
                                 className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                               >
-                                <ChevronDown size={14} />
+                                <ChevronDown size={13} />
                               </button>
                             </Tooltip>
                           )}
@@ -1064,7 +1064,10 @@ export default function EvaluationsClient({
                         </span>
                       </div>
 
-                      <div className="space-y-1">
+                      {/* `space-y-px` et non `space-y-1` : le referentiel serre
+                          ses lignes, la colonne de droite les aerait quatre fois
+                          plus. Meme hierarchie, meme respiration. */}
+                      <div className="space-y-px">
                         {/* Zone "sans module" — meme retrait que les cours
                             directs du referentiel (`px-2`), pour que les deux
                             colonnes se lisent a la meme hauteur. */}
@@ -1079,7 +1082,7 @@ export default function EvaluationsClient({
                           const addingInMod = addingHere && addingCours?.module_id === mod.id
 
                           return (
-                            <div key={mod.id} className="mt-1.5 ml-4 rounded-lg">
+                            <div key={mod.id} className="mt-0.5 ml-4 rounded-lg">
                               {/* En-tête module */}
                               {/* Filet vertical + `pl-3` : les memes que dans le
                                   referentiel. La hierarchie UE > module > cours
@@ -1093,7 +1096,7 @@ export default function EvaluationsClient({
                                         aria-label="Monter le module"
                                         className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                                       >
-                                        <ChevronUp size={14} />
+                                        <ChevronUp size={13} />
                                       </button>
                                     </Tooltip>
                                   )}
@@ -1104,7 +1107,7 @@ export default function EvaluationsClient({
                                         aria-label="Descendre le module"
                                         className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
                                       >
-                                        <ChevronDown size={14} />
+                                        <ChevronDown size={13} />
                                       </button>
                                     </Tooltip>
                                   )}
