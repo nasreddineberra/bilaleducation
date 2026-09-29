@@ -3969,6 +3969,166 @@ partir du seul code, sans que rien ne l'etablisse. La fiche classe a suffi a dem
 en une capture. **Ne pas conclure sur une donnee qu'on n'a pas regardee**, meme quand le
 raisonnement semble fermer.
 
+#### 29 septembre 2026 — Resp. pedagogique + secretaire : le POINT 3 EST CLOS. Puis chantier RLS, lots 1 et 3
+
+Les deux derniers roles du plan eprouves a l'ecran. **Quatorze defauts, AUCUN de
+droits** : la RLS tenait. Ce qui ne tenait pas, ce sont les endroits ou
+l'application se contredit elle-meme. Le fil rouge de la journee, enonce ici
+parce qu'il vaudra pour les prochaines passes : **un correctif applique a une
+copie sur quatre, un menu qui ferme ce que sa page autorise, une carte qui tait
+sa regle quand sa voisine l'annonce, un droit accorde en base sans ecran pour
+l'exercer.** Rien de tout cela ne se voit en lisant un fichier isolement.
+
+**TROIS SOURCES UNIQUES CREEES, 13 COPIES SUPPRIMEES**
+- `ui/PasswordChecklist` : la liste des regles de mot de passe vivait dans
+  QUATRE fichiers, avec quatre conditions d'affichage et trois couleurs pour la
+  meme idee. C'est cette dispersion qui a produit le defaut signale : sur
+  l'ecran de reinitialisation, la liste n'apparaissait qu'au `onBlur`, donc
+  APRES avoir quitte le champ. Le correctif du 15 juillet, pose sur Mon compte,
+  n'avait jamais atteint les autres copies. **La CONDITION d'affichage reste
+  chez l'appelant** (elle depend de l'ecran : un mot de passe genere n'a pas les
+  memes moments utiles qu'un mot de passe saisi) ; seul le RENDU est mutualise.
+- `lib/auth/role-labels` : SEPT fichiers portaient leur table de libelles, avec
+  QUATRE graphies du meme role. L'en-tete, lui, rendait la valeur BRUTE de
+  `profiles.role` avec un `capitalize` CSS — d'ou « Responsable Pedagogique »
+  sans accent, la base ne stockant pas des libelles. Le tableau de bord
+  affichait donc DEUX libelles du meme role SUR LE MEME ECRAN. Deux formes
+  deliberees (longue pour les fiches, courte pour les colonnes) ; valeur
+  inconnue rend une chaine VIDE, jamais la valeur brute (regle du 16 aout).
+- `lib/teachers/nom` : la meme fonction etait recopiee CINQ fois dans l'EDT,
+  dont une seule omettait le prenom. Les capsules affichent desormais NOM puis
+  prenom sur DEUX lignes, sans civilite (sur une seule, le `truncate` coupait et
+  emportait le prenom qu'on venait d'ajouter).
+
+**DEUX MENUS FERMAIENT CE QUE LEUR PAGE AUTORISAIT.** Un menu parent dont le
+role n'est pas liste masque TOUS ses enfants, meme ceux qui listent ce role.
+Le resp. pedagogique ne voyait AUCUNE feuille d'appel alors que l'enfant
+« Adultes » le listait, que les deux pages lui donnent le perimetre complet et
+que la vue « toutes les classes » du 4 aout l'y incluait nommement. La
+secretaire ne voyait ni Gabarits ni Saisie des notes, alors que le 5 aout avait
+elargi les selecteurs de perimetre POUR ELLE. Le droit existait, le lien
+n'etait jamais rendu.
+
+**BULLETINS OUVERTS A LA SECRETAIRE** (question de l'utilisateur : elle a acces
+aux gabarits et a la saisie des notes et pas aux bulletins, « ce n'est pas
+logique »). Les faits lui donnaient raison au-dela du menu : le bucket
+`bulletins` lui accordait la LECTURE depuis le 25 juillet, ou elle est
+NOMMEMENT listee — un droit QU'AUCUN ECRAN N'EXERCAIT. Meme signe que celui du
+16 septembre sur les demandes de support : une policy que rien n'utilise signale
+un ecran manquant, pas un droit en trop. Les QUATRE actions lui sont ouvertes
+(elle peut etre amenee a faire celles d'un enseignant), migration
+`open-bulletins-to-secretaire.sql` pour l'ecriture du bucket — sans quoi la
+ligne d'archive se serait ecrite en base pendant que le PDF etait refuse.
+
+**AUDIT DES LIBELLES DE MENU** (demande : est-ce coherent avec la charte ?).
+Le principe est tenu partout — le menu abrege, le titre developpe — avec six
+exceptions, toutes corrigees : « Saisie notes » agrammatical, « Annee scolaire »
+au singulier vers une liste au pluriel, deux entrees de Communications qui
+menaient a des pages sans lien lexical, « Stats reglements » familier,
+« Financiers » seul adjectif de l'application, et **« Staff »**, un anglicisme
+qui vivait a HUIT endroits. Devenu **« Equipe »** (proposition de l'utilisateur,
+meilleure que mon « Personnel » : elle inclut les enseignants sans avoir a les
+nommer) ; « Membre » pour le badge d'un destinataire individuel, une personne
+n'etant pas une equipe. Verifie avant d'y toucher : dans la liste Utilisateurs,
+« Staff » s'oppose a « Parents », donc il designait bien TOUT le personnel.
+
+**LA BARRE LATERALE EST DESORMAIS INSENSIBLE A LA LONGUEUR DES LIBELLES.** Ses
+libelles n'avaient JAMAIS porte de `truncate` : un libelle trop long ne se
+coupait pas, il passait a la ligne et deformait le menu. Rien ne l'attrapait —
+ni le type-check, ni le lint, ni le build. **Mesure : ~149 px de budget pour un
+sous-menu, et « Staff / Enseignants » en occupait ~132 — deux caracteres de
+marge.** Chaque renommage devenait un calcul de largeur. Nouveau composant
+`LibelleMenu` : tronque, avec l'infobulle SEULEMENT s'il deborde reellement.
+`ui/TruncatedText` n'etait pas reutilisable — il s'appuie sur `Tooltip`, dont la
+bulle claire jurerait sur le fond sombre.
+- **PIEGE PAYE DEUX FOIS** : `SECTION_OF` est indexe par le NOM de l'item.
+  Renommer sans mettre la cle a jour fait DISPARAITRE l'entree du menu, sans la
+  moindre erreur.
+- **DEUXIEME TABLE** : `DashboardNav` en contient une seconde pour le fil
+  d'Ariane des pages Parametres. Corriger la premiere seule laissait
+  « Financiers » dans le fil — trouve en REJOUANT l'audit de coherence, pas en
+  relisant.
+
+**DIVERS** : les raccourcis changeaient de place selon le role (en haut chez
+l'admin et le resp. pedago, en bas chez la secretaire et l'enseignant) —
+alignes en haut ; carte « Enseignants » devient « Enseignants actifs » (le
+chiffre etait JUSTE, mais sa voisine dit « Eleves actifs ») ; carte « Classes »
+du tableau de bord pedagogique qui taisait son bornage a l'annee ; **feuille
+d'appel VIERGE** non datee, avec un trait a remplir a la main (on l'imprime pour
+la remplir plus tard, la dater la rendait inutilisable) et son NOM DE FICHIER
+porte l'annee et non le jour — le contenu ne depend pas du jour d'impression.
+
+---
+
+**CHANTIER RLS — LOTS 1 ET 3** (seconde moitie de la passe du 5 aout)
+
+Quatorze tables n'avaient qu'UNE policy, en `FOR ALL`, dont l'unique condition
+etait l'etablissement : le cloisonnement avait REMPLACE le controle de role.
+Ces ecrans ecrivent DIRECTEMENT depuis le navigateur — la RLS est le seul
+rempart, les gardes applicatives ne protegent rien.
+
+**LOT 1 — finance et bulletins** (`add-role-checks-lot1-finance-bulletins.sql`)
+Tout compte de l'ecole pouvait reecrire ce qu'une famille doit, effacer un
+paiement, **SUPPRIMER UN BULLETIN ARCHIVE** ou reecrire une appreciation. Le
+second point est le plus grave : un bulletin archive est un document PUBLIE,
+remis aux familles, et le 9 aout l'historique de cloture a ete recrit pour
+AGREGER ces archives au lieu de recalculer, precisement pour qu'il ne puisse
+jamais les contredire. Cette garantie reposait sur des tables reecrivables par
+n'importe qui.
+- Finance : lecture ET ecriture reservees aux `FINANCE_ROLES`.
+- Bulletins : **la ligne de partage n'est pas « bulletins », c'est ARCHIVER
+  contre APPRECIER.** L'archivage est reserve a admin/direction/secretaire
+  (l'enseignant n'a pas le bucket, lui ouvrir la table produirait un archivage a
+  moitie fait) ; **l'appreciation reste ouverte a l'enseignant sur SES classes**,
+  c'est un acte pedagogique. Les traiter d'un bloc la lui aurait retiree.
+- **Consequence arbitree** : decider si un foyer est supprimable exige de
+  COMPTER ses cotisations. Plutot qu'ouvrir les montants dus a deux roles de
+  plus, `deleteParent` passe a admin/direction, bouton masque pour les autres.
+  Au passage, `getParentDeleteDeps` n'avait AUCUNE garde de role.
+
+**TABLES MORTES** (`drop-dead-referentiel-tables.sql`) : `modules`,
+`teaching_units`, `subjects`, `staff_hourly_rates`, zero usage et zero ligne.
+Le releve a montre qu'elles NE SONT PAS ISOLEES :
+`evaluations.module_id -> modules -> teaching_units -> subjects`. La premiere
+fleche part d'une table VIVANTE. **`evaluations.module_id` est une colonne morte
+— A NE PAS CONFONDRE avec `display_module_id`**, qui pointe vers
+`cours_modules`, est renseignee sur les 8 evaluations et fait vivre gabarits,
+bulletins et notes. Les deux se ressemblent, une seule est morte.
+
+**LOT 3 — EDT, affectations, documents, discipline**
+(`add-role-checks-lot3-edt-affectations-documents.sql`). Le trou le plus
+interessant : **`class_teachers` permettait de S'AFFECTER SOI-MEME a une
+classe**, et donc d'obtenir par ricochet tout ce que `teaches_class` accorde.
+Ce n'etait pas un acces de plus, c'etait le MOYEN de s'en donner d'autres.
+- **Alignement applicatif, le point critique du lot** : ni `StudentDocuments` ni
+  `StudentDiscipline` ne recevaient `lectureSeule`. L'enseignant gardait des
+  boutons d'ajout et de suppression ACTIFS sur ces onglets ; ils fonctionnaient
+  jusque-la (policies tenant-seul) et auraient echoue EN SILENCE apres la
+  migration. **Une migration de RLS se double toujours d'une revue des boutons
+  qu'elle va rendre inoperants.**
+- **La garde de la migration a servi** : `class_teachers` n'a PAS de colonne
+  `etablissement_id`, elle se cloisonne par `classes`. Mon releve affichait
+  `T=oui` parce qu'il cherchait la chaine `etablissement_id` sans distinguer une
+  colonne propre d'une jointure. Rien n'avait ete applique — la garde est la
+  PREMIERE instruction du fichier. **Regle : toute migration de RLS commence par
+  verifier le chemin de cloisonnement REEL de chaque table.**
+
+**CE QUE LES CONTROLES N'ONT PAS PROUVE, et il faut le savoir** : le bornage de
+l'enseignant par `teaches_class` (bulletins) et `teaches_student` (documents,
+discipline) n'est PAS demontre — il voit 4 bulletins sur 4 parce qu'il enseigne
+visiblement toutes les classes concernees, et les deux autres tables sont VIDES.
+Le test ne distingue pas « borne » de « pas borne ». Meme piege que le titulaire
+du 24/09 : il faudra une classe qu'aucun enseignant ne couvre, et un premier
+document depose.
+
+**RESTE DU CHANTIER : LE LOT 2 (annonces).** Il porte le seul vrai arbitrage
+metier — qui a le droit de LIRE les messages envoyes aux familles — et la
+correction de `staff_recipients_write_scoped`, qui n'a AUCUN cloisonnement par
+ecole. Les deux durcissements de juillet sont confirmes inoperants :
+`announcements_tenant` et `ann_staff_recipients_tenant`, en `FOR ALL` sans role,
+annulent les policies scopees posees a cote (les permissives s'ADDITIONNENT).
+
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -4211,6 +4371,23 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/open-bulletins-to-secretaire.sql` : la secretaire
+  ECRIT desormais dans le bucket `bulletins` (archivage / desarchivage). Elle en avait
+  la LECTURE depuis le 25 juillet — un droit qu'aucun ecran n'exercait. Jouee le 29/09.
+- [x] Executer `supabase/migrations/add-role-checks-lot1-finance-bulletins.sql` :
+  CHANTIER RLS LOT 1. Sept tables n'avaient qu'une policy `FOR ALL` sans role — tout
+  compte de l'ecole pouvait reecrire ce qu'une famille doit ou SUPPRIMER UN BULLETIN
+  ARCHIVE. Archiver (admin/direction/secretaire) distingue d'APPRECIER (enseignant sur
+  ses classes). Jouee et **verifiee sous identite reelle** le 29/09.
+- [x] Executer `supabase/migrations/drop-dead-referentiel-tables.sql` : `modules`,
+  `teaching_units`, `subjects`, `staff_hourly_rates` + la colonne morte
+  `evaluations.module_id` qui bloquait le DROP. Ne pas confondre avec
+  `display_module_id`, VIVANTE. Jouee le 29/09.
+- [x] Executer `supabase/migrations/add-role-checks-lot3-edt-affectations-documents.sql` :
+  CHANTIER RLS LOT 3 (EDT, affectations, documents, discipline). `class_teachers`
+  permettait de S'AFFECTER SOI-MEME a une classe, donc d'obtenir tout ce que
+  `teaches_class` accorde. Sa garde a d'ailleurs servi : cette table se cloisonne par
+  `classes`, pas par colonne propre. Jouee et verifiee le 29/09.
 - [x] Executer `supabase/migrations/add-role-checks-to-reference-tables.sql` : `school_years`,
   `periods`, `eval_type_configs` etaient reservees a admin/direction — **4 roles sur 6 ne voyaient
   aucune annee scolaire**, et 40 fichiers la lisent. `adult_grades` alignee sur `grades` (un
