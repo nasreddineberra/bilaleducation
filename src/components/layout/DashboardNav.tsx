@@ -29,14 +29,14 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/affectation':         'Affectations pédagogiques apprenants',
   '/dashboard/affectation/adultes': 'Affectations pédagogiques adultes',
   '/dashboard/classes/new':       'Nouvelle classe',
-  '/dashboard/grades':            'Saisie notes',
+  '/dashboard/grades':            'Saisie des notes',
   '/dashboard/bulletins':          'Bulletins',
   '/dashboard/absences':          'Feuille d\'appel',
   '/dashboard/absences/adultes':  'Feuille d\'appel adultes',
   '/dashboard/evaluations':       'Gabarits des évaluations',
   '/dashboard/communications':        'Messages envoyés',
-  '/dashboard/communications/new':    'Nouveau message',
-  '/dashboard/communications/staff':  'Communication interne',
+  '/dashboard/communications/new':    'Message aux parents',
+  '/dashboard/communications/staff':  'Message à l’équipe',
   '/dashboard/notifications':      'Notifications',
   '/dashboard/temps-presence':     'Temps de présence',
   '/dashboard/financements':              'Situation financière actuelle',
@@ -47,7 +47,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/annee-scolaire':    'Années scolaires',
   '/dashboard/annee-scolaire/new':'Nouvelle année scolaire',
   '/dashboard/cours':             'Référentiel des cours',
-  '/dashboard/cotisations':       'Financiers',
+  '/dashboard/cotisations':       'Cotisations et taux',
   '/dashboard/types-presence':   'Types de présence',
   '/dashboard/ressources':        'Ressources',
   '/dashboard/logs':              'Journal d\'activité',
@@ -110,9 +110,9 @@ function getBreadcrumbs(pathname: string): Crumb[] {
 
   // Sous-pages année scolaire
   if (/^\/dashboard\/annee-scolaire\/new/.test(pathname))
-    return [{ label: 'Paramètres' }, { label: 'Année scolaire' }, { label: 'Nouvelle année' }]
+    return [{ label: 'Paramètres' }, { label: 'Années scolaires' }, { label: 'Nouvelle année' }]
   if (/^\/dashboard\/annee-scolaire\//.test(pathname))
-    return [{ label: 'Paramètres' }, { label: 'Année scolaire' }, { label: 'Détail' }]
+    return [{ label: 'Paramètres' }, { label: 'Années scolaires' }, { label: 'Détail' }]
 
   // Sous-pages notifications
   if (/^\/dashboard\/notifications\//.test(pathname))
@@ -126,7 +126,7 @@ function getBreadcrumbs(pathname: string): Crumb[] {
 
   // Communications
   if (/^\/dashboard\/communications\/new/.test(pathname))
-    return [{ label: 'Communications' }, { label: 'Nouveau message' }]
+    return [{ label: 'Communications' }, { label: 'Message aux parents' }]
   if (/^\/dashboard\/communications\/staff/.test(pathname))
     return [{ label: 'Communications' }, { label: 'Équipe' }]
   if (/^\/dashboard\/communications\//.test(pathname))
@@ -158,7 +158,7 @@ function getBreadcrumbs(pathname: string): Crumb[] {
   if (pathname === '/dashboard/evaluations')
     return [{ label: 'Évaluations' }, { label: 'Gabarits' }]
   if (pathname === '/dashboard/grades')
-    return [{ label: 'Évaluations' }, { label: 'Saisie notes' }]
+    return [{ label: 'Évaluations' }, { label: 'Saisie des notes' }]
   if (pathname === '/dashboard/bulletins')
     return [{ label: 'Évaluations' }, { label: 'Bulletins' }]
 
@@ -177,7 +177,7 @@ function getBreadcrumbs(pathname: string): Crumb[] {
     '/dashboard/teachers':       'Enseignants',
     '/dashboard/utilisateurs':   'Utilisateurs',
     '/dashboard/annee-scolaire': 'Années scolaires',
-    '/dashboard/cotisations':    'Financiers',
+    '/dashboard/cotisations':    'Cotisations',
     '/dashboard/types-presence': 'Types de présence',
     '/dashboard/ressources':     'Ressources',
     '/dashboard/logs':           'Journal d\'activité',

@@ -108,6 +108,52 @@ function SidebarTooltip({ children, label, className = 'w-full' }: { children: R
   )
 }
 
+/**
+ * Libellé d'entrée de menu : tronqué si la place manque, avec l'infobulle
+ * SEULEMENT dans ce cas.
+ *
+ * ── POURQUOI ───────────────────────────────────────────────────────────────
+ *
+ * La barre n'avait aucun garde-fou : ses libellés n'ont jamais porté de
+ * `truncate`, donc un libellé trop long ne se coupait pas — il passait à la
+ * ligne et déformait le menu. Rien ne l'attrapait, ni le type-check, ni le
+ * lint, ni le build : cela ne se voit qu'à l'écran, et seulement si quelqu'un
+ * regarde la bonne section. La mesure du 29 septembre donnait **deux
+ * caractères de marge** sur le plus long libellé (« Staff / Enseignants »,
+ * ~132 px dans un budget de ~149). Chaque renommage devenait un calcul.
+ *
+ * ── POURQUOI MESURER PLUTÔT QU'ENVELOPPER TOUJOURS ─────────────────────────
+ *
+ * Une infobulle systématique s'ouvre sur un texte entièrement lisible et masque
+ * ce qui l'entoure. On ne l'affiche donc que si le texte déborde réellement.
+ * C'est le raisonnement de `ui/TruncatedText` — mais on ne peut pas réutiliser
+ * ce composant ici : il s'appuie sur `Tooltip`, dont la bulle claire jurerait
+ * sur le fond sombre de la barre, qui a son propre `SidebarTooltip`.
+ */
+function LibelleMenu({ texte, className = '' }: { texte: string; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [coupe, setCoupe] = useState(false)
+
+  useEffect(() => {
+    const mesurer = () => {
+      const el = ref.current
+      // +1 : marge d'arrondi, les deux mesures étant sous-pixellisées.
+      if (el) setCoupe(el.scrollWidth > el.clientWidth + 1)
+    }
+    mesurer()
+    window.addEventListener('resize', mesurer)
+    return () => window.removeEventListener('resize', mesurer)
+  }, [texte])
+
+  const inner = (
+    <span ref={ref} className={clsx('block w-full truncate text-left', className)}>{texte}</span>
+  )
+
+  return coupe
+    ? <SidebarTooltip label={texte} className="flex-1 min-w-0">{inner}</SidebarTooltip>
+    : <span className="flex-1 min-w-0">{inner}</span>
+}
+
 // ─── Structure de navigation ──────────────────────────────────────────────────
 
 const navItems: NavItem[] = [
@@ -179,7 +225,7 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
       },
       {
-        name:  'Saisie notes',
+        name:  'Saisie des notes',
         href:  '/dashboard/grades',
         icon:  FileText,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
@@ -307,7 +353,7 @@ const navItems: NavItem[] = [
   // ── Section PARAMÈTRES (entrées de 1er niveau ; visibilité admin/direction,
   //    identique à l'ancien groupe « Paramètres » qui les englobait) ──
   {
-    name:  'Année scolaire',
+    name:  'Années scolaires',
     href:  '/dashboard/annee-scolaire',
     icon:  CalendarDays,
     roles: ['admin', 'direction'],
@@ -347,7 +393,7 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction'],
   },
   {
-    name:  'Financiers',
+    name:  'Cotisations',
     href:  '/dashboard/cotisations',
     icon:  Wallet,
     roles: ['admin', 'direction', 'comptable'],
@@ -398,11 +444,11 @@ const SECTION_OF: Record<string, string> = {
   'Financements':       'Gestion',
   'Audits & Passage d\'année': 'Clôture',
   // Section Paramètres
-  'Année scolaire':     'Paramètres',
+  'Années scolaires':   'Paramètres',
   'Pédagogie':          'Paramètres',   // item (Param. classes / Référentiel cours)
   'Enseignants':        'Paramètres',
   'Utilisateurs':       'Paramètres',
-  'Financiers':         'Paramètres',
+  'Cotisations':        'Paramètres',
   'Types de présence':  'Paramètres',
   'Ressources':         'Paramètres',
   "Journal d'activité": 'Paramètres',
@@ -727,7 +773,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                       </SidebarTooltip>}
                   {!collapsed && (
                     <>
-                      <span className="flex-1 text-left">{item.name}</span>
+                      <LibelleMenu texte={item.name} />
                       <ChevronDown
                         size={14}
                         className={clsx(
@@ -771,7 +817,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                 <SidebarTooltip label={`${item.name} - ${child.name}`} className="w-auto">
                                   <Icon size={16} className={clsx('flex-shrink-0', isSubActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
                                 </SidebarTooltip>
-                                <span className="flex-1 text-left text-sm">{child.name}</span>
+                                <LibelleMenu texte={child.name} className="text-sm" />
                                 <ChevronDown
                                   size={12}
                                   className={clsx(
@@ -798,7 +844,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                                         <SidebarTooltip label={`${child.name} - ${leaf.name}`} className="w-auto">
                                           <SubIcon size={14} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
                                         </SidebarTooltip>
-                                        <span className="text-sm">{leaf.name}</span>
+                                        <LibelleMenu texte={leaf.name} className="text-sm" />
                                       </Link>
                                     )
                                   })}
@@ -823,7 +869,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                             <SidebarTooltip label={`${item.name} - ${child.name}`} className="w-auto">
                               <Icon size={14} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
                             </SidebarTooltip>
-                            <span className="text-sm">{child.name}</span>
+                            <LibelleMenu texte={child.name} className="text-sm" />
                           </Link>
                         )
                       })}
@@ -850,7 +896,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                 <SidebarTooltip label={item.name} className="w-auto">
                   <Icon size={18} className={clsx('flex-shrink-0', isActive ? 'text-[var(--brand-accent)]' : 'text-[var(--brand-icon)]')} />
                 </SidebarTooltip>
-                <span>{item.name}</span>
+                <LibelleMenu texte={item.name} />
               </Link>
             )
 
