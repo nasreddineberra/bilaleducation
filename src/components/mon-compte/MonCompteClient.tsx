@@ -14,6 +14,7 @@ import { updateOwnProfile, updateOwnEmail } from '@/app/dashboard/mon-compte/act
 import TwoFactorCard from '@/components/mon-compte/TwoFactorCard'
 import TeacherAttendance from '@/components/teachers/TeacherAttendance'
 import type { Assiduite } from '@/lib/temps-presence/assiduite'
+import { libelleRole } from '@/lib/auth/role-labels'
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -38,16 +39,6 @@ interface Props {
 
 const CIVILITE_OPTIONS = ['M.', 'Mme']
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin:              'Super administrateur',
-  admin:                    'Administrateur',
-  direction:                'Direction',
-  comptable:                'Comptable',
-  responsable_pedagogique:  'Responsable pédagogique',
-  enseignant:               'Enseignant',
-  secretaire:               'Secrétaire',
-  parent:                   'Parent',
-}
 
 export default function MonCompteClient({ profile, email, etablissementName, assiduite }: Props) {
   const router = useRouter()
@@ -179,7 +170,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
           ) : (
             <FloatInput label="Adresse email" value={email} locked onChange={() => {}} />
           )}
-          <FloatInput label="Rôle" value={ROLE_LABELS[profile.role] ?? profile.role} locked onChange={() => {}} />
+          <FloatInput label="Rôle" value={libelleRole(profile.role)} locked onChange={() => {}} />
         </div>
         {etablissementName && (
           <FloatInput label="Établissement" value={etablissementName} locked onChange={() => {}} />

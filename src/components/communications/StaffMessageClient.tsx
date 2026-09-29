@@ -11,6 +11,7 @@ import { FloatInput, FloatButton, SearchField } from '@/components/ui/FloatField
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { sanitize } from '@/lib/security/sanitize'
 import { sendStaffMessage, type StaffChannel } from '@/app/dashboard/communications/staff-actions'
+import { libelleRole } from '@/lib/auth/role-labels'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -28,14 +29,6 @@ interface Props {
   signatureHtml: string
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  direction: 'Direction',
-  responsable_pedagogique: 'Resp. pédagogique',
-  enseignant: 'Enseignant',
-  secretaire: 'Secrétaire',
-  comptable: 'Comptable',
-}
 
 // Libelles des CHIPS de filtre = groupe/service (plusieurs personnes possibles),
 // distincts du role d'un membre (badge, au singulier). Repli sur ROLE_LABELS.
@@ -44,7 +37,7 @@ const CHIP_LABELS: Record<string, string> = {
   comptable: 'Comptabilité',
   secretaire: 'Secrétariat',
 }
-const chipLabel = (r: string) => CHIP_LABELS[r] ?? ROLE_LABELS[r] ?? r
+const chipLabel = (r: string) => CHIP_LABELS[r] ?? libelleRole(r, 'court')
 
 // Memes couleurs que la colonne « Role » de la liste des utilisateurs.
 const ROLE_COLORS: Record<string, string> = {
@@ -416,7 +409,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                       >
                         {selected ? <CheckSquare size={14} className="text-primary-600 shrink-0" /> : <Square size={14} className="text-warm-700 shrink-0" />}
                         <span className={clsx('font-medium truncate', selected ? 'text-primary-700' : 'text-warm-700')}>{fullName(s)}</span>
-                        <span className={clsx('ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', roleColor(s.role))}>{ROLE_LABELS[s.role] ?? s.role}</span>
+                        <span className={clsx('ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', roleColor(s.role))}>{libelleRole(s.role, 'court')}</span>
                         {!s.email && <span className="text-amber-600 shrink-0">Sans email</span>}
                       </button>
                     </li>
@@ -461,7 +454,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
             {[...recipients].sort(byRoleThenName).map(r => (
               <li key={r.id} className="flex items-center gap-2 py-1.5 text-xs">
                 <span className="font-medium text-warm-700 flex-1 truncate">{fullName(r)}</span>
-                <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium', roleColor(r.role))}>{ROLE_LABELS[r.role] ?? r.role}</span>
+                <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium', roleColor(r.role))}>{libelleRole(r.role, 'court')}</span>
                 {r.email
                   ? <span className="text-warm-700 truncate max-w-[220px]">{r.email}</span>
                   : <span className="text-amber-600 shrink-0">Sans email</span>}

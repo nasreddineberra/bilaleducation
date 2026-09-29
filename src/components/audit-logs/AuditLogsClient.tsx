@@ -9,6 +9,7 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { AuditLog, AuditAction } from '@/types/database'
 import { PURGE_OPTIONS, type PurgeJours } from '@/lib/audit/purge-options'
+import { libelleRole } from '@/lib/auth/role-labels'
 
 const PAGE_SIZE = 20
 
@@ -83,16 +84,6 @@ const ENTITY_LABELS: Record<string, string> = {
   support:                      'Support éditeur',
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  super_admin:              'Super Admin',
-  admin:                    'Admin',
-  direction:                'Direction',
-  comptable:                'Comptable',
-  responsable_pedagogique:  'Resp. Pédago.',
-  enseignant:               'Enseignant',
-  secretaire:               'Secrétaire',
-  parent:                   'Parent',
-}
 
 const ACTION_CONFIG: Record<AuditAction, { label: string; bg: string; text: string }> = {
   INSERT: { label: 'Création',     bg: 'bg-green-100', text: 'text-green-700' },
@@ -591,7 +582,7 @@ export default function AuditLogsClient({
                     <td className="py-1.5 px-3 whitespace-nowrap">
                       <span className="text-secondary-700 font-medium">{log.user_name || log.user_email || '-'}</span>
                       {log.user_id && userRoles[log.user_id] && (
-                        <span className="ml-1.5 text-warm-700 text-[11px]">({ROLE_LABELS[userRoles[log.user_id]] ?? userRoles[log.user_id]})</span>
+                        <span className="ml-1.5 text-warm-700 text-[11px]">({libelleRole(userRoles[log.user_id], 'court')})</span>
                       )}
                     </td>
                     <td className="py-1.5 px-3 whitespace-nowrap">

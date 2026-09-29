@@ -10,6 +10,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
+import { libelleRole } from '@/lib/auth/role-labels'
 
 interface UtilisateurFormProps {
   profile?: Profile
@@ -53,16 +54,6 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 // Roles non modifiables sur une fiche existante : structurants, hors perimetre V1, ou
 // adosses a une fiche metier (changer le role laisserait une ligne teachers/parents orpheline).
 const LOCKED_ROLES: UserRole[] = ['admin', 'super_admin', 'parent', 'enseignant']
-const ROLE_LABELS: Record<string, string> = {
-  super_admin:             'Super Admin',
-  admin:                   'Administrateur',
-  direction:               'Direction',
-  comptable:               'Comptable',
-  responsable_pedagogique: 'Resp. Pédagogique',
-  enseignant:              'Enseignant',
-  secretaire:              'Secrétaire',
-  parent:                  'Parent',
-}
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 const toUpperCase  = (v: string) => v.toUpperCase()
@@ -218,7 +209,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
               {profile.last_name} {profile.first_name}
             </h1>
             <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
-              <span>{ROLE_LABELS[profile.role] ?? profile.role}</span>
+              <span>{libelleRole(profile.role, 'court')}</span>
               <span>· {profile.email}</span>
               {!profile.is_active && (
                 <span className="bg-warm-200 text-warm-700 px-1.5 py-0.5 rounded font-medium">Inactif</span>
@@ -309,7 +300,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
             error={touched.has('role') && vRole ? 'Requis' : undefined}
           >
             {roleLocked ? (
-              <option value={profile.role}>{ROLE_LABELS[profile.role] ?? profile.role}</option>
+              <option value={profile.role}>{libelleRole(profile.role, 'court')}</option>
             ) : (
               <>
                 <option value="" disabled hidden></option>

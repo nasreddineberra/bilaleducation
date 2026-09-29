@@ -9,17 +9,8 @@ import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { deleteUser, getUserDeleteDeps, toggleActive } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
+import { libelleRole } from '@/lib/auth/role-labels'
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  super_admin:             'Super Admin',
-  admin:                   'Administrateur',
-  direction:               'Direction',
-  comptable:               'Comptable',
-  responsable_pedagogique: 'Resp. Pédagogique',
-  enseignant:              'Enseignant',
-  secretaire:              'Secrétaire',
-  parent:                  'Parent',
-}
 
 const ROLE_COLORS: Record<UserRole, string> = {
   super_admin:             'bg-violet-100 text-violet-700',
@@ -160,7 +151,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                       'text-xs font-semibold px-2 py-0.5 rounded-full',
                       ROLE_COLORS[profile.role]
                     )}>
-                      {ROLE_LABELS[profile.role]}
+                      {libelleRole(profile.role, 'court')}
                     </span>
                   </td>
 

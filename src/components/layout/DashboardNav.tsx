@@ -10,6 +10,7 @@ import { useTheme } from './ThemeContext'
 import Tooltip from '@/components/ui/Tooltip'
 import SupportBanner from './SupportBanner'
 import { authRepository } from '@/lib/database/auth'
+import { libelleRole } from '@/lib/auth/role-labels'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import type { Profile } from '@/types/database'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
@@ -37,7 +38,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/communications/new':    'Nouveau message',
   '/dashboard/communications/staff':  'Communication interne',
   '/dashboard/notifications':      'Notifications',
-  '/dashboard/temps-presence':     'Temps de presence',
+  '/dashboard/temps-presence':     'Temps de présence',
   '/dashboard/financements':              'Situation financière actuelle',
   '/dashboard/financements/reglements':  'Règlements',
   '/dashboard/financements/vue-globale': 'Statistiques sur règlements',
@@ -163,9 +164,9 @@ function getBreadcrumbs(pathname: string): Crumb[] {
 
   // Pages sous Paramètres > Pédagogie (3 niveaux)
   if (pathname === '/dashboard/classes')
-    return [{ label: 'Paramètres' }, { label: 'Pédagogie' }, { label: 'Param. Classes' }]
+    return [{ label: 'Paramètres' }, { label: 'Pédagogie' }, { label: 'Param. classes' }]
   if (pathname === '/dashboard/cours')
-    return [{ label: 'Paramètres' }, { label: 'Pédagogie' }, { label: 'Référentiel Cours' }]
+    return [{ label: 'Paramètres' }, { label: 'Pédagogie' }, { label: 'Référentiel cours' }]
 
   // Section Clôture
   if (pathname === '/dashboard/passage-annee')
@@ -367,8 +368,12 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
                     invite au piège inverse. */}
                 {profile?.last_name} {profile?.first_name}
               </p>
-              <p className="text-xs text-warm-700 dark:text-[#8b9aa0] capitalize leading-tight mt-0.5">
-                {profile?.role?.replace('_', ' ')}
+              {/* Libellé, et non la valeur brute de `profiles.role` : celle-ci
+                  est un identifiant technique, qu'un `capitalize` CSS rendait
+                  « Responsable Pedagogique », sans accent. Forme COURTE : la
+                  ligne est étroite, sous le nom. */}
+              <p className="text-xs text-warm-700 dark:text-[#8b9aa0] leading-tight mt-0.5">
+                {libelleRole(profile?.role, 'court')}
               </p>
             </div>
             {/* Avatar rond : fond = 1re couleur du thème, bord = 3e (accent) */}

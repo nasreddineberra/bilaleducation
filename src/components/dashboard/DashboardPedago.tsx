@@ -27,7 +27,7 @@ const RACCOURCIS = [
   { href: '/dashboard/evaluations', label: 'Évaluations' },
   { href: '/dashboard/grades', label: 'Saisie des notes' },
   { href: '/dashboard/bulletins', label: 'Bulletins' },
-  { href: '/dashboard/cours', label: 'Référentiel cours' },
+  { href: '/dashboard/cours', label: 'Référentiel des cours' },
 ]
 
 export default function DashboardPedago({ stats, ...headerProps }: Props) {
@@ -44,7 +44,7 @@ export default function DashboardPedago({ stats, ...headerProps }: Props) {
 
       {/* KPIs (bornes a l'annee en cours) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <StatCard title="Classes" value={stats.classesCount} icon={BookOpen} tone="amber" />
+        <StatCard title={`Classes · ${headerProps.yearLabel}`} value={stats.classesCount} icon={BookOpen} tone="amber" />
         <StatCard title={`Évaluations · ${headerProps.yearLabel}`} value={stats.evalsCount} icon={ClipboardList} tone="ardoise" />
         <StatCard title={`Bulletins · ${headerProps.yearLabel}`} value={stats.bulletinsCount} subtitle="archivés" icon={Award} tone="orange" />
       </div>

@@ -11,12 +11,8 @@ import TempPasswordField from '@/components/superadmin/TempPasswordField'
 import { createTenantUser, updateTenantUser, resendTenantUserReset } from '@/app/superadmin/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
+import { libelleRole } from '@/lib/auth/role-labels'
 
-const ROLE_LABELS: Record<string, string> = {
-  direction: 'Direction', comptable: 'Comptable',
-  responsable_pedagogique: 'Resp. Pédagogique', enseignant: 'Enseignant',
-  secretaire: 'Secrétaire', parent: 'Parent', admin: 'Administrateur',
-}
 
 /**
  * La console n'ouvre QUE des comptes de direction : l'editeur met le client en
@@ -196,7 +192,7 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Rôle</label>
               <p className="input text-sm py-1.5 bg-warm-50 text-warm-700 select-none">
-                {ROLE_LABELS[ROLE_CREABLE]}
+                {libelleRole(ROLE_CREABLE, 'court')}
               </p>
               <p className="text-xs text-warm-700 leading-snug">
                 L&apos;école crée elle-même ses autres comptes depuis son écran Utilisateurs.
@@ -233,7 +229,7 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
                 <p className="text-xs text-warm-700 leading-tight mt-0.5">{p.email}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{ROLE_LABELS[p.role] ?? p.role}</span>
+                <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{libelleRole(p.role, 'court')}</span>
                 {/* Reserve a la direction, comme la creation : un « mot de passe
                     oublie » d'enseignant se traite dans l'ecole, qui a l'ecran
                     pour le faire. */}

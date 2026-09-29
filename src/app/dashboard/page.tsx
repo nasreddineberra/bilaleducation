@@ -10,16 +10,8 @@ import DashboardPedago from '@/components/dashboard/DashboardPedago'
 import DashboardEnseignant from '@/components/dashboard/DashboardEnseignant'
 import DashboardSecretaire from '@/components/dashboard/DashboardSecretaire'
 import DashboardParent from '@/components/dashboard/DashboardParent'
+import { libelleRole } from '@/lib/auth/role-labels'
 
-const roleLabel: Record<string, string> = {
-  admin: 'Administrateur',
-  direction: 'Direction',
-  comptable: 'Comptable',
-  responsable_pedagogique: 'Responsable Pédagogique',
-  enseignant: 'Enseignant',
-  secretaire: 'Secrétaire',
-  parent: 'Parent',
-}
 
 /** Clé de date en composantes LOCALES (jamais `toISOString`, qui bascule en UTC
  *  et peut décaler la borne d'un jour). */
@@ -132,7 +124,7 @@ export default async function DashboardPage() {
     firstName: profile?.first_name ?? '',
     lastName: profile?.last_name ?? '',
     role,
-    roleLabel: roleLabel[role] ?? role,
+    roleLabel: libelleRole(role),
     yearLabel: currentYear?.label ?? '',
     periodLabel: currentPeriod?.label ?? '',
     unreadNotifs,

@@ -124,7 +124,7 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
   },
   {
-    name:  'Temps de presence',
+    name:  'Temps de présence',
     href:  '/dashboard/temps-presence',
     icon:  Clock,
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire'],
@@ -165,7 +165,12 @@ const navItems: NavItem[] = [
   {
     name:  'Évaluations',
     icon:  ClipboardList,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+    // `secretaire` ajouté le 29/09 : ses enfants Gabarits et Saisie notes la
+    // listaient et les deux PAGES lui accordent le périmètre complet depuis le
+    // 5 août — mais un parent masqué masque ses enfants, donc elle n'atteignait
+    // ni l'un ni l'autre. Le droit existait, le lien n'était jamais rendu.
+    // (Bulletins l'exclut toujours : décision distincte, page comprise.)
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
     children: [
       {
         name:  'Gabarits',
@@ -198,13 +203,18 @@ const navItems: NavItem[] = [
     // participants (des tuteurs) et leur propre table d'assiduité.
     name:  'Feuille d\'appel',
     icon:  Calendar,
-    roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+    // `responsable_pedagogique` ajouté le 29/09 (décision utilisateur : il fait
+    // l'appel des apprenants ET des adultes). Il était absent du parent alors
+    // que l'enfant « Adultes » le listait, que les deux PAGES lui donnent le
+    // périmètre complet, et que la vue « toutes les classes » du 4 août l'y
+    // incluait nommément. Il ne voyait donc aucune feuille d'appel.
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
     children: [
       {
         name:  'Apprenants',
         href:  '/dashboard/absences',
         icon:  Users,
-        roles: ['admin', 'direction', 'enseignant', 'secretaire', 'parent'],
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
       },
       {
         name:  'Adultes',
@@ -311,13 +321,13 @@ const navItems: NavItem[] = [
       {
         // Le responsable pédagogique gère les classes (décision du 5 août,
         // cf. RLS classes). Le référentiel des cours reste à admin/direction.
-        name:  'Param. Classes',
+        name:  'Param. classes',
         href:  '/dashboard/classes',
         icon:  BookOpen,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire'],
       },
       {
-        name:  'Référentiel Cours',
+        name:  'Référentiel cours',
         href:  '/dashboard/cours',
         icon:  BookOpen,
         roles: ['admin', 'direction', 'responsable_pedagogique'],
@@ -375,7 +385,7 @@ const SECTION_ORDER = ['Principal', 'Vie scolaire', 'Pédagogie', 'Gestion', 'Cl
 const SECTION_OF: Record<string, string> = {
   'Tableau de bord':    'Principal',
   'Notifications':      'Principal',
-  'Temps de presence':  'Principal',
+  'Temps de présence':  'Principal',
   'Apprenants':         'Vie scolaire',
   'Parents':            'Vie scolaire',
   'Affectations':       'Vie scolaire',
@@ -389,7 +399,7 @@ const SECTION_OF: Record<string, string> = {
   'Audits & Passage d\'année': 'Clôture',
   // Section Paramètres
   'Année scolaire':     'Paramètres',
-  'Pédagogie':          'Paramètres',   // item (Param. Classes / Référentiel Cours)
+  'Pédagogie':          'Paramètres',   // item (Param. classes / Référentiel cours)
   'Enseignants':        'Paramètres',
   'Utilisateurs':       'Paramètres',
   'Financiers':         'Paramètres',
