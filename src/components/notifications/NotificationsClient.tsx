@@ -59,7 +59,7 @@ const ANNOUNCEMENT_TYPE_LABELS: Record<string, { label: string; icon: any; color
   all_registered: { label: 'Tous les contacts',        icon: Globe,     color: 'bg-purple-100 text-purple-700' },
   class:          { label: "Parents d'une classe",     icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
   selected:       { label: 'Parents choisis',          icon: UserCheck, color: 'bg-green-100 text-green-700' },
-  staff:          { label: 'Staff interne',            icon: Users,     color: 'bg-warm-100 text-warm-700' },
+  staff:          { label: 'Équipe',                   icon: Users,     color: 'bg-warm-100 text-warm-700' },
 }
 
 const AUTO_TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {

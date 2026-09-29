@@ -256,7 +256,7 @@ const navItems: NavItem[] = [
         // Communication interne = encadrement (tout staff sauf enseignant).
         // Le comptable ecrit (paie / sujets comptables) ; l'enseignant reste
         // destinataire mais n'ecrit pas au staff.
-        name:  'Staff / Enseignants',
+        name:  'Équipe',
         href:  '/dashboard/communications/staff',
         icon:  UsersRound,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable'],
@@ -281,7 +281,7 @@ const navItems: NavItem[] = [
         roles: ['admin', 'direction', 'comptable', 'parent'],
       },
       {
-        name:  'Stats règlements',
+        name:  'Statistiques',
         href:  '/dashboard/financements/vue-globale',
         icon:  Eye,
         roles: ['admin', 'direction', 'comptable'],

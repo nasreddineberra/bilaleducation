@@ -38,7 +38,7 @@ function byRoleThenName(a: Profile, b: Profile): number {
 
 type Tab = 'staff' | 'parents'
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'staff',   label: 'Staff'   },
+  { key: 'staff',   label: 'Équipe'  },
   { key: 'parents', label: 'Parents' },
 ]
 

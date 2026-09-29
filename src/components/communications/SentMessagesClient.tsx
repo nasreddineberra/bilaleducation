@@ -39,7 +39,7 @@ const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> =
   all_registered: { label: 'Tous les contacts',         icon: Globe,     color: 'bg-purple-100 text-purple-700' },
   class:          { label: "Parents d'une classe",      icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
   selected:       { label: 'Parents choisis',           icon: UserCheck, color: 'bg-green-100 text-green-700' },
-  staff:          { label: 'Staff interne',             icon: Users,     color: 'bg-warm-100 text-warm-700' },
+  staff:          { label: 'Équipe',                    icon: Users,     color: 'bg-warm-100 text-warm-700' },
 }
 
 const FILTERS = ['', 'all_active', 'all_registered', 'class', 'selected', 'staff'] as const
@@ -130,7 +130,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
   return (
     <div className="space-y-2">
       {/* Pas de boutons raccourcis : la creation passe par la sidebar
-          (Communications → Parents / Staff). */}
+          (Communications → Parents / Équipe). */}
 
       {/* Filtres */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">

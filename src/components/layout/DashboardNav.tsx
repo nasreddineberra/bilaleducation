@@ -128,7 +128,7 @@ function getBreadcrumbs(pathname: string): Crumb[] {
   if (/^\/dashboard\/communications\/new/.test(pathname))
     return [{ label: 'Communications' }, { label: 'Nouveau message' }]
   if (/^\/dashboard\/communications\/staff/.test(pathname))
-    return [{ label: 'Communications' }, { label: 'Staff interne' }]
+    return [{ label: 'Communications' }, { label: 'Équipe' }]
   if (/^\/dashboard\/communications\//.test(pathname))
     return [{ label: 'Communications' }, { label: 'Message' }]
   if (pathname === '/dashboard/communications')

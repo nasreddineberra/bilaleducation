@@ -39,7 +39,7 @@ const TYPE_LABELS: Record<string, string> = {
   all_registered: 'Tous les contacts',
   class: "Parents d'une classe",
   selected: 'Parents choisis',
-  staff: 'Staff interne',
+  staff: 'Équipe',
 }
 
 function formatDate(d: string | null): string {

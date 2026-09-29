@@ -50,7 +50,7 @@ const TYPE_LABELS: Record<string, string> = {
   all_registered: 'Tous les contacts',
   class: "Parents d'une classe",
   selected: 'Parents choisis',
-  staff: 'Staff interne',
+  staff: 'Équipe',
 }
 
 // Statuts reellement produits par l'envoi (actions.ts) : pending (avant envoi),
@@ -242,7 +242,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
                           'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase',
                           r.type === 'parent' ? 'bg-blue-50 text-blue-600' : 'bg-warm-100 text-warm-700'
                         )}>
-                          {r.type === 'parent' ? 'Parent' : 'Staff'}
+                          {r.type === 'parent' ? 'Parent' : 'Membre'}
                         </span>
                       </td>
                       <td className="list-td">
