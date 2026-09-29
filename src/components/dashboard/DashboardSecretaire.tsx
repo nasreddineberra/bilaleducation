@@ -34,11 +34,18 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
     <div className="space-y-4 animate-fade-in">
       <DashboardHeader {...headerProps} />
 
+      {/* Raccourcis */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {RACCOURCIS.map(r => (
+          <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
+        ))}
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="Élèves actifs" value={stats.studentsActive} icon={Users} tone="primary" />
         <StatCard title="Parents" value={stats.parentsCount} icon={Contact} tone="ardoise" />
-        <StatCard title="Enseignants" value={stats.teachersCount} icon={GraduationCap} tone="amber" />
+        <StatCard title="Enseignants actifs" value={stats.teachersCount} icon={GraduationCap} tone="amber" />
         <StatCard title="Inscriptions ce mois" value={stats.enrollmentsThisMonth} icon={ClipboardList} tone="orange" />
       </div>
 
@@ -67,13 +74,6 @@ export default function DashboardSecretaire({ stats, ...headerProps }: Props) {
           </div>
         )}
       </section>
-
-      {/* Raccourcis */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {RACCOURCIS.map(r => (
-          <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
-        ))}
-      </div>
     </div>
   )
 }

@@ -46,6 +46,13 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
     <div className="space-y-4 animate-fade-in">
       <DashboardHeader {...headerProps} />
 
+      {/* Raccourcis */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        {RACCOURCIS.map(r => (
+          <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
+        ))}
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatCard title="Mes élèves" value={stats.myStudentsCount} subtitle={`${stats.myClasses.length} classe${stats.myClasses.length > 1 ? 's' : ''}`} icon={Users} tone="primary" />
@@ -134,13 +141,6 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
           </div>
         )}
       </section>
-
-      {/* Raccourcis */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {RACCOURCIS.map(r => (
-          <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
-        ))}
-      </div>
     </div>
   )
 }
