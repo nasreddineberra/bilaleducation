@@ -17,6 +17,11 @@ interface ParentsTableProps {
   parents: Parent[]
   parentsWithChildren: Set<string>
   parentsWithPAI: Set<string>
+  /** Suppression reservee a admin/direction depuis le 29/09 : la decision exige
+   *  de compter les cotisations du foyer, et `family_fees` est passee aux seuls
+   *  roles finance. Bouton MASQUE, pas grise — il n'y a aucun cas ou il
+   *  aboutirait pour les autres roles. */
+  canDelete?: boolean
 }
 
 interface DeleteDeps {
@@ -34,7 +39,7 @@ const RELATION_LABEL: Record<string, string> = {
 }
 
 
-export default function ParentsTable({ parents, parentsWithChildren }: ParentsTableProps) {
+export default function ParentsTable({ parents, parentsWithChildren, canDelete = false }: ParentsTableProps) {
   const router = useRouter()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }
@@ -266,15 +271,17 @@ export default function ParentsTable({ parents, parentsWithChildren }: ParentsTa
                             enfants, alors qu'un foyer sans enfant peut porter des
                             cotisations ou des cours adultes. La modale, elle, dit
                             tout ce qui est rattaché. */}
-                        <Tooltip content="Supprimer la fiche">
-                          <button
-                            onClick={() => startDelete(parent)}
-                            aria-label="Supprimer la fiche"
-                            className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </Tooltip>
+                        {canDelete && (
+                          <Tooltip content="Supprimer la fiche">
+                            <button
+                              onClick={() => startDelete(parent)}
+                              aria-label="Supprimer la fiche"
+                              className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </Tooltip>
+                        )}
                       </div>
                   </td>
                 </tr>

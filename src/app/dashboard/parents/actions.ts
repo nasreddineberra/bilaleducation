@@ -433,6 +433,12 @@ export async function getParentDeleteDeps(id: string): Promise<{
   communications: number
   erreur?:        string
 }> {
+  // Garde absente jusqu'au 29/09 : n'importe quel compte connecte pouvait
+  // appeler cette action et connaitre le nombre de cotisations d'un foyer.
+  // Meme perimetre que la suppression qu'elle prepare.
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { enfants: 0, finance: 0, coursAdultes: 0, communications: 0, erreur: 'Non autorise.' }
+
   const supabase = await createClient()
   const head = { count: 'exact' as const, head: true }
 
@@ -472,7 +478,12 @@ export async function getParentDeleteDeps(id: string): Promise<{
 }
 
 export async function deleteParent(id: string): Promise<{ error?: string }> {
-  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
+  // Restreint a admin/direction le 29/09, en meme temps que la RLS du lot 1 :
+  // decider si un foyer est supprimable exige de COMPTER ses cotisations, et
+  // `family_fees` devient reservee aux roles finance. Plutot qu'ouvrir la
+  // lecture des montants dus a deux roles de plus, on resserre l'acte — il est
+  // lourd, et un foyer avec des cotisations est de toute facon bloque.
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
   const supabase = await createClient()

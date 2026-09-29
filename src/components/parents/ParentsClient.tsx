@@ -16,6 +16,8 @@ type StatFilter = '' | 'adult_courses' | 'unassigned'
 
 interface ParentsClientProps {
   parents:             Parent[]
+  /** Suppression d'un foyer : admin/direction seulement (29/09). */
+  canDelete?:          boolean
   filteredCount:       number
   page:                number
   q:                   string
@@ -93,7 +95,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 export default function ParentsClient({
   parents, filteredCount, page, q, filter,
   totalAll, totalAdultCourses, totalUnassigned,
-  parentsWithChildren, parentsWithPAI,
+  parentsWithChildren, parentsWithPAI, canDelete = false,
 }: ParentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -182,7 +184,7 @@ export default function ParentsClient({
       {showAdult && <ParentsAdultSyncModal onClose={() => setShowAdult(false)} />}
 
       {/* Tableau */}
-      <ParentsTable parents={parents} parentsWithChildren={parentsWithChildren} parentsWithPAI={parentsWithPAI} />
+      <ParentsTable parents={parents} parentsWithChildren={parentsWithChildren} parentsWithPAI={parentsWithPAI} canDelete={canDelete} />
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">

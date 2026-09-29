@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { effectiveRole } from '@/lib/auth/effective-role'
 import ParentsClient from '@/components/parents/ParentsClient'
 
 const PAGE_SIZE = 20
@@ -16,6 +17,15 @@ export default async function ParentsPage({
   const to   = from + PAGE_SIZE - 1
 
   const supabase = await createClient()
+
+  // Suppression d'un foyer : admin/direction seulement (29/09). Le bouton est
+  // MASQUE et non grisé pour les autres — il n'existe aucun cas où il leur
+  // serait possible, contrairement à « Rendre inactif » côté apprenants.
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profil } = user
+    ? await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const canDelete = ['admin', 'direction'].includes(effectiveRole(profil) ?? '')
 
   // ── Tuteurs inscrits aux cours adultes MAIS sans classe de l'année en cours ──
   // L'unité est le TUTEUR (clé `parentId-tutorNumber`), comme le compteur
@@ -108,6 +118,7 @@ export default async function ParentsPage({
       totalUnassigned={unassignedKeys.length}
       parentsWithChildren={parentsWithChildren}
       parentsWithPAI={parentsWithPAI}
+      canDelete={canDelete}
     />
   )
 }
