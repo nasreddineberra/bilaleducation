@@ -53,6 +53,10 @@ interface Props {
   periods: PeriodRow[]
   enrollments: EnrollmentRow[]
   currentYearLabel: string
+  /** Fiche en lecture seule (enseignant). La RLS refuse desormais l'ecriture de
+   *  `student_warnings` (lot 3) : sans cela les boutons resteraient offerts et
+   *  echoueraient EN SILENCE. Meme regle que le formulaire depuis le 24/09. */
+  lectureSeule?: boolean
 }
 
 // ─── Descriptions des types de gravité ──────────────────────────────────────
@@ -92,6 +96,7 @@ const periodFullLabel = (label: string) => PERIOD_FULL_LABELS[label] ?? label
 
 export default function StudentDiscipline({
   studentId, etablissementId, absences: initialAbsences, warnings: initialWarnings, periods, enrollments, currentYearLabel,
+  lectureSeule = false,
 }: Props) {
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -373,14 +378,16 @@ export default function StudentDiscipline({
           <ShieldIcon className="text-warm-700" />
           <h3 className="text-xs font-semibold text-warm-700">Avertissements</h3>
           <span className="text-[11px] text-warm-700">{sortedWarnings.length} enreg.</span>
-          <FloatButton
-            variant="submit"
-            onClick={() => { setShowForm(true); setError(null) }}
-            className="ml-auto text-xs"
-            disabled={showForm}
-          >
-            Ajouter
-          </FloatButton>
+          {!lectureSeule && (
+            <FloatButton
+              variant="submit"
+              onClick={() => { setShowForm(true); setError(null) }}
+              className="ml-auto text-xs"
+              disabled={showForm}
+            >
+              Ajouter
+            </FloatButton>
+          )}
         </div>
 
         {/* Formulaire d'ajout */}
@@ -565,7 +572,7 @@ export default function StudentDiscipline({
 
                   {/* Suppression */}
                   <div className="flex-shrink-0">
-                    {confirmDelete === w.id ? (
+                    {lectureSeule ? null : confirmDelete === w.id ? (
                       <div className="flex items-center gap-1 text-xs">
                         <span className="text-red-600">Supprimer ?</span>
                         <button onClick={() => handleDelete(w.id)} className="text-red-600 font-semibold hover:underline">Oui</button>

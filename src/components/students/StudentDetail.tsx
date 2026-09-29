@@ -216,6 +216,7 @@ export default function StudentDetail({
             periods={periods}
             enrollments={enrollments}
             currentYearLabel={currentYearLabel}
+            lectureSeule={lectureSeule}
           />
         </div>
       )}
@@ -227,6 +228,7 @@ export default function StudentDetail({
             etablissementId={etablissementId}
             docTypes={docTypeConfigs}
             documents={studentDocuments}
+            lectureSeule={lectureSeule}
           />
         </div>
       )}

@@ -30,6 +30,11 @@ type DocRow = {
 }
 
 interface Props {
+  /** Fiche en lecture seule (enseignant). La RLS refuse desormais l'ecriture
+   *  (lot 3 du chantier RLS) : sans cela, les boutons resteraient offerts et
+   *  echoueraient EN SILENCE — une ecriture ecartee par la RLS ne leve rien,
+   *  elle touche zero ligne. Meme regle que le formulaire depuis le 24/09. */
+  lectureSeule?: boolean
   studentId: string
   etablissementId: string
   docTypes: DocTypeRow[]
@@ -47,7 +52,7 @@ const CATEGORIES: { key: DocumentCategory; label: string; icon: string }[] = [
 
 // ─── Composant principal ────────────────────────────────────────────────────
 
-export default function StudentDocuments({ studentId, etablissementId, docTypes, documents: initialDocs }: Props) {
+export default function StudentDocuments({ studentId, etablissementId, docTypes, documents: initialDocs, lectureSeule = false }: Props) {
   const supabase = createClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -242,6 +247,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
           <div key={cat.key} className="card">
             <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
               <h3 className="text-[11px] font-semibold text-warm-700 uppercase tracking-wide">{cat.label}</h3>
+              {!lectureSeule && (
               <FloatButton
                 variant="submit"
                 onClick={() => {
@@ -256,6 +262,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
               >
                 Ajouter
               </FloatButton>
+              )}
             </div>
 
             {types.length === 0 && (
@@ -385,7 +392,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
                             <Download size={12} />
                           </button>
                         </Tooltip>
-                        {confirmDelete === doc.id ? (
+                        {lectureSeule ? null : confirmDelete === doc.id ? (
                           <div className="flex items-center gap-1 text-[11px]">
                             <button onClick={() => handleDelete(doc.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
                             <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
