@@ -4214,6 +4214,20 @@ annulent les policies scopees posees a cote (les permissives s'ADDITIONNENT).
 - **Verifier visuellement** la passe de lisibilite module par module (surtout les etats inactifs
   et les modales).
 - **Communications** : configurer la messagerie + **tester un envoi reel** (parents ET staff, les 3 canaux).
+- **RESPONSIVE / MOBILE — chantier a ouvrir** (decide le 29 septembre) : la visibilite
+  des fonctionnalites sur un telephone. **Le principe n'est PAS de tout rendre
+  responsive** : certaines fonctionnalites ne seront pas accessibles depuis un mobile,
+  et c'est assume. Ce qui compte alors, c'est qu'un ecran non prevu pour le mobile **le
+  DISE** — message clair a la place du contenu — au lieu de s'afficher casse ou, pire,
+  de laisser saisir dans une grille inutilisable. Le socle existe deja : manifeste et
+  installation sur telephone (3 aout), notifications push, service worker.
+  Candidats evidents a l'EXCLUSION (grilles denses, tableaux larges, production de
+  documents) : emploi du temps au quart d'heure, saisie des notes, gabarits, bulletins,
+  passage d'annee, importation, referentiel en 3 colonnes, statistiques de reglements.
+  Candidats PRIORITAIRES au contraire (usage debout, ponctuel, une main) : feuille
+  d'appel, cahier de texte, notifications, mon compte, temps de presence.
+  A trancher ecran par ecran avec l'utilisateur, comme les parcours par role.
+
 - Poursuite des **fonctionnalites utilisateurs**.
 - Passes de **fin de V1** : plan de test (l'utilisateur le demandera), tracabilite globale, valeurs en dur,
   quadratins `—`, et les **prerequis de mise en production** ci-dessus.
