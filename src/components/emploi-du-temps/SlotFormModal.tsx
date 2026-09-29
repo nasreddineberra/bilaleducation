@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 
 interface SlotData {
   id: string
@@ -63,11 +64,6 @@ const SLOT_TYPES = [
   { value: 'cours', label: 'Cours' },
   { value: 'activite', label: 'Activité' },
 ]
-
-function teacherLabel(p: { first_name: string; last_name: string; civilite?: string }): string {
-  const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
-  return `${civ} ${p.last_name} ${p.first_name}`
-}
 
 interface Props {
   slot: SlotData | null
@@ -393,7 +389,7 @@ export default function SlotFormModal({
                 <option value=""></option>
                 {classes.map(c => {
                   const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
-                  const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
+                  const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
                   const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
                   return (
                     <option key={c.id} value={c.id}>

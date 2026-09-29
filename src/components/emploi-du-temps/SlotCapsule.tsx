@@ -6,6 +6,7 @@ import { Check, CalendarDays, MoreVertical, Ban } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
+import { nomEnseignant } from '@/lib/teachers/nom'
 
 // Couleurs définies dans globals.css (palette de marque, aplats opaques dans
 // les deux thèmes) — voir « Créneaux de l'emploi du temps ».
@@ -37,12 +38,6 @@ interface Props {
   onContextMenu: (e: React.MouseEvent) => void
   onKeyMenu?: (rect: DOMRect) => void
   onDelete: () => void
-}
-
-function teacherShort(p: { first_name: string; last_name: string; civilite?: string } | undefined): string {
-  if (!p) return ''
-  const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
-  return `${civ} ${p.last_name}`
 }
 
 export default function SlotCapsule({
@@ -85,7 +80,7 @@ export default function SlotCapsule({
   // Libellé accessible du créneau (cours, classe/prof selon la vue, salle, horaire, statut)
   const ariaParts = [slot.cours?.nom_fr ?? slot.slot_type]
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
-  if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : teacherShort(slot.teachers))
+  if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
   if (slot.rooms) ariaParts.push(slot.rooms.name)
   ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
   if (validated) ariaParts.push('présence validée')
@@ -147,8 +142,17 @@ export default function SlotCapsule({
                 {minimal ? 'Sans prof' : 'Prof non affecté'}
               </div>
             ) : slot.teachers && !minimal ? (
-              <div className="text-[9px] leading-tight truncate opacity-70">
-                {teacherShort(slot.teachers)}
+              /* NOM et prénom sur DEUX lignes (demande du 29/09). Sur une seule,
+                 la capsule est trop étroite : le `truncate` coupait « BELAÏD
+                 Djamila » et emportait le prénom — c'est-à-dire exactement ce
+                 qu'on venait d'ajouter en retirant la civilité. Chaque ligne
+                 garde son `truncate` pour un nom composé très long.
+                 L'étiquette d'accessibilité, elle, reste sur une ligne. */
+              <div className="text-[9px] leading-tight opacity-70">
+                <div className="truncate">{slot.teachers.last_name}</div>
+                {slot.teachers.first_name && (
+                  <div className="truncate">{slot.teachers.first_name}</div>
+                )}
               </div>
             ) : null
           )}

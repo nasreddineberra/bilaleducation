@@ -2,18 +2,13 @@
 
 import { clsx } from 'clsx'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
+import { nomEnseignant } from '@/lib/teachers/nom'
 
 type ViewMode = 'global' | 'class' | 'teacher'
 
 const DAY_LABELS_SHORT: Record<number, string> = {
   0: 'DIM', 1: 'LUN', 2: 'MAR', 3: 'MER',
   4: 'JEU', 5: 'VEN', 6: 'SAM',
-}
-
-function teacherShort(p: { first_name: string; last_name: string; civilite?: string } | undefined): string {
-  if (!p) return ''
-  const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
-  return `${civ} ${p.last_name}`
 }
 
 function formatDate(d: Date): string {
@@ -189,7 +184,7 @@ function MonthSlotCapsule({
 
   const ariaParts = [slot.start_time.slice(0, 5), slot.cours?.nom_fr ?? slot.slot_type]
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
-  if (viewMode !== 'teacher' && slot.teachers) ariaParts.push(teacherShort(slot.teachers))
+  if (viewMode !== 'teacher' && slot.teachers) ariaParts.push(nomEnseignant(slot.teachers))
   const ariaLabel = ariaParts.filter(Boolean).join(', ')
 
   return (
@@ -235,7 +230,7 @@ function MonthSlotCapsule({
       )}
       {viewMode !== 'teacher' && slot.teachers && (
         <span className="text-[8px] opacity-60 ml-0.5">
-          {teacherShort(slot.teachers)}
+          {nomEnseignant(slot.teachers)}
         </span>
       )}
     </div>

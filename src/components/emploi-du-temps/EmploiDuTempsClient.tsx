@@ -15,6 +15,7 @@ import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
 import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
+import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -188,12 +189,6 @@ interface Props {
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
-}
-
-function teacherLabel(p: { first_name: string; last_name: string; civilite?: string } | undefined): string {
-  if (!p) return ''
-  const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
-  return `${civ} ${p.last_name} ${p.first_name}`
 }
 
 // Jour de la classe = string DB (monday…) — DAY_LABELS est indexe par nombre.
@@ -1215,9 +1210,7 @@ export default function EmploiDuTempsClient({
   // ─── Validation présence ──────────────────────────────────────────────────
 
   const handleValidate = useCallback(async (resolved: ResolvedSlot) => {
-    const teacherName = resolved.teachers
-      ? `${resolved.teachers.civilite === 'Mme' ? 'Mme' : 'M.'} ${resolved.teachers.last_name}`
-      : 'cet enseignant'
+    const teacherName = nomEnseignantCivilite(resolved.teachers) || 'cet enseignant'
     const slotDate = resolved.date
     const [y, m, d] = slotDate.split('-')
     const dateLabel = `${d}/${m}/${y}`
@@ -1433,7 +1426,7 @@ export default function EmploiDuTempsClient({
                 const cls = classes.find(c => c.id === selectedClassId)
                 if (!cls) return <span className="text-warm-700">Sélectionner une classe</span>
                 const mainT = cls.class_teachers?.find(ct => ct.is_main_teacher)
-                const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
+                const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
                 return (
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="font-semibold text-secondary-800">{cls.name}</span>
@@ -1449,7 +1442,7 @@ export default function EmploiDuTempsClient({
               <div role="listbox" aria-label="Classes" className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
                 {classes.map(c => {
                   const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
-                  const teacher = mainT?.teachers ? teacherLabel(mainT.teachers) : ''
+                  const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
                   const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
                   return (
                     <button
