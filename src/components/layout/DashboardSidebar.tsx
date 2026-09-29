@@ -234,7 +234,12 @@ const navItems: NavItem[] = [
         name:  'Bulletins',
         href:  '/dashboard/bulletins',
         icon:  FileText,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+        // `secretaire` ajoutee le 29/09 : elle saisit les notes qui PRODUISENT
+        // les bulletins, et le bucket lui accordait deja la lecture depuis le
+        // 25 juillet — un droit qu'aucun ecran n'exerçait. Elle peut etre
+        // amenee a faire les actions d'un enseignant (decision utilisateur),
+        // d'ou les quatre : consulter, apprecier, archiver, desarchiver.
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
       },
     ],
   },
