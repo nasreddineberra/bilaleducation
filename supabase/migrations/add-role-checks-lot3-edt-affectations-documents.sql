@@ -76,7 +76,11 @@
 --
 -- `student_documents`, `teacher_documents` et `student_warnings` avaient DEJA
 -- quatre policies separees par commande (select/insert/update/delete), toutes
--- sans role : elles sont remplacees par le couple habituel.
+-- sans role : elles sont remplacees par le couple habituel. Elles ecrivaient en
+-- outre leur cloisonnement AU LONG (`profiles.etablissement_id WHERE
+-- profiles.id = auth.uid()`) au lieu d'appeler `current_etablissement_id()` :
+-- correct, mais cela se privait de la fonction STABLE inlinable du 5 aout, qui
+-- evite de rejouer la sous-requete ligne par ligne.
 --
 -- Idempotent.
 -- ============================================================================
@@ -85,7 +89,10 @@
 DO $$
 DECLARE manquantes text := ''; t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['schedule_slots','schedule_exceptions','class_teachers',
+  -- `class_teachers` EXCLUE a dessein : elle n'a pas de colonne propre et se
+  -- cloisonne par `classes` (constate le 29/09 — la garde l'a attrapee, c'etait
+  -- son role). Meme cas que `periods`, qui passe par `school_years`.
+  FOREACH t IN ARRAY ARRAY['schedule_slots','schedule_exceptions',
                            'parent_class_enrollments','student_documents',
                            'teacher_documents','student_warnings']
   LOOP
@@ -143,16 +150,24 @@ DROP POLICY IF EXISTS class_teachers_tenant ON public.class_teachers;
 DROP POLICY IF EXISTS class_teachers_select ON public.class_teachers;
 DROP POLICY IF EXISTS class_teachers_write  ON public.class_teachers;
 
+-- `class_teachers` n'a PAS de colonne `etablissement_id` : son cloisonnement
+-- CASCADE par `classes`, exactement comme la policy d'origine le faisait.
 CREATE POLICY class_teachers_select ON public.class_teachers FOR SELECT
-  USING (etablissement_id = current_etablissement_id()
-         AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','comptable',
-                                                        'responsable_pedagogique','secretaire','enseignant']));
+  USING (
+    class_id IN (SELECT id FROM public.classes WHERE etablissement_id = current_etablissement_id())
+    AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','comptable',
+                                                   'responsable_pedagogique','secretaire','enseignant'])
+  );
 
 CREATE POLICY class_teachers_write ON public.class_teachers FOR ALL
-  USING (etablissement_id = current_etablissement_id()
-         AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','responsable_pedagogique','secretaire']))
-  WITH CHECK (etablissement_id = current_etablissement_id()
-         AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','responsable_pedagogique','secretaire']));
+  USING (
+    class_id IN (SELECT id FROM public.classes WHERE etablissement_id = current_etablissement_id())
+    AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','responsable_pedagogique','secretaire'])
+  )
+  WITH CHECK (
+    class_id IN (SELECT id FROM public.classes WHERE etablissement_id = current_etablissement_id())
+    AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','responsable_pedagogique','secretaire'])
+  );
 
 DROP POLICY IF EXISTS parent_class_enrollments_tenant ON public.parent_class_enrollments;
 DROP POLICY IF EXISTS parent_class_enrollments_select ON public.parent_class_enrollments;
