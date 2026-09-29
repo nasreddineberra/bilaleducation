@@ -378,11 +378,19 @@ export default function AbsencesClient({
 
     y += 25
 
-    // Date du jour
+    // Date LAISSÉE VIDE, avec un trait à remplir à la main (demande du 29/09,
+    // tous rôles). Cette feuille s'imprime pour être remplie plus tard — parfois
+    // en plusieurs exemplaires, d'avance : la dater du jour de l'impression la
+    // rendrait inutilisable tout autre jour, c'est-à-dire dans son usage normal.
+    // Un trait plutôt que des soulignés : à l'impression, ils se rejoignent mal.
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...COLORS.secondary)
-    doc.text(`Date : ${new Date().toLocaleDateString('fr-FR')}`, margin, y)
+    doc.text('Date :', margin, y)
+    const xTrait = margin + doc.getTextWidth('Date : ')
+    doc.setDrawColor(...COLORS.gray)
+    doc.setLineWidth(0.3)
+    doc.line(xTrait, y + 1, xTrait + 35, y + 1)
     doc.text(`Effectif : ${classStudents.length} ${MOT}${classStudents.length > 1 ? 's' : ''}`, pageWidth - margin, y, { align: 'right' })
     y += 6
 
