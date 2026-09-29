@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Check, X } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import PasswordChecklist from '@/components/ui/PasswordChecklist'
+import { isPasswordValid } from '@/lib/validation/password'
 import { messageErreurMotDePasse } from '@/lib/auth/password-error'
 import { updateOwnProfile, updateOwnEmail } from '@/app/dashboard/mon-compte/actions'
 import TwoFactorCard from '@/components/mon-compte/TwoFactorCard'
@@ -234,17 +235,12 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
 
         {/* Règles */}
         {newPw.length > 0 && (
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-1" aria-label="Règles du mot de passe">
-            {PASSWORD_RULES.map(rule => {
-              const ok = rule.test(newPw, profile.first_name, profile.last_name)
-              return (
-                <li key={rule.key} className={`flex items-center gap-1.5 text-[11px] ${ok ? 'text-emerald-600' : 'text-warm-700'}`}>
-                  {ok ? <Check size={12} className="flex-shrink-0" /> : <X size={12} className="flex-shrink-0" />}
-                  {rule.label}
-                </li>
-              )
-            })}
-          </ul>
+          <PasswordChecklist
+            password={newPw}
+            firstName={profile.first_name ?? undefined}
+            lastName={profile.last_name ?? undefined}
+            colonnes={2}
+          />
         )}
 
         <div className="flex justify-end pt-1">

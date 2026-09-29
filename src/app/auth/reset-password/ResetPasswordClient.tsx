@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, CheckCircle2, Check, X } from 'lucide-react'
+import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import AuthShell from '@/components/auth/AuthShell'
+import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import { createClient } from '@/lib/supabase/client'
-import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import { isPasswordValid } from '@/lib/validation/password'
 import { messageErreurMotDePasse } from '@/lib/auth/password-error'
 
 interface Props {
@@ -183,14 +184,25 @@ export default function ResetPasswordClient({ motif }: Props) {
                     />
                     <button
                       type="button"
+                      // Ne pas voler le focus au champ : basculer la visibilité
+                      // ne doit pas en sortir (motif de la fiche utilisateur).
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => setShowPwd(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700"
+                      aria-label={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-pressed={showPwd}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                     >
                       {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
 
-                  {pwdTouched && password.length > 0 && (
+                  {/* Dès la première frappe, et non au `onBlur` : la liste sert
+                      PENDANT qu'on compose le mot de passe, pas une fois qu'on a
+                      quitté le champ. `pwdTouched` ne pilote plus que la bordure
+                      rouge — on ne cerne pas un champ en rouge en cours de
+                      saisie. Défaut relevé à l'écran le 29 septembre ; le même
+                      avait été corrigé sur « Mon compte » le 15 juillet. */}
+                  {password.length > 0 && (
                     <PasswordChecklist
                       password={password}
                       firstName={firstName}
@@ -214,8 +226,11 @@ export default function ResetPasswordClient({ motif }: Props) {
                     />
                     <button
                       type="button"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => setShowConfirm(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700"
+                      aria-label={showConfirm ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-pressed={showConfirm}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                     >
                       {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -246,44 +261,5 @@ export default function ResetPasswordClient({ motif }: Props) {
           )}
 
     </AuthShell>
-  )
-}
-
-// ─── Checklist force du mot de passe ──────────────────────────────────────────
-
-function PasswordChecklist({
-  password,
-  firstName,
-  lastName,
-}: {
-  password:   string
-  firstName?: string
-  lastName?:  string
-}) {
-  const hasName = (firstName && firstName.trim().length >= 3) ||
-                  (lastName  && lastName.trim().length  >= 3)
-
-  const rules = PASSWORD_RULES.filter(r =>
-    hasName ? true : r.key !== 'noFirst' && r.key !== 'noLast'
-  )
-
-  return (
-    <ul className="mt-1.5 space-y-0.5">
-      {rules.map(rule => {
-        const ok = rule.test(password, firstName, lastName)
-        return (
-          <li key={rule.key} className={clsx(
-            'flex items-center gap-1.5 text-xs',
-            ok ? 'text-green-600' : 'text-warm-700'
-          )}>
-            {ok
-              ? <Check size={11} className="flex-shrink-0" />
-              : <X    size={11} className="flex-shrink-0" />
-            }
-            {rule.label}
-          </li>
-        )
-      })}
-    </ul>
   )
 }

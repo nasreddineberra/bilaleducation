@@ -2,14 +2,14 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Eye, EyeOff, Check, X, ShieldCheck, ShieldAlert } from 'lucide-react'
-import { clsx } from 'clsx'
+import { CheckCircle2, Eye, EyeOff, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { createUser, updateProfile, updateEmail, sendPasswordReset, resetUserTwoFactor } from '@/app/dashboard/utilisateurs/actions'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import type { Profile, UserRole } from '@/types/database'
-import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import { isPasswordValid } from '@/lib/validation/password'
 
 interface UtilisateurFormProps {
   profile?: Profile
@@ -482,43 +482,3 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
     </form>
   )
 }
-
-// ─── Checklist force du mot de passe ──────────────────────────────────────────
-
-function PasswordChecklist({
-  password,
-  firstName,
-  lastName,
-}: {
-  password:   string
-  firstName?: string
-  lastName?:  string
-}) {
-  const hasName = (firstName && firstName.trim().length >= 3) ||
-                  (lastName  && lastName.trim().length  >= 3)
-
-  const rules = PASSWORD_RULES.filter(r =>
-    hasName ? true : r.key !== 'noFirst' && r.key !== 'noLast'
-  )
-
-  return (
-    <ul className="mt-1.5 space-y-0.5">
-      {rules.map(rule => {
-        const ok = rule.test(password, firstName, lastName)
-        return (
-          <li key={rule.key} className={clsx(
-            'flex items-center gap-1.5 text-xs',
-            ok ? 'text-primary-600' : 'text-warm-700'
-          )}>
-            {ok
-              ? <Check size={11} className="flex-shrink-0" />
-              : <X    size={11} className="flex-shrink-0" />
-            }
-            {rule.label}
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-

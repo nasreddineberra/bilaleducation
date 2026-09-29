@@ -6,8 +6,8 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { createTenant } from '@/app/superadmin/actions'
 import { validateSlug, SLUG_MAX } from '@/lib/tenant/slug'
-import { Check, X } from 'lucide-react'
-import { PASSWORD_RULES, isPasswordValid } from '@/lib/validation/password'
+import { isPasswordValid } from '@/lib/validation/password'
+import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import TempPasswordField from '@/components/superadmin/TempPasswordField'
 
 type FormData = {
@@ -29,24 +29,6 @@ function Field({ label, required, error, children }: { label: string; required?:
       {children}
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
     </div>
-  )
-}
-
-function PasswordChecklist({ password, firstName, lastName }: { password: string; firstName?: string; lastName?: string }) {
-  const hasName = (firstName && firstName.trim().length >= 3) || (lastName && lastName.trim().length >= 3)
-  const rules = PASSWORD_RULES.filter(r => hasName ? true : r.key !== 'noFirst' && r.key !== 'noLast')
-  return (
-    <ul className="mt-1.5 space-y-0.5">
-      {rules.map(rule => {
-        const ok = rule.test(password, firstName, lastName)
-        return (
-          <li key={rule.key} className={clsx('flex items-center gap-1.5 text-xs', ok ? 'text-green-600' : 'text-warm-700')}>
-            {ok ? <Check size={11} className="flex-shrink-0" /> : <X size={11} className="flex-shrink-0" />}
-            {rule.label}
-          </li>
-        )
-      })}
-    </ul>
   )
 }
 
