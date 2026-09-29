@@ -442,11 +442,17 @@ export default function AbsencesClient({
     // Nom distinct de la feuille RENSEIGNEE (imprimee depuis la modale de saisie) :
     // les deux portaient `Feuille_appel_{classe}_{date}` et se confondaient des que
     // la date saisie etait celle du jour.
-    // Date en composantes LOCALES : `toISOString()` est en UTC → a minuit en UTC+,
-    // le fichier prenait la date de la veille.
-    const d = new Date()
-    const jour = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    doc.save(`Feuille_appel_vierge_${cls.name.replace(/\s+/g, '_')}_${jour}.pdf`)
+    //
+    // PAS DE DATE ICI (29/09) : le contenu de cette feuille ne depend pas du jour
+    // ou on l'imprime, seulement de la classe et de sa liste. La dater suggerait
+    // un rattachement a un jour que le document n'a justement plus depuis qu'on
+    // a vide sa ligne « Date ». L'ANNEE, elle, decrit bien le contenu : la liste
+    // d'eleves change a chaque rentree.
+    const nom = ['Feuille_appel_vierge', cls.name, yearLabel]
+      .filter(Boolean)
+      .map(p => p!.replace(/\s+/g, '_'))
+      .join('_')
+    doc.save(`${nom}.pdf`)
   }
 
   // Callback après saisie (ajouts, mises à jour, suppressions)
