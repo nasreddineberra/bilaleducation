@@ -4129,6 +4129,138 @@ ecole. Les deux durcissements de juillet sont confirmes inoperants :
 annulent les policies scopees posees a cote (les permissives s'ADDITIONNENT).
 
 
+#### 1er octobre 2026 — LOT 2 des annonces : le CHANTIER RLS EST TERMINE
+
+Dernier des trois lots, et le seul a porter un arbitrage METIER. Deux
+durcissements de juillet y etaient inoperants depuis leur ecriture :
+`announcements` portait `announcements_insert_scoped` (15/07) **et**
+`announcements_tenant`, une `FOR ALL` sans role — **les policies permissives
+s'ADDITIONNENT**, la seconde annulait la premiere. Idem sur
+`announcement_staff_recipients`, dont le journal du 16/07 affirme qu'elle
+« remplace la policy FOR ALL » : le remplacement n'avait jamais eu lieu.
+Tout compte de l'ecole pouvait donc lire, par l'API REST, le CORPS de tous les
+messages aux familles et la LISTE NOMINATIVE de leurs destinataires. L'ecran
+etait ferme a l'enseignant depuis le 24/09 ; la base ne l'etait pas.
+
+**LA REGLE (arbitrage utilisateur)** — un PERIMETRE et non une liste de roles,
+meme esprit que `teaches_class` : j'ecris le message, je le lis ; j'en suis
+destinataire, je le lis ; admin/direction tout ; resp. pedagogique tout ce qu'il
+peut ENVOYER ; secretaire les messages aux familles ; enseignant le message de
+SA classe et ceux adresses a toutes les familles.
+
+**LE POINT DE SECURITE — `selected` EST FERME A L'ENSEIGNANT.** La regle « un
+destinataire de ma classe suffit » lui aurait ouvert les messages adresses a
+quelques familles choisies une par une. Or la fiche message affiche la liste
+NOMINATIVE des destinataires : il aurait vu les autres familles ciblees, qu'il
+n'enseigne pas. **La liste des destinataires est plus sensible que le
+message** — c'est elle qui transforme « l'ecole a ecrit » en « ces familles-la
+ont un probleme » (impaye, convocation, comportement). Un `selected` est
+sensible PAR CONSTRUCTION : on ne cible quelques familles que pour une raison
+particuliere. Si l'ecole veut que l'enseignant sache, elle le met en
+destinataire d'un message a l'equipe — le canal existe et il est trace.
+- Corollaire sur les messages a TOUTES les familles : il lit le MESSAGE (il est
+  concerne comme toute l'ecole) mais PAS la LISTE. D'ou deux policies
+  distinctes : `announcements` ouverte, `announcement_recipients` fermee.
+- **Verifie des deux cotes** : `selected` a 0 pour l'enseignant, et
+  `announcement_recipients` a 9 sur 10 — les neuf destinataires des trois
+  messages de classe, jamais celui du `selected`.
+
+**TROIS DEFAUTS TROUVES EN CHEMIN, chacun par une mesure et non par relecture**
+
+1. **TROIS TABLES SUR QUATRE SE CLOISONNENT PAR JOINTURE.** Seule
+   `announcements` porte `etablissement_id` ; les autres passent par
+   `announcement_id IN (SELECT id FROM announcements WHERE ...)`. **Deuxieme
+   fois en deux lots** apres `class_teachers` le 29/09 : le releve par
+   `pg_policies` affiche `T=oui` dans les deux cas, il ne distingue pas une
+   colonne propre d'une jointure. **Seule la garde en tete de migration fait la
+   difference**, et elle l'a faite avant toute modification.
+
+2. **RECURSION INFINIE ENTRE DEUX POLICIES (42P17)**, et c'est une erreur de
+   conception de ma part. `announcements_select` lisait
+   `announcement_staff_recipients` (« suis-je destinataire ? ») pendant que
+   `ann_staff_recipients_select` lisait `announcements` (cloisonnement). Chacune
+   declenchait l'autre. Parade : une fonction **`est_destinataire_annonce()` en
+   SECURITY DEFINER**, affranchie de la RLS de la table interrogee — exactement
+   ce qui avait ete fait le 5 aout pour `teaches_class`. **Le piege etait ecrit
+   au journal ; je l'ai relu le matin meme et je l'ai reproduit.**
+   - UNE seule fonction suffit : il n'y a qu'un sens a couper. Les trois autres
+     tables continuent de lire `announcements` en SUBISSANT sa policy, ce qui
+     reste voulu — leur perimetre ne peut alors jamais diverger de celui du
+     message.
+   - **Bon signe** : la recursion LEVE au lieu de rendre zero ligne. Le defaut
+     etait franc. Une policy trop stricte aurait vide la cloche en silence.
+
+3. **LE CORRECTIF N'AVAIT PAS PRIS, et le diagnostic l'a montre** : la fonction
+   n'existait pas en base (`42883`). Cause probable, corrigee ensuite : les
+   delimiteurs `$$` du corps de fonction, que certains editeurs SQL prennent
+   pour une fin d'instruction et qui font executer le corps comme une requete
+   independante. **Regle : dans une migration destinee a l'editeur SQL, nommer
+   les delimiteurs (`$fn$`) plutot que `$$` nu.**
+
+**LE PIEGE QUI COMMANDAIT TOUTE LA MATRICE DE LECTURE** : la cloche lit
+`announcement_staff_recipients` avec une jointure **`!inner` sur
+`announcements`**. Fermer cette table a l'enseignant n'aurait pas retire un
+ecran — **sa cloche se serait videe**, et il n'aurait plus pu ouvrir les
+messages qu'on lui adresse. La lecture suit donc le DESTINATAIRE, jamais le
+role. Et le marquage « lu » est un UPDATE fait par le destinataire depuis le
+navigateur : sans policy dediee (`ann_staff_recipients_read_own`), la cloche ne
+se viderait jamais.
+- PostgreSQL ne sait pas restreindre une policy a une COLONNE : le destinataire
+  peut donc techniquement toucher aussi `email_status` de sa propre ligne. Cout
+  accepte — donnee de suivi, et l'alternative serait une RPC pour un simple
+  « marquer comme lu ».
+
+**CE QU'IL NE FALLAIT PAS OUBLIER** : `staff_recipients_write_scoped` portait un
+controle de role mais **AUCUN cloisonnement par ecole** — verifie dans
+`pg_policies`, son `qual` ne contenait pas un mot d'etablissement. Supprimer la
+`*_tenant` qui la masquait sans la corriger aurait ouvert les destinataires de
+TOUTES les ecoles. Un durcissement partiel aurait ete pire que pas de
+durcissement.
+
+**L'ECRAN « MESSAGES ENVOYES » EST ROUVERT A L'ENSEIGNANT**, en lecture seule.
+Il en avait ete exclu le 24/09 pour une raison devenue caduque : l'historique
+etait filtre sur `published_by = lui`, donc VIDE. C'etait un constat
+d'inutilite, pas une decision de principe — son perimetre existe desormais
+vraiment, et « les parents de ma classe ont-ils ete prevenus ? » est une vraie
+question d'enseignant.
+- **AUCUNE garde de role sur la page, delibere** : le perimetre est pose en RLS,
+  qui s'applique quel que soit le chemin. Une garde ici masquerait un ecran deja
+  vide et finirait par diverger de la base (motif de l'onglet Assiduite, 14/08).
+- Les FILTRES de l'historique sont desormais **derives des types reellement
+  presents** au lieu d'une liste en dur — sinon l'enseignant aurait vu un filtre
+  « Parents choisis » ne renvoyant jamais rien. Motif deja employe pour les
+  classes et pour les compteurs de statut (16 juillet).
+- Les deux ecrans d'ENVOI restent fermes : il ne communique que les devoirs.
+
+**EFFET DE BORD HEUREUX** : plus rien ne dependant du role sur cette page,
+`auth.getUser()` et la lecture du profil disparaissent — deux allers-retours de
+moins, dont le poste le plus lourd du rendu (155 ms, mesure du 10 aout). Trouve
+parce que le LINT a signale `redirect` et `role` devenus morts : une variable
+inutilisee qui aurait DU l'etre, comme `t1Phone` le 16 aout.
+
+**LECON D'OUTILLAGE, a mes depens** : mon premier script de controle avalait
+l'erreur dans un `EXCEPTION WHEN OTHERS` sans l'afficher — six colonnes d'`ERR`
+et aucune cause. Il a fallu un second script minimal avec
+`GET STACKED DIAGNOSTICS` pour obtenir `42P17`. C'est exactement le defaut
+corrige le 9 aout sur l'ecran d'authentification, reproduit dans mon propre
+outillage. **Un controle doit dire POURQUOI il echoue**, sinon il transforme une
+panne franche en mystere.
+
+**CE QUE LE CONTROLE N'A PAS PROUVE** : `class` ressort a 3 pour l'enseignant,
+soit tout le reel. Trois ANNONCES de classe, pas trois classes — si les trois
+visent sa classe, le bornage fonctionne ; sinon il voit trop. Le test ne
+distingue pas les deux. Meme limite que `teaches_class` le 29/09, et elle se
+leve par un controle qui affiche, annonce par annonce, la classe ciblee et le
+verdict de `teaches_class`.
+
+---
+
+**BILAN DU CHANTIER RLS (5 aout → 1er octobre)** : vingt-deux tables reprises en
+trois lots, quatre tables mortes supprimees, et un principe partout le meme —
+**le cloisonnement ne REMPLACE pas le controle de role, il s'y ajoute**. Les
+ecrans concernes ecrivent directement depuis le navigateur : la RLS y est le
+seul rempart, et aucune garde applicative ne protege d'un appel a l'API.
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
@@ -4385,6 +4517,17 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/add-role-checks-lot2-annonces.sql` : CHANTIER RLS
+  LOT 2, le dernier. Deux durcissements de juillet etaient INOPERANTS — une `FOR ALL`
+  sans role annulait la policy scopee posee a cote (les permissives s'ADDITIONNENT).
+  Perimetre par DESTINATAIRE et non par role ; `selected` ferme a l'enseignant (la
+  liste nominative des destinataires est plus sensible que le message).
+  `staff_recipients_write_scoped` n'avait AUCUN cloisonnement par ecole. Jouee le 01/10.
+- [x] Executer `supabase/migrations/fix-lot2-recursion-policy-annonces.sql` :
+  RECURSION INFINIE (42P17) entre `announcements_select` et
+  `ann_staff_recipients_select`, chacune lisant la table de l'autre. Rompue par
+  `est_destinataire_annonce()` en SECURITY DEFINER — motif de `teaches_class`
+  (5 aout). Jouee le 01/10, puis **verifiee sous identite reelle sur les 6 roles**.
 - [x] Executer `supabase/migrations/open-bulletins-to-secretaire.sql` : la secretaire
   ECRIT desormais dans le bucket `bulletins` (archivage / desarchivage). Elle en avait
   la LECTURE depuis le 25 juillet — un droit qu'aucun ecran n'exercait. Jouee le 29/09.
