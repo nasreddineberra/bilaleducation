@@ -95,8 +95,13 @@
 DO $$
 DECLARE manquantes text := ''; t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['announcements','announcement_recipients',
-                           'announcement_staff_recipients','announcement_attachments']
+  -- SEULE `announcements` porte la colonne. Les trois autres se cloisonnent PAR
+  -- JOINTURE vers elle (`announcement_id IN (SELECT id FROM announcements
+  -- WHERE etablissement_id = ...)`) — c'est la garde qui l'a etabli, le
+  -- 1er octobre, apres l'avoir deja etabli pour `class_teachers` le 29/09.
+  -- Deuxieme fois : le releve par `pg_policies` ne distingue pas une colonne
+  -- propre d'une jointure, seule cette garde le fait.
+  FOREACH t IN ARRAY ARRAY['announcements']
   LOOP
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                     WHERE table_schema='public' AND table_name=t
@@ -199,10 +204,12 @@ DROP POLICY IF EXISTS ann_recipients_write  ON public.announcement_recipients;
 
 CREATE POLICY ann_recipients_select ON public.announcement_recipients FOR SELECT
   USING (
-    etablissement_id = current_etablissement_id()
-    AND EXISTS (
+    -- UNE seule sous-requete porte le cloisonnement ET le perimetre : la table
+    -- n'a pas de colonne `etablissement_id`, elle le tient de son annonce.
+    EXISTS (
       SELECT 1 FROM public.announcements a
        WHERE a.id = announcement_recipients.announcement_id
+         AND a.etablissement_id = current_etablissement_id()
          AND (
            coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','secretaire'])
            OR a.published_by = auth.uid()
@@ -223,18 +230,18 @@ CREATE POLICY ann_recipients_select ON public.announcement_recipients FOR SELECT
 -- d'envoi (`email_status`, `sent_at`). Borne a SON annonce.
 CREATE POLICY ann_recipients_write ON public.announcement_recipients FOR ALL
   USING (
-    etablissement_id = current_etablissement_id()
-    AND EXISTS (SELECT 1 FROM public.announcements a
-                 WHERE a.id = announcement_recipients.announcement_id
-                   AND (a.published_by = auth.uid()
-                        OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_recipients.announcement_id
+               AND a.etablissement_id = current_etablissement_id()
+               AND (a.published_by = auth.uid()
+                    OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
   )
   WITH CHECK (
-    etablissement_id = current_etablissement_id()
-    AND EXISTS (SELECT 1 FROM public.announcements a
-                 WHERE a.id = announcement_recipients.announcement_id
-                   AND (a.published_by = auth.uid()
-                        OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_recipients.announcement_id
+               AND a.etablissement_id = current_etablissement_id()
+               AND (a.published_by = auth.uid()
+                    OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
   );
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -249,28 +256,36 @@ DROP POLICY IF EXISTS ann_staff_recipients_read_own ON public.announcement_staff
 
 CREATE POLICY ann_staff_recipients_select ON public.announcement_staff_recipients FOR SELECT
   USING (
-    etablissement_id = current_etablissement_id()
-    AND (
-      -- MA ligne : c'est ce qui alimente ma cloche
-      profile_id = auth.uid()
-      OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])
-      OR EXISTS (SELECT 1 FROM public.announcements a
-                  WHERE a.id = announcement_staff_recipients.announcement_id
-                    AND a.published_by = auth.uid())
+    EXISTS (
+      SELECT 1 FROM public.announcements a
+       WHERE a.id = announcement_staff_recipients.announcement_id
+         AND a.etablissement_id = current_etablissement_id()
+         AND (
+           -- MA ligne : c'est ce qui alimente ma cloche
+           announcement_staff_recipients.profile_id = auth.uid()
+           OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])
+           OR a.published_by = auth.uid()
+         )
     )
   );
 
 -- ECRITURE par l'emetteur : inscription des destinataires + statut d'envoi.
--- **Le cloisonnement manquait a l'ancienne `staff_recipients_write_scoped`** —
--- elle portait le role sans l'etablissement.
+-- **Le cloisonnement manquait a l'ancienne `staff_recipients_write_scoped`** :
+-- elle ne portait QUE le role (verifie le 01/10 dans `pg_policies`, `qual` ne
+-- contenait pas un mot d'etablissement). Supprimer la `*_tenant` qui la masquait
+-- sans la corriger aurait ouvert les destinataires de TOUTES les ecoles.
 CREATE POLICY ann_staff_recipients_write ON public.announcement_staff_recipients FOR ALL
   USING (
-    etablissement_id = current_etablissement_id()
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_staff_recipients.announcement_id
+               AND a.etablissement_id = current_etablissement_id())
     AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','comptable',
                                                    'secretaire','responsable_pedagogique'])
   )
   WITH CHECK (
-    etablissement_id = current_etablissement_id()
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_staff_recipients.announcement_id
+               AND a.etablissement_id = current_etablissement_id())
     AND coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction','comptable',
                                                    'secretaire','responsable_pedagogique'])
   );
@@ -279,8 +294,18 @@ CREATE POLICY ann_staff_recipients_write ON public.announcement_staff_recipients
 -- policy, la cloche ne se viderait jamais — y compris pour l'enseignant, qui
 -- n'est dans aucune liste d'ecriture ci-dessus.
 CREATE POLICY ann_staff_recipients_read_own ON public.announcement_staff_recipients FOR UPDATE
-  USING (etablissement_id = current_etablissement_id() AND profile_id = auth.uid())
-  WITH CHECK (etablissement_id = current_etablissement_id() AND profile_id = auth.uid());
+  USING (
+    profile_id = auth.uid()
+    AND EXISTS (SELECT 1 FROM public.announcements a
+                 WHERE a.id = announcement_staff_recipients.announcement_id
+                   AND a.etablissement_id = current_etablissement_id())
+  )
+  WITH CHECK (
+    profile_id = auth.uid()
+    AND EXISTS (SELECT 1 FROM public.announcements a
+                 WHERE a.id = announcement_staff_recipients.announcement_id
+                   AND a.etablissement_id = current_etablissement_id())
+  );
 
 -- ═══════════════════════════════════════════════════════════════════════════
 --  4. `announcement_attachments` — les pieces jointes suivent leur message
@@ -295,25 +320,29 @@ DROP POLICY IF EXISTS ann_attachments_write  ON public.announcement_attachments;
 -- sous-requete — ce qui garantit que les deux ne pourront jamais diverger.
 CREATE POLICY ann_attachments_select ON public.announcement_attachments FOR SELECT
   USING (
-    etablissement_id = current_etablissement_id()
-    AND EXISTS (SELECT 1 FROM public.announcements a
-                 WHERE a.id = announcement_attachments.announcement_id)
+    -- Le perimetre est celui du MESSAGE : une PJ n'a pas de regle propre. La
+    -- sous-requete sur `announcements` subit la policy de cette table, donc les
+    -- deux ne pourront jamais diverger. Le cloisonnement vient de la meme
+    -- jointure, la table n'ayant pas de colonne `etablissement_id`.
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_attachments.announcement_id
+               AND a.etablissement_id = current_etablissement_id())
   );
 
 CREATE POLICY ann_attachments_write ON public.announcement_attachments FOR ALL
   USING (
-    etablissement_id = current_etablissement_id()
-    AND EXISTS (SELECT 1 FROM public.announcements a
-                 WHERE a.id = announcement_attachments.announcement_id
-                   AND (a.published_by = auth.uid()
-                        OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_attachments.announcement_id
+               AND a.etablissement_id = current_etablissement_id()
+               AND (a.published_by = auth.uid()
+                    OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
   )
   WITH CHECK (
-    etablissement_id = current_etablissement_id()
-    AND EXISTS (SELECT 1 FROM public.announcements a
-                 WHERE a.id = announcement_attachments.announcement_id
-                   AND (a.published_by = auth.uid()
-                        OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
+    EXISTS (SELECT 1 FROM public.announcements a
+             WHERE a.id = announcement_attachments.announcement_id
+               AND a.etablissement_id = current_etablissement_id()
+               AND (a.published_by = auth.uid()
+                    OR coalesce(get_user_role(), '') = ANY (ARRAY['admin','direction'])))
   );
 
 SELECT 'Lot 2 : annonces cloisonnees par PERIMETRE ; selected ferme a l enseignant ; cloche preservee.' AS status;
