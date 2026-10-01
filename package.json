@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "sauvegarde": "node scripts/sauvegarde.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
