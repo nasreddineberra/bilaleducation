@@ -1,0 +1,43 @@
+/**
+ * Controle du resultat d'une ecriture Supabase.
+ *
+ * POURQUOI CE FICHIER EXISTE : une ecriture ecartee par la RLS NE LEVE RIEN.
+ * La clause USING d'une policy filtre les lignes avant l'UPDATE ou le DELETE :
+ * zero ligne touchee, `error` a null. L'application annonce donc un succes et
+ * renvoie l'utilisateur a sa liste alors que rien n'a ete enregistre. Trouve le
+ * 24/09 sur la fiche apprenant, ou un enseignant « modifiait » un nom sans effet.
+ *
+ * A NE PAS CONFONDRE AVEC UN INSERT : un INSERT refuse par la RLS leve bien
+ * `42501 new row violates row-level security policy`. Il est donc visible sans
+ * ce controle. Seuls UPDATE, DELETE et UPSERT sont silencieux.
+ *
+ * Le controle porte sur le NOMBRE DE LIGNES, ce qui suppose un `.select()` sur
+ * l'appel — sans lui PostgREST ne renvoie aucune ligne et le controle croirait
+ * a un refus systematique.
+ */
+
+type ResultatEcriture = {
+  data: unknown[] | null
+  error: { message: string } | null
+}
+
+/**
+ * Leve si l'ecriture a echoue OU si elle n'a touche aucune ligne.
+ *
+ * `quoi` nomme l'objet au singulier, tel qu'il se lit dans un message
+ * d'erreur : « Ce paiement », « Cette depense ».
+ *
+ * Deux causes mènent a zero ligne et on ne peut pas les distinguer : la RLS a
+ * ecarte la ligne (droits), ou la ligne n'existe plus (un collegue l'a
+ * supprimee entre-temps). Le message nomme donc les deux plutot que d'affirmer
+ * la plus probable — c'est la lecon de l'ecran de lien de reinitialisation
+ * (24/09), qui affirmait « ce lien a deja servi » sur une cause sur deux.
+ */
+export function verifierEcriture(resultat: ResultatEcriture, quoi: string): void {
+  if (resultat.error) throw new Error(resultat.error.message)
+  if (!resultat.data?.length) {
+    throw new Error(
+      `${quoi} n'a pas pu etre enregistre : vos droits ne le permettent pas, ou l'element n'existe plus.`
+    )
+  }
+}

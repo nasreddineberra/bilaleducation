@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Pencil, Trash2, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -186,8 +187,10 @@ export default function CotisationsClient({
   const remove = async (id: string) => {
     setSaving(true)
     try {
-      const { error: err } = await supabase.from('cotisation_types').delete().eq('id', id)
-      if (err) throw err
+      verifierEcriture(
+        await supabase.from('cotisation_types').delete().eq('id', id).select('id'),
+        'Ce type de cotisation',
+      )
       setRows(prev => prev.filter(r => r.id !== id))
       setConfirmDeleteId(null)
       toast.success('Type supprimé.')
@@ -525,9 +528,17 @@ export default function CotisationsClient({
                       <FloatButton type="button" variant="submit" disabled={rateSaving || (!isRatesDirty && allRatesSaved)} onClick={async () => {
                         setRateSaving(true); setRateSuccess(null)
                         const upserts = presenceTypes.map(pt => ({ school_year_id: currentYear.id, presence_type_id: pt.id, rate: pt.is_absence ? 0 : (parseFloat(rates[pt.id] ?? '0') || 0) }))
-                        const { error: err } = await supabase.from('presence_type_rates').upsert(upserts, { onConflict: 'etablissement_id,school_year_id,presence_type_id' })
+                        const resultat = await supabase
+                          .from('presence_type_rates')
+                          .upsert(upserts, { onConflict: 'etablissement_id,school_year_id,presence_type_id' })
+                          .select('presence_type_id')
                         setRateSaving(false)
-                        if (err) { toast.error(err.message); return }
+                        try {
+                          verifierEcriture(resultat, 'Les taux horaires')
+                        } catch (e: any) {
+                          toast.error(e?.message ?? 'Enregistrement impossible.')
+                          return
+                        }
                         setRateSuccess('Taux enregistrés')
                         router.refresh()
                         setTimeout(() => setRateSuccess(null), 3000)

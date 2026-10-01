@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -542,20 +543,24 @@ export default function BulletinsClient({
     try {
       const supabase = createClient()
 
-      // Supprimer les fichiers du storage (chemin stocké directement).
-      const filePaths = currentArchives.map(a => a.file_path).filter(Boolean)
-
-      if (filePaths.length > 0) {
-        await supabase.storage.from('bulletins').remove(filePaths)
-      }
-
-      // Supprimer les lignes en DB (table selon le type de classe)
+      // LA LIGNE D'ABORD, LE FICHIER ENSUITE. L'ordre inverse detruisait le PDF
+      // avant de savoir si la ligne pouvait partir : une suppression ecartee par
+      // la RLS ne leve RIEN, donc on se retrouvait avec une archive pointant vers
+      // un fichier inexistant — et un bulletin archive est un document REMIS AUX
+      // FAMILLES, la perte est sans retour.
       const ids = currentArchives.map(a => a.id)
-      const { error } = await supabase
+      const resultat = await supabase
         .from(isAdultClass ? 'adult_bulletin_archives' : 'bulletin_archives')
         .delete()
         .in('id', ids)
-      if (error) throw error
+        .select('id')
+      verifierEcriture(resultat, 'Ce desarchivage')
+
+      // Les fichiers ne partent qu'une fois les lignes effectivement supprimees.
+      const filePaths = currentArchives.map(a => a.file_path).filter(Boolean)
+      if (filePaths.length > 0) {
+        await supabase.storage.from('bulletins').remove(filePaths)
+      }
 
       setArchives(prev => prev.filter(a => !ids.includes(a.id)))
     } catch (err: any) {

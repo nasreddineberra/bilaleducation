@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { TrendingUp, TrendingDown, Pencil, Trash2, X, FileText, Upload, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatButton, FloatInput, FloatSelect, FloatTextarea } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -226,6 +227,7 @@ export default function SyntheseClient({
   const [revenueModal, setRevenueModal] = useState<Revenue | 'new' | null>(null)
   // Cible de suppression : porte la ligne entiere (et non un « etape » global,
   // qui armait une ligne puis supprimait la SUIVANTE sans confirmation).
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<
     { type: 'expense'; row: Expense } | { type: 'revenue'; row: Revenue } | null
   >(null)
@@ -277,19 +279,30 @@ export default function SyntheseClient({
   const confirmDelete = async () => {
     if (!deleteTarget) return
     setDeleting(true)
+    setDeleteError(null)
     try {
       if (deleteTarget.type === 'expense') {
         // Le justificatif part avec la depense : sinon il resterait orphelin
         // dans le bucket, sans plus aucune ligne pour le retrouver.
+        // LA LIGNE D'ABORD : un justificatif efface avant un DELETE refuse par
+        // la RLS laisserait la depense en base, privee de sa piece.
+        verifierEcriture(
+          await supabase.from('expenses').delete().eq('id', deleteTarget.row.id).select('id'),
+          'Cette depense',
+        )
         const path = deleteTarget.row.document_path
         if (path) await supabase.storage.from(BUCKET).remove([path])
-        await supabase.from('expenses').delete().eq('id', deleteTarget.row.id)
         await refreshExpenses()
       } else {
-        await supabase.from('other_revenues').delete().eq('id', deleteTarget.row.id)
+        verifierEcriture(
+          await supabase.from('other_revenues').delete().eq('id', deleteTarget.row.id).select('id'),
+          'Ce revenu',
+        )
         await refreshRevenues()
       }
       setDeleteTarget(null)
+    } catch (e: any) {
+      setDeleteError(e?.message ?? 'Erreur lors de la suppression.')
     } finally {
       setDeleting(false)
     }
@@ -564,7 +577,7 @@ export default function SyntheseClient({
         variant="danger"
         confirmDisabled={deleting}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => { setDeleteTarget(null); setDeleteError(null) }}
       >
         {deleteTarget && (
           <div className="text-xs text-secondary-700 space-y-0.5">
@@ -575,6 +588,9 @@ export default function SyntheseClient({
             <p><span className="text-warm-700">Montant :</span> <span className="font-semibold tabular-nums">{fmt(Number(deleteTarget.row.amount))}</span></p>
             {deleteTarget.type === 'expense' && deleteTarget.row.document_path && (
               <p className="text-warm-700">Le justificatif joint sera également supprimé.</p>
+            )}
+            {deleteError && (
+              <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mt-2">{deleteError}</p>
             )}
           </div>
         )}
@@ -697,12 +713,23 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
       payload.school_year_id = schoolYearId
     }
 
-    const { error: err } = isEdit
-      ? await supabase.from('expenses').update(payload).eq('id', entry!.id)
-      : await supabase.from('expenses').insert(payload)
+    try {
+      if (isEdit) {
+        verifierEcriture(
+          await supabase.from('expenses').update(payload).eq('id', entry!.id).select('id'),
+          'Cette depense',
+        )
+      } else {
+        const { error: err } = await supabase.from('expenses').insert(payload)
+        if (err) throw new Error(err.message)
+      }
+    } catch (e: any) {
+      setSaving(false)
+      setError(e?.message ?? 'Enregistrement impossible.')
+      return
+    }
 
     setSaving(false)
-    if (err) { setError(err.message); return }
     onSaved()
   }
 
@@ -827,12 +854,23 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
       payload.school_year_id = schoolYearId
     }
 
-    const { error: err } = isEdit
-      ? await supabase.from('other_revenues').update(payload).eq('id', entry!.id)
-      : await supabase.from('other_revenues').insert(payload)
+    try {
+      if (isEdit) {
+        verifierEcriture(
+          await supabase.from('other_revenues').update(payload).eq('id', entry!.id).select('id'),
+          'Ce revenu',
+        )
+      } else {
+        const { error: err } = await supabase.from('other_revenues').insert(payload)
+        if (err) throw new Error(err.message)
+      }
+    } catch (e: any) {
+      setSaving(false)
+      setError(e?.message ?? 'Enregistrement impossible.')
+      return
+    }
 
     setSaving(false)
-    if (err) { setError(err.message); return }
     onSaved()
   }
 

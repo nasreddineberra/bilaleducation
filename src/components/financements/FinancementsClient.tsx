@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } fro
 import { Trash2, Pencil, AlertTriangle, MessageSquareText, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import PaymentModal from './PaymentModal'
@@ -429,7 +430,14 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
       const newAdjTotal = adjustmentsTotal + amount
       const newDue = subtotal + newAdjTotal   // les ajustements reduisent le du
       const newStatus = feeStatus(totalPaid, newDue)
-      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus }).eq('id', feeId)
+      // La reduction vient d'etre ecrite ; si le recapitulatif ne suit pas, le
+      // montant du reste faux en base alors que l'ecran affiche le bon chiffre.
+      verifierEcriture(
+        await supabase.from('family_fees')
+          .update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus })
+          .eq('id', feeId).select('id'),
+        'Le recapitulatif de la famille',
+      )
 
       setFamilyFees(prev => prev.map(f =>
         f.id === feeId
@@ -452,12 +460,19 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     setSaving(true)
     setError(null)
     try {
-      const { error: err } = await supabase.from('fee_adjustments').delete().eq('id', adj.id)
-      if (err) throw err
+      verifierEcriture(
+        await supabase.from('fee_adjustments').delete().eq('id', adj.id).select('id'),
+        'Cette reduction',
+      )
       const newAdjTotal = adjustmentsTotal - adj.amount
       const newDue = subtotal + newAdjTotal
       const newStatus = feeStatus(totalPaid, newDue)
-      await supabase.from('family_fees').update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus }).eq('id', currentFee.id)
+      verifierEcriture(
+        await supabase.from('family_fees')
+          .update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus })
+          .eq('id', currentFee.id).select('id'),
+        'Le recapitulatif de la famille',
+      )
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
           ? { ...f, adjustments_total: newAdjTotal, total_due: newDue, status: newStatus, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
@@ -496,13 +511,19 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         ? { ...f, status, fee_installments: updatedInstallments }
         : f
     ))
-    setSuccess(isEdit ? 'Paiement modifie.' : 'Paiement enregistre.')
-
-    // Mettre à jour le statut en DB
+    // LE SUCCES NE S'ANNONCE QU'APRES L'ECRITURE. Il etait affiche ici, et
+    // l'echec du statut partait dans un console.error : le paiement etait bien
+    // enregistre mais le dossier gardait son ancien statut, sans un mot.
     try {
-      await supabase.from('family_fees').update({ status }).eq('id', feeId)
-    } catch (err) {
-      console.error('[FinancementsClient] Erreur mise à jour statut DB:', err)
+      verifierEcriture(
+        await supabase.from('family_fees').update({ status }).eq('id', feeId).select('id'),
+        'Le statut du dossier',
+      )
+      setSuccess(isEdit ? 'Paiement modifie.' : 'Paiement enregistre.')
+    } catch (err: any) {
+      setError(
+        `Le paiement est enregistre, mais le statut du dossier n'a pas pu etre mis a jour (${err?.message ?? 'erreur inconnue'}). Rechargez la page.`
+      )
     }
   }
 
@@ -512,15 +533,20 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     setSaving(true)
     setError(null)
     try {
-      const { error: err } = await supabase.from('fee_installments').delete().eq('id', payment.id)
-      if (err) throw err
+      verifierEcriture(
+        await supabase.from('fee_installments').delete().eq('id', payment.id).select('id'),
+        'Ce paiement',
+      )
 
       const remaining2 = payments.filter(p => p.id !== payment.id)
       const newTotalPaid = remaining2.reduce((s, p) => s + p.amount_paid, 0)
       const due = currentFee.total_due
       const status = feeStatus(newTotalPaid, due)
 
-      await supabase.from('family_fees').update({ status }).eq('id', currentFee.id)
+      verifierEcriture(
+        await supabase.from('family_fees').update({ status }).eq('id', currentFee.id).select('id'),
+        'Le statut du dossier',
+      )
 
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
