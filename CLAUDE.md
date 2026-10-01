@@ -4498,18 +4498,30 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
 
 ## Prerequis MISE EN PRODUCTION (bloquants)
 
-- [ ] **AUCUN ENVOI D'EMAIL NE FONCTIONNE** (constate le 15/07/2026) : `.env.local` n'a **ni `SMTP_HOST`, ni
-  `SMTP_USER`, ni `EMAIL_FROM`**. `src/lib/email.ts` ne cree son transporteur que si `SMTP_HOST` existe → sinon
-  `null` et **tout envoi echoue silencieusement** (« Email non configure »). **Aucun email applicatif n'est jamais
-  parti** : devoirs, absences, recus de paiement, annonces. Seuls les mails d'Auth (reinit. mdp) fonctionnent,
-  car ils passent par Supabase. → Traite par le **lot Messagerie** (config SMTP par etablissement dans la fiche,
-  et non par variable d'environnement : l'app est multi-etablissement).
-  **Volume reel : 200-300 foyers** → Gmail **gratuit** insuffisant (~500 dest./jour) ; Workspace (~2 000/j) tient,
-  un service transactionnel (Brevo/Resend/Mailgun) est preferable a ce volume.
-- [ ] **`NEXT_PUBLIC_SITE_URL`** : **absent de `.env.local`**. `sendPasswordReset` (utilisateurs) et tout lien de mail
-  auth retombent sur le fallback **`http://localhost:3000`** → en production, le mail de reinitialisation de mot de
-  passe enverrait l'utilisateur **sur localhost** (lien mort). Definir la variable ET ajouter l'URL aux
-  **Redirect URLs** autorisees du projet Supabase (Auth → URL Configuration).
+- [x] **ENVOI D'EMAIL — RESOLU, eprouve le 20 septembre.** Constate le 15/07 (« aucun email
+  applicatif n'est jamais parti »), traite par le **lot Messagerie** : la configuration SMTP vit
+  **en base, par etablissement** (`etablissement_smtp`) et non en variable d'environnement — l'app
+  est multi-etablissement, une variable est globale par nature. **Cinq envois reels recus** le
+  20/09 : test de connexion, message au staff, message aux parents, devoir, relance.
+  - **RESTE a surveiller, pas bloquant** : **volume reel 200-300 foyers** → Gmail gratuit
+    insuffisant (~500 dest./jour), Workspace (~2 000/j) tient, mais a ce volume un service
+    transactionnel (Brevo/Resend/Mailgun) est le bon outil — rebonds, delivrabilite, reputation.
+    Tous parlent SMTP : 4 champs de config, 0 ligne de code.
+- [ ] **`NEXT_PUBLIC_SITE_URL` — A VERIFIER DANS VERCEL** (la case d'origine etait mal posee,
+  corrigee le 01/10). Son absence de `.env.local` **n'est PAS un defaut** : elle est voulue et
+  documentee — `sessionCookieDomain()` renvoie `undefined` en local, car *un domaine pose sur
+  `localhost` est rejete par les navigateurs*. Et `proxy.ts` retombe sur `bilaleducation.fr`.
+  - **La vraie question est la PRODUCTION**, et elle n'a jamais ete verifiee. Cette variable y
+    pilote deux choses sensibles : le **domaine du cookie de session** (`proxy.ts`,
+    `session-config.ts`) et la **protection CSRF** (`lib/security/csrf.ts`). Si elle manquait, le
+    cookie serait pose **sans domaine** — exactement le defaut des deux ecrivains du 11 aout, qui
+    avait verrouille la production.
+  - Indice fort qu'elle EST definie : la session fonctionne sur `.bilaleducation.fr` depuis le
+    correctif du 11 aout. Mais un indice n'est pas une mesure. **Regarder Vercel → Settings →
+    Environment Variables.**
+  - Verifier au passage que l'URL figure dans les **Redirect URLs** du projet Supabase
+    (Auth → URL Configuration) — sans quoi `redirect_to` est ignore et l'utilisateur atterrit sur
+    la vitrine, jeton en main, sans que rien ne se passe (echec silencieux, note du 8 aout).
 - [x] **Duree de validite des liens auth** verifiee le 8 aout (Supabase → Auth → *Email OTP
   expiration*) : **10 minutes**, et non 1 h. Les liens de reinitialisation sont a **usage unique**.
   Le gabarit annonce desormais la bonne duree (constante `VALIDITE`). **Reserve** : 10 min est
