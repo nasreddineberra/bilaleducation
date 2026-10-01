@@ -4261,6 +4261,76 @@ trois lots, quatre tables mortes supprimees, et un principe partout le meme —
 ecrans concernes ecrivent directement depuis le navigateur : la RLS y est le
 seul rempart, et aucune garde applicative ne protege d'un appel a l'API.
 
+#### 1er octobre 2026 (suite) — AUDIT DES ECRITURES : lot 1 sur 5 (l'argent et les bulletins)
+
+Point 3 de la liste du 01/10. Le chantier RLS venait de transformer des ecritures
+qui passaient en ecritures REFUSEES selon le role : chaque appel sans `.select()`
+devenait un faux succes potentiel. **Le lot 1 est fait, les lots 2 a 5 restent.**
+
+**LA MESURE A CHANGE LE SUJET.** 243 ecritures dans `src`, dont **126 reellement
+silencieuses** — et elles se divisent en deux formes, dont une que je n'attendais pas :
+- **FORME A (52 appels)** : `await supabase...` **sans destructuration**. Le resultat
+  n'est JAMAIS regarde : refus RLS, contrainte violee, panne reseau, tout passe.
+- **FORME B (74 appels)** : `error` est lu, le nombre de lignes non.
+
+La forme A **depasse la demande d'origine** : ce n'est pas un audit RLS, c'est un
+audit de gestion d'erreur. Et **37 `insert` sont ECARTES a dessein** — un INSERT
+refuse par la RLS leve bien `42501`, il est VISIBLE. Seuls UPDATE, DELETE et UPSERT
+sont silencieux (la clause `USING` filtre les lignes avant l'ecriture). Ce tri divise
+le travail par deux.
+
+**`src/lib/supabase/ecriture.ts`** (`verifierEcriture`) : source unique du controle,
+puisque le motif se repete ~67 fois. Son message nomme **LES DEUX causes possibles**
+de « zero ligne » — droits insuffisants, ou element disparu entre-temps — au lieu
+d'affirmer la plus probable : on ne peut pas les distinguer, et c'est exactement la
+lecon de l'ecran de lien de reinitialisation du 24/09.
+
+**L'ORDRE DU LOT EST L'EXISTENCE D'UNE GARDE EN AMONT**, pas le fichier :
+1. l'argent et les documents publies (**fait**) ; 2. cascades EDT + ClassForm (22) ;
+3. formulaires clients restants, 18 fichiers (~31) — **aucune garde serveur, la RLS
+est le seul rempart** ; 4. server actions + `lib/database/*` + passage d'annee (~44),
+gardees par `requireRoleServer` donc moins exposees ; 5. service-role (~15), ou aucun
+refus RLS n'est possible mais ou la forme A reste un defaut.
+
+**LE PLUS GRAVE DU LOT — le desarchivage d'un bulletin detruisait le PDF en premier.**
+Le fichier etait retire du Storage AVANT le DELETE de la ligne. Un refus RLS ne levant
+rien, on obtenait **le fichier detruit et la ligne restante** : une archive pointant
+vers un document inexistant. Et un bulletin archive est **REMIS AUX FAMILLES** — c'est
+aussi lui que l'historique de cloture agrege depuis le 09/08, precisement pour ne jamais
+le contredire. **L'ordre est inverse** : la ligne d'abord, le fichier ensuite. Meme
+inversion appliquee au justificatif d'une depense.
+
+**QUATRE CAS NE DEMANDAIENT PAS TROIS LIGNES MAIS UN CHANGEMENT D'ORDRE.**
+`handlePaymentSaved` affichait « Paiement enregistre. » **AVANT** d'ecrire le statut,
+et poussait l'echec dans un `console.error`. Le motif etait le meme sur les quatre
+ecritures de `family_fees` : la ligne enfant (paiement, reduction) est ecrite **et
+controlee**, puis le RECAPITULATIF l'est **sans aucune garde**, puis l'etat local est
+mis a jour comme si tout avait reussi. Resultat concret : la reduction existe, le
+montant du ne change pas, **l'ecran affiche le bon chiffre et la base le mauvais**, et
+l'ecart n'apparait qu'au rechargement. C'est la famille de bugs du 17/07 (calcul
+comptable divergent dans 3 sous-menus) par un autre chemin.
+- Quand l'enfant est ecrit mais pas le recapitulatif, le message **le DIT** (« le
+  paiement est enregistre, mais le statut n'a pas pu etre mis a jour, rechargez »)
+  plutot que d'annoncer un echec global qui ferait tout recommencer pour rien.
+- **A SIGNALER SANS L'OUVRIR** : ces deux ecritures devraient etre **UNE TRANSACTION**
+  (une RPC), pas deux appels successifs. Le controle rend l'incoherence VISIBLE, il ne
+  la supprime pas. Chantier a part.
+
+**FAUX POSITIF DE MA PROPRE MESURE, a connaitre avant de corriger du sain** :
+`PaymentModal:182` ressortait « sans `.select()` » alors qu'il est correct — le
+`.select()` etait **11 lignes plus bas**, hors de ma fenetre de 9. Le releve
+SOUS-ESTIME donc les cas sains sur les appels longs. **Il ne faut pas corriger sur sa
+seule foi : chaque appel se lit.**
+
+**PIEGE REPAYE** : l'apostrophe francaise a de nouveau sauté a l'ecriture par script
+(« Erreur lors de l'enregistrement » → chaine JS non terminee, 12 erreurs de
+type-check). **Reformuler sans apostrophe** est plus robuste que de l'echapper.
+
+**Reste du point 3** : les lots 2 a 5 (~112 appels). Le motif et le helper sont poses,
+le travail restant est mecanique — mais chaque appel se LIT, et une migration RLS se
+double toujours d'une revue des boutons qu'elle rend inoperants.
+
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
