@@ -42,7 +42,15 @@ const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> =
   staff:          { label: 'Équipe',                    icon: Users,     color: 'bg-warm-100 text-warm-700' },
 }
 
-const FILTERS = ['', 'all_active', 'all_registered', 'class', 'selected', 'staff'] as const
+// Ordre canonique des ciblages. La liste AFFICHEE en est derivee, en ne gardant
+// que les types reellement presents dans les messages recus — motif deja employe
+// pour `classOptions` et pour les compteurs de statut (16 juillet : « compteurs
+// derives des statuts reellement presents, plus de liste figee »).
+//
+// C'est ce qui permet d'ouvrir cet ecran a l'enseignant sans lui passer son role :
+// la RLS decide ce qu'il recoit, et l'ecran s'y adapte. Une liste en dur lui
+// aurait montre un filtre « Parents choisis » ne renvoyant jamais rien.
+const FILTRES_ORDRE = ['all_active', 'all_registered', 'class', 'selected', 'staff'] as const
 
 // Filtres memorises pour la duree de l'onglet : au retour d'une fiche message,
 // on retrouve sa recherche et son ciblage.
@@ -91,6 +99,12 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ search, type: filterType, classId: filterClassId }))
     } catch { /* ignore */ }
   }, [hydrated, search, filterType, filterClassId])
+
+  // Ciblages reellement presents : voir FILTRES_ORDRE.
+  const filtres = useMemo(() => {
+    const presents = new Set(messages.map(m => m.announcement_type))
+    return ['', ...FILTRES_ORDRE.filter(t => presents.has(t))]
+  }, [messages])
 
   // Classes reellement presentes dans les messages « Parents d'une classe ».
   // Regle d'affichage select classe : « CODE · Civilite NOM Prenom · COTISATION ».
@@ -141,7 +155,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
           ariaLabel="Rechercher un message par objet"
         />
         <div className="flex flex-wrap items-center gap-1.5">
-          {FILTERS.map(type => {
+          {filtres.map(type => {
             const active = filterType === type
             return (
               <button

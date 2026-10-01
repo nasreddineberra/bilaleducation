@@ -293,7 +293,13 @@ const navItems: NavItem[] = [
   {
     name:  'Communications',
     icon:  MessageSquare,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable'],
+    // `enseignant` reintroduit le 01/10 : il n'ECRIT toujours pas (ni aux
+    // familles, ni a l'equipe), mais il LIT desormais les messages de sa classe
+    // et ceux adresses a toutes les familles. Le menu lui avait ete retire le
+    // 24/09 pour une raison devenue caduque — l'historique etait alors filtre
+    // sur `published_by = lui`, donc VIDE pour lui. C'etait un constat
+    // d'inutilite, pas une decision de principe.
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable', 'enseignant'],
     children: [
       {
         // L'enseignant ne communique que les devoirs (cahier de texte) ;
@@ -316,7 +322,9 @@ const navItems: NavItem[] = [
         name:  'Messages envoyés',
         href:  '/dashboard/communications',
         icon:  Inbox,
-        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable'],
+        // Seul enfant ouvert a l'enseignant : les deux autres sont des ecrans
+        // d'ENVOI. Son perimetre de lecture est pose en RLS, pas ici.
+        roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'comptable', 'enseignant'],
       },
     ],
   },

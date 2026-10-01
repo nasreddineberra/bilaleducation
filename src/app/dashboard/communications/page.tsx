@@ -1,37 +1,35 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import SentMessagesClient from '@/components/communications/SentMessagesClient'
-import { effectiveRole } from '@/lib/auth/effective-role'
 
 export default async function CommunicationsPage() {
   const supabase = await createClient()
   const h = await headers()
   const etablissementId = h.get('x-etablissement-id') ?? ''
 
-  // Profil courant
-  const { data: { user } } = await supabase.auth.getUser()
-  const userId = user?.id ?? ''
+  // NI `auth.getUser()` NI LECTURE DU PROFIL : plus rien n'en depend depuis que
+  // le perimetre est pose en RLS. Deux allers-retours economises sur une page
+  // qui n'en avait pas besoin — `auth.getUser()` est le poste le plus lourd du
+  // rendu (155 ms, mesure du 10 aout), et la session est deja verifiee par le
+  // layout du tableau de bord.
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, etablissement_id')
-    .eq('id', userId)
-    .single()
-
-  const role = effectiveRole(profile) ?? 'enseignant'
-
-  // L'ENSEIGNANT N'A PLUS ACCES A CET ECRAN (decision du 24/09). Il n'ecrit ni
-  // aux parents (il ne communique que les devoirs, par le cahier de texte) ni au
-  // staff (decision du 16 juillet : l'envoi est reserve a l'encadrement, il
-  // reste destinataire) : l'historique des envois ne lui montrait donc qu'une
-  // liste VIDE, filtree sur `published_by = lui`. Le lien est retire de la barre
-  // laterale, et la garde est posee ICI aussi — un ecran reste atteignable par
-  // son adresse quand seul le lien disparait.
+  // CET ECRAN EST OUVERT A TOUT LE PERSONNEL, EN LECTURE SEULE (01/10).
   //
-  // Il continue de RECEVOIR les messages internes : ils arrivent dans la cloche
-  // (`announcement_staff_recipients`), qui n'est pas touchee.
-  if (role === 'enseignant') redirect('/dashboard')
+  // L'enseignant en avait ete exclu le 24/09, mais pour une raison devenue
+  // caduque : l'historique etait alors filtre sur `published_by = lui`, donc il
+  // n'y voyait qu'une liste VIDE. C'etait un constat d'inutilite, pas une
+  // decision de principe. Depuis le lot 2 du chantier RLS, son perimetre de
+  // lecture existe reellement — les messages de SA classe et ceux adresses a
+  // toutes les familles — et la question « les parents de ma classe ont-ils ete
+  // prevenus ? » trouve enfin sa reponse.
+  //
+  // AUCUNE GARDE DE ROLE ICI, et c'est delibere : le perimetre est pose en RLS,
+  // qui s'applique quel que soit le chemin — ecran, adresse directe ou appel a
+  // l'API. Une garde ici ne ferait que masquer un ecran deja vide, et finirait
+  // par diverger de la base (motif de l'onglet Assiduite, 14 aout).
+  //
+  // Ce qui reste ferme : les deux ecrans d'ENVOI (`new`, `staff`), qui gardent
+  // leurs gardes propres. L'enseignant ne communique que les devoirs.
 
   // Messages envoyes
   const query = supabase
