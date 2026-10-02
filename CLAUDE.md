@@ -4598,8 +4598,16 @@ pedagogique ne lit pas.
   admin/direction/secretaire) ; « enseignant : sa classe et les messages adresses
   A TOUTES LES FAMILLES » — ce que `all_registered` est. Les deux regles se
   croisent sans que personne ne l'ait voulu.
-- **ARBITRAGE EN ATTENTE** : ajouter `all_registered` a la liste du responsable
-  pedagogique tient en un mot dans la policy, mais c'est une decision metier.
+- **ARBITRAGE DONNE (02/10 au soir, rien de code)** : le responsable pedagogique
+  voit **les messages qu'il a ENVOYES** et **l'ensemble des messages des CLASSES**.
+  - **A VERIFIER AVANT DE TOUCHER A LA POLICY** : cette regle semble **DEJA en
+    place** — `published_by = auth.uid()` couvre ses envois, et sa branche comporte
+    deja `class` **SANS bornage** (contrairement a l'enseignant, borne par
+    `teaches_class`). Si c'est exact, **il n'y a rien a corriger** : la reponse
+    tranche simplement que `all_registered` ne le concerne pas, et l'inversion de
+    hierarchie relevee ci-dessus est **assumee**.
+  - Mesurer d'abord, modifier ensuite : ne pas rouvrir une policy sur une
+    supposition (regle du 5 aout, seule `pg_policies` fait foi).
 
 **LE RESTE EST CONFORME, verifie ligne par ligne** (et c'est le second benefice de
 l'affichage : ces conditions ne vivent nulle part dans le depot depuis le 5 aout) :
