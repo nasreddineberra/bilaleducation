@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import DevoirForm from './DevoirForm'
@@ -198,7 +199,11 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
 
     if (existing) {
       const table = isAdult ? 'adult_homework_status' : 'homework_status'
-      await supabase.from(table).update({ [field]: newVal, [stampField]: stamp }).eq('id', existing.id)
+      const echec = erreurEcriture(
+        await supabase.from(table).update({ [field]: newVal, [stampField]: stamp }).eq('id', existing.id).select('id'),
+        'Ce suivi',
+      )
+      if (echec) { toast.error(echec); return }
       setStatuses(prev => prev.map(s => s.key === key ? { ...s, [field]: newVal, [stampField]: stamp } : s))
       return
     }

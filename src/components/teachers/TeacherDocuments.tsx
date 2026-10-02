@@ -4,6 +4,7 @@ import { useState, useRef, useMemo, useCallback, type Dispatch, type SetStateAct
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Eye, Download, Trash2, FileText, Paperclip } from 'lucide-react'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -133,10 +134,17 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
   }
 
   const handleDelete = async (docId: string) => {
+    // La ligne d'abord, le fichier ensuite (voir StudentDocuments).
+    const echec = erreurEcriture(
+      await supabase.from('teacher_documents').delete().eq('id', docId).select('id'),
+      'Ce document',
+    )
+    if (echec) { setError(echec); setConfirmDelete(null); return }
+
     const doc = documents.find(d => d.id === docId)
     if (doc) await supabase.storage.from(BUCKET).remove([doc.file_url])
-    const { error } = await supabase.from('teacher_documents').delete().eq('id', docId)
-    if (!error) { setDocuments(prev => prev.filter(d => d.id !== docId)); router.refresh() }
+    setDocuments(prev => prev.filter(d => d.id !== docId))
+    router.refresh()
     setConfirmDelete(null)
   }
 

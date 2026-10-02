@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 
@@ -86,8 +87,11 @@ export default function SeanceForm({
       }
 
       if (isEdit) {
-        const { error } = await supabase.from('class_journal').update(journalPayload).eq('id', initialData.id)
-        if (error) throw error
+        const echec = erreurEcriture(
+          await supabase.from('class_journal').update(journalPayload).eq('id', initialData.id).select('id'),
+          'Cette séance',
+        )
+        if (echec) throw new Error(echec)
       } else {
         const { error } = await supabase
           .from('class_journal')

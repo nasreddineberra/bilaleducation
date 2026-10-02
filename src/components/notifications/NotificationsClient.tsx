@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { useToast } from '@/lib/toast-context'
 import PushSubscribeButton from './PushSubscribeButton'
 import { SearchField, FloatSelect } from '@/components/ui/FloatFields'
 
@@ -115,6 +117,7 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
     return list
   }, [notifications, search, filterRead, filterType, readIds])
 
+  const toast = useToast()
   const unreadCount = notifications.filter(n => !n.is_read && !readIds.has(n.id)).length
 
   const markAsRead = async (notif: NotifRow) => {
@@ -122,12 +125,22 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
     setReadIds(prev => new Set(prev).add(notif.id))
 
     const supabase = createClient()
-    if (notif.source === 'auto') {
-      await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notif.id)
-    } else if (notif.recipientType === 'staff') {
-      await supabase.from('announcement_staff_recipients').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notif.id)
-    } else {
-      await supabase.from('announcement_recipients').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notif.id)
+    const table = notif.source === 'auto' ? 'notifications'
+      : notif.recipientType === 'staff' ? 'announcement_staff_recipients'
+      : 'announcement_recipients'
+    const echec = erreurEcriture(
+      await supabase.from(table)
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('id', notif.id)
+        .select('id'),
+      'Cette notification',
+    )
+    // L'optimisme se DEFAIT : sans cela la cloche se vidait a l'ecran et se
+    // remplissait de nouveau au rechargement, sans que rien ne l'explique.
+    if (echec) {
+      setReadIds(prev => { const copie = new Set(prev); copie.delete(notif.id); return copie })
+      toast.error(echec)
+      return
     }
     // Le badge de la cloche est rendu par le layout, que cette page ne
     // re-rend pas : on le lui demande.

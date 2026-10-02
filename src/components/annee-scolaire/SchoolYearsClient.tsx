@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Pencil, Trash2, CalendarDays } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { SchoolYear, EvalTypeConfig, Period } from '@/types/database'
@@ -62,12 +63,13 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
     setDeleteError(null)
     try {
       const supabase = createClient()
-      const { error } = await supabase.from('school_years').delete().eq('id', yearId)
-      if (error) {
-        if (error.code === '23503') {
+      const res = await supabase.from('school_years').delete().eq('id', yearId).select('id')
+      const echec = erreurEcriture(res, 'Cette année')
+      if (echec) {
+        if (res.error?.code === '23503') {
           setDeleteError('Impossible de supprimer : des données d\'évaluation sont liées à cette année.')
         } else {
-          setDeleteError('Une erreur est survenue lors de la suppression.')
+          setDeleteError(echec)
         }
         setConfirmDeleteId(null)
         return

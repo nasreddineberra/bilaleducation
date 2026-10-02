@@ -3,6 +3,8 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { useToast } from '@/lib/toast-context'
 import { Trash2, Check, X } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatButton } from '@/components/ui/FloatFields'
@@ -56,6 +58,7 @@ const DEFAULT_TYPES: { category: DocumentCategory; doc_key: string; label: strin
 
 export default function DocumentTypesConfig({ etablissementId, initialDocTypes }: Props) {
   const supabase = createClient()
+  const toast = useToast()
   const [docTypes, setDocTypes] = useState(initialDocTypes)
   const [adding, setAdding] = useState<DocumentCategory | null>(null)
   const [newLabel, setNewLabel] = useState('')
@@ -133,29 +136,33 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
   // ─── Basculer requis ──────────────────────────────────────────────────────
 
   const toggleRequired = useCallback(async (id: string, current: boolean) => {
-    const { error } = await supabase
-      .from('document_type_configs')
-      .update({ is_required: !current })
-      .eq('id', id)
-
-    if (!error) {
-      setDocTypes(prev => prev.map(d => d.id === id ? { ...d, is_required: !current } : d))
-    }
-  }, [supabase])
+    const echec = erreurEcriture(
+      await supabase
+        .from('document_type_configs')
+        .update({ is_required: !current })
+        .eq('id', id)
+        .select('id'),
+      'Ce réglage',
+    )
+    if (echec) { toast.error(echec); return }
+    setDocTypes(prev => prev.map(d => d.id === id ? { ...d, is_required: !current } : d))
+  }, [supabase, toast])
 
   // ─── Supprimer ──────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(async (id: string) => {
-    const { error } = await supabase
-      .from('document_type_configs')
-      .delete()
-      .eq('id', id)
-
-    if (!error) {
-      setDocTypes(prev => prev.filter(d => d.id !== id))
-    }
+    const echec = erreurEcriture(
+      await supabase
+        .from('document_type_configs')
+        .delete()
+        .eq('id', id)
+        .select('id'),
+      'Ce type de document',
+    )
+    if (echec) { toast.error(echec); setConfirmDelete(null); return }
+    setDocTypes(prev => prev.filter(d => d.id !== id))
     setConfirmDelete(null)
-  }, [supabase])
+  }, [supabase, toast])
 
   // ─── Rendu ─────────────────────────────────────────────────────────────────
 

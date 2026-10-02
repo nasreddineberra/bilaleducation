@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { ChevronDown, ChevronRight, Pencil, Trash2, Users, LogOut, Camera, GraduationCap } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { useToast } from '@/lib/toast-context'
 import { studentRepository } from '@/lib/database/students'
 import { deleteParent, getParentDeleteDeps } from '@/app/dashboard/parents/actions'
 import Tooltip from '@/components/ui/Tooltip'
@@ -41,6 +43,7 @@ const RELATION_LABEL: Record<string, string> = {
 
 export default function ParentsTable({ parents, parentsWithChildren, canDelete = false }: ParentsTableProps) {
   const router = useRouter()
+  const toast = useToast()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }
   const [childrenMap, setChildrenMap] = useState<Record<string, StudentWithEnrollment[]>>({})
@@ -133,7 +136,11 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
     try {
       const supabase = createClient()
       const newActive = !student.is_active
-      await supabase.from('students').update({ is_active: newActive }).eq('id', student.id)
+      const echec = erreurEcriture(
+        await supabase.from('students').update({ is_active: newActive }).eq('id', student.id).select('id'),
+        'Ce statut',
+      )
+      if (echec) { toast.error(echec); return }
       setChildrenMap(prev => ({
         ...prev,
         [parentId]: prev[parentId].map(s => s.id === student.id ? { ...s, is_active: newActive } : s),

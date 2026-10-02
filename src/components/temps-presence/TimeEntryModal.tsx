@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import type { VacationPeriod, JourFerie } from '@/types/database'
@@ -327,11 +328,14 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           duration_minutes: durationMinutes,
         }]
 
-    const { error: err } = isEdit
-      ? await supabase.from('staff_time_entries').update(lignes[0]).eq('id', entry!.id)
-      : await supabase.from('staff_time_entries').insert(lignes)
+    const echec = isEdit
+      ? erreurEcriture(
+          await supabase.from('staff_time_entries').update(lignes[0]).eq('id', entry!.id).select('id'),
+          'Cette saisie',
+        )
+      : (await supabase.from('staff_time_entries').insert(lignes)).error?.message ?? null
 
-    if (err) { setSaving(false); setError(err.message); return }
+    if (echec) { setSaving(false); setError(echec); return }
 
     // ── LE REMPLACEMENT CREE DIRECTEMENT LES HEURES DU REMPLACANT ─────────
     //

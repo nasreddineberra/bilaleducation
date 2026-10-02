@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { AlertTriangle, Clock, Trash2, Paperclip, X, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WarningSeverity } from '@/types/database'
 import { FloatSelect, FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
@@ -232,7 +233,13 @@ export default function StudentDiscipline({
   // ─── Suppression ────────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(async (warningId: string) => {
-    // Delete attachments from storage first
+    // La ligne d'abord, les pieces jointes ensuite (voir StudentDocuments).
+    const echec = erreurEcriture(
+      await supabase.from('student_warnings').delete().eq('id', warningId).select('id'),
+      'Cet avertissement',
+    )
+    if (echec) { setError(echec); setConfirmDelete(null); return }
+
     const warning = warnings.find(w => w.id === warningId)
     if (warning) {
       const paths = warning.attachments.map(att => att.file_url)
@@ -240,15 +247,7 @@ export default function StudentDiscipline({
         await supabase.storage.from('warning-attachments').remove(paths)
       }
     }
-
-    const { error: delErr } = await supabase
-      .from('student_warnings')
-      .delete()
-      .eq('id', warningId)
-
-    if (!delErr) {
-      setWarnings(prev => prev.filter(w => w.id !== warningId))
-    }
+    setWarnings(prev => prev.filter(w => w.id !== warningId))
     setConfirmDelete(null)
   }, [warnings, supabase])
 

@@ -5,6 +5,8 @@ import { clsx } from 'clsx'
 import Image from 'next/image'
 import { ChevronRight, ChevronDown, FileCheck, AlertTriangle, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { useToast } from '@/lib/toast-context'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
@@ -157,6 +159,7 @@ export default function AbsencesClient({
   role,
   mode = 'students',
 }: AbsencesClientProps) {
+  const toast = useToast()
   const TABLE = tableAppel(mode)
   /** Le mot juste : on ne fait pas l'appel d'« élèves » dans un cours adultes. */
   const MOT     = mode === 'adults' ? 'participant' : 'élève'
@@ -497,8 +500,12 @@ export default function AbsencesClient({
   // Suppression d'une absence
   const handleDelete = async (id: string) => {
     const supabase = createClient()
-    const { error } = await supabase.from(TABLE).delete().eq('id', id)
-    if (!error) setAbsences(prev => prev.filter(a => a.id !== id))
+    const echec = erreurEcriture(
+      await supabase.from(TABLE).delete().eq('id', id).select('id'),
+      'Cette absence',
+    )
+    if (echec) { toast.error(echec); return }
+    setAbsences(prev => prev.filter(a => a.id !== id))
   }
 
   return (
@@ -1160,8 +1167,11 @@ function SaisieModal({
       }
 
       for (const e of toDelete) {
-        const { error: err } = await supabase.from(TABLE).delete().eq('id', e.existingId!)
-        if (err) throw err
+        const echecSupp = erreurEcriture(
+          await supabase.from(TABLE).delete().eq('id', e.existingId!).select('id'),
+          'Cette absence',
+        )
+        if (echecSupp) throw new Error(echecSupp)
         deletedIds.push(e.existingId!)
       }
 

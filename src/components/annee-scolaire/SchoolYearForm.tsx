@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { X, Pencil, Check, AlertTriangle, Lock } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -498,11 +499,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       let yearId: string
 
       if (isEditing) {
-        const { error: errUpd } = await supabase
-          .from('school_years')
-          .update({ label: form.label.trim(), start_date: form.start_date || null, end_date: form.end_date || null, vacations, jours_feries: feries, is_current: form.is_current, period_type: form.period_type })
-          .eq('id', schoolYear.id)
-        if (errUpd) throw errUpd
+        verifierEcriture(
+          await supabase
+            .from('school_years')
+            .update({ label: form.label.trim(), start_date: form.start_date || null, end_date: form.end_date || null, vacations, jours_feries: feries, is_current: form.is_current, period_type: form.period_type })
+            .eq('id', schoolYear.id)
+            .select('id'),
+          'Cette année scolaire',
+        )
         yearId = schoolYear.id
       } else {
         const { data: newYear, error: errIns } = await supabase
@@ -541,7 +545,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       //    (ou s'il s'agit d'une création). Évite de NULLifier les period_id des gabarits.
       const originalPeriodType = isEditing ? schoolYear.period_type : null
       if (!isEditing || form.period_type !== originalPeriodType) {
-        await supabase.from('periods').delete().eq('school_year_id', yearId)
+        verifierEcritureLot(
+          await supabase.from('periods').delete().eq('school_year_id', yearId),
+          'Les périodes',
+        )
         const periodsToInsert = periodsForType(form.period_type).map(p => ({
           school_year_id: yearId,
           label:          p.label,
@@ -552,7 +559,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       }
 
       // 4. Réinitialiser et recréer les configs d'évaluation (multiple types actifs)
-      await supabase.from('eval_type_configs').delete().eq('school_year_id', yearId)
+      verifierEcritureLot(
+        await supabase.from('eval_type_configs').delete().eq('school_year_id', yearId),
+        'Les types évaluation',
+      )
       if (form.eval_types.length > 0) {
         const evalInserts = form.eval_types.map(type => ({
           school_year_id:     yearId,

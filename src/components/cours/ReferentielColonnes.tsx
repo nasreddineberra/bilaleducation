@@ -10,6 +10,8 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { useToast } from '@/lib/toast-context'
 import { SearchField, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -559,15 +561,20 @@ export default function ReferentielColonnes({
    */
   const persisterOrdre = async (nature: Nature, liste: { id: string }[]) => {
     const supabase = createClient()
-    await Promise.all(liste.map((x, i) =>
-      supabase.from(TABLE[nature]).update({ order_index: i }).eq('id', x.id),
+    const resultats = await Promise.all(liste.map((x, i) =>
+      supabase.from(TABLE[nature]).update({ order_index: i }).eq('id', x.id).select('id'),
     ))
+    // L'ordre affiche est local : sans ce controle, l'ecran et la base
+    // divergeaient en silence jusqu'au rechargement.
+    const echec = resultats.map(r => erreurEcriture(r, 'Cet ordre')).find(Boolean)
+    if (echec) toast.error(echec)
   }
 
 
 
   // L'ordre affiché est local pour que le glisser-déposer réponde tout de
   // suite ; `persisterOrdre` écrit `order_index` dans la foulée.
+  const toast = useToast()
   const [lstUes, setLstUes]         = useState(ues)
   const [lstModules, setLstModules] = useState(modules)
   const [lstCours, setLstCours]     = useState(cours)

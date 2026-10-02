@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Pencil, Trash2 } from 'lucide-react'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -142,13 +143,14 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   }, [roomForm, editingRoom, supabase, etablissementId])
 
   const deleteRoom = useCallback(async (id: string) => {
-    const { error } = await supabase.from('rooms').delete().eq('id', id)
-    if (error) {
-      if (error.code === '23503') setRoomError('Impossible de supprimer : des ressources sont rattachées à cette salle')
-      else setRoomError(error.message)
+    const res = await supabase.from('rooms').delete().eq('id', id).select('id')
+    if (res.error?.code === '23503') {
+      setRoomError('Impossible de supprimer : des ressources sont rattachées à cette salle')
       setConfirmDeleteRoom(null)
       return
     }
+    const echec = erreurEcriture(res, 'Cette salle')
+    if (echec) { setRoomError(echec); setConfirmDeleteRoom(null); return }
     setRooms(prev => prev.filter(r => r.id !== id))
     setMaterials(prev => prev.map(m => m.room_id === id ? { ...m, room_id: undefined, rooms: null } : m))
     setConfirmDeleteRoom(null)
@@ -207,8 +209,11 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
   }, [matForm, editingMat, supabase, etablissementId])
 
   const deleteMat = useCallback(async (id: string) => {
-    const { error } = await supabase.from('materials').delete().eq('id', id)
-    if (error) { setMatError(error.message); setConfirmDeleteMat(null); return }
+    const echec = erreurEcriture(
+      await supabase.from('materials').delete().eq('id', id).select('id'),
+      'Ce matériel',
+    )
+    if (echec) { setMatError(echec); setConfirmDeleteMat(null); return }
     setMaterials(prev => prev.filter(m => m.id !== id))
     setConfirmDeleteMat(null)
   }, [supabase])

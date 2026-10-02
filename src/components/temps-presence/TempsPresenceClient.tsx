@@ -5,6 +5,8 @@ import { clsx } from 'clsx'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
+import { useToast } from '@/lib/toast-context'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
@@ -238,6 +240,7 @@ export default function TempsPresenceClient({
   etablissementNom, etablissementLogo,
 }: Props) {
   const supabase = createClient()
+  const toast = useToast()
   // enseignant voit ses propres couts (il ne voit que ses saisies).
   const canSeeCosts = ['admin', 'direction', 'comptable', 'enseignant'].includes(role)
   const isRespPedago = role === 'responsable_pedagogique'
@@ -416,7 +419,11 @@ export default function TempsPresenceClient({
       return
     }
     const supprimee = entries.find(e => e.id === id)
-    await supabase.from('staff_time_entries').delete().eq('id', id)
+    const echec = erreurEcriture(
+      await supabase.from('staff_time_entries').delete().eq('id', id).select('id'),
+      'Cette saisie',
+    )
+    if (echec) { toast.error(echec); setDeleteConfirm(null); return }
 
     // ── Le remplacement suit l'absence ────────────────────────────────────
     //
@@ -431,10 +438,14 @@ export default function TempsPresenceClient({
         const sesCreneaux = creneauxDuJour(slots, exceptions, teacherId, supprimee.entry_date)
         const aRetirer = sesCreneaux.filter(cr => cr.remplacantId).map(cr => cr.slotId)
         if (aRetirer.length) {
-          await supabase.from('schedule_exceptions')
-            .delete()
-            .in('schedule_slot_id', aRetirer)
-            .eq('exception_date', supprimee.entry_date)
+          const echecRempl = erreurEcritureLot(
+            await supabase.from('schedule_exceptions')
+              .delete()
+              .in('schedule_slot_id', aRetirer)
+              .eq('exception_date', supprimee.entry_date),
+            'Les remplacements du jour',
+          )
+          if (echecRempl) { toast.error(echecRempl); setDeleteConfirm(null); return }
         }
       }
     }

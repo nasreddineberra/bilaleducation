@@ -8,6 +8,7 @@ import {
 import { clsx } from 'clsx'
 import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture, verifierEcriture } from '@/lib/supabase/ecriture'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
@@ -449,17 +450,20 @@ export default function EvaluationsClient({
 
     setSubmitting(true); setError(null)
     const supabase = createClient()
-    const { error: err } = await supabase
-      .from('evaluations')
-      .update({
-        eval_kind:       option.evalKind,
-        max_score:       option.maxScore,
-        coefficient:     option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1,
-        evaluation_date: formDate,
-      })
-      .eq('id', editing)
-
-    if (err) { setError(err.message); setSubmitting(false); return }
+    const echec = erreurEcriture(
+      await supabase
+        .from('evaluations')
+        .update({
+          eval_kind:       option.evalKind,
+          max_score:       option.maxScore,
+          coefficient:     option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1,
+          evaluation_date: formDate,
+        })
+        .eq('id', editing)
+        .select('id'),
+      'Ce gabarit',
+    )
+    if (echec) { setError(echec); setSubmitting(false); return }
     setEvalsList(prev => prev.map(e => e.id === editing
       ? { ...e, eval_kind: option.evalKind, max_score: option.maxScore, coefficient: option.evalKind === 'scored' ? (parseFloat(formCoefficient) || 1) : 1, evaluation_date: formDate }
       : e
@@ -482,8 +486,11 @@ export default function EvaluationsClient({
       setError('Impossible de supprimer cette évaluation : des notes ont déjà été saisies.')
       setSubmitting(false); setConfirmDelete(null); return
     }
-    const { error: err } = await supabase.from('evaluations').delete().eq('id', evalId)
-    if (err) { setError(err.message); setSubmitting(false); return }
+    const echec = erreurEcriture(
+      await supabase.from('evaluations').delete().eq('id', evalId).select('id'),
+      'Ce gabarit',
+    )
+    if (echec) { setError(echec); setSubmitting(false); return }
     // Pas de `setOrderDirty` : les rangs restants demeurent croissants, un trou
     // dans la numerotation est sans effet sur l'affichage.
     setEvalsList(prev => prev.filter(e => e.id !== evalId))
@@ -538,26 +545,35 @@ export default function EvaluationsClient({
     const supabase = createClient()
     try {
       // 1. Ordre des évaluations (sort_order par éval, déjà scoped class+période)
-      await Promise.all(
+      const resultats = await Promise.all(
         currentEvals.map((ev, idx) =>
-          supabase.from('evaluations').update({ sort_order: idx }).eq('id', ev.id)
+          supabase.from('evaluations').update({ sort_order: idx }).eq('id', ev.id).select('id')
         )
       )
+      const echecOrdre = resultats.map(r => erreurEcriture(r, 'Cet ordre')).find(Boolean)
+      if (echecOrdre) throw new Error(echecOrdre)
+
       // 2. Ordre des UEs et modules — stocké dans evaluation_order_config
-      await supabase
-        .from('evaluation_order_config')
-        .upsert(
-          {
-            class_id:     selectedClassId,
-            period_id:    selectedPeriodId,
-            ue_order:     ueOrder,
-            module_order: moduleOrder,
-          },
-          { onConflict: 'class_id,period_id' }
-        )
+      verifierEcriture(
+        await supabase
+          .from('evaluation_order_config')
+          .upsert(
+            {
+              class_id:     selectedClassId,
+              period_id:    selectedPeriodId,
+              ue_order:     ueOrder,
+              module_order: moduleOrder,
+            },
+            { onConflict: 'class_id,period_id' }
+          )
+          .select('class_id'),
+        'Cet ordre',
+      )
       setOrderDirty(false)
-    } catch {
-      setError('Erreur lors de la sauvegarde de l\'ordre.')
+    } catch (e: any) {
+      // Le message est RELAYE : un texte generique masquerait « vos droits ne
+      // le permettent pas », qui est justement ce qui permet d'agir.
+      setError(e?.message ?? 'Erreur lors de la sauvegarde.')
     } finally {
       setSavingOrder(false)
     }

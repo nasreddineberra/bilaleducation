@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Pencil, Trash2, X, Check, Info } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { deletePresenceType } from '@/app/dashboard/types-presence/actions'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -110,16 +111,19 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
     }
 
     if (editing.id) {
-      const { error: err } = await supabase
+      const res = await supabase
         .from('presence_types')
         .update(payload)
         .eq('id', editing.id)
+        .select('id')
 
-      if (err) {
-        setError(err.message.includes('unique') ? 'Ce code est déjà utilisé.' : err.message)
+      if (res.error?.message.includes('unique')) {
+        setError('Ce code est déjà utilisé.')
         setSaving(false)
         return
       }
+      const echec = erreurEcriture(res, 'Ce type de présence')
+      if (echec) { setError(echec); setSaving(false); return }
       setRows(rows.map(r => r.id === editing.id ? { ...r, ...payload } : r))
     } else {
       const { data, error: err } = await supabase

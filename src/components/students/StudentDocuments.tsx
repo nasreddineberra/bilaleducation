@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Trash2, Download, Eye, X, FileText, AlertCircle, CheckCircle2 } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
@@ -190,19 +191,20 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
   // ─── Suppression ────────────────────────────────────────────────────────
 
   const handleDelete = useCallback(async (docId: string) => {
+    // LA LIGNE D'ABORD, LE FICHIER ENSUITE. L'ordre inverse detruisait la piece
+    // avant de savoir si la ligne pouvait partir : une suppression ecartee par la
+    // RLS ne leve RIEN, donc le document restait a l'ecran, prive de son fichier.
+    const echec = erreurEcriture(
+      await supabase.from('student_documents').delete().eq('id', docId).select('id'),
+      'Ce document',
+    )
+    if (echec) { setError(echec); setConfirmDelete(null); return }
+
     const doc = documents.find(d => d.id === docId)
     if (doc) {
       await supabase.storage.from('student-documents').remove([doc.file_url])
     }
-
-    const { error } = await supabase
-      .from('student_documents')
-      .delete()
-      .eq('id', docId)
-
-    if (!error) {
-      setDocuments(prev => prev.filter(d => d.id !== docId))
-    }
+    setDocuments(prev => prev.filter(d => d.id !== docId))
     setConfirmDelete(null)
   }, [documents, supabase])
 

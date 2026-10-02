@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { X, BookOpen, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { clsx } from 'clsx'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
@@ -122,11 +123,11 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
         return
       }
 
-      const { error } = await supabase.from('classes').delete().eq('id', deleteTarget.id)
-      if (error) {
-        setDeleteError('Une erreur est survenue. Veuillez réessayer.')
-        return
-      }
+      const echec = erreurEcriture(
+        await supabase.from('classes').delete().eq('id', deleteTarget.id).select('id'),
+        'Cette classe',
+      )
+      if (echec) { setDeleteError(echec); return }
       router.refresh()
       closeDeleteModal()
     } catch {

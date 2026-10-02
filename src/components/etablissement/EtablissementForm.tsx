@@ -8,6 +8,7 @@ import Image from 'next/image'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import type { Etablissement } from '@/types/database'
@@ -130,11 +131,14 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
       }
 
       const supabase = createClient()
-      const { error } = await supabase
-        .from('etablissements')
-        .update(payload)
-        .eq('id', etablissement.id)
-      if (error) throw error
+      verifierEcriture(
+        await supabase
+          .from('etablissements')
+          .update(payload)
+          .eq('id', etablissement.id)
+          .select('id'),
+        'Cette fiche',
+      )
 
       initialForm.current         = { ...form }
       initialLogoUrl.current      = logoUrl
