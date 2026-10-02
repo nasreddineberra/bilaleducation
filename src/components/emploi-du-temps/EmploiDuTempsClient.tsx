@@ -30,7 +30,18 @@ const DAY_LABELS_SHORT: Record<number, string> = {
   4: 'JEU', 5: 'VEN', 6: 'SAM',
 }
 
-const DEFAULT_START = 7
+// Amplitude AFFICHEE par defaut. Elle commande la hauteur d'une heure — donc ce
+// qui tient dans une capsule : a 12 heures affichees, une heure fait ~55 px et le
+// detail d'un creneau (~70 px) ne rentre pas ; a 11 heures elle en fait ~60.
+// Passee de 7h a 8h le 03/10 : personne ne commence a 7h, et cette bande vide
+// coutait de la hauteur a tous les creneaux de la journee.
+//
+// A SURVEILLER : ces bornes sont les memes pour TOUTES les ecoles, alors que
+// l'etablissement parametre deja ses jours travailles (`working_days`,
+// `week_start_day`). Les rendre parametrables = 2 colonnes sur `etablissements`
+// + 2 champs dans sa fiche ; le chemin existe deja, `DayColumn` recoit
+// `startHour`/`endHour` en props.
+const DEFAULT_START = 8
 const DEFAULT_END = 19
 
 // Ordre des jours dynamique selon weekStartDay
@@ -688,8 +699,27 @@ export default function EmploiDuTempsClient({
       return dateStr ? !isSchoolDay(dateStr) : false
     })
   }, [orderedDays, weekDayDates, isSchoolDay])
-  const startHour = DEFAULT_START
-  const endHour = DEFAULT_END
+  // ── LA BORNE S'ELARGIT PLUTOT QUE DE MASQUER ──────────────────────────
+  // Un creneau hors de l'intervalle disparaitrait de la grille EN SILENCE :
+  // toujours en base, toujours actif, toujours compte dans les presences, mais
+  // invisible — et c'est en le cherchant qu'on decouvrirait le reglage. La
+  // grille s'ouvre donc jusqu'a lui.
+  //
+  // Le calcul porte sur `resolvedSlots` (TOUS les creneaux, exceptions
+  // appliquees) et non sur la liste filtree : sinon la grille changerait de
+  // hauteur en passant d'une classe a l'autre, ce qui se lirait comme un defaut.
+  const [startHour, endHour] = useMemo(() => {
+    let debut = DEFAULT_START
+    let fin   = DEFAULT_END
+    for (const s of resolvedSlots) {
+      const h  = Number(s.start_time.slice(0, 2))
+      // Une fin a 18:30 exige d'afficher l'heure 18, donc d'aller jusqu'a 19.
+      const hf = Number(s.end_time.slice(0, 2)) + (s.end_time.slice(3, 5) === '00' ? 0 : 1)
+      if (h  < debut) debut = h
+      if (hf > fin)   fin   = hf
+    }
+    return [debut, Math.min(fin, 24)]
+  }, [resolvedSlots])
 
   const hours = useMemo(() => {
     const arr: number[] = []
