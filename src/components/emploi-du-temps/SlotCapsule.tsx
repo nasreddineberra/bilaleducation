@@ -94,7 +94,23 @@ export default function SlotCapsule({
   // (`guard-presence-absence-exclusivity`) ; ceci l'annonce AVANT le clic.
   const absent = !!slot.teacherAbsent
 
-  // Libellé accessible du créneau (cours, classe/prof selon la vue, salle, horaire, statut)
+  // Libellé du créneau — cours, classe/prof selon la vue, salle, horaire, statut.
+  //
+  // DEUX LECTURES, DEUX FORMES. L'`aria-label` reste d'un seul tenant : les
+  // virgules y marquent les pauses d'un lecteur d'écran, et « de 09:00 à 10:00 »
+  // s'entend mieux qu'un intervalle. L'infobulle, elle, est LUE DES YEUX : une
+  // information par ligne, sans ponctuation de liaison (demande du 03/10).
+  // Les deux disent la même chose, elles ne se lisent pas de la même façon.
+  const libelleCours = slot.cours?.nom_fr
+    ?? slot.slot_type.charAt(0).toUpperCase() + slot.slot_type.slice(1)
+
+  const infoLignes: string[] = [libelleCours]
+  if (viewMode !== 'class' && slot.classes) infoLignes.push(slot.classes.name)
+  if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
+  if (slot.rooms) infoLignes.push(slot.rooms.name)
+  infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
+  if (validated) infoLignes.push('Présence validée')
+
   const ariaParts = [slot.cours?.nom_fr ?? slot.slot_type]
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
   if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
@@ -134,7 +150,11 @@ export default function SlotCapsule({
           survol. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
           contenu ne remplirait pas la capsule. */}
       <Tooltip
-        content={dense || court ? ariaLabel : ''}
+        content={dense || court ? (
+          <span className="flex flex-col gap-0.5 text-left">
+            {infoLignes.map((l, i) => <span key={i}>{l}</span>)}
+          </span>
+        ) : ''}
         className={clsx('h-full w-full align-bottom', !dense && !court && 'pointer-events-none')}
         maxWidth="max-w-none"
       >
