@@ -4331,6 +4331,167 @@ le travail restant est mecanique — mais chaque appel se LIT, et une migration 
 double toujours d'une revue des boutons qu'elle rend inoperants.
 
 
+#### 2 octobre 2026 — AUDIT DES ECRITURES TERMINE : lots 2 a 5, et un pattern mort
+
+Suite du lot 1 (1er octobre). **Le point 3 du plan est clos.** Depart : 126
+ecritures silencieuses, dont **52 au resultat JAMAIS regarde**. Fin : **6**, toutes
+volontaires, et **0 en forme A**.
+
+| | Depart | Fin |
+|---|---|---|
+| ecritures silencieuses | 126 | **6** |
+| forme A (resultat jamais regarde) | 52 | **0** |
+
+**LES SIX RESTANTES SONT DELIBEREES**, et il faut savoir pourquoi pour ne pas les
+« corriger » plus tard : `api/audit-logs/purge` est le MEILLEUR du lot (il lit son
+erreur ET renvoie le compte exact) ; `api/notifications/unsubscribe` ou zero ligne
+est legitime (desinscription idempotente — un comptage serait une REGRESSION) ;
+« Supprimer toutes les notes », ensemble dont l'erreur est lue ; et les trois de
+`lib/database`, supprimees avec le pattern (voir plus bas).
+
+---
+
+**L'API DU HELPER S'EST OUVERTE SUR DEUX AXES** (`src/lib/supabase/ecriture.ts`),
+et c'est la vraie lecon de conception du chantier.
+
+1. **CIBLE contre ENSEMBLE.** Beaucoup d'ecritures portent sur un ensemble
+   (`eq('class_id', ...)`, nettoyage avant reinsertion, cascade sur tous les
+   creneaux) ou **zero ligne est le cas NORMAL** : une classe neuve n'a aucune
+   affectation a effacer. `verifierEcriture` y aurait leve **A TORT** — le
+   correctif aurait ete pire que le defaut. D'ou `*Lot`, qui ne couvre que
+   l'erreur, et qui porte dans le code la raison de ne pas s'en servir ailleurs.
+2. **LEVE contre REND LE MESSAGE.** L'emploi du temps signale par `toastError` +
+   `return`, il ne leve pas : lever y remonterait **hors de tout `try`** et
+   remplacerait un faux succes par un ecran casse. J'ai introduit exactement ce
+   defaut avec `verifierEcritureLot` dans `doDelete`, puis corrige. D'ou quatre
+   fonctions — deux concepts croises, chacune d'une ligne.
+3. **UN CAS QU'AUCUNE DES QUATRE NE COUVRE** : les statuts apprenants en lot
+   ecrivent sur **N identifiants LISTES**. Zero ligne y est un refus, et un compte
+   INFERIEUR un refus **PARTIEL**, qu'un « au moins une ligne » laisse passer. Le
+   controle compare le compte rendu au compte demande : « a porte sur 3 apprenants
+   sur 7 ». Ecrit sur place, pas dans le helper — c'est un cas unique.
+
+---
+
+**« LA LIGNE D'ABORD, LE FICHIER ENSUITE » — QUATRE OCCURRENCES DU MEME DEFAUT.**
+Bulletins (lot 1), documents de l'apprenant, documents de l'enseignant, discipline
+(lot 3), puis `deleteTeacher` (lot 4). Le fichier etait retire du Storage AVANT le
+DELETE de la ligne ; un refus RLS ne levant rien, on obtenait **le fichier detruit
+et la ligne restante**. Sur un bulletin archive — document REMIS AUX FAMILLES — la
+perte est sans retour. **C'est desormais une regle du projet.**
+- Et en pire au lot 3, a cause du motif le plus repandu de ces ecrans :
+  **`if (!error) { ... }` SANS BRANCHE ELSE.** L'echec ne produisait AUCUN message,
+  la modale se fermait, la ligne restait affichee privee de son fichier. Un second
+  clic ne rattrapait rien.
+- Inverser ne coute rien : dans `deleteTeacher` les chemins sont deja en memoire
+  (etape 2), et la cascade n'efface que les lignes, pas le contenu du bucket.
+
+**DEUX CASCADES PARTAIENT SANS LEUR DECLENCHEUR.**
+- **EDT, « Modifier toute la serie »** : l'insert du nouveau creneau partait meme
+  quand la cloture de l'ancien avait ete refusee — il heurtait alors la contrainte
+  d'exclusion GiST du 10 juillet, et l'utilisateur lisait **« duplicate key »**,
+  message qui ne dit rien de la vraie cause et qui renvoie au bug corrige ce
+  jour-la.
+- **Temps de presence** : la suppression d'une absence retire les remplacements
+  designes. Les deux ecritures etaient en forme A, donc les remplacements
+  pouvaient etre retires alors que l'absence existait toujours — le creneau restait
+  attribue a quelqu'un d'autre, soit **exactement l'incoherence que ce bloc est
+  cense empecher**.
+
+**`reopenYear` AVAIT L'ORDRE INVERSE.** Il annulait la cloture AVANT de supprimer
+les instantanes : un echec laissait une annee redevenue vivante **SOUS un historique
+fige**, ce que la conception du 9 aout interdit explicitement (« garder un
+historique fige au-dessus de donnees redevenues vivantes le rendrait faux »). Dans
+l'autre sens, un echec ne produit qu'un etat **LEGITIME** du modele — close mais non
+archivee, cas que l'ecran sait deja montrer. **Regle generale** : quand deux
+ecritures doivent aller ensemble, ordonner de sorte qu'un echec intermediaire
+laisse un etat que le modele connait.
+
+**LE PASSAGE D'ANNEE, deux autres defauts** : la passe fraiche des six audits de
+`closeYear` etait en forme A, alors que ces lignes sont la **PREUVE du constat au
+moment de la cloture** — on pouvait donc cloturer sur un constat jamais enregistre ;
+et le marqueur `archived_at` laissait, en cas d'echec, des archives SANS marqueur,
+donc un ecran qui reclame « archivez avant de choisir l'epuration ».
+
+---
+
+**L'OPTIMISME EST CONSERVE LA OU IL EST VOULU, MAIS IL SE DEFAIT.** La cloche pose
+la coche AVANT d'ecrire, a dessein — pour qu'elle reponde tout de suite. En cas
+d'echec elle se vidait a l'ecran et se remplissait de nouveau au rechargement, sans
+un mot (symptome deja constate le 20/09). On retire desormais la coche et on dit
+pourquoi. Meme traitement pour la bascule actif/inactif d'un enfant et le suivi
+d'un devoir.
+
+**LES STATUTS D'ENVOI NE BLOQUENT JAMAIS** (communications parents, equipe, support,
+notifications) : l'email est **DEJA parti** quand on ecrit son statut. Interrompre
+serait pire que le defaut. On journalise — ce qui suffit a ce qu'un statut reste a
+`pending` sur un message parti ne passe plus inaperçu, et a ce que la fiche message
+cesse de pouvoir mentir sur son compte rendu (defaut du 16 juillet).
+
+**UN CATCH QUI JETAIT SON MESSAGE** (`handleSaveOrder`, gabarits) : il affichait
+« Erreur lors de la sauvegarde de l'ordre. » quelle que soit la cause. Mon controle
+aurait donc ete **inutile** — « vos droits ne le permettent pas » n'atteignait
+jamais l'ecran. Le catch relaie desormais. C'est le defaut corrige le 9 aout sur
+l'ecran d'authentification, retrouve ici.
+
+**TROIS ECRANS N'AVAIENT AUCUN CANAL D'ERREUR** (temps de presence, documents
+requis, referentiel, cloche) : `useToast` y est pose, canal standard du projet.
+
+**EN SERVICE-ROLE, CE N'EST PAS LE MEME DEFAUT.** Aucun refus RLS n'y est possible :
+le faux succes vise par ce chantier n'y existe pas. Restent la forme A et
+« 0 ligne = succes » — que le 7 aout avait deja corrige pour `updateTenantUser`
+mais **pas pour les cinq autres ecritures de la meme console**. Alignees.
+- **Le point dur est LE DETACHEMENT DE SUPPORT** : c'est « ce qui retire REELLEMENT
+  l'acces ». Son echec silencieux laissait l'editeur rattache a une ecole alors que
+  le journal annonçait l'intervention fermee — l'incoherence du 6 aout, dans
+  l'autre sens. Il crie desormais dans les journaux.
+- **Les trois ROLLBACKS de `createTenant` etaient muets.** Leur echec laisse un
+  etablissement orphelin, et la tentative suivante bute sur « ce slug est deja
+  utilise » sans que rien n'explique pourquoi. Extraits dans
+  `annulerEtablissement`.
+
+---
+
+**LE « REPOSITORY PATTERN » ETAIT MORT — 776 lignes ramenees a 148.**
+Trouve en instruisant le lot 4 : j'allais corriger six appels dans `lib/database`,
+puis j'ai mesure qui les appelait. **Quatre modules sur cinq sans AUCUN
+importateur** (`classes`, `parents`, `payments`, `teachers`), et sur les dix
+methodes de `studentRepository` **une seule appelee** — `getByParent`, une lecture.
+- **Ce qui decide, c'est le precedent du 8 aout** : `authRepository` avait 8
+  methodes mortes sur 10, dont une qui appelait **`signUp` depuis le NAVIGATEUR**
+  en choisissant son propre role. Du code mort n'est pas neutre : **c'est un MODELE
+  que quelqu'un recopiera** en croyant suivre l'architecture du projet.
+- Et ces modules avaient le meme profil : ecrits AVANT le chantier RLS, leurs
+  `update`/`delete` n'avaient ni controle de role, ni `.select()`, ni trace. Un
+  `studentRepository.delete()` rebranche aurait perdu le comptage des dependances,
+  le `logAudit` ecrit AVANT l'effacement, et rendu une erreur SQL brute.
+- **Le pattern est abandonne de fait** : sept mois, zero branchement. L'architecture
+  retenue est server actions pour les ecritures, requetes dans les pages pour les
+  lectures. `students.ts` garde `getByParent` et porte **en commentaire** la raison
+  de ne pas y remettre d'ecriture — sans quoi il redeviendrait le point d'extension
+  qu'il n'est plus.
+- Verifie avant : aucune reference dans tout `src`, **imports de TYPES compris**, et
+  aucune dependance entre eux. Apres : **build complet vert** — c'est lui qui prouve
+  qu'aucun import dynamique ne les atteignait.
+
+---
+
+**DEUX PIEGES DE METHODE, a ne pas repayer**
+- **Mon releve SOUS-ESTIME les cas sains** : il cherche `.select()` dans une fenetre
+  de 9 lignes, or `PaymentModal:182` l'avait **11 lignes plus bas** et ressortait a
+  tort comme fautif. **Ne jamais corriger sur la seule foi du releve** — chaque
+  appel se LIT.
+- **L'apostrophe francaise saute a l'ecriture par script**, troisieme et quatrieme
+  fois. **Reformuler sans apostrophe** (« Enregistrement impossible. ») est plus
+  robuste que de l'echapper.
+- **Le LINT a servi de filet** : il a signale `toastError` manquant dans deux
+  `useCallback`, que mes nouveaux messages d'echec venaient d'y faire entrer.
+
+**DETTE LAISSEE OUVERTE** : les deux ecritures de `family_fees` (ligne enfant +
+recapitulatif) devraient etre **UNE TRANSACTION** (une RPC), pas deux appels
+successifs. Le controle rend l'incoherence VISIBLE, il ne la supprime pas.
+
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
