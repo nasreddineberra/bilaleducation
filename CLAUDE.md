@@ -4673,9 +4673,54 @@ voulez ») — l'utilisateur a teste l'etat d'avant et m'a envoye une capture du
 defaut deja corrige. **Une verification a l'ecran suppose le deploiement : pousser
 AVANT de demander de regarder.**
 
-**A SURVEILLER, non traite** : l'amplitude **7h-19h est EN DUR**, alors que
-l'etablissement parametre deja ses jours travailles. Une ecole qui ouvrirait a 8h
-perdrait une heure de hauteur utile pour rien.
+**A SURVEILLER** : l'amplitude **7h-19h est EN DUR**, alors que l'etablissement
+parametre deja ses jours travailles. Une ecole qui ouvrirait a 8h perdrait une
+heure de hauteur utile pour rien. **Traite le meme jour** (voir ci-dessous) :
+la borne descend a 8h et devient adaptative. Le parametrage par etablissement
+reste a faire, mais son principal danger est leve.
+
+#### 3 octobre 2026 (fin) — Grille a 8h, et le resp. pedagogique lit « tous les contacts »
+
+**LA GRILLE DEMARRE A 8H** (decision utilisateur, **validee a l'ecran**). Les
+capsules etant positionnees en pourcentage, passer de 12 a 11 heures affichees
+rend ~5 px par heure (55 -> 60) : c'est exactement ce qui manquait au creneau
+d'une heure corrige plus haut.
+- **ET LA BORNE S'ELARGIT PLUTOT QUE DE MASQUER**, ce qui n'etait pas demande.
+  Changer la borne seule aurait fait **disparaitre EN SILENCE** tout creneau
+  anterieur a 8h : toujours en base, toujours actif, toujours compte dans les
+  presences, mais invisible — et on ne l'aurait decouvert qu'en le cherchant.
+  La grille s'ouvre donc jusqu'au creneau le plus matinal. Le defaut devient
+  **impossible** au lieu d'etre surveille.
+- Le calcul porte sur **`resolvedSlots`** (tous les creneaux, exceptions
+  appliquees) et non sur la liste filtree : sinon la grille changerait de hauteur
+  en passant d'une classe a l'autre, ce qui se lirait comme un defaut. Une fin a
+  18:30 exige d'afficher l'heure 18, donc de monter la borne a 19.
+- **C'est aussi ce qui rendra le reglage PARAMETRABLE sans danger** : il ne
+  restera que 2 colonnes sur `etablissements` et 2 champs dans sa fiche, la
+  logique de garde etant deja en place. `DayColumn` recoit deja les bornes en props.
+
+**`all_registered` EST OUVERT AU RESPONSABLE PEDAGOGIQUE** (migration
+`open-all-registered-to-resp-pedago.sql`, **jouee**). Il lisait `class`,
+`selected` et `all_active` mais pas « tous les contacts », que l'enseignant voit :
+une **inversion de hierarchie**, nee du croisement de deux regles justes prises
+isolement (01/10). L'arbitrage de l'utilisateur tranche en faveur de la
+visibilite.
+- **LA LECTURE CESSE D'ETRE CALQUEE SUR LE DROIT D'ENVOI** pour ce type.
+  L'**ECRITURE est INCHANGEE** : il ne peut toujours pas emettre un
+  `all_registered`, reserve a admin/direction/secretaire. Lire ce qui part aux
+  familles et pouvoir l'emettre sont deux choses differentes.
+- La condition est **reprise telle quelle de `pg_policies`**, a un mot pres : on
+  ne reecrit pas une policy de memoire (le depot a deja menti sur la RLS le
+  5 aout). Le fichier porte une **garde** en tete (refus si la policy n'a pas la
+  forme attendue) et une **verification** en fin — son execution sans erreur
+  prouve donc qu'`all_registered` est bien dans la branche du resp. pedagogique.
+- `supabase/controles/04-all-registered-et-conditions.sql` reste au depot : il
+  rejoue la preuve **comportementale** (un message cree puis annule, lu sous
+  trois identites) le jour ou l'on voudra la refaire.
+
+**POINTS 1 A 5 CLOS.** La reprise se fait au **point 6 : l'import reel complet**,
+qui est une manipulation de l'utilisateur — un vrai fichier, de vraies familles.
+Les 4 lots sont livres depuis le 16/08, le lot 1 (doublons) eprouve des deux cotes.
 
 
 ## Prochaine etape
@@ -4946,6 +4991,13 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [x] Executer `supabase/migrations/open-all-registered-to-resp-pedago.sql` : le
+  responsable pedagogique lit desormais les messages « tous les contacts »
+  (`all_registered`), qu'il ne voyait pas alors que l'enseignant, lui, les voit —
+  **inversion de hierarchie** nee du croisement de deux regles justes du 01/10.
+  Condition **reprise telle quelle de `pg_policies`**, garde en tete + verification
+  en fin. **L'ecriture est inchangee** : il ne peut toujours pas en emettre un.
+  Jouee le 03/10.
 - [x] Executer `supabase/migrations/add-role-checks-lot2-annonces.sql` : CHANTIER RLS
   LOT 2, le dernier. Deux durcissements de juillet etaient INOPERANTS — une `FOR ALL`
   sans role annulait la policy scopee posee a cote (les permissives s'ADDITIONNENT).
