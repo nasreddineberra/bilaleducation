@@ -4492,6 +4492,90 @@ recapitulatif) devraient etre **UNE TRANSACTION** (une RPC), pas deux appels
 successifs. Le controle rend l'incoherence VISIBLE, il ne la supprime pas.
 
 
+#### 2 octobre 2026 (suite) — POINT 4 : les trois bornages d'enseignant sont PROUVES
+
+Les 29/09 et 01/10 avaient laisse trois bornages **indemontres** — le test repondait
+« l'enseignant voit TOUT le reel », ce qui ne distingue pas « borne » de « pas
+borne ». **La cause n'etait pas la methode : c'etait le CHOIX DE L'ENSEIGNANT.**
+On interrogeait a chaque fois quelqu'un qui enseignait toutes les classes
+concernees.
+
+**LA RECONNAISSANCE A SUFFI A DEBLOQUER LE TEST** (`supabase/controles/01`).
+Trois perimetres **disjoints** existaient deja en base :
+    BELAID   -> ADUL-DA-BL1 + MAT-SM-BD1
+    BERRA    -> MAT-SM-BL2 seule
+    ZERROUKI -> AUCUNE classe active
+**ZERROUKI est le temoin decisif** : si un bornage mord, elle ne voit rien ; sinon
+elle voit tout. **Aucune donnee a creer pour les bulletins et les annonces** —
+j'avais prevu de fabriquer une classe hors perimetre, c'etait inutile. La lecon :
+**avant de construire un jeu de test, mesurer ce que la base contient deja.**
+
+**LES TROIS BORNAGES, PROUVES** (`controles/02`, tout annule)
+- **Bulletins** : les 4 archives visent MAT-SM-BD1. BELAID les voit, **BERRA
+  AUCUNE**. Idem `bulletin_appreciations` (1) et `adult_bulletin_archives` (3).
+  `teaches_class` mord.
+- **Documents et discipline** : les deux tables etaient VIDES — un bornage sur une
+  table vide est inobservable, d'ou une ligne creee sur un eleve de BERRA. Elle la
+  voit, **BELAID ne la voit pas**. `teaches_student` mord.
+- **Annonces de classe** : les 3 visent les classes de BELAID, **BERRA n'en voit
+  aucune**. Et `selected` **n'est vu par PERSONNE** — conforme a la decision du
+  01/10. `announcement_recipients` ressort a **9 sur 10** pour BELAID : les neuf
+  destinataires de ses trois messages de classe, **jamais celui du `selected`**,
+  exactement ce que le journal du 01/10 decrivait.
+- Gratuitement au passage : `students` (45 reels, 5 et 6 vus, 0 pour le temoin),
+  `enrollments`, `parents` — tous bornes.
+
+**MON VERDICT AUTOMATIQUE ETAIT MAL ECRIT, pas le bornage.** Il a signale « BERRA
+voit tout : a regarder » sur les documents et la discipline. Avec UNE SEULE ligne
+en base, « BERRA voit tout » signifie « BERRA voit la seule ligne, qui est la
+sienne » : le bon temoin etait **BELAID a 0**, et le detail le montrait sans
+ambiguite. **Un critere automatique doit etre eprouve sur le cas limite — ici une
+table a une ligne.**
+
+**LES DEUX QUESTIONS OUVERTES PAR LE 02, CLOSES PAR LE 03**
+1. **ZERROUKI ne voyait aucune annonce `staff`.** Deux lectures opposees : soit
+   elle n'en est pas destinataire (normal), soit elle l'est et **sa cloche est
+   vide a tort** — le piege signale le 01/10 (« fermer cette table a l'enseignant
+   n'aurait pas retire un ecran, sa cloche se serait videe »). **Un compte ne
+   pouvait pas trancher** : il fallait regarder qui est destinataire de quoi.
+   Resultat : les 3 messages ont 3 destinataires chacun (ALLOUCHE, BELAID, BERRA),
+   **chacun voit sa ligne ET son message**, et ZERROUKI est destinataire de
+   **ZERO**. Son zero etait donc legitime. Aucun defaut.
+2. **Aucune annonce « toutes les familles » n'existait** (les 7 etaient 3 `class`,
+   1 `selected`, 3 `staff`) : cette branche n'etait jamais passee sous le test. Une
+   `all_active` creee puis annulee est **vue par les trois**, y compris celle qui
+   n'a aucune classe. Conforme.
+
+**TROIS PIEGES PAYES EN ECRIVANT LES SCRIPTS, tous deja connus du journal**
+- **Un CHECK sans rapport fait echouer le test** : `category` a refuse « Autre »
+  (c'est `identite`), `severity` a refuse « avertissement » (c'est `punition`).
+  Exactement le piege du 16 aout, ou un CHECK sur `gender` avait fait passer un
+  echec pour un succes. **Correctif durable : le script LIT les valeurs acceptees
+  dans `pg_get_constraintdef` et les affiche**, au lieu de les supposer.
+- **J'ai durci la LECTURE et laisse l'ECRITURE devinee.** Le detail des annonces
+  passait par `to_jsonb` (motif du 7 aout, qui rend NULL sur une colonne absente)
+  — mais l'INSERT citait `target_type` en dur. La colonne s'appelle
+  **`announcement_type`** : 42703, et le bloc entier a avorte avant son rapport.
+  **Une precaution appliquee a moitie ne protege pas.**
+- **Variables trompeuses** : `vu_bel`/`vu_ber` designaient « voit sa ligne » /
+  « voit le message » dans une section, et BELAID/BERRA dans une autre. Renommees
+  avant livraison — **un rapport trompeur est pire qu'absent**.
+
+**CE QUI RESTE, ET C'EST MINCE** : le CHECK a revele une seconde variante du meme
+ciblage, **`all_registered`** (« tous les contacts », non-inscrits compris).
+Supposer qu'elle est couverte parce que `all_active` l'est serait l'erreur que ce
+chantier combat. `supabase/controles/04` l'eprouve et affiche au passage les
+**conditions reelles** des trois policies d'annonces — le depot n'en garde aucune
+trace depuis la suppression de `policies.sql` le 5 aout, et la regle de ce jour-la
+est « seule `pg_policies` fait foi ».
+
+**LES QUATRE SCRIPTS SONT VERSES AU DEPOT** (`supabase/controles/`) : ce ne sont
+pas des jetables. Ils sont **rejouables a l'identique** apres toute migration de
+RLS, et c'est le seul moyen de verifier qu'un durcissement n'a pas vide un ecran
+en silence. Tous suivent le motif du 13/09 : bloc `DO` a **exception volontaire**,
+l'abandon est la sortie unique, rien n'est conserve.
+
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
