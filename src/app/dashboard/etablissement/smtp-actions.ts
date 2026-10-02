@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { verifySmtpConfig, sendTestEmail, type SmtpConfig } from '@/lib/email'
@@ -123,11 +124,15 @@ export async function saveSmtpSettings(payload: SaveSmtpPayload): Promise<{ erro
   if (!config) return { error: 'Le mot de passe est obligatoire.' }
 
   const admin = createAdminClient()
-  const { error } = await admin
-    .from('etablissement_smtp')
-    .upsert({ etablissement_id: ctx.etablissementId, ...config }, { onConflict: 'etablissement_id' })
+  const echec = erreurEcriture(
+    await admin
+      .from('etablissement_smtp')
+      .upsert({ etablissement_id: ctx.etablissementId, ...config }, { onConflict: 'etablissement_id' })
+      .select('etablissement_id'),
+    'La configuration',
+  )
 
-  if (error) return { error: "La configuration n'a pas pu être enregistrée." }
+  if (echec) return { error: "La configuration n'a pas pu être enregistrée." }
 
   // Ecriture via service-role (secret) → le trigger d'audit ne capterait pas
   // l'acteur, et copierait le mot de passe en clair dans le journal. D'ou une

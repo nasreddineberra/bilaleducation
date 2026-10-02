@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { sanitize } from '@/lib/security/sanitize'
 import { logger } from '@/lib/logger'
@@ -224,11 +225,16 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
       for (const { r, status } of results) {
         if (status === 'sent') sent++
         else if (status === 'failed') failed++
-        await supabase
-          .from('announcement_staff_recipients')
-          .update({ email_status: status, sent_at: new Date().toISOString() })
-          .eq('announcement_id', announcement.id)
-          .eq('profile_id', r.id)
+        const echecStatut = erreurEcriture(
+          await supabase
+            .from('announcement_staff_recipients')
+            .update({ email_status: status, sent_at: new Date().toISOString() })
+            .eq('announcement_id', announcement.id)
+            .eq('profile_id', r.id)
+            .select('id'),
+          'Le statut envoi',
+        )
+        if (echecStatut) console.error('[sendStaffMessage] statut non enregistre:', echecStatut)
       }
     }
   }

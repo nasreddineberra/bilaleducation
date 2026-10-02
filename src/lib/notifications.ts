@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { sendNotificationEmail, type EmailAttachment } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push'
 
@@ -105,10 +106,15 @@ export async function createNotification(params: CreateNotificationParams): Prom
   }
 
   // 5. Update statuts
-  await supabase
-    .from('notifications')
-    .update({ email_status: emailStatus, push_status: pushStatus })
-    .eq('id', notif.id)
+  const echecStatut = erreurEcriture(
+    await supabase
+      .from('notifications')
+      .update({ email_status: emailStatus, push_status: pushStatus })
+      .eq('id', notif.id)
+      .select('id'),
+    'Le statut envoi',
+  )
+  if (echecStatut) console.error('[createNotification] statut non enregistre:', echecStatut)
 
   return { ok: emailStatus !== 'failed', emailStatus, pushStatus, error: emailError }
 }

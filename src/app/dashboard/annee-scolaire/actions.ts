@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 
 export interface SetCurrentPeriodResult {
   error?: string
@@ -38,11 +39,15 @@ export async function setCurrentPeriod(schoolYearId: string, periodId: string): 
     .eq('school_year_id', schoolYearId)
   if (clearErr) return { error: clearErr.message }
 
-  const { error: setErr } = await supabase
-    .from('periods')
-    .update({ is_current: true })
-    .eq('id', periodId)
-  if (setErr) return { error: setErr.message }
+  const echec = erreurEcriture(
+    await supabase
+      .from('periods')
+      .update({ is_current: true })
+      .eq('id', periodId)
+      .select('id'),
+    'Cette période',
+  )
+  if (echec) return { error: echec }
 
   try {
     await logAudit(supabase, {

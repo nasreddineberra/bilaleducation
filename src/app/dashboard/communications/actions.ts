@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { createNotification } from '@/lib/notifications'
 import { sanitize } from '@/lib/security/sanitize'
@@ -386,11 +387,16 @@ export async function sendParentMessage(
         failed++
       }
 
-      await supabase
-        .from('announcement_recipients')
-        .update({ email_status: status, sent_at: new Date().toISOString() })
-        .eq('announcement_id', announcement.id)
-        .eq('parent_id', recipient.parentId)
+      const echecStatut = erreurEcriture(
+        await supabase
+          .from('announcement_recipients')
+          .update({ email_status: status, sent_at: new Date().toISOString() })
+          .eq('announcement_id', announcement.id)
+          .eq('parent_id', recipient.parentId)
+          .select('id'),
+        'Le statut envoi',
+      )
+      if (echecStatut) console.error('[sendParentMessage] statut non enregistre:', echecStatut)
     }
   }
 

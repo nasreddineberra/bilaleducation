@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { messageDoublon } from '@/lib/doublons'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { classInfoOf } from '@/components/dashboard/classInfo'
@@ -249,14 +250,17 @@ export async function updateParentRecord(
     }
   }
 
-  const { error } = await supabase
+  const resMaj = await supabase
     .from('parents')
     .update(cleanPayload)
     .eq('id', parentId)
+    .select('id')
 
   // Meme raison qu'a la creation : renommer un tuteur peut le faire entrer en
   // conflit avec un autre foyer, et c'est le declencheur qui le dit le mieux.
-  if (error) return { error: messageDoublon(error) ?? 'Erreur lors de la mise à jour.' }
+  if (resMaj.error) return { error: messageDoublon(resMaj.error) ?? resMaj.error.message }
+  const echecMaj = erreurEcriture(resMaj, 'Ce foyer')
+  if (echecMaj) return { error: echecMaj }
   return {}
 }
 
@@ -398,11 +402,15 @@ export async function saveParentsAdultCourses(
   for (const u of updates) {
     const t1 = u.tutor1_adult_courses === false && enrolled.has(`${u.id}-1`) ? true : u.tutor1_adult_courses
     const t2 = u.tutor2_adult_courses === false && enrolled.has(`${u.id}-2`) ? true : u.tutor2_adult_courses
-    const { error } = await supabase
-      .from('parents')
-      .update({ tutor1_adult_courses: t1, tutor2_adult_courses: t2 })
-      .eq('id', u.id)
-    if (error) return { error: 'Erreur lors de la mise à jour des inscriptions cours adultes.' }
+    const echec = erreurEcriture(
+      await supabase
+        .from('parents')
+        .update({ tutor1_adult_courses: t1, tutor2_adult_courses: t2 })
+        .eq('id', u.id)
+        .select('id'),
+      'Cette inscription aux cours adultes',
+    )
+    if (echec) return { error: echec }
     updated++
   }
 

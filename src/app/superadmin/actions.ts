@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { revalidatePath } from 'next/cache'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { validateSlug } from '@/lib/tenant/slug'
@@ -42,6 +43,22 @@ async function envoyerLienMotDePasse(email: string, slug: string): Promise<boole
  */
 
 // ─── Créer un tenant complet (établissement + directeur initial) ──────────────
+
+/**
+ * Annule la creation d'un etablissement. Son echec etait MUET : il laissait un
+ * etablissement orphelin, et la tentative suivante butait sur « ce slug est deja
+ * utilise » sans que rien n'explique pourquoi. On ne peut pas faire mieux que le
+ * dire au journal — l'appelant rend deja l'erreur qui a motive le rollback.
+ */
+async function annulerEtablissement(supabase: ReturnType<typeof createAdminClient>, id: string) {
+  const echec = erreurEcriture(
+    await supabase.from('etablissements').delete().eq('id', id).select('id'),
+    "L'annulation de la creation",
+  )
+  if (echec) {
+    console.error('[createTenant] ROLLBACK INCOMPLET — etablissement orphelin %s : %s', id, echec)
+  }
+}
 
 export async function createTenant(data: {
   slug:      string
@@ -102,7 +119,7 @@ export async function createTenant(data: {
   // 2. Créer le compte auth du directeur
   const pwdError = validatePasswordServer(data.director.password, data.director.first_name, data.director.last_name)
   if (pwdError) {
-    await supabase.from('etablissements').delete().eq('id', etablissement.id)
+    await annulerEtablissement(supabase, etablissement.id)
     return { error: `Le mot de passe du directeur ne respecte pas la règle : ${pwdError}` }
   }
 
@@ -115,7 +132,7 @@ export async function createTenant(data: {
 
   if (authError) {
     // Annuler la création de l'établissement
-    await supabase.from('etablissements').delete().eq('id', etablissement.id)
+    await annulerEtablissement(supabase, etablissement.id)
     if (authError.message.includes('already registered')) {
       return { error: 'Cette adresse email est déjà utilisée.' }
     }
@@ -139,7 +156,7 @@ export async function createTenant(data: {
     await supabase.auth.admin.deleteUser(authData.user.id).catch((e) =>
       console.error('[createTenant] Échec du rollback auth:', e)
     )
-    await supabase.from('etablissements').delete().eq('id', etablissement.id)
+    await annulerEtablissement(supabase, etablissement.id)
     return { error: `Erreur lors de la création du profil directeur : ${rpcError.message}` }
   }
 
@@ -171,15 +188,18 @@ export async function updateEtablissement(id: string, data: {
 
   const supabase = createAdminClient()
 
-  const { error } = await supabase.from('etablissements').update({
-    nom:       data.nom.trim(),
-    adresse:   data.adresse?.trim()   || null,
-    telephone: data.telephone?.trim() || null,
-    contact:   data.contact?.trim()   || null,
-  }).eq('id', id)
+  const echec = erreurEcriture(
+    await supabase.from('etablissements').update({
+      nom:       data.nom.trim(),
+      adresse:   data.adresse?.trim()   || null,
+      telephone: data.telephone?.trim() || null,
+      contact:   data.contact?.trim()   || null,
+    }).eq('id', id).select('id'),
+    'Cette école',
+  )
 
-  if (error) {
-    console.error('[superadmin] updateEtablissement:', error)
+  if (echec) {
+    console.error('[superadmin] updateEtablissement:', echec)
     return { error: 'Erreur lors de la mise à jour.' }
   }
 
@@ -187,9 +207,13 @@ export async function updateEtablissement(id: string, data: {
   // observations commerciales sur le client, et la ligne `etablissements` est
   // lisible par toute l'école. Voir `move-etablissement-notes-to-editor-table.sql`.
   const notes = data.notes?.trim() || null
-  const { error: notesError } = await supabase
-    .from('etablissement_notes')
-    .upsert({ etablissement_id: id, notes }, { onConflict: 'etablissement_id' })
+  const notesError = erreurEcriture(
+    await supabase
+      .from('etablissement_notes')
+      .upsert({ etablissement_id: id, notes }, { onConflict: 'etablissement_id' })
+      .select('etablissement_id'),
+    'Ces notes',
+  )
 
   if (notesError) {
     console.error('[superadmin] updateEtablissement (notes):', notesError)
@@ -222,13 +246,17 @@ export async function toggleEtablissementActive(
 
   const supabase = createAdminClient()
 
-  const { error } = await supabase
-    .from('etablissements')
-    .update({ is_active })
-    .eq('id', id)
+  const echec = erreurEcriture(
+    await supabase
+      .from('etablissements')
+      .update({ is_active })
+      .eq('id', id)
+      .select('id'),
+    'Cet accès',
+  )
 
-  if (error) {
-    console.error('[superadmin] toggleEtablissementActive:', error)
+  if (echec) {
+    console.error('[superadmin] toggleEtablissementActive:', echec)
     return { error: 'Erreur lors de la mise à jour du statut.' }
   }
 
@@ -256,13 +284,17 @@ export async function updateMaxStudents(
 
   const supabase = createAdminClient()
 
-  const { error } = await supabase
-    .from('etablissements')
-    .update({ max_students })
-    .eq('id', id)
+  const echec = erreurEcriture(
+    await supabase
+      .from('etablissements')
+      .update({ max_students })
+      .eq('id', id)
+      .select('id'),
+    'Cette limite',
+  )
 
-  if (error) {
-    console.error('[superadmin] updateMaxStudents:', error)
+  if (echec) {
+    console.error('[superadmin] updateMaxStudents:', echec)
     return { error: 'Erreur lors de la mise à jour.' }
   }
 
@@ -289,17 +321,21 @@ export async function updateSubscription(
 
   const supabase = createAdminClient()
 
-  const { error } = await supabase
-    .from('etablissements')
-    .update({ subscription_expires_at: expires_at })
-    .eq('id', id)
+  const echec = erreurEcriture(
+    await supabase
+      .from('etablissements')
+      .update({ subscription_expires_at: expires_at })
+      .eq('id', id)
+      .select('id'),
+    'Cette échéance',
+  )
 
-  if (error) {
+  if (echec) {
     // Le message affiché reste générique — on n'expose pas le détail d'une
     // erreur de base à l'écran. Mais il était AUSSI perdu côté serveur : cet
     // échec-ci a demandé de rejouer la requête à la main pour découvrir un
     // 42703. La cause part désormais dans les journaux.
-    console.error('[superadmin] updateSubscription:', error)
+    console.error('[superadmin] updateSubscription:', echec)
     return { error: 'Erreur lors de la mise à jour de l\'abonnement.' }
   }
 

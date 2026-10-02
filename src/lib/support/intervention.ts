@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { INTERVENTION_MAX_HEURES } from './duree'
 
 /**
@@ -49,11 +50,15 @@ export async function ouvrirIntervention(
   // Une seule intervention ouverte à la fois — le rattachement l'est déjà, la
   // table doit dire la même chose. Sans ce ménage, une ligne oubliée ferait
   // croire à deux interventions simultanées, ce que le modèle interdit.
-  await admin
-    .from('support_interventions')
-    .update({ closed_at: new Date().toISOString(), closed_reason: 'expiration' })
-    .eq('super_admin_id', superAdminId)
-    .is('closed_at', null)
+  const echecMenage = erreurEcritureLot(
+    await admin
+      .from('support_interventions')
+      .update({ closed_at: new Date().toISOString(), closed_reason: 'expiration' })
+      .eq('super_admin_id', superAdminId)
+      .is('closed_at', null),
+    'Le menage des interventions ouvertes',
+  )
+  if (echecMenage) console.error('[support]', echecMenage)
 
   await admin.from('support_interventions').insert({
     super_admin_id:    superAdminId,
@@ -67,11 +72,15 @@ export async function fermerIntervention(
   superAdminId: string,
   raison: 'manuelle' | 'expiration' = 'manuelle',
 ): Promise<void> {
-  await createAdminClient()
-    .from('support_interventions')
-    .update({ closed_at: new Date().toISOString(), closed_reason: raison })
-    .eq('super_admin_id', superAdminId)
-    .is('closed_at', null)
+  const echec = erreurEcritureLot(
+    await createAdminClient()
+      .from('support_interventions')
+      .update({ closed_at: new Date().toISOString(), closed_reason: raison })
+      .eq('super_admin_id', superAdminId)
+      .is('closed_at', null),
+    'La fermeture de intervention',
+  )
+  if (echec) console.error('[support]', echec)
 }
 
 /**
@@ -96,14 +105,26 @@ export async function expirerSiDepassee(superAdminId: string): Promise<boolean> 
 
   const admin = createAdminClient()
 
-  await admin
-    .from('support_interventions')
-    .update({ closed_at: new Date().toISOString(), closed_reason: 'expiration' })
-    .eq('id', ouverte.id)
+  const echecLigne = erreurEcriture(
+    await admin
+      .from('support_interventions')
+      .update({ closed_at: new Date().toISOString(), closed_reason: 'expiration' })
+      .eq('id', ouverte.id)
+      .select('id'),
+    'La fermeture de intervention',
+  )
+  if (echecLigne) console.error('[support]', echecLigne)
 
   // Le détachement est ce qui retire RÉELLEMENT l'accès : refermer la ligne du
   // journal sans le faire ne fermerait qu'une écriture comptable.
-  await admin.from('profiles').update({ etablissement_id: null }).eq('id', superAdminId)
+  const echecDetach = erreurEcriture(
+    await admin.from('profiles').update({ etablissement_id: null }).eq('id', superAdminId).select('id'),
+    'Le detachement',
+  )
+  if (echecDetach) {
+    // L'acces N'A PAS ete retire : le dire fort, la ligne du journal est deja fermee.
+    console.error('[support] DETACHEMENT ECHOUE — acces toujours ouvert sur %s : %s', superAdminId, echecDetach)
+  }
 
   console.warn(`[support] Intervention expirée après ${INTERVENTION_MAX_HEURES} h et refermée d'office (${superAdminId})`)
   return true

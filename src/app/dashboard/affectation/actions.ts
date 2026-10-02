@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 
 // Enregistre les affectations d'une classe (élèves) : ajouts + retraits, tracés au journal.
 export async function saveStudentEnrollments(
@@ -118,13 +119,17 @@ export async function saveParentEnrollments(
 
     for (const id of toRemove) {
       const { parent_id, tutor_number } = parseTutorId(id)
-      const { error } = await supabase
-        .from('parent_class_enrollments')
-        .delete()
-        .eq('class_id', classId)
-        .eq('parent_id', parent_id)
-        .eq('tutor_number', tutor_number)
-      if (error) return { error: 'Erreur lors du retrait des inscriptions.' }
+      const echec = erreurEcriture(
+        await supabase
+          .from('parent_class_enrollments')
+          .delete()
+          .eq('class_id', classId)
+          .eq('parent_id', parent_id)
+          .eq('tutor_number', tutor_number)
+          .select('id'),
+        'Ce retrait',
+      )
+      if (echec) return { error: echec }
     }
   }
 

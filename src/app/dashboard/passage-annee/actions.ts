@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { CLOSURE_STEPS, CLOSURE_STEP_BY_KEY } from '@/lib/closure/steps'
@@ -108,16 +109,19 @@ export async function runAudit(yearId: string, stepKey: string): Promise<{ error
 
   const result = await runAuditFor(stepKey, supabase, ctx)
 
-  const { error } = await supabase.from('year_audits').upsert({
-    etablissement_id: etablissementId,
-    school_year_id: yearId,
-    step_key: stepKey,
-    anomalies_count: result.anomalies,
-    recap_json: result as unknown as Record<string, unknown>,
-    audited_at: new Date().toISOString(),
-    audited_by: user?.id ?? null,
-  }, { onConflict: 'school_year_id,step_key' })
-  if (error) return { error: error.message }
+  const echec = erreurEcriture(
+    await supabase.from('year_audits').upsert({
+      etablissement_id: etablissementId,
+      school_year_id: yearId,
+      step_key: stepKey,
+      anomalies_count: result.anomalies,
+      recap_json: result as unknown as Record<string, unknown>,
+      audited_at: new Date().toISOString(),
+      audited_by: user?.id ?? null,
+    }, { onConflict: 'school_year_id,step_key' }).select('step_key'),
+    'Ce resultat audit',
+  )
+  if (echec) return { error: echec }
 
   revalidatePath('/dashboard/passage-annee')
   return { result }
@@ -208,15 +212,19 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
 
   for (const step of CLOSURE_STEPS) {
     const result = await runAuditFor(step.key, supabase, ctx)
-    await supabase.from('year_audits').upsert({
-      etablissement_id: etablissementId,
-      school_year_id: yearId,
-      step_key: step.key,
-      anomalies_count: result.anomalies,
-      recap_json: result as unknown as Record<string, unknown>,
-      audited_at: now,
-      audited_by: user?.id ?? null,
-    }, { onConflict: 'school_year_id,step_key' })
+    const echecAudit = erreurEcriture(
+      await supabase.from('year_audits').upsert({
+        etablissement_id: etablissementId,
+        school_year_id: yearId,
+        step_key: step.key,
+        anomalies_count: result.anomalies,
+        recap_json: result as unknown as Record<string, unknown>,
+        audited_at: now,
+        audited_by: user?.id ?? null,
+      }, { onConflict: 'school_year_id,step_key' }).select('step_key'),
+      'Le constat audit',
+    )
+    if (echecAudit) return { error: echecAudit }
 
     if (result.blocking && result.anomalies > 0) {
       bloquants.push(`${step.label} : ${result.anomalies} anomalie(s)`)
@@ -228,11 +236,15 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
     return { error: 'Des anomalies bloquantes subsistent.', bloquants }
   }
 
-  const { error } = await supabase
-    .from('school_years')
-    .update({ closed_at: now, closed_by: user?.id ?? null })
-    .eq('id', yearId)
-  if (error) return { error: error.message }
+  const echec = erreurEcriture(
+    await supabase
+      .from('school_years')
+      .update({ closed_at: now, closed_by: user?.id ?? null })
+      .eq('id', yearId)
+      .select('id'),
+    'La cloture',
+  )
+  if (echec) return { error: echec }
 
   try {
     await logAudit(supabase, {
@@ -267,14 +279,24 @@ export async function reopenYear(yearId: string): Promise<{ error?: string }> {
   }
   if (!year.closed_at) return {}
 
-  const { error } = await supabase
-    .from('school_years')
-    .update({ closed_at: null, closed_by: null, archived_at: null, purge_intent: null })
-    .eq('id', yearId)
-  if (error) return { error: error.message }
+  const echecHist = erreurEcritureLot(
+    await supabase.from('student_year_history').delete().eq('school_year_id', yearId),
+    'historique des participants',
+  ) ?? erreurEcritureLot(
+    await supabase.from('family_year_finance').delete().eq('school_year_id', yearId),
+    'historique des foyers',
+  )
+  if (echecHist) return { error: echecHist }
 
-  await supabase.from('student_year_history').delete().eq('school_year_id', yearId)
-  await supabase.from('family_year_finance').delete().eq('school_year_id', yearId)
+  const echec = erreurEcriture(
+    await supabase
+      .from('school_years')
+      .update({ closed_at: null, closed_by: null, archived_at: null, purge_intent: null })
+      .eq('id', yearId)
+      .select('id'),
+    'annulation de la cloture',
+  )
+  if (echec) return { error: echec }
 
   try {
     await logAudit(supabase, {
@@ -314,8 +336,14 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
 
   const { studentRows, familyRows } = await generateArchive(supabase, ctx)
 
-  await supabase.from('student_year_history').delete().eq('school_year_id', yearId)
-  await supabase.from('family_year_finance').delete().eq('school_year_id', yearId)
+  const echecVidage = erreurEcritureLot(
+    await supabase.from('student_year_history').delete().eq('school_year_id', yearId),
+    'historique des participants',
+  ) ?? erreurEcritureLot(
+    await supabase.from('family_year_finance').delete().eq('school_year_id', yearId),
+    'historique des foyers',
+  )
+  if (echecVidage) return { error: echecVidage }
 
   if (studentRows.length > 0) {
     const { error } = await supabase.from('student_year_history').insert(studentRows)
@@ -326,7 +354,14 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
     if (error) return { error: `Archivage foyers : ${error.message}` }
   }
 
-  await supabase.from('school_years').update({ archived_at: new Date().toISOString() }).eq('id', yearId)
+  const echecMarque = erreurEcriture(
+    await supabase.from('school_years')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', yearId)
+      .select('id'),
+    'archivage',
+  )
+  if (echecMarque) return { error: echecMarque }
 
   try {
     await logAudit(supabase, {
@@ -355,8 +390,11 @@ export async function setPurgeIntent(yearId: string, intent: 'purge' | 'keep'): 
   if (!year) return { error: 'Année introuvable.' }
   if (!year.archived_at) return { error: 'Archivez l’année avant de choisir l’épuration.' }
 
-  const { error } = await supabase.from('school_years').update({ purge_intent: intent }).eq('id', yearId)
-  if (error) return { error: error.message }
+  const echec = erreurEcriture(
+    await supabase.from('school_years').update({ purge_intent: intent }).eq('id', yearId).select('id'),
+    'Ce choix',
+  )
+  if (echec) return { error: echec }
 
   try {
     await logAudit(supabase, {

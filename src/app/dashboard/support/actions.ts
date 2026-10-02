@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { effectiveRole } from '@/lib/auth/effective-role'
 import { sendNotificationEmail, SMTP_NOT_CONFIGURED } from '@/lib/email'
 import { escapeHtml, escapeHtmlMultiline } from '@/lib/security/escape-html'
@@ -203,13 +204,18 @@ export async function sendSupportRequest(formData: FormData): Promise<SupportReq
   // Statut d'envoi posé en SERVICE-ROLE, et c'est délibéré : la table n'a
   // aucune policy UPDATE, l'école ne doit pas pouvoir retoucher une demande
   // partie. `email_status` est un champ système, pas une donnée d'école.
-  await createAdminClient()
-    .from('support_requests')
-    .update({
-      email_status: envoi.success ? 'sent' : 'failed',
-      email_error:  envoi.success ? null : (envoi.error ?? '').slice(0, 500),
-    })
-    .eq('id', ligne.id)
+  const echecStatut = erreurEcriture(
+    await createAdminClient()
+      .from('support_requests')
+      .update({
+        email_status: envoi.success ? 'sent' : 'failed',
+        email_error:  envoi.success ? null : (envoi.error ?? '').slice(0, 500),
+      })
+      .eq('id', ligne.id)
+      .select('id'),
+    'Le statut envoi',
+  )
+  if (echecStatut) console.error('[support] statut non enregistre:', echecStatut)
 
   if (!envoi.success) {
     console.error('[support] notification non partie:', envoi.error)

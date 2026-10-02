@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { sameName } from '@/lib/normalize-name'
 import { CreateTeacherSchema, UpdateTeacherSchema, validateInput } from '@/lib/validation/schemas'
 
@@ -111,8 +112,11 @@ export async function createTeacherWithAccount(data: {
 
   // Notes internes (non gérées par le RPC de création)
   if (data.notes) {
-    const { error: notesError } = await supabase.from('teachers').update({ notes: data.notes }).eq('id', teacherId)
-    if (notesError) console.error('[createTeacherWithAccount] Échec enregistrement des notes:', notesError)
+    const echecNotes = erreurEcriture(
+      await supabase.from('teachers').update({ notes: data.notes }).eq('id', teacherId).select('id'),
+      'Les remarques',
+    )
+    if (echecNotes) console.error('[createTeacherWithAccount] Échec enregistrement des notes:', echecNotes)
   }
 
   return { tempPassword }
@@ -150,7 +154,7 @@ export async function updateTeacher(
   // La RLS autorise deja admin/direction a modifier les enseignants.
   const supabase = await createClient()
 
-  const { error } = await supabase.from('teachers').update({
+  const resMaj = await supabase.from('teachers').update({
     employee_number:  data.employee_number,
     civilite:         data.civilite,
     last_name:        data.last_name,
@@ -161,12 +165,13 @@ export async function updateTeacher(
     specialization:   data.specialization,
     is_active:        data.is_active,
     notes:            data.notes,
-  }).eq('id', teacherId)
+  }).eq('id', teacherId).select('id')
 
-  if (error) {
-    if (error.code === '23505') return { error: "Ce numéro d'employé ou cet email est déjà utilisé." }
-    return { error: 'Erreur lors de la mise à jour.' }
+  if (resMaj.error?.code === '23505') {
+    return { error: "Ce numéro d'employé ou cet email est déjà utilisé." }
   }
+  const echecMaj = erreurEcriture(resMaj, 'Cette fiche')
+  if (echecMaj) return { error: echecMaj }
 
   // Synchroniser l'état du compte de connexion avec la fiche (actif ↔ actif)
   const { error: syncError } = await supabase.rpc('set_teacher_profile_active', {
@@ -189,8 +194,11 @@ export async function setTeacherActive(
 
   const supabase = await createClient() // client SESSION → audit tracé
 
-  const { error } = await supabase.from('teachers').update({ is_active: active }).eq('id', teacherId)
-  if (error) return { error: 'Erreur lors de la mise à jour du statut.' }
+  const echec = erreurEcriture(
+    await supabase.from('teachers').update({ is_active: active }).eq('id', teacherId).select('id'),
+    'Ce statut',
+  )
+  if (echec) return { error: echec }
 
   const { error: syncError } = await supabase.rpc('set_teacher_profile_active', {
     p_teacher_id: teacherId,
@@ -239,7 +247,17 @@ export async function deleteTeacher(teacherId: string): Promise<{ error?: string
   const { data: teacher } = await supabase.from('teachers').select('user_id').eq('id', teacherId).single()
   const { data: docs } = await supabase.from('teacher_documents').select('file_url').eq('teacher_id', teacherId)
 
-  // 3. Supprimer les fichiers du bucket (les lignes teacher_documents partent en cascade)
+  // 3. Supprimer la fiche (client session → audit ; cascade teacher_documents)
+  const resDel = await supabase.from('teachers').delete().eq('id', teacherId).select('id')
+  if (resDel.error?.code === '23503') {
+    return { error: 'Des données sont rattachées à cet enseignant. Rendez-le inactif plutôt que de le supprimer.' }
+  }
+  const echecDel = erreurEcriture(resDel, 'Cet enseignant')
+  if (echecDel) return { error: echecDel }
+
+  // 4. Les fichiers ne partent QU APRES : l'ordre inverse les detruisait avant de
+  //    savoir si la fiche pouvait partir, et un refus RLS ne leve rien. Les chemins
+  //    sont deja en memoire (etape 2), la cascade n'efface que les lignes.
   if (docs && docs.length > 0) {
     const paths = docs.map(d => (d as { file_url: string }).file_url).filter(Boolean)
     if (paths.length > 0) {
@@ -247,15 +265,6 @@ export async function deleteTeacher(teacherId: string): Promise<{ error?: string
         console.error('[deleteTeacher] Échec suppression Storage:', e)
       )
     }
-  }
-
-  // 4. Supprimer la fiche (client session → audit ; cascade teacher_documents)
-  const { error: delError } = await supabase.from('teachers').delete().eq('id', teacherId)
-  if (delError) {
-    if (delError.code === '23503') {
-      return { error: 'Des données sont rattachées à cet enseignant. Rendez-le inactif plutôt que de le supprimer.' }
-    }
-    return { error: 'Erreur lors de la suppression.' }
   }
 
   // 5. Supprimer le compte auth (le profil part en cascade via la migration)

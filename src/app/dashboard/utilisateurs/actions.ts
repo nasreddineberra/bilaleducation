@@ -7,6 +7,7 @@ import { headers } from 'next/headers'
 import type { UserRole } from '@/types/database'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { requestOrigin } from '@/lib/tenant/request-origin'
 import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
@@ -95,11 +96,15 @@ export async function createUser(data: {
   // Remarques : posees apres le RPC (signature fixe). Champ libre non critique →
   // un echec ici ne doit pas annuler la creation du compte.
   if (data.notes?.trim()) {
-    const { error: notesError } = await session
-      .from('profiles')
-      .update({ notes: data.notes.trim() })
-      .eq('id', authData.user.id)
-    if (notesError) console.error('[createUser] Remarques non enregistrees:', notesError)
+    const echecNotes = erreurEcriture(
+      await session
+        .from('profiles')
+        .update({ notes: data.notes.trim() })
+        .eq('id', authData.user.id)
+        .select('id'),
+      'Les remarques',
+    )
+    if (echecNotes) console.error('[createUser] Remarques non enregistrees:', echecNotes)
   }
 
   revalidatePath('/dashboard/utilisateurs')
@@ -144,7 +149,7 @@ export async function updateProfile(id: string, data: {
     }
   }
 
-  const { error } = await supabase.from('profiles').update({
+  const resMaj = await supabase.from('profiles').update({
     role:       data.role,
     civilite:   data.civilite || null,
     first_name: data.first_name,
@@ -152,9 +157,9 @@ export async function updateProfile(id: string, data: {
     phone:      data.phone || null,
     notes:      data.notes || null,
     ...(data.is_active === undefined ? {} : { is_active: data.is_active }),
-  }).eq('id', id)
-
-  if (error) return { error: 'Erreur lors de la mise à jour.' }
+  }).eq('id', id).select('id')
+  const echecMaj = erreurEcriture(resMaj, 'Ce compte')
+  if (echecMaj) return { error: echecMaj }
 
   // Le JETON porte une copie du role (`app_metadata`) : sans cette synchro, le
   // controle 2FA du middleware continuerait de raisonner sur l'ancien role
@@ -189,9 +194,11 @@ export async function toggleActive(id: string, is_active: boolean): Promise<{ er
     return { error: 'Ce compte est structurant : il ne peut pas être désactivé.' }
   }
 
-  const { error } = await supabase.from('profiles').update({ is_active }).eq('id', id)
-
-  if (error) return { error: 'Erreur lors de la mise à jour du statut.' }
+  const echec = erreurEcriture(
+    await supabase.from('profiles').update({ is_active }).eq('id', id).select('id'),
+    'Ce statut',
+  )
+  if (echec) return { error: echec }
 
   revalidatePath('/dashboard/utilisateurs')
   return {}
@@ -231,8 +238,11 @@ export async function updateEmail(id: string, email: string): Promise<{ error?: 
 
   // Table via client SESSION → l'acteur est capte par le trigger d'audit
   // (le compte auth, lui, ne peut etre modifie qu'avec le service-role).
-  const { error: profileError } = await session.from('profiles').update({ email }).eq('id', id)
-  if (profileError) return { error: "Erreur lors de la mise à jour de l'email." }
+  const echecProfil = erreurEcriture(
+    await session.from('profiles').update({ email }).eq('id', id).select('id'),
+    "L'adresse",
+  )
+  if (echecProfil) return { error: echecProfil }
 
   // Alerte a l'ANCIENNE adresse. C'est ici qu'elle compte le plus : l'interesse
   // n'a rien demande, et sans ce message il ne saurait pas que son acces vient

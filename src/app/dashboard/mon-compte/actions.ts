@@ -2,6 +2,7 @@
 
 import { updateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
@@ -24,18 +25,21 @@ export async function updateOwnProfile(data: {
     return { error: 'Le prénom et le nom sont obligatoires.' }
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      civilite:   data.civilite,
-      first_name: data.first_name.trim(),
-      last_name:  data.last_name.trim(),
-      phone:      data.phone,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', user.id)
-
-  if (error) return { error: 'Erreur lors de la mise à jour du profil.' }
+  const echec = erreurEcriture(
+    await supabase
+      .from('profiles')
+      .update({
+        civilite:   data.civilite,
+        first_name: data.first_name.trim(),
+        last_name:  data.last_name.trim(),
+        phone:      data.phone,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
+      .select('id'),
+    'Ce profil',
+  )
+  if (echec) return { error: echec }
   return {}
 }
 
@@ -130,8 +134,11 @@ export async function updateOwnEmail(newEmail: string): Promise<{ error?: string
   }
 
   // 2. Profil (client SESSION → RLS « update own » + audit ; email non protégé par le trigger)
-  const { error: profErr } = await supabase.from('profiles').update({ email }).eq('id', user.id)
-  if (profErr) return { error: "Erreur lors de la mise à jour de l'email du profil." }
+  const echecProfil = erreurEcriture(
+    await supabase.from('profiles').update({ email }).eq('id', user.id).select('id'),
+    "L'adresse du profil",
+  )
+  if (echecProfil) return { error: echecProfil }
 
   // 3. Alerte à l'ANCIENNE adresse — voir `alerterAncienneAdresse`.
   //    Envoyée APRÈS le changement, jamais avant : une alerte émise sur un

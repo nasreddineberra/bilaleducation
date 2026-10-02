@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcritureLot } from '@/lib/supabase/ecriture'
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY ?? ''
@@ -49,7 +50,11 @@ export async function sendPushToUser(
 
   // Nettoyage des subscriptions expirées
   if (expiredIds.length > 0) {
-    await supabase.from('push_subscriptions').delete().in('id', expiredIds)
+    const echec = erreurEcritureLot(
+      await supabase.from('push_subscriptions').delete().in('id', expiredIds),
+      'Le nettoyage des abonnements expires',
+    )
+    if (echec) console.error('[push]', echec)
   }
 
   return { sent, failed }

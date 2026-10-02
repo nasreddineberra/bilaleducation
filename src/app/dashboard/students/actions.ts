@@ -125,12 +125,22 @@ export async function saveStudentsActive(
   const toFalse = clean.filter(u => !u.is_active).map(u => u.id)
 
   if (toTrue.length > 0) {
-    const { error } = await supabase.from('students').update({ is_active: true }).in('id', toTrue)
-    if (error) return { error: "Erreur lors de l'activation des apprenants." }
+    const res = await supabase.from('students').update({ is_active: true }).in('id', toTrue).select('id')
+    if (res.error) return { error: `Erreur lors de l'activation des apprenants : ${res.error.message}` }
+    // Le compte RENDU doit egaler le compte demande : un refus partiel passerait
+    // inapercu si l'on se contentait de « au moins une ligne ».
+    if ((res.data?.length ?? 0) !== toTrue.length) {
+      return { error: `Activation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toTrue.length} : vos droits ne permettent pas de modifier les autres.` }
+    }
   }
   if (toFalse.length > 0) {
-    const { error } = await supabase.from('students').update({ is_active: false }).in('id', toFalse)
-    if (error) return { error: 'Erreur lors de la désactivation des apprenants.' }
+    const res = await supabase.from('students').update({ is_active: false }).in('id', toFalse).select('id')
+    if (res.error) return { error: `Erreur lors de la désactivation des apprenants : ${res.error.message}` }
+    // Le compte RENDU doit egaler le compte demande : un refus partiel passerait
+    // inapercu si l'on se contentait de « au moins une ligne ».
+    if ((res.data?.length ?? 0) !== toFalse.length) {
+      return { error: `Désactivation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toFalse.length} : vos droits ne permettent pas de modifier les autres.` }
+    }
   }
   if (toTrue.length + toFalse.length > 0) {
     await logAudit(supabase, {

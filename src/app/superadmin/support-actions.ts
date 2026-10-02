@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { requireEditor } from '@/lib/auth/requireEditor'
 import { ouvrirIntervention, fermerIntervention } from '@/lib/support/intervention'
@@ -126,12 +127,16 @@ export async function leaveSchool(): Promise<{ error?: string }> {
     })
   } catch { /* non bloquant */ }
 
-  const { error } = await admin
-    .from('profiles')
-    .update({ etablissement_id: null })
-    .eq('id', userId)
+  const echec = erreurEcriture(
+    await admin
+      .from('profiles')
+      .update({ etablissement_id: null })
+      .eq('id', userId)
+      .select('id'),
+    'Le detachement',
+  )
 
-  if (error) return { error: "Impossible de fermer l'intervention." }
+  if (echec) return { error: "Impossible de fermer l'intervention." }
 
   await fermerIntervention(userId, 'manuelle')
 
