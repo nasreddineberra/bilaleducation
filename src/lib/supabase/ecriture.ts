@@ -34,10 +34,50 @@ type ResultatEcriture = {
  * (24/09), qui affirmait « ce lien a deja servi » sur une cause sur deux.
  */
 export function verifierEcriture(resultat: ResultatEcriture, quoi: string): void {
-  if (resultat.error) throw new Error(resultat.error.message)
+  const message = erreurEcriture(resultat, quoi)
+  if (message) throw new Error(message)
+}
+
+/**
+ * Meme controle, mais RENDU comme message au lieu d'etre leve — pour les ecrans
+ * qui signalent par un toast suivi d'un `return` et non par une exception
+ * (l'emploi du temps, par exemple). Lever chez eux remonterait hors de tout
+ * `try`, ce qui remplacerait un faux succes par un ecran casse.
+ *
+ * Rend `null` quand l'ecriture a bien eu lieu.
+ */
+export function erreurEcriture(resultat: ResultatEcriture, quoi: string): string | null {
+  if (resultat.error) return `${quoi} : ${resultat.error.message}`
   if (!resultat.data?.length) {
-    throw new Error(
-      `${quoi} n'a pas pu etre enregistre : vos droits ne le permettent pas, ou l'element n'existe plus.`
-    )
+    return `${quoi} n'a pas pu etre enregistre : vos droits ne le permettent pas, ou l'element n'existe plus.`
   }
+  return null
+}
+
+/**
+ * Variante pour une ecriture qui porte sur un ENSEMBLE et non sur une ligne
+ * precise : un nettoyage avant reinsertion (`eq('class_id', ...)`), une cascade
+ * sur tous les creneaux d'une classe. Zero ligne y est le cas NORMAL — une
+ * classe neuve n'a aucune affectation a effacer, une classe sans emploi du temps
+ * aucun creneau a reaffecter. `verifierEcriture` y leverait a tort, et le
+ * correctif serait pire que le defaut.
+ *
+ * Elle ne couvre donc QUE l'erreur : contrainte violee, panne reseau, et un
+ * INSERT refuse par la RLS (42501). Un refus RLS sur l'UPDATE ou le DELETE reste
+ * invisible — c'est le prix de l'ensemble, et il est acceptable ici parce que
+ * ces appels vont par paires (le DELETE de nettoyage precede un INSERT, qui
+ * leve, lui).
+ *
+ * A n'employer QUE dans ce cas. Des qu'une ecriture vise un `id`, c'est
+ * `verifierEcriture` qu'il faut.
+ */
+export function erreurEcritureLot(resultat: { error: { message: string } | null }, quoi: string): string | null {
+  return resultat.error ? `${quoi} : ${resultat.error.message}` : null
+}
+
+/** Meme controle que `erreurEcritureLot`, mais LEVE. Pour les appelants sous
+ *  `try/catch` ; les autres prennent la version qui rend le message. */
+export function verifierEcritureLot(resultat: { error: { message: string } | null }, quoi: string): void {
+  const message = erreurEcritureLot(resultat, quoi)
+  if (message) throw new Error(message)
 }

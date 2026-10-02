@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { X, Trash2, BookOpen, Pencil, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -427,8 +428,10 @@ export default function ClassForm({
 
       let classId: string
       if (isEditing) {
-        const { error } = await supabase.from('classes').update(payload).eq('id', cls.id)
-        if (error) throw error
+        verifierEcriture(
+          await supabase.from('classes').update(payload).eq('id', cls.id).select('id'),
+          'Cette classe',
+        )
         classId = cls.id
       } else {
         const { data, error } = await supabase.from('classes').insert(payload).select('id').single()
@@ -437,7 +440,10 @@ export default function ClassForm({
       }
 
       // Affectations
-      await supabase.from('class_teachers').delete().eq('class_id', classId)
+      verifierEcritureLot(
+        await supabase.from('class_teachers').delete().eq('class_id', classId),
+        'Les affectations',
+      )
       if (assignments.length > 0) {
         const rows = assignments
           .filter(a => a.teacher_id || a.subject) // ignorer les lignes vides
@@ -459,14 +465,17 @@ export default function ClassForm({
       if (currentSchoolYear?.id) {
         const closedAssignments = assignments.filter(a => a.effective_until && a.teacher_id)
         for (const ca of closedAssignments) {
-          await supabase
-            .from('schedule_slots')
-            .update({ effective_until: ca.effective_until })
-            .eq('class_id', classId)
-            .eq('teacher_id', ca.teacher_id)
-            .eq('school_year_id', currentSchoolYear.id)
-            .eq('is_recurring', true)
-            .is('effective_until', null)
+          verifierEcritureLot(
+            await supabase
+              .from('schedule_slots')
+              .update({ effective_until: ca.effective_until })
+              .eq('class_id', classId)
+              .eq('teacher_id', ca.teacher_id)
+              .eq('school_year_id', currentSchoolYear.id)
+              .eq('is_recurring', true)
+              .is('effective_until', null),
+            'La cloture des creneaux',
+          )
         }
       }
 
@@ -476,11 +485,14 @@ export default function ClassForm({
         const newMain = assignments.find(a => !a.effective_until && a.is_main_teacher)
         const oldMain = initialAssignments.find(a => !a.effective_until && a.is_main_teacher)
         if (newMain && newMain.teacher_id !== oldMain?.teacher_id) {
-          await supabase
-            .from('schedule_slots')
-            .update({ teacher_id: newMain.teacher_id })
-            .eq('class_id', classId)
-            .eq('is_active', true)
+          verifierEcritureLot(
+            await supabase
+              .from('schedule_slots')
+              .update({ teacher_id: newMain.teacher_id })
+              .eq('class_id', classId)
+              .eq('is_active', true),
+            'La cascade vers le planning',
+          )
           logAudit(supabase, {
             action: 'UPDATE',
             entityType: 'schedule_slots',
@@ -494,8 +506,14 @@ export default function ClassForm({
 
       // 1. Supprimer les slots retirés
       for (const slotId of deletedSlotIds) {
-        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId)
-        await supabase.from('schedule_slots').delete().eq('id', slotId)
+        verifierEcritureLot(
+          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId),
+          'Les exceptions du creneau',
+        )
+        verifierEcriture(
+          await supabase.from('schedule_slots').delete().eq('id', slotId).select('id'),
+          'Ce creneau',
+        )
         logAudit(supabase, { action: 'DELETE', entityType: 'schedule_slots', entityId: slotId, description: `Suppression créneau EDT pour ${form.name.trim()}` })
       }
 
@@ -510,13 +528,16 @@ export default function ClassForm({
           || slot.effective_from !== orig.effective_from
           || slot.effective_until !== orig.effective_until
         if (!changed) continue
-        await supabase.from('schedule_slots').update({
-          day_of_week:     dayNameToNum(slot.day_of_week),
-          start_time:      slot.start_time,
-          end_time:        slot.end_time,
-          effective_from:  slot.effective_from  || null,
-          effective_until: slot.effective_until || null,
-        }).eq('id', slot.id!)
+        verifierEcriture(
+          await supabase.from('schedule_slots').update({
+            day_of_week:     dayNameToNum(slot.day_of_week),
+            start_time:      slot.start_time,
+            end_time:        slot.end_time,
+            effective_from:  slot.effective_from  || null,
+            effective_until: slot.effective_until || null,
+          }).eq('id', slot.id!).select('id'),
+          'Ce creneau',
+        )
         logAudit(supabase, { action: 'UPDATE', entityType: 'schedule_slots', entityId: slot.id, description: `Modification créneau ${slot.day_of_week} ${slot.start_time}-${slot.end_time} pour ${form.name.trim()}` })
       }
 

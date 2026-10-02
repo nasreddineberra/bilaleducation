@@ -8,6 +8,7 @@ import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } from 'lucide-react'
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
+import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -895,11 +896,15 @@ export default function EmploiDuTempsClient({
       }
 
       try {
-        const { error } = await supabase
-          .from('schedule_slots')
-          .update({ day_of_week: dayOfWeek, start_time: startTime, end_time: endTime })
-          .eq('id', slot.sourceSlotId)
-        if (error) throw error
+        const echec = erreurEcriture(
+          await supabase
+            .from('schedule_slots')
+            .update({ day_of_week: dayOfWeek, start_time: startTime, end_time: endTime })
+            .eq('id', slot.sourceSlotId)
+            .select('id'),
+          'Ce creneau',
+        )
+        if (echec) throw new Error(echec)
         logAudit(supabase, {
           action: 'UPDATE',
           entityType: 'schedule_slots',
@@ -973,14 +978,23 @@ export default function EmploiDuTempsClient({
         // Ancien créneau : clôturer la veille s'il a des jours AVANT le pivot (conserve
         // l'historique) ; sinon (il commence au pivot ou après) le supprimer entièrement,
         // sinon on créerait une plage inversée « from > until » (cascade : exceptions/validations).
-        if (!oldSlot.effective_from || oldSlot.effective_from < pivotDate) {
-          await supabase
-            .from('schedule_slots')
-            .update({ effective_until: dayBefore })
-            .eq('id', data.id)
-        } else {
-          await supabase.from('schedule_slots').delete().eq('id', data.id)
-        }
+        const echecAncien = !oldSlot.effective_from || oldSlot.effective_from < pivotDate
+          ? erreurEcriture(
+              await supabase
+                .from('schedule_slots')
+                .update({ effective_until: dayBefore })
+                .eq('id', data.id)
+                .select('id'),
+              'La cloture du creneau precedent',
+            )
+          : erreurEcriture(
+              await supabase.from('schedule_slots').delete().eq('id', data.id).select('id'),
+              'Le creneau precedent',
+            )
+        // On n'INSERE PAS le nouveau creneau si l'ancien n'a pas cede sa place :
+        // les deux se chevaucheraient, et la contrainte d'exclusion repondrait par
+        // un « duplicate key » qui ne dit rien de la vraie cause.
+        if (echecAncien) { toastError(echecAncien); return }
 
         // Créer le nouveau créneau avec effective_from = pivotDate
         const { error } = await supabase.from('schedule_slots').insert({
@@ -992,28 +1006,40 @@ export default function EmploiDuTempsClient({
       } else {
         // Hors année scolaire : simple mise à jour + effective_from = rentrée
         const effectiveFrom = schoolYearStartDate ?? pivotDate
-        const { error } = await supabase.from('schedule_slots').update({
-          ...basePayload,
-          effective_from: effectiveFrom,
-        }).eq('id', data.id)
-        if (error) { toastError('Erreur : ' + error.message); return }
+        const echec = erreurEcriture(
+          await supabase.from('schedule_slots').update({
+            ...basePayload,
+            effective_from: effectiveFrom,
+          }).eq('id', data.id).select('id'),
+          'Ce creneau',
+        )
+        if (echec) { toastError(echec); return }
       }
 
       // Mettre à jour la fiche classe
       if (data.day_of_week !== null) {
         const dayName = DAY_LABELS[data.day_of_week] ?? ''
-        await supabase
-          .from('classes')
-          .update({ day_of_week: dayName, start_time: data.start_time, end_time: data.end_time })
-          .eq('id', data.class_id)
+        const echecClasse = erreurEcriture(
+          await supabase
+            .from('classes')
+            .update({ day_of_week: dayName, start_time: data.start_time, end_time: data.end_time })
+            .eq('id', data.class_id)
+            .select('id'),
+          'Le planning de la fiche classe',
+        )
+        if (echecClasse) { toastError(echecClasse); return }
       }
 
       // Supprimer les exceptions à partir du pivot (liées à l'ancien créneau)
-      await supabase
-        .from('schedule_exceptions')
-        .delete()
-        .eq('schedule_slot_id', data.id)
-        .gte('exception_date', pivotDate)
+      const echecLot0 = erreurEcritureLot(
+        await supabase
+          .from('schedule_exceptions')
+          .delete()
+          .eq('schedule_slot_id', data.id)
+          .gte('exception_date', pivotDate),
+        'Les exceptions du creneau',
+      )
+      if (echecLot0) { toastError(echecLot0); return }
 
       // Log détaillé
       const cls = classesRef.current.find(c => c.id === data.class_id)
@@ -1027,8 +1053,11 @@ export default function EmploiDuTempsClient({
 
     } else if (data.id) {
       // ── Modifier un créneau existant (ponctuel ou this_only via exception) ──
-      const { error } = await supabase.from('schedule_slots').update(basePayload).eq('id', data.id)
-      if (error) { toastError('Erreur : ' + error.message); return }
+      const echec = erreurEcriture(
+        await supabase.from('schedule_slots').update(basePayload).eq('id', data.id).select('id'),
+        'Ce creneau',
+      )
+      if (echec) { toastError(echec); return }
 
       const cls = classesRef.current.find(c => c.id === data.class_id)
       const dayLabel = data.day_of_week !== null ? DAY_LABELS[data.day_of_week] : ''
@@ -1107,8 +1136,11 @@ export default function EmploiDuTempsClient({
     }
 
     if (existing) {
-      const { error } = await supabase.from('schedule_exceptions').update(payload).eq('id', existing.id)
-      if (error) { toastError('Erreur : ' + error.message); return }
+      const echec = erreurEcriture(
+        await supabase.from('schedule_exceptions').update(payload).eq('id', existing.id).select('id'),
+        'Cette modification ponctuelle',
+      )
+      if (echec) { toastError(echec); return }
     } else {
       const { error } = await supabase.from('schedule_exceptions').insert(payload)
       if (error) { toastError('Erreur : ' + error.message); return }
@@ -1145,15 +1177,37 @@ export default function EmploiDuTempsClient({
         const pivotD = new Date(pivot + 'T00:00:00')
         pivotD.setDate(pivotD.getDate() - 1)
         const dayBefore = formatDate(pivotD)
-        await supabase.from('schedule_slots').update({ effective_until: dayBefore }).eq('id', slotId)
-        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId).gte('exception_date', pivot)
+        const echec = erreurEcriture(
+          await supabase.from('schedule_slots').update({ effective_until: dayBefore }).eq('id', slotId).select('id'),
+          'Ce creneau',
+        )
+        if (echec) { toastError(echec); return }
+        const echecLot1 = erreurEcritureLot(
+          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId).gte('exception_date', pivot),
+          'Les exceptions du creneau',
+        )
+        if (echecLot1) { toastError(echecLot1); return }
       } else {
-        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId)
-        await supabase.from('schedule_slots').delete().eq('id', slotId)
+        const echecLot2 = erreurEcritureLot(
+          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId),
+          'Les exceptions du creneau',
+        )
+        if (echecLot2) { toastError(echecLot2); return }
+        const echec = erreurEcriture(
+          await supabase.from('schedule_slots').delete().eq('id', slotId).select('id'),
+          'Ce creneau',
+        )
+        if (echec) { toastError(echec); return }
       }
 
+      // La fiche classe ne se vide QU APRES la suppression reussie : l'inverse
+      // laissait une classe sans horaire au-dessus d'un creneau toujours vivant.
       if (slot.is_recurring) {
-        await supabase.from('classes').update({ day_of_week: null, start_time: null, end_time: null }).eq('id', slot.class_id)
+        const echecClasse = erreurEcriture(
+          await supabase.from('classes').update({ day_of_week: null, start_time: null, end_time: null }).eq('id', slot.class_id).select('id'),
+          'Le planning de la fiche classe',
+        )
+        if (echecClasse) { toastError(echecClasse); return }
       }
 
       const dayLabel = slot.day_of_week !== null ? DAY_LABELS[slot.day_of_week] : ''
@@ -1173,7 +1227,7 @@ export default function EmploiDuTempsClient({
       : `Supprimer tous les créneaux définitivement ?\n\nCela va également réinitialiser le planning (jour/horaires) de la fiche ${className}.`
 
     setPendingConfirm({ message, variant: 'danger', confirmLabel: 'Supprimer', onConfirm: doDelete })
-  }, [supabase, slots, schoolYearStartDate, schoolYearEndDate, refreshData])
+  }, [supabase, slots, schoolYearStartDate, schoolYearEndDate, refreshData, toastError])
 
   const handleCancelForDate = useCallback(async (slotId: string, date: string) => {
     const existing = exceptions.find(
@@ -1181,10 +1235,14 @@ export default function EmploiDuTempsClient({
     )
 
     if (existing) {
-      const { error } = await supabase.from('schedule_exceptions')
-        .update({ exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null, override_room_id: null })
-        .eq('id', existing.id)
-      if (error) { toastError('Erreur : ' + error.message); return }
+      const echec = erreurEcriture(
+        await supabase.from('schedule_exceptions')
+          .update({ exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null, override_room_id: null })
+          .eq('id', existing.id)
+          .select('id'),
+        'Cette annulation',
+      )
+      if (echec) { toastError(echec); return }
     } else {
       const { error } = await supabase.from('schedule_exceptions')
         .insert({ schedule_slot_id: slotId, exception_date: date, exception_type: 'cancelled' })
@@ -1286,13 +1344,21 @@ export default function EmploiDuTempsClient({
       confirmLabel: 'Annuler la validation',
       onConfirm: async () => {
         if (v.time_entry_id) {
-          await supabase.from('staff_time_entries').delete().eq('id', v.time_entry_id)
+          const echecHeure = erreurEcriture(
+            await supabase.from('staff_time_entries').delete().eq('id', v.time_entry_id).select('id'),
+            'Le pointage de cette heure',
+          )
+          if (echecHeure) { toastError(echecHeure); return }
         }
-        await supabase.from('schedule_validations').delete().eq('id', v.id)
+        const echec = erreurEcriture(
+          await supabase.from('schedule_validations').delete().eq('id', v.id).select('id'),
+          'Cette validation',
+        )
+        if (echec) { toastError(echec); return }
         setValidations(prev => prev.filter(x => x.id !== v.id))
       },
     })
-  }, [validations, supabase])
+  }, [validations, supabase, toastError])
 
   const isValidated = useCallback((sourceSlotId: string, slotDate: string) => {
     return validations.some(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
