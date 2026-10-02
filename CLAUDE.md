@@ -4576,6 +4576,45 @@ en silence. Tous suivent le motif du 13/09 : bloc `DO` a **exception volontaire*
 l'abandon est la sortie unique, rien n'est conserve.
 
 
+
+**CONTROLE 04 — `all_registered` est CONFORME, et l'affichage des conditions a
+trouve une anomalie que personne ne cherchait.**
+
+La policy traite bien `all_registered` avec `all_active` pour l'enseignant : les
+trois enseignantes voient le message. **Le point 4 est donc entierement clos.**
+
+**MAIS LE RESPONSABLE PEDAGOGIQUE VOIT MOINS QUE SES ENSEIGNANTS.** Dans
+`announcements_select` :
+    responsable_pedagogique -> class, selected, all_active
+    enseignant              -> class (borne) + all_active + all_registered
+Un enseignant lit donc un message « tous les contacts » que son responsable
+pedagogique ne lit pas.
+- **Ce n'est PAS un trou de securite** : personne ne voit ce qu'il ne devrait pas.
+  C'est une inversion de hierarchie, qui surprendra le jour ou un `all_registered`
+  partira.
+- **Chacune des deux regles du 01/10 est respectee prise ISOLEMENT**, et c'est ce
+  qui explique l'ecart : « resp. pedagogique : tout ce qu'il peut ENVOYER » — et
+  `announcements_insert` lui refuse effectivement `all_registered` (reserve a
+  admin/direction/secretaire) ; « enseignant : sa classe et les messages adresses
+  A TOUTES LES FAMILLES » — ce que `all_registered` est. Les deux regles se
+  croisent sans que personne ne l'ait voulu.
+- **ARBITRAGE EN ATTENTE** : ajouter `all_registered` a la liste du responsable
+  pedagogique tient en un mot dans la policy, mais c'est une decision metier.
+
+**LE RESTE EST CONFORME, verifie ligne par ligne** (et c'est le second benefice de
+l'affichage : ces conditions ne vivent nulle part dans le depot depuis le 5 aout) :
+- **`ann_recipients_select`** : l'enseignant ne voit la liste des destinataires que
+  pour `class` **ET** `teaches_class` — il lit donc le message « toutes les
+  familles » sans en voir la LISTE. C'est le point sensible du 01/10, et il tient.
+- **`announcements_insert`** : l'enseignant n'apparait dans **aucune** branche.
+- **`ann_staff_recipients_write`** : admin, direction, comptable, secretaire,
+  resp. pedagogique — l'encadrement sans l'enseignant (decision du 16/07).
+- **`ann_staff_recipients_read_own`** (UPDATE) : `profile_id = auth.uid()`, ce qui
+  permet a la cloche de se vider.
+- **`est_destinataire_annonce(id)`** est bien en place dans `announcements_select`
+  — la fonction `SECURITY DEFINER` qui a rompu la recursion 42P17 du 01/10.
+
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
