@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { clsx } from 'clsx'
 import type { JourFerme } from '@/lib/school-year/jours-fermes'
+import { timeToMinutes } from '@/lib/edt/temps'
 import SlotCapsule from './SlotCapsule'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 
@@ -51,10 +52,7 @@ function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heigh
   )
 }
 
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(':').map(Number)
-  return h * 60 + m
-}
+
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,

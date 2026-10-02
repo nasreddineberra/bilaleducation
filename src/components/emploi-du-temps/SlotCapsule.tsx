@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 import { nomEnseignant } from '@/lib/teachers/nom'
+import { dureeMinutes } from '@/lib/edt/temps'
 
 // Couleurs définies dans globals.css (palette de marque, aplats opaques dans
 // les deux thèmes) — voir « Créneaux de l'emploi du temps ».
@@ -58,6 +59,22 @@ export default function SlotCapsule({
   //   1-2 créneaux : tout        3-4 : sans salle ni horaire        5+ : nom seul
   const dense   = groupSize >= 3
   const minimal = groupSize >= 5
+
+  // ── ET LE MÊME RAISONNEMENT EN HAUTEUR ────────────────────────────────
+  // `dense`/`minimal` ne regardaient que `groupSize`, c'est-à-dire la LARGEUR :
+  // un créneau de 15 min recevait exactement le même contenu qu'un créneau de
+  // trois heures. Mesuré le 03/10 sur une capture : six lignes empilées font
+  // ~70 px pour ~51 px utiles sur une heure — le conteneur étant en `flex` avec
+  // `overflow-hidden`, les lignes se compriment et le HAUT sort du cadre. Le
+  // titre du cours était donc invisible, et le nom de la classe coupé en deux.
+  //
+  // L'amplitude de la grille est FIXE (7h-19h) : une heure vaut toujours un
+  // douzième de la colonne, la durée est donc un critère fiable sans mesurer
+  // quoi que ce soit.
+  //
+  // Au-delà du seuil on ne rogne pas, on CHOISIT : la classe et l'horaire, rien
+  // d'autre (décision utilisateur). Tout le reste passe en infobulle.
+  const court = dureeMinutes(slot.start_time, slot.end_time) <= 60
   // La validation ne remplace plus la couleur : elle s'ajoute (la teinte reste
   // celle de la catégorie, sinon un cours validé et une activité validée
   // deviendraient identiques).
@@ -117,15 +134,19 @@ export default function SlotCapsule({
           survol. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
           contenu ne remplirait pas la capsule. */}
       <Tooltip
-        content={dense ? ariaLabel : ''}
-        className={clsx('h-full w-full align-bottom', !dense && 'pointer-events-none')}
+        content={dense || court ? ariaLabel : ''}
+        className={clsx('h-full w-full align-bottom', !dense && !court && 'pointer-events-none')}
         maxWidth="max-w-none"
       >
         <div className={clsx('h-full flex flex-col overflow-hidden', minimal ? 'px-1 py-0.5' : 'px-1.5 py-0.5')}>
-          {/* Cours (ou type de créneau) */}
-          <div className={clsx('font-bold leading-tight', minimal ? 'text-[9px] line-clamp-2' : 'text-[10px] truncate')}>
-            {slot.cours?.nom_fr ?? slot.slot_type}
-          </div>
+          {/* Cours (ou type de créneau) — retiré sur un créneau court, SAUF en
+              vue classe : la classe y est masquée car redondante, et sans cette
+              exception il ne resterait que l'horaire. */}
+          {(!court || viewMode === 'class') && (
+            <div className={clsx('font-bold leading-tight', minimal ? 'text-[9px] line-clamp-2' : 'text-[10px] truncate')}>
+              {slot.cours?.nom_fr ?? slot.slot_type}
+            </div>
+          )}
 
           {/* Classe (vues globale / enseignant) */}
           {viewMode !== 'class' && slot.classes && (
@@ -136,7 +157,7 @@ export default function SlotCapsule({
 
           {/* Enseignant (vues globale / classe) — « Prof non affecté » reste
               affiché même en densité minimale : c'est une anomalie à voir. */}
-          {viewMode !== 'teacher' && (
+          {!court && viewMode !== 'teacher' && (
             noTeacher ? (
               <div className={clsx('leading-tight truncate text-orange-500 font-medium', minimal ? 'text-[8px]' : 'text-[9px]')}>
                 {minimal ? 'Sans prof' : 'Prof non affecté'}
@@ -158,7 +179,7 @@ export default function SlotCapsule({
           )}
 
           {/* Salle — première ligne sacrifiée quand la place manque */}
-          {slot.rooms && !dense && (
+          {slot.rooms && !dense && !court && (
             <div className="text-[9px] leading-tight truncate opacity-60">
               {slot.rooms.name}
             </div>
