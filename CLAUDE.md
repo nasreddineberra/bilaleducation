@@ -4623,6 +4623,61 @@ l'affichage : ces conditions ne vivent nulle part dans le depot depuis le 5 aout
   — la fonction `SECURITY DEFINER` qui a rompu la recursion 42P17 du 01/10.
 
 
+#### 3 octobre 2026 — POINT 5 : les deux verifications d'ecran, et ce qu'elles ont donne
+
+**Resultats OPPOSES, et c'est la lecon** : le libelle de role etait juste du
+premier coup — la source unique `lib/auth/role-labels` (29/09) a tenu, le journal
+d'activite affiche bien « Resp. pedagogique ». Le creneau d'une heure, lui,
+cachait un defaut REEL. **Aucun test automatique ne mesure si un texte sort de son
+cadre** : type-check, lint et build etaient verts depuis le debut.
+
+**UN CRENEAU D'UNE HEURE AFFICHAIT SIX LIGNES DANS LA PLACE DE DEUX.** Sur la
+capture, le TITRE DU COURS etait entierement invisible et le nom de la classe
+coupe en deux.
+- **La cause** : `dense` et `minimal` ne regardaient que `groupSize`, soit le
+  nombre de creneaux cote a cote — la **LARGEUR**. **Rien ne regardait la
+  HAUTEUR** : un creneau de 15 minutes recevait le meme contenu qu'un creneau de
+  trois heures. Six lignes (cours, classe, NOM, prenom, salle, horaire) font
+  ~70 px pour ~51 px utiles ; le conteneur etant en `flex` + `overflow-hidden`,
+  les lignes se compriment et le haut sort du cadre.
+- **Ce qui rend le correctif simple** : l'amplitude de la grille est **FIXE**
+  (7h-19h, `DEFAULT_START`/`DEFAULT_END`). Une heure vaut donc toujours un
+  douzieme de la colonne — **la duree est un critere fiable, sans mesurer**. Elle
+  est a la hauteur ce que `groupSize` est a la largeur.
+- **La regle retenue (utilisateur)** : au-dela du seuil on ne rogne pas, on
+  **CHOISIT** — classe + horaire, rien d'autre, et tout le detail en infobulle.
+  J'avais propose de sacrifier deux lignes sur six (salle puis prenom) ; **choisir
+  deux lignes utiles est plus lisible que d'en garder quatre a moitie**, et cela
+  couvre du meme coup les creneaux de 30 minutes que ma version laissait deborder.
+- **Exception en vue CLASSE** : le nom de la classe y est deja masque (redondant).
+  Sans exception, un creneau court n'y afficherait que son horaire — le cours y
+  reste donc affiche a sa place.
+- `timeToMinutes` extraite dans `src/lib/edt/temps.ts` a son 2e usage : elle ne
+  pouvait pas venir de `DayColumn`, **qui importe deja `SlotCapsule`** — le cycle
+  aurait ete immediat.
+
+**L'INFOBULLE PASSE EN LIGNES EMPILEES** (demande utilisateur) : elle rendait
+« cours, MAT-SM-BL2, BERRA Leila, de 09:00 a 10:00, presence validee », une phrase
+a lire en entier pour y trouver un detail.
+- **Le point qui compte** : ce texte servait **AUSSI d'`aria-label`**. Le
+  transformer aurait degrade l'accessibilite **sans que ca se voie** — les
+  virgules y marquent les pauses d'un lecteur d'ecran, et « de 09:00 a 10:00 »
+  s'entend mieux qu'un intervalle. Les deux lectures sont donc **SEPAREES** :
+  meme contenu, deux formes (ecoute / lecture des yeux).
+- `content` de `Tooltip` accepte un `ReactNode` : rendu en JSX empile, sans
+  artifice de `
+` ni `whitespace-pre-line`.
+
+**PIEGE DE SEANCE** : j'avais commite sans pousser (« je pousse quand vous
+voulez ») — l'utilisateur a teste l'etat d'avant et m'a envoye une capture du
+defaut deja corrige. **Une verification a l'ecran suppose le deploiement : pousser
+AVANT de demander de regarder.**
+
+**A SURVEILLER, non traite** : l'amplitude **7h-19h est EN DUR**, alors que
+l'etablissement parametre deja ses jours travailles. Une ecole qui ouvrirait a 8h
+perdrait une heure de hauteur utile pour rien.
+
+
 ## Prochaine etape
 
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
