@@ -4,24 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 // ── Délais de session (en secondes) ──────────────────────────────────────────
 import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE, sessionCookieDomain } from '@/lib/session-config'
 import { evaluerSession } from '@/lib/auth/session-decision'
+import { COOKIE_SESSION, entetesDePurge } from '@/lib/auth/session-cookies'
 import { estSousDomaineConsole } from '@/lib/tenant/console-host'
-const SESSION_COOKIE = 'app-session'
-// Marqueur de session NAVIGATEUR : cookie sans maxAge/expires, supprimé par le
-// navigateur à sa fermeture. Permet de distinguer « navigateur resté ouvert »
-// (vraie inactivité → message) de « navigateur fermé puis rouvert » (démarrage à
-// froid → login neutre, sans message). app-session, lui, est persistant (30 j).
-/**
- * Ancien marqueur de session navigateur, RETIRE le 11 aout.
- *
- * Il servait a distinguer « navigateur reste ouvert » de « rouvert », pour
- * choisir le libelle d'un message. Troisieme etat a tenir coherent avec les deux
- * autres, il a cause un verrouillage en production le 9 aout — un message n'a
- * jamais valu ce risque, et le motif se deduit desormais de ce qu'on mesure.
- *
- * Le nom reste ici pour une seule raison : PURGER les navigateurs qui en portent
- * encore un. A supprimer quand le parc aura tourne.
- */
-const BROWSER_MARKER = 'app-open'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -62,34 +46,19 @@ export async function proxy(request: NextRequest) {
   const withDomain = <T extends object>(o: T) => (cookieDomain ? { ...o, domain: cookieDomain } : o)
 
   /**
-   * Efface les cookies traceurs, AVEC domaine ET SANS.
+   * Efface les cookies traceurs.
    *
-   * ┌─ POURQUOI DEUX FOIS ────────────────────────────────────────────────┐
-   * │ `sessionCookieDomain()` derive son domaine de `NEXT_PUBLIC_SITE_URL`, │
-   * │ qui n'a pas toujours existe : avant qu'elle soit posee, les cookies   │
-   * │ etaient attaches a l'HOTE SEUL. Un navigateur ayant traverse ce       │
-   * │ changement en detient donc DEUX — un ancien sans domaine, un recent   │
-   * │ sur `.bilaleducation.fr`.                                            │
-   * │                                                                       │
-   * │ Une purge portant un domaine n'atteint QUE le second. L'ancien        │
-   * │ survivait avec son horodatage perime, le middleware le lisait a       │
-   * │ chaque passage, concluait a l'inactivite, et renvoyait vers /login.   │
-   * │ BOUCLE PERMANENTE sur ce navigateur — constatee en production le      │
-   * │ 11 aout, et resolue en vidant les cookies a la main. Une purge doit   │
-   * │ atteindre les deux, sinon elle ne prouve rien.                       │
-   * └───────────────────────────────────────────────────────────────────────┘
+   * Le POURQUOI (deux variantes, avec domaine et sans) vit dans
+   * `entetesDePurge` : un raisonnement recopie a deux endroits finit toujours
+   * par diverger. Ici ne reste que l emission.
    *
-   * `headers.append` et non `cookies.set` : le magasin de `NextResponse` est
-   * indexe PAR NOM, poser deux fois le meme nom remplacerait le premier au lieu
-   * d'emettre deux en-tetes. Le navigateur, lui, distingue bien deux cookies de
-   * meme nom si leur domaine differe — c'est toute l'origine du probleme.
+   * `headers.append` et JAMAIS `cookies.set` : le magasin de `NextResponse`
+   * est indexe PAR NOM, donc poser deux fois le meme nom remplacerait le
+   * premier au lieu d emettre deux en-tetes.
    */
   const purgerTraceurs = (res: NextResponse) => {
-    for (const nom of [SESSION_COOKIE, BROWSER_MARKER]) {
-      res.headers.append('Set-Cookie', `${nom}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`)
-      if (cookieDomain) {
-        res.headers.append('Set-Cookie', `${nom}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Domain=${cookieDomain}`)
-      }
+    for (const entete of entetesDePurge(cookieDomain)) {
+      res.headers.append('Set-Cookie', entete)
     }
   }
 
@@ -465,7 +434,7 @@ export async function proxy(request: NextRequest) {
     const decision = evaluerSession(
       {
         lastSignInAt: user.last_sign_in_at,
-        traceur: request.cookies.get(SESSION_COOKIE)?.value,
+        traceur: request.cookies.get(COOKIE_SESSION)?.value,
         maintenantMs,
       },
       {
@@ -507,7 +476,7 @@ export async function proxy(request: NextRequest) {
     // Session valide → on rafraichit la derniere activite. RIEN D'AUTRE : la
     // duree maximale s'ancre sur `last_sign_in_at`, elle n'a pas a etre recopiee
     // ici. Un champ, un ecrivain, une portee.
-    response.cookies.set(SESSION_COOKIE, JSON.stringify({ lastActivity: now }), withDomain({
+    response.cookies.set(COOKIE_SESSION, JSON.stringify({ lastActivity: now }), withDomain({
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
