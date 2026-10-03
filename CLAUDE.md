@@ -4900,6 +4900,109 @@ une. Type-check vert, 0 erreur de lint.
 la paire HIDAOUI (`JASSIM` / `Jessim`, meme date — doublon ou jumeaux) et dire
 si « totale » inclut les 172 foyers sans enfant, qui restent hors de portee de
 cet ecran.
+#### 3 octobre 2026 (fin) — PREMIER TEST AUTOMATISE : la decision de session
+
+Le chantier note le 11 aout comme « ce qui manque encore » : ce mecanisme avait
+recu **SIX correctifs en un mois**, tous trouves par l utilisateur **en
+production**, et deux l avaient verrouille dehors. Choix de l utilisateur, avec
+une precision qui a change le plan : **les equipes pedagogiques ne se connectent
+pas pendant deux mois** (vacances d ete).
+
+**CETTE PRECISION A AJOUTE UN CAS ET DONNE L ARGUMENT.** Mes cas s arretaient a
+« session de 3 h » ; un retour de vacances, c est **60 jours** — le traceur a
+disparu depuis longtemps et les deux fenetres (20 min, 24 h) sont franchies
+ensemble. Et surtout : un defaut introduit maintenant **dormirait deux mois**
+avant de tomber sur dix personnes le meme matin. C est l argument du test
+automatise plutot que de la vigilance.
+
+**J AI PRIS UNE INDICATION POUR UNE AUTORISATION.** « Pour lot 1 » n est pas un
+go ; l utilisateur l a releve fermement. Aucune ligne n avait ete touchee (des
+lectures seulement), mais **seuls « go » ou « ok » autorisent** — une phrase qui
+nomme un lot exprime une preference, pas un accord.
+
+**LE RECLASSEMENT DES SIX DEFAUTS a decide du perimetre.** Quatre vivaient dans
+la DECISION (09/08 condition retiree, 11/08 garde « auth fraiche »), un dans les
+CONSTANTES (13/07, duree du traceur), deux dans le CABLAGE (12/07 purge absente,
+11/08 deux ecrivains). Un test de la decision en couvre quatre ; l invariant des
+seuils le cinquieme ; les deux derniers sont le lot 2.
+
+**`src/lib/auth/session-decision.ts`** — la decision, PURE : trois entrees
+(`last_sign_in_at`, cookie traceur, instant), un verdict. Elle etait melee au
+client Supabase, a `NextResponse` et a `signOut`, donc inverifiable : on ne
+pouvait repondre a « que se passe-t-il apres deux mois ? » qu en attendant deux
+mois.
+- **LES SEUILS SONT DES PARAMETRES**, et ce n est pas de la decoration : c est ce
+  qui permet d eprouver « et si quelqu un remettait le traceur a 30 jours ? »
+  **sans toucher a la production**. Le test reproduit ainsi le defaut du 13/07.
+
+**L EXTRACTION EST LITTERALE, ET C EST MESURE.** Un comparateur jetable a
+confronte l ancienne logique — recopiee mot pour mot — a la nouvelle sur
+**200 418 cas** : bornes exactes (0, 1199, 1200, 1201, 4799, 4800, 86399, 86400,
+60 jours, ages negatifs, dates illisibles, 13 formes de traceur) puis 200 000
+tirages aleatoires. Memes verdicts, memes drapeaux, **memes valeurs
+intermediaires**. Aucune divergence, puis suppression du comparateur.
+**Regle : « a l identique » doit etre une mesure, pas une intention** — sans quoi
+un test fige un comportement qu on vient de modifier et ne prouve rien.
+
+**TROIS CAS QUE PERSONNE N AURAIT VERIFIES A LA MAIN**
+- **Un traceur ABIME vaut ABSENT, jamais ZERO.** Si `lireTraceur` rendait `0`,
+  `now - 0` depasserait n importe quelle fenetre et **tout cookie casse
+  deconnecterait**. La distinction `null`/`0` est la garantie ; elle est testee
+  sur cinq formes abimees, et le cas « `lastActivity` vaut reellement 0 » fige la
+  contrepartie assumee (c est un nombre, donc on le croit, donc on deconnecte).
+- **L INVARIANT des seuils** : le traceur doit vivre **plus** que la fenetre
+  surveillee et **moins** que la duree maximale. A 30 jours — valeur du 13/07 —
+  son absence n est plus jamais concluante : la protection d inactivite
+  **s auto-desactive en silence**. Le symetrique est teste aussi (traceur trop
+  court : deconnexion d une session valide a 15 min).
+- **HORLOGE DECALEE** : une derniere activite dans le **futur** laisse entrer. Un
+  poste en avance de dix minutes ne doit pas enfermer dehors (FAIL-OPEN).
+
+**CE QUE LE TEST FIGE, ET QUI EST UN CHOIX** : quand inactivite **et** duree
+maximale sont depassees, le motif annonce est `inactivity`. Apres deux mois,
+l ecran dit donc « expiree pour inactivite » alors que la cause structurelle est
+la duree maximale. Sans consequence (on se reconnecte), mais **c est un choix** :
+le changer est une decision, et le test se mettra au rouge pour le signaler.
+
+**UNE SEULE AMELIORATION, documentee** : le code lisait **deux instants**
+(`now`, puis un second `Date.now()` quelques millisecondes plus bas). Une
+decision ne doit pas dependre de deux instants differents. L ecart ne pouvait
+changer un verdict que sur la milliseconde exacte d un seuil — mesure nulle.
+
+**OUTILLAGE : `node --test` NATIF, zero dependance ajoutee.** Node 24 lit le
+TypeScript sans transpilation — **verifie par un essai avant de le proposer**,
+pas suppose. Meme regle que le retrait de `next/font/google` le 15 aout : ce qui
+est fige dans le depot ne depend plus de l exterieur, et le projet a deja subi le
+ver npm.
+- **`allowImportingTsExtensions` dans `tsconfig.json`** : `node --test` resout
+  les imports **comme Node**, donc l extension `.ts` est obligatoire la ou le
+  reste du projet l omet (Turbopack la resout). TypeScript refusait (TS5097).
+  L option le **permet sans l imposer**, exige `noEmit` (deja pose), et seuls les
+  fichiers de test l emploient — aucun code de production ne les importe, ils ne
+  sont donc jamais embarques dans un bundle.
+- **`"type": "module"` n est PAS pose** (ce que Node suggere pourtant dans son
+  avertissement) : il basculerait **tous les `.js` du projet**, `next.config.js`
+  compris. L avertissement est tu de facon ciblee
+  (`--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`), jamais `--no-warnings`, qui
+  masquerait aussi les vrais.
+- **Piege de mon propre essai** : mon premier chemin de test traversait deux
+  lecteurs (`C:` scratchpad vers `D:` depot) et echouait en `ERR_MODULE_NOT_FOUND`
+  — faute de test, pas limite de Node. Un fichier d essai pose **dans le depot**
+  puis supprime a tranche en dix secondes.
+
+**CE QUE CES TESTS NE COUVRENT PAS, et il faut le savoir** : le comportement reel
+d un navigateur detenant **deux cookies de meme nom**, le flux 2FA, et Supabase.
+Un test unitaire ne verra jamais cela. **Reste le lot 2** : purge des deux
+variantes de cookie (avec et sans domaine), et controle **structurel** « un seul
+fichier ecrit `app-session` » — qui fermerait le defaut du 11 aout pour de bon,
+un grep l attrapant pour toujours.
+
+**Verifie** : `npm test` 26/26, `type-check` vert, `lint` 0 erreur (517
+avertissements, les `any` du chantier a part, **aucun sur les nouveaux
+fichiers**), `build` complet avec le middleware compile. **Reste a verifier a
+l ecran** : une connexion reelle — le middleware a change, et seul un navigateur
+le prouve.
+
 #### 3 octobre 2026 (fin) — PASSAGE D ANNEE : controle de securite anticipe
 
 Le cycle sera eprouve en vraie fin d annee avec la direction (decision
@@ -5095,6 +5198,7 @@ tente la purge **sous l identite de chaque role** pour constater les refus.
 ## Commandes
 
 ```bash
+npm test             # Tests (node --test natif, 0 dependance ; src/**/*.test.ts)
 npm run dev          # Serveur de developpement (http://localhost:3000)
 npm run build        # Build production
 npm run lint         # Linting ESLint
