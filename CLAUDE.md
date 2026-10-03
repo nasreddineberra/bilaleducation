@@ -4900,6 +4900,53 @@ une. Type-check vert, 0 erreur de lint.
 la paire HIDAOUI (`JASSIM` / `Jessim`, meme date — doublon ou jumeaux) et dire
 si « totale » inclut les 172 foyers sans enfant, qui restent hors de portee de
 cet ecran.
+#### 3 octobre 2026 (fin) — PASSAGE D ANNEE : controle de securite anticipe
+
+Le cycle sera eprouve en vraie fin d annee avec la direction (decision
+utilisateur), mais rien n empeche d en verifier la SECURITE des aujourd hui —
+et c est meme le bon moment, la base portant enfin de vraies donnees.
+
+**CE QUI TIENT** (revue statique des 6 actions + de la RPC) : garde de role
+admin/direction partout ; la SEQUENCE est tenue COTE SERVEUR et pas seulement
+par l ecran — archiver exige la cloture, purger exige l archivage, rouvrir est
+refuse apres purge ; le libelle a ressaisir est verifie cote serveur ; la RPC
+`purge_school_year` est SECURITY DEFINER avec garde de role en `coalesce`,
+cloisonnement tenant, archivage obligatoire et `REVOKE ALL FROM public` ; les
+deux tables d archive portent tenant ET role, `family_year_finance` etant
+limitee aux roles finance.
+
+**LE TROU : la RPC ne regarde pas `is_current`.** Ce controle ne vivait que dans
+la server action `purgeYear` — or une RPC s appelle **directement depuis le
+navigateur**, par-dessus l action. Le scenario tient en trois gestes : une annee
+EN COURS peut legitimement etre cloturee (conception du 09/08 : « une annee peut
+etre close tout en restant courante »), puis archivee ; a partir de la un appel
+RPC direct purge l annee VIVANTE — notes, absences, paiements — alors que
+l ecran le refuse explicitement.
+- Ce n est pas une elevation de privilege (il faut etre admin ou direction),
+  c est **« l ecran interdit, l API autorise »** : le defaut exact que les trois
+  lots RLS d aout-septembre ont passe un mois a fermer. Ici le prix de l erreur
+  est la base de l annee en cours.
+- Mineur au passage : `v_purged` etait lu puis seulement RAPPORTE
+  (`already_purged`), jamais utilise comme garde — une seconde purge rejouait
+  tout le travail de suppression.
+
+**`harden-purge-school-year.sql`** pose les deux gardes JUSTE APRES celle de
+l archivage : a cet endroit le role et le tenant sont deja verifies et rien n a
+encore ete supprime. Elle **rapiece** la definition reelle plutot que de
+recopier 120 lignes (meme raison que la migration des notes medicales : une
+recopie ecraserait sans rien dire une derive entre la base et le depot), leve si
+l ancrage a bouge, et **re-verifie que les gardes PREEXISTANTES sont toujours
+la** — rapiecer ne doit rien perdre. Le remplacement a ete **simule hors ligne**
+et le code genere relu avant livraison.
+
+**`supabase/controles/05-passage-annee-securite.sql`** (lecture seule, rejouable)
+affiche l etat des annees, les gardes reellement presentes dans le catalogue,
+les policies telles qu elles sont EN BASE — le depot a deja menti le 5 aout — et
+tente la purge **sous l identite de chaque role** pour constater les refus.
+- **VERROU DE SURETE** : le script s arrete AVANT tout appel si une annee est
+  archivee, cas ou l appel de test pourrait reussir. Un test ne doit jamais
+  pouvoir reussir la ou il verifie qu on echoue.
+
 
 ## Prochaine etape
 
@@ -5169,6 +5216,12 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/harden-purge-school-year.sql` : la purge refuse
+  desormais l annee EN COURS et une annee DEJA PURGEE. Le controle d annee courante
+  ne vivait que dans la server action, or une RPC s appelle directement depuis le
+  navigateur — « l ecran interdit, l API autorise ». Jouer d abord
+  `supabase/controles/05-passage-annee-securite.sql` (lecture seule) pour voir l avant,
+  puis le rejouer apres : les deux lignes doivent passer de `false` a `true`.
 - [ ] Executer `supabase/migrations/add-medical-notes-to-import.sql` : l import ecrit
   desormais `students.medical_notes` (la colonne et la fiche existaient deja, il manquait
   le chemin). La migration **rapiece** `import_foyer` a partir de sa definition REELLE
