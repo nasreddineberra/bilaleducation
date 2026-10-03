@@ -4817,6 +4817,67 @@ de `public/` reste suivi (verifie).
 l utilisateur (MEHADHBI a 3 apprenants, `BENABBOU Abdelkader` dans le bon ordre,
 adresse/ville/code postal correctement separes).
 
+#### 3 octobre 2026 (fin) — Les NOTES MEDICALES entrent dans l import
+
+Demande de l utilisateur apres la livraison du point 6 : les onze informations
+de sante extraites de l export restaient a ressaisir a la main, « cela me gene
+beaucoup ». Elles sont desormais importees.
+
+**RIEN A CREER COTE APPRENANT** : `students.medical_notes` existait deja et la
+fiche l affichait deja (FloatTextarea « Notes médicales »). Il ne manquait que
+le CHEMIN vers ce champ. Verifier avant de proposer une colonne a-t-il evite une
+migration de table inutile.
+
+**LE POINT QU IL NE FALLAIT PAS RATER** : `COLS_ENFANT` (ImportClient) n est pas
+une liste d affichage — **c est elle qui construit la charge envoyee au
+serveur**. Une colonne ajoutee au catalogue mais oubliee la aurait ete lue dans
+le fichier, affichee a l ecran, et **jamais enregistree**. Une perte
+silencieuse, le pire des resultats. Le commentaire du code le dit maintenant.
+- Les notes medicales ont leur **propre ligne pleine largeur**, hors des quatre
+  colonnes d identite : c est du texte libre (« Allergique au rachis
+  +diabetique de type 1 »), illisible au quart de la largeur. Le choix des
+  quatre colonnes serrees etait delibere, on ne le casse pas pour un 5e champ.
+
+**MIGRATION `add-medical-notes-to-import.sql` — elle RAPIECE au lieu de
+reecrire.** La forme habituelle serait de recopier les 200 lignes de
+`import_foyer` avec deux lignes en plus ; elle ecraserait SANS RIEN DIRE une
+derive eventuelle entre la base et le depot. On travaille donc sur la definition
+REELLE (`pg_get_functiondef`), on n y remplace que deux passages avec des
+ancrages tolerants aux espaces, et on LEVE si les ancrages ont bouge. Rejouable
+sans effet (elle sort si `medical_notes` y est deja).
+- `import_foyer` enumere ses colonnes une par une a dessein : sans la migration,
+  la valeur serait arrivee dans `p_enfants` et aurait ete ignoree en silence.
+- **Un apprenant deja enregistre n est jamais modifie** : les notes ne s ecrivent
+  qu a la creation et se corrigent ensuite sur la fiche. Un fichier perime ne
+  peut pas ecraser une allergie mise a jour entre-temps.
+
+**DEUX NETTOYAGES decides en lisant le resultat, pas en theorie**
+- **« COURS ADO » ecarte** : ce n est pas une note medicale mais une indication
+  de cours, sur un garcon de 16 ans. Une fiche dont les « Notes médicales »
+  disent « COURS ADO » abime le seul champ ou l on doit pouvoir faire confiance
+  a une allergie.
+- Le commentaire est repris sur **n importe quel exemplaire** d un groupe de
+  doublons : sinon reunir les doublons aurait fait disparaitre l allergie que
+  l un d eux portait. Majuscule initiale, pour que « orthophoniste » et
+  « Orthophoniste » ne coexistent pas sur deux fiches.
+
+**LE CONVERTISSEUR ENTRE AU DEPOT** (`scripts/import-bilalnotes/`, Python sans
+dependance, + README). La VRAIE importation aura lieu apres le nettoyage
+d avant-livraison, peut-etre dans une autre session : les regles eprouvees ce
+jour — fusions de foyers, rapprochement flou borne au foyer, arbitrage par la
+colonne classe, corrections d identite sur signal verifiable — ne pouvaient pas
+rester dans un brouillon. Ecrit en Python et non en `.mts` comme les autres
+scripts : reecrire en TypeScript des regles qui viennent d etre prouvees aurait
+echange de la correctness contre de la coherence de forme.
+
+**Verifie** : 24 colonnes au gabarit, 176 lignes lues par le lecteur de l app,
+**0 anomalie / 103 foyers / 0 bloque**, et les 10 notes medicales relues une par
+une. Type-check vert, 0 erreur de lint.
+
+**Reste a jouer** : la migration. Et au moment de la vraie importation, trancher
+la paire HIDAOUI (`JASSIM` / `Jessim`, meme date — doublon ou jumeaux) et dire
+si « totale » inclut les 172 foyers sans enfant, qui restent hors de portee de
+cet ecran.
 
 ## Prochaine etape
 
@@ -5086,6 +5147,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/add-medical-notes-to-import.sql` : l import ecrit
+  desormais `students.medical_notes` (la colonne et la fiche existaient deja, il manquait
+  le chemin). La migration **rapiece** `import_foyer` a partir de sa definition REELLE
+  plutot que de la reecrire — recopier 200 lignes ecraserait sans rien dire une derive
+  entre la base et le depot. Elle leve si les ancrages ont bouge, et se rejoue sans effet.
 - [x] Executer `supabase/migrations/open-all-registered-to-resp-pedago.sql` : le
   responsable pedagogique lit desormais les messages « tous les contacts »
   (`all_registered`), qu'il ne voyait pas alors que l'enseignant, lui, les voit —

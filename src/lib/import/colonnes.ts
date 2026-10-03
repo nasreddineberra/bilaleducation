@@ -382,6 +382,21 @@ export const COLONNES: Colonne[] = [
   { cle: 'first_name',          entete: 'Enfant Prénom',        cible: 'enfant',  obligatoire: true,  normaliser: prenom },
   { cle: 'date_of_birth',       entete: 'Date de naissance',    cible: 'enfant',  obligatoire: true,  normaliser: date, afficher: afficherDate },
   { cle: 'gender',              entete: 'Genre',                cible: 'enfant',  obligatoire: true,  normaliser: genre.normaliser, valeursAcceptees: genre.formes, libelles: genre.libelles, afficher: genre.afficher },
+
+  // ── NOTES MEDICALES ────────────────────────────────────────────────────────
+  //
+  // Meme libelle que la fiche apprenant, qui porte deja `students.medical_notes`
+  // dans un FloatTextarea « Notes médicales » : l'import ne cree pas un champ
+  // de plus, il ouvre un chemin vers celui qui existe.
+  //
+  // Elle est arrivee le 03/10 d'un cas reel : l'export de l'ancien logiciel de
+  // Bilal-Neuville portait deux allergies — dont une avec diabete de type 1 —
+  // qu'une migration sans cette colonne aurait laissees sur le quai.
+  //
+  // DONNEE DE SANTE, au sens de l'article 9 du RGPD. La colonne existait deja
+  // et la fiche l'affiche deja : l'import n'ouvre aucune exposition nouvelle,
+  // mais la valeur voyage desormais dans un fichier `.xlsx` qui circule.
+  { cle: 'medical_notes',       entete: 'Notes médicales',      cible: 'enfant',  obligatoire: false, normaliser: texte },
 ]
 
 

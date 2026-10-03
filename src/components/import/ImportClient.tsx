@@ -78,8 +78,27 @@ const STYLE_GRAVITE: Record<string, string> = {
   avertissement: 'text-amber-700',
 }
 
-/** Colonnes montrees en clair sur la ligne enfant. */
-const COLS_ENFANT = ['last_name', 'first_name', 'date_of_birth', 'gender']
+/**
+ * Colonnes de l'apprenant.
+ *
+ * ┌─ CETTE LISTE EST AUSSI LA CHARGE ENVOYEE AU SERVEUR ─────────────────────┐
+ * │ Elle ne sert pas qu'a l'affichage : `enregistrer()` construit le JSON de  │
+ * │ chaque enfant en la parcourant. Une colonne lue dans le fichier mais      │
+ * │ absente d'ici serait affichee a l'ecran puis JAMAIS ENREGISTREE — une     │
+ * │ perte silencieuse, le pire des resultats. Toute colonne `cible: 'enfant'` │
+ * │ ajoutee au catalogue doit donc entrer ici aussi.                          │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ */
+const COLS_ENFANT = ['last_name', 'first_name', 'date_of_birth', 'gender', 'medical_notes']
+
+/**
+ * Les quatre champs d'identite, qui tiennent sur une seule ligne.
+ *
+ * Les notes medicales en sont EXCLUES a dessein : c'est du texte libre
+ * (« Allergique au rachis +diabetique de type 1 »), illisible dans une colonne
+ * au quart de la largeur. Elles ont leur propre ligne, en dessous.
+ */
+const COLS_ENFANT_IDENTITE = COLS_ENFANT.filter(c => c !== 'medical_notes')
 
 /**
  * Libelles COURTS des champs de l'apprenant.
@@ -97,6 +116,7 @@ const COURT_ENFANT: Record<string, string> = {
   first_name:    'Prénom',
   date_of_birth: 'Naissance',
   gender:        'Genre',
+  medical_notes: 'Notes médicales',
 }
 
 /**
@@ -570,7 +590,7 @@ function LigneFoyer({
                 seule ligne, quitte a etre etroits. En `auto-fill` ils se
                 repliaient a deux par deux des que le bloc passait en demi-largeur. */}
             <div className="grid grid-cols-4 gap-1">
-              {COLS_ENFANT.map(cle => (
+              {COLS_ENFANT_IDENTITE.map(cle => (
                 <Champ
                   key={cle}
                   libelle={COURT_ENFANT[cle] ?? libelleColonne(cle)}
@@ -593,6 +613,21 @@ function LigneFoyer({
                   onChange={(v: string) => onModifier(e.ligne, cle, v)}
                 />
               ))}
+            </div>
+
+            {/* Les notes medicales sur LEUR PROPRE LIGNE, pleine largeur : c'est
+                du texte libre (« Allergique au rachis +diabetique de type 1 »),
+                qu'une 5e colonne au quart de la largeur tronquerait. */}
+            <div className="mt-1">
+              <Champ
+                libelle={COURT_ENFANT.medical_notes}
+                libelleComplet={libelleColonne('medical_notes')}
+                lecture={e.action === 'rien'}
+                titreLecture="Déjà enregistré : les notes médicales se corrigent sur la fiche de l'apprenant."
+                valeur={valeurAffichee('medical_notes', e.valeurs, e.bruts)}
+                erreur={e.anomalies.find(a => a.cle === 'medical_notes')?.message}
+                onChange={(v: string) => onModifier(e.ligne, 'medical_notes', v)}
+              />
             </div>
 
             {/* Ce qui ne vise aucun champ : doublon interne, enfant deja
