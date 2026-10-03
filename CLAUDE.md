@@ -4870,6 +4870,17 @@ rester dans un brouillon. Ecrit en Python et non en `.mts` comme les autres
 scripts : reecrire en TypeScript des regles qui viennent d etre prouvees aurait
 echange de la correctness contre de la coherence de forme.
 
+**L INFOBULLE DES CHAMPS VERROUILLES NOMME ENFIN LE CHAMP** (signale a l ecran
+par l utilisateur). Elle etait ecrite EN DUR et annoncait « le prénom » sur les
+quatre champs d identite : on survolait la date de naissance et on lisait une
+phrase sur le prenom. En ajoutant une phrase propre aux notes medicales, je
+n avais fait que rendre l incoherence visible. Le groupe nominal et l accord du
+verbe ne se derivent pas du libelle (« LA date de naissance SE CORRIGE », « LES
+notes medicales SE CORRIGENT ») : table explicite pour les 5 champs de
+l apprenant, et cote FOYER on CITE le libelle entre guillemets (« Tuteur 1 NOM »)
+plutot que de tenir une seconde table d articles — precis, et aucune faute
+d accord possible. Les 3 messages figes du fichier sont traites.
+
 **Verifie** : 24 colonnes au gabarit, 176 lignes lues par le lecteur de l app,
 **0 anomalie / 103 foyers / 0 bloque**, et les 10 notes medicales relues une par
 une. Type-check vert, 0 erreur de lint.

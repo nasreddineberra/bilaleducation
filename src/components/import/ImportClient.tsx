@@ -139,6 +139,33 @@ const CLES_IDENTITE_FOYER = [
 const libelleColonne = (cle: string) => COLONNES.find(c => c.cle === cle)?.entete ?? cle
 
 /**
+ * Ce que dit l'infobulle d'un champ VERROUILLE — et elle nomme le champ survole.
+ *
+ * Elle annoncait « le prénom » sur les quatre champs d'identite : on survolait
+ * la date de naissance et on lisait une phrase sur le prenom. Le groupe nominal
+ * et l'accord du verbe ne se derivent pas du libelle (« LA date de naissance SE
+ * CORRIGE », « LES notes medicales SE CORRIGENT »), d'ou cette table explicite.
+ */
+const SUJET_ENFANT: Record<string, string> = {
+  last_name:     'le nom se corrige',
+  first_name:    'le prénom se corrige',
+  date_of_birth: 'la date de naissance se corrige',
+  gender:        'le genre se corrige',
+  medical_notes: 'les notes médicales se corrigent',
+}
+
+const messageEnfantVerrouille = (cle: string) =>
+  `Déjà enregistré : ${SUJET_ENFANT[cle] ?? 'ce champ se corrige'} sur la fiche de l'apprenant.`
+
+/**
+ * Cote foyer les champs verrouilles sont les quatre noms des tuteurs : on CITE
+ * le libelle plutot que de tenir une seconde table d'articles. « Tuteur 1 NOM »
+ * entre guillemets dit precisement lequel, sans faute d'accord possible.
+ */
+const messageFoyerVerrouille = (cle: string) =>
+  `Foyer déjà enregistré : « ${libelleColonne(cle)} » se corrige sur la fiche parents.`
+
+/**
  * Ce que le champ MONTRE.
  *
  * La base garde « 2015-07-14 » et « male » ; l'ecran doit afficher
@@ -607,7 +634,7 @@ function LigneFoyer({
                   // Les coordonnees du FOYER, elles, restent modifiables : les
                   // changer produit une vraie mise a jour, c'est un usage legitime.
                   lecture={e.action === 'rien'}
-                  titreLecture="Déjà enregistré : le prénom se corrige sur la fiche de l'apprenant."
+                  titreLecture={messageEnfantVerrouille(cle)}
                   valeur={valeurAffichee(cle, e.valeurs, e.bruts)}
                   erreur={e.anomalies.find(a => a.cle === cle)?.message}
                   onChange={(v: string) => onModifier(e.ligne, cle, v)}
@@ -623,7 +650,7 @@ function LigneFoyer({
                 libelle={COURT_ENFANT.medical_notes}
                 libelleComplet={libelleColonne('medical_notes')}
                 lecture={e.action === 'rien'}
-                titreLecture="Déjà enregistré : les notes médicales se corrigent sur la fiche de l'apprenant."
+                titreLecture={messageEnfantVerrouille('medical_notes')}
                 valeur={valeurAffichee('medical_notes', e.valeurs, e.bruts)}
                 erreur={e.anomalies.find(a => a.cle === 'medical_notes')?.message}
                 onChange={(v: string) => onModifier(e.ligne, 'medical_notes', v)}
@@ -652,7 +679,7 @@ function LigneFoyer({
                   libelle={c.entete}
                   obligatoire={c.obligatoire}
                   lecture={!!foyer.existantId && CLES_IDENTITE_FOYER.includes(c.cle)}
-                  titreLecture="Foyer déjà enregistré : les noms des tuteurs se corrigent sur la fiche parents."
+                  titreLecture={messageFoyerVerrouille(c.cle)}
                   valeur={valeurAffichee(c.cle, foyer.valeurs, foyer.bruts)}
                   erreur={foyer.erreursChamps[c.cle]}
                   onChange={(v: string) => onModifier(premiereLigne, c.cle, v)}
