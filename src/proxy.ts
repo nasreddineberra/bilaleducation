@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 // ── Délais de session (en secondes) ──────────────────────────────────────────
 import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE, sessionCookieDomain } from '@/lib/session-config'
 import { evaluerSession } from '@/lib/auth/session-decision'
-import { COOKIE_SESSION, entetesDePurge } from '@/lib/auth/session-cookies'
+import { COOKIE_SESSION, entetesDePurge, doitPurger } from '@/lib/auth/session-cookies'
 import { estSousDomaineConsole } from '@/lib/tenant/console-host'
 
 export async function proxy(request: NextRequest) {
@@ -139,6 +139,18 @@ export async function proxy(request: NextRequest) {
       if (isEditeur) {
         return NextResponse.redirect(new URL('/superadmin', request.url))
       }
+
+      // DECONNEXION DE LA CONSOLE : la purge a lieu ICI, parce que cette
+      // branche rend la main AVANT celle de fin de fonction. Le traceur est
+      // `httpOnly` : le clic sur « Deconnexion » ne peut pas l effacer, et sans
+      // cette ligne il survivait avec un horodatage perime — puis deconnectait
+      // l editeur a son entree suivante dans une ecole, le cookie etant partage
+      // par tout le domaine.
+      //
+      // Pas de purge sur la branche ci-dessus : un editeur deja connecte qui
+      // arrive ici est simplement renvoye vers sa console. Sa session est
+      // valide, la lui retirer serait une punition sans rapport.
+      purgerTraceurs(response)
       return response
     }
 
@@ -546,7 +558,7 @@ export async function proxy(request: NextRequest) {
   // (hard-nav côté client) ne peut pas effacer ce cookie httpOnly, qui garde alors
   // un `lastActivity` périmé. Sans ce nettoyage, la première reconnexion réussie est
   // aussitôt re-déconnectée par le contrôle d'inactivité (« double login »).
-  if (pathname === '/login') {
+  if (doitPurger(pathname)) {
     purgerTraceurs(response)
   }
 

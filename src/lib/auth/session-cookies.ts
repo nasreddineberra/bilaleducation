@@ -77,3 +77,35 @@ export function entetesDePurge(domaine?: string): string[] {
   }
   return entetes
 }
+
+/**
+ * LES CHEMINS QUI DOIVENT EFFACER LES TRACEURS.
+ *
+ * ┌─ POURQUOI UNE LISTE, ET POURQUOI DEUX ENTREES ───────────────────────────┐
+ * │ Un traceur est `httpOnly` : le navigateur ne peut PAS l effacer. Quand    │
+ * │ l utilisateur clique « Deconnexion », le client appelle `signOut()` et    │
+ * │ s en va — mais `app-session` reste, avec un `lastActivity` perime. Seul   │
+ * │ le serveur peut le supprimer, et il ne le fait qu aux chemins listes ici. │
+ * │                                                                           │
+ * │ `/login` y est depuis le 12 juillet : sans lui, la premiere reconnexion   │
+ * │ reussie etait aussitot re-deconnectee (« double login »).                 │
+ * │                                                                           │
+ * │ `/superadmin/login` MANQUAIT. La condition etait `pathname === '/login'`, │
+ * │ une egalite stricte. Or le cookie porte le domaine entier                 │
+ * │ (`.bilaleducation.fr`), donc il est PARTAGE entre la console et les       │
+ * │ ecoles : un editeur qui quittait la console gardait un horodatage perime, │
+ * │ et s il entrait ensuite dans une ecole, le controle d inactivite le       │
+ * │ deconnectait aussitot. Meme montage que le defaut du 12 juillet, sur      │
+ * │ l autre domaine — piste notee le 10 aout, jamais verifiee jusqu ici.      │
+ * └───────────────────────────────────────────────────────────────────────────┘
+ */
+export const CHEMINS_DE_PURGE = ['/login', '/superadmin/login'] as const
+
+/**
+ * EGALITE STRICTE, jamais `startsWith` : ce dernier accepterait
+ * `/loginbidon` ou `/login-autre-chose`, donc n importe quelle route future
+ * commencant par ces lettres purgerait la session sans qu on l ait voulu.
+ */
+export function doitPurger(pathname: string): boolean {
+  return (CHEMINS_DE_PURGE as readonly string[]).includes(pathname)
+}

@@ -20,8 +20,10 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 
-import { entetesDePurge, COOKIE_SESSION, COOKIE_MARQUEUR_RETIRE, COOKIES_A_PURGER }
-  from './session-cookies.ts'
+import {
+  entetesDePurge, doitPurger,
+  COOKIE_SESSION, COOKIE_MARQUEUR_RETIRE, COOKIES_A_PURGER, CHEMINS_DE_PURGE,
+} from './session-cookies.ts'
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('Les en-têtes de purge', () => {
@@ -144,5 +146,54 @@ describe('UN SEUL ÉCRIVAIN : contrôle structurel des sources', () => {
     assert.ok(sources.length > 200, `seulement ${sources.length} sources lues`)
     assert.ok(sources.some((f) => f.endsWith('proxy.ts')), 'proxy.ts doit être dans le balayage')
     assert.ok(chercher('NextResponse').length > 0, 'le balayage doit trouver du code connu')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('QUELS CHEMINS PURGENT (point C du 3 octobre)', () => {
+  // Un traceur est `httpOnly` : le navigateur ne peut pas l effacer. Le clic sur
+  // « Deconnexion » appelle `signOut()` et s en va, mais le cookie reste —
+  // SEUL LE SERVEUR peut le supprimer, et seulement aux chemins listes.
+
+  test('les deux ecrans de connexion purgent', () => {
+    assert.equal(doitPurger('/login'), true, 'ecole')
+    assert.equal(doitPurger('/superadmin/login'), true, 'console')
+  })
+
+  test('/superadmin/login etait OUBLIE, et le cookie est PARTAGE', () => {
+    // La condition etait `pathname === '/login'`, une egalite stricte. Or le
+    // cookie porte `.bilaleducation.fr` : il vaut pour la console ET pour les
+    // ecoles. Un editeur quittant la console gardait donc un horodatage perime,
+    // et son entree suivante dans une ecole le deconnectait aussitot — le
+    // montage exact du « double login » du 12 juillet, sur l autre domaine.
+    assert.ok(CHEMINS_DE_PURGE.includes('/superadmin/login'))
+  })
+
+  test('EGALITE STRICTE : aucun chemin voisin ne purge', () => {
+    // `startsWith` aurait accepte ces quatre-la, et n importe quelle route
+    // future commencant par les memes lettres aurait efface la session.
+    for (const chemin of ['/loginbidon', '/login-autre', '/superadmin/login2', '/logins']) {
+      assert.equal(doitPurger(chemin), false, chemin)
+    }
+  })
+
+  test('les routes ordinaires ne purgent jamais', () => {
+    for (const chemin of ['/dashboard', '/superadmin', '/', '/auth/totp-challenge', '/vitrine']) {
+      assert.equal(doitPurger(chemin), false, chemin)
+    }
+  })
+
+  test('CABLAGE REEL : la branche console de proxy.ts purge bien', () => {
+    // `doitPurger` dit la REGLE ; ce test verifie qu elle est APPLIQUEE la ou
+    // il faut. La branche `/superadmin/login` rend la main AVANT la purge de fin
+    // de fonction : la liste seule ne suffirait donc pas, et un test qui ne
+    // regarderait que `doitPurger` passerait au vert sur un cablage absent.
+    const proxy = readFileSync(join(import.meta.dirname, '..', '..', 'proxy.ts'), 'utf-8')
+    const lignes = proxy.split('\n')
+    const i = lignes.findIndex((l) => l.includes("pathname === '/superadmin/login'"))
+    assert.ok(i > 0, 'la branche /superadmin/login doit exister dans proxy.ts')
+    const fenetre = lignes.slice(i, i + 30).join('\n')
+    assert.match(fenetre, /purgerTraceurs\(response\)/,
+      'la branche console doit purger avant de rendre la main')
   })
 })

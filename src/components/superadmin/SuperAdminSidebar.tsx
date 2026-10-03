@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Building2, Activity, LifeBuoy, Power } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
@@ -38,16 +38,22 @@ function Item({ href, libelle, icone, actif }: {
 
 export default function SuperAdminSidebar({ nom }: SuperAdminSidebarProps) {
   const pathname = usePathname()
-  const router   = useRouter()
 
   const handleLogout = async () => {
     try {
       await authRepository.signOut()
-      router.push('/superadmin/login')
-      router.refresh()
     } catch (error) {
       console.error('Erreur de déconnexion:', error)
     }
+    // NAVIGATION DURE, et HORS du try : motif de `DashboardNav` cote ecole.
+    //
+    // Deux raisons, et chacune a ete payee. (1) Une navigation souple
+    // (`router.push`) ne refait pas de requete complete : le state React et le
+    // client Supabase en cache survivent. (2) Elle etait DANS le try, donc un
+    // `signOut()` qui echoue laissait l utilisateur sur place, apparemment
+    // connecte. On part dans tous les cas — c est la purge serveur sur
+    // `/superadmin/login` qui fait le vrai travail.
+    window.location.href = '/superadmin/login'
   }
 
   useInactivityLogout(handleLogout)
