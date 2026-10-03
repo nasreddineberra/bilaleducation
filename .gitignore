@@ -47,3 +47,7 @@ next-env.d.ts
 # qui ne s efface pas. La regle ne vise QUE la racine : le gabarit d import
 # vit dans public/ et reste suivi.
 /*.xlsx
+
+# Bytecode Python (scripts/import-bilalnotes)
+__pycache__/
+*.pyc
