@@ -4722,6 +4722,101 @@ visibilite.
 qui est une manipulation de l'utilisateur — un vrai fichier, de vraies familles.
 Les 4 lots sont livres depuis le 16/08, le lot 1 (doublons) eprouve des deux cotes.
 
+#### 3 octobre 2026 (suite) — POINT 6 : l import reel est PASSE, et ce que l ecran seul a vu
+
+Deux exports de l ancien logiciel de l ecole Bilal-Neuville (290 foyers, 210
+lignes enfant), lies par `ID PARENTS` — 0 enfant orphelin. Resultat en base,
+**verifie par requete** : 103 foyers et 176 apprenants ecrits, totaux coherents
+(31+103 = 134 foyers, 45+176 = 221 apprenants). Rien de tronque.
+
+**LA METHODE QUI A TOUT PORTE : faire lire le fichier produit par LE LECTEUR DE
+L APPLICATION** (`analyserLignes` + `COLONNES` via `npx tsx`), et non par un
+lecteur ecrit pour l occasion. Si l app refuse une valeur, elle la refusera a
+l ecran. Le fichier est de surcroit un **CLONE du gabarit officiel** dont on ne
+remplace que les lignes : cellules `inlineStr`, listes deroulantes et colonnes
+en format texte sont celles que l app distribue, pas celles qu on aurait
+devinees. **0 anomalie, 0 foyer bloque** avant meme le premier depot.
+
+**L ANCIEN LOGICIEL CREAIT UN SECOND FOYER A CHAQUE REINSCRIPTION** : 13
+personnes y figuraient deux fois. Le declencheur `guard-parents-unique-tutor`
+les aurait refusees une par une. Fusion par identite de tuteur (union-find),
+champs repris du plus fourni, enfants reunis.
+
+**LE DEFAUT QUE MES CONTROLES NE POUVAIENT PAS VOIR.** Sur la capture de
+l utilisateur : **sept apprenants pour trois enfants** chez MEHADHBI. Mes
+controles annonçaient « 0 collision » et ils **disaient vrai** — ils comparaient
+`(nom, prenom, date)` a l identique, et a ce jeu les sept lignes sont sept
+personnes. **Les deux gardes en base auraient ete tout aussi aveugles.**
+L ancien logiciel avait cumule DEUX fautes sur la meme famille : la date
+decalee d un jour ET le prenom transpose (« Zakariya » / « Zakaryia »). Aucune
+des deux prise seule n echappe a une comparaison stricte ; les deux ensemble,
+si. **Le defaut n etait pas dans la mesure, il etait dans la question posee.**
+- Rapprochement rendu FLOU mais **borne au foyer** : meme nom, prenom equivalent
+  (identique, anagramme, ou 85 % de ressemblance) et dates a 7 jours pres. Le
+  cloisonnement est ce qui rend la regle sure — deux cousins homonymes nes a deux
+  jours d ecart existent, deux enfants du MEME foyer presque homonymes, non.
+  13 enfants reconstitues a partir de 2 a 7 lignes chacun.
+- **L ARBITRE EST LA COLONNE CLASSE**, et c est l ironie du lot : l utilisateur
+  avait dit que les classes ne l interessaient pas, et elles ne sont PAS
+  importees — mais la ligne qui en porte une est celle que l ecole a reellement
+  utilisee pour inscrire l enfant. Elle a tranche la date ET l orthographe des
+  trois cas (Djibril 03-06, Kacem 11-05, Zakariya-Ilyes 12-05). On s en sert
+  pour choisir, puis on la jette. A defaut de classe : le plus petit ID, les
+  exemplaires etant des reinscriptions.
+- **CE QUI N A PAS ETE TRANCHE** : HIDAOUI `JASSIM` / `Jessim`, 83 %, **meme
+  date exactement**. Chez MEHADHBI les dates DIFFERAIENT, ce qui excluait des
+  jumeaux ; ici elles sont identiques, ce qui est precisement a quoi des jumeaux
+  ressemblent. Laisses SEPARES et signales : **deux fiches en trop se
+  suppriment, un enfant fondu dans un autre est perdu sans qu on le voie.**
+  L asymetrie du cout decide, pas la vraisemblance.
+
+**UN CONTROLE QUI NE MESURE RIEN ANNONCE « 0 ».** Mon comparateur de collisions
+avec le seed trouvait **0 eleve** dans `seed-parents-students-bulk.sql` (le
+genre est insere entre le prenom et la date, mon motif l oubliait) et concluait
+« 0 collision » — un zero obtenu en ne comparant rien. Il affiche desormais le
+nombre de lignes REELLEMENT lues (52 tuteurs, 45 eleves) et crie si c est trop
+peu. Meme famille de piege que le 16 aout et le 02 octobre.
+
+**AUTRES CORRECTIONS, chacune sur un signal VERIFIABLE** (et non sur une
+impression) : une inversion NOM/prenom (`ABDELKADER Benabbou` -> `BENABBOU
+Abdelkader`, son prenom etant le nom de SES enfants) ; un tuteur `????? ????`
+retire (pas une lettre) ; `REDJEM EPOUSE` -> `REDJEM`. **Deux faux positifs
+ecartes apres verification** (`BEGGALI Abdelaziz`, `TAIB HAMANI Saber` portent
+bien le nom de leur enfant), et **38 meres sous leur nom de jeune fille NON
+touchees** : ne pas porter le nom de l enfant est le cas normal.
+
+**DECISIONS DE PERIMETRE** : 172 foyers sans enfant ecartes (l ecran cree un
+foyer AVEC ses apprenants, il ne sait pas faire autrement) ; 9 adultes mis de
+cote — neuf fois sur dix **le parent lui-meme**, inscrit en cours adultes, et
+dans l app un adulte est un tuteur de `parent_class_enrollments`, jamais une
+ligne `students` ; 3 permutations tuteur 1/2 pour que l email obligatoire soit
+porte par le tuteur 1 ; 2 foyers sans aucune adresse ecartes. **Tout l ecarte
+est reporte** dans un classeur de complement (206 lignes avec leur motif) —
+rien ne disparait en silence.
+- **11 informations medicales sauvees** de la colonne « Commentaire » avant de
+  jeter le reste, dont deux allergies (une avec diabete de type 1). Le gabarit
+  n a pas de champ pour les accueillir ; elles sont donc a ressaisir, mais elles
+  ne sont pas perdues. Les 47 « Non / RAS / Aucun » sont ecartes : ils ne disent
+  rien.
+
+**A CONNAITRE** : `import_foyer` ecrit `enrollment_date = CURRENT_DATE` et tire
+le prefixe du numero de la meme date — tous les importes sont donc « inscrits
+le 03/10/2026 » (`ELV-202610-xxx`). L export ne portait aucune date
+d inscription : il n y avait rien de mieux, mais les fiches ne refletent pas
+l anciennete reelle des familles. La fonction recopie aussi adresse, ville, code
+postal et contact d urgence du tuteur 1 **sur chaque fiche enfant** — d ou
+l importance du nettoyage d adresse (le code postal valait « 0 » dans 95 cas sur
+118, et la voie contenait souvent code postal ET ville).
+
+**`.gitignore` : `/*.xlsx` a la racine.** Les exports et les fichiers d import
+portent les donnees personnelles de 290 familles et n ont rien a faire dans un
+historique git, qui ne s efface pas. La regle ne vise QUE la racine : le gabarit
+de `public/` reste suivi (verifie).
+
+**LE POINT 6 EST CLOS**, eprouve avec de vraies donnees et verifie a l ecran par
+l utilisateur (MEHADHBI a 3 apprenants, `BENABBOU Abdelkader` dans le bon ordre,
+adresse/ville/code postal correctement separes).
+
 
 ## Prochaine etape
 

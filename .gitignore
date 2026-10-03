@@ -40,3 +40,10 @@ next-env.d.ts
 
 # Configuration locale d autres outils (Qwen, etc.) — comme .claude/
 .qwen/
+
+# Classeurs a la racine : exports d anciens logiciels et fichiers d import.
+# Ils portent des DONNEES PERSONNELLES REELLES (noms, emails, telephones,
+# adresses de familles entieres) et n ont rien a faire dans l historique git,
+# qui ne s efface pas. La regle ne vise QUE la racine : le gabarit d import
+# vit dans public/ et reste suivi.
+/*.xlsx
