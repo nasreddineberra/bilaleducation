@@ -353,7 +353,24 @@ export default function ImportClient({ foyers, enfants }: Props) {
     .reduce((n, f) => n + f.enfants.filter(e => e.action === 'creer').length, 0)
 
   return (
-    <div className="space-y-3 animate-fade-in">
+    // ── LA HAUTEUR SE PARTAGE, ELLE NE SE DEVINE PAS ────────────────────────
+    //
+    // Le tableau etait borne a `max-h-[78vh]` : une part FIXE de la fenetre,
+    // aveugle a ce qui le precede. Des que le compte rendu du dernier
+    // enregistrement s inserait au-dessus, la somme depassait et <main> se
+    // mettait a defiler — et ca empirait a chaque enregistrement, le compte
+    // rendu gagnant une ligne par foyer ecrit.
+    //
+    // <main> est deja un conteneur de defilement de hauteur definie : on remplit
+    // sa hauteur (`h-full`), les cartes gardent la leur, et le tableau prend LE
+    // RESTE (`flex-1`). Plus aucune valeur a re-regler si un bloc s ajoute
+    // au-dessus.
+    //
+    // Le `min-h-[14rem]` du tableau est un PLANCHER, pas une hauteur : si les
+    // blocs du haut deviennent tres longs — une liste d anomalies fournie — le
+    // tableau cesse de retrecir et c est <main> qui defile. Mieux vaut faire
+    // defiler la page que reduire le tableau a une bande inutilisable.
+    <div className="flex h-full flex-col gap-3 animate-fade-in">
 
       {/* ── Dépôt du fichier ── */}
       <div className="card p-2.5 space-y-2">
@@ -451,8 +468,8 @@ export default function ImportClient({ foyers, enfants }: Props) {
       {/* ── Le tableau ── */}
       {lignes && resultat.length > 0 && (
         <>
-          <div className="card p-0 overflow-hidden">
-            <div className="max-h-[78vh] overflow-y-auto list-scroll">
+          <div className="card p-0 overflow-hidden flex-1 min-h-[14rem]">
+            <div className="h-full overflow-y-auto list-scroll">
               <table className="w-full text-left text-xs" aria-label="Familles du fichier">
                 <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
                   <tr className="border-b border-warm-100">

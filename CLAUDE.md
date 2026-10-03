@@ -4881,6 +4881,17 @@ l apprenant, et cote FOYER on CITE le libelle entre guillemets (« Tuteur 1 NOM 
 plutot que de tenir une seconde table d articles — precis, et aucune faute
 d accord possible. Les 3 messages figes du fichier sont traites.
 
+**LA HAUTEUR DU TABLEAU SE PARTAGE AU LIEU DE SE DEVINER** (signale a l ecran).
+Apres un enregistrement, une barre de defilement apparaissait sur la page. Cause :
+le tableau etait borne a `max-h-[78vh]`, une part FIXE de la fenetre, aveugle a
+ce qui le precede — des que le compte rendu du dernier enregistrement s inserait
+au-dessus, la somme depassait. Et cela EMPIRAIT a chaque enregistrement, le
+compte rendu gagnant une ligne par foyer ecrit. `<main>` etant deja un conteneur
+de defilement de hauteur definie, l ecran remplit sa hauteur (`h-full`) et le
+tableau prend LE RESTE (`flex-1`) : plus aucune valeur a re-regler si un bloc
+s ajoute. Le `min-h-[14rem]` est un PLANCHER — si le haut devient tres long,
+c est la page qui defile plutot que le tableau qui se reduit a une bande.
+
 **Verifie** : 24 colonnes au gabarit, 176 lignes lues par le lecteur de l app,
 **0 anomalie / 103 foyers / 0 bloque**, et les 10 notes medicales relues une par
 une. Type-check vert, 0 erreur de lint.
