@@ -24,7 +24,8 @@ DECLARE
   etab     uuid;
   src      text;
   annee    uuid;
-  label    text;
+  v_label  text;   -- prefixe v_ : « label » entre en collision avec
+                   -- school_years.label, que PL/pgSQL refuse (42702).
   nb_arch  int;
   ligne    record;
   ident    record;
@@ -40,13 +41,13 @@ BEGIN
   r := r || E'\n═══ 0. ETAT DES ANNEES ══════════════════════════════════════════\n';
   FOR ligne IN
     SELECT label, is_current, end_date,
-           closed_at IS NOT NULL AS close, archived_at IS NOT NULL AS arch,
-           purged_at IS NOT NULL AS purg
+           closed_at IS NOT NULL AS est_close, archived_at IS NOT NULL AS est_arch,
+           purged_at IS NOT NULL AS est_purg
       FROM school_years WHERE etablissement_id = etab ORDER BY start_date
   LOOP
     r := r || format('  %-12s courante:%-5s fin:%s  close:%-5s archivee:%-5s purgee:%s%s',
                      ligne.label, ligne.is_current, ligne.end_date,
-                     ligne.close, ligne.arch, ligne.purg, E'\n');
+                     ligne.est_close, ligne.est_arch, ligne.est_purg, E'\n');
   END LOOP;
 
   SELECT count(*) INTO nb_arch FROM school_years
@@ -58,13 +59,13 @@ BEGIN
   END IF;
   r := r || E'  -> aucune annee archivee : les appels de test ne peuvent que REFUSER.\n';
 
-  SELECT id, school_years.label INTO annee, label
+  SELECT id, school_years.label INTO annee, v_label
     FROM school_years WHERE etablissement_id = etab AND is_current ORDER BY start_date LIMIT 1;
   IF annee IS NULL THEN
-    SELECT id, school_years.label INTO annee, label
+    SELECT id, school_years.label INTO annee, v_label
       FROM school_years WHERE etablissement_id = etab ORDER BY start_date LIMIT 1;
   END IF;
-  r := r || format('  annee servant aux essais : %s%s', label, E'\n');
+  r := r || format('  annee servant aux essais : %s%s', v_label, E'\n');
 
   -- ══ 1. LES GARDES DE LA RPC, LUES DANS LE CATALOGUE ════════════════════
   r := r || E'\n═══ 1. purge_school_year : ses gardes ════════════════════════════\n';
