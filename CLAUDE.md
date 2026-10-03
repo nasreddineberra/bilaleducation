@@ -4900,6 +4900,55 @@ une. Type-check vert, 0 erreur de lint.
 la paire HIDAOUI (`JASSIM` / `Jessim`, meme date — doublon ou jumeaux) et dire
 si « totale » inclut les 172 foyers sans enfant, qui restent hors de portee de
 cet ecran.
+#### 3 octobre 2026 (fin) — POINT C : la deconnexion de la console n effacait rien
+
+Arbitrage de l utilisateur : **corriger le CLIC MANUEL** ; l inactivite
+automatique de la console reste en place. **Et cela explique le souci du
+10 aout, reste sans diagnostic.**
+
+**TROIS ECARTS QUI SE CUMULAIENT**
+1. **SERVEUR** — la purge etait conditionnee a `pathname === '/login'`, une
+   egalite **stricte**, et la branche `/superadmin/login` **rend la main AVANT**
+   cette ligne. Le traceur est `httpOnly` : **seul le serveur peut l effacer**.
+   Il survivait donc a la deconnexion, avec un horodatage perime.
+2. **Le cookie porte le DOMAINE ENTIER** (`.bilaleducation.fr`), donc il est
+   **PARTAGE** entre la console et les ecoles. L editeur qui quittait la console
+   gardait un `lastActivity` perime, et son **entree suivante dans une ecole le
+   deconnectait aussitot** — le montage exact du « double login » du 12 juillet,
+   sur l autre domaine. Le symptome du 10 aout (« les ennuis apparaissent » apres
+   console → ecole → console) s explique par la ; le correctif du theme n avait
+   fait que deplacer le temoin, ce que le journal de ce jour-la soupconnait.
+3. **CLIENT** — `handleLogout` faisait `router.push`, une navigation **souple**,
+   et **DANS le `try`**. Cote ecole, le correctif du 12 juillet reposait sur une
+   navigation **DURE placee HORS du try** : un `signOut()` qui echoue laissait
+   l editeur sur place, **apparemment connecte**. Motif recopie.
+
+**CE QUI FERME LE DEFAUT** : `CHEMINS_DE_PURGE` + `doitPurger()` — la liste des
+chemins qui effacent les traceurs vit a **un** endroit, et elle est testee.
+**Egalite stricte et jamais `startsWith`**, qui accepterait `/loginbidon` ou
+n importe quelle route future commencant par ces lettres.
+- La purge est posee **dans** la branche console, et **pas sur sa premiere
+  sortie** : un editeur deja connecte qui arrive sur cet ecran est simplement
+  renvoye vers sa console — sa session est valide, la lui retirer serait une
+  punition sans rapport.
+
+**UN TEST DE CABLAGE, ET IL A ETE VU ROUGE.** `doitPurger` dit la REGLE ; un
+test qui s arreterait la **passerait au vert sur un cablage absent**, puisque la
+branche console rend la main avant la purge de fin de fonction. Un second test
+lit donc `proxy.ts` et exige `purgerTraceurs` dans les 30 lignes suivant le test
+de chemin. **Eprouve en le cassant** : purge retiree a la main, test rouge ;
+purge remise, test vert.
+
+**ET LE LINT A RATTRAPE MON PROPRE CONTROLE.** Mon script devait retirer
+`router` devenu inutile ; il a conclu « encore utilise » **parce que mon
+commentaire tout neuf mentionne `router.push`**. Le lint l a signale : variable
+assignee jamais utilisee. Motif du 16 aout — *une variable inutilisee peut etre
+une variable qui aurait DU l etre*.
+
+**Verifie** : 41/41 tests, type-check vert, 0 erreur de lint (517 avertissements,
+niveau inchange), build complet. **Reste a verifier a l ecran** : se deconnecter
+de la console, se reconnecter, entrer dans une ecole.
+
 #### 3 octobre 2026 (fin) — TESTS DE SESSION, LOT 2 : la purge et l ecrivain unique
 
 Les deux defauts de **CABLAGE** du 11 aout, fermes par deux tests de nature
