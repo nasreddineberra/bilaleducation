@@ -4939,6 +4939,15 @@ l ancrage a bouge, et **re-verifie que les gardes PREEXISTANTES sont toujours
 la** — rapiecer ne doit rien perdre. Le remplacement a ete **simule hors ligne**
 et le code genere relu avant livraison.
 
+**RESULTAT APRES DURCISSEMENT (controle rejoue le 03/10) : CONFORME SUR LES 4
+POINTS.** « refuse l annee EN COURS » et « refuse une annee DEJA PURGEE » sont
+passes de false a true, anon a disparu des droits d execution, et RIEN D AUTRE
+n a bouge — les 4 gardes preexistantes sont intactes, les policies inchangees,
+les 6 refus identiques, et le point 4 rend la meme matrice (finances lues par
+admin/direction/comptable seuls, parcours par tout le personnel sauf
+l enseignant). Rapiecer n a rien perdu, et c est precisement ce que la
+verification de la migration et ce avant/apres etaient charges de prouver.
+
 **CE QUE LE CONTROLE A TROUVE EN PLUS, le 03/10**
 - **`anon` pouvait EXECUTER la purge.** La migration d origine ecrit
   `REVOKE ALL ... FROM public` ; la base affichait `anon EXECUTE`. Les deux sont
