@@ -5250,11 +5250,13 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   navigateur — « l ecran interdit, l API autorise ». Jouer d abord
   `supabase/controles/05-passage-annee-securite.sql` (lecture seule) pour voir l avant,
   puis le rejouer apres : les deux lignes passent de `false` a `true`. Jouee le 03/10 ; sa verification finale n a pas leve, donc les 2 gardes sont posees, les 4 preexistantes intactes et anon revoque.
-- [ ] Executer `supabase/migrations/add-medical-notes-to-import.sql` : l import ecrit
+- [x] Executer `supabase/migrations/add-medical-notes-to-import.sql` : l import ecrit
   desormais `students.medical_notes` (la colonne et la fiche existaient deja, il manquait
   le chemin). La migration **rapiece** `import_foyer` a partir de sa definition REELLE
   plutot que de la reecrire — recopier 200 lignes ecraserait sans rien dire une derive
   entre la base et le depot. Elle leve si les ancrages ont bouge, et se rejoue sans effet.
+  **Jouee le 03/10** : l import de test a ecrit la note medicale de SABER Wassim
+  (`ELV-202610-177`) — sans la migration, la valeur aurait ete ignoree EN SILENCE.
 - [x] Executer `supabase/migrations/open-all-registered-to-resp-pedago.sql` : le
   responsable pedagogique lit desormais les messages « tous les contacts »
   (`all_registered`), qu'il ne voyait pas alors que l'enseignant, lui, les voit —

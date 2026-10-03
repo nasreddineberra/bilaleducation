@@ -536,10 +536,22 @@ cohérent. Trois blocs, dans cet ordre.
       un utilisateur authentifié pourrait créer une ligne `profiles` en choisissant son rôle,
       sans jamais passer par une server action. À éprouver en même temps que la matrice de
       rôles ci-dessous — c'est le même test, avec le même compte.
-- [ ] **Toi + Moi** — **Un compte de chaque rôle** : admin, direction, comptable,
-      responsable pédagogique, secrétaire, enseignant. La matrice RLS a été réécrite
-      le 5 août et n'a jamais été éprouvée. Le mode de défaillance est silencieux :
-      une politique trop stricte ne lève pas d'erreur, elle renvoie zéro ligne.
+- [x] **Toi + Moi** — **Un compte de chaque rôle** — **FAIT les 24 et 29 septembre**,
+      et le mode de défaillance annoncé s'est produit exactement comme prévu : le
+      **comptable ne voyait AUCUNE année scolaire** (`school_years` réservée à
+      admin/direction), donc la moitié de l'application vide, sans un message — 40
+      fichiers lisent cette table. Puis l'enseignant (sept défauts, dont une fiche
+      apprenant modifiable dont le refus RLS passait pour un succès), le responsable
+      pédagogique et la secrétaire (quatorze défauts, aucun de droits : des menus qui
+      fermaient ce que leur page autorisait). Trois migrations jouées, les six rôles
+      éprouvés à l'écran. **Méthode qui a porté** : un balayage sous identité réelle
+      (`SET LOCAL ROLE` + claims) qui ne remonte que les tables où un rôle voit ZÉRO
+      alors que des lignes existent — il détecte le trop strict, et il est aveugle au
+      trop permissif par construction (d'où le second balayage sur `pg_policies`).
+      Texte d'origine :
+      La matrice RLS a été réécrite le 5 août et n'a jamais été éprouvée. Le mode de
+      défaillance est silencieux : une politique trop stricte ne lève pas d'erreur,
+      elle renvoie zéro ligne.
 - [ ] **Toi** — Enrôlement TOTP des comptes qui y échappaient. **Mesuré le 15 août :
       3 comptes sur 9** ont un facteur vérifié (ALLOUCHE direction, SUPPORT Administrateur,
       SUPPORT Technique) — six restent à enrôler. Prévoir le téléphone et du temps.
