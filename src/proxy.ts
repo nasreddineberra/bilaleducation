@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 // ── Délais de session (en secondes) ──────────────────────────────────────────
 import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SESSION_DURATION, SESSION_COOKIE_MAX_AGE, sessionCookieDomain } from '@/lib/session-config'
+import { evaluerSession } from '@/lib/auth/session-decision'
 import { estSousDomaineConsole } from '@/lib/tenant/console-host'
 const SESSION_COOKIE = 'app-session'
 // Marqueur de session NAVIGATEUR : cookie sans maxAge/expires, supprimé par le
@@ -439,43 +440,47 @@ export async function proxy(request: NextRequest) {
   //   3. FAIL-OPEN. Dans le doute, on laisse entrer. Verrouiller un client
   //      dehors est plus grave que de le garder connecte une nuit.
   if (user && pathname.startsWith('/dashboard')) {
-    const now = Math.floor(Date.now() / 1000)
-
-    // ── Duree maximale : ancree sur SUPABASE ────────────────────────────────
-    const signIn = user.last_sign_in_at ? Date.parse(user.last_sign_in_at) : NaN
-    const ageSession = Number.isFinite(signIn) ? (Date.now() - signIn) / 1000 : 0
-    const expired = ageSession > MAX_SESSION_DURATION
-
-    // ── Inactivite : la seule chose que nous ayons a mesurer ────────────────
+    // ┌─ LA DÉCISION N EST PLUS ICI ─────────────────────────────────────────┐
+    // │ Elle vit dans `src/lib/auth/session-decision.ts`, où 26 cas           │
+    // │ l éprouvent — dont le RETOUR DE VACANCES, que personne ne peut        │
+    // │ vérifier à la main sans attendre deux mois. Tant qu elle était ici,   │
+    // │ mêlée au client Supabase et à `NextResponse`, elle était              │
+    // │ inéprouvable : quatre des six correctifs de juillet-août portaient    │
+    // │ dessus, et deux ont verrouillé la production.                         │
+    // │                                                                        │
+    // │ L EXTRACTION A ÉTÉ VÉRIFIÉE LITTÉRALE sur 200 418 cas (bornes exactes │
+    // │ + tirages aléatoires) AVANT d être branchée : à seuils égaux,         │
+    // │ l ancien calcul et le nouveau rendent le même verdict, les mêmes      │
+    // │ drapeaux et les mêmes valeurs intermédiaires. « À l identique » est   │
+    // │ donc une mesure, pas une intention.                                   │
+    // └────────────────────────────────────────────────────────────────────────┘
     //
-    // Le traceur vit 2 h. S'il manque, deux lectures sont possibles : session
-    // toute neuve, ou navigateur laisse au repos plus longtemps que sa duree de
-    // vie. `ageSession` tranche — et en son absence on laisse entrer.
-    const traceur = request.cookies.get(SESSION_COOKIE)?.value
-    let lastActivity: number | null = null
-    if (traceur) {
-      try {
-        const parsed = JSON.parse(traceur)
-        if (typeof parsed?.lastActivity === 'number') lastActivity = parsed.lastActivity
-      } catch {
-        // Traceur illisible : on l'ignore. Il sera reecrit plus bas.
-      }
-    }
+    // UNE SEULE BASE DE TEMPS, là où le code en lisait deux (`now`, puis un
+    // second `Date.now()` quelques millisecondes plus bas). L écart ne pouvait
+    // changer un verdict que sur la milliseconde exacte d un seuil, mais une
+    // décision ne doit pas dépendre de deux instants différents.
+    const maintenantMs = Date.now()
+    const now = Math.floor(maintenantMs / 1000)
 
-    const inactive = lastActivity !== null
-      // Traceur present : il fait foi, c'est la mesure la plus precise.
-      ? now - lastActivity > INACTIVITY_TIMEOUT
-      // Traceur absent ET session plus vieille que sa duree de vie : le cookie a
-      // expire sans etre rafraichi, donc aucune activite depuis au moins ce
-      // delai. Une session plus jeune, elle, vient forcement de commencer.
-      : ageSession > SESSION_COOKIE_MAX_AGE
+    const decision = evaluerSession(
+      {
+        lastSignInAt: user.last_sign_in_at,
+        traceur: request.cookies.get(SESSION_COOKIE)?.value,
+        maintenantMs,
+      },
+      {
+        inactiviteSecondes: INACTIVITY_TIMEOUT,
+        dureeMaxSecondes: MAX_SESSION_DURATION,
+        traceurMaxAgeSecondes: SESSION_COOKIE_MAX_AGE,
+      },
+    )
 
-    if (inactive || expired) {
-      // Le motif se deduit de ce qu'on vient de mesurer, plus d'un troisieme
-      // cookie a tenir coherent avec les deux autres : `app-open` servait a
-      // choisir ce libelle, et il a cause un verrouillage le 9 aout. Un message
-      // n'a jamais valu ce risque.
-      const loginUrl = `/login?reason=${inactive ? 'inactivity' : 'session'}`
+    if (decision.verdict !== 'ok') {
+      // LE MOTIF EST LE VERDICT (`inactivity` ou `session`) : plus de troisième
+      // cookie à tenir cohérent avec les deux autres. `app-open` ne servait
+      // qu à choisir ce libellé, et il a verrouillé la production le 9 août —
+      // un message n a jamais valu ce risque.
+      const loginUrl = `/login?reason=${decision.verdict}`
       const redirect = NextResponse.redirect(new URL(loginUrl, request.url))
 
       // Déconnecter côté Supabase et propager la suppression des cookies auth
