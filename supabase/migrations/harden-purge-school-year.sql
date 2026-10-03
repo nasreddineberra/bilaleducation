@@ -86,6 +86,23 @@ BEGIN
 END
 $maj$;
 
+-- ── `anon` POUVAIT APPELER LA PURGE ────────────────────────────────────────
+--
+-- Le controle du 03/10 a montre `anon EXECUTE` sur cette fonction, alors que la
+-- migration d origine ecrit `REVOKE ALL ... FROM public`. Les deux sont vrais :
+-- Supabase pose un `ALTER DEFAULT PRIVILEGES` qui accorde EXECUTE NOMMEMENT a
+-- `anon`, et un REVOKE sur le pseudo-role `public` ne retire pas une concession
+-- nominative.
+--
+-- Rien n etait exploitable — un appelant non authentifie n a pas de role, donc
+-- `coalesce(get_user_role(), '')` le refuse. Mais la surface d attaque ne doit
+-- pas depasser l intention : une fonction qui efface une annee entiere n a pas
+-- a etre seulement APPELABLE sans etre connecte.
+--
+-- REGLE : apres un `REVOKE ... FROM public` sur une fonction sensible, verifier
+-- `information_schema.routine_privileges` — Supabase y aura ajoute `anon`.
+REVOKE EXECUTE ON FUNCTION purge_school_year(uuid) FROM anon;
+
 -- Verification : on relit la fonction depuis le catalogue, et on s assure que
 -- les gardes PREEXISTANTES sont toujours la — rapiecer ne doit rien perdre.
 DO $verif$
@@ -109,6 +126,14 @@ BEGIN
     RAISE EXCEPTION 'Une garde preexistante a disparu : NE PAS EN RESTER LA.';
   END IF;
 
-  RAISE NOTICE 'OK : purge_school_year() refuse desormais l annee en cours et une annee deja purgee.';
+  IF EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+     WHERE routine_schema = 'public' AND routine_name = 'purge_school_year'
+       AND grantee = 'anon' AND privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'anon peut encore executer purge_school_year().';
+  END IF;
+
+  RAISE NOTICE 'OK : purge refusee sur l annee en cours, sur une annee deja purgee, et hors de portee d anon.';
 END
 $verif$;

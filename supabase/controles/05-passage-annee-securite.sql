@@ -32,6 +32,7 @@ DECLARE
   sqlstate_ text;
   msg      text;
   n        int;
+  n2       int;
 BEGIN
   r := r || format('  identite du script : %s%s', current_user, E'\n');
 
@@ -90,7 +91,10 @@ BEGIN
                      position('deja purgee' in src) > 0, E'\n');
   END IF;
 
-  r := r || E'\n  -- droits d execution --\n';
+  r := r || E'
+  -- droits d execution (anon ne doit PAS y figurer : Supabase le pose
+     nommement, et REVOKE FROM public ne retire pas une concession nominative) --
+';
   FOR ligne IN
     SELECT grantee, privilege_type FROM information_schema.routine_privileges
      WHERE routine_schema = 'public' AND routine_name = 'purge_school_year'
@@ -147,11 +151,29 @@ BEGIN
   END LOOP;
 
   -- ══ 4. QUI LIT LES ARCHIVES ? ══════════════════════════════════════════
-  -- `family_year_finance` porte ce que chaque foyer a paye : sa lecture doit
-  -- etre reservee aux roles finance, pas ouverte a tout l etablissement.
+  --
+  -- `family_year_finance` porte ce que chaque foyer a paye, `student_year_history`
+  -- le parcours de chaque participant : leur lecture ne doit pas etre ouverte a
+  -- tout l etablissement.
+  --
+  -- ┌─ POURQUOI ON SEME UNE LIGNE TEMOIN ──────────────────────────────────┐
+  -- │ La premiere version comptait les lignes visibles sur des tables VIDES │
+  -- │ et concluait « lecture autorisee » pour les six roles, enseignant     │
+  -- │ compris. Elle ne mesurait RIEN : la RLS ne LEVE pas, elle FILTRE, et  │
+  -- │ sur une table vide tout le monde lit zero ligne sans la moindre       │
+  -- │ erreur. Le test ne pouvait donner qu une seule reponse, rassurante.   │
+  -- │                                                                       │
+  -- │ On insere donc une ligne temoin — annulee avec le reste du bloc — et  │
+  -- │ on compte ce que chaque role en voit. 1 = il lit, 0 = la RLS filtre.  │
+  -- └───────────────────────────────────────────────────────────────────────┘
   r := r || E'\n═══ 4. LECTURE DES TABLES D ARCHIVE PAR ROLE ═════════════════════\n';
-  r := r || E'  (les tables sont vides tant qu aucune annee n est archivee :\n';
-  r := r || E'   ce point mesure le DROIT, pas le contenu)\n';
+
+  INSERT INTO family_year_finance (etablissement_id, school_year_id, year_label)
+  VALUES (etab, annee, v_label);
+  INSERT INTO student_year_history (etablissement_id, school_year_id, year_label, participant_type)
+  VALUES (etab, annee, v_label, 'student');
+  r := r || E'  (une ligne temoin dans chaque table, annulee en sortie)\n';
+
   FOR ident IN
     SELECT DISTINCT ON (role) role, id
       FROM profiles
@@ -160,21 +182,20 @@ BEGIN
                     'responsable_pedagogique', 'enseignant')
      ORDER BY role, created_at
   LOOP
-    BEGIN
-      SET LOCAL ROLE authenticated;
-      PERFORM set_config('request.jwt.claims',
-                         json_build_object('sub', ident.id, 'role', 'authenticated')::text, true);
-      SELECT count(*) INTO n FROM family_year_finance;
-      RESET ROLE;
-      r := r || format('  %-24s family_year_finance : LECTURE AUTORISEE (%s ligne(s))%s',
-                       ident.role, n, E'\n');
-    EXCEPTION WHEN OTHERS THEN
-      RESET ROLE;
-      GET STACKED DIAGNOSTICS sqlstate_ = RETURNED_SQLSTATE;
-      r := r || format('  %-24s family_year_finance : refusee (%s)%s', ident.role, sqlstate_, E'\n');
-    END;
+    SET LOCAL ROLE authenticated;
+    PERFORM set_config('request.jwt.claims',
+                       json_build_object('sub', ident.id, 'role', 'authenticated')::text, true);
+    SELECT count(*) INTO n  FROM family_year_finance;
+    SELECT count(*) INTO n2 FROM student_year_history;
+    RESET ROLE;
     PERFORM set_config('request.jwt.claims', NULL, true);
+    r := r || format('  %-24s finances:%-7s parcours:%s%s',
+                     ident.role,
+                     CASE WHEN n  > 0 THEN 'LIT' ELSE 'filtre' END,
+                     CASE WHEN n2 > 0 THEN 'LIT' ELSE 'filtre' END, E'\n');
   END LOOP;
+  r := r || E'\n  Attendu - finances : admin, direction, comptable SEULS.\n';
+  r := r || E'  Attendu - parcours : tout le personnel SAUF enseignant.\n';
 
   r := r || E'\n  Rien n a ete conserve.\n';
   RAISE EXCEPTION '%', r;

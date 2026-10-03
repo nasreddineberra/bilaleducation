@@ -4939,6 +4939,25 @@ l ancrage a bouge, et **re-verifie que les gardes PREEXISTANTES sont toujours
 la** — rapiecer ne doit rien perdre. Le remplacement a ete **simule hors ligne**
 et le code genere relu avant livraison.
 
+**CE QUE LE CONTROLE A TROUVE EN PLUS, le 03/10**
+- **`anon` pouvait EXECUTER la purge.** La migration d origine ecrit
+  `REVOKE ALL ... FROM public` ; la base affichait `anon EXECUTE`. Les deux sont
+  vrais : Supabase pose un `ALTER DEFAULT PRIVILEGES` qui accorde EXECUTE
+  **NOMMEMENT** a `anon`, et un REVOKE sur le pseudo-role `public` ne retire pas
+  une concession nominative. Rien n etait exploitable (sans role,
+  `coalesce(get_user_role(), '')` refuse), mais une fonction qui efface une annee
+  entiere n a pas a etre seulement APPELABLE sans etre connecte.
+  **REGLE : apres un `REVOKE ... FROM public` sur une fonction sensible, relire
+  `information_schema.routine_privileges` — Supabase y aura ajoute `anon`.**
+- **ET MON PROPRE CONTROLE NE MESURAIT RIEN.** Le point 4 comptait les lignes
+  visibles des deux tables d archive, VIDES, et concluait « lecture autorisee »
+  pour les six roles, enseignant compris — alors que la policy en reserve la
+  lecture a trois. **La RLS ne LEVE pas, elle FILTRE** : sur une table vide tout
+  le monde lit zero ligne sans erreur, et le test ne pouvait donner qu une seule
+  reponse, rassurante. Corrige en semant une ligne temoin (annulee avec le bloc)
+  et en comptant ce que chaque role en voit. C est la lecon du matin meme,
+  repayee le soir : **un controle doit etre eprouve sur son cas limite.**
+
 **`supabase/controles/05-passage-annee-securite.sql`** (lecture seule, rejouable)
 affiche l etat des annees, les gardes reellement presentes dans le catalogue,
 les policies telles qu elles sont EN BASE — le depot a deja menti le 5 aout — et
