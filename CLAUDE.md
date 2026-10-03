@@ -5235,12 +5235,12 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] Executer `supabase/migrations/harden-purge-school-year.sql` : la purge refuse
+- [x] Executer `supabase/migrations/harden-purge-school-year.sql` : la purge refuse
   desormais l annee EN COURS et une annee DEJA PURGEE. Le controle d annee courante
   ne vivait que dans la server action, or une RPC s appelle directement depuis le
   navigateur — « l ecran interdit, l API autorise ». Jouer d abord
   `supabase/controles/05-passage-annee-securite.sql` (lecture seule) pour voir l avant,
-  puis le rejouer apres : les deux lignes doivent passer de `false` a `true`.
+  puis le rejouer apres : les deux lignes passent de `false` a `true`. Jouee le 03/10 ; sa verification finale n a pas leve, donc les 2 gardes sont posees, les 4 preexistantes intactes et anon revoque.
 - [ ] Executer `supabase/migrations/add-medical-notes-to-import.sql` : l import ecrit
   desormais `students.medical_notes` (la colonne et la fiche existaient deja, il manquait
   le chemin). La migration **rapiece** `import_foyer` a partir de sa definition REELLE
