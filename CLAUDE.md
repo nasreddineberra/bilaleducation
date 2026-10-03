@@ -4900,6 +4900,81 @@ une. Type-check vert, 0 erreur de lint.
 la paire HIDAOUI (`JASSIM` / `Jessim`, meme date — doublon ou jumeaux) et dire
 si « totale » inclut les 172 foyers sans enfant, qui restent hors de portee de
 cet ecran.
+#### 3 octobre 2026 (fin) — TESTS DE SESSION, LOT 2 : la purge et l ecrivain unique
+
+Les deux defauts de **CABLAGE** du 11 aout, fermes par deux tests de nature
+differente. `proxy.ts` perd **43 lignes** et n en gagne que 12.
+
+**A. LES EN-TETES DE PURGE, en fonction pure** (`src/lib/auth/session-cookies.ts`).
+`purgerTraceurs` etait une closure manipulant un `NextResponse` : la tester
+exigeait de tirer tout Next dans le lanceur. Ce qui porte la REGLE — construire
+les chaines `Set-Cookie` — est extrait ; le middleware ne garde que l emission.
+Les chaines attendues sont **recopiees du code qui tournait avant l extraction**,
+donc le test est lui-meme la preuve que rien n a bouge.
+- **La variante SANS domaine ne doit JAMAIS disparaitre.** Avant
+  `NEXT_PUBLIC_SITE_URL`, les cookies etaient attaches a l hote seul ; un
+  navigateur ayant traverse ce changement en detient un sans domaine, et ne
+  purger qu avec domaine le laisse vivre — sa seule presence rouvrait la boucle
+  sur `/login`.
+- **`Path=/` et `Max-Age=0` sur CHAQUE en-tete** : un navigateur n apparie un
+  `Set-Cookie` a un cookie existant que sur **(nom, domaine, chemin)**. Un `Path`
+  different ne supprimerait rien — il poserait un second cookie vide en laissant
+  l ancien en place.
+- **Une chaine vide n est pas un domaine** : `Domain=` serait un en-tete
+  invalide, **silencieusement ignore**, donc une purge qui parait faite et ne
+  l est pas. `sessionCookieDomain()` rend `undefined` en local, mais un appelant
+  pourrait passer `''`.
+
+**B. UN SEUL ECRIVAIN — controle STRUCTUREL des sources.** Aucun test de
+comportement n attrape le defaut du 11 aout : **deux ecrivains pour un meme
+cookie se comportent parfaitement, chacun de son cote**. Il faut regarder la
+FORME DU CODE. Le test lit les 280+ sources de `src`, **retire les commentaires**
+(motif du 18 juillet : un classifieur non-commentaire — sinon il sonnerait sur
+les commentaires qui RACONTENT le defaut, nombreux a dessein) et exige :
+- le nom du cookie **declare a un seul endroit** du projet ;
+- **aucun `document.cookie`** dans tout `src` : le controle porte sur
+  l ECRITURE elle-meme et non sur le nom, la faute restant possible sous un
+  autre nom ;
+- et un garde-fou **« le balayage a bien lu quelque chose »** (plus de 200
+  sources, `proxy.ts` present, du code connu trouve). *Un controle qui ne mesure
+  rien annonce « 0 »* : trois fois paye (16 aout, 2 et 3 octobre), la quatrieme
+  est prevenue.
+
+**VU ROUGE AVANT D ETRE VU VERT.** Le controle structurel a d abord echoue **en
+nommant `proxy.ts`**, qui declarait encore le cookie. **Un test qu on n a jamais
+vu rouge ne prouve rien** — et celui-la aurait pu passer vert pour une faute de
+chemin. Le nom ne vit desormais qu a un seul endroit.
+
+**UN FAUX POSITIF ECARTE PAR LA LECTURE.** La ligne 344 redirige vers `/login`
+**sans purger** : j allais le signaler comme un oubli. C est le renvoi de
+`/superadmin` sur le domaine d une ecole — une route qui n existe pas la. **Ce
+n est pas une deconnexion** : il n y a rien a purger, et l utilisateur peut etre
+parfaitement valide. *Ne pas conclure sur une donnee qu on n a pas regardee.*
+
+**UN COMMENTAIRE FAUX, supprime au passage.** Les lignes 9-12 decrivaient
+`app-open` **AU PRESENT** (« Permet de distinguer... ») alors que le bloc **juste
+en dessous** annonce son RETRAIT le 11 aout — deux commentaires **contradictoires
+colles l un a l autre** — et affirmaient un traceur « persistant (30 j) » quand
+il vit **1 h 20** depuis ce jour-la. Meme defaut que `policies.sql` le 5 aout :
+une documentation perimee inspire une confiance qu elle ne merite pas.
+
+**CE QUE CES TESTS NE PROUVENT PAS** : le comportement reel d un navigateur
+detenant **deux cookies de meme nom**. Seul un navigateur le dirait.
+
+**TROUVAILLE EN ATTENTE D ARBITRAGE — `/superadmin/login` N EST PAS PURGE.** La
+purge est conditionnee a `pathname === '/login'`, une **egalite STRICTE**. Le
+cookie etant pose sur `.bilaleducation.fr`, il est **partage entre la console et
+les ecoles** : un editeur qui se deconnecte de la console garde un
+`lastActivity` perime, et s il entre ensuite dans une ecole dans l heure qui
+suit, le controle d inactivite le deconnecte aussitot. **C est le montage exact
+du « double login » du 12 juillet**, et la piste notee le 10 aout sans avoir ete
+verifiee. **Rien n a ete touche** : c est un changement de comportement sur le
+mecanisme le plus fragile du projet, et il faut d abord le **SYMPTOME REEL** que
+l utilisateur avait constate (reste connecte ? boucle ? deux connexions ?).
+
+**Verifie** : `npm test` 36/36, `type-check` vert, `lint` 0 erreur, `build`
+complet avec le middleware compile.
+
 #### 3 octobre 2026 (fin) — PREMIER TEST AUTOMATISE : la decision de session
 
 Le chantier note le 11 aout comme « ce qui manque encore » : ce mecanisme avait
