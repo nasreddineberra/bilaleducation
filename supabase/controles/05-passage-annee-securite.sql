@@ -91,10 +91,7 @@ BEGIN
                      position('deja purgee' in src) > 0, E'\n');
   END IF;
 
-  r := r || E'
-  -- droits d execution (anon ne doit PAS y figurer : Supabase le pose
-     nommement, et REVOKE FROM public ne retire pas une concession nominative) --
-';
+  r := r || E'\n  -- droits d execution (anon ne doit PAS y figurer) --\n';
   FOR ligne IN
     SELECT grantee, privilege_type FROM information_schema.routine_privileges
      WHERE routine_schema = 'public' AND routine_name = 'purge_school_year'
@@ -170,8 +167,12 @@ BEGIN
 
   INSERT INTO family_year_finance (etablissement_id, school_year_id, year_label)
   VALUES (etab, annee, v_label);
-  INSERT INTO student_year_history (etablissement_id, school_year_id, year_label, participant_type)
-  VALUES (etab, annee, v_label, 'student');
+  -- Toutes les colonnes NOT NULL SANS DEFAUT : last_name et first_name
+  -- avaient ete oubliees pour avoir lu le debut de la table au lieu de
+  -- la table entiere (23502).
+  INSERT INTO student_year_history (etablissement_id, school_year_id, year_label,
+                                   participant_type, last_name, first_name)
+  VALUES (etab, annee, v_label, 'student', 'TEMOIN', 'Controle');
   r := r || E'  (une ligne temoin dans chaque table, annulee en sortie)\n';
 
   FOR ident IN
