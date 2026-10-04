@@ -4900,6 +4900,106 @@ une. Type-check vert, 0 erreur de lint.
 la paire HIDAOUI (`JASSIM` / `Jessim`, meme date — doublon ou jumeaux) et dire
 si « totale » inclut les 172 foyers sans enfant, qui restent hors de portee de
 cet ecran.
+#### 4 octobre 2026 — PROCEDURE DE MIGRATION : un registre, et ce que la mesure a corrige
+
+131 migrations, et **rien en base** ne disait lesquelles etaient appliquees : la
+seule trace etait une liste de cases a cocher dans ce fichier, tenue a la main,
+dont j avais constate le 2 octobre qu elle avait **decroche deux fois**. Un suivi
+manuel decroche, et il decroche en silence.
+
+**LE COEUR DE LA PROCEDURE N EST PAS LE REGISTRE, C EST L ORDRE.**
+`supabase/migrations/README.md` tranche une question que le projet n avait jamais
+ecrite, et dont les deux erreurs ont deja ete faites ici :
+- **ADDITIF** (colonne, table, policy permissive) → **migration d abord** ; le
+  code en place ignore l ajout. Piege de ce sens : croire que la migration
+  suffit — le 24/09, l ecran du comptable n avait pas son menu parce que le code
+  n etait pas pousse.
+- **RESTRICTIF** (RLS durcie, contrainte, colonne retiree) → **CODE d abord** ;
+  sinon l ancien code echoue, et souvent **en silence**. Le 29/09, la migration
+  RLS du lot 3 aurait rendu des boutons inoperants sans un message.
+- Test en cas de doute : « si je joue le SQL maintenant et que le code reste
+  celui d hier, qu est-ce qui casse ? »
+
+**CINQ TROUVAILLES, toutes par la mesure**
+
+1. **REJOUER LES MIGRATIONS DANS L ORDRE NE MARCHE PAS**, et je l ignorais en
+   ouvrant le chantier. Le README de `supabase/restore/` le disait deja : elles
+   sont **incrementales**, les tables centrales venaient de `schema.sql`
+   supprime le 5 aout, et le premier `ALTER TABLE` echoue sur une base vide. La
+   reconstruction passe par l **instantane date** puis les migrations
+   posterieures — d ou le mode `--depuis` du script.
+   - **VALIDATION CROISEE** : le script compte **92 migrations avant le 6 aout
+     et 40 apres** ; « 92 » est exactement le chiffre que ce README annoncait de
+     son cote, sans que l un connaisse l autre.
+   - **L instantane a presque deux mois de retard** : il ignore tout le chantier
+     RLS d aout-septembre. Son README dit de le regenerer avant tout usage, et
+     la commande `pg_dump` y est.
+
+2. **UNE MIGRATION SUPPRIMEE DU DEPOT SANS REMPLACEMENT.**
+   `add-absence-replacement-designation.sql` ajoutait une colonne, un index et
+   une fonction, puis a ete supprimee par le commit qui changeait d approche. Si
+   elle avait ete jouee avant, **la base porte trois objets dont aucun fichier ne
+   garde trace** — le defaut du 5 aout (`policies.sql`) dans l autre sens. Rien
+   ne peut le deviner ; le remplissage du registre le **signale**.
+
+3. **AUCUNE DES 131 NE DETRUIT DE DONNEES AU REJEU.** Mesure sur les ecritures
+   reelles : toutes bornees par un `WHERE` ou protegees par `ON CONFLICT DO
+   NOTHING`. Le pire cas est un **echec franc** (« existe deja »), jamais un
+   degat silencieux — et l editeur SQL etant transactionnel, une migration qui
+   leve n applique rien. Cela a change le plan annonce : plutot que 47
+   avertissements en tete de fichier, la rejouabilite devient une **colonne du
+   registre**.
+   - `fix-student-numbers-add-month.sql`, que je redoutais destructrice, est
+     bornee par `WHERE student_number LIKE 'STU%'` : apres la premiere passe
+     elle ne touche plus rien. **Ma crainte etait fausse, et c est la LECTURE
+     qui l a montre.**
+
+4. **MON PREMIER CRITERE D IDEMPOTENCE ETAIT FAUX DANS LES DEUX SENS.** Un grep
+   sur `IF NOT EXISTS|OR REPLACE` annonçait « 127/131 rejouables ». Or
+   `harden-purge-school-year.sql` est rejouable par une garde **semantique**
+   (`RAISE NOTICE` + `RETURN`) invisible au grep ; et surtout le critere ne
+   distinguait pas « la migration ecrit » de « la migration cree une fonction
+   qui ecrira plus tard » — `purge-school-year.sql` ressortait « UPDATE de
+   donnees » alors qu elle ne fait qu un `CREATE OR REPLACE FUNCTION`.
+   **Correctif : retirer les corps delimites par des dollars AVANT de chercher.**
+
+5. **60 ATTESTEES, 72 PRESUMEES.** Les cases cochees de ce fichier attestent
+   d une application reelle ; le reste n est que presume. Le registre marque la
+   difference au lieu de l effacer — un « presume » faux se decouvre un jour, et
+   il faut alors savoir qu on ne l avait jamais verifie.
+
+**L OUTILLAGE** (`scripts/migrations-etat.mjs`, 4 modes). Le SQL ne sait pas lire
+un dossier, et ce projet n ouvre **pas** de connexion sur la production depuis le
+poste : le script fait donc la seule moitie qu il peut faire — lire le depot,
+calculer les empreintes — et **produit un bloc a coller**. Rien n est applique
+automatiquement, et le bloc de comparaison s annule lui-meme (motif de
+`supabase/controles/`).
+- **DEUX PIEGES D EMPREINTE, chacun reparant un faux ecart** : (a) **CRLF → LF**
+  avant calcul, sinon la meme migration aurait deux empreintes selon la machine
+  (ce depot convertit les fins de ligne a la sortie de git) ; (b) les **appels** a
+  `enregistrer_migration` sont exclus du calcul — une migration ne peut pas
+  porter sa propre empreinte, l ecrire change le fichier. C est ce qui permet a
+  chaque migration de porter son enregistrement **en derniere ligne** : un seul
+  collage, et personne ne peut oublier de cocher une case.
+
+**TROIS DEFAUTS DANS MON PROPRE SCRIPT, trouves en l executant** — dont un qui
+compte : le filtre d empreinte retirait **toute** ligne contenant
+`enregistrer_migration(`, donc aussi celle qui **definit** la fonction ; changer
+sa signature n aurait pas change l empreinte du fichier. Plus : une migration non
+commitee, sans date git, etait triee **en tete** alors qu elle est la plus
+recente ; et le rapport affichait `undefined` pour sa date.
+
+**`supabase/schema-export.sql` SUPPRIME** : 0 ligne, aucune reference, et son nom
+laissait croire qu il contenait un export.
+
+**RESERVE POSEE DANS LA PROCEDURE** : elle dit « sauvegarde avant migration »,
+mais **la restauration n a jamais ete eprouvee**. Une sauvegarde dont on n a
+jamais teste le retour arriere est une intention, pas un filet. C est ecrit comme
+tel — le vrai garde-fou reste de ne jouer qu une migration qu on a relue.
+
+**Verifie** : 41/41 tests, type-check vert, 0 erreur de lint, build complet, et
+les 4 modes du script executes.
+
 #### 3 octobre 2026 (fin) — POINT C : la deconnexion de la console n effacait rien
 
 Arbitrage de l utilisateur : **corriger le CLIC MANUEL** ; l inactivite
@@ -5472,6 +5572,20 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] **DEUX COLLAGES, dans cet ordre** (procedure de migration du 04/10) :
+  1. `supabase/migrations/create-migrations-registre.sql` — cree la table
+     `migrations_appliquees` et `enregistrer_migration()`. Elle finit par une
+     verification qui leve si les 2 policies ne sont pas en place ou si `anon`
+     peut encore executer la fonction.
+  2. Puis le remplissage initial, **genere** par
+     `node scripts/migrations-etat.mjs --remplir` (132 lignes ; il verifie son
+     propre compte et leve si le collage a ete tronque — un copier-coller de
+     132 lignes se coupe sans prevenir).
+  - Ensuite `node scripts/migrations-etat.mjs` donne a tout moment l ecart entre
+    le depot et la base. **A VERIFIER AU PASSAGE** : la base porte-t-elle une
+    colonne `staff_time_entries.replacement_profile_id` ? Elle venait de
+    `add-absence-replacement-designation.sql`, **supprimee du depot** — si elle
+    existe, trois objets vivent en base sans aucune source.
 - [x] Executer `supabase/migrations/harden-purge-school-year.sql` : la purge refuse
   desormais l annee EN COURS et une annee DEJA PURGEE. Le controle d annee courante
   ne vivait que dans la server action, or une RPC s appelle directement depuis le
