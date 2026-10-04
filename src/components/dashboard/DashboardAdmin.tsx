@@ -107,7 +107,10 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
           {stats.billed === 0 ? (
             <p className="text-xs text-warm-700 italic py-8 text-center">Aucune facturation.</p>
           ) : (
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+              {/* Empile sous 640 px : cote a cote, le donut (128 px fixes) ne
+                  laissait que ~57 px par colonne et les montants se
+                  chevauchaient. En colonne, les 3 chiffres ont toute la largeur. */}
               <div className="relative shrink-0" style={{ width: 128, height: 128 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -124,7 +127,7 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
                   </div>
                 </div>
               </div>
-              <dl className="flex-1 grid grid-cols-3 gap-4">
+              <dl className="w-full sm:flex-1 grid grid-cols-3 gap-2 sm:gap-4">
                 <div className="border-l-2 border-primary-500 pl-2.5">
                   <dd className="text-lg font-bold text-primary-600 tabular-nums leading-none">{fmtEur(stats.collected)}</dd>
                   <dt className="text-[10px] text-warm-700 mt-1">encaissé</dt>

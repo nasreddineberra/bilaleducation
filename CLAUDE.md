@@ -5338,6 +5338,114 @@ tente la purge **sous l identite de chaque role** pour constater les refus.
   archivee, cas ou l appel de test pourrait reussir. Un test ne doit jamais
   pouvoir reussir la ou il verifie qu on echoue.
 
+#### 4 octobre 2026 — RESPONSIVE, phase 1 sur 3 : le CADRE
+
+Chantier ouvert le 29 septembre, demarre ce jour. **Phase 1 livree et VERIFIEE
+A L ECRAN** (captures utilisateur). Choix de l utilisateur : le cadre seul,
+pour mesurer avant d elargir.
+
+**LA MESURE A DICTE L ORDRE, et elle a renverse le diagnostic.** Le `viewport`
+de `layout.tsx` ne declare que `themeColor` : j ai cru y tenir la cause, **c
+etait faux** — Next applique ses defauts, et le HTML emis porte bien
+`width=device-width, initial-scale=1`. La page se rend donc a la largeur reelle
+du telephone, et les ecrans casses le sont POUR DE VRAI.
+- A 360 px : barre laterale **256** + `px-8` du contenu **64** = 320 consommes.
+  **Il restait QUARANTE pixels.** Et `layout.tsx` porte `overflow-hidden`, donc
+  aucun defilement horizontal : ce qui depasse n est pas atteignable, il est
+  **coupe**.
+- Consequence : l application n etait pas « cassee par endroits » sur
+  telephone, elle etait inutilisable **PARTOUT**, Mon compte compris. Les
+  31 fichiers deja responsive (13 %) ne pouvaient rien y faire — leurs `sm:` et
+  `lg:` s appliquaient dans une colonne de 40 px. **Rendre un ecran responsive
+  avant le cadre n aurait produit aucun effet visible.**
+- Apres : le contenu passe a **348 px**.
+
+**CE QUI CHANGE** (4 fichiers, 112 insertions, aucun ecran touche)
+- `SidebarContext` : `ouvertMobile` ajoute, **DISTINCT de `collapsed`**. Les
+  confondre donnerait un tiroir de 92 px, illisible : sur un telephone on veut
+  la barre COMPLETE, libelles compris. Le mode reduit n a de sens que la ou la
+  barre partage la largeur avec le contenu.
+- `DashboardSidebar` : sous 1024 px la barre **sort du flux** (`fixed` +
+  glissement) avec voile ; au-dessus, comportement d origine intact.
+  « Reduire » masque sous le seuil, remplace par une croix.
+- `DashboardNav` : bouton d ouverture a gauche du titre. **La place existait
+  deja** : le titre est `hidden md:flex` depuis toujours.
+- `layout.tsx` : `px-8` -> `px-3 sm:px-5 lg:px-8`.
+
+**DEUX POINTS DE CONCEPTION**
+- **`invisible` et pas seulement `-translate-x-full`** : un element pousse hors
+  ecran reste **FOCUSABLE au clavier**, on tabulerait dans un menu invisible.
+  `visibility` etant transitionnee, elle ne bascule qu a la FIN des 200 ms —
+  le glissement de sortie reste donc visible.
+- **Fermeture au voile et par Echap**, ce qui ne contredit pas la regle du
+  projet : elle vise les modales de **SAISIE** (on y perdrait du texte), et la
+  doctrine du 3 aout autorise Echap sur ce qui ne retient rien. Fermeture aussi
+  **A LA NAVIGATION**, sur `pathname` et non au clic sur un lien — cela couvre
+  le bouton Precedent ET les liens internes des ecrans.
+
+**PAS TOUCHE, A DESSEIN** : les deux `overflow-hidden` de structure (layout 181
+et 196). Ils tiennent la grille EDT, les modales `fixed` et les bulles
+portalisees, et le gain d un defilement horizontal depend de ce que la mesure
+montrera ecran par ecran.
+
+**DEUX INQUIETUDES LEVEES PAR LA LECTURE** (et non par la supposition) : le
+viewport ci-dessus, et **aucun loader ne dessine la silhouette du cadre** —
+elle avait ete retiree le 10 aout, le commentaire de `dashboard/loading.tsx` le
+raconte. J allais « corriger » les deux.
+
+**VU A L ECRAN, DEUX DEFAUTS RESTANTS**
+1. **Carte RECOUVREMENT** (tableau de bord admin) : donut de 128 px **fixes** +
+   `grid-cols-3` figee = ~57 px par colonne, les trois montants se
+   chevauchaient et le dernier etait coupe. **CORRIGE** : empilement sous
+   640 px (`flex-col sm:flex-row`), les 3 chiffres prennent toute la largeur.
+   Motif unique, aucune autre occurrence (verifie).
+2. **Les sections du menu paraissent VIDES** (Vie scolaire, Pedagogie…) : c est
+   l accordeon, une seule section ouverte a la fois, et PRINCIPAL l est parce
+   qu on est sur le tableau de bord. Correct sur grand ecran, **se lit comme un
+   menu casse sur telephone**. A revoir en phase 2, ou l on touchera ce menu.
+
+**POUR LA PHASE 2 — le filtre de menu** (arbitrage utilisateur : n afficher que
+les menus utilisables sur mobile, croise avec les roles). L idee est bonne et
+**conforme a une regle existante** (15 juillet : les ciblages interdits
+disparaissent au lieu d etre grises, « on ne montre pas ce qu on refuse »), et
+la structure s y prete — chaque entree porte deja `roles: UserRole[]`, un
+drapeau `mobile` est une condition de meme nature. **Mais deux trous mesures :**
+- **LE MENU N EST PAS LE SEUL CHEMIN.** Le tableau de bord — ecran mobile
+  prioritaire — renvoie LUI-MEME vers les ecrans a exclure : « Voir l EDT »
+  (`DashboardEnseignant`), « Saisir les notes » et « Voir tout »
+  (`DashboardPedago`), « Statistiques completes » (`DashboardComptable`),
+  la banniere de `SchoolYearForm` vers le passage d annee. Il faut donc **les
+  deux** : menu filtre ET ecran qui sait se presenter. Regle deja payee deux
+  fois (support le 8 aout, communications le 24 septembre).
+- **LE ZOOM REDUIT LA LARGEUR CSS** : 1280 px a 150 % = **853 px**, sous le
+  seuil. Un directeur qui zoome pour lire perdrait des menus **sur son
+  ordinateur**, en silence — et ce projet a fait une passe entiere sur la
+  lisibilite en juillet, ces utilisateurs zooment. **Pour le CADRE c est
+  benin** (le menu reste accessible d un bouton, et a 853 px la barre gene
+  reellement) ; **pour le FILTRE ce serait un enfermement**. Repli propose, non
+  tranche : masquer par defaut + une ligne « N menus masques sur petit ecran »
+  qui les revele — principe FAIL-OPEN deja retenu pour la session le 11 aout.
+
+**PIEGE CONNU EVITE** : aucun nom d entree de menu n est modifie. `SECTION_OF`
+est indexe par le NOM de l item, et le 29 septembre un renommage sans mise a
+jour de cette table avait fait **disparaitre une entree, sans erreur**.
+
+**DEUX PIEGES PAYES**
+- **Un commentaire `{/* */}` dans une branche de ternaire JSX** fait DEUX
+  expressions la ou une seule est attendue (TS1128). Le commentaire va **a
+  l interieur** de l element, jamais avant lui dans un `) : (`.
+- **Mon grep a annonce « 0 occurrence » sur les 8 classes `lg:`**, toutes
+  presentes : l echappement regex etait fautif. Le genre de faux negatif qui
+  conduit a « corriger » du sain — `grep -F` (litteral) tranche. *Un controle
+  qui ne mesure rien annonce 0*, cinquieme fois.
+
+**Verifie** : type-check vert, 41/41 tests, 0 erreur de lint (517
+avertissements, niveau inchange), build complet. Et **dans le CSS SERVI**
+(regle du projet apres deux ponts casses) : `transition-property` porte bien
+`width,transform,visibility`, et les 8 classes `lg:` sont emises **DANS** la
+media query `min-width:1024px` (`lg` = 1024, aucun override dans
+`tailwind.config`).
+
 
 ## Prochaine etape
 
