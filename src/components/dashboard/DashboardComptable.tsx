@@ -130,7 +130,10 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
           {methodTotal === 0 ? (
             <p className="text-xs text-warm-700 italic py-8 text-center">Aucun encaissement.</p>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              {/* Meme motif que la carte Recouvrement de l admin : un donut a
+                  largeur FIXE a cote d un contenu, ce qui comprime ce dernier
+                  sous 640 px. On empile, la legende prend alors toute la largeur. */}
               <div style={{ width: 132, height: 132 }} className="shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -142,7 +145,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 w-full sm:flex-1">
                 <VizLegend items={methodData.map(d => ({ label: d.name, color: d.fill, value: fmtEur(d.value) }))} />
               </div>
             </div>
