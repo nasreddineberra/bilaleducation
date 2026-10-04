@@ -110,11 +110,23 @@ function lireDepot() {
 
 // ── Les fichiers que git a connus puis qui ont DISPARU du disque ───────────
 //
-// Cas reel : `add-absence-replacement-designation.sql`, ajoutee puis supprimee
-// sans remplacement. Si elle avait ete jouee avant sa suppression, la base
-// porte une colonne, un index et une fonction dont AUCUN fichier ne garde
-// trace — le defaut du 5 aout (`policies.sql`) dans l autre sens. Le registre
-// ne peut pas le deviner, mais il peut le SIGNALER.
+// Cas reel : `add-absence-replacement-designation.sql`, ajoutee le 14 aout puis
+// supprimee le meme jour. VERIFIE EN BASE le 4 octobre : sa colonne n existe
+// pas, et sa fonction est recreee par deux migrations PRESENTES — rien
+// d orphelin. Le signalement brut (« fichier disparu ») avait donc fait croire
+// a un ecart qui n existait pas.
+//
+// D ou le raffinement : on extrait les objets que le fichier creait et on ne
+// crie que sur ceux dont AUCUN fichier present ne porte plus le nom. Un
+// signalement qui ne distingue pas « a verifier » de « casse » fait perdre la
+// confiance qu on lui accorde.
+//
+// RESULTAT DEJA OBTENU LE 4 OCTOBRE, pour ne pas le refaire : des 4 objets de
+// ce fichier, la fonction et son trigger sont recrees par deux migrations
+// presentes ; la colonne replacement_profile_id et son index n ont plus de
+// source — et la base a repondu qu ils N EXISTENT PAS. Aucun orphelin, donc.
+// L approche avait ete abandonnee AVANT d etre jouee : le code utilise
+// replaced_profile_id, qui pointe en sens inverse.
 function lireDisparues(presentes) {
   const brut = execSync(
     `git log --diff-filter=A --format="" --name-only -- ${DIR}/`,
@@ -124,7 +136,50 @@ function lireDisparues(presentes) {
     brut.split('\n').map((l) => l.trim().replace(`${DIR}/`, ''))
       .filter((n) => n.endsWith('.sql')),
   )
-  return [...connues].filter((n) => !presentes.has(n)).sort()
+  const noms = [...connues].filter((n) => !presentes.has(n)).sort()
+  if (!noms.length) return []
+
+  // Tout le SQL encore present, pour y chercher les objets du disparu.
+  const presentSql = [...presentes]
+    .map((n) => readFileSync(join(DIR, n), 'utf-8')).join('\n')
+
+  return noms.map((nom) => {
+    // Derniere version connue du fichier, avant sa suppression.
+    //
+    // `~1` ET SURTOUT PAS `^` : `execSync` passe par `cmd.exe` sous Windows, ou
+    // `^` est le caractere d ECHAPPEMENT. git recevait alors `<sha>:fichier` et
+    // cherchait le fichier dans le commit qui l avait supprime — ou il n existe
+    // plus, par definition. Les deux notations sont equivalentes pour git.
+    let src = ''
+    let echec = null
+    try {
+      const sha = execSync(`git log --diff-filter=D --format=%H -1 -- ${DIR}/${nom}`,
+        { encoding: 'utf-8' }).trim()
+      if (!sha) throw new Error('aucun commit de suppression trouve')
+      src = execSync(`git show ${sha}~1:${DIR}/${nom}`,
+        { encoding: 'utf-8', maxBuffer: 8 * 1024 * 1024 })
+    } catch (e) {
+      // JAMAIS un catch muet ici : son silence transformait l echec en
+      // « 0 objet », donc en verdict rassurant « rien d orphelin ».
+      echec = String(e.message).split('\n')[0]
+    }
+
+    // Les objets qu il creait. Un objet encore nomme par un fichier PRESENT a
+    // ete repris ailleurs : ce n est pas un orphelin.
+    const objets = [...new Set(
+      [...src.matchAll(
+        /(?:CREATE(?:\s+OR\s+REPLACE)?\s+(?:FUNCTION|TABLE|TRIGGER|POLICY|(?:UNIQUE\s+)?INDEX)(?:\s+IF\s+NOT\s+EXISTS)?|ADD\s+COLUMN(?:\s+IF\s+NOT\s+EXISTS)?)\s+"?([a-z_][a-z0-9_]*)"?/gi,
+      )].map((m) => m[1]),
+    )]
+    const orphelins = objets.filter((o) => !presentSql.includes(o))
+
+    // Un fichier SQL non vide d ou l on n extrait AUCUN objet est une anomalie
+    // de ce script, pas un resultat : on le dit plutot que de conclure.
+    if (!echec && src.trim() && !objets.length) {
+      echec = 'contenu lu, mais aucun objet reconnu : extraction a revoir'
+    }
+    return { nom, objets, orphelins, echec }
+  })
 }
 
 const q = (s) => `'${String(s).replace(/'/g, "''")}'`
@@ -145,8 +200,17 @@ if (args[0] === '--local') {
   console.log('  5 plus recentes :')
   migrations.slice(-5).forEach((m) => console.log(`    ${quand(m)}  ${m.nom}`))
   if (disparues.length) {
-    console.log(`\n  !! ${disparues.length} fichier(s) connu(s) de git mais ABSENT(S) du disque :`)
-    disparues.forEach((n) => console.log(`     ${n}`))
+    console.log(`\n  ${disparues.length} fichier(s) connu(s) de git, absent(s) du disque :`)
+    for (const d of disparues) {
+      const verdict = d.echec
+        ? `?? NON CONCLUANT : ${d.echec}`
+        : d.orphelins.length
+          // « plus de source DANS LE DEPOT » n est PAS « orphelin en base » : le
+          // script ne peut pas savoir si l objet existe. Il dit ce qu il sait.
+          ? `${d.orphelins.length} objet(s) sans source au depot, A VERIFIER EN BASE : ${d.orphelins.join(', ')}`
+          : `ses ${d.objets.length} objet(s) sont repris par des fichiers presents : rien d orphelin`
+      console.log(`     ${d.nom}\n       ${verdict}`)
+    }
   }
   process.exit(0)
 }
@@ -231,12 +295,25 @@ BEGIN
     (SELECT count(*) FROM migrations_appliquees WHERE source = 'presume');
 END
 $v$;`)
-  if (disparues.length) {
+  const nonConcluants = disparues.filter((d) => d.echec)
+  const avecOrphelins = disparues.filter((d) => !d.echec && d.orphelins.length)
+  if (nonConcluants.length) {
     console.log(`
--- ── A VERIFIER A LA MAIN : ${disparues.length} fichier(s) que git a connu(s) et qui ont DISPARU
-${disparues.map((n) => `--    ${n}`).join('\n')}
--- Si l un a ete joue avant sa suppression, la base porte des objets dont
--- aucun fichier ne garde trace. Rien ici ne peut le deviner.`)
+-- ── ${nonConcluants.length} fichier(s) disparu(s) que ce script N A PAS SU ANALYSER
+${nonConcluants.map((d) => `--    ${d.nom} : ${d.echec}`).join('\n')}
+-- A regarder a la main : leur contenu pourrait avoir laisse des objets en base.`)
+  }
+  if (avecOrphelins.length) {
+    console.log(`
+-- ── A VERIFIER EN BASE : ${avecOrphelins.length} fichier(s) disparu(s) dont des objets n ont PLUS DE SOURCE
+${avecOrphelins.map((d) => `--    ${d.nom} -> ${d.orphelins.join(', ')}`).join('\n')}
+-- Si ce fichier a ete joue avant sa suppression, ces objets vivent en base sans
+-- qu aucune migration ne les decrive. Seule une requete sur le catalogue
+-- (information_schema, pg_proc) peut le trancher.`)
+  } else if (disparues.length) {
+    console.log(`
+-- ${disparues.length} fichier(s) disparu(s) du depot, mais leurs objets sont repris par des
+-- migrations presentes : rien d orphelin a verifier.`)
   }
   process.exit(0)
 }
