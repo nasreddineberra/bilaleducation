@@ -4935,12 +4935,28 @@ ecrite, et dont les deux erreurs ont deja ete faites ici :
      RLS d aout-septembre. Son README dit de le regenerer avant tout usage, et
      la commande `pg_dump` y est.
 
-2. **UNE MIGRATION SUPPRIMEE DU DEPOT SANS REMPLACEMENT.**
-   `add-absence-replacement-designation.sql` ajoutait une colonne, un index et
-   une fonction, puis a ete supprimee par le commit qui changeait d approche. Si
-   elle avait ete jouee avant, **la base porte trois objets dont aucun fichier ne
-   garde trace** — le defaut du 5 aout (`policies.sql`) dans l autre sens. Rien
-   ne peut le deviner ; le remplissage du registre le **signale**.
+2. **UNE MIGRATION SUPPRIMEE DU DEPOT — ET MON ALERTE ETAIT FAUSSE.**
+   `add-absence-replacement-designation.sql` ajoutait une colonne, un index, une
+   fonction et son trigger, puis a ete supprimee. J ai annonce que la base
+   portait peut-etre **trois objets sans source**. **VERIFIE EN BASE le 04/10 :
+   aucun orphelin.**
+   - la **fonction et son trigger** sont recrees par DEUX migrations presentes
+     (`guard-presence-absence-exclusivity`, entree le 13/08 a 21h52, et
+     `drop-absence-period-for-slot-based-absences`, le 14/08 a 00h34) : le
+     contenu utile avait ete **reporte la veille** de la suppression ;
+   - la **colonne et son index** n ont plus de source, mais ils **n existent
+     pas** en base — l approche fut abandonnee avant d etre jouee ;
+   - et **le code n y fait aucune reference** : il utilise
+     `replaced_profile_id`, qui pointe en sens inverse.
+   **POURQUOI J AI ALERTE A TORT** : mon critere etait a moitie — « fichier
+   connu de git, absent du disque » donc « objets peut-etre sans source ».
+   L etape suivante, verifier si ces objets sont **recrees ailleurs**, tenait en
+   une commande et je ne l avais pas faite. *Un signalement qui ne distingue pas
+   « a verifier » de « casse » use la confiance qu on lui accorde.*
+   → Le script ANALYSE desormais le fichier disparu (extraction de ses objets,
+   recherche dans les fichiers presents) et parle de « a verifier EN BASE », pas
+   d orphelin : il ne peut pas savoir si l objet existe. Le resultat du 04/10 est
+   consigne dans le fichier, pour que personne ne refasse l enquete.
 
 3. **AUCUNE DES 131 NE DETRUIT DE DONNEES AU REJEU.** Mesure sur les ecritures
    reelles : toutes bornees par un `WHERE` ou protegees par `ON CONFLICT DO
@@ -4988,6 +5004,26 @@ compte : le filtre d empreinte retirait **toute** ligne contenant
 sa signature n aurait pas change l empreinte du fichier. Plus : une migration non
 commitee, sans date git, etait triee **en tete** alors qu elle est la plus
 recente ; et le rapport affichait `undefined` pour sa date.
+
+**TROIS DEFAUTS DANS L ANALYSEUR DE FICHIERS DISPARUS**, tous trouves en
+l executant — et le deuxieme est le motif que ce projet paie pour la 4e fois :
+- **`git show <sha>^:fichier` ECHOUE SOUS WINDOWS.** `execSync` passe par
+  `cmd.exe`, ou `^` est le caractere d **echappement** : git recevait
+  `<sha>:fichier` et cherchait le fichier dans le commit qui l avait SUPPRIME,
+  ou il n existe plus par definition. **`~1`** fait la meme chose sans caractere
+  special.
+- **Et le `catch` etait MUET** : l echec devenait « 0 objet extrait », donc un
+  verdict rassurant « rien d orphelin ». *Un controle qui ne mesure rien annonce
+  0.* L echec est desormais porte jusqu a l affichage (« NON CONCLUANT »), et un
+  fichier non vide d ou l on n extrait aucun objet est declare **anomalie du
+  script**, pas resultat.
+- **LES BACKTICKS NE SURVIVENT PAS A UN PYTHON INLINE** : bash a pris ceux d un
+  COMMENTAIRE pour une substitution de commande, a « execute » deux noms de
+  colonnes (« command not found ») et les a remplaces par du vide — le
+  commentaire disait « la colonne  et son index ». La regle du projet existait
+  (les correctifs delicats passent par un FICHIER) et je l ai enfreinte. Le
+  journal notait le piege pour les apostrophes et les antislashs ; **les
+  backticks s y ajoutent**.
 
 **`supabase/schema-export.sql` SUPPRIME** : 0 ligne, aucune reference, et son nom
 laissait croire qu il contenait un export.
@@ -5572,7 +5608,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] **DEUX COLLAGES, dans cet ordre** (procedure de migration du 04/10) :
+- [x] **DEUX COLLAGES — FAITS le 04/10.** Registre en place : **132 lignes,
+  60 attestees, 72 presumees**, conforme a l attendu. Et la question des objets
+  fantomes est TRANCHEE : **aucun orphelin** (voir le journal du 04/10).
   1. `supabase/migrations/create-migrations-registre.sql` — cree la table
      `migrations_appliquees` et `enregistrer_migration()`. Elle finit par une
      verification qui leve si les 2 policies ne sont pas en place ou si `anon`
