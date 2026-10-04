@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Power, Bell, ChevronRight, Sun, Moon } from 'lucide-react'
+import { Power, Bell, ChevronRight, Sun, Moon, Menu } from 'lucide-react'
 import { clsx } from 'clsx'
 
 import { useSidebar } from './SidebarContext'
@@ -217,7 +217,7 @@ interface DashboardNavProps {
 
 export default function DashboardNav({ profile, unreadNotifCount = 0, supportEcole = null }: DashboardNavProps) {
   const pathname  = usePathname()
-  const { collapsed } = useSidebar()
+  const { collapsed, ouvertMobile, setOuvertMobile } = useSidebar()
   const { theme, toggle } = useTheme()
 
   const doLogout = async (reason?: 'inactivity') => {
@@ -238,6 +238,21 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
     <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none px-6 sticky top-0 z-30">
       {/* `relative` : ancre du rappel d'intervention, centré en absolu. */}
       <div className="relative w-full flex items-center justify-between">
+
+        {/* ── Ouverture du tiroir de navigation (petit ecran) ──────────────────
+            A gauche du titre : c est la place attendue, et le titre est deja
+            masque sous 768 px (`hidden md:flex`), donc l espace est libre.
+            `aria-expanded` + `aria-controls` : sans eux, un lecteur d ecran
+            annonce un bouton sans dire ce qu il ouvre ni dans quel etat. */}
+        <button
+          onClick={() => setOuvertMobile(v => !v)}
+          aria-label="Ouvrir la navigation"
+          aria-expanded={ouvertMobile}
+          aria-controls="navigation-laterale"
+          className="lg:hidden mr-3 flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg text-warm-700 dark:text-[#8b9aa0] hover:bg-warm-100 dark:hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        >
+          <Menu size={20} />
+        </button>
 
         {/* Titre + Breadcrumb */}
         <div className="hidden md:flex flex-col justify-center">

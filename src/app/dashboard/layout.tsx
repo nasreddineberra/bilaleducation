@@ -195,7 +195,11 @@ export default async function DashboardLayout({
         {/* Zone droite : navbar + contenu */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} supportEcole={supportEcole} />
-          <main id="main-content" tabIndex={-1} className="flex-1 px-8 pt-5 pb-4 overflow-y-auto outline-none">
+          {/* `px-3` sous 640 px : les 64 px de marge de `px-8` sont tenables sur
+              un ecran large, ils coutent un cinquieme de la largeur d un
+              telephone. Le `lg:px-8` rend la respiration d origine des que la
+              barre laterale reprend sa place dans le flux. */}
+          <main id="main-content" tabIndex={-1} className="flex-1 px-3 sm:px-5 lg:px-8 pt-5 pb-4 overflow-y-auto outline-none">
             {children}
           </main>
         </div>

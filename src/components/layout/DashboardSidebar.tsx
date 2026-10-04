@@ -40,6 +40,7 @@ import {
   Boxes,
   ScrollText,
   CalendarCheck,
+  X,
 } from 'lucide-react'
 import Image from 'next/image'
 import type { UserRole } from '@/types/database'
@@ -503,7 +504,25 @@ function getInitiales(nom: string): string {
 export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante }: DashboardSidebarProps) {
   const pathname   = usePathname()
 
-  const { collapsed, setCollapsed } = useSidebar()
+  const { collapsed, setCollapsed, ouvertMobile, setOuvertMobile } = useSidebar()
+
+  // ── Le tiroir se referme a la NAVIGATION ────────────────────────────────────
+  // Sur `pathname` et non au clic sur un lien : cela couvre aussi le bouton
+  // Precedent du navigateur et les liens internes des ecrans (le tableau de
+  // bord renvoie lui-meme vers d autres pages). Sans cela, le menu resterait
+  // ouvert PAR-DESSUS la page qu on vient de demander.
+  useEffect(() => { setOuvertMobile(false) }, [pathname, setOuvertMobile])
+
+  // ── Echap ferme le tiroir ───────────────────────────────────────────────────
+  // La regle du projet interdit Echap sur une modale de SAISIE (on y perdrait
+  // du texte). Un menu de navigation n a rien a perdre : c est le cas de la
+  // doctrine du 3 aout, qui l autorise sur ce qui ne retient aucune saisie.
+  useEffect(() => {
+    if (!ouvertMobile) return
+    const surTouche = (e: KeyboardEvent) => { if (e.key === 'Escape') setOuvertMobile(false) }
+    document.addEventListener('keydown', surTouche)
+    return () => document.removeEventListener('keydown', surTouche)
+  }, [ouvertMobile, setOuvertMobile])
   const peutContacterSupport = Boolean(role && ROLES_SUPPORT.includes(role))
   const [tempExpanded,  setTempExpanded]  = useState(false)  // expand temporaire depuis état réduit
 
@@ -620,11 +639,37 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   const initiales     = getInitiales(etablissementNom ?? 'Bilal Education')
 
   return (
+    <>
+    {/* ── Voile du tiroir (petit ecran seulement) ───────────────────────────────
+        Au-dessus de l en-tete (z-30) pour que la page entiere passe en retrait,
+        et SOUS la barre (z-40). Un clic ferme : voir la note sur Echap plus
+        haut, un menu de navigation ne retient aucune saisie. */}
+    {ouvertMobile && (
+      <div
+        onClick={() => setOuvertMobile(false)}
+        aria-hidden="true"
+        className="fixed inset-0 z-[35] bg-black/50 lg:hidden"
+      />
+    )}
+
     <aside
+      id="navigation-laterale"
       className={clsx(
-        'h-full flex flex-col shadow-sidebar flex-shrink-0 overflow-x-hidden',
-        'transition-[width] duration-200 ease-in-out motion-reduce:transition-none',
-        collapsed ? 'w-[92px]' : 'w-64'
+        'flex flex-col shadow-sidebar overflow-x-hidden',
+        // PETIT ECRAN : la barre SORT DU FLUX. Sans cela elle mange 256 px des
+        // 360 px d un telephone, et le `overflow-hidden` du layout rend ce qui
+        // depasse INATTEIGNABLE (pas de defilement horizontal possible).
+        'fixed inset-y-0 left-0 z-40 w-64',
+        // GRAND ECRAN : comportement d origine, la barre partage la largeur.
+        'lg:static lg:h-full lg:flex-shrink-0',
+        collapsed ? 'lg:w-[92px]' : 'lg:w-64',
+        // `invisible` et pas seulement `-translate-x-full` : un element pousse
+        // hors de l ecran reste FOCUSABLE au clavier, on tabulerait dans un
+        // menu qu on ne voit pas. `visibility` etant transitionnee, elle ne
+        // bascule qu a la FIN des 200 ms : le glissement de sortie reste visible.
+        ouvertMobile ? 'translate-x-0 visible' : '-translate-x-full invisible',
+        'lg:translate-x-0 lg:visible',
+        'transition-[width,transform,visibility] duration-200 ease-in-out motion-reduce:transition-none'
       )}
       style={{ background: 'linear-gradient(180deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
     >
@@ -682,8 +727,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         )}
         </Link>
 
-        {/* Bouton toggle — tooltip standard (jamais de title= natif) */}
-        <SidebarTooltip label={collapsed ? 'Développer' : 'Réduire'} className="w-auto flex-shrink-0">
+        {/* Bouton toggle — tooltip standard (jamais de title= natif).
+            Masque sur petit ecran : « Reduire » n a aucun sens dans un tiroir,
+            et un tiroir de 92 px serait illisible. La croix le remplace. */}
+        <SidebarTooltip label={collapsed ? 'Développer' : 'Réduire'} className="w-auto flex-shrink-0 hidden lg:block">
           <button
             onClick={handleToggle}
             aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
@@ -692,6 +739,16 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
         </SidebarTooltip>
+
+        {/* Fermeture du tiroir (petit ecran). Hors `SidebarTooltip` : une
+            infobulle sur un geste evident encombrerait un ecran etroit. */}
+        <button
+          onClick={() => setOuvertMobile(false)}
+          aria-label="Fermer la navigation"
+          className="lg:hidden rounded-lg flex items-center justify-center w-8 h-8 flex-shrink-0 text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       {/* ── Navigation ───────────────────────────────────────────────────────── */}
@@ -1009,5 +1066,6 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
       </div>
 
     </aside>
+    </>
   )
 }
