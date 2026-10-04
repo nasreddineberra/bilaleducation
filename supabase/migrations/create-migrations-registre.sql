@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS migrations_appliquees (
   empreinte     text NOT NULL CHECK (empreinte ~ '^[0-9a-f]{64}$'),
 
   appliquee_le  timestamptz NOT NULL DEFAULT now(),
+
+  -- NULL quand la migration est jouee depuis l EDITEUR SQL, qui n a pas de
+  -- session : c est le cas NORMAL et non une anomalie. La colonne ne se
+  -- remplit que pour un appel venu de l application.
   applique_par  uuid REFERENCES profiles(id) ON DELETE SET NULL,
 
   -- ATTESTE  : quelqu un l a reellement jouee et l a vue passer.
@@ -101,10 +105,28 @@ SECURITY DEFINER
 SET search_path = public
 AS $fn$
 BEGIN
-  -- Garde de role en `coalesce` : `NULL NOT IN (...)` vaut NULL et ne bloque
-  -- donc PAS un appelant anonyme (regle du 7 juillet).
-  IF coalesce(get_user_role(), '') NOT IN ('admin', 'direction') THEN
-    RAISE EXCEPTION 'Enregistrement de migration reserve a l administration.';
+  -- ┌─ LA GARDE DOIT LAISSER PASSER L EDITEUR SQL ────────────────────────┐
+  -- │ C est par lui que les migrations se jouent, et il n a PAS DE        │
+  -- │ SESSION : `auth.uid()` y est NULL, donc `get_user_role()` rend      │
+  -- │ NULL. Une garde ecrite seulement sur le role applicatif aurait      │
+  -- │ refuse le seul canal qu elle doit servir — et l editeur etant       │
+  -- │ transactionnel, la migration entiere aurait ete annulee.            │
+  -- │                                                                      │
+  -- │ `auth.jwt() ->> 'role'`, le motif employe ailleurs dans ce projet,  │
+  -- │ ne suffit pas : il est NULL depuis l editeur lui aussi. Seul        │
+  -- │ `current_user` est TOUJOURS defini.                                 │
+  -- │                                                                      │
+  -- │ On refuse donc les DEUX roles de l API publique quand le role       │
+  -- │ applicatif ne convient pas, et on laisse passer tout le reste —     │
+  -- │ `postgres` (editeur SQL), `service_role`, `supabase_admin` : y      │
+  -- │ acceder exige deja un acces serveur.                                │
+  -- │                                                                      │
+  -- │ `coalesce` reste indispensable : `NULL NOT IN (...)` vaut NULL et   │
+  -- │ ne bloque donc PAS un appelant anonyme (regle du 7 juillet).        │
+  -- └──────────────────────────────────────────────────────────────────────┘
+  IF current_user IN ('anon', 'authenticated')
+     AND coalesce(get_user_role(), '') NOT IN ('admin', 'direction') THEN
+    RAISE EXCEPTION 'Enregistrement de migration reserve a l administration ou au canal serveur.';
   END IF;
 
   INSERT INTO migrations_appliquees (nom, empreinte, applique_par, rejeu, note, source)
