@@ -107,7 +107,15 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
-            {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
+            {canEdit && (
+              horsFenetre ? (
+                <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être modifiée.">
+                  <FloatButton variant="edit" type="button" disabled>Modifier</FloatButton>
+                </Tooltip>
+              ) : (
+                <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>
+              )
+            )}
             {canEdit && (
               horsFenetre ? (
                 <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être supprimée.">

@@ -205,6 +205,92 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
 
 /** Fenêtre de suppression d'une séance, en jours. Même valeur que la fenêtre de
  *  préparation d'un remplaçant (13 juillet) : une seule notion de « récent ». */
+/**
+ * Modification d'un devoir — ALIGNEE SUR LA SUPPRESSION (arbitrage du 5 octobre).
+ *
+ * CE QUI MANQUAIT. La suppression avait sa fenêtre depuis le 24/09 ; la
+ * modification, elle, écrivait `supabase.from('homework').update(...)`
+ * DIRECTEMENT DEPUIS LE NAVIGATEUR, sans fenêtre, sans garde de rôle et sans
+ * trace. On ne pouvait donc plus supprimer un devoir passé, mais on pouvait
+ * encore le réécrire entièrement — ce qui revient au même, rien n'empêchant de
+ * vider le titre et les consignes.
+ *
+ * Et griser le bouton n'aurait rien fermé : l'écriture partant du navigateur,
+ * l'API REST serait restée ouverte. C'est la règle que ce projet a payée tout
+ * l'été — un écran qui écrit depuis le navigateur n'est protégé que par la base
+ * ou par une server action.
+ *
+ * LA FENETRE PORTE SUR LA DATE EN BASE, jamais sur celle du formulaire : sinon
+ * il suffirait de poser une date future dans le même envoi pour se rouvrir le
+ * droit de modifier un devoir ancien.
+ */
+export async function modifierDevoir(
+  id: string,
+  payload: {
+    class_id: string
+    teacher_id: string | null
+    subject: string
+    title: string
+    description_html: string
+    homework_type: string
+    due_date: string
+  },
+): Promise<Resultat> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié.' }
+
+  const { data: profil } = await supabase
+    .from('profiles')
+    .select('role, etablissement_id')
+    .eq('id', user.id)
+    .single()
+  const role = effectiveRole(profil) ?? ''
+  const etablissementId = profil?.etablissement_id
+  if (!etablissementId) return { error: 'Établissement introuvable.' }
+
+  const { data: hw } = await supabase
+    .from('homework')
+    .select('id, title, due_date, etablissement_id, classes:class_id(name), teachers:teacher_id(user_id)')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!hw || hw.etablissement_id !== etablissementId) return { error: 'Devoir introuvable.' }
+
+  const estAuteur = (hw.teachers as { user_id?: string } | null)?.user_id === user.id
+  if (!ENCADREMENT.includes(role)) {
+    if (!estAuteur) return { error: 'Seul son auteur peut modifier ce devoir.' }
+    if (joursEcoules(hw.due_date) > 0) {
+      return { error: 'La date de rendu est passée : ce devoir appartient désormais à l’historique.' }
+    }
+  }
+
+  const { data: modifies, error } = await supabase
+    .from('homework')
+    .update(payload)
+    .eq('id', id)
+    .select('id')
+
+  if (error) return { error: error.message }
+  if (!modifies || modifies.length === 0) {
+    return { error: 'Votre rôle ne permet pas de modifier ce devoir.' }
+  }
+
+  // La trace s'écrit APRES l'écriture, contrairement à la suppression : ici la
+  // ligne ne disparaît pas, et une trace posée avant mentirait si l'écriture
+  // était refusée par la RLS — un refus qui ne lève RIEN, il rend zéro ligne.
+  await logAudit(supabase, {
+    action: 'UPDATE',
+    entityType: 'homework',
+    entityId: id,
+    description: `Devoir modifie : « ${payload.title} » · ${(hw.classes as { name?: string } | null)?.name ?? ''} · a rendre le ${payload.due_date}`,
+  })
+
+  revalidatePath('/dashboard/cahier-texte')
+  return {}
+}
+
 const FENETRE_SEANCE_JOURS = 7
 
 export async function supprimerSeance(id: string): Promise<Resultat> {
@@ -260,6 +346,76 @@ export async function supprimerSeance(id: string): Promise<Resultat> {
   // Aucune notification : une séance est une CONSULTATION INTERNE, elle n'a
   // jamais rien envoyé aux familles (décision du 11 juillet). L'annuler ne leur
   // apprend donc rien qu'elles attendaient.
+  revalidatePath('/dashboard/cahier-texte')
+  return {}
+}
+
+/**
+ * Modification d'une séance — même raisonnement que `modifierDevoir`.
+ *
+ * La fenêtre porte sur `session_date` TELLE QU'ELLE EST EN BASE. Déplacer la
+ * séance vers une date plus ancienne dans le même envoi ne rouvre donc rien :
+ * c'est l'état de départ qui décide du droit de modifier.
+ */
+export async function modifierSeance(
+  id: string,
+  payload: {
+    class_id: string
+    teacher_id: string | null
+    subject: string | null
+    session_date: string
+    title: string
+    content_html: string
+  },
+): Promise<Resultat> {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié.' }
+
+  const { data: profil } = await supabase
+    .from('profiles')
+    .select('role, etablissement_id')
+    .eq('id', user.id)
+    .single()
+  const role = effectiveRole(profil) ?? ''
+  const etablissementId = profil?.etablissement_id
+  if (!etablissementId) return { error: 'Établissement introuvable.' }
+
+  const { data: seance } = await supabase
+    .from('class_journal')
+    .select('id, title, session_date, etablissement_id, classes:class_id(name), teachers:teacher_id(user_id)')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!seance || seance.etablissement_id !== etablissementId) return { error: 'Séance introuvable.' }
+
+  const estAuteur = (seance.teachers as { user_id?: string } | null)?.user_id === user.id
+  if (!ENCADREMENT.includes(role)) {
+    if (!estAuteur) return { error: 'Seul son auteur peut modifier cette séance.' }
+    if (joursEcoules(seance.session_date) > FENETRE_SEANCE_JOURS) {
+      return { error: `Cette séance date de plus de ${FENETRE_SEANCE_JOURS} jours : elle ne peut plus être modifiée.` }
+    }
+  }
+
+  const { data: modifiees, error } = await supabase
+    .from('class_journal')
+    .update(payload)
+    .eq('id', id)
+    .select('id')
+
+  if (error) return { error: error.message }
+  if (!modifiees || modifiees.length === 0) {
+    return { error: 'Votre rôle ne permet pas de modifier cette séance.' }
+  }
+
+  await logAudit(supabase, {
+    action: 'UPDATE',
+    entityType: 'class_journal',
+    entityId: id,
+    description: `Seance modifiee : « ${payload.title} » · ${(seance.classes as { name?: string } | null)?.name ?? ''} · du ${payload.session_date}`,
+  })
+
   revalidatePath('/dashboard/cahier-texte')
   return {}
 }

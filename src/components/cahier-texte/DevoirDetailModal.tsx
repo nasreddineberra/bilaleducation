@@ -258,7 +258,15 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
-            {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
+            {canEdit && (
+              horsFenetre ? (
+                <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique, il ne peut plus être modifié.">
+                  <FloatButton variant="edit" type="button" disabled>Modifier</FloatButton>
+                </Tooltip>
+              ) : (
+                <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>
+              )
+            )}
             {canDelete && (
               horsFenetre ? (
                 <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique.">

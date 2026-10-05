@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
+import { modifierSeance } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
@@ -87,11 +87,10 @@ export default function SeanceForm({
       }
 
       if (isEdit) {
-        const echec = erreurEcriture(
-          await supabase.from('class_journal').update(journalPayload).eq('id', initialData.id).select('id'),
-          'Cette séance',
-        )
-        if (echec) throw new Error(echec)
+        // Server action : la fenetre des 7 jours se verifie cote serveur, et la
+        // modification est tracee. Voir `modifierSeance`.
+        const res = await modifierSeance(initialData.id, journalPayload)
+        if (res.error) throw new Error(res.error)
       } else {
         const { error } = await supabase
           .from('class_journal')

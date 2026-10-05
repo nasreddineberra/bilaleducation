@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
+import { modifierDevoir } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
@@ -88,8 +89,12 @@ export default function DevoirForm({
       }
 
       if (isEdit) {
-        const { error } = await supabase.from('homework').update(payload).eq('id', initialData.id)
-        if (error) throw error
+        // Server action et non un `update()` depuis le navigateur : la FENETRE
+        // (date de rendu passee) se verifie cote serveur — griser le bouton ne
+        // protegerait rien, l API REST restant ouverte. Elle apporte aussi la
+        // trace, qu une modification de devoir n avait jamais eue.
+        const res = await modifierDevoir(initialData.id, payload)
+        if (res.error) throw new Error(res.error)
       } else {
         // Devoir autonome : aucun rattachement à une séance (journal_entry_id = null)
         const { data: hw, error } = await supabase
