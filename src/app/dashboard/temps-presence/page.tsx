@@ -30,7 +30,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
   // l'enseignant ne saisit pas du tout ici — il valide depuis l'emploi du temps.
   // Les deux listes sont calquees sur la RLS (`add-role-checks-to-time-tracking`).
   const canSeeAll = ['admin', 'direction', 'comptable', 'secretaire', 'responsable_pedagogique'].includes(role)
-  const canWriteAll = ['admin', 'direction', 'secretaire'].includes(role)
+  const canWriteAll = ['admin', 'direction', 'comptable', 'secretaire'].includes(role)
   // enseignant inclus : il voit un recap de SES propres saisies (avec ses couts).
   const canSeeRecap = ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant'].includes(role)
 

@@ -772,6 +772,16 @@ export default function TempsPresenceClient({
                 </span>
               )}
             </div>
+            {/* MASQUE pour qui ne gere pas la presence (l enseignant), et non grise :
+                l action ne lui est JAMAIS possible, quel que soit le jour — c est le
+                critere qui separe les deux traitements dans ce projet. Le bouton
+                n avait AUCUN controle de role : il s affichait actif pour tout le
+                monde, et la modale s ouvrait sur une liste de membres VIDE
+                (`assignableStaff` rend `[]` hors perimetre d ecriture). Une promesse
+                que l ecran ne pouvait pas tenir.
+                Le grisage, lui, reste pour les gestionnaires quand l annee ou les
+                types manquent : cet etat-la est temporaire. */}
+            {canManage && (
             <Tooltip content={addBlockReason ?? 'Ajouter une saisie'}>
               <button
                 onClick={() => { setEditingEntry(null); setModalOpen(true) }}
@@ -786,6 +796,7 @@ export default function TempsPresenceClient({
                 Ajouter
               </button>
             </Tooltip>
+            )}
           </div>
 
           <div className="overflow-y-auto max-h-[65vh] px-3 py-1 divide-y divide-warm-100">
