@@ -6215,3 +6215,74 @@ rendu repoussee ne leur parvient jamais.
 
 **Verifie a l ecran par l utilisateur** : affichage des modales, et la fenetre de
 modification.
+
+#### 5 octobre 2026 (fin) — Temps de presence, toolbar EDT : LA PHASE 3 EST TERMINEE
+
+**TEMPS DE PRESENCE — une cause unique, trois endroits** : un conteneur `flex`
+SANS `flex-wrap` dont les elements portent tous `shrink-0`. Il ne peut alors ni
+se replier ni retrecir : il deborde et pousse la page. (1) la ligne de saisie du
+panneau du jour — c est elle qui coupait « COURS 09:00-12:0 » ; (2) l en-tete de
+la modale de recap, meme montage que les modales du cahier de texte (~408 px
+pour ~284 utiles) ; (3) le groupe de droite de la toolbar (~342 px pour ~324).
+**`flex-wrap` sur la barre parente ne se propage pas aux enfants** — troisieme
+fois en deux jours.
+- **Verifie sain, et c est ce qui a evite trois correctifs inutiles** : le
+  tableau de recap est deja dans un `overflow-x-auto` ; `TimeEntryModal` est
+  mobile-first et ses deux `grid-cols-2` sont **deliberees** — celle des types
+  porte son commentaire du 18 juillet, ou `flex-wrap` avait justement ete
+  ABANDONNE parce qu il faisait deborder « ADMINISTRATIF ». Y revenir aurait ete
+  une regression.
+
+**PUIS UNE REGLE METIER** (utilisateur) : « un enseignant ne doit pas pouvoir
+ajouter une saisie ; seuls secretaire, resp. pedago, comptable, admin et
+direction le peuvent ».
+- **`canAdd` n avait AUCUN controle de role** — il ne verifiait que l annee
+  scolaire et les types configures. Le bouton s affichait actif pour tout le
+  monde. Mais rien ne pouvait etre ecrit : `assignableStaff` rend `[]` hors
+  perimetre d ecriture, donc la modale s ouvrait sur une liste de membres VIDE.
+  Pas un trou de donnees — une promesse que l ecran ne tenait pas.
+- **ET LE DEFAUT INVERSE, trouve en mesurant** : `canWriteAll` valait
+  `['admin','direction','secretaire']`, **le COMPTABLE en etait absent**. La
+  decision du 14 juillet le cite, et `adjust-time-tracking-roles.sql` l a mis EN
+  BASE ce jour-la en notant que son absence etait « incoherent avec l UI ». Le
+  droit existait depuis trois mois, l ecran ne l exercait pas — meme signe que le
+  bucket des bulletins le 29/09.
+- **Bouton MASQUE et non grise** : l action n est JAMAIS possible pour
+  l enseignant, quel que soit le jour. Le grisage reste pour les gestionnaires
+  quand l annee ou les types manquent (etat temporaire). C est le critere qui a
+  aussi tranche « Modifier » du cahier de texte, grise lui parce qu actif sur
+  les devoirs recents.
+- **NON TOUCHE, delibere** : en base, l enseignant garde l INSERT sur SA PROPRE
+  ligne. C est la **validation de presence depuis l EDT** qui s en sert — il y
+  confirme un creneau planifie, ce qui n est pas saisir une heure. La lui retirer
+  casserait le fix du 10 juillet.
+
+**TOOLBAR EDT — le seul ecran SANS defaut.** Rien ne debordait ; la toolbar
+VOLAIT DE LA HAUTEUR a la grille, sur l ecran qui en a le plus besoin : plus de
+1000 px de contenu replies dans ~316, soit 4-5 lignes et ~150 px — un tiers d un
+telephone avant le premier creneau. Les trois bascules en consommaient ~264 px a
+elles seules (84 % de la largeur).
+- Retirer le « Par » sous le seuil les ramene a ~210 px, et « Ajouter » tient a
+  cote. Pas de « Prof » : le projet a deja corrige « Stats reglements » pour
+  familiarite (29/09).
+- **ET LE SEPARATEUR ELASTIQUE, SANS QUOI LE GAIN ETAIT NUL** : `flex-1` absorbe
+  tout l espace restant de SA ligne et poussait la navigation a la suivante,
+  quelle que soit la largeur des bascules. Mesure faite AVANT de coder — sinon le
+  correctif « evident » n aurait rien produit et j aurais conclu a tort que les
+  libelles n y changeaient rien.
+- **Pour l enseignant le sujet n existait deja plus** (bascules et listes
+  masquees le matin meme) — or c est le role le plus susceptible d ouvrir l EDT
+  sur un telephone.
+- **Ecarte** : masquer les bascules a tous (il faudrait une vue par defaut, et
+  « Globale » sur 316 px est illisible). Le repli des filtres derriere un bouton
+  (~100 px) reste possible, a ne construire que si la gene se constate.
+
+**BILAN DE LA PHASE 3** : EDT (vue jour + toolbar), feuille d appel, Mon compte,
+cahier de texte, temps de presence. **Le motif dominant, rencontre SIX fois** :
+un groupe `flex` sans `flex-wrap`, ou dont les enfants sont en `shrink-0`, ou
+dont le parent wrappe sans que l enfant suive. **`flex-wrap` ne se propage
+jamais.**
+
+**RESTE, hors responsive** : les INFOBULLES AU TOUCHER — un appui declenche le
+survol et rien ne retire la bulle. Concerne **tous les `Tooltip`** de
+l application, donc un sujet a part.
