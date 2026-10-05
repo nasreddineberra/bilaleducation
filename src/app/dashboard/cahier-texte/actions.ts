@@ -51,6 +51,62 @@ function joursEcoules(dateIso: string): number {
 
 type Resultat = { error?: string; avertissement?: string }
 
+type Dest = { parent_id: string; emailsOverride?: string[]; nom: string }
+
+/**
+ * Les foyers a prevenir pour un devoir, UN PAR FOYER.
+ *
+ * Extrait a son 2e usage (suppression, puis modification) : recopier une
+ * resolution de destinataires, c est le motif qui a produit le calcul comptable
+ * divergent dans trois sous-menus le 17 juillet.
+ *
+ * CLASSE ADULTE : les participants sont des TUTEURS (`parent_class_enrollments`),
+ * et l on ecrit au seul tuteur inscrit — d ou `emailsOverride`. CLASSE ENFANTS :
+ * un foyer peut avoir plusieurs enfants dans la classe, ses prenoms sont donc
+ * reunis sur une seule ligne plutot que d envoyer deux fois le meme message.
+ */
+async function destinatairesDeLaClasse(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  classId: string,
+  isAdult: boolean,
+): Promise<Dest[]> {
+  const destinataires: Dest[] = []
+
+  if (isAdult) {
+    const { data: participants } = await supabase
+      .from('parent_class_enrollments')
+      .select('parent_id, tutor_number, parents:parent_id(tutor1_email, tutor2_email, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
+      .eq('class_id', classId)
+      .eq('status', 'active')
+
+    for (const p of (participants ?? []) as any[]) {
+      const t = p.tutor_number === 2 ? 2 : 1
+      const email = p.parents?.[`tutor${t}_email`]
+      const nom = `${p.parents?.[`tutor${t}_last_name`] ?? ''} ${p.parents?.[`tutor${t}_first_name`] ?? ''}`.trim()
+      destinataires.push({ parent_id: p.parent_id, emailsOverride: email ? [email] : [], nom })
+    }
+  } else {
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('students:student_id(parent_id, last_name, first_name)')
+      .eq('class_id', classId)
+      .eq('status', 'active')
+
+    const parFoyer = new Map<string, string[]>()
+    for (const e of (enrollments ?? []) as any[]) {
+      const st = e.students
+      if (!st?.parent_id) continue
+      const liste = parFoyer.get(st.parent_id) ?? []
+      liste.push(`${st.last_name} ${st.first_name}`)
+      parFoyer.set(st.parent_id, liste)
+    }
+    for (const [parent_id, noms] of parFoyer) destinataires.push({ parent_id, nom: noms.join(' · ') })
+  }
+
+  return destinataires
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  DEVOIR
 // ═══════════════════════════════════════════════════════════════════════════
@@ -88,42 +144,10 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
     }
   }
 
-  // ── Destinataires capturés AVANT la suppression ──
+  // ── Destinataires résolus AVANT la suppression ──
   // La ligne va disparaître : ses foyers avec elle si on attend.
   const isAdult = !!(hw.classes as any)?.cotisation_types?.is_adult
-  type Dest = { parent_id: string; emailsOverride?: string[]; nom: string }
-  const destinataires: Dest[] = []
-
-  if (isAdult) {
-    const { data: participants } = await supabase
-      .from('parent_class_enrollments')
-      .select('parent_id, tutor_number, parents:parent_id(tutor1_email, tutor2_email, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
-      .eq('class_id', hw.class_id)
-      .eq('status', 'active')
-
-    for (const p of (participants ?? []) as any[]) {
-      const t = p.tutor_number === 2 ? 2 : 1
-      const email = p.parents?.[`tutor${t}_email`]
-      const nom = `${p.parents?.[`tutor${t}_last_name`] ?? ''} ${p.parents?.[`tutor${t}_first_name`] ?? ''}`.trim()
-      destinataires.push({ parent_id: p.parent_id, emailsOverride: email ? [email] : [], nom })
-    }
-  } else {
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('students:student_id(parent_id, last_name, first_name)')
-      .eq('class_id', hw.class_id)
-      .eq('status', 'active')
-
-    const parFoyer = new Map<string, string[]>()
-    for (const e of (enrollments ?? []) as any[]) {
-      const st = e.students
-      if (!st?.parent_id) continue
-      const liste = parFoyer.get(st.parent_id) ?? []
-      liste.push(`${st.last_name} ${st.first_name}`)
-      parFoyer.set(st.parent_id, liste)
-    }
-    for (const [parent_id, noms] of parFoyer) destinataires.push({ parent_id, nom: noms.join(' · ') })
-  }
+  const destinataires = await destinatairesDeLaClasse(supabase, hw.class_id, isAdult)
 
   // ── Trace AVANT d'effacer : après, on ne saurait plus quoi écrire ──
   await logAudit(supabase, {
@@ -203,8 +227,6 @@ export async function supprimerDevoir(id: string): Promise<Resultat> {
 //  SÉANCE
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Fenêtre de suppression d'une séance, en jours. Même valeur que la fenêtre de
- *  préparation d'un remplaçant (13 juillet) : une seule notion de « récent ». */
 /**
  * Modification d'un devoir — ALIGNEE SUR LA SUPPRESSION (arbitrage du 5 octobre).
  *
@@ -252,7 +274,7 @@ export async function modifierDevoir(
 
   const { data: hw } = await supabase
     .from('homework')
-    .select('id, title, due_date, etablissement_id, classes:class_id(name), teachers:teacher_id(user_id)')
+    .select('id, title, due_date, description_html, homework_type, class_id, etablissement_id, classes:class_id(name, cotisation_types(is_adult)), teachers:teacher_id(user_id, civilite, first_name, last_name)')
     .eq('id', id)
     .maybeSingle()
 
@@ -288,9 +310,87 @@ export async function modifierDevoir(
   })
 
   revalidatePath('/dashboard/cahier-texte')
+
+  // ── Prévenir les familles, mais SEULEMENT si ce qu'elles voient a changé ──
+  //
+  // Décision du 5 octobre. Notifier à chaque enregistrement ferait partir un
+  // email à toute la classe pour une virgule corrigée — et une correction
+  // reprise en trois fois en enverrait trois salves. On compare donc l'ancien
+  // au nouveau sur les SEULS champs que la famille lit : titre, date de rendu,
+  // consignes, type. Changer la matière ou l'enseignant rattaché ne les
+  // concerne pas et n'envoie rien.
+  //
+  // La comparaison se fait sur `hw`, lu AVANT l'écriture — après, l'ancienne
+  // valeur n'existe plus nulle part.
+  const aChangeVisible =
+    hw.title !== payload.title ||
+    hw.due_date !== payload.due_date ||
+    (hw.description_html ?? '') !== (payload.description_html ?? '') ||
+    hw.homework_type !== payload.homework_type
+
+  if (!aChangeVisible) return {}
+
+  const isAdult = !!(hw.classes as { cotisation_types?: { is_adult?: boolean } } | null)?.cotisation_types?.is_adult
+  const destinataires = await destinatairesDeLaClasse(supabase, hw.class_id, isAdult)
+
+  const ecole = await marqueEcole(supabase, etablissementId)
+  const t = hw.teachers as { civilite?: string; last_name?: string; first_name?: string } | null
+  const teacherLabel = t
+    ? `${t.civilite ? t.civilite + ' ' : ''}${t.last_name} ${t.first_name}`
+    : ''
+  let echecs = 0
+
+  for (const d of destinataires) {
+    const titre = d.nom ? `Devoir modifié · ${d.nom}` : 'Devoir modifié'
+    const corps = `${payload.title} · ${(hw.classes as { name?: string } | null)?.name ?? ''}`
+
+    // L'ÉTAT ACTUEL, sans comparaison (choix utilisateur) : le devoir tel qu'il
+    // est désormais. Même tableau que les emails de création et d'annulation,
+    // pour que les trois se lisent de la même façon.
+    const html = coque({
+      titre,
+      apercu: corps,
+      corps: [
+        `              <div style="font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">Ce devoir a été modifié. Voici sa version à jour.</div>`,
+        tableauInfos(([
+          [isAdult ? 'Participant' : 'Élève', d.nom],
+          ['Classe', (hw.classes as { name?: string } | null)?.name ?? ''],
+          ['Titre', payload.title],
+          ['À rendre le', formatJourLongFr(payload.due_date)],
+          ['Enseignant', teacherLabel],
+        ] as [string, string][]).filter(([, v]) => !!v)),
+        payload.description_html
+          ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${payload.description_html}</div>`
+          : '',
+      ].filter(Boolean).join('\n'),
+      ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },
+    })
+
+    const res = await createNotification({
+      etablissement_id: etablissementId,
+      type: 'homework',
+      parent_id: d.parent_id,
+      title: titre,
+      body: corps,
+      metadata: { homework_id: id, modifie: true },
+      emailSubject: titre,
+      emailHtml: html,
+      ...(d.emailsOverride ? { emailsOverride: d.emailsOverride } : {}),
+    })
+    if (!res.ok) echecs++
+  }
+
+  // L'échec d'envoi ne défait pas la modification : elle a eu lieu, on le dit
+  // (motif de l'alerte de changement d'email, 9 août).
+  if (echecs > 0) {
+    return { avertissement: `Devoir modifié. ${echecs} famille${echecs > 1 ? 's n’ont' : ' n’a'} pas pu être prévenue${echecs > 1 ? 's' : ''} par email.` }
+  }
   return {}
 }
 
+/** Fenêtre de modification ET de suppression d'une séance, en jours. Même valeur
+ *  que la fenêtre de préparation d'un remplaçant (13 juillet) : une seule notion
+ *  de « récent » dans tout le module. */
 const FENETRE_SEANCE_JOURS = 7
 
 export async function supprimerSeance(id: string): Promise<Resultat> {
