@@ -286,6 +286,26 @@ export default function EmploiDuTempsClient({
     ? (teachers.find(t => t.user_id === currentUserId)?.id ?? '')
     : ''
 
+  /**
+   * L'enseignant n'arbitre pas entre les plannings : il consulte LE SIEN.
+   *
+   * Les trois bascules (Globale / Par classe / Par enseignant) et les deux
+   * listes deroulantes sont donc MASQUEES pour lui — masquees et non grisees,
+   * car il n'existe aucun cas ou elles lui serviraient : l'ecriture de
+   * `schedule_slots` lui est fermee depuis le lot 3 du chantier RLS, et la
+   * validation de presence est deja bornee a ses propres creneaux
+   * (`showValidation = canEdit || (isTeacher && isOwnSlot)`, fix du 10 juillet).
+   *
+   * CE N'EST QU'UN MASQUAGE D'INTERFACE, et il faut le savoir :
+   * `schedule_slots_select` et `classes` accordent la LECTURE a tout le
+   * personnel, sans bornage `teaches_class`. L'API REST continue donc de tout
+   * servir. Borner la base est un sujet distinct, qui demande d'abord d'etablir
+   * a quoi `temps-presence/page.tsx` emploie ces creneaux (il les charge TOUS,
+   * sans filtre) — sinon on reproduit le defaut du 29 septembre : une migration
+   * qui rend un ecran inoperant EN SILENCE.
+   */
+  const estEnseignant = role === 'enseignant'
+
   const [slots, setSlots] = useState<SlotData[]>(initialSlots)
   const [exceptions, setExceptions] = useState<ExceptionData[]>(initialExceptions)
   const [validations, setValidations] = useState<ValidationData[]>(initialValidations)
@@ -731,11 +751,14 @@ export default function EmploiDuTempsClient({
     if (viewMode === 'class' && selectedClassId) {
       return resolvedMonthSlots.filter(s => s.class_id === selectedClassId)
     }
-    if (viewMode === 'teacher' && selectedTeacherId) {
+    // `|| estEnseignant` : sans lui, un `selectedTeacherId` vide SAUTE le filtre et
+    // rend TOUS les creneaux de l'ecole. L'encadrement le voit (sa liste est la, il
+    // n'a rien choisi) ; l'enseignant, dont la liste est masquee, croirait lire le sien.
+    if (viewMode === 'teacher' && (selectedTeacherId || estEnseignant)) {
       return resolvedMonthSlots.filter(s => s.teacher_id === selectedTeacherId)
     }
     return resolvedMonthSlots
-  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId])
+  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant])
 
   // ─── Computed ─────────────────────────────────────────────────────────────
 
@@ -781,11 +804,12 @@ export default function EmploiDuTempsClient({
     if (viewMode === 'class' && selectedClassId) {
       return resolvedSlots.filter(s => s.class_id === selectedClassId)
     }
-    if (viewMode === 'teacher' && selectedTeacherId) {
+    // Meme garde que la vue mois : un id vide ne doit pas ouvrir tout l'etablissement.
+    if (viewMode === 'teacher' && (selectedTeacherId || estEnseignant)) {
       return resolvedSlots.filter(s => s.teacher_id === selectedTeacherId)
     }
     return resolvedSlots
-  }, [resolvedSlots, viewMode, selectedClassId, selectedTeacherId])
+  }, [resolvedSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant])
 
   // Group by day
   const slotsByDay = useMemo(() => {
@@ -1532,7 +1556,8 @@ export default function EmploiDuTempsClient({
     <div className="flex flex-col h-full gap-2 p-2">
       {/* ── Toolbar ────────────────────────────────────────────────────── */}
       <div className="card flex flex-wrap items-center gap-3 px-4 py-2 flex-shrink-0">
-        {/* View tabs */}
+        {/* View tabs — voir `estEnseignant` : il consulte son planning, il n'arbitre pas */}
+        {!estEnseignant && (
         <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200" role="group" aria-label="Type de vue">
           {(['global', 'class', 'teacher'] as ViewMode[]).map(v => (
             <button
@@ -1555,9 +1580,10 @@ export default function EmploiDuTempsClient({
             </button>
           ))}
         </div>
+        )}
 
         {/* Class select */}
-        {viewMode === 'class' && (
+        {viewMode === 'class' && !estEnseignant && (
           <div ref={classDropRef} className="relative" onKeyDown={e => { if (e.key === 'Escape') setClassDropOpen(false) }}>
             <button
               type="button"
@@ -1612,7 +1638,7 @@ export default function EmploiDuTempsClient({
         )}
 
         {/* Teacher select */}
-        {viewMode === 'teacher' && (
+        {viewMode === 'teacher' && !estEnseignant && (
           <div ref={teacherDropRef} className="relative" onKeyDown={e => { if (e.key === 'Escape') setTeacherDropOpen(false) }}>
             <button
               type="button"
@@ -1651,6 +1677,16 @@ export default function EmploiDuTempsClient({
               </div>
             )}
           </div>
+        )}
+
+        {/* Cas defensif : la fiche de l'enseignant connecte n'est pas resolue (ligne
+            `teachers` absente, ou `user_id` non rattache). Son planning est alors VIDE
+            — et il doit le savoir, sinon il conclut que l'ecole ne lui a rien affecte.
+            Aucun ecran ne permet de rattacher un compte : l'action est ailleurs. */}
+        {estEnseignant && !ownTeacherId && (
+          <span role="alert" className="text-sm font-medium text-red-700">
+            Votre fiche enseignant n&apos;est pas rattachée à ce compte : votre planning ne peut pas être affiché. Contactez l&apos;administrateur.
+          </span>
         )}
 
         {/* Class info line */}
