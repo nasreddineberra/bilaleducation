@@ -258,6 +258,19 @@ function isSlotEffective(slot: SlotData, dateStr: string): boolean {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+/**
+ * Libelles des trois bascules de vue. La forme COURTE ne sert que sous le seuil
+ * mobile : « Globale | Par classe | Par enseignant » occupe ~264 px, soit 84 %
+ * des ~316 px utiles d'un telephone — a elles seules, les bascules prenaient
+ * une ligne entiere. Sans le « Par », elles tombent a ~210 px et le bouton
+ * « Ajouter » tient a cote : une ligne de toolbar rendue a la grille.
+ */
+const LIBELLES_VUE: Record<ViewMode, { court: string; long: string }> = {
+  global:  { court: 'Globale',    long: 'Globale' },
+  class:   { court: 'Classe',     long: 'Par classe' },
+  teacher: { court: 'Enseignant', long: 'Par enseignant' },
+}
+
 export default function EmploiDuTempsClient({
   currentUserId, role, canEdit, schoolYearId,
   classes, teachers, slots: initialSlots, exceptions: initialExceptions,
@@ -1576,7 +1589,7 @@ export default function EmploiDuTempsClient({
                   : 'bg-white text-warm-700 hover:bg-warm-50'
               )}
             >
-              {v === 'global' ? 'Globale' : v === 'class' ? 'Par classe' : 'Par enseignant'}
+              {petitEcran ? LIBELLES_VUE[v].court : LIBELLES_VUE[v].long}
             </button>
           ))}
         </div>
@@ -1697,7 +1710,9 @@ export default function EmploiDuTempsClient({
           return info ? <span className="text-sm font-medium text-warm-700 whitespace-nowrap">{info}</span> : null
         })()}
 
-        <div className="flex-1" />
+        {/* Separateur elastique : neutralise sous le seuil, ou il absorberait
+            l espace libere par les libelles courts et annulerait le gain. */}
+        <div className="hidden md:block md:flex-1" />
 
         {/* View type toggle: Semaine / Mois — masque sur telephone (la vue mois
             y est illisible, et « Semaine » contredirait l affichage a la journee) */}
