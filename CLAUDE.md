@@ -6144,3 +6144,74 @@ avertissements aurait masque le prochain qui serait reel. Niveau revenu a 517.
 
 **Verifie** : type-check vert, 41/41 tests, 0 erreur de lint (517
 avertissements, niveau inchange), build complet.
+
+#### 5 octobre 2026 (suite) — Cahier de texte : affichage mobile, puis une regle metier
+
+**L AFFICHAGE** (deux passes, la seconde sur capture de l utilisateur).
+- **Le select de classe debordait** : `wrapperClassName="w-fit"` est le motif du
+  projet (16/07, une largeur figee tronquait le libelle), mais l option vaut ici
+  `nom · enseignant · cotisation` — ~44 caracteres, soit ~352 px avec le
+  remplissage, pour ~324 px utiles. **`max-w-full`** le borne sans rien changer
+  sur grand ecran. Mesure au passage : celui de la FEUILLE D APPEL s arrete a
+  `nom · enseignant` (~254 px), il passe — de justesse, a savoir si un segment
+  s y ajoute.
+- **La ligne d infos** (4 segments en `whitespace-nowrap`) et **le groupe de
+  droite** : `flex-wrap` etait deja sur la barre, mais **il ne se propage pas aux
+  enfants** — le groupe « infos + Ajouter » restait sur une ligne. Meme defaut
+  que le pied de la modale d appel la veille.
+- **L EN-TETE DES MODALES DE DETAIL ecrasait le titre** : conteneur
+  `flex items-start justify-between`, groupe de droite en `flex-shrink-0`, bloc
+  de gauche avec `min-w-0` SEUL — sans base de croissance il se reduit au
+  minimum pendant que les boutons gardent leur taille. Mesure : ~256 px de
+  boutons dans ~308 px utiles, **il restait ~52 px** au titre. D ou « Général »
+  rendu « G. », `MAT-SM-BD1` casse sur TROIS lignes et un « · » orphelin.
+  En-tete **empile** sous le seuil ; le code de classe recoit
+  `whitespace-nowrap` (c est un IDENTIFIANT, ses tirets en font un point de
+  cesure naturel).
+- **Les deux jumeaux traites ensemble** (`SeanceDetailModal` /
+  `DevoirDetailModal`, en-tetes rigoureusement identiques). Et le meme montage
+  cherche **ailleurs** : `DashboardHeader` n a qu UN enfant dans son
+  `justify-between` (rien ne comprime son titre), `PassageAnneeClient` et
+  `StudentForm` sont sur des ecrans EXCLUS du mobile. Ces deux modales etaient
+  les seules atteignables.
+
+**PUIS UNE REGLE METIER, reperee par l utilisateur en verifiant l affichage** :
+« il n est pas normal de pouvoir modifier un devoir dont la date de rendu est
+passee ». L asymetrie etait reelle **et plus profonde que le bouton** :
+
+                      Supprimer (24/09)        Modifier (avant)
+  fenetre a l ecran   oui, grise + infobulle   AUCUNE
+  chemin d ecriture   server action            update() DEPUIS LE NAVIGATEUR
+  garde serveur       role + auteur + fenetre  AUCUNE
+  trace               logAudit                 AUCUNE
+
+- **Griser n aurait rien ferme** : l ecriture partant du navigateur, l API REST
+  serait restee ouverte. Et modifier revient a supprimer — rien n empechait de
+  vider le titre et les consignes d un devoir passe.
+- `modifierDevoir` / `modifierSeance` calquees sur leurs jumelles de suppression.
+  **La fenetre porte sur la date EN BASE**, jamais sur celle du formulaire :
+  sinon poser une date future dans le meme envoi rouvrirait le droit de modifier
+  un devoir ancien. Piege inexistant cote suppression, ou aucun payload
+  n accompagne l appel.
+- **La trace s ecrit APRES l ecriture**, a l inverse de la suppression : la, la
+  ligne disparait et il faut ecrire avant ; ici elle demeure, et une trace posee
+  avant mentirait si la RLS refusait (un refus ne leve RIEN, il rend zero ligne).
+  Verifie que les triggers d audit de `homework`/`class_journal` sont
+  **COMMENTES** dans `add-audit-triggers-all-tables.sql` : aucun doublon.
+- **GRISE ET NON MASQUE** (question de l utilisateur, arbitree). Le projet avait
+  deja tranche ce partage sans l ecrire : on **masque** ce qui n est JAMAIS
+  possible pour cette personne (ciblages interdits 15/07, bascules EDT ce matin),
+  on **grise** ce qui l est AILLEURS pour elle (4/08, 24/09). Un enseignant
+  modifie ses devoirs recents tous les jours : c est la difference entre bouton
+  actif et inactif qui lui enseigne la regle. Et « Supprimer » etait deja grise
+  dans la meme modale pour la meme cause — masquer « Modifier » a cote aurait
+  donne deux traitements pour une seule regle.
+- Corrige au passage : l UPDATE du devoir n avait **pas de `.select()`**, donc un
+  refus RLS passait pour un succes (forme B du chantier du 2 octobre).
+
+**SIGNALE, NON TRAITE** : la creation d un devoir previent les familles, la
+suppression aussi (« Devoir annule »), mais la **MODIFICATION non** — une date de
+rendu repoussee ne leur parvient jamais.
+
+**Verifie a l ecran par l utilisateur** : affichage des modales, et la fenetre de
+modification.
