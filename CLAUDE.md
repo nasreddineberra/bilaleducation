@@ -6283,6 +6283,11 @@ un groupe `flex` sans `flex-wrap`, ou dont les enfants sont en `shrink-0`, ou
 dont le parent wrappe sans que l enfant suive. **`flex-wrap` ne se propage
 jamais.**
 
+**VERIFIE A L ECRAN par l utilisateur** : les cinq ecrans de la phase 3, dont
+les deux derniers (temps de presence — bouton « Ajouter » absent en enseignant,
+present en comptable — et la toolbar EDT). **Le chantier responsive est clos.**
+Ses trois phases ont ete menees en deux jours : cadre, filtre de menu, ecrans.
+
 **RESTE, hors responsive** : les INFOBULLES AU TOUCHER — un appui declenche le
 survol et rien ne retire la bulle. Concerne **tous les `Tooltip`** de
 l application, donc un sujet a part.
