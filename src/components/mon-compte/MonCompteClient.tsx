@@ -135,13 +135,18 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
       <form onSubmit={handleSave} noValidate className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mes informations</h2>
 
-        <div className="grid grid-cols-[6rem_1fr_1fr] gap-3">
+        <div className="grid grid-cols-[5rem_1fr] sm:grid-cols-[6rem_1fr_1fr] gap-3">
           <FloatSelect label="Civilité" value={form.civilite} onChange={e => set('civilite', e.target.value)}>
             <option value="" disabled hidden></option>
             {CIVILITE_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
           </FloatSelect>
           <FloatInput label="Prénom" required value={form.first_name} onChange={e => set('first_name', e.target.value)} />
-          <FloatInput label="Nom" required value={form.last_name} onChange={e => set('last_name', e.target.value)} />
+          {/* Enveloppe plutot que `wrapperClassName` : `FloatInput` ne l expose
+              pas (seul `FloatSelect` le fait), et on ne touche pas a un
+              composant partage par toute l application pour un seul ecran. */}
+          <div className="col-span-2 sm:col-span-1">
+            <FloatInput label="Nom" required value={form.last_name} onChange={e => set('last_name', e.target.value)} />
+          </div>
         </div>
 
         <FloatInput label="Téléphone" value={form.phone} onChange={e => set('phone', e.target.value)} />
@@ -158,7 +163,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
       {/* ── Compte ── */}
       <div className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Compte</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {canEditEmail ? (
             <FloatInput
               label="Adresse email"
@@ -176,7 +181,9 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
           <FloatInput label="Établissement" value={etablissementName} locked onChange={() => {}} />
         )}
         {canEditEmail ? (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* La mention (~250 px sur deux lignes) et le bouton (~140 px)
+                depassent les 316 px utiles : sans wrap, le bouton sortait. */}
             <p className="text-[11px] text-warm-700">Le rôle et l&apos;établissement ne sont pas modifiables.</p>
             <div className="flex-1" />
             <FloatButton type="button" variant="edit" disabled={!emailChanged || emailSaving} onClick={() => setConfirmEmail(true)}>
@@ -194,7 +201,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
       <form onSubmit={changePassword} noValidate className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mot de passe</h2>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="relative">
             <FloatInput
               label="Nouveau mot de passe"
