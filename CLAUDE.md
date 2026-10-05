@@ -5398,7 +5398,24 @@ raconte. J allais « corriger » les deux.
    `grid-cols-3` figee = ~57 px par colonne, les trois montants se
    chevauchaient et le dernier etait coupe. **CORRIGE** : empilement sous
    640 px (`flex-col sm:flex-row`), les 3 chiffres prennent toute la largeur.
-   Motif unique, aucune autre occurrence (verifie).
+   - **J AI ECRIT « motif unique, aucune autre occurrence (verifie) ». C ETAIT
+     FAUX**, et la question de l utilisateur — « tout a-t-il ete verifie pour
+     les AUTRES roles ? » — l a montre. Mon grep cherchait
+     `flex items-center gap-6` ; **le jumeau du COMPTABLE s ecrit `gap-3`**
+     (donut de 132 px). Meme defaut, autre valeur, invisible a ce motif.
+     Corrige a l identique — deux cartes jumelles ne doivent pas diverger,
+     c est ce qui a produit le calcul comptable faux dans 3 sous-menus sur 3
+     le 17 juillet. *Un releve construit sur un motif DEVINE ne prouve rien :
+     il faut mesurer ce qui deborde REELLEMENT.*
+   - **LA MESURE REFAITE, sur les 6 tableaux de bord** : grilles toutes deja en
+     mobile-first sauf deux cas examines (effectifs par classe, serre mais
+     lisible ; `grid-cols-2` du parent, qui tient) ; **AUCUN `<table>`** dans
+     les 6 fichiers ; **largeurs FIXES : 2 seulement**, et ce sont les
+     2 donuts. Les 3 autres `style={{ width }}` sont des barres de progression
+     en pourcentage, qui s adaptent.
+   - **A SAVOIR** : seul le tableau de bord ADMIN a ete vu A L ECRAN sur
+     telephone. Les 5 autres sont verifies PAR LA MESURE du code — il faudrait
+     un compte de chaque role, ce qui reste au plan de mise en production.
 2. **Les sections du menu paraissent VIDES** (Vie scolaire, Pedagogie…) : c est
    l accordeon, une seule section ouverte a la fois, et PRINCIPAL l est parce
    qu on est sur le tableau de bord. Correct sur grand ecran, **se lit comme un
