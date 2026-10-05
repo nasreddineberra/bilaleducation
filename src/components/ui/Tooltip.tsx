@@ -36,8 +36,44 @@ export default function Tooltip({ children, content, position = 'top', maxWidth 
 
   const hide = useCallback(() => setPos(null), [])
 
+  /**
+   * SURVOL — mais jamais au doigt.
+   *
+   * Au tap, le navigateur EMULE une sequence souris pour compatibilite
+   * (`pointerenter` → `mouseenter` → `click`) et n emet AUCUN `mouseleave` tant
+   * que l on ne touche pas ailleurs : la bulle restait donc affichee par-dessus
+   * l ecran que le tap venait d ouvrir — vu sur une modale de la feuille d appel.
+   *
+   * On lit `pointerType` plutot qu une media query `(hover: hover)` : celle-ci
+   * repond « oui » sur un PC tactile, ou le probleme se pose a l identique.
+   * `pen` est admis — un stylet survole vraiment.
+   */
+  const survol = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return
+    show()
+  }, [show])
+
+  /**
+   * FOCUS — seulement s il est VISIBLE, c est-a-dire venu du clavier.
+   *
+   * Un tap et un clic souris posent eux aussi le focus : sans ce filtre, le
+   * second canal rouvrait la bulle que le premier venait de fermer. Le
+   * navigateur ne pose `:focus-visible` que pour une interaction clavier, c est
+   * donc lui qui tranche — et le declenchement au clavier, pose le 3 juillet
+   * pour l accessibilite, est preserve.
+   */
+  const focus = useCallback((e: React.FocusEvent) => {
+    try {
+      if (!(e.target as Element).matches(':focus-visible')) return
+    } catch {
+      // Selecteur non reconnu : on retombe sur l ancien comportement plutot que
+      // de perdre l infobulle au clavier.
+    }
+    show()
+  }, [show])
+
   return (
-    <span ref={triggerRef} className={['inline-flex', className].filter(Boolean).join(' ')} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+    <span ref={triggerRef} className={['inline-flex', className].filter(Boolean).join(' ')} onPointerEnter={survol} onPointerLeave={hide} onFocus={focus} onBlur={hide}>
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div

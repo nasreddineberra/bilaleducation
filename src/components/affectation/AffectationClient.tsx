@@ -182,8 +182,8 @@ function StudentCard({
         </span>
         <span
           className="flex-shrink-0 cursor-default"
-          onMouseEnter={e => onInfoEnter?.(student, e)}
-          onMouseLeave={onInfoLeave}
+          onPointerEnter={e => { if (e.pointerType !== 'touch') onInfoEnter?.(student, e) }}
+          onPointerLeave={onInfoLeave}
         >
           <Info size={11} className="text-warm-700 hover:text-primary-400 transition-colors" />
         </span>
@@ -257,8 +257,8 @@ function DropZone({
                 </span>
                 <span
                   className="flex-shrink-0 cursor-default"
-                  onMouseEnter={e => onInfoEnter?.(s, e)}
-                  onMouseLeave={onInfoLeave}
+                  onPointerEnter={e => { if (e.pointerType !== 'touch') onInfoEnter?.(s, e) }}
+                  onPointerLeave={onInfoLeave}
                 >
                   <Info size={11} className="text-warm-700 hover:text-primary-400 transition-colors" />
                 </span>

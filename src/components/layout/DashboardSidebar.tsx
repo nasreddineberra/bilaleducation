@@ -105,7 +105,9 @@ function SidebarTooltip({ children, label, className = 'w-full' }: { children: R
   const hide = useCallback(() => setPos(null), [])
 
   return (
-    <span ref={ref} className={clsx('inline-flex', className)} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+    <span ref={ref} className={clsx('inline-flex', className)} onPointerEnter={e => { if (e.pointerType !== 'touch') show() }} onPointerLeave={hide}
+          onFocus={e => { try { if (!(e.target as Element).matches(':focus-visible')) return } catch { /* selecteur non reconnu */ } show() }}
+          onBlur={hide}>
       {children}
       {pos && typeof document !== 'undefined' && createPortal(
         <div
