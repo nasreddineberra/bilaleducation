@@ -158,11 +158,17 @@ export default function CahierTexteClient({
       {/* Barre filtres + actions */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
 
+        {/* `w-fit` est le motif du projet (16 juillet : une largeur figee tronquait
+            le libelle). Mais ici l option vaut `nom · enseignant · cotisation`, soit
+            ~352 px avec le remplissage, pour ~324 px utiles sur un telephone : le
+            select DEBORDAIT. `max-w-full` le borne sans rien changer sur un grand
+            ecran, ou le contenu tient. NB : celui de la feuille d appel passe, lui,
+            parce que son option s arrete a `nom · enseignant` (~254 px). */}
         <FloatSelect
           label="Classe"
           value={filterClass}
           onChange={e => changeClass(e.target.value)}
-          wrapperClassName="w-fit"
+          wrapperClassName="w-fit max-w-full"
         >
           <option value=""></option>
           {isStaff && <option value={ALL_CLASSES}>Toutes les classes</option>}
@@ -196,8 +202,10 @@ export default function CahierTexteClient({
 
         <SearchField value={search} onChange={setSearch} ariaLabel="Rechercher dans le cahier de texte" />
 
-        {/* Droite : infos classe + bouton */}
-        <div className="flex items-center gap-3 ml-auto">
+        {/* Droite : infos classe + bouton. `flex-wrap` sur CE groupe et pas seulement
+            sur la barre : il ne se propage pas aux enfants, et les deux elements
+            (ligne d infos + bouton) resteraient cote a cote sur une seule ligne. */}
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:ml-auto">
           {selectedClass && (() => {
             const main = selectedClass.class_teachers?.find(t => t.is_main_teacher)
             const teacher = main?.teachers ? [main.teachers.civilite, main.teachers.last_name, main.teachers.first_name].filter(Boolean).join(' ') : null
@@ -206,7 +214,11 @@ export default function CahierTexteClient({
               : null
             const parts = [teacher, selectedClass.cotisation_types?.label, selectedClass.level ? `Niveau ${selectedClass.level}` : null, schedule].filter(Boolean)
             return parts.length > 0 ? (
-              <span className="text-sm font-medium text-warm-700 whitespace-nowrap">{parts.join(' · ')}</span>
+              // Motif de la feuille d appel (`AbsencesClient`) : quatre segments joints
+              // par « · » ne tiennent pas sur une ligne de telephone, et `nowrap` les
+              // faisait sortir du cadre. Ils se replient sous le seuil, restent sur une
+              // ligne au-dessus.
+              <span className="w-full md:w-auto text-sm font-medium text-warm-700 md:whitespace-nowrap">{parts.join(' · ')}</span>
             ) : null
           })()}
           {canCreate && (() => {
