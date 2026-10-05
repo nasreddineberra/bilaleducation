@@ -16,6 +16,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { generateStaffTimePDF } from './staffTimePdf'
+import { usePetitEcran } from '@/hooks/usePetitEcran'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,7 @@ export default function TempsPresenceClient({
   const toast = useToast()
   // enseignant voit ses propres couts (il ne voit que ses saisies).
   const canSeeCosts = ['admin', 'direction', 'comptable', 'enseignant'].includes(role)
+  const petitEcran = usePetitEcran()
   const isRespPedago = role === 'responsable_pedagogique'
   // Peut SAISIR : admin/direction/secretaire pour tout le personnel, responsable
   // pedagogique pour les enseignants. Ni le comptable (lecture seule) ni
@@ -480,10 +482,89 @@ export default function TempsPresenceClient({
 
   // ── Rendu du tableau d'un recapitulatif (mensuel ou annuel) ─────────
   const nonAbsenceTypes = presenceTypes.filter(p => !p.is_absence)
+  /**
+   * Le recapitulatif EN CARTES, sous le seuil mobile.
+   *
+   * POURQUOI PAS LE TABLEAU. Il porte 8 colonnes (Personnel + N types + Total +
+   * Absences + Cout) avec des libelles longs comme « ADMINISTRATIF » : ~920 px de
+   * largeur minimale pour ~316 px utiles. `overflow-x-auto` le laissait defiler,
+   * mais rien ne le disait — et en defilant on perdait de vue le NOM de la
+   * personne dont on lisait les heures. Un tableau large sur telephone ne se
+   * repare pas, il se transpose.
+   *
+   * TOUS LES TYPES SONT LISTES, zero compris (« · »), comme dans le tableau : on
+   * ne masque pas une ligne a zero, sinon on ne sait plus si le type existe.
+   *
+   * ET LE DETAIL DES ABSENCES DEVIENT VISIBLE. Dans le tableau il vit dans une
+   * infobulle — inaccessible au doigt depuis que les bulles ne se declenchent
+   * plus au toucher (5 octobre). La carte a la place verticale : on l affiche.
+   */
+  const renderRecapCartes = (recap: RecapResult, ariaLabel: string) => {
+    const ligne = (label: string, valeur: React.ReactNode, couleur?: string) => (
+      <div className="flex items-baseline justify-between gap-3">
+        <dt className="text-[11px] font-bold uppercase tracking-wide" style={couleur ? { color: couleur } : undefined}>{label}</dt>
+        <dd className="text-xs tabular-nums text-secondary-800">{valeur}</dd>
+      </div>
+    )
+
+    return (
+      <ul className="space-y-2" aria-label={ariaLabel}>
+        {recap.rows.map(r => (
+          <li key={r.profileId} className="rounded-xl border border-warm-100 p-3 space-y-2">
+            <p className="text-sm font-bold text-secondary-800">{r.name}</p>
+
+            <dl className="space-y-1">
+              {nonAbsenceTypes.map(pt => {
+                const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
+                return (
+                  <div key={pt.id}>{ligne(pt.label, mins > 0 ? fmtDuration(mins) : '·', pt.color)}</div>
+                )
+              })}
+            </dl>
+
+            <dl className="border-t border-warm-100 pt-2 space-y-1">
+              {ligne('Total heures', <span className="font-semibold">{r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·'}</span>)}
+              {ligne(
+                'Absences',
+                <span className={r.absenceMinutes > 0 ? 'text-red-600 font-medium' : ''}>
+                  {r.absenceMinutes > 0 ? fmtDuration(r.absenceMinutes) : '·'}
+                </span>,
+              )}
+              {r.absenceMinutes > 0 && (
+                <ul className="pl-1 space-y-0.5 text-[11px] text-warm-700 tabular-nums">
+                  {r.absenceDetail.map(a => (
+                    <li key={`${a.date}-${a.start}`}>
+                      {new Date(a.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                      {'  '}{a.start}-{a.end}{'  '}{fmtDuration(a.minutes)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {canSeeCosts && ligne('Coût', <span className="font-bold">{fmtEur(r.cost)}</span>)}
+            </dl>
+          </li>
+        ))}
+
+        <li className="rounded-xl border-2 border-warm-200 bg-warm-50 p-3 space-y-1">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-warm-700">Total</p>
+          <dl className="space-y-1">
+            {nonAbsenceTypes.map(pt => {
+              const mins = recap.totals.typeMinutes[pt.code.toUpperCase()] ?? 0
+              return <div key={pt.id}>{ligne(pt.label, mins > 0 ? fmtDuration(mins) : '·', pt.color)}</div>
+            })}
+            {ligne('Total heures', <span className="font-bold">{recap.totals.workedMinutes > 0 ? fmtDuration(recap.totals.workedMinutes) : '·'}</span>)}
+            {ligne('Absences', <span className={recap.totals.absenceMinutes > 0 ? 'text-red-600 font-medium' : ''}>{recap.totals.absenceMinutes > 0 ? fmtDuration(recap.totals.absenceMinutes) : '·'}</span>)}
+            {canSeeCosts && ligne('Coût', <span className="font-bold">{fmtEur(recap.totals.cost)}</span>)}
+          </dl>
+        </li>
+      </ul>
+    )
+  }
+
   const renderRecapTable = (recap: RecapResult, ariaLabel: string, emptyMsg: string) => (
     recap.rows.length === 0 ? (
       <p className="text-sm text-warm-700 italic text-center py-10">{emptyMsg}</p>
-    ) : (
+    ) : petitEcran ? renderRecapCartes(recap, ariaLabel) : (
       <div className="overflow-x-auto rounded-xl border border-warm-100">
           <table className="w-full text-sm" aria-label={ariaLabel}>
             <thead>
@@ -925,7 +1006,7 @@ export default function TempsPresenceClient({
               {/* En-tete : titre + export + fermer */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-3 border-b border-warm-100 shrink-0">
                 <h3 id="recap-modal-title" className="text-sm font-bold text-secondary-800">{modalTitle}</h3>
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end md:flex-shrink-0">
                   {recap.rows.length > 0 && (
                     <Tooltip content="Exporter le récapitulatif en PDF">
                       <button
