@@ -48,6 +48,18 @@ next-env.d.ts
 # vit dans public/ et reste suivi.
 /*.xlsx
 
+# Enregistrements d ecran et captures deposes a la racine pour signaler un
+# bug : ils filment l application EN PRODUCTION, donc de vrais noms d eleves
+# et de familles. Meme raison que les .xlsx ci-dessus, et meme portee (la
+# RACINE seulement : les medias de public/ et assets/ restent suivis).
+# L historique git ne s efface pas, et les commits de l assistant font
+# `git add -A`.
+/*.mp4
+/*.mov
+/*.webm
+/*.avi
+/*.mkv
+
 # Bytecode Python (scripts/import-bilalnotes)
 __pycache__/
 *.pyc
