@@ -6026,3 +6026,121 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   `other_revenues`, bucket `documents-expenses` prive 2 Mo cloisonne, `document_url` → `document_path`).
   **Verifie en base** : bucket `public: false` / 2 Mo / 4 types, `document_path` presente, `document_url` absente,
   0 orphelin. NB : le menage des objets Storage s'est fait par l'**API** (DELETE SQL interdit, 42501).
+
+#### 5 octobre 2026 — RESPONSIVE, phase 3 : les ECRANS, un par un
+
+Les 7 menus retenus sont ouverts sur telephone, mais **aucun ecran n etait
+adapte**. Methode retenue par l utilisateur : un ecran a la fois, capture a
+l appui, correction, pousser, verifier.
+
+**EMPLOI DU TEMPS — la vue JOUR** (`EmploiDuTempsClient`). A 348 px, cinq
+colonnes de jours font 70 px : illisible. Sous le seuil, l ecran affiche **UN
+seul jour**, celui d aujourd hui s il est travaille, sinon le premier de la
+semaine, avec `‹ LUNDI 05/10 ›` en en-tete de colonne.
+- **La navigation TRAVERSE les semaines** : au dernier jour, la fleche avance
+  `weekOffset` et repart au premier. Sans cela on serait coince en fin de
+  semaine, ce qui se lirait comme un bouton casse.
+- **La vue MOIS est forcee a `week`** sous le seuil : une grille mensuelle sur
+  un telephone n a aucun sens, et la bascule Semaine/Mois est masquee — elle
+  contredirait l affichage a la journee.
+- **Libelle de semaine raccourci** (demande utilisateur) : `S42 · du 12/10 au
+  18/10`, `capitalize` retire — les intitules sortaient de l encadre pendant la
+  navigation.
+- Les panneaux deroulants sont bornes a `max-w-[calc(100vw-2.5rem)]` : ils
+  depassaient l ecran a droite.
+
+**FEUILLE D APPEL — le SEUL ecran reellement bloque** (`AbsencesClient`).
+- **La modale de saisie** : corps en `flex flex-col md:flex-row`, panneau de
+  droite en pleine largeur et borne en hauteur sous le seuil. Avant, le
+  trombinoscope et le panneau se partageaient 348 px.
+- **Le GROUPE de boutons du pied, et non le pied**, est ce qui devait passer a
+  la ligne : mon premier correctif avait mis `flex-wrap` sur le pied, ce qui
+  faisait descendre le groupe d un bloc sans le replier — les trois boutons
+  continuaient de depasser. **Signale par l utilisateur apres ma livraison :
+  `flex-wrap` ne se propage PAS aux enfants.**
+- Barres de resume et ligne d infos de classe en `flex-wrap` avec `gap-x/gap-y`.
+
+**MON COMPTE** : les grilles d identite et de compte passaient trois champs sur
+un tiers de telephone. `grid-cols-[5rem_1fr] sm:grid-cols-[6rem_1fr_1fr]`, le
+Nom occupant les deux colonnes sous le seuil.
+- **`FloatInput` n expose PAS `wrapperClassName`** (seul `FloatSelect` l a) :
+  le champ est donc enveloppe dans un `div` porteur. Ouvrir le composant
+  partage pour un seul ecran n etait pas justifie.
+
+**« Retard ? | Présent » SUPPRIME de l application** (demande utilisateur) : le
+statut se change en cliquant sur l eleve dans le trombinoscope, cette paire de
+liens dans le recapitulatif ne servait a rien. Le helper `setEntry` devenu mort
+part avec elle — **le lint l a signale** (517 -> 518), motif `t1Phone` du 16 aout.
+
+**CE QUI TOUCHE LE PC, et c est dit** : tout le comportement est derriere
+`usePetitEcran()`, et les changements de mise en page portent `md:`/`lg:`.
+**Trois choses s appliquent partout** : six `flex-wrap`, des `gap-*` ajoutes, et
+le bornage des panneaux deroulants — tous sans effet tant que le contenu tient
+sur une ligne. Plus la suppression, volontairement globale, de « Retard ? |
+Présent ». **Je ne peux pas verifier le PC moi-meme** ; l utilisateur le fait.
+
+**RESTE** : cahier de texte (libelles tronques), temps de presence (debordement
+mineur), et la **toolbar de l EDT** — trois modes, deux listes, navigation et
+outils sur une ligne concue pour 1200 px.
+
+**SIGNALE, NON TRAITE — LES INFOBULLES AU TOUCHER.** Sur telephone, un appui
+declenche le survol et **rien ne retire la bulle** : celle de « Saisir l appel
+d une seance » est restee affichee par-dessus la modale. Cela concerne **tous
+les `Tooltip` de l application**, c est donc un sujet a part.
+
+---
+
+#### 5 octobre 2026 (suite) — EDT : l enseignant consulte SON planning (hors responsive)
+
+Signale a l ecran, et ce n est **pas** un defaut d affichage : connectee comme
+enseignante, BELAID voyait les TROIS classes de l ecole dans la liste
+deroulante — dont `MAT-SM-BL2`, qu elle n enseigne pas — et les bascules
+Globale / Par classe / Par enseignant lui ouvraient tout l etablissement.
+
+**LA MESURE A RENVERSE LE DIAGNOSTIC : ce n etait pas une fuite RLS.**
+`schedule_slots_select` (lot 3 du 29/09) et `classes` (5 aout) accordent
+**deliberement** la LECTURE a tout le personnel, **sans bornage
+`teaches_class`** — contrairement a `grades` ou `absences`, qui le portent. La
+liste montrait donc exactement ce que la base lui donne. L ecriture lui est
+fermee, et la validation de presence est bornee a ses propres creneaux depuis le
+10 juillet. **C etait un PERIMETRE jamais tranche** : le droit existe en base,
+l interface l expose, personne n avait decide.
+
+**VOLET A (arbitrage utilisateur)** — les trois bascules et les deux listes sont
+**MASQUEES** pour `enseignant`, et non grisees : il n existe aucun cas ou elles
+lui serviraient. Le mode demarrait deja a `teacher` avec son propre id, l ecran
+s ouvre donc sur son planning. **Vaut sur PC comme sur telephone.**
+
+**ET UN TROU QUE LE MASQUAGE RENDAIT DANGEREUX**, ferme dans la meme passe. Le
+filtre s ecrivait `viewMode === 'teacher' && selectedTeacherId` : un id **VIDE**
+sautait la condition et la vue rendait `resolvedSlots`, soit **TOUS les creneaux
+de l ecole**. Avec la liste visible cela se voyait ; masquee, l enseignant
+aurait lu l emploi du temps de l etablissement **en croyant lire le sien**. Le
+filtre s applique desormais toujours pour lui (`|| estEnseignant`, aux deux
+vues) : un id vide rend zero creneau au lieu de tout. L encadrement garde son
+comportement, sa liste etant la pour choisir.
+- Zero creneau etant muet, un bandeau `role=alert` dit pourquoi quand la fiche
+  enseignant n est pas rattachee au compte. Cas defensif inatteignable
+  aujourd hui (les fiches ont toutes un compte, 15 juillet), mais dont la
+  consequence passait d un inconvenient a **un ecran vide inexplique**.
+- **C est le motif du 3 octobre sur la grille EDT** : rendre le defaut
+  impossible plutot que de le surveiller.
+
+**VOLET B SIGNALE, NON OUVERT** : borner `schedule_slots_select` par
+`teaches_class` est le **seul** moyen de rendre ce masquage reel — l API REST
+continue de tout servir. Il demande d abord d etablir a quoi
+`temps-presence/page.tsx` emploie ces creneaux : **il les charge TOUS, sans
+filtre** (ligne 51). Le tableau de bord enseignant, lui, est deja borne cote app
+(`.in('class_id', myClassIds)`). Sans cette mesure on reproduit le defaut du
+29/09 : une migration qui rend un ecran inoperant **EN SILENCE**.
+- **Argument honnete contre le volet B** : savoir si une salle est libre, ou
+  quand un collegue termine pour echanger un creneau, est un besoin reel
+  d enseignant. Le volet A seul le lui retire deja.
+
+**LE LINT A SERVI DE FILET** : `estEnseignant` manquait aux dependances des deux
+`useMemo` modifies (motif de `enseignantAbsent`, 16/09). Ici il derive de `role`,
+une prop constante, donc aucun defaut fonctionnel — mais laisser deux
+avertissements aurait masque le prochain qui serait reel. Niveau revenu a 517.
+
+**Verifie** : type-check vert, 41/41 tests, 0 erreur de lint (517
+avertissements, niveau inchange), build complet.
