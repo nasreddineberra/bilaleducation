@@ -1390,7 +1390,7 @@ function SaisieModal({
       >
 
         {/* Header */}
-        <div className="px-4 py-2 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 py-2 border-b border-warm-100 flex flex-wrap items-center justify-between gap-y-2 flex-shrink-0">
           <div className="flex items-center gap-3">
             <h3 id="appel-title" className="text-sm font-bold text-secondary-800 whitespace-nowrap">Feuille d'appel du</h3>
             <FloatInput
@@ -1432,8 +1432,9 @@ function SaisieModal({
           </div>
         </div>
 
-        {/* Corps : trombinoscope + recap */}
-        <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Corps : trombinoscope + recap — EMPILES sous 768 px (voir le
+            panneau droit, large de 288 px fixes) */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
 
           {/* Panneau gauche : trombinoscope */}
           <div className="flex-1 min-w-0 overflow-y-auto p-3">
@@ -1478,7 +1479,7 @@ function SaisieModal({
           </div>
 
           {/* Panneau droit : recapitulatif absents/retards */}
-          <div className="w-72 flex-shrink-0 border-l border-warm-100 flex flex-col bg-warm-50/30">
+          <div className="w-full md:w-72 flex-shrink-0 max-h-52 md:max-h-none border-t md:border-t-0 md:border-l border-warm-100 flex flex-col bg-warm-50/30">
             <div className="px-3 py-2 border-b border-warm-100 flex-shrink-0">
               <h4 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                 Absences / Retards ({nonPresent.length})
@@ -1593,7 +1594,7 @@ function SaisieModal({
           <p role="alert" className="text-xs text-red-600 bg-red-50 px-4 py-2 border-t border-red-200">{error}</p>
         )}
 
-        <div className="px-4 py-2.5 border-t border-warm-100 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 py-2.5 border-t border-warm-100 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
           <span className="text-xs text-warm-700">
             {!hasChanges
               ? 'Aucune modification'
