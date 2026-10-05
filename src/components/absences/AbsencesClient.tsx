@@ -1078,10 +1078,6 @@ function SaisieModal({
     }))
   }
 
-  const setEntry = (idx: number, status: 'present' | 'absence' | 'retard') => {
-    setEntries(prev => prev.map((e, i) => i === idx ? { ...e, status } : e))
-  }
-
   const setComment = (idx: number, comment: string) => {
     setEntries(prev => prev.map((e, i) => i === idx ? { ...e, comment } : e))
   }
@@ -1513,24 +1509,12 @@ function SaisieModal({
                         </span>
                       </div>
 
-                      {/* Toggle type + commentaire */}
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEntry(idx, status === 'absence' ? 'retard' : 'absence')}
-                          className="text-[10px] text-primary-600 hover:text-primary-800 font-medium"
-                        >
-                          {status === 'absence' ? 'Retard ?' : 'Absent ?'}
-                        </button>
-                        <span className="text-warm-700">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setEntry(idx, 'present')}
-                          className="text-[10px] text-primary-600 hover:text-primary-800 font-medium"
-                        >
-                          Present
-                        </button>
-                      </div>
+                      {/* Le couple « Retard ? | Present » a ete retire le 5 octobre
+                          (decision utilisateur) : le statut se change sur la VIGNETTE
+                          de l eleve, ou `cycleStatus` parcourt les trois etats en
+                          boucle. Ces deux liens n etaient qu un raccourci — aucune
+                          capacite n est perdue, et le recapitulatif y gagne en
+                          lisibilite, d autant plus etroit sur telephone. */}
 
                       {editingComment === s.student_id ? (
                         <div className="flex items-center gap-1">
