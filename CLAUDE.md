@@ -6344,3 +6344,58 @@ capture (colonne « COU… » coupee net).
   croyant le hook present dans ce composant, alors qu il venait de l EDT.
 
 **VERIFIE A L ECRAN par l utilisateur.**
+
+#### 5 octobre 2026 (fin de nuit) — Deux defauts trouves EN VERIFIANT, pas en relisant
+
+**L AFFICHAGE RESTAIT FIGE APRES UN ELARGISSEMENT DE FENETRE** (regression de mon
+correctif du matin, signalee sur PC avec les 4 etapes en capture — l utilisateur
+retrecissait pour eprouver le mobile).
+- **L ALLER ETAIT CODE, PAS LE RETOUR.** L effet posait `selectedDay` en passant
+  SOUS le seuil ; rien ne le remettait a `null` au-dessus. Or `selectedDay` est
+  le FILTRE PAR JOUR preexistant : la vue restait filtree sur une colonne, dont
+  l en-tete s etalait alors sur toute la largeur. **Mon propre commentaire du
+  matin disait « le filtre par jour existait deja »** — je l avais vu sans en
+  tirer la consequence.
+- **Un MARQUEUR, pas une remise a zero systematique** : `selectedDay` et
+  `viewType` sont aussi des reglages que l UTILISATEUR pose lui-meme sur grand
+  ecran. Les effacer au retour lui reprendrait son choix. **On ne defait que ce
+  qu on a impose soi-meme.** Les deux sens verifies.
+- **ET LE MEME DEFAUT SUR LE TIROIR DE LA SIDEBAR**, trouve en cherchant le motif
+  plutot qu en attendant le prochain rapport : il se referme a la navigation et
+  par Echap, mais pas a l elargissement. Invisible au-dessus du seuil (barre
+  fixe, voile masque) — mais il se serait rouvert TOUT SEUL au retrecissement
+  suivant, c est-a-dire pendant la verification meme de ce correctif.
+  `SEUIL_CADRE_PX` / `REQUETE_CADRE` nommes (le tiroir bascule a 1024, pas 768) ;
+  `usePetitEcran` accepte une requete, defaut inchange.
+
+**LE HEADER ETAIT TRONQUE A L ARRIVEE SUR TELEPHONE.**
+- **`100vh` NE VAUT PAS LA ZONE VISIBLE SUR MOBILE** : c est la hauteur BARRE
+  D URL RETRACTEE, donc la plus grande. A l arrivee la barre est AFFICHEE, le
+  document depasse, le navigateur le decale — et le haut du header sort du
+  cadre. **Le 2FA n y etait pour rien** : c est une arrivee, barre visible ;
+  n importe quel chemin d entree donnait le meme resultat.
+- Nouvelle classe **`.h-ecran`** (`globals.css`, aupres de `.card` et
+  `.list-scroll`).
+- **ET LE REPLI A FAILLI NE PAS EXISTER.** Ecrit sous sa forme habituelle (deux
+  `height:` successifs, `vh` puis `dvh`), il a ete **DEDUPLIQUE PAR LE
+  MINIFIEUR**, qui ne garde que la derniere et ignore qu il s agit d un repli.
+  Le CSS servi n emettait plus que `100dvh` : un navigateur sans `dvh` aurait eu
+  une hauteur AUTO, donc un layout effondre. Reecrit en **`@supports`**, que le
+  minifieur ne traverse pas.
+  **C est la regle « verifier le CSS SERVI » qui l a attrape** — le fichier
+  source paraissait juste. Troisieme fois que ce controle paie.
+- Pas de saut quand la barre se retracte : elle ne le fait qu au defilement du
+  DOCUMENT, or ici c est `<main>` qui defile.
+- **Non touche** : les 8 ecrans en `min-h-screen`. `min-h` laisse le contenu
+  depasser, ce qui est voulu pour un formulaire centre — le defaut vient de
+  `h-screen`, qui IMPOSE la hauteur.
+
+**`.gitignore` : LES ENREGISTREMENTS D ECRAN SORTENT DU DEPOT.** Une video de
+signalement de bug deposee a la racine filme l application EN PRODUCTION, donc
+de vrais noms de familles. **Le risque venait de MOI** : mes commits font
+`git add -A`, le prochain l aurait poussee sur GitHub, et l historique git ne
+s efface pas. Meme regle et meme portee que `/*.xlsx` (3 octobre) : la RACINE
+seulement, `public/` et `assets/` restent suivis.
+- A SAVOIR : je ne peux pas lire une video (pas d outil, et `ffmpeg` absent du
+  poste). **Des captures ou une description valent mieux** — les quatre etapes
+  en images ont suffi a isoler la regression ci-dessus.
