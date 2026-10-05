@@ -244,6 +244,11 @@ function fmtDateFull(d: Date) {
   return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`
 }
 
+/** `12/10` — forme courte pour le bandeau de semaine sur telephone. */
+function fmtDateCourt(d: Date) {
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 /** Vérifie si un créneau récurrent est effectif à une date donnée */
 function isSlotEffective(slot: SlotData, dateStr: string): boolean {
   if (slot.effective_from && dateStr < slot.effective_from) return false
@@ -1526,7 +1531,7 @@ export default function EmploiDuTempsClient({
   return (
     <div className="flex flex-col h-full gap-2 p-2">
       {/* ── Toolbar ────────────────────────────────────────────────────── */}
-      <div className="card flex items-center gap-3 px-4 py-2 flex-shrink-0">
+      <div className="card flex flex-wrap items-center gap-3 px-4 py-2 flex-shrink-0">
         {/* View tabs */}
         <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200" role="group" aria-label="Type de vue">
           {(['global', 'class', 'teacher'] as ViewMode[]).map(v => (
@@ -1579,7 +1584,7 @@ export default function EmploiDuTempsClient({
               <ChevronDown size={13} className={clsx('text-warm-700 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
             </button>
             {classDropOpen && (
-              <div role="listbox" aria-label="Classes" className="absolute top-full left-0 mt-1 min-w-full w-max bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
+              <div role="listbox" aria-label="Classes" className="absolute top-full left-0 mt-1 min-w-full w-max max-w-[calc(100vw-2.5rem)] bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
                 {classes.map(c => {
                   const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
                   const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
@@ -1627,7 +1632,7 @@ export default function EmploiDuTempsClient({
               <ChevronDown size={13} className={clsx('text-warm-700 flex-shrink-0 transition-transform', teacherDropOpen && 'rotate-180')} />
             </button>
             {teacherDropOpen && (
-              <div role="listbox" aria-label="Enseignants" className="absolute top-full left-0 mt-1 w-64 bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
+              <div role="listbox" aria-label="Enseignants" className="absolute top-full left-0 mt-1 w-64 max-w-[calc(100vw-2.5rem)] bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
                 {teachers.map(t => (
                   <button
                     key={t.id}
@@ -1705,9 +1710,16 @@ export default function EmploiDuTempsClient({
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-700 select-none capitalize">
+          {/* `capitalize` sert au nom de MOIS (« octobre » -> « Octobre ») ; sur
+              la forme courte il transformerait « du … au … » en « Du … Au … ». */}
+          <span className={clsx(
+            'text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-700 select-none',
+            !petitEcran && 'capitalize'
+          )}>
             {viewType === 'week'
-              ? `S${weekNum} · ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`
+              ? (petitEcran
+                  ? `S${weekNum} · du ${fmtDateCourt(currentWeekStart)} au ${fmtDateCourt(currentWeekEnd)}`
+                  : `S${weekNum} · ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`)
               : `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`
             }
           </span>
