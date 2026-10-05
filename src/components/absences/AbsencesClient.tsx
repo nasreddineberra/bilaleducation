@@ -563,7 +563,7 @@ export default function AbsencesClient({
           const cls = classes.find(c => c.id === selectedClassId)
           const info = cls ? classInfoLine(cls) : ''
           if (!info) return null
-          return <span className="ml-auto text-sm font-medium text-warm-700 whitespace-nowrap">{info}</span>
+          return <span className="w-full md:w-auto md:ml-auto text-sm font-medium text-warm-700 md:whitespace-nowrap">{info}</span>
         })()}
       </div>
 
@@ -579,7 +579,7 @@ export default function AbsencesClient({
         ) : (
           <>
             {/* Barre résumé + bouton saisie */}
-            <div className="px-3 py-1.5 flex items-center justify-between border-b border-warm-100 flex-shrink-0">
+            <div className="px-3 py-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 border-b border-warm-100 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Tooltip content={isAllClasses ? 'Choisissez une classe pour saisir un appel' : "Saisir l'appel d'une séance"}>
                   <FloatButton
