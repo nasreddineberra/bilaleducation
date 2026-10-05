@@ -6291,3 +6291,56 @@ Ses trois phases ont ete menees en deux jours : cadre, filtre de menu, ecrans.
 **RESTE, hors responsive** : les INFOBULLES AU TOUCHER — un appui declenche le
 survol et rien ne retire la bulle. Concerne **tous les `Tooltip`** de
 l application, donc un sujet a part.
+
+#### 5 octobre 2026 (nuit) — Les infobulles au toucher, et les recaps en cartes
+
+**LES INFOBULLES NE SE DECLENCHENT PLUS AU DOIGT.** Dernier point ouvert du
+chantier mobile, et le seul transverse : 184 `<Tooltip>` dans 54 fichiers.
+- **La cause** : au tap, le navigateur EMULE une sequence souris
+  (`pointerenter` → `mouseenter` → `click`) mais n emet **aucun `mouseleave`**
+  tant qu on ne touche pas ailleurs. Rien ne refermait la bulle, qui restait
+  par-dessus l ecran que le tap venait d ouvrir. Second canal aggravant : un tap
+  pose aussi le FOCUS, donc `onFocus` la rouvrait.
+- **`onPointerEnter` + `pointerType !== 'touch'`**, et NON une media query
+  `(hover: hover)` : celle-ci repond « oui » sur un PC tactile, ou le probleme se
+  pose a l identique. `pen` reste admis (un stylet survole vraiment).
+- **`onFocus` filtre par `:focus-visible`** : c est le NAVIGATEUR qui tranche si
+  le focus vient du clavier. Benefice second — un clic souris ne declenche plus
+  la bulle par le focus, ce qui etait du bruit. Le declenchement clavier du
+  3 juillet est preserve, avec un `try/catch` de repli.
+- **LES TROIS SOURCES ALIGNEES** : `Tooltip`, `SidebarTooltip` (jumeau exact,
+  rendu des qu un libelle de menu est tronque — donc atteignable au doigt, ou la
+  bulle survivait a la navigation) et l infobulle maison d `AffectationClient`
+  (ecran exclu du mobile, mais meme defaut sur PC tactile, et 2 lignes
+  suffisaient). **Verifie : 0 `onMouseEnter` restant dans `src`.**
+- **PERTE ASSUMEE** : sur telephone, les 25 infobulles qui habillent un bouton
+  DESACTIVE ne diront plus pourquoi. C est la raison pour laquelle les systemes
+  mobiles n ont pas d infobulles. Les cas sensibles doublent deja l information
+  (le « Ajouter » du temps de presence a sa banniere ambre) ; si un autre se
+  revele, la reponse sera un message a cote du bouton, pas une bulle.
+- A SAVOIR : les 55 `title="` natifs restants ne presentent PAS ce defaut (les
+  navigateurs mobiles ne les affichent pas) — mais n apportent rien non plus.
+
+**RECAPITULATIFS DE TEMPS DE PRESENCE : LE TABLEAU SE TRANSPOSE.** Signale sur
+capture (colonne « COU… » coupee net).
+- **Mesure** : 8 colonnes (Personnel + N types + Total + Absences + Cout) avec
+  des libelles longs comme « ADMINISTRATIF » = **~920 px** pour ~316 utiles.
+  `overflow-x-auto` etait la et le tableau DEFILAIT — mais rien ne le disait, et
+  en defilant on perdait de vue le NOM de la personne. **Un tableau large sur
+  telephone ne se repare pas, il se TRANSPOSE.**
+- Sous le seuil : **une carte par personne** (types en lignes, puis Total /
+  Absences / Cout sous un filet, carte « Total » en pied).
+- **Tous les types restent listes, zero compris** : masquer une ligne a zero
+  ferait perdre l information que le type EXISTE. Coherence avant compacite sur
+  un recapitulatif comptable.
+- **LE DETAIL DES ABSENCES DEVIENT VISIBLE** : il vivait dans une infobulle,
+  rendue inaccessible au doigt par le correctif ci-dessus. La carte a la place
+  verticale — le format resout donc un manque qu il aurait sinon cree.
+- **Le PC est rendu a l identique** (question explicite de l utilisateur) : les
+  8 colonnes tiennent dans la modale `max-w-4xl` (~900 px pour ~1150). Le rendu
+  en cartes est derriere `usePetitEcran()`. L export PDF est inchange — il recoit
+  les memes donnees, independamment du rendu.
+- Le type-check a rattrape une supposition : j avais ecrit `petitEcran` en
+  croyant le hook present dans ce composant, alors qu il venait de l EDT.
+
+**VERIFIE A L ECRAN par l utilisateur.**
