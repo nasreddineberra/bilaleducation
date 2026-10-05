@@ -245,11 +245,11 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
         className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="px-5 py-3 border-b border-warm-100 flex items-start justify-between gap-3 flex-shrink-0">
+        <div className="px-5 py-3 border-b border-warm-100 flex flex-col md:flex-row md:items-start md:justify-between gap-3 flex-shrink-0">
           <div className="min-w-0">
             <h3 id="devoir-detail-title" className="text-sm font-bold text-secondary-800 truncate">{homework.title}</h3>
             <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold">{homework.classes?.name}</span>
+              <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{homework.classes?.name}</span>
               {homework.subject && homework.subject !== 'General' && (
                 <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
               )}
@@ -257,7 +257,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
               {classInfoOf(homework.classes) && <span>· {classInfoOf(homework.classes)}</span>}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
             {canEdit && <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>}
             {canDelete && (
               horsFenetre ? (
