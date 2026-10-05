@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { REQUETE_MOBILE } from '@/lib/mobile'
 
 /**
- * Vrai sous 768 px — le seuil du FILTRE DE MENU, pas celui du cadre
- * (voir `src/lib/mobile.ts`, qui porte les deux et explique pourquoi).
+ * Vrai sous 768 px PAR DEFAUT — le seuil du FILTRE DE MENU, pas celui du cadre
+ * (voir `src/lib/mobile.ts`, qui porte les deux et explique pourquoi). Un autre
+ * seuil se passe en argument : `usePetitEcran(REQUETE_CADRE)` pour les 1024 px
+ * du tiroir.
  *
  * POURQUOI UN HOOK ET NON DU CSS. Deux raisons, selon l appelant :
  *  - la barre laterale pilote `inert` et `aria-expanded`, qui sont des
@@ -20,16 +22,16 @@ import { REQUETE_MOBILE } from '@/lib/mobile'
  * suit l hydratation ne se voit pas dans la barre laterale (le tiroir est
  * ferme au chargement) ; sur un tableau de bord il porte sur quelques liens.
  */
-export function usePetitEcran(): boolean {
+export function usePetitEcran(requete: string = REQUETE_MOBILE): boolean {
   const [petitEcran, setPetitEcran] = useState(false)
 
   useEffect(() => {
-    const mq = window.matchMedia(REQUETE_MOBILE)
+    const mq = window.matchMedia(requete)
     const maj = () => setPetitEcran(mq.matches)
     maj()
     mq.addEventListener('change', maj)
     return () => mq.removeEventListener('change', maj)
-  }, [])
+  }, [requete])
 
   return petitEcran
 }

@@ -34,6 +34,17 @@ export const SEUIL_MOBILE_PX = 768
 export const REQUETE_MOBILE = `(max-width: ${SEUIL_MOBILE_PX - 1}px)`
 
 /**
+ * Le seuil du CADRE (barre laterale en tiroir), en regard du precedent.
+ * Il etait jusqu ici porte par la seule variante `lg:` de Tailwind ; le
+ * nommer permet de l interroger en JS, ce qu exige la fermeture du tiroir
+ * quand la fenetre repasse au-dessus.
+ */
+export const SEUIL_CADRE_PX = 1024
+
+/** Meme bascule que la variante Tailwind `lg`, exprimee pour `matchMedia`. */
+export const REQUETE_CADRE = `(max-width: ${SEUIL_CADRE_PX - 1}px)`
+
+/**
  * Un raccourci de tableau de bord. `mobile` absent = masque sous le seuil.
  *
  * TYPE EXPLICITE ET NON INFERE : une liste dont AUCUNE entree ne porte le

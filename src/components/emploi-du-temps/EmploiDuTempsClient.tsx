@@ -440,19 +440,46 @@ export default function EmploiDuTempsClient({
   // seule journee — acceptable comme confort sur grand ecran, bloquant ici.
   const petitEcran = usePetitEcran()
 
+  // CE QUE NOUS AVONS IMPOSE POUR LE PETIT ECRAN, et qu il faut donc DEFAIRE en
+  // repassant au-dessus du seuil. Sans ces deux marqueurs, l affichage restait
+  // fige sur un seul jour apres un simple redimensionnement de la fenetre
+  // (signale a l ecran le 5 octobre) : l aller etait code, pas le retour.
+  //
+  // Un marqueur plutot qu une remise a zero systematique, car `selectedDay` et
+  // `viewType` sont des reglages que l UTILISATEUR pose aussi lui-meme sur grand
+  // ecran (filtre par jour, bascule Semaine/Mois). Les effacer au retour lui
+  // reprendrait son choix — on ne defait que ce qu on a impose soi-meme.
+  const jourImposeRef = useRef(false)
+  const vueImposeeRef = useRef(false)
+
   // Aujourd hui, ou le premier jour travaille si l on est samedi/dimanche dans
   // une ecole qui ne travaille pas ce jour-la.
   useEffect(() => {
-    if (!petitEcran || selectedDay !== null || orderedDays.length === 0) return
-    setSelectedDay(orderedDays.includes(todayRealDow) ? todayRealDow : orderedDays[0])
+    if (petitEcran) {
+      if (selectedDay === null && orderedDays.length > 0) {
+        jourImposeRef.current = true
+        setSelectedDay(orderedDays.includes(todayRealDow) ? todayRealDow : orderedDays[0])
+      }
+    } else if (jourImposeRef.current) {
+      jourImposeRef.current = false
+      setSelectedDay(null)
+    }
   }, [petitEcran, selectedDay, orderedDays, todayRealDow])
 
   // La vue MOIS n a pas de sens sur un telephone, et son bascule est masque :
   // sans ce repli, qui l aurait laissee active en tournant son ecran y resterait
   // enferme, le bouton pour en sortir ayant disparu.
   useEffect(() => {
-    if (petitEcran) setViewType('week')
-  }, [petitEcran])
+    if (petitEcran) {
+      if (viewType !== 'week') {
+        vueImposeeRef.current = true
+        setViewType('week')
+      }
+    } else if (vueImposeeRef.current) {
+      vueImposeeRef.current = false
+      setViewType('month')
+    }
+  }, [petitEcran, viewType])
 
   // Avance d un JOUR TRAVAILLE, en changeant de semaine aux bornes : un
   // vendredi suivi d un lundi, jamais un samedi que l ecole n ouvre pas.

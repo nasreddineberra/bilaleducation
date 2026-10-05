@@ -7,6 +7,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
+import { REQUETE_CADRE } from '@/lib/mobile'
 
 import {
   Upload,
@@ -541,6 +542,15 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
   // bord renvoie lui-meme vers d autres pages). Sans cela, le menu resterait
   // ouvert PAR-DESSUS la page qu on vient de demander.
   useEffect(() => { setOuvertMobile(false) }, [pathname, setOuvertMobile])
+
+  // ── ET A L ELARGISSEMENT DE LA FENETRE ─────────────────────────────────────
+  // Au-dessus du seuil, la barre redevient fixe et le voile disparait : un
+  // `ouvertMobile` reste a `true` ne se VOIT pas. Mais il se paierait au
+  // retrecissement suivant, ou le tiroir se rouvrirait tout seul, voile compris,
+  // sans que personne l ait demande. Meme defaut que l EDT fige sur un jour
+  // (5 octobre) : l aller etait code, pas le retour.
+  const sousLeCadre = usePetitEcran(REQUETE_CADRE)
+  useEffect(() => { if (!sousLeCadre) setOuvertMobile(false) }, [sousLeCadre, setOuvertMobile])
 
   // ── Echap ferme le tiroir ───────────────────────────────────────────────────
   // La regle du projet interdit Echap sur une modale de SAISIE (on y perdrait
