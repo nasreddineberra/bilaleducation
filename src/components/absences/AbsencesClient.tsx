@@ -1605,7 +1605,7 @@ function SaisieModal({
                 ].filter(Boolean).join(', ')
             }
           </span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
             <Tooltip content={printBlockedReason ?? "Imprimer la feuille d'appel enregistrée de cette date"}>
               <span>
                 <FloatButton
@@ -1775,7 +1775,7 @@ function JustificationModal({
           {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
         </div>
 
-        <div className="px-4 py-3 border-t border-warm-100 flex justify-end gap-2">
+        <div className="px-4 py-3 border-t border-warm-100 flex flex-wrap justify-end gap-2">
           <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
           <FloatButton
             variant="submit"
