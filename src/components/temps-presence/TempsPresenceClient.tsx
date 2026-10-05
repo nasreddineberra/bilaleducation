@@ -655,7 +655,7 @@ export default function TempsPresenceClient({
           </button>
         )}
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:ml-auto">
           {canManage && (
             <div className="flex items-center gap-1.5">
               <label htmlFor="member-filter" className="text-xs font-medium text-warm-700">Membre</label>
@@ -815,7 +815,12 @@ export default function TempsPresenceClient({
                       const canEdit = canWriteAll
                         || (isRespPedago && (targetIsTeacher || e.profile_id === currentUserId))
                       return (
-                        <div key={e.id} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]" style={entryStyle(color)}>
+                        // `flex-wrap` : TOUS les elements de cette ligne portent
+                        // `shrink-0` (libelle, horaire, duree, actions) — elle ne
+                        // pouvait donc ni se replier ni retrecir, et debordait du
+                        // panneau en poussant une barre de defilement sur la page.
+                        // D ou « COURS 09:00-12:0 » coupe net.
+                        <div key={e.id} className="flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]" style={entryStyle(color)}>
                           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(color)} />
                           <span className="font-medium shrink-0">{label}</span>
                           {!isAbs && e.start_time && (
@@ -907,9 +912,9 @@ export default function TempsPresenceClient({
               className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
             >
               {/* En-tete : titre + export + fermer */}
-              <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-warm-100 shrink-0">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-3 border-b border-warm-100 shrink-0">
                 <h3 id="recap-modal-title" className="text-sm font-bold text-secondary-800">{modalTitle}</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
                   {recap.rows.length > 0 && (
                     <Tooltip content="Exporter le récapitulatif en PDF">
                       <button
