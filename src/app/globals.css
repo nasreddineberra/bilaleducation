@@ -37,6 +37,34 @@
      gris chaud choisi pour un fond CLAIR — son commentaire le disait — et
      restait donc la meme sur l'ardoise du theme sombre, ou elle se fondait.
      Une couleur qui doit suivre le theme n'a rien a faire dans la regle. */
+  /* Hauteur de la fenetre REELLEMENT VISIBLE.
+
+     `h-screen` vaut 100vh, et sur un navigateur mobile 100vh est la hauteur
+     BARRE D URL RETRACTEE — donc plus grande que la zone visible a l arrivee
+     sur une page, ou la barre est affichee. Le document depassait, le
+     navigateur le decalait, et le haut du header sortait du cadre : constate
+     juste apres la saisie du code 2FA, ou l on arrive avec la barre visible.
+
+     LE REPLI PASSE PAR `@supports`, ET CE N EST PAS UN EXCES DE PRUDENCE : la
+     forme habituelle (deux `height:` successifs) est DEDUPLIQUEE par le
+     minifieur, qui ne garde que la derniere et ne peut pas savoir que la
+     premiere etait un repli. Verifie dans le CSS SERVI — il n emettait plus
+     que `100dvh`. Un navigateur sans `dvh` aurait alors eu une hauteur AUTO,
+     c est-a-dire un layout effondre. Le minifieur ne fusionne pas a travers
+     une at-rule.
+
+     Pas de saut a craindre quand la barre se retracte : elle ne le fait qu au
+     defilement du DOCUMENT, or ici c est `<main>` qui defile, le conteneur
+     etant en `overflow-hidden`. La valeur reste donc stable. */
+  .h-ecran {
+    height: 100vh;
+  }
+  @supports (height: 100dvh) {
+    .h-ecran {
+      height: 100dvh;
+    }
+  }
+
   .list-scroll {
     scrollbar-width: thin;
     scrollbar-color: var(--scroll-thumb) transparent;

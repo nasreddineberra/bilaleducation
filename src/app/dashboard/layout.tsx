@@ -178,7 +178,7 @@ export default async function DashboardLayout({
       >
         Aller au contenu
       </a>
-      <div className="h-screen overflow-hidden bg-[var(--surface-page)] flex">
+      <div className="h-ecran overflow-hidden bg-[var(--surface-page)] flex">
         {/* Sidebar fixe à gauche */}
         <DashboardSidebar
           role={displayRole}
