@@ -9,6 +9,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } fro
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
 import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
+import { usePetitEcran } from '@/hooks/usePetitEcran'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -391,6 +392,49 @@ export default function EmploiDuTempsClient({
 
   const todayRealDow = new Date().getDay()
   const todayDow = isCurrentWeek ? todayRealDow : -1
+
+  // ─── Telephone : une JOURNEE a la fois ────────────────────────────────────
+  //
+  // Le filtre par jour existait deja (`selectedDay` reduit `activeDays` a une
+  // colonne) ; il manquait un defaut et, surtout, UN MOYEN DE CHANGER DE JOUR.
+  // Les en-tetes de jour SONT les boutons de filtre : en vue filtree il n en
+  // reste qu un, donc sans les fleches ci-dessous on resterait coince sur une
+  // seule journee — acceptable comme confort sur grand ecran, bloquant ici.
+  const petitEcran = usePetitEcran()
+
+  // Aujourd hui, ou le premier jour travaille si l on est samedi/dimanche dans
+  // une ecole qui ne travaille pas ce jour-la.
+  useEffect(() => {
+    if (!petitEcran || selectedDay !== null || orderedDays.length === 0) return
+    setSelectedDay(orderedDays.includes(todayRealDow) ? todayRealDow : orderedDays[0])
+  }, [petitEcran, selectedDay, orderedDays, todayRealDow])
+
+  // La vue MOIS n a pas de sens sur un telephone, et son bascule est masque :
+  // sans ce repli, qui l aurait laissee active en tournant son ecran y resterait
+  // enferme, le bouton pour en sortir ayant disparu.
+  useEffect(() => {
+    if (petitEcran) setViewType('week')
+  }, [petitEcran])
+
+  // Avance d un JOUR TRAVAILLE, en changeant de semaine aux bornes : un
+  // vendredi suivi d un lundi, jamais un samedi que l ecole n ouvre pas.
+  const allerAuJour = useCallback((delta: number) => {
+    setSelectedDay(jour => {
+      if (jour === null || orderedDays.length === 0) return jour
+      const i = orderedDays.indexOf(jour)
+      if (i === -1) return jour
+      const j = i + delta
+      if (j < 0) {
+        setWeekOffset(o => o - 1)
+        return orderedDays[orderedDays.length - 1]
+      }
+      if (j >= orderedDays.length) {
+        setWeekOffset(o => o + 1)
+        return orderedDays[0]
+      }
+      return orderedDays[j]
+    })
+  }, [orderedDays])
 
   // ─── Resolve slots for this week ──────────────────────────────────────────
 
@@ -1614,8 +1658,9 @@ export default function EmploiDuTempsClient({
 
         <div className="flex-1" />
 
-        {/* View type toggle: Semaine / Mois */}
-        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200" role="group" aria-label="Affichage semaine ou mois">
+        {/* View type toggle: Semaine / Mois — masque sur telephone (la vue mois
+            y est illisible, et « Semaine » contredirait l affichage a la journee) */}
+        <div className={clsx('rounded-lg overflow-hidden text-xs font-medium border border-warm-200', petitEcran ? 'hidden' : 'flex')} role="group" aria-label="Affichage semaine ou mois">
           <button
             onClick={() => setViewType('week')}
             aria-pressed={viewType === 'week'}
@@ -1712,6 +1757,40 @@ export default function EmploiDuTempsClient({
           >
             <div className="p-2 text-xs text-warm-700" />
             {activeDays.map(d => (
+              // Sur telephone l en-tete CESSE d etre le bouton de filtre et
+              // devient la navigation : un clic y annulerait l affichage a la
+              // journee et ramenerait des colonnes de 70 px.
+              petitEcran ? (
+                <div
+                  key={d}
+                  className={clsx(
+                    'flex items-center justify-between gap-1 border-l border-warm-100 px-1 py-1.5',
+                    d === todayDow ? 'bg-amber-50/50' : ''
+                  )}
+                >
+                  <button
+                    onClick={() => allerAuJour(-1)}
+                    aria-label="Jour précédent"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-warm-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <span className={clsx(
+                    'min-w-0 truncate text-center text-sm font-semibold uppercase tracking-wide',
+                    d === todayDow ? 'text-amber-600' : 'text-warm-700'
+                  )}>
+                    {DAY_LABELS[d]}
+                    <span className="text-xs font-medium opacity-80 ml-1">{dayDatesDisplay[d]}</span>
+                  </span>
+                  <button
+                    onClick={() => allerAuJour(1)}
+                    aria-label="Jour suivant"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-warm-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              ) : (
               <button
                 key={d}
                 onClick={() => setSelectedDay(selectedDay === d ? null : d)}
@@ -1727,6 +1806,7 @@ export default function EmploiDuTempsClient({
                 {selectedDay !== null ? DAY_LABELS[d] : DAY_LABELS_SHORT[d]}
                 <span className="text-xs font-medium opacity-80 ml-1">{dayDatesDisplay[d]}</span>
               </button>
+              )
             ))}
           </div>
 
