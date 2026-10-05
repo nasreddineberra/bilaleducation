@@ -1,5 +1,8 @@
 'use client'
 
+import { usePetitEcran } from '@/hooks/usePetitEcran'
+import type { Raccourci } from '@/lib/mobile'
+
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Users, AlertTriangle, BookOpen, CalendarClock } from 'lucide-react'
@@ -31,10 +34,12 @@ interface Props {
   }
 }
 
-const RACCOURCIS = [
-  { href: '/dashboard/absences', label: "Feuille d'appel" },
+// `mobile` : meme drapeau que la barre laterale. Un raccourci vers un ecran
+// masque serait offrir en tete de page ce que le menu refuse.
+const RACCOURCIS: Raccourci[] = [
+  { href: '/dashboard/absences', label: "Feuille d'appel", mobile: true },
   { href: '/dashboard/grades', label: 'Saisie des notes' },
-  { href: '/dashboard/cahier-texte', label: 'Cahier de texte' },
+  { href: '/dashboard/cahier-texte', label: 'Cahier de texte', mobile: true },
 ]
 
 function fmtTime(t: string): string {
@@ -42,16 +47,21 @@ function fmtTime(t: string): string {
 }
 
 export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
+  const petitEcran = usePetitEcran()
+  const raccourcis = RACCOURCIS.filter(r => !petitEcran || r.mobile)
+
   return (
     <div className="space-y-4 animate-fade-in">
       <DashboardHeader {...headerProps} />
 
       {/* Raccourcis */}
+      {raccourcis.length > 0 && (
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-        {RACCOURCIS.map(r => (
+        {raccourcis.map(r => (
           <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
         ))}
       </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -119,7 +129,7 @@ export default function DashboardEnseignant({ stats, ...headerProps }: Props) {
               const info = classInfoOf(a.classes)
               return (
                 <div key={a.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs">
-                  {a.students?.id ? (
+                  {a.students?.id && !petitEcran ? (
                     <Link href={`/dashboard/students/${a.students.id}`} className="font-medium text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
                       {a.students?.last_name} {a.students?.first_name}
                     </Link>

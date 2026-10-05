@@ -1,5 +1,8 @@
 'use client'
 
+import { usePetitEcran } from '@/hooks/usePetitEcran'
+import { Cliquable } from '@/components/ui/Cliquable'
+
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Users, FileText, DollarSign, BookOpenText, ClipboardList, BookOpen, Lightbulb } from 'lucide-react'
@@ -46,6 +49,8 @@ function formatCurrency(n: number): string {
 }
 
 export default function DashboardParent({ stats, ...headerProps }: Props) {
+  const petitEcran = usePetitEcran()
+
   const feeInfo = stats.familyFee ? FEE_STATUS[stats.familyFee.status] ?? FEE_STATUS.pending : null
 
   return (
@@ -60,10 +65,11 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {stats.children.map(child => (
-              <Link
+              <Cliquable
                 key={child.id}
-                href={`/dashboard/students/${child.id}`}
-                className="flex items-center gap-3 bg-warm-50 rounded-lg px-4 py-3 hover:bg-warm-100 transition-colors"
+                href={petitEcran ? null : `/dashboard/students/${child.id}`}
+                className="flex items-center gap-3 bg-warm-50 rounded-lg px-4 py-3"
+                classNameLien="hover:bg-warm-100 transition-colors"
               >
                 <div className={clsx(
                   'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0',
@@ -75,7 +81,7 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
                   <p className="text-sm font-bold text-warm-800 truncate">{child.last_name} {child.first_name}</p>
                   <p className="text-xs text-warm-700">{child.enrollments?.[0]?.classes?.name ?? 'Non inscrit'}</p>
                 </div>
-              </Link>
+              </Cliquable>
             ))}
           </div>
         )}
@@ -149,7 +155,7 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
         <section className="card p-3 space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="stat-label flex items-center gap-1.5"><DollarSign size={13} className="text-warm-700" /> Situation financière</h3>
-            <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-700">Détails</Link>
+            {!petitEcran && <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-700">Détails</Link>}
           </div>
           <div className="flex items-center gap-3">
             <p className="text-2xl font-bold text-secondary-800 tabular-nums">{formatCurrency(Number(stats.familyFee.total_due))}</p>
@@ -159,9 +165,11 @@ export default function DashboardParent({ stats, ...headerProps }: Props) {
       )}
 
       {/* Raccourcis */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className={clsx('grid gap-2', petitEcran ? 'grid-cols-1' : 'grid-cols-2')}>
         <Link href="/dashboard/notifications" className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">Messages</Link>
-        <Link href="/dashboard/financements/reglements" className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">Paiements</Link>
+        {!petitEcran && (
+          <Link href="/dashboard/financements/reglements" className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">Paiements</Link>
+        )}
       </div>
     </div>
   )

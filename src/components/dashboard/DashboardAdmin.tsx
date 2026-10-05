@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import { usePetitEcran } from '@/hooks/usePetitEcran'
+import type { Raccourci } from '@/lib/mobile'
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -52,14 +54,20 @@ const ABSENCE_TYPE: Record<string, string> = {
   absence: 'Absence', retard: 'Retard',
 }
 
-const RACCOURCIS = [
+// `mobile` : meme drapeau que la barre laterale. Trois de ces quatre
+// raccourcis menent a des ecrans masques sur telephone — les proposer en tete
+// du tableau de bord, la ou ils sont les plus visibles, serait offrir ce que le
+// menu refuse.
+const RACCOURCIS: Raccourci[] = [
   { href: '/dashboard/students/new', label: 'Nouvel élève' },
   { href: '/dashboard/communications/new', label: 'Nouveau message' },
   { href: '/dashboard/grades', label: 'Saisie des notes' },
-  { href: '/dashboard/absences', label: "Feuille d'appel" },
+  { href: '/dashboard/absences', label: "Feuille d'appel", mobile: true },
 ]
 
 export default function DashboardAdmin({ stats, ...headerProps }: Props) {
+  const petitEcran = usePetitEcran()
+
   const treso = [
     { name: 'Encaissé', value: Math.round(stats.collected), fill: SERIES.primary },
     { name: 'Reste', value: Math.round(stats.outstanding), fill: SERIES.orange },
@@ -73,7 +81,7 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
 
       {/* Raccourcis (libelle seul) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {RACCOURCIS.map(r => (
+        {RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
           <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">
             {r.label}
           </Link>
@@ -102,7 +110,9 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
         <section className="card p-3">
           <div className="flex items-baseline justify-between mb-2">
             <h3 className="stat-label">Recouvrement · {headerProps.yearLabel}</h3>
-            <Link href="/dashboard/financements/vue-globale" className="text-xs text-primary-600 hover:text-primary-700">Statistiques</Link>
+            {!petitEcran && (
+              <Link href="/dashboard/financements/vue-globale" className="text-xs text-primary-600 hover:text-primary-700">Statistiques</Link>
+            )}
           </div>
           {stats.billed === 0 ? (
             <p className="text-xs text-warm-700 italic py-8 text-center">Aucune facturation.</p>
@@ -152,20 +162,26 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
                 pas, il se lit — d'où un bandeau pleine largeur plutôt qu'une
                 ligne à compteur. Simple rappel : rien n'est bloqué ailleurs,
                 la bascule reste une action manuelle de la direction. */}
-            {stats.periodHint && (
-              <Link
-                href="/dashboard/annee-scolaire"
-                className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs hover:bg-amber-100 transition-colors animate-fade-in"
-              >
-                <AlertTriangle size={14} className="shrink-0" />
-                <span className="font-medium">{stats.periodHint.message}</span>
-              </Link>
-            )}
+            {stats.periodHint && (() => {
+              const contenu = (
+                <>
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span className="font-medium">{stats.periodHint.message}</span>
+                </>
+              )
+              const base = 'flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs animate-fade-in'
+              // Sur telephone le rappel se LIT encore mais ne mene plus nulle
+              // part : l annee scolaire est un ecran masque. Le masquer en
+              // entier ferait perdre l information, qui a sa valeur seule.
+              return petitEcran
+                ? <div className={base}>{contenu}</div>
+                : <Link href="/dashboard/annee-scolaire" className={clsx(base, 'hover:bg-amber-100 transition-colors')}>{contenu}</Link>
+            })()}
             {/* Libellé aligné sur ce qui est réellement compté : les familles
                 au statut « en attente », c'est-à-dire sans aucun versement.
                 « Avec impayé » englobait aussi les paiements échelonnés en
                 cours, qui ne demandent aucune action. */}
-            <TodoRow href="/dashboard/financements/reglements" label="Familles sans aucun paiement" count={stats.todo.debtorFamilies} tone="orange" />
+            <TodoRow href={petitEcran ? null : '/dashboard/financements/reglements'} label="Familles sans aucun paiement" count={stats.todo.debtorFamilies} tone="orange" />
             <TodoRow href="/dashboard/absences" label="Absences non justifiées" count={stats.todo.unjustifiedAbsences} tone="red" />
             <TodoRow href="/dashboard/notifications" label="Notifications non lues" count={stats.todo.unreadNotifs} tone="primary" />
           </div>
@@ -243,7 +259,7 @@ export default function DashboardAdmin({ stats, ...headerProps }: Props) {
               return (
                 <div key={a.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs">
                   <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', a.is_justified ? 'bg-primary-500' : 'bg-red-500')} />
-                  {a.students?.id ? (
+                  {a.students?.id && !petitEcran ? (
                     <Link href={`/dashboard/students/${a.students.id}`} className="font-medium text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
                       {a.students?.last_name} {a.students?.first_name}
                     </Link>
@@ -276,13 +292,21 @@ const TODO_TONE: Record<string, string> = {
   primary: 'bg-primary-100 text-primary-700',
 }
 
-function TodoRow({ href, label, count, tone }: { href: string; label: string; count: number; tone: string }) {
-  return (
-    <Link href={href} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-2 text-xs hover:bg-warm-100 transition-colors">
+// `href: null` = le compteur reste affiche mais ne mene nulle part (ecran
+// masque sur telephone). On ne retire pas la ligne : le chiffre a sa valeur.
+function TodoRow({ href, label, count, tone }: { href: string | null; label: string; count: number; tone: string }) {
+  const corps = (
+    <>
       <span className={clsx('inline-grid place-items-center min-w-[1.5rem] h-6 px-1.5 rounded-full font-bold tabular-nums', count > 0 ? TODO_TONE[tone] : 'bg-warm-100 text-warm-700')}>
         {count}
       </span>
       <span className="font-medium text-warm-700">{label}</span>
-    </Link>
+    </>
   )
+
+  const base = 'flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-2 text-xs'
+
+  return href
+    ? <Link href={href} className={clsx(base, 'hover:bg-warm-100 transition-colors')}>{corps}</Link>
+    : <div className={base}>{corps}</div>
 }

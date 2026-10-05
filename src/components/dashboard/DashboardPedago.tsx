@@ -1,5 +1,8 @@
 'use client'
 
+import { usePetitEcran } from '@/hooks/usePetitEcran'
+import type { Raccourci } from '@/lib/mobile'
+
 import Link from 'next/link'
 import { BookOpen, ClipboardList, Award } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
@@ -23,7 +26,10 @@ interface Props {
   }
 }
 
-const RACCOURCIS = [
+// AUCUN de ces quatre ecrans n est ouvert sur telephone : la grille entiere
+// disparait donc, d ou la garde `raccourcis.length > 0` au rendu — sans elle,
+// une grille vide laisserait son interligne.
+const RACCOURCIS: Raccourci[] = [
   { href: '/dashboard/evaluations', label: 'Évaluations' },
   { href: '/dashboard/grades', label: 'Saisie des notes' },
   { href: '/dashboard/bulletins', label: 'Bulletins' },
@@ -31,16 +37,21 @@ const RACCOURCIS = [
 ]
 
 export default function DashboardPedago({ stats, ...headerProps }: Props) {
+  const petitEcran = usePetitEcran()
+  const raccourcis = RACCOURCIS.filter(r => !petitEcran || r.mobile)
+
   return (
     <div className="space-y-4 animate-fade-in">
       <DashboardHeader {...headerProps} />
 
       {/* Raccourcis */}
+      {raccourcis.length > 0 && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {RACCOURCIS.map(r => (
+        {raccourcis.map(r => (
           <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">{r.label}</Link>
         ))}
       </div>
+      )}
 
       {/* KPIs (bornes a l'annee en cours) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -53,7 +64,7 @@ export default function DashboardPedago({ stats, ...headerProps }: Props) {
       <section className="card p-3 space-y-2">
         <div className="flex items-baseline justify-between">
           <h3 className="stat-label">À finaliser · {headerProps.periodLabel || 'période en cours'}</h3>
-          <Link href="/dashboard/grades" className="text-xs text-primary-600 hover:text-primary-700">Saisir les notes</Link>
+          {!petitEcran && <Link href="/dashboard/grades" className="text-xs text-primary-600 hover:text-primary-700">Saisir les notes</Link>}
         </div>
         {stats.evalsWithoutGrades.length === 0 ? (
           <p className="text-xs text-warm-700 italic py-3 text-center">Toutes les évaluations de la période sont notées.</p>
@@ -75,7 +86,7 @@ export default function DashboardPedago({ stats, ...headerProps }: Props) {
       <section className="card p-3 space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="stat-label">Dernières évaluations</h3>
-          <Link href="/dashboard/evaluations" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>
+          {!petitEcran && <Link href="/dashboard/evaluations" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>}
         </div>
         {stats.recentEvals.length === 0 ? (
           <p className="text-xs text-warm-700 italic py-4 text-center">Aucune évaluation récente.</p>

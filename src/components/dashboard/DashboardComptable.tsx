@@ -1,5 +1,8 @@
 'use client'
 
+import { usePetitEcran } from '@/hooks/usePetitEcran'
+import { Cliquable } from '@/components/ui/Cliquable'
+
 import Link from 'next/link'
 import { useMemo } from 'react'
 import {
@@ -48,6 +51,8 @@ interface Props {
 }
 
 export default function DashboardComptable({ stats, ...headerProps }: Props) {
+  const petitEcran = usePetitEcran()
+
   const methodData = useMemo(() => {
     const all = Object.entries(stats.byMethod)
       .map(([k, v]) => ({ name: METHOD_LABELS[k] ?? k, value: v }))
@@ -88,7 +93,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
         <section className="card p-3">
           <div className="flex items-baseline justify-between mb-2">
             <h3 className="stat-label">Taux de recouvrement</h3>
-            <Link href="/dashboard/financements/vue-globale" className="text-xs text-primary-600 hover:text-primary-700">Statistiques complètes</Link>
+            {!petitEcran && <Link href="/dashboard/financements/vue-globale" className="text-xs text-primary-600 hover:text-primary-700">Statistiques complètes</Link>}
           </div>
           <div className="flex items-end gap-3">
             <p className="text-4xl font-bold text-secondary-800 tabular-nums leading-none">{stats.rate}%</p>
@@ -163,8 +168,10 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
             <ul className="space-y-0.5">
               {stats.topDebtors.map(r => (
                 <li key={r.parentId}>
-                  <Link href={`/dashboard/financements/reglements?parent=${r.parentId}`}
-                    className="w-full flex items-center gap-2 px-1 py-0.5 rounded hover:bg-warm-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+                  <Cliquable
+                    href={petitEcran ? null : `/dashboard/financements/reglements?parent=${r.parentId}`}
+                    className="w-full flex items-center gap-2 px-1 py-0.5 rounded"
+                    classNameLien="hover:bg-warm-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
                     <Tooltip content={r.parentLabel} maxWidth="max-w-none" className="min-w-0 flex-1">
                       <span className="block text-[11px] text-secondary-800 text-left truncate whitespace-nowrap">{r.parentLabel}</span>
                     </Tooltip>
@@ -172,7 +179,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
                       <span className="block h-full rounded-full" style={{ width: `${topMax > 0 ? (r.remaining / topMax) * 100 : 0}%`, background: SERIES.orange }} />
                     </span>
                     <span className="w-20 text-[11px] font-semibold text-orange-700 tabular-nums text-right shrink-0">{fmtEur(r.remaining)}</span>
-                  </Link>
+                  </Cliquable>
                 </li>
               ))}
             </ul>
@@ -184,7 +191,7 @@ export default function DashboardComptable({ stats, ...headerProps }: Props) {
       <section className="card p-3 space-y-2">
         <div className="flex items-center justify-between">
           <h3 className="stat-label">Derniers paiements</h3>
-          <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>
+          {!petitEcran && <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>}
         </div>
         {stats.recentPayments.length === 0 ? (
           <p className="text-xs text-warm-700 italic py-4 text-center">Aucun paiement récent.</p>

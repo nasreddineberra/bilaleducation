@@ -5463,6 +5463,96 @@ avertissements, niveau inchange), build complet. Et **dans le CSS SERVI**
 media query `min-width:1024px` (`lg` = 1024, aucun override dans
 `tailwind.config`).
 
+#### 5 octobre 2026 — RESPONSIVE, phase 2 : le FILTRE DE MENU
+
+**PERIMETRE ARRETE PAR L UTILISATEUR — 7 entrees sur ~25** : Tableau de bord,
+Notifications, Temps de presence, les DEUX feuilles d appel, Emploi du temps,
+Cahier de texte. **Masquage SEC**, sans echappatoire. Plus : « si des liens
+existent sur les tableaux de bord vers d autres menus, il faut supprimer ces
+liens en mode telephone ».
+
+**DEUX SEUILS, ET C EST CE QUI REGLE LE ZOOM** (`src/lib/mobile.ts`) :
+    cadre (tiroir)   ->  1024 px   (inchange depuis la phase 1)
+    filtre de menu   ->   768 px
+Le zoom du navigateur reduit la largeur CSS : **1280 px a 150 % = 853 px**. A un
+seuil unique de 1024, un directeur qui zoome pour lire perdrait la moitie de ses
+menus **sur son ordinateur**, en silence — et la passe de lisibilite de juillet
+dit que ces utilisateurs zooment. A 768, ce meme ecran garde TOUT en profitant
+du tiroir. Le masquage reste donc sec : c est le CHOIX DU SEUIL qui regle le
+cas, pas une echappatoire.
+
+**EN JS ET NON EN CSS**, apres avoir essaye le CSS d abord. Deux raisons, chacune
+dirimante :
+- la barre laterale pilote **`inert` et `aria-expanded`**, qui sont des
+  ATTRIBUTS : du CSS aurait laisse un menu **visible mais INERTE**, ou annonce
+  ouvert alors qu il est ferme ;
+- les tableaux de bord doivent parfois rendre un `div` **LA OU il y avait un
+  lien**. Le CSS ne sait que montrer ou cacher, pas remplacer.
+Hook unique `usePetitEcran()`. Rendu serveur a `false` → on affiche TOUT avant
+de restreindre (**FAIL-OPEN**, comme la session du 11 aout), et le reflow
+d hydratation **ne se voit pas** : sous 1024 px le tiroir est ferme au
+chargement.
+
+**LA MECANIQUE DE DISPARITION EXISTAIT DEJA** : le rendu fait
+`sectionItems.length === 0 -> return null` et `visibleChildren.length === 0 ->
+return null`. Filtrer suffit donc a faire disparaitre **Gestion, Cloture et
+Parametres** — rien a ecrire pour cela. Corollaire a ne pas rater : **le drapeau
+sur un PARENT ne suffit pas**, ses enfants doivent le porter aussi, sinon
+l entree s efface d elle-meme alors qu elle est autorisee.
+
+**L ACCORDEON EST DEPLIE SOUS LE SEUIL** : a 7 entrees sur 3 sections il n a
+plus de raison d etre, et c est LUI qui faisait paraitre les sections vides sur
+la capture du 4 octobre. Le defaut d affichage se corrige donc par le filtre
+lui-meme, sans traitement separe.
+
+**LES LIENS DES TABLEAUX DE BORD — le releve a ete plus large que mon souvenir.**
+Je n en avais note que 11 ; il y en avait davantage, dont **les liens vers les
+FICHES APPRENANTS** depuis « Dernieres absences », « Derniers eleves inscrits »
+et les cartes enfants du parent.
+- **On ne masque pas la ligne, on retire la navigation** : un nom d apprenant
+  absent, un compteur de familles sans paiement, un rappel de bascule de periode
+  ont leur valeur SEULS. D ou `ui/Cliquable.tsx` — `href = null` rend un `div`,
+  le contenu reste lisible et cesse d etre cliquable. `classNameLien` porte ce
+  qui n a de sens que sur un lien (survol, transition) : **un `div` qui change
+  de couleur au survol promet un clic qui n arrivera jamais**.
+- Le motif revenait **quatre fois** : composant plutot que copies (regle du
+  projet, extraction au 2e usage). Le lien vers la fiche apprenant du tableau de
+  bord admin avait **deja** une branche `span` de repli — il a suffi d etendre
+  sa condition.
+- **Raccourcis** : Admin 1/4, Enseignant 2/3, Secretaire 1/3, **Pedago 0/4** —
+  ses quatre destinations sont fermees, la grille entiere disparait. D ou la
+  garde `raccourcis.length > 0` : sans elle, une grille vide laisserait son
+  interligne.
+
+**TYPE EXPLICITE SUR LES LISTES DE RACCOURCIS** (`Raccourci` dans `lib/mobile`) :
+la liste du pedagogique, ou AUCUNE entree ne porte le drapeau, faisait echouer
+le filtre au type-check. Les quatre sont typees — l inference serait retombee le
+jour ou l on retire le dernier `mobile` d une autre.
+
+**TROIS PIEGES, dont deux deja connus du journal**
+- **Un commentaire qui annonce ce qu on n a pas fait** : `mobile.ts` decrivait
+  un usage `max-md:` en CSS que la mise en oeuvre a abandonne pour le JS.
+  Corrige avant livraison — c est le defaut de `policies.sql` (5 aout) a
+  l echelle d un fichier.
+- **Mon grep a annonce « 0 » sur le parent « Feuille d appel »** : l apostrophe
+  de `Feuille d\'appel` etait mal echappee. Le drapeau etait bien la. **Deuxieme
+  fois en deux jours** apres les classes `lg:` — *un controle qui ne mesure rien
+  annonce 0*. Verification refaite en LISANT la zone.
+- `TodoRow` laisse a moitie transforme par un script (ouverture coupee, pas la
+  fermeture) : rattrape par le type-check, pas par la relecture.
+
+**VERIFIE PAR MESURE, pas par supposition** : 8 drapeaux dans le menu = les
+6 entrees + les 2 enfants de la feuille d appel, exactement la liste arretee ;
+4 raccourcis conserves, conformes au decompte ci-dessus. Type-check vert,
+41/41 tests, 0 erreur de lint (517 avertissements, niveau inchange), build
+complet.
+
+**RESTE** : la phase 3 (les ecrans eux-memes). Aucun n est touche — l EDT et le
+cahier de texte sont autorises mais pas adaptes : a 348 px, cinq colonnes de
+jours font 70 px. **Et le support technique est conserve** (admin/direction) :
+c est le canal pour signaler un probleme, et un probleme peut arriver en
+deplacement.
+
 
 ## Prochaine etape
 

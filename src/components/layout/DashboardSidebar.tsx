@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
+import { usePetitEcran } from '@/hooks/usePetitEcran'
 
 import {
   Upload,
@@ -48,18 +49,33 @@ import { clsx } from 'clsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/**
+ * `mobile` : l entree reste visible sous 768 px. ABSENT = masque.
+ *
+ * Seconde condition, de meme nature que `roles` : on ne montre pas ce qu on
+ * refuse (regle du 15 juillet, posee sur les ciblages de communication). Les
+ * 7 entrees retenues le 5 octobre sont les usages debout, a une main —
+ * tableau de bord, notifications, temps de presence, les deux feuilles
+ * d appel, emploi du temps, cahier de texte.
+ *
+ * SUR UN PARENT, LE DRAPEAU NE SUFFIT PAS : ses enfants doivent le porter
+ * aussi, sinon le rendu le retire de lui-meme (`visibleChildren.length === 0`
+ * rend `null`) et l entree disparait alors qu elle est autorisee.
+ */
 interface LeafNavItem {
-  name:  string
-  href:  string
-  icon:  any
-  roles: UserRole[]
+  name:    string
+  href:    string
+  icon:    any
+  roles:   UserRole[]
+  mobile?: boolean
 }
 
 interface SubNavItem {
-  name:     string
-  href?:    string
-  icon:     any
-  roles:    UserRole[]
+  name:      string
+  href?:     string
+  icon:      any
+  roles:     UserRole[]
+  mobile?:   boolean
   children?: LeafNavItem[]
 }
 
@@ -68,6 +84,7 @@ interface NavItem {
   href?:     string
   icon:      any
   roles:     UserRole[]
+  mobile?:   boolean
   children?: SubNavItem[]
 }
 
@@ -163,18 +180,21 @@ const navItems: NavItem[] = [
     href:  '/dashboard',
     icon:  LayoutDashboard,
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+    mobile: true,
   },
   {
     name:  'Notifications',
     href:  '/dashboard/notifications',
     icon:  Bell,
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+    mobile: true,
   },
   {
     name:  'Temps de présence',
     href:  '/dashboard/temps-presence',
     icon:  Clock,
     roles: ['admin', 'direction', 'comptable', 'responsable_pedagogique', 'enseignant', 'secretaire'],
+    mobile: true,
   },
   {
     name:  'Apprenants',
@@ -249,6 +269,7 @@ const navItems: NavItem[] = [
     href:  '/dashboard/emploi-du-temps',
     icon:  CalendarClock,
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+    mobile: true,
   },
   {
     // Deux entrées comme les Affectations : les cours adultes ont leurs propres
@@ -261,18 +282,23 @@ const navItems: NavItem[] = [
     // périmètre complet, et que la vue « toutes les classes » du 4 août l'y
     // incluait nommément. Il ne voyait donc aucune feuille d'appel.
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+    // Le parent ET ses deux enfants : sans le drapeau sur les enfants, le rendu
+    // retirerait l'entree de lui-meme (`visibleChildren.length === 0`).
+    mobile: true,
     children: [
       {
         name:  'Apprenants',
         href:  '/dashboard/absences',
         icon:  Users,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire', 'parent'],
+        mobile: true,
       },
       {
         name:  'Adultes',
         href:  '/dashboard/absences/adultes',
         icon:  UserCheck,
         roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'secretaire'],
+        mobile: true,
       },
     ],
   },
@@ -290,6 +316,7 @@ const navItems: NavItem[] = [
     href:  '/dashboard/cahier-texte',
     icon:  BookOpenText,
     roles: ['admin', 'direction', 'responsable_pedagogique', 'enseignant', 'parent'],
+    mobile: true,
   },
   {
     name:  'Communications',
@@ -616,7 +643,25 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
     }
   }
 
-  const filteredItems = navItems.filter(item => role && item.roles.includes(role))
+  // ── Petit ecran : le menu se reduit aux 7 entrees portant `mobile` ─────────
+  //
+  // EN JS ET NON EN CSS, et ce n est pas un detail : le rendu pilote `inert` et
+  // `aria-expanded`, qui sont des ATTRIBUTS. Masquer en CSS laisserait un menu
+  // visible mais INERTE, ou annonce ouvert alors qu il est ferme.
+  //
+  // Le rendu serveur part de « grand ecran » (tout le menu) : si le script
+  // echoue, on affiche trop plutot que trop peu — meme principe FAIL-OPEN que
+  // la session (11 aout). Et le reflow apres hydratation ne se VOIT pas : sous
+  // 1024 px le tiroir est ferme au chargement, on ne l ouvre qu ensuite.
+  const petitEcran = usePetitEcran()
+
+  // Le drapeau est une SECONDE condition, de meme nature que le role. Une
+  // section dont il ne reste aucune entree disparait d elle-meme : le rendu
+  // fait deja `sectionItems.length === 0 -> return null`.
+  const estVisible = (it: { roles: UserRole[]; mobile?: boolean }) =>
+    !!role && it.roles.includes(role) && (!petitEcran || !!it.mobile)
+
+  const filteredItems = navItems.filter(estVisible)
 
   // Mode RÉDUIT : toutes les destinations d'une section, à plat, en icônes.
   // L'icône d'un sous-menu = celle de SON MENU (le libellé vit dans le tooltip).
@@ -794,7 +839,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         {!collapsed && SECTION_ORDER.map(sectionLabel => {
           const sectionItems = filteredItems.filter(i => SECTION_OF[i.name] === sectionLabel)
           if (sectionItems.length === 0) return null
-          const isSecOpen = openSection === sectionLabel
+          // Sur petit ecran tout est DEPLIE : a 7 entrees sur 3 sections,
+          // l accordeon n a plus de raison d etre — et c est lui qui faisait
+          // paraitre les sections VIDES (constat a l ecran du 4 octobre).
+          const isSecOpen = petitEcran || openSection === sectionLabel
           return (
           <div key={sectionLabel}>
             {!collapsed && (
@@ -815,7 +863,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
             // ── Item avec sous-menu ─────────────────────────────────────────
             if (item.children) {
-              const visibleChildren = item.children.filter(c => role && c.roles.includes(role))
+              const visibleChildren = item.children.filter(estVisible)
               if (visibleChildren.length === 0) return null
               const isOpen = !collapsed && openGroup === item.name
 
