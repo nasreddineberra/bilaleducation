@@ -2,16 +2,25 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { hrefRetour } from '@/lib/navigation/retour'
 import TeacherDetail from '@/components/teachers/TeacherDetail'
 import { chargerAssiduite } from '@/lib/temps-presence/assiduite'
 import type { TeacherDocument } from '@/types/database'
 
 interface Props {
   params: Promise<{ id: string }>
+  // `lq` / `lf` / `lp` portent l'etat de la liste qu'on a quittee (recherche,
+  // filtre, page) sous un prefixe reserve. Voir `lib/navigation/retour`.
+  searchParams: Promise<{ from?: string; lq?: string; lf?: string; lp?: string }>
 }
 
-export default async function EditTeacherPage({ params }: Props) {
+export default async function EditTeacherPage({ params, searchParams }: Props) {
   const { id } = await params
+  // Cette fiche n'avait AUCUNE tuyauterie de retour : le lien et le defaut de
+  // `TeacherForm` etaient ecrits en dur, donc le retour perdait le filtre de la
+  // liste. Il le RESTITUE desormais, comme les fiches apprenant et foyer.
+  const sp = await searchParams
+  const backHref = hrefRetour(sp.from, '/dashboard/teachers', sp)
   const supabase = await createClient()
 
   const { data: teacher } = await supabase
@@ -38,7 +47,7 @@ export default async function EditTeacherPage({ params }: Props) {
     <div className="space-y-6 animate-fade-in">
 
       <Link
-        href="/dashboard/teachers"
+        href={backHref}
         className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
       >
         <ChevronLeft size={15} />
@@ -49,6 +58,7 @@ export default async function EditTeacherPage({ params }: Props) {
         teacher={teacher}
         documents={(documents ?? []) as TeacherDocument[]}
         assiduite={assiduite}
+        backHref={backHref}
       />
 
     </div>

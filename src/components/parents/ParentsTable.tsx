@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronDown, ChevronRight, Pencil, Trash2, Users, LogOut, Camera, GraduationCap } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -12,6 +12,7 @@ import { studentRepository } from '@/lib/database/students'
 import { deleteParent, getParentDeleteDeps } from '@/app/dashboard/parents/actions'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { suffixeFiche } from '@/lib/navigation/retour'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent, Student } from '@/types/database'
 
@@ -44,6 +45,15 @@ const RELATION_LABEL: Record<string, string> = {
 export default function ParentsTable({ parents, parentsWithChildren, canDelete = false }: ParentsTableProps) {
   const router = useRouter()
   const toast = useToast()
+  // L'etat de CETTE liste (filtre, recherche, page) voyage jusqu'a la fiche pour
+  // que le retour le retrouve. Voir `lib/navigation/retour`.
+  const sp = useSearchParams()
+  const suffixe = suffixeFiche(sp)
+  const hrefFoyer = (id: string) => `/dashboard/parents/${id}${suffixe}`
+  // Un enfant deplie mene a SA fiche, mais le retour doit revenir ICI : d'ou
+  // `from=parents`, qui est justement la liste des foyers — l'etat s'y applique
+  // donc aussi.
+  const hrefApprenant = (id: string) => `/dashboard/students/${id}${suffixeFiche(sp, 'parents')}`
   const [expandedId, setExpandedId] = useState<string | null>(null)
   type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }
   const [childrenMap, setChildrenMap] = useState<Record<string, StudentWithEnrollment[]>>({})
@@ -193,7 +203,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
 
                 {/* Ligne principale */}
                 <tr
-                  onClick={() => router.push(`/dashboard/parents/${parent.id}`)}
+                  onClick={() => router.push(hrefFoyer(parent.id))}
                   className="hover:bg-warm-50 transition-colors cursor-pointer"
                 >
 
@@ -201,7 +211,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                   <td className="list-td">
                     <div className="flex items-center gap-2">
                       <Link
-                        href={`/dashboard/parents/${parent.id}`}
+                        href={hrefFoyer(parent.id)}
                         onClick={(e) => e.stopPropagation()}
                         className="list-name text-secondary-800 rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                       >
@@ -267,7 +277,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                         )}
                         <Tooltip content="Modifier">
                           <button
-                            onClick={() => router.push(`/dashboard/parents/${parent.id}`)}
+                            onClick={() => router.push(hrefFoyer(parent.id))}
                             aria-label="Modifier la fiche"
                             className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
@@ -347,7 +357,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                                 </Tooltip>
 
                                 <button
-                                  onClick={() => router.push(`/dashboard/students/${student.id}?from=parents`)}
+                                  onClick={() => router.push(hrefApprenant(student.id))}
                                   aria-label={`Ouvrir la fiche de ${student.last_name} ${student.first_name}`}
                                   className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                                 >

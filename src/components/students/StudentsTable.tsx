@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, type ReactElement } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2, Link2Off, LogOut, Camera } from 'lucide-react'
 import { clsx } from 'clsx'
 import { deleteStudent, getStudentDeleteDeps, setStudentActive } from '@/app/dashboard/students/actions'
+import { suffixeFiche } from '@/lib/navigation/retour'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { StudentWithClass, Discipline } from './StudentsClient'
@@ -78,6 +79,11 @@ function calcAge(dob: string): string {
 
 export default function StudentsTable({ students }: StudentsTableProps) {
   const router = useRouter()
+  // Le filtre, la recherche et la page vivent dans l'URL de la liste : on les
+  // transporte jusqu'a la fiche pour que le retour les retrouve. Voir
+  // `lib/navigation/retour`.
+  const suffixe = suffixeFiche(useSearchParams())
+  const hrefFiche = (id: string) => `/dashboard/students/${id}${suffixe}`
   const [deleteTarget, setDeleteTarget] = useState<StudentWithClass | null>(null)
   const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -179,7 +185,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
             {students.map((student) => (
               <tr
                 key={student.id}
-                onClick={() => router.push(`/dashboard/students/${student.id}`)}
+                onClick={() => router.push(hrefFiche(student.id))}
                 className={clsx(
                   // 3 niveaux distincts : actif au repos = blanc, inactif au repos
                   // = warm-50 (bande grise discrete), survol = warm-100 (toujours
@@ -199,7 +205,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                     <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} />
                     <div className="flex items-center gap-1.5 flex-wrap">
                     <Link
-                      href={`/dashboard/students/${student.id}`}
+                      href={hrefFiche(student.id)}
                       onClick={(e) => e.stopPropagation()}
                       className={clsx(
                         'list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
@@ -289,7 +295,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                   <div className="flex items-center justify-end gap-1">
                     <Tooltip content="Modifier">
                       <button
-                        onClick={() => router.push(`/dashboard/students/${student.id}`)}
+                        onClick={() => router.push(hrefFiche(student.id))}
                         aria-label="Modifier l'élève"
                         className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                       >

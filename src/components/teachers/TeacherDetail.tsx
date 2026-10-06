@@ -22,9 +22,11 @@ interface Props {
   teacher:   Teacher
   documents: TeacherDocument[]
   assiduite: Assiduite
+  /** Ou retourner apres enregistrement, etat de la liste compris. */
+  backHref?: string
 }
 
-export default function TeacherDetail({ teacher, documents: initialDocuments, assiduite }: Props) {
+export default function TeacherDetail({ teacher, documents: initialDocuments, assiduite, backHref }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
 
@@ -110,7 +112,7 @@ export default function TeacherDetail({ teacher, documents: initialDocuments, as
       {/* Contenu */}
       {activeTab === 'identite' && (
         <div role="tabpanel" id="panel-identite" aria-labelledby="tab-identite">
-          <TeacherForm teacher={teacher} />
+          <TeacherForm teacher={teacher} backHref={backHref} />
         </div>
       )}
 

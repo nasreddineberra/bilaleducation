@@ -8,6 +8,7 @@ import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, C
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
+import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import PushSubscribeButton from './PushSubscribeButton'
 import { SearchField, FloatSelect } from '@/components/ui/FloatFields'
 
@@ -87,10 +88,27 @@ function stripHtml(html: string): string {
 
 export default function NotificationsClient({ notifications, role, yearLabel }: Props) {
   const router = useRouter()
-  const [search, setSearch] = useState('')
-  // Valeur « all » non vide : sinon le label flottant du FloatSelect chevauche l'option.
-  const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all')
-  const [filterType, setFilterType] = useState<string>('all')
+  // Recherche et DEUX filtres MEMORISES : on ouvre une notification, on revient,
+  // et la liste est retrouvee telle quelle. Filtrage cote CLIENT, donc rien dans
+  // l'URL — voir `useFiltresMemorises`.
+  //
+  // Valeur « all » non vide : sinon le label flottant du FloatSelect chevauche
+  // le texte de l'option.
+  const [etatListe, setEtatListe] = useFiltresMemorises('notifications-filtres', {
+    search: '', read: 'all', type: 'all',
+  })
+  const search = etatListe.search
+  // Le hook garantit une chaine, pas une valeur valide : on valide ici.
+  const filterRead: 'all' | 'unread' | 'read' =
+    etatListe.read === 'unread' ? 'unread' : etatListe.read === 'read' ? 'read' : 'all'
+  const filterType = etatListe.type
+  const setSearch     = (v: string) => setEtatListe({ search: v })
+  const setFilterRead = (v: string) => setEtatListe({ read: v })
+  const setFilterType = (v: string) => setEtatListe({ type: v })
+
+  // PAS memorise, a dessein : ce ne sont pas des filtres mais les lignes que
+  // l'utilisateur vient de marquer comme lues dans CETTE visite. Les retenir
+  // ferait croire a des lectures qui n'ont pas eu lieu.
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
   const filtered = useMemo(() => {
@@ -176,7 +194,7 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
           aria-label="Filtrer par statut de lecture"
           wrapperClassName="w-40"
           value={filterRead}
-          onChange={e => setFilterRead(e.target.value as any)}
+          onChange={e => setFilterRead(e.target.value)}
         >
           <option value="all">Toutes</option>
           <option value="unread">Non lues</option>

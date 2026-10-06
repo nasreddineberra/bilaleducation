@@ -8,7 +8,9 @@ import { effectiveRole } from '@/lib/auth/effective-role'
 
 interface Props {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ from?: string }>
+  // `lq` / `lf` / `lp` portent l'etat de la liste qu'on a quittee (recherche,
+  // filtre, page) sous un prefixe reserve. Voir `lib/navigation/retour`.
+  searchParams: Promise<{ from?: string; lq?: string; lf?: string; lp?: string }>
 }
 
 const PARENTS_SELECT = [
@@ -21,10 +23,12 @@ const PARENTS_SELECT = [
 
 export default async function EditStudentPage({ params, searchParams }: Props) {
   const { id } = await params
-  const { from } = await searchParams
+  const sp = await searchParams
+  const { from } = sp
   // Le retour suit l'ORIGINE : liste des apprenants par defaut, mais fiche foyer
-  // ou AUDIT quand on en vient. Voir `lib/navigation/retour`.
-  const backHref  = hrefRetour(from, '/dashboard/students')
+  // ou AUDIT quand on en vient — et il RESTITUE l'etat de cette liste (filtre,
+  // recherche, page). Voir `lib/navigation/retour`.
+  const backHref  = hrefRetour(from, '/dashboard/students', sp)
   const backLabel = from === 'parents' ? 'Retour aux parents' : 'Retour à la liste'
   const supabase = await createClient()
 

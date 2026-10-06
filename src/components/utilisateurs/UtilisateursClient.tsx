@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import UtilisateursTable from './UtilisateursTable'
@@ -43,22 +44,37 @@ const TABS: { key: Tab; label: string }[] = [
 ]
 
 export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: UtilisateursClientProps) {
-  const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<Tab>('staff')
-  const [activeFilter, setActiveFilter] = useState<'' | 'active'>('')
-  const toggleFilter = (f: '' | 'active') => setActiveFilter(prev => (prev === f ? '' : f))
+  // Onglet, recherche et filtre MEMORISES : on ouvre une fiche, on revient, et
+  // la liste est retrouvee telle qu'on l'avait laissee. Cet ecran filtre cote
+  // CLIENT (sur un tableau deja charge), son etat n'existe donc pas dans l'URL —
+  // contrairement a Apprenants / Parents / Enseignants, qui le transportent par
+  // `lib/navigation/retour`. Voir `useFiltresMemorises`.
+  const [etat, setEtat] = useFiltresMemorises('utilisateurs-filtres', {
+    tab: 'staff', search: '', filter: '',
+  })
+  // Le hook garantit une chaine, pas une valeur valide : on valide ici.
+  const tab: Tab = etat.tab === 'parents' ? 'parents' : 'staff'
+  const search = etat.search
+  const activeFilter: '' | 'active' = etat.filter === 'active' ? 'active' : ''
+  const setSearch = (v: string) => setEtat({ search: v })
+  const toggleFilter = (f: '' | 'active') => setEtat({ filter: activeFilter === f ? '' : f })
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  // Deep-link ?tab= (restauration au montage, sans refetch)
+  // Deep-link ?tab= — il PRIME sur la valeur memorisee : une adresse qui porte
+  // explicitement un onglet est une intention, la memoire n'est qu'un repli.
+  // L'effet du hook etant declare avant celui-ci, il s'execute avant : l'ordre
+  // de precedence est donc le bon.
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab')
-    if (t === 'parents' || t === 'staff') setTab(t)
+    if (t === 'parents' || t === 'staff') setEtat({ tab: t })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const selectTab = (key: Tab) => {
-    setTab(key)
-    setSearch('')
-    setActiveFilter('')
+    // Changer d'onglet remet recherche et filtre a zero — c'est VOULU (les deux
+    // populations n'ont rien a voir) ; la valeur memorisee suit desormais, au
+    // lieu de resister.
+    setEtat({ tab: key, search: '', filter: '' })
     const url = new URL(window.location.href)
     url.searchParams.set('tab', key)
     window.history.replaceState(null, '', url)

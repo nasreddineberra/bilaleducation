@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { deleteTeacher, setTeacherActive } from '@/app/dashboard/teachers/actions'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { suffixeFiche } from '@/lib/navigation/retour'
 import type { Teacher } from '@/types/database'
 
 interface TeachersTableProps {
@@ -27,6 +28,11 @@ interface DeleteDeps {
 
 export default function TeachersTable({ teachers, classesByTeacher, canDelete = true }: TeachersTableProps) {
   const router = useRouter()
+  // Le filtre, la recherche et la page vivent dans l'URL de la liste : on les
+  // transporte jusqu'a la fiche pour que le retour les retrouve. Voir
+  // `lib/navigation/retour`.
+  const suffixe = suffixeFiche(useSearchParams())
+  const hrefFiche = (id: string) => `/dashboard/teachers/${id}${suffixe}`
   const [deleteTarget, setDeleteTarget] = useState<Teacher | null>(null)
   const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -132,7 +138,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
             {teachers.map((teacher) => (
               <tr
                 key={teacher.id}
-                onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
+                onClick={() => router.push(hrefFiche(teacher.id))}
                 className={`transition-colors cursor-pointer ${
                   teacher.is_active ? 'hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
                 }`}
@@ -142,7 +148,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                 <td className="list-td">
                   <div className="flex items-center gap-2">
                     <Link
-                      href={`/dashboard/teachers/${teacher.id}`}
+                      href={hrefFiche(teacher.id)}
                       onClick={(e) => e.stopPropagation()}
                       className={`list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50 ${teacher.is_active ? 'text-secondary-800' : 'text-warm-400'}`}
                     >
@@ -213,7 +219,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                   <div className="flex items-center justify-end gap-1">
                     <Tooltip content="Modifier">
                       <button
-                        onClick={() => router.push(`/dashboard/teachers/${teacher.id}`)}
+                        onClick={() => router.push(hrefFiche(teacher.id))}
                         aria-label="Modifier l'enseignant"
                         className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                       >

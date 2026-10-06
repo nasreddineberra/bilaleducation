@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { X, BookOpen, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { clsx } from 'clsx'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
@@ -56,7 +57,13 @@ function fmtD(d: string | null): string {
 
 export default function ClassesClient({ classes }: ClassesClientProps) {
   const router = useRouter()
-  const [search,      setSearch]      = useState('')
+  // Recherche MEMORISEE : on ouvre une fiche classe, on revient, et la
+  // recherche est retrouvee. Filtrage cote CLIENT, donc rien dans l'URL — voir
+  // `useFiltresMemorises`. (La carte statistique de cet ecran n'est pas
+  // cliquable : il n'y a pas d'autre filtre a retenir.)
+  const [etatListe, setEtatListe] = useFiltresMemorises('classes-filtres', { search: '' })
+  const search    = etatListe.search
+  const setSearch = (v: string) => setEtatListe({ search: v })
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Double confirmation state

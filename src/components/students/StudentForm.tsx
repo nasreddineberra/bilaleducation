@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User, Users } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -10,6 +10,7 @@ import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import ParentForm from '@/components/parents/ParentForm'
 import { useToast } from '@/lib/toast-context'
+import { suffixeLateral } from '@/lib/navigation/retour'
 import { sameName } from '@/lib/normalize-name'
 import { messageDoublon } from '@/lib/doublons'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatRadioCard, FloatButton } from '@/components/ui/FloatFields'
@@ -112,6 +113,10 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!student
+  // Ouvrir un frere ou une soeur est un saut LATERAL : on repasse l'origine et
+  // l'etat de liste, sinon on les perdrait des le premier saut et le retour
+  // ramenerait sur une liste defiltree. Voir `lib/navigation/retour`.
+  const suffixeFratrie = suffixeLateral(useSearchParams())
 
   const [form, setForm] = useState<FormData>({
     student_number:  student?.student_number  ?? defaultStudentNumber ?? '',
@@ -594,7 +599,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                         <div key={sib.id} className={`border rounded-lg px-3 py-2 ${sib.is_active ? 'bg-warm-50 border-warm-100' : 'bg-warm-50/60 border-warm-100'}`}>
                           <div className="flex items-center gap-2">
                             <Link
-                              href={`/dashboard/students/${sib.id}`}
+                              href={`/dashboard/students/${sib.id}${suffixeFratrie}`}
                               className={`text-xs font-medium hover:underline transition-colors ${sib.is_active ? 'text-primary-600 hover:text-primary-800' : 'text-warm-400 hover:text-warm-500'}`}
                             >
                               {sib.last_name} {sib.first_name}

@@ -7,15 +7,19 @@ import ParentDetail from '@/components/parents/ParentDetail'
 
 interface Props {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ from?: string }>
+  // `lq` / `lf` / `lp` portent l'etat de la liste qu'on a quittee (recherche,
+  // filtre, page) sous un prefixe reserve. Voir `lib/navigation/retour`.
+  searchParams: Promise<{ from?: string; lq?: string; lf?: string; lp?: string }>
 }
 
 export default async function EditParentPage({ params, searchParams }: Props) {
   const { id } = await params
   // Le retour suit l'ORIGINE : la liste des foyers par defaut, l'AUDIT quand on
-  // en vient (un adulte coche « cours adultes » sans inscription se corrige ici).
-  const { from } = await searchParams
-  const backHref = hrefRetour(from, '/dashboard/parents')
+  // en vient (un adulte coche « cours adultes » sans inscription se corrige ici)
+  // — et il RESTITUE l'etat de cette liste (filtre, recherche, page).
+  const sp = await searchParams
+  const { from } = sp
+  const backHref = hrefRetour(from, '/dashboard/parents', sp)
   const supabase = await createClient()
 
   const { data: parent } = await supabase
