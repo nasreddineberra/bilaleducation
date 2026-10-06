@@ -6869,3 +6869,74 @@ correction de `staff_recipients_write_scoped`, qui n'a AUCUN cloisonnement par
 ecole. Les deux durcissements de juillet sont confirmes inoperants :
 `announcements_tenant` et `ann_staff_recipients_tenant`, en `FOR ALL` sans role,
 annulent les policies scopees posees a cote (les permissives s'ADDITIONNENT).
+
+#### 6 octobre 2026 (fin) — « Une nouvelle version est disponible »
+
+Le defaut vecu le matin meme, traite a sa racine. Next donne a chaque server
+action un identifiant PROPRE AU BUILD, embarque dans le bundle du navigateur :
+apres un deploiement, un onglet reste ouvert cite un identifiant que la nouvelle
+version ne connait plus, React leve « An unexpected response was received from
+the server. », nos `catch` l affichent telle quelle, et l utilisateur lit une
+phrase anglaise en croyant avoir perdu sa saisie.
+
+**LA MESURE A CONDAMNE LA SOLUTION EVIDENTE.** « Il suffit de traduire le
+message » suppose un entonnoir unique. Il n y en a pas : **203 points
+d affichage d erreur dans 41 fichiers** (85 `toast.error`, 118 `setError`
+locaux), pour **67 server actions dans 19 modules** — pratiquement toute
+ecriture de l application. D ou UN composant qui previent AVANT l action, au lieu
+de 203 corrections apres coup.
+
+**ET UNE AFFIRMATION DE MA PART, FAUSSE, CORRIGEE PAR LA MESURE** : j avais
+avance que le **service worker** pouvait prolonger l etat au-dela d un
+rechargement. `public/sw.js` ne gere que `push` et `notificationclick` — **aucun
+handler `fetch`, aucun cache**. Un rechargement ordinaire suffit. C etait une
+supposition presentee comme un fait.
+
+**LE MECANISME** : `next.config.js` calcule un `BUILD_ID` et l expose par `env`,
+donc **inline a la compilation des DEUX cotes** — bundle navigateur et route
+`/api/version`. Un client ancien porte l ancienne valeur pendant que la route
+rend la nouvelle ; l ecart se voit.
+
+**TROIS DECISIONS QUI EVITENT UN FAUX POSITIF**
+- **Hors Vercel, la valeur est la CONSTANTE `dev`.** Un `Date.now()` donnerait
+  une valeur differente a CHAQUE evaluation du fichier de config — or rien ne
+  garantit que Next ne l evalue qu une fois (compilateur navigateur, compilateur
+  serveur). Client et route porteraient deux valeurs distinctes et la banniere
+  s afficherait EN PERMANENCE en local. **Mon premier jet faisait exactement
+  cela**, et son commentaire affirmait le contraire sans l avoir verifie.
+- **FAIL-OPEN** : sans identifiant, ou si l appel echoue, on ne montre RIEN. Une
+  banniere affichee a tort userait la confiance qu on lui accorde le jour ou
+  elle a raison.
+- **Ecart FRANC seulement** : une valeur vide signifie « le serveur ne sait
+  pas », pas « il a change ».
+
+**ELLE NE RECHARGE JAMAIS TOUTE SEULE** — c est la regle qui prime : un
+rechargement automatique au milieu d une saisie detruirait precisement ce qu on
+protege. Elle informe, propose, et se masque (l utilisateur peut etre au milieu
+d une longue saisie ; l enfermer derriere un bandeau qu il ne peut pas retirer
+serait pire).
+
+**DECLENCHEMENT au RETOUR sur l onglet** (`focus`, `visibilitychange`), garde-fou
+d une minute, plus un reveil lent de 20 min pour l onglet qui garde le focus.
+C est l instant juste avant que l utilisateur n agisse. Une fois l ecart
+constate, on cesse de verifier : il ne se refermera pas.
+
+**`/api/version` EST SANS GARDE, et ajoutee a `skipTenantCheck`** : elle ne rend
+qu un hachage de 12 caracteres. Exiger une session serait pire — l appel est fait
+justement quand on soupconne un probleme, et une redirection le ferait echouer
+en silence (defaut du 10 aout, ou un appel a `/api/public/etablissement` partait
+vers l ecran 2FA et retombait sur un `.catch()` muet). Le `skipTenantCheck`
+epargne un aller-retour Supabase A CHAQUE appel.
+
+**EPROUVE DE BOUT EN BOUT, pas seulement compile** : build avec un SHA simule →
+la valeur est inlinee dans un chunk NAVIGATEUR, et le serveur lance rend
+`{"build":"6ca13d52ca70"}` avec `cache-control: no-store`. Rebuild propre → les
+deux cotes rendent `dev`, donc aucune banniere en local. Sans ce double controle,
+une route rendant une chaine vide aurait donne une banniere qui ne s affiche
+JAMAIS — une panne silencieuse de plus.
+
+**CE QUI N EST PAS COUVERT** : la Skew Protection de Vercel reste strictement
+meilleure quand elle est disponible (l action REUSSIT au lieu d echouer), mais
+elle depend de l offre et a une fenetre de retention. Cette banniere ne depend
+d aucune offre et couvre l onglet laisse ouvert des jours.
+

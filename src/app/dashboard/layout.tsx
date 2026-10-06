@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import DashboardNav from '@/components/layout/DashboardNav'
+import NouvelleVersion from '@/components/layout/NouvelleVersion'
 import DashboardSidebar from '@/components/layout/DashboardSidebar'
 import { SidebarProvider } from '@/components/layout/SidebarContext'
 import { ThemeProvider } from '@/components/layout/ThemeContext'
@@ -195,6 +196,10 @@ export default async function DashboardLayout({
         {/* Zone droite : navbar + contenu */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <DashboardNav user={user} profile={profile} unreadNotifCount={unreadNotifCount} supportEcole={supportEcole} />
+          {/* Sous l'en-tete et HORS de la zone de defilement : l'avis doit rester
+              visible pendant qu'on fait defiler un long formulaire, et il ne
+              doit pas s'inserer dans le contenu qu'on est en train de remplir. */}
+          <NouvelleVersion />
           {/* `px-3` sous 640 px : les 64 px de marge de `px-8` sont tenables sur
               un ecran large, ils coutent un cinquieme de la largeur d un
               telephone. Le `lg:px-8` rend la respiration d origine des que la

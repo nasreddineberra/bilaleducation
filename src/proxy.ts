@@ -252,6 +252,11 @@ export async function proxy(request: NextRequest) {
   const skipTenantCheck =
     pathname.startsWith('/abonnement-expire') ||
     pathname.startsWith('/_next') ||
+    // `/api/version` ne rend qu'un hachage de build : aucun etablissement a
+    // resoudre, et la resolution coute un aller-retour vers Supabase A CHAQUE
+    // APPEL. La banniere interrogeant cette route au retour sur l'onglet, on
+    // paierait ce trajet pour rien.
+    pathname === '/api/version' ||
     pathname.includes('.')
 
   if (!skipTenantCheck) {
