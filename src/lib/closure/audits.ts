@@ -79,13 +79,13 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
 
   // ── Adultes ── (cle participant unifiee : `parentId-tutorNumber`)
   const adultAffected = new Set((adultEnrolled ?? []).map((e: any) => `${e.parent_id}-${e.tutor_number}`))
-  const adultesNonAffectes: { label: string }[] = []
+  const adultesNonAffectes: { label: string; parentId: string }[] = []
   for (const p of (parents ?? []) as any[]) {
     if (p.tutor1_adult_courses && !adultAffected.has(`${p.id}-1`)) {
-      adultesNonAffectes.push({ label: nom(p.tutor1_last_name, p.tutor1_first_name) })
+      adultesNonAffectes.push({ label: nom(p.tutor1_last_name, p.tutor1_first_name), parentId: p.id })
     }
     if (p.tutor2_adult_courses && p.tutor2_last_name && !adultAffected.has(`${p.id}-2`)) {
-      adultesNonAffectes.push({ label: nom(p.tutor2_last_name, p.tutor2_first_name) })
+      adultesNonAffectes.push({ label: nom(p.tutor2_last_name, p.tutor2_first_name), parentId: p.id })
     }
   }
 
@@ -98,15 +98,25 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
     blocking: true,
     anomalies: total,
     items: ordonnerAnomalies([
+      // « CORRIGER » MENE A LA FICHE, PAS A L'ECRAN D'AFFECTATION.
+      //
+      // Decision du 6 octobre. A cette periode de l'annee, un participant actif
+      // sans classe n'est pas en attente d'affectation : c'est une ERREUR. Le
+      // geste attendu n'est donc pas de lui trouver une classe mais de la
+      // corriger a la source — rendre l'apprenant INACTIF, ou decocher
+      // « inscrit aux cours adultes » sur le foyer. Deux gestes qui se font sur
+      // la fiche, et nulle part ailleurs.
       ...unassigned.map((s: any) => ({
         label: nom(s.last_name, s.first_name),
         detail: s.student_number ?? 'Non affecté',
-        href: '/dashboard/affectation',
+        href: `/dashboard/students/${s.id}`,
       })),
+      // La fiche du FOYER : c'est elle qui porte `tutorN_adult_courses`, la case
+      // dont la coche sans inscription produit l'anomalie.
       ...adultesNonAffectes.map(a => ({
         label: `${a.label} (adulte)`,
         detail: 'Non affecté',
-        href: '/dashboard/affectation/adultes',
+        href: `/dashboard/parents/${a.parentId}`,
       })),
     ]),
     summary: total === 0

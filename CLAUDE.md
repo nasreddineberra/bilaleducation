@@ -6730,6 +6730,21 @@ ordre par magnitude oblige a parcourir toute la liste.
     `/tmp` (que Git Bash resout) pendant que je la relisais dans le scratchpad.
     Le piege `/tmp` du projet, repaye. Fichier remis depuis la vraie sauvegarde.
 
+**« CORRIGER » MENE A LA FICHE, PAS A L ECRAN D AFFECTATION** (audit
+« Affectations & effectifs », decision utilisateur du 06/10). A cette periode de
+l annee, un participant actif sans classe n est pas en attente d affectation :
+c est une ERREUR. Le geste attendu n est donc pas de lui trouver une classe mais
+de la corriger A LA SOURCE — rendre l apprenant INACTIF, ou decocher « inscrit
+aux cours adultes » sur le foyer. Deux gestes qui se font sur la FICHE, et nulle
+part ailleurs. Les anomalies adultes portent desormais l id du foyer, qu elles
+ne transportaient pas.
+- **Mesure au passage : le champ `href` des ETAPES (`steps.ts`) n est lu NULLE
+  PART** — l ecran n affiche que le `href` de chaque ANOMALIE. Il est conserve
+  (il documente le module concerne) mais signale sur place, car depuis ce jour
+  les deux divergent A DESSEIN : l etape pointe le module, ses anomalies
+  pointent la fiche. Sans la note, un lecteur « alignerait » les secondes sur la
+  premiere, et deferait le correctif.
+
 **VERIFIE A L ECRAN par l utilisateur** (06/10) : l audit Financements passe,
 « Corriger » ouvre bien la fiche du foyer, le doublon a disparu, et le nouvel
 ordre alphabetique est constate sur DEUX audits relances — donc la regle vaut

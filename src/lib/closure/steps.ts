@@ -9,7 +9,16 @@ export interface ClosureStepDef {
   /** true = anomalie bloque la cloture de l'etape ; false = avertissement acquittable. */
   blocking: boolean
   description: string
-  /** Lien vers le module pour corriger les anomalies. */
+  /**
+   * Lien vers le module — **LU PAR PERSONNE AUJOURD'HUI** (verifie le 06/10).
+   *
+   * L'ecran n'affiche que le `href` de chaque ANOMALIE, pas celui de l'etape.
+   * Et depuis le 06/10 les deux peuvent diverger a dessein : « Affectations »
+   * pointe ici vers le module, tandis que ses anomalies menent a la FICHE de
+   * l'apprenant ou du foyer, ou se fait le vrai geste de correction.
+   * Conserve car il documente le module concerne ; ne pas s'en servir pour
+   * aligner les liens d'anomalies dessus.
+   */
   href: string
 }
 
