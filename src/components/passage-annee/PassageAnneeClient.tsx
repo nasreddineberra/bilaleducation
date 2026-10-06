@@ -10,7 +10,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
 import type { AuditResult } from '@/lib/closure/audits'
-import { runAudit, resetAudit, closeYear, reopenYear, archiveYear, setPurgeIntent } from '@/app/dashboard/passage-annee/actions'
+import { runAudit, resetAudit, closeYear, reopenYear, archiveYear, setPurgeIntent, rafraichirRecapitulatifs } from '@/app/dashboard/passage-annee/actions'
 
 export interface AnneeEtat {
   id: string
@@ -93,6 +93,38 @@ export default function PassageAnneeClient({
       const res = await runAudit(annee.id, stepKey)
       if (res.error) { toast.error(res.error); return }
       setResultats(prev => ({ ...prev, [stepKey]: { result: res.result ?? null, at: new Date().toISOString() } }))
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Une erreur est survenue.')
+    } finally {
+      setEnCours(null)
+    }
+  }
+
+  /**
+   * Repare les recapitulatifs perimes, puis REMPLACE le resultat affiche par
+   * celui que le serveur vient de recalculer — sans quoi l ecran continuerait
+   * d annoncer « N a rafraichir » juste apres les avoir rafraichis.
+   *
+   * Le marqueur `__rafraichir__` n est pas une cle d etape : il sert a occuper
+   * `enCours`, qui desactive TOUS les boutons pendant l operation. Un utilisateur
+   * qui relancerait un audit au milieu d une reecriture de montants lirait un
+   * etat intermediaire.
+   */
+  const rafraichir = async () => {
+    setEnCours('__rafraichir__')
+    try {
+      const res = await rafraichirRecapitulatifs(annee.id)
+      if (res.error) { toast.error(res.error); return }
+      if (res.result) {
+        setResultats(prev => ({ ...prev, financements: { result: res.result ?? null, at: new Date().toISOString() } }))
+      }
+      // On dit ce qui a REELLEMENT abouti. Un echec partiel ne s annonce pas
+      // comme un succes : c est tout l objet du chantier du 1er octobre.
+      if ((res.echecs ?? 0) > 0) {
+        toast.error(`${res.corriges ?? 0} dossier(s) rafraichi(s), ${res.echecs} en echec. Rechargez la page.`)
+      } else {
+        toast.success(`${res.corriges ?? 0} dossier(s) rafraichi(s).`)
+      }
     } catch (e: any) {
       toast.error(e?.message ?? 'Une erreur est survenue.')
     } finally {
@@ -277,6 +309,27 @@ export default function PassageAnneeClient({
                         {enCours === step.key
                           ? (etat ? 'Effacement…' : 'Audit…')
                           : (etat ? 'Réinitialiser' : 'Auditer')}
+                      </FloatButton>
+                    )}
+
+                    {/* RAFRAICHIR LES RECAPITULATIFS — seule étape où un constat
+                        se répare d'ici, et seulement s'il y a quelque chose à
+                        réparer. Sans ce bouton, l'audit nommerait des foyers au
+                        montant faux sans offrir le moindre geste : rafraîchir à
+                        la main demanderait d'ajouter puis retirer une réduction.
+                        Il n'invente aucun montant — il recalcule le dû depuis
+                        les inscriptions, donc le relancer ne change rien. */}
+                    {!fige && step.key === 'financements' && (res?.aRafraichir ?? 0) > 0 && (
+                      <FloatButton
+                        type="button"
+                        variant="edit"
+                        disabled={!!enCours}
+                        onClick={() => rafraichir()}
+                        size="mini"
+                      >
+                        {enCours === '__rafraichir__'
+                          ? 'Rafraîchissement…'
+                          : `Rafraîchir ${res!.aRafraichir} dossier${res!.aRafraichir! > 1 ? 's' : ''}`}
                       </FloatButton>
                     )}
                   </div>

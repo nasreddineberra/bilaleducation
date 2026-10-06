@@ -19,6 +19,13 @@ export interface AuditResult {
   anomalies: number
   items: AuditItem[]
   summary: string
+  /**
+   * Nombre de recapitulatifs `family_fees` perimes, donc REPARABLES d un clic
+   * (audit « financements » seul). L ecran s en sert pour decider d afficher le
+   * bouton — plutot que de deviner en lisant le texte des items, ce qui casserait
+   * a la premiere reformulation.
+   */
+  aRafraichir?: number
 }
 
 export interface YearCtx {
@@ -400,14 +407,55 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
   const debtors = fin.rows.filter(r => r.remaining > 0).sort((a, b) => b.remaining - a.remaining)
   const overpaid = fin.rows.filter(r => r.remaining < 0)
 
+  // ── SECOND VOLET : les recapitulatifs PERIMES ────────────────────────────
+  //
+  // Motif du 9 aout, ou l'audit « Absences » a reçu un second volet plutot
+  // qu'une etape de plus : meme module, meme preoccupation.
+  //
+  // `family_fees.total_due` n'est reecrit qu'a l'occasion d'une ecriture
+  // (paiement, ajustement). Si les inscriptions d'un foyer changent et que rien
+  // ne suit, il reste sur l'ancienne valeur. L'ecran ne le montre pas — il
+  // recalcule pour l'annee en cours — mais DES LA BASCULE c'est le stocke qui
+  // fait foi : `reglements/page.tsx` ne charge plus les inscriptions des annees
+  // passees, et « le vif prime » y fait gagner la ligne `family_fees` MEME sur
+  // l'archive. Un montant perime devient donc ce qui est reclame, durablement.
+  //
+  // C'est le seul endroit de l'application d'ou cet ecart est visible : nulle
+  // part ailleurs on ne compare le vivant au stocke.
+  const perimes = fin.rows.filter(r =>
+    r.storedDue !== null && Math.abs(r.storedDue - r.totalDue) >= 0.01)
+
+  // Sans ligne du tout : l'ARCHIVE les rattrape (elle construit ses lignes
+  // depuis les inscriptions, pas depuis `family_fees`). On les signale donc
+  // sans les compter en anomalie — le risque n'existe que pour une annee qui
+  // ne serait jamais archivee.
+  const sansDossier = fin.rows.filter(r => r.storedDue === null && r.totalDue > 0)
+
   const parts: string[] = []
   if (debtors.length > 0) parts.push(`${debtors.length} foyer(s) débiteur(s) · reste ${eur(fin.kpi.outstanding)}`)
   if (overpaid.length > 0) parts.push(`${overpaid.length} trop-perçu(s)`)
+  if (perimes.length > 0)  parts.push(`${perimes.length} récapitulatif(s) à rafraîchir`)
+  if (sansDossier.length > 0) parts.push(`${sansDossier.length} foyer(s) sans dossier ouvert`)
 
   return {
     blocking: false,
-    anomalies: debtors.length,
-    items: cap(debtors.map(r => ({ label: r.parentLabel, detail: `reste ${eur(r.remaining)}`, href: '/dashboard/financements/reglements' }))),
+    // Les perimes COMPTENT comme anomalies : c'est ce qui les rend reparables
+    // depuis l'ecran, et ce qui empeche de cloturer sans les avoir vus.
+    anomalies: debtors.length + perimes.length,
+    aRafraichir: perimes.length,
+    items: cap([
+      ...perimes.map(r => ({
+        label: r.parentLabel,
+        detail: `montant enregistré ${eur(r.storedDue!)} au lieu de ${eur(r.totalDue)} · à rafraîchir`,
+        href: '/dashboard/financements/reglements',
+      })),
+      ...debtors.map(r => ({ label: r.parentLabel, detail: `reste ${eur(r.remaining)}`, href: '/dashboard/financements/reglements' })),
+      ...sansDossier.map(r => ({
+        label: r.parentLabel,
+        detail: `doit ${eur(r.totalDue)}, aucun dossier ouvert (l’archivage le couvre)`,
+        href: '/dashboard/financements/reglements',
+      })),
+    ]),
     summary: parts.length === 0 ? 'Tous les foyers sont soldés.' : parts.join(' · ') + '.',
   }
 }

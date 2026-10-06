@@ -10,7 +10,7 @@
 // inline et divergeait (reductions retranchees du percu au lieu du du).
 // Toute evolution passe par ICI.
 
-import { computeFamilyFinancials, siblingDiscounts, lineTotal } from './compute'
+import { computeFamilyFinancials, siblingDiscounts, lineTotal, type FeeLike } from './compute'
 import type { FeeStatus } from '@/types/database'
 
 // Client Supabase serveur (type volontairement souple : evite d'importer le type
@@ -24,6 +24,12 @@ export interface YearRef {
   end_date?: string | null
 }
 
+/** Une ligne `family_fees` telle que cette fonction la lit. */
+interface LigneFeeStockee extends FeeLike {
+  id?: string | null
+  total_due?: number | null
+}
+
 export interface FamilyRow {
   parentId: string
   parentLabel: string
@@ -31,6 +37,25 @@ export interface FamilyRow {
   totalPaid: number
   remaining: number
   status: FeeStatus
+  // ── CE QUI SUIT NE SERT QU A L AUDIT DE CLOTURE ────────────────────────────
+  //
+  // `totalDue` ci-dessus est le du VIVANT, recalcule depuis les inscriptions.
+  // `storedDue` est ce que porte la colonne `family_fees.total_due`, qui n est
+  // rafraichie qu a l occasion d une ecriture (paiement, ajustement) — jamais
+  // quand les inscriptions changent.
+  //
+  // POURQUOI L ECART COMPTE : des la bascule d annee, c est le STOCKE qui fait
+  // foi. `reglements/page.tsx` ne charge plus les inscriptions des annees
+  // passees, et son code porte la mention « le vif prime » — la ligne
+  // `family_fees` l emporte meme sur l archive. Un montant perime devient donc
+  // ce qui s affiche ET ce qui est reclame, durablement.
+  //
+  /** Le du tel qu il est STOCKE, ou `null` si le foyer n a aucune ligne `family_fees`. */
+  storedDue: number | null
+  /** Le subtotal vivant, que la RPC de reparation attend en parametre. */
+  subtotal: number
+  /** Les lignes `family_fees` du foyer pour l annee (une seule en pratique). */
+  feeIds: string[]
 }
 
 export interface FamilyFinancials {
@@ -166,14 +191,25 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
       addCotis(ct, t)
     }
 
-    const parentFees = feeByParent[p.id]?.fees ?? []
+    // Type local plutot que `any` : ces lignes servent au calcul (via `FeeLike`)
+    // ET a l'audit de cloture, qui lit `id` et `total_due`.
+    const parentFees: LigneFeeStockee[] = feeByParent[p.id]?.fees ?? []
     const { totalDue, netPercu, remaining, status } = computeFamilyFinancials(subtotal, parentFees)
 
     const label = [p.tutor1_last_name, p.tutor1_first_name].filter(Boolean).join(' ')
       + (p.tutor2_last_name ? ` / ${[p.tutor2_last_name, p.tutor2_first_name].filter(Boolean).join(' ')}` : '')
 
     if (totalDue > 0 || netPercu > 0) {
-      rows.push({ parentId: p.id, parentLabel: label, totalDue, totalPaid: netPercu, remaining, status })
+      // `null` et non `0` quand il n'y a aucune ligne : « absent » et « vaut
+      // zero » sont deux etats differents, et l'audit les traite differemment.
+      const storedDue = parentFees.length === 0
+        ? null
+        : parentFees.reduce((s, f) => s + Number(f.total_due ?? 0), 0)
+
+      rows.push({
+        parentId: p.id, parentLabel: label, totalDue, totalPaid: netPercu, remaining, status,
+        storedDue, subtotal, feeIds: parentFees.map(f => f.id).filter((id): id is string => !!id),
+      })
     }
   }
 

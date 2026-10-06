@@ -9,6 +9,7 @@ import { logAudit } from '@/lib/audit'
 import { CLOSURE_STEPS, CLOSURE_STEP_BY_KEY } from '@/lib/closure/steps'
 import { runAuditFor, type YearCtx, type AuditResult } from '@/lib/closure/audits'
 import { generateArchive } from '@/lib/closure/archive'
+import { getFamilyFinancials } from '@/lib/financements/family-financials'
 
 /**
  * PASSAGE D'ANNÉE — actions serveur.
@@ -439,4 +440,110 @@ export async function purgeYear(yearId: string, typedLabel: string): Promise<{ e
   revalidatePath('/dashboard/passage-annee')
   revalidatePath('/dashboard/annee-scolaire', 'layout')
   return { summary: data }
+}
+
+/**
+ * Rafraîchit les récapitulatifs `family_fees` dont le montant est périmé.
+ *
+ * ── POURQUOI CETTE ACTION EXISTE ───────────────────────────────────────────
+ *
+ * `family_fees.total_due` n'est réécrit qu'à l'occasion d'une écriture
+ * (paiement, ajustement). Si les inscriptions d'un foyer changent et que rien
+ * ne suit, il reste sur l'ancienne valeur. L'écran ne le montre pas — il
+ * recalcule pour l'année en cours — mais DÈS LA BASCULE c'est le stocké qui
+ * fait foi, et « le vif prime » le fait gagner même sur l'archive.
+ *
+ * Sans ce bouton, l'audit nommerait des foyers sans offrir le moindre geste :
+ * rafraîchir un dossier à la main demanderait d'ajouter puis de retirer une
+ * réduction. Un constat qu'on ne peut pas suivre d'un acte, c'est le bouton
+ * grisé sans motif sous une autre forme.
+ *
+ * ── CE QU'ELLE N'INVENTE PAS ───────────────────────────────────────────────
+ *
+ * Elle n'écrit AUCUN montant : `fin_recalculer_dossier` recalcule le dû depuis
+ * le subtotal vivant et les lignes filles, dans une transaction, comme les
+ * quatre écritures ordinaires. Elle est donc idempotente — la relancer sur un
+ * dossier déjà juste ne change rien.
+ *
+ * Et elle NE CRÉE PAS les dossiers manquants : ce serait une écriture
+ * financière en masse pour des foyers dont la situation est légitime en cours
+ * d'année, et l'archivage les couvre déjà (il construit ses lignes depuis les
+ * inscriptions, pas depuis `family_fees`). L'audit les nomme, c'est tout.
+ */
+export async function rafraichirRecapitulatifs(
+  yearId: string,
+): Promise<{ error?: string; corriges?: number; echecs?: number; result?: AuditResult }> {
+  const { error: roleError } = await requireRoleServer([...ROLES])
+  if (roleError) return { error: roleError }
+
+  const supabase = await createClient()
+  const etablissementId = (await headers()).get('x-etablissement-id') ?? ''
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Une année close a ses audits FIGÉS : ce sont eux qui prouvent le constat au
+  // moment de la clôture. Réécrire les montants derrière ce constat le rendrait
+  // faux (même garde que `runAudit` et `resetAudit`).
+  const close = await refuserSiClose(supabase, yearId)
+  if (close) return { error: close }
+
+  const ctx = await getYearCtx(supabase, etablissementId, yearId)
+  if (!ctx) return { error: 'Année introuvable.' }
+
+  const fin = await getFamilyFinancials(supabase, {
+    id: ctx.yearId, label: ctx.yearLabel, start_date: ctx.startDate, end_date: ctx.endDate,
+  })
+
+  // Le même critère que l'audit, au centime : comparer des flottants à
+  // l'identique signalerait des écarts qui n'existent pas.
+  const aCorriger = fin.rows.filter(r =>
+    r.storedDue !== null && Math.abs(r.storedDue - r.totalDue) >= 0.01)
+
+  if (aCorriger.length === 0) return { corriges: 0, echecs: 0 }
+
+  let corriges = 0
+  let echecs = 0
+  for (const r of aCorriger) {
+    for (const feeId of r.feeIds) {
+      // Un échec sur un foyer n'arrête pas les autres : le rapport dit combien
+      // ont abouti. Interrompre laisserait la moitié du travail faite sans
+      // qu'on sache laquelle.
+      const { error } = await supabase.rpc('fin_recalculer_dossier', {
+        p_fee_id:   feeId,
+        p_subtotal: r.subtotal,
+      })
+      if (error) {
+        echecs++
+        console.error('[rafraichirRecapitulatifs] foyer', r.parentId, error.message)
+      } else {
+        corriges++
+      }
+    }
+  }
+
+  // La trace nomme le VOLUME et l'année : six mois plus tard, « 11 dossiers
+  // rafraîchis » se comprend, « rafraîchissement » n'apprend rien.
+  try {
+    await logAudit(supabase, {
+      action: 'UPDATE',
+      entityType: 'family_fees',
+      entityId: yearId,
+      description: `Rafraichissement des recapitulatifs ${ctx.yearLabel} : ${corriges} dossier(s) corrige(s)${echecs > 0 ? `, ${echecs} echec(s)` : ''}`,
+    })
+  } catch { /* la trace ne doit pas faire echouer la correction */ }
+
+  // On rejoue l'audit dans la foulée : sans cela l'écran continuerait d'annoncer
+  // « N à rafraîchir » alors qu'ils viennent de l'être.
+  const result = await runAuditFor('financements', supabase, ctx)
+  await supabase.from('year_audits').upsert({
+    etablissement_id: etablissementId,
+    school_year_id: yearId,
+    step_key: 'financements',
+    anomalies_count: result.anomalies,
+    recap_json: result as unknown as Record<string, unknown>,
+    audited_at: new Date().toISOString(),
+    audited_by: user?.id ?? null,
+  }, { onConflict: 'school_year_id,step_key' })
+
+  revalidatePath('/dashboard/passage-annee')
+  return { corriges, echecs, result }
 }

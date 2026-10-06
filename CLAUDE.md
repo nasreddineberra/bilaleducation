@@ -4062,203 +4062,6 @@ soit :
 **Verifie le 06/10** : zero occurrence de « Financiers » dans tout `src`, le
 renommage du 29/09 etait complet. Le nom perime ne survit QUE dans ce journal.
 
-#### 6 octobre 2026 (fin) — LES ECRITURES D ARGENT DEVIENNENT ATOMIQUES
-
-Dette signalee le 1er octobre, troisieme reprise une a une. Quatre operations de
-« Reglements » etaient faites de DEUX ecritures successives depuis le navigateur
-— la ligne (paiement ou reduction), puis le recapitulatif `family_fees`. Entre
-les deux, un refus RLS ou une coupure laissait **une reduction enregistree sans
-que ce que doit la famille ait change**, ou un paiement encaisse dont le dossier
-restait « en attente ». Le travail du 01/10 avait rendu l incoherence VISIBLE,
-pas supprimee.
-
-**POSTGREST N A PAS DE TRANSACTION MULTI-REQUETES** : deux `await`, ce sont deux
-requetes HTTP. Seule une RPC peut les lier — meme raisonnement qu `import_foyer`
-le 16 aout. Migration `add-financement-rpc-atomiques.sql` : 4 RPC d ecriture +
-3 fonctions internes, toutes en **SECURITY INVOKER** pour que la RLS du 29/09
-s applique et que les declencheurs d audit des trois tables captent `auth.uid()`
-— une fonction DEFINER ecrirait quatre lignes d argent sans dire QUI.
-
-**LA MESURE A TRANCHE L ARBITRAGE A MA PLACE.** J avais presente deux options
-(la RPC recoit les valeurs calculees, ou elle calcule tout). Deux faits l ont
-decidee :
-1. **`family_fees.subtotal` n est ecrit QU A LA CREATION** et n est jamais
-   rafraichi — la base ne peut donc pas en deriver `total_due` ;
-2. le subtotal vivant repose sur la **remise fratrie** (ordre des enfants,
-   `sibling_discount_same_type`, un enfant sans cotisation qui compte quand meme
-   dans l ordre). Le porter en SQL dupliquerait la regle la plus subtile du
-   module : le defaut du 17 juillet.
-→ **`subtotal` est un PARAMETRE**, la base calcule ce qu elle POSSEDE (somme des
-ajustements, somme des paiements, total du, statut). **Seule duplication
-assumee : `feeStatus`**, cinq lignes, portee en `fin_statut_dossier`.
-
-**CE QUE LA RPC N AJOUTE PAS, et c est dit dans l en-tete** : un appelant
-pourrait passer un faux `subtotal`. Mais il ecrit deja `total_due` en direct, et
-la RLS accorde l ecriture a ces roles — ce n est pas pire. **L apport est
-l ATOMICITE, pas une autorite nouvelle.** Le pretendre aurait ete se mentir.
-
-**UNE INCOHERENCE DISPARAIT AU PASSAGE** : les deux fonctions de PAIEMENT
-calculaient le statut depuis le `total_due` **STOCKE**, quand les deux fonctions
-d AJUSTEMENT partaient du subtotal **VIVANT**. Le meme champ avait deux bases
-selon l operation, et la base stockee pouvait etre perimee.
-
-**TROIS DETAILS DE CONCEPTION QUI ONT COMPTE**
-- **Le paiement part en `jsonb`**, pas en dix parametres : `jsonb_populate_record
-  (null::fee_installments, ...)` le type d apres LA TABLE. On n a donc pas a
-  supposer le type de `payment_method` ni de `status` — **le depot n a plus de
-  `schema.sql` depuis le 5 aout**, et supposer aurait ete le defaut que ce retrait
-  visait. Meme technique pour coercer `status` dans l UPDATE de `family_fees`.
-- **Le dossier se DEDUIT** du paiement ou de la reduction supprimee : un appelant
-  ne choisit pas le dossier qu il recalcule.
-- **`REVOKE ... FROM public, anon`** et non `FROM public` seul : Supabase accorde
-  EXECUTE **nommement** a `anon`, qu un revoke sur le pseudo-role `public` ne
-  retire pas (regle du 3 octobre). La verification finale le controle.
-
-**LE TEST QUI GARDE LA DUPLICATION HONNETE** (`src/lib/financements/compute.test.ts`).
-Une divergence TS / SQL ne leverait AUCUNE erreur : elle afficherait un statut a
-l ecran et en enregistrerait un autre en base. Le fichier compare les deux sur
-une grille de 2 601 couples (bornes exactes comprises), et surtout **il LIT la
-migration** et verifie que ses cinq branches y sont dans l ordre — sans quoi il
-ne prouverait que l accord avec ma propre translitteration.
-- **Eprouve EN ROUGE** : une branche intervertie dans le SQL fait echouer le test
-  avec un message qui dit quoi corriger ; restauration, et il repasse au vert.
-  Empreinte du registre identique apres restauration, donc restitution a l octet.
-- Au passage, deux cas que personne n aurait verifies a la main : **du NUL**
-  (solde, pas « en attente » — branche `due <= 0` placee AVANT `paid >= due`) et
-  **du NEGATIF** (remboursement superieur aux cotisations : « solde » et non
-  « trop percu », parce que la 1re branche exige `due > 0`).
-
-**LE LINT A SERVI DE REVELATEUR, pas de correcteur de style** : `verifierEcriture`
-ET `feeStatus` sont devenus des imports morts dans `FinancementsClient`. Le second
-est un signal — le client ne calcule plus le statut pour ECRIRE, il ne le fait plus
-que pour AFFICHER, via `computeFamilyFinancials`. Ecran et base partent donc des
-memes lignes filles et du meme subtotal. 517 -> 515.
-- **Ma comparaison de depart etait fausse** : j avais lu « 517, niveau inchange »
-  alors que mon recablage avait ajoute un import mort et en avait retire un autre.
-  Comparer un TOTAL ne dit rien de ce qui a bouge.
-
-**SEQUENCEMENT — MIGRATION D ABORD, DEPLOIEMENT ENSUITE.** Cas ADDITIF du README :
-le code deploye AVANT la migration appellerait des fonctions inexistantes et
-casserait Reglements. La migration, elle, ne gene pas le code en place (il
-n appelle pas encore les RPC).
-
-**VERIFIE LE 06/10, DANS CET ORDRE** : migration jouee, puis le controle 06 sur un dossier
-REEL (subtotal 280, deja 180 percus) — et c est son arithmetique qui prouve, pas ses « OK ».
-Les quatre operations se sont revelees **mutuellement inverses** : 280/180 au depart,
-250 apres la reduction, 230 puis 260 percus, et retour exact a 280/180 a la fin. Le passage
-a 80 a franchi le seuil et declenche **`overpaid`** — la branche la plus delicate de
-`feeStatus` a donc ete exercee POUR DE VRAI, pas seulement en test unitaire. La preuve du
-risque principal tient en une ligne du rapport : `moyen relu=cash  reference relue={"bank":
-"LCL", "check_number": "CTRL-06"}` — `jsonb_populate_record` a coerce d apres la table, y
-compris le jsonb imbrique, sans qu on ait jamais vu le schema. Enseignant refuse en 42501.
-Puis **verifie a l ecran** par l utilisateur sur les cinq gestes.
-
-**RESTE OUVERT — point E** : si les inscriptions d un foyer changent et qu aucun
-paiement ni ajustement ne suit, rien ne rafraichit `total_due`. L ecran ne le
-montre pas (il recalcule pour l annee en cours), mais **des la bascule d annee
-`total_due` devient la SOURCE DE VERITE des dettes vives** — `reglements/page.tsx`
-ne charge plus les inscriptions des annees passees, son commentaire le dit. Une
-valeur perimee figee a cet instant devient une dette fausse pour des annees. La
-reponse propre est un **septieme audit dans Passage d annee**, qui compare le
-stocke au recalcul et nomme les foyers qui divergent.
-
-**LA BARRE LATERALE EST DESORMAIS INSENSIBLE A LA LONGUEUR DES LIBELLES.** Ses
-libelles n'avaient JAMAIS porte de `truncate` : un libelle trop long ne se
-coupait pas, il passait a la ligne et deformait le menu. Rien ne l'attrapait —
-ni le type-check, ni le lint, ni le build. **Mesure : ~149 px de budget pour un
-sous-menu, et « Staff / Enseignants » en occupait ~132 — deux caracteres de
-marge.** Chaque renommage devenait un calcul de largeur. Nouveau composant
-`LibelleMenu` : tronque, avec l'infobulle SEULEMENT s'il deborde reellement.
-`ui/TruncatedText` n'etait pas reutilisable — il s'appuie sur `Tooltip`, dont la
-bulle claire jurerait sur le fond sombre.
-- **PIEGE PAYE DEUX FOIS** : `SECTION_OF` est indexe par le NOM de l'item.
-  Renommer sans mettre la cle a jour fait DISPARAITRE l'entree du menu, sans la
-  moindre erreur.
-- **DEUXIEME TABLE** : `DashboardNav` en contient une seconde pour le fil
-  d'Ariane des pages Parametres. Corriger la premiere seule laissait
-  « Financiers » dans le fil — trouve en REJOUANT l'audit de coherence, pas en
-  relisant.
-
-**DIVERS** : les raccourcis changeaient de place selon le role (en haut chez
-l'admin et le resp. pedago, en bas chez la secretaire et l'enseignant) —
-alignes en haut ; carte « Enseignants » devient « Enseignants actifs » (le
-chiffre etait JUSTE, mais sa voisine dit « Eleves actifs ») ; carte « Classes »
-du tableau de bord pedagogique qui taisait son bornage a l'annee ; **feuille
-d'appel VIERGE** non datee, avec un trait a remplir a la main (on l'imprime pour
-la remplir plus tard, la dater la rendait inutilisable) et son NOM DE FICHIER
-porte l'annee et non le jour — le contenu ne depend pas du jour d'impression.
-
----
-
-**CHANTIER RLS — LOTS 1 ET 3** (seconde moitie de la passe du 5 aout)
-
-Quatorze tables n'avaient qu'UNE policy, en `FOR ALL`, dont l'unique condition
-etait l'etablissement : le cloisonnement avait REMPLACE le controle de role.
-Ces ecrans ecrivent DIRECTEMENT depuis le navigateur — la RLS est le seul
-rempart, les gardes applicatives ne protegent rien.
-
-**LOT 1 — finance et bulletins** (`add-role-checks-lot1-finance-bulletins.sql`)
-Tout compte de l'ecole pouvait reecrire ce qu'une famille doit, effacer un
-paiement, **SUPPRIMER UN BULLETIN ARCHIVE** ou reecrire une appreciation. Le
-second point est le plus grave : un bulletin archive est un document PUBLIE,
-remis aux familles, et le 9 aout l'historique de cloture a ete recrit pour
-AGREGER ces archives au lieu de recalculer, precisement pour qu'il ne puisse
-jamais les contredire. Cette garantie reposait sur des tables reecrivables par
-n'importe qui.
-- Finance : lecture ET ecriture reservees aux `FINANCE_ROLES`.
-- Bulletins : **la ligne de partage n'est pas « bulletins », c'est ARCHIVER
-  contre APPRECIER.** L'archivage est reserve a admin/direction/secretaire
-  (l'enseignant n'a pas le bucket, lui ouvrir la table produirait un archivage a
-  moitie fait) ; **l'appreciation reste ouverte a l'enseignant sur SES classes**,
-  c'est un acte pedagogique. Les traiter d'un bloc la lui aurait retiree.
-- **Consequence arbitree** : decider si un foyer est supprimable exige de
-  COMPTER ses cotisations. Plutot qu'ouvrir les montants dus a deux roles de
-  plus, `deleteParent` passe a admin/direction, bouton masque pour les autres.
-  Au passage, `getParentDeleteDeps` n'avait AUCUNE garde de role.
-
-**TABLES MORTES** (`drop-dead-referentiel-tables.sql`) : `modules`,
-`teaching_units`, `subjects`, `staff_hourly_rates`, zero usage et zero ligne.
-Le releve a montre qu'elles NE SONT PAS ISOLEES :
-`evaluations.module_id -> modules -> teaching_units -> subjects`. La premiere
-fleche part d'une table VIVANTE. **`evaluations.module_id` est une colonne morte
-— A NE PAS CONFONDRE avec `display_module_id`**, qui pointe vers
-`cours_modules`, est renseignee sur les 8 evaluations et fait vivre gabarits,
-bulletins et notes. Les deux se ressemblent, une seule est morte.
-
-**LOT 3 — EDT, affectations, documents, discipline**
-(`add-role-checks-lot3-edt-affectations-documents.sql`). Le trou le plus
-interessant : **`class_teachers` permettait de S'AFFECTER SOI-MEME a une
-classe**, et donc d'obtenir par ricochet tout ce que `teaches_class` accorde.
-Ce n'etait pas un acces de plus, c'etait le MOYEN de s'en donner d'autres.
-- **Alignement applicatif, le point critique du lot** : ni `StudentDocuments` ni
-  `StudentDiscipline` ne recevaient `lectureSeule`. L'enseignant gardait des
-  boutons d'ajout et de suppression ACTIFS sur ces onglets ; ils fonctionnaient
-  jusque-la (policies tenant-seul) et auraient echoue EN SILENCE apres la
-  migration. **Une migration de RLS se double toujours d'une revue des boutons
-  qu'elle va rendre inoperants.**
-- **La garde de la migration a servi** : `class_teachers` n'a PAS de colonne
-  `etablissement_id`, elle se cloisonne par `classes`. Mon releve affichait
-  `T=oui` parce qu'il cherchait la chaine `etablissement_id` sans distinguer une
-  colonne propre d'une jointure. Rien n'avait ete applique — la garde est la
-  PREMIERE instruction du fichier. **Regle : toute migration de RLS commence par
-  verifier le chemin de cloisonnement REEL de chaque table.**
-
-**CE QUE LES CONTROLES N'ONT PAS PROUVE, et il faut le savoir** : le bornage de
-l'enseignant par `teaches_class` (bulletins) et `teaches_student` (documents,
-discipline) n'est PAS demontre — il voit 4 bulletins sur 4 parce qu'il enseigne
-visiblement toutes les classes concernees, et les deux autres tables sont VIDES.
-Le test ne distingue pas « borne » de « pas borne ». Meme piege que le titulaire
-du 24/09 : il faudra une classe qu'aucun enseignant ne couvre, et un premier
-document depose.
-
-**RESTE DU CHANTIER : LE LOT 2 (annonces).** Il porte le seul vrai arbitrage
-metier — qui a le droit de LIRE les messages envoyes aux familles — et la
-correction de `staff_recipients_write_scoped`, qui n'a AUCUN cloisonnement par
-ecole. Les deux durcissements de juillet sont confirmes inoperants :
-`announcements_tenant` et `ann_staff_recipients_tenant`, en `FOR ALL` sans role,
-annulent les policies scopees posees a cote (les permissives s'ADDITIONNENT).
-
-
 #### 1er octobre 2026 — LOT 2 des annonces : le CHANTIER RLS EST TERMINE
 
 Dernier des trois lots, et le seul a porter un arbitrage METIER. Deux
@@ -6738,3 +6541,255 @@ l echappement ne mordait pas. **Un controle qui ne mesure rien annonce 0** —
 sixieme fois. Et le backslash s est de nouveau effondre dans un heredoc : les
 scripts delicats passent par un FICHIER ECRIT, la regle existait, je l ai
 enfreinte.
+
+#### 6 octobre 2026 (fin) — LES ECRITURES D ARGENT DEVIENNENT ATOMIQUES
+
+Dette signalee le 1er octobre, troisieme reprise une a une. Quatre operations de
+« Reglements » etaient faites de DEUX ecritures successives depuis le navigateur
+— la ligne (paiement ou reduction), puis le recapitulatif `family_fees`. Entre
+les deux, un refus RLS ou une coupure laissait **une reduction enregistree sans
+que ce que doit la famille ait change**, ou un paiement encaisse dont le dossier
+restait « en attente ». Le travail du 01/10 avait rendu l incoherence VISIBLE,
+pas supprimee.
+
+**POSTGREST N A PAS DE TRANSACTION MULTI-REQUETES** : deux `await`, ce sont deux
+requetes HTTP. Seule une RPC peut les lier — meme raisonnement qu `import_foyer`
+le 16 aout. Migration `add-financement-rpc-atomiques.sql` : 4 RPC d ecriture +
+3 fonctions internes, toutes en **SECURITY INVOKER** pour que la RLS du 29/09
+s applique et que les declencheurs d audit des trois tables captent `auth.uid()`
+— une fonction DEFINER ecrirait quatre lignes d argent sans dire QUI.
+
+**LA MESURE A TRANCHE L ARBITRAGE A MA PLACE.** J avais presente deux options
+(la RPC recoit les valeurs calculees, ou elle calcule tout). Deux faits l ont
+decidee :
+1. **`family_fees.subtotal` n est ecrit QU A LA CREATION** et n est jamais
+   rafraichi — la base ne peut donc pas en deriver `total_due` ;
+2. le subtotal vivant repose sur la **remise fratrie** (ordre des enfants,
+   `sibling_discount_same_type`, un enfant sans cotisation qui compte quand meme
+   dans l ordre). Le porter en SQL dupliquerait la regle la plus subtile du
+   module : le defaut du 17 juillet.
+→ **`subtotal` est un PARAMETRE**, la base calcule ce qu elle POSSEDE (somme des
+ajustements, somme des paiements, total du, statut). **Seule duplication
+assumee : `feeStatus`**, cinq lignes, portee en `fin_statut_dossier`.
+
+**CE QUE LA RPC N AJOUTE PAS, et c est dit dans l en-tete** : un appelant
+pourrait passer un faux `subtotal`. Mais il ecrit deja `total_due` en direct, et
+la RLS accorde l ecriture a ces roles — ce n est pas pire. **L apport est
+l ATOMICITE, pas une autorite nouvelle.** Le pretendre aurait ete se mentir.
+
+**UNE INCOHERENCE DISPARAIT AU PASSAGE** : les deux fonctions de PAIEMENT
+calculaient le statut depuis le `total_due` **STOCKE**, quand les deux fonctions
+d AJUSTEMENT partaient du subtotal **VIVANT**. Le meme champ avait deux bases
+selon l operation, et la base stockee pouvait etre perimee.
+
+**TROIS DETAILS DE CONCEPTION QUI ONT COMPTE**
+- **Le paiement part en `jsonb`**, pas en dix parametres : `jsonb_populate_record
+  (null::fee_installments, ...)` le type d apres LA TABLE. On n a donc pas a
+  supposer le type de `payment_method` ni de `status` — **le depot n a plus de
+  `schema.sql` depuis le 5 aout**, et supposer aurait ete le defaut que ce retrait
+  visait. Meme technique pour coercer `status` dans l UPDATE de `family_fees`.
+- **Le dossier se DEDUIT** du paiement ou de la reduction supprimee : un appelant
+  ne choisit pas le dossier qu il recalcule.
+- **`REVOKE ... FROM public, anon`** et non `FROM public` seul : Supabase accorde
+  EXECUTE **nommement** a `anon`, qu un revoke sur le pseudo-role `public` ne
+  retire pas (regle du 3 octobre). La verification finale le controle.
+
+**LE TEST QUI GARDE LA DUPLICATION HONNETE** (`src/lib/financements/compute.test.ts`).
+Une divergence TS / SQL ne leverait AUCUNE erreur : elle afficherait un statut a
+l ecran et en enregistrerait un autre en base. Le fichier compare les deux sur
+une grille de 2 601 couples (bornes exactes comprises), et surtout **il LIT la
+migration** et verifie que ses cinq branches y sont dans l ordre — sans quoi il
+ne prouverait que l accord avec ma propre translitteration.
+- **Eprouve EN ROUGE** : une branche intervertie dans le SQL fait echouer le test
+  avec un message qui dit quoi corriger ; restauration, et il repasse au vert.
+  Empreinte du registre identique apres restauration, donc restitution a l octet.
+- Au passage, deux cas que personne n aurait verifies a la main : **du NUL**
+  (solde, pas « en attente » — branche `due <= 0` placee AVANT `paid >= due`) et
+  **du NEGATIF** (remboursement superieur aux cotisations : « solde » et non
+  « trop percu », parce que la 1re branche exige `due > 0`).
+
+**LE LINT A SERVI DE REVELATEUR, pas de correcteur de style** : `verifierEcriture`
+ET `feeStatus` sont devenus des imports morts dans `FinancementsClient`. Le second
+est un signal — le client ne calcule plus le statut pour ECRIRE, il ne le fait plus
+que pour AFFICHER, via `computeFamilyFinancials`. Ecran et base partent donc des
+memes lignes filles et du meme subtotal. 517 -> 515.
+- **Ma comparaison de depart etait fausse** : j avais lu « 517, niveau inchange »
+  alors que mon recablage avait ajoute un import mort et en avait retire un autre.
+  Comparer un TOTAL ne dit rien de ce qui a bouge.
+
+**SEQUENCEMENT — MIGRATION D ABORD, DEPLOIEMENT ENSUITE.** Cas ADDITIF du README :
+le code deploye AVANT la migration appellerait des fonctions inexistantes et
+casserait Reglements. La migration, elle, ne gene pas le code en place (il
+n appelle pas encore les RPC).
+
+**VERIFIE LE 06/10, DANS CET ORDRE** : migration jouee, puis le controle 06 sur un dossier
+REEL (subtotal 280, deja 180 percus) — et c est son arithmetique qui prouve, pas ses « OK ».
+Les quatre operations se sont revelees **mutuellement inverses** : 280/180 au depart,
+250 apres la reduction, 230 puis 260 percus, et retour exact a 280/180 a la fin. Le passage
+a 80 a franchi le seuil et declenche **`overpaid`** — la branche la plus delicate de
+`feeStatus` a donc ete exercee POUR DE VRAI, pas seulement en test unitaire. La preuve du
+risque principal tient en une ligne du rapport : `moyen relu=cash  reference relue={"bank":
+"LCL", "check_number": "CTRL-06"}` — `jsonb_populate_record` a coerce d apres la table, y
+compris le jsonb imbrique, sans qu on ait jamais vu le schema. Enseignant refuse en 42501.
+Puis **verifie a l ecran** par l utilisateur sur les cinq gestes.
+
+#### 6 octobre 2026 (fin) — POINT E : l ecart entre le du VIVANT et le du STOCKE
+
+Trou signale pendant le point C, traite dans la foulee. `family_fees.total_due`
+n est reecrit qu a l occasion d une ecriture (paiement, ajustement) : si les
+inscriptions d un foyer changent et que rien ne suit, il reste sur l ancienne
+valeur.
+
+**LA MESURE A DURCI L ENJEU, PAS L INVERSE.** Une ligne de `reglements/page.tsx`
+tranche : **`// le vif prime`**. Pour une annee passee, la ligne `family_fees`
+l emporte sur l archive — MEME apres archivage. La cloture ne rattrape donc
+rien : un montant perime reste ce qui s affiche ET ce qui est reclame.
+`reglements` ne charge plus les inscriptions des annees passees, son commentaire
+nomme d ailleurs ces lignes « source de verite ».
+- **ET LA CRAINTE INVERSE EST TOMBEE** : une famille qui doit sans avoir aucune
+  ligne (`ensureFamilyFee` ne la cree qu au 1er paiement) est **rattrapee par
+  l archive**, qui construit ses lignes depuis les INSCRIPTIONS et non depuis
+  `family_fees`. Le risque ne mord que sur une annee jamais archivee. Elles sont
+  donc signalees SANS etre comptees en anomalie — annoncer un danger couvert
+  ailleurs userait la confiance accordee a l audit.
+
+**PAS UNE 7e ETAPE : UN SECOND VOLET.** L audit « Financements » existe deja
+(etape 6), et le projet a le precedent du 9 aout, ou l audit « Absences » a reçu
+un second volet plutot qu une etape de plus. Meme module, meme preoccupation.
+**C est le seul endroit de l application d ou cet ecart est visible** : nulle
+part ailleurs on ne compare le vivant au stocke.
+
+**L AUDIT REPARE, il ne se contente pas de nommer** (arbitrage utilisateur).
+`fin_recalculer_dossier` existe depuis le point C, le meme jour : atomique,
+tracee, idempotente. Un bouton « Rafraichir N dossiers » l appelle sur les
+foyers divergents. Sans lui, l audit aurait nomme des foyers au montant faux
+sans offrir le moindre geste — rafraichir a la main demanderait d ajouter puis
+de retirer une reduction, soit **le bouton grise sans motif sous une autre
+forme**.
+- **Elle n invente AUCUN montant** : elle recalcule le du depuis le subtotal
+  vivant et les lignes filles. La relancer sur un dossier deja juste ne change
+  rien.
+- **Elle NE CREE PAS les dossiers manquants** : ce serait une ecriture
+  financiere en masse pour des foyers dont la situation est legitime en cours
+  d annee, et l archivage les couvre. L audit les nomme, l utilisateur decide.
+- **Refusee sur une annee CLOSE** (meme garde que `runAudit` / `resetAudit`) :
+  les resultats stockes sont le CONSTAT au moment de la cloture ; reecrire les
+  montants derriere ce constat le rendrait faux.
+- **Un echec sur un foyer n arrete pas les autres**, et le compte rendu dit ce
+  qui a REELLEMENT abouti — un echec partiel ne s annonce pas comme un succes
+  (regle du 1er octobre).
+- **L audit est rejoue dans la foulee** et son resultat frais REMPLACE celui de
+  l ecran : sans cela il continuerait d annoncer « N a rafraichir » juste apres
+  les avoir rafraichis.
+
+**DEUX DETAILS QUI EVITENT UNE FRAGILITE**
+- **`storedDue` vaut `null`, pas `0`, quand il n y a aucune ligne** : « absent »
+  et « vaut zero » sont deux etats que l audit traite differemment.
+- **Le compteur `aRafraichir` est un CHAMP du resultat**, pas une deduction du
+  texte des items : deviner en lisant un libelle casserait a la premiere
+  reformulation.
+- Comparaison au CENTIME (`>= 0.01`) : l egalite stricte entre flottants
+  signalerait des ecarts qui n existent pas.
+
+**LINT : 515 -> 516, et le +1 est delibere.** Mes deux premiers essais en
+avaient ajoute trois ; deux etaient des `any` evitables, remplaces par un type
+local `LigneFeeStockee`. Le dernier est un `catch (e: any)` **identique a ses
+deux voisins** dans le meme fichier — le chantier `any` est a part, et une
+troisieme fonction qui s ecrirait autrement que les deux autres serait pire que
+l avertissement.
+
+**LA BARRE LATERALE EST DESORMAIS INSENSIBLE A LA LONGUEUR DES LIBELLES.** Ses
+libelles n'avaient JAMAIS porte de `truncate` : un libelle trop long ne se
+coupait pas, il passait a la ligne et deformait le menu. Rien ne l'attrapait —
+ni le type-check, ni le lint, ni le build. **Mesure : ~149 px de budget pour un
+sous-menu, et « Staff / Enseignants » en occupait ~132 — deux caracteres de
+marge.** Chaque renommage devenait un calcul de largeur. Nouveau composant
+`LibelleMenu` : tronque, avec l'infobulle SEULEMENT s'il deborde reellement.
+`ui/TruncatedText` n'etait pas reutilisable — il s'appuie sur `Tooltip`, dont la
+bulle claire jurerait sur le fond sombre.
+- **PIEGE PAYE DEUX FOIS** : `SECTION_OF` est indexe par le NOM de l'item.
+  Renommer sans mettre la cle a jour fait DISPARAITRE l'entree du menu, sans la
+  moindre erreur.
+- **DEUXIEME TABLE** : `DashboardNav` en contient une seconde pour le fil
+  d'Ariane des pages Parametres. Corriger la premiere seule laissait
+  « Financiers » dans le fil — trouve en REJOUANT l'audit de coherence, pas en
+  relisant.
+
+**DIVERS** : les raccourcis changeaient de place selon le role (en haut chez
+l'admin et le resp. pedago, en bas chez la secretaire et l'enseignant) —
+alignes en haut ; carte « Enseignants » devient « Enseignants actifs » (le
+chiffre etait JUSTE, mais sa voisine dit « Eleves actifs ») ; carte « Classes »
+du tableau de bord pedagogique qui taisait son bornage a l'annee ; **feuille
+d'appel VIERGE** non datee, avec un trait a remplir a la main (on l'imprime pour
+la remplir plus tard, la dater la rendait inutilisable) et son NOM DE FICHIER
+porte l'annee et non le jour — le contenu ne depend pas du jour d'impression.
+
+---
+
+**CHANTIER RLS — LOTS 1 ET 3** (seconde moitie de la passe du 5 aout)
+
+Quatorze tables n'avaient qu'UNE policy, en `FOR ALL`, dont l'unique condition
+etait l'etablissement : le cloisonnement avait REMPLACE le controle de role.
+Ces ecrans ecrivent DIRECTEMENT depuis le navigateur — la RLS est le seul
+rempart, les gardes applicatives ne protegent rien.
+
+**LOT 1 — finance et bulletins** (`add-role-checks-lot1-finance-bulletins.sql`)
+Tout compte de l'ecole pouvait reecrire ce qu'une famille doit, effacer un
+paiement, **SUPPRIMER UN BULLETIN ARCHIVE** ou reecrire une appreciation. Le
+second point est le plus grave : un bulletin archive est un document PUBLIE,
+remis aux familles, et le 9 aout l'historique de cloture a ete recrit pour
+AGREGER ces archives au lieu de recalculer, precisement pour qu'il ne puisse
+jamais les contredire. Cette garantie reposait sur des tables reecrivables par
+n'importe qui.
+- Finance : lecture ET ecriture reservees aux `FINANCE_ROLES`.
+- Bulletins : **la ligne de partage n'est pas « bulletins », c'est ARCHIVER
+  contre APPRECIER.** L'archivage est reserve a admin/direction/secretaire
+  (l'enseignant n'a pas le bucket, lui ouvrir la table produirait un archivage a
+  moitie fait) ; **l'appreciation reste ouverte a l'enseignant sur SES classes**,
+  c'est un acte pedagogique. Les traiter d'un bloc la lui aurait retiree.
+- **Consequence arbitree** : decider si un foyer est supprimable exige de
+  COMPTER ses cotisations. Plutot qu'ouvrir les montants dus a deux roles de
+  plus, `deleteParent` passe a admin/direction, bouton masque pour les autres.
+  Au passage, `getParentDeleteDeps` n'avait AUCUNE garde de role.
+
+**TABLES MORTES** (`drop-dead-referentiel-tables.sql`) : `modules`,
+`teaching_units`, `subjects`, `staff_hourly_rates`, zero usage et zero ligne.
+Le releve a montre qu'elles NE SONT PAS ISOLEES :
+`evaluations.module_id -> modules -> teaching_units -> subjects`. La premiere
+fleche part d'une table VIVANTE. **`evaluations.module_id` est une colonne morte
+— A NE PAS CONFONDRE avec `display_module_id`**, qui pointe vers
+`cours_modules`, est renseignee sur les 8 evaluations et fait vivre gabarits,
+bulletins et notes. Les deux se ressemblent, une seule est morte.
+
+**LOT 3 — EDT, affectations, documents, discipline**
+(`add-role-checks-lot3-edt-affectations-documents.sql`). Le trou le plus
+interessant : **`class_teachers` permettait de S'AFFECTER SOI-MEME a une
+classe**, et donc d'obtenir par ricochet tout ce que `teaches_class` accorde.
+Ce n'etait pas un acces de plus, c'etait le MOYEN de s'en donner d'autres.
+- **Alignement applicatif, le point critique du lot** : ni `StudentDocuments` ni
+  `StudentDiscipline` ne recevaient `lectureSeule`. L'enseignant gardait des
+  boutons d'ajout et de suppression ACTIFS sur ces onglets ; ils fonctionnaient
+  jusque-la (policies tenant-seul) et auraient echoue EN SILENCE apres la
+  migration. **Une migration de RLS se double toujours d'une revue des boutons
+  qu'elle va rendre inoperants.**
+- **La garde de la migration a servi** : `class_teachers` n'a PAS de colonne
+  `etablissement_id`, elle se cloisonne par `classes`. Mon releve affichait
+  `T=oui` parce qu'il cherchait la chaine `etablissement_id` sans distinguer une
+  colonne propre d'une jointure. Rien n'avait ete applique — la garde est la
+  PREMIERE instruction du fichier. **Regle : toute migration de RLS commence par
+  verifier le chemin de cloisonnement REEL de chaque table.**
+
+**CE QUE LES CONTROLES N'ONT PAS PROUVE, et il faut le savoir** : le bornage de
+l'enseignant par `teaches_class` (bulletins) et `teaches_student` (documents,
+discipline) n'est PAS demontre — il voit 4 bulletins sur 4 parce qu'il enseigne
+visiblement toutes les classes concernees, et les deux autres tables sont VIDES.
+Le test ne distingue pas « borne » de « pas borne ». Meme piege que le titulaire
+du 24/09 : il faudra une classe qu'aucun enseignant ne couvre, et un premier
+document depose.
+
+**RESTE DU CHANTIER : LE LOT 2 (annonces).** Il porte le seul vrai arbitrage
+metier — qui a le droit de LIRE les messages envoyes aux familles — et la
+correction de `staff_recipients_write_scoped`, qui n'a AUCUN cloisonnement par
+ecole. Les deux durcissements de juillet sont confirmes inoperants :
+`announcements_tenant` et `ann_staff_recipients_tenant`, en `FOR ALL` sans role,
+annulent les policies scopees posees a cote (les permissives s'ADDITIONNENT).
