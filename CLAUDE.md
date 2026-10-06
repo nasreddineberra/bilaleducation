@@ -6940,3 +6940,79 @@ meilleure quand elle est disponible (l action REUSSIT au lieu d echouer), mais
 elle depend de l offre et a une fenetre de retention. Cette banniere ne depend
 d aucune offre et couvre l onglet laisse ouvert des jours.
 
+#### 6 octobre 2026 (fin) — LE REMPLACANT RETROUVE SON PLANNING, ET SES HEURES
+
+Ne vient pas d un rapport de bug mais de TROIS QUESTIONS de l utilisateur, posees
+avant d arbitrer le point D : un remplacant voit-il la classe qu il remplace dans
+l EDT ? peut-il valider la seance ? voit-il les devoirs et le journal ? La mesure
+a repondu **non, non, oui** — et le « oui » isole etait le signe.
+
+**CE QUE J AVAIS CASSE DEUX JOURS PLUS TOT.** Declarer un remplacant cree une
+ligne `class_teachers` avec `is_main_teacher = false` ; la cascade vers
+`schedule_slots` ne se declenche QUE si le TITULAIRE change (`ClassForm`). Les
+creneaux gardent donc son identifiant. Avant le 5 octobre, le remplacant
+basculait en « Par classe » pour voir le planning — **le masquage des bascules du
+volet A lui a retire ce recours**, sans que je m en apercoive.
+
+**ET LA VALIDATION ETAIT PIRE QUE MUETTE** : `handleValidate` ecrivait
+`profile_id = teacherProfileMap[resolved.teacher_id]`, soit **l enseignant du
+creneau**. Un remplacant aurait credite l heure a l ABSENT — et la base l aurait
+refuse (depuis le 10/07 un enseignant n ecrit que `profile_id = auth.uid()`).
+Resultat net : l heure n etait comptee **pour personne**.
+
+**L ASYMETRIE QUE LES QUESTIONS ONT REVELEE** : le projet avait construit pour le
+cahier de texte une fenetre de preparation de 7 jours, reflechie et inscrite en
+RLS. Rien d equivalent pour l EDT ni pour les heures. Le remplacant pouvait donc
+PREPARER sa seance sans savoir QUAND elle avait lieu, ni pouvoir declarer l avoir
+faite.
+
+**ARBITRAGE UTILISATEUR, ET IL EST MEILLEUR QUE MA PROPOSITION.** J allais
+recopier les 7 jours dans l EDT. Il a tranche : « a partir du moment ou il est
+tague comme remplacant il voit les seances ; la notion de 7 jours n est propre
+qu au cahier de texte ». **Il a raison, et la raison est de fond** : les 7 jours
+sont une fenetre de SECURITE qui borne l acces au CONTENU PEDAGOGIQUE d un
+collegue. Un emploi du temps ne porte aucun contenu — recopier le nombre sans sa
+raison aurait invente une restriction que la base n a pas, et une seconde
+constante arbitraire.
+→ **Aucune fenetre, aucune constante** : les DATES DE L AFFECTATION decident, a
+la date affichee (`jEnseigneCetteClasse`). Comparaison de chaines `AAAA-MM-JJ`,
+sans objet `Date`, donc sans fuseau.
+
+**ET UNE MESURE A EVITE D INVENTER UNE SECONDE REGLE** : j allais poser une garde
+de date pour la validation. **Elle existe deja** — `canValidate = date <=
+aujourd hui`, appliquee a TOUT LE MONDE, titulaire compris. Le « comme les
+seances normales » de l utilisateur ne demandait donc rien a ecrire.
+
+**AUCUNE MIGRATION.** Le droit etait la depuis le 10 juillet ; c est le CODE qui
+designait la mauvaise personne. La validation ecrit desormais `profile_id` = le
+remplacant et **`replaced_profile_id` = le titulaire** — colonne que le module
+Temps de presence emploie depuis le 14 juillet pour exprimer exactement cela. Le
+recapitulatif sait deja la lire.
+
+**TROIS DETAILS QUI AURAIENT MENTI**
+- Le filtre ne consulte `jEnseigneCetteClasse` **que pour l enseignant
+  connecte** : quand l encadrement consulte le planning d un collegue, y ajouter
+  « mes classes » melangerait deux personnes dans la meme vue.
+- `replaced_profile_id` n est renseigne **qu en remplacement** : sur une seance
+  ordinaire il n y a personne a remplacer, et une valeur posee la rendrait le
+  recapitulatif faux.
+- **Le message de confirmation nommait le TITULAIRE.** Il etait construit hors de
+  `doValidate`, donc avant le calcul : un remplacant aurait lu « Valider la
+  presence de [l absent] ». `jeRemplace` a ete hisse, et le message dit
+  desormais « Valider VOTRE presence en remplacement de X ».
+
+**VERIFIE SANS LE SUPPOSER** : la vue MOIS ne propose pas la validation (rien a
+plomber), et `isValidated` comme `handleCancelValidation` se referent au couple
+creneau + date, sans hypothese sur la personne — le remplacant peut donc annuler
+sa propre validation, la RLS l autorisant sur ses lignes.
+
+**LE POINT D EST CLOS — NE PAS LE ROUVRIR.** Borner `schedule_slots_select` par
+`teaches_class` a ete decide NON le 29 septembre, dans l en-tete de la migration
+du lot 3 : « l EDT est un document d organisation collective, chacun doit voir ou
+sont les autres ». Je l ai rouvert le 5 octobre comme s il etait pendant, **sans
+relire cette migration** — l utilisateur a porte deux jours un arbitrage deja
+rendu. Et la mesure du 6 octobre le confirme : borner aurait prive le remplacant
+du planning qu on vient de lui rendre, pour fermer un document qui ne porte ni
+note, ni absence, ni montant. Le commentaire de `EmploiDuTempsClient` qui
+presentait ce bornage comme « a faire » est corrige.
+

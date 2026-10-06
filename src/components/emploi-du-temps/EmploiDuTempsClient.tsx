@@ -102,6 +102,10 @@ interface ClassData {
     teacher_id: string
     is_main_teacher: boolean
     subject?: string | null
+    // Bornes de l'affectation : c'est ce qui permet a un REMPLACANT de voir les
+    // creneaux de la classe qu'il couvre, pendant la periode ou il la couvre.
+    effective_from?: string | null
+    effective_until?: string | null
     teachers: { id: string; first_name: string; last_name: string; civilite?: string }
   }[]
 }
@@ -309,15 +313,56 @@ export default function EmploiDuTempsClient({
    * validation de presence est deja bornee a ses propres creneaux
    * (`showValidation = canEdit || (isTeacher && isOwnSlot)`, fix du 10 juillet).
    *
-   * CE N'EST QU'UN MASQUAGE D'INTERFACE, et il faut le savoir :
-   * `schedule_slots_select` et `classes` accordent la LECTURE a tout le
-   * personnel, sans bornage `teaches_class`. L'API REST continue donc de tout
-   * servir. Borner la base est un sujet distinct, qui demande d'abord d'etablir
-   * a quoi `temps-presence/page.tsx` emploie ces creneaux (il les charge TOUS,
-   * sans filtre) — sinon on reproduit le defaut du 29 septembre : une migration
-   * qui rend un ecran inoperant EN SILENCE.
+   * CE N'EST QU'UN MASQUAGE D'INTERFACE, et c'est DELIBERE :
+   * `schedule_slots_select` accorde la lecture a tout le personnel, sans bornage
+   * par classe. Decision du 29 septembre, inscrite dans la migration du lot 3 —
+   * « l'EDT est un document d'organisation collective, chacun doit voir ou sont
+   * les autres ». Confirmee le 6 octobre : la borner priverait un remplacant du
+   * planning de la classe qu'il couvre, et un emploi du temps ne porte ni note,
+   * ni absence, ni montant — rien que le personnel ne sache deja.
+   *
+   * CE MASQUAGE A CREE UN TROU, referme le 6 octobre : un remplacant ne voyait
+   * plus ses creneaux de remplacement. Voir `jEnseigneCetteClasse`.
    */
   const estEnseignant = role === 'enseignant'
+
+  /**
+   * « J'enseigne cette classe CE JOUR-LA » — titulaire OU remplacant.
+   *
+   * ── LE TROU QUE CECI REFERME (06/10) ──────────────────────────────────────
+   *
+   * Declarer un remplacant cree une ligne `class_teachers` avec
+   * `is_main_teacher = false`. La cascade vers `schedule_slots` ne se declenche
+   * QUE si le TITULAIRE change (`ClassForm`) : les creneaux gardent donc
+   * l'identifiant du titulaire. Avant le 5 octobre, le remplacant basculait en
+   * « Par classe » pour voir le planning ; le masquage des bascules lui a retire
+   * ce recours, et ses heures de remplacement ont disparu de son ecran.
+   *
+   * ── AUCUNE FENETRE, AUCUNE CONSTANTE ──────────────────────────────────────
+   *
+   * Les DATES DE L'AFFECTATION decident, a la date affichee. On n'a PAS repris
+   * les 7 jours du cahier de texte : la-bas c'est une fenetre de SECURITE, qui
+   * borne l'acces au contenu pedagogique d'un collegue. Un emploi du temps ne
+   * porte aucun contenu — recopier le nombre sans sa raison aurait invente une
+   * restriction que la base n'a pas.
+   */
+  const mesAffectations = useMemo(() => {
+    if (!ownTeacherId) return [] as { classId: string; from: string | null; until: string | null }[]
+    return classes.flatMap(c =>
+      (c.class_teachers ?? [])
+        .filter(ct => ct.teacher_id === ownTeacherId)
+        .map(ct => ({ classId: c.id, from: ct.effective_from ?? null, until: ct.effective_until ?? null })),
+    )
+  }, [classes, ownTeacherId])
+
+  const jEnseigneCetteClasse = useCallback((classId?: string | null, date?: string | null) => {
+    if (!classId || !date) return false
+    // Comparaison de chaines `AAAA-MM-JJ` : exacte, et sans objet `Date`, donc
+    // sans fuseau (piege paye plusieurs fois dans ce projet).
+    return mesAffectations.some(a => a.classId === classId
+      && (!a.from  || a.from  <= date)
+      && (!a.until || a.until >= date))
+  }, [mesAffectations])
 
   const [slots, setSlots] = useState<SlotData[]>(initialSlots)
   const [exceptions, setExceptions] = useState<ExceptionData[]>(initialExceptions)
@@ -795,10 +840,15 @@ export default function EmploiDuTempsClient({
     // rend TOUS les creneaux de l'ecole. L'encadrement le voit (sa liste est la, il
     // n'a rien choisi) ; l'enseignant, dont la liste est masquee, croirait lire le sien.
     if (viewMode === 'teacher' && (selectedTeacherId || estEnseignant)) {
-      return resolvedMonthSlots.filter(s => s.teacher_id === selectedTeacherId)
+      // `jEnseigneCetteClasse` n'est consulte QUE pour l'enseignant connecte :
+      // quand l'encadrement consulte le planning d'un collegue, y ajouter « mes
+      // classes » melangerait deux personnes dans la meme vue.
+      return resolvedMonthSlots.filter(s =>
+        s.teacher_id === selectedTeacherId
+        || (estEnseignant && jEnseigneCetteClasse(s.class_id, s.date)))
     }
     return resolvedMonthSlots
-  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant])
+  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant, jEnseigneCetteClasse])
 
   // ─── Computed ─────────────────────────────────────────────────────────────
 
@@ -846,10 +896,13 @@ export default function EmploiDuTempsClient({
     }
     // Meme garde que la vue mois : un id vide ne doit pas ouvrir tout l'etablissement.
     if (viewMode === 'teacher' && (selectedTeacherId || estEnseignant)) {
-      return resolvedSlots.filter(s => s.teacher_id === selectedTeacherId)
+      // Voir la vue mois : ses creneaux, PLUS les classes qu'il couvre ce jour-la.
+      return resolvedSlots.filter(s =>
+        s.teacher_id === selectedTeacherId
+        || (estEnseignant && jEnseigneCetteClasse(s.class_id, s.date)))
     }
     return resolvedSlots
-  }, [resolvedSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant])
+  }, [resolvedSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant, jEnseigneCetteClasse])
 
   // Group by day
   const slotsByDay = useMemo(() => {
@@ -1416,8 +1469,28 @@ export default function EmploiDuTempsClient({
     const [y, m, d] = slotDate.split('-')
     const dateLabel = `${d}/${m}/${y}`
 
+    // ── QUI EST CREDITE DE L'HEURE : CELUI QUI L'A FAITE ────────────────────
+    //
+    // Un remplacant valide un creneau qui porte encore le TITULAIRE (declarer un
+    // remplacant ne touche pas `schedule_slots` — seule une cascade de titulaire
+    // le fait). Sans cette distinction, l'heure serait creditee a l'ABSENT.
+    //
+    // La base l'aurait refusee de toute facon : depuis le 10 juillet, un
+    // enseignant n'ecrit que `profile_id = auth.uid()`. Le defaut n'aurait donc
+    // pas ete silencieux — mais il aurait ete bloquant.
+    //
+    // `replaced_profile_id` n'est pas invente pour l'occasion : c'est la colonne
+    // par laquelle le module Temps de presence exprime un remplacement depuis le
+    // 14 juillet. Le recapitulatif sait deja la lire.
+    const jeRemplace = estEnseignant
+      && !!ownTeacherId
+      && resolved.teacher_id !== ownTeacherId
+      && jEnseigneCetteClasse(resolved.class_id, slotDate)
+
+    const titulaireProfileId = teacherProfileMap[resolved.teacher_id]
+    const teacherProfileId = jeRemplace ? currentUserId : titulaireProfileId
+
     const doValidate = async () => {
-    const teacherProfileId = teacherProfileMap[resolved.teacher_id]
     if (!teacherProfileId) {
       // Cas defensif : une fiche enseignant creee via le formulaire a toujours un compte
       // (createTeacherWithAccount). Il n'existe AUCUN ecran pour rattacher un compte a une
@@ -1449,6 +1522,10 @@ export default function EmploiDuTempsClient({
         start_time: resolved.start_time,
         end_time: resolved.end_time,
         duration_minutes: durationMin,
+        // Renseigne UNIQUEMENT en remplacement : sur une seance ordinaire, il n'y
+        // a personne a remplacer, et une valeur posee la rendrait le recapitulatif
+        // faux.
+        replaced_profile_id: jeRemplace ? (titulaireProfileId ?? null) : null,
         recorded_by: currentUserId,
       })
       .select('id')
@@ -1472,11 +1549,13 @@ export default function EmploiDuTempsClient({
     }
 
     setPendingConfirm({
-      message: `Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`,
+      message: jeRemplace
+        ? `Valider VOTRE presence en remplacement de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`
+        : `Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`,
       confirmLabel: 'Valider',
       onConfirm: doValidate,
     })
-  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError])
+  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError, estEnseignant, ownTeacherId, jEnseigneCetteClasse])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
@@ -1937,6 +2016,7 @@ export default function EmploiDuTempsClient({
                   viewMode={viewMode}
                   isTeacher={role === 'enseignant'}
                   currentTeacherId={ownTeacherId}
+                  jEnseigneCetteClasse={jEnseigneCetteClasse}
                   fermeture={fermeture}
                   droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}

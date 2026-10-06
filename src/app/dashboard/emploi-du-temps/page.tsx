@@ -40,7 +40,7 @@ export default async function EmploiDuTempsPage() {
   // Classes avec prof principal
   const { data: classes } = await supabase
     .from('classes')
-    .select('id, name, level, room_id, day_of_week, start_time, end_time, teaching_mode, class_teachers(teacher_id, is_main_teacher, subject, teachers(id, first_name, last_name, civilite)), cotisation_types(label)')
+    .select('id, name, level, room_id, day_of_week, start_time, end_time, teaching_mode, class_teachers(teacher_id, is_main_teacher, subject, effective_from, effective_until, teachers(id, first_name, last_name, civilite)), cotisation_types(label)')
     .eq('academic_year', currentYear.label)
     .order('name')
 

@@ -22,6 +22,9 @@ interface Props {
   viewMode: ViewMode
   isTeacher: boolean
   currentTeacherId?: string
+  /** « J'enseigne cette classe ce jour-la » — titulaire OU remplacant. Voir
+   *  `jEnseigneCetteClasse` dans `EmploiDuTempsClient`. */
+  jEnseigneCetteClasse?: (classId?: string | null, date?: string | null) => boolean
   isValidated: (sourceSlotId: string, slotDate: string) => boolean
   onValidate: (slot: ResolvedSlot) => void
   onCancelValidation: (sourceSlotId: string, slotDate: string) => void
@@ -56,7 +59,7 @@ function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heigh
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
-  isTeacher, currentTeacherId, fermeture, isValidated, onValidate, onCancelValidation,
+  isTeacher, currentTeacherId, jEnseigneCetteClasse, fermeture, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
@@ -179,7 +182,11 @@ export default function DayColumn({
               isToday={isToday}
               canValidate={canValidate}
               isTeacher={isTeacher}
-              isOwnSlot={!!currentTeacherId && slot.teacher_id === currentTeacherId}
+              // Le creneau d'un remplacement porte encore le TITULAIRE : sans
+              // la seconde branche, le remplacant n'aurait pas le ✓ sur l'heure
+              // qu'il assure, et elle ne serait comptee pour personne.
+              isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId)
+                         || jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
               validated={isValidated(slot.sourceSlotId, dateStr)}
               draggable={droppable}
               onValidate={() => onValidate(slot)}
