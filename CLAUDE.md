@@ -4032,6 +4032,36 @@ nommer) ; « Membre » pour le badge d'un destinataire individuel, une personne
 n'etant pas une equipe. Verifie avant d'y toucher : dans la liste Utilisateurs,
 « Staff » s'oppose a « Parents », donc il designait bien TOUT le personnel.
 
+**CLE DE LECTURE DU JOURNAL — les entrees ANTERIEURES nomment les anciens
+libelles** (ajoutee le 6 octobre, apres m'etre fait prendre moi-meme : j'ai
+envoye l'utilisateur dans « Parametres -> Financiers », qui n'existe plus depuis
+ce jour-la). Les entrees datees ne sont PAS reecrites — un journal est un
+releve, le falsifier serait pire. Mais une instruction de navigation lue
+froidement se prend pour le nom actuel, et c'est exactement le defaut de
+`policies.sql` (05/08) : une documentation perimee inspire une confiance
+qu'elle ne merite pas. D'ou cette table :
+
+| dans les entrees anterieures au 29/09 | libelle REEL aujourd'hui | occurrences |
+|---|---|---|
+| Parametres -> **Financiers** | Parametres -> **Cotisations** (`/dashboard/cotisations`, page « Cotisations et taux ») | 8 |
+| **Staff** (menu Communications) | **Equipe** | 21 |
+| **Stats reglements** | **Statistiques** | 7 |
+| **Saisie notes** | **Saisie des notes** | 9 |
+| **Annee scolaire** (la LISTE) | **Annees scolaires** — la FICHE reste au singulier | 8 |
+
+**DEUX PIEGES DANS CETTE TABLE**, a connaitre avant de « corriger » quoi que ce
+soit :
+- **`staff` est TOUJOURS JUSTE DANS LE CODE** — seul le LIBELLE AFFICHE a change.
+  La route `/dashboard/communications/staff`, le fichier `staff-actions.ts`, la
+  fonction `sendStaffMessage` et les tables `staff_time_entries` /
+  `announcement_staff_recipients` sont inchanges et doivent le rester.
+- **« Financements » existe bel et bien** : c'est le menu PARENT (Reglements /
+  Statistiques / Situation financiere). C'est « Financi**ers** » qui a disparu.
+  Deux mots voisins, un seul survivant — c'est ce qui m'a induit en erreur.
+
+**Verifie le 06/10** : zero occurrence de « Financiers » dans tout `src`, le
+renommage du 29/09 etait complet. Le nom perime ne survit QUE dans ce journal.
+
 **LA BARRE LATERALE EST DESORMAIS INSENSIBLE A LA LONGUEUR DES LIBELLES.** Ses
 libelles n'avaient JAMAIS porte de `truncate` : un libelle trop long ne se
 coupait pas, il passait a la ligne et deformait le menu. Rien ne l'attrapait —
