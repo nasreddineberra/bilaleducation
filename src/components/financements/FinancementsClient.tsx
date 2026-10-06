@@ -4,7 +4,9 @@ import { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } fro
 import { Trash2, Pencil, AlertTriangle, MessageSquareText, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { verifierEcriture } from '@/lib/supabase/ecriture'
+// `verifierEcriture` a disparu d'ici avec les ecritures directes : les RPC
+// LEVENT une exception nommee au lieu de toucher zero ligne en silence, donc
+// `if (err) throw err` suffit. Le helper reste employe ailleurs.
 import { useToast } from '@/lib/toast-context'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import PaymentModal from './PaymentModal'
@@ -17,8 +19,12 @@ const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 import { sendRelance, logAttestation, deleteFinancementCommunication, type FinancementCommunication } from '@/app/dashboard/financements/actions'
 import { generateAttestationPdfBase64 } from './attestationPdf'
 import {
-  computeFamilyFinancials, feeStatus, siblingDiscounts, lineTotal,
-  type FamilyFinancials,
+  // `feeStatus` n'est plus appele ICI : les quatre ecritures delegent le statut
+  // a la base, qui le calcule dans la meme transaction. L'AFFICHAGE continue de
+  // passer par lui, via `computeFamilyFinancials` — ecran et base partent donc
+  // des memes lignes filles et du meme subtotal, ils ne peuvent pas diverger.
+  computeFamilyFinancials, siblingDiscounts, lineTotal,
+  type FamilyFinancials, type RecapDossier,
 } from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
@@ -414,34 +420,34 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     setSaving(true)
     setError(null)
     try {
-      const { data, error: err } = await supabase
-        .from('fee_adjustments')
-        .insert({
-          family_fee_id:   feeId,
+      // UNE SEULE ECRITURE, ATOMIQUE. La ligne et le recapitulatif partaient
+      // avant en deux requetes HTTP distinctes : entre les deux, un refus RLS
+      // ou une coupure laissait la reduction enregistree SANS que ce que doit
+      // la famille ait change. PostgREST n'ayant pas de transaction
+      // multi-requetes, seule une RPC peut les lier.
+      //
+      // `subtotal` est passe en parametre et non recalcule en base : il repose
+      // sur la remise fratrie, dont la regle doit rester dans `compute.ts`.
+      const { data: res, error: err } = await supabase.rpc('fin_ajouter_reduction', {
+        p_fee_id:   feeId,
+        p_subtotal: subtotal,
+        p_reduction: {
           adjustment_date: adjForm.date,
           adjustment_type: adjForm.type as AdjustmentType,
           label,
           amount,
-        })
-        .select()
-        .single()
+        },
+      })
       if (err) throw err
 
-      const newAdjTotal = adjustmentsTotal + amount
-      const newDue = subtotal + newAdjTotal   // les ajustements reduisent le du
-      const newStatus = feeStatus(totalPaid, newDue)
-      // La reduction vient d'etre ecrite ; si le recapitulatif ne suit pas, le
-      // montant du reste faux en base alors que l'ecran affiche le bon chiffre.
-      verifierEcriture(
-        await supabase.from('family_fees')
-          .update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus })
-          .eq('id', feeId).select('id'),
-        'Le recapitulatif de la famille',
-      )
+      // Les chiffres affiches viennent desormais de la BASE, pas d'un calcul
+      // parallele cote navigateur : les deux ne peuvent plus diverger.
+      const data = res.reduction
+      const recap = res.recap
 
       setFamilyFees(prev => prev.map(f =>
         f.id === feeId
-          ? { ...f, adjustments_total: newAdjTotal, total_due: newDue, status: newStatus, fee_adjustments: [...(f.fee_adjustments ?? []), data] }
+          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_adjustments: [...(f.fee_adjustments ?? []), data] }
           : f
       ))
       setAddingAdjustment(false)
@@ -460,22 +466,17 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     setSaving(true)
     setError(null)
     try {
-      verifierEcriture(
-        await supabase.from('fee_adjustments').delete().eq('id', adj.id).select('id'),
-        'Cette reduction',
-      )
-      const newAdjTotal = adjustmentsTotal - adj.amount
-      const newDue = subtotal + newAdjTotal
-      const newStatus = feeStatus(totalPaid, newDue)
-      verifierEcriture(
-        await supabase.from('family_fees')
-          .update({ adjustments_total: newAdjTotal, total_due: newDue, status: newStatus })
-          .eq('id', currentFee.id).select('id'),
-        'Le recapitulatif de la famille',
-      )
+      // Suppression + recapitulatif en une seule transaction (voir `addAdjustment`).
+      const { data: res, error: err } = await supabase.rpc('fin_supprimer_reduction', {
+        p_adjustment_id: adj.id,
+        p_subtotal:      subtotal,
+      })
+      if (err) throw err
+      const recap = res.recap
+
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
-          ? { ...f, adjustments_total: newAdjTotal, total_due: newDue, status: newStatus, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
+          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_adjustments: (f.fee_adjustments ?? []).filter((a: any) => a.id !== adj.id) }
           : f
       ))
       setSuccess('Ajustement supprime.')
@@ -488,43 +489,31 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
   // ── Paiement enregistré ──────────────────────────────────────────────────
 
-  const handlePaymentSaved = async (newPayment: FeeInstallment) => {
+  // LE PAIEMENT ET LE RECAPITULATIF SONT DEJA ECRITS quand on arrive ici : la
+  // modale appelle `fin_enregistrer_paiement`, qui fait les deux dans une seule
+  // transaction et rend le recapitulatif a jour. Il n'y a donc plus rien a
+  // ecrire, plus de calcul parallele, et plus de message « le paiement est
+  // enregistre mais le statut n'a pas pu etre mis a jour » — ce demi-echec
+  // n'existe plus.
+  const handlePaymentSaved = (newPayment: FeeInstallment, recap: RecapDossier) => {
     const isEdit = !!editingPayment
     setPaymentModalOpen(false)
     setEditingPayment(null)
 
     const feeId = newPayment.family_fee_id
-
-    // Trouver le fee dans l'état le plus récent (ref évite les closures obsolètes)
+    // Ref et non `familyFees` : evite une closure obsolete.
     const fee = familyFeesRef.current.find(f => f.id === feeId)
     const existingInstallments: FeeInstallment[] = fee?.fee_installments ?? []
     const updatedInstallments = isEdit
       ? existingInstallments.map(p => p.id === newPayment.id ? newPayment : p)
       : [...existingInstallments, newPayment]
-    const totalPaid = updatedInstallments.reduce((s, p: any) => s + (p.amount_paid ?? 0), 0)
-    const due = fee?.total_due ?? 0
-    const status = feeStatus(totalPaid, due)
 
-    // Mettre à jour l'état local
     setFamilyFees(prev => prev.map(f =>
       f.id === feeId
-        ? { ...f, status, fee_installments: updatedInstallments }
+        ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_installments: updatedInstallments }
         : f
     ))
-    // LE SUCCES NE S'ANNONCE QU'APRES L'ECRITURE. Il etait affiche ici, et
-    // l'echec du statut partait dans un console.error : le paiement etait bien
-    // enregistre mais le dossier gardait son ancien statut, sans un mot.
-    try {
-      verifierEcriture(
-        await supabase.from('family_fees').update({ status }).eq('id', feeId).select('id'),
-        'Le statut du dossier',
-      )
-      setSuccess(isEdit ? 'Paiement modifie.' : 'Paiement enregistre.')
-    } catch (err: any) {
-      setError(
-        `Le paiement est enregistre, mais le statut du dossier n'a pas pu etre mis a jour (${err?.message ?? 'erreur inconnue'}). Rechargez la page.`
-      )
-    }
+    setSuccess(isEdit ? 'Paiement modifie.' : 'Paiement enregistre.')
   }
 
   const removePayment = async (payment: FeeInstallment) => {
@@ -533,24 +522,22 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     setSaving(true)
     setError(null)
     try {
-      verifierEcriture(
-        await supabase.from('fee_installments').delete().eq('id', payment.id).select('id'),
-        'Ce paiement',
-      )
-
-      const remaining2 = payments.filter(p => p.id !== payment.id)
-      const newTotalPaid = remaining2.reduce((s, p) => s + p.amount_paid, 0)
-      const due = currentFee.total_due
-      const status = feeStatus(newTotalPaid, due)
-
-      verifierEcriture(
-        await supabase.from('family_fees').update({ status }).eq('id', currentFee.id).select('id'),
-        'Le statut du dossier',
-      )
+      // Suppression + recapitulatif en une seule transaction (voir `addAdjustment`).
+      //
+      // AU PASSAGE, UNE INCOHERENCE DISPARAIT : ce bloc calculait le statut a
+      // partir du `total_due` STOCKE, alors que les deux fonctions d'ajustement
+      // partaient du subtotal VIVANT. Le meme champ avait donc deux bases selon
+      // l'operation, et la base stockee pouvait etre perimee.
+      const { data: res, error: err } = await supabase.rpc('fin_supprimer_paiement', {
+        p_payment_id: payment.id,
+        p_subtotal:   subtotal,
+      })
+      if (err) throw err
+      const recap = res.recap
 
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
-          ? { ...f, status, fee_installments: (f.fee_installments ?? []).filter((p: any) => p.id !== payment.id) }
+          ? { ...f, subtotal: recap.subtotal, adjustments_total: recap.adjustments_total, total_due: recap.total_due, status: recap.status, fee_installments: (f.fee_installments ?? []).filter((p: any) => p.id !== payment.id) }
           : f
       ))
       setSuccess('Paiement supprime.')

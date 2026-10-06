@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
+import type { RecapDossier } from '@/lib/financements/compute'
 
 // Principales banques (chèques), triées alphabétiquement, + « Autre » pour saisie libre.
 const BANKS = [
@@ -29,7 +30,8 @@ interface Props {
   editingPayment?:     FeeInstallment | null
   onEnsureFamilyFee:   () => Promise<string | null>
   onClose:             () => void
-  onSaved:             (payment: FeeInstallment) => void
+  // Le recapitulatif vient de la RPC, qui l a calcule dans la meme transaction.
+  onSaved:             (payment: FeeInstallment, recap: RecapDossier) => void
 }
 
 const METHODS: { value: FeePaymentMethod; label: string }[] = [
@@ -56,6 +58,10 @@ function getReceiptPrefix() {
 
 export default function PaymentModal({
   familyFeeId,
+  // `subtotal` etait declare en prop, passe par l'appelant, et JAMAIS
+  // destructure — donc inutilise. Il sert desormais : la RPC en a besoin pour
+  // recalculer le du sans avoir a rejouer la remise fratrie en SQL.
+  subtotal,
   totalDue, remaining, paymentNumber,
   editingPayment,
   onEnsureFamilyFee, onClose, onSaved,
@@ -175,56 +181,45 @@ export default function PaymentModal({
     setSaving(true)
     setError(null)
     try {
-      if (isEdit && ep) {
-        // Mode édition : update
-        const { data, error: err } = await supabase
-          .from('fee_installments')
-          .update({
-            amount_due:         parsedAmount,
-            amount_paid:        parsedAmount,
-            due_date:           paidDate,
-            paid_date:          paidDate,
-            payment_method:     safeMethod,
-            payment_reference:  Object.keys(reference).length ? reference : null,
-            receipt_number:     receipt.trim() || null,
-            notes:              notes.trim() || null,
-          })
-          .eq('id', ep.id)
-          .select()
-          .single()
-        if (err) throw err
-        setSaving(false)
-        onSaved(data as FeeInstallment)
-      } else {
-        // Mode création : insert
-        const feeId = familyFeeId ?? await onEnsureFamilyFee()
-        if (!feeId) { setSaving(false); return }
+      // UNE SEULE ECRITURE POUR LES DEUX MODES, ET ELLE EST ATOMIQUE.
+      //
+      // La ligne de paiement etait ecrite ici, le recapitulatif du dossier
+      // l'etait ensuite dans `FinancementsClient` : deux requetes HTTP, donc un
+      // entre-deux ou le paiement pouvait exister pendant que le dossier gardait
+      // son ancien statut. `fin_enregistrer_paiement` fait les deux dans une
+      // seule transaction et rend le recapitulatif a jour.
+      //
+      // Le paiement part en `jsonb` : c'est PostgreSQL qui le type d'apres la
+      // table (`jsonb_populate_record`), ce qui evite de supposer le type de
+      // `payment_method` ou `payment_reference` — le depot n'a plus de
+      // `schema.sql` depuis le 5 aout.
+      const feeId = isEdit && ep ? ep.family_fee_id : (familyFeeId ?? await onEnsureFamilyFee())
+      if (!feeId) { setSaving(false); return }
 
-        const { data, error: err } = await supabase
-          .from('fee_installments')
-          .insert({
-            family_fee_id:      feeId,
-            installment_number: paymentNumber,
-            due_date:           paidDate,
-            amount_due:         parsedAmount,
-            amount_paid:        parsedAmount,
-            paid_date:          paidDate,
-            payment_method:     safeMethod,
-            payment_reference:  Object.keys(reference).length ? reference : null,
-            receipt_number:     receipt.trim() || null,
-            status:             'paid',
-            notes:              notes.trim() || null,
-          })
-          .select()
-          .single()
-        if (err) throw err
+      const { data: res, error: err } = await supabase.rpc('fin_enregistrer_paiement', {
+        p_fee_id:     feeId,
+        p_subtotal:   subtotal,
+        p_payment_id: isEdit && ep ? ep.id : null,
+        p_paiement: {
+          installment_number: paymentNumber,
+          due_date:           paidDate,
+          amount_due:         parsedAmount,
+          amount_paid:        parsedAmount,
+          paid_date:          paidDate,
+          payment_method:     safeMethod,
+          payment_reference:  Object.keys(reference).length ? reference : null,
+          receipt_number:     receipt.trim() || null,
+          status:             'paid',
+          notes:              notes.trim() || null,
+        },
+      })
+      if (err) throw err
 
-        // Le reçu par email n'est plus envoyé ici (route cassée : garde de rôle
-        // oubliant le comptable + envoi fire-and-forget silencieux). Remplacé par
-        // l'attestation de paiement, envoyée quand le règlement est soldé (lot 2).
-        setSaving(false)
-        onSaved(data as FeeInstallment)
-      }
+      // Le reçu par email n'est plus envoyé ici (route cassée : garde de rôle
+      // oubliant le comptable + envoi fire-and-forget silencieux). Remplacé par
+      // l'attestation de paiement, envoyée quand le règlement est soldé (lot 2).
+      setSaving(false)
+      onSaved(res.paiement as FeeInstallment, res.recap as RecapDossier)
     } catch (e: any) {
       setError(e.message ?? 'Erreur lors de l\'enregistrement.')
       setSaving(false)

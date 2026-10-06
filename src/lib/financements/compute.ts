@@ -32,7 +32,33 @@ export interface FamilyFinancials {
   status: FeeStatus
 }
 
-/** Statut d'un dossier a partir du percu et du du. */
+/**
+ * Le recapitulatif renvoye par les RPC d'ecriture
+ * (`fin_ajouter_reduction`, `fin_supprimer_reduction`,
+ *  `fin_enregistrer_paiement`, `fin_supprimer_paiement`).
+ *
+ * Ces chiffres viennent de la BASE, qui les a calcules dans la meme transaction
+ * que l'ecriture — l'ecran ne refait donc aucun calcul parallele susceptible de
+ * diverger de ce qui est stocke. Voir `add-financement-rpc-atomiques.sql`.
+ */
+export interface RecapDossier {
+  subtotal: number
+  adjustments_total: number
+  total_due: number
+  total_paid: number
+  status: FeeStatus
+}
+
+/**
+ * Statut d'un dossier a partir du percu et du du.
+ *
+ * ── MIROIR SQL : `fin_statut_dossier()` ────────────────────────────────────
+ * Portee en base pour que les RPC d'ecriture puissent conclure dans leur propre
+ * transaction. C'est la SEULE regle de ce fichier dupliquee en SQL, et c'est
+ * assume : le reste (remise fratrie, subtotal) reste ici, parce que le dupliquer
+ * reproduirait le defaut du 17 juillet. **Les deux doivent rester d'accord** —
+ * l'ORDRE des branches est significatif, la migration le teste sur six cas.
+ */
 export function feeStatus(paid: number, due: number): FeeStatus {
   if (paid > due && due > 0) return 'overpaid'
   if (due <= 0)             return 'paid'

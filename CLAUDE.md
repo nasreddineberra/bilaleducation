@@ -4062,6 +4062,95 @@ soit :
 **Verifie le 06/10** : zero occurrence de « Financiers » dans tout `src`, le
 renommage du 29/09 etait complet. Le nom perime ne survit QUE dans ce journal.
 
+#### 6 octobre 2026 (fin) — LES ECRITURES D ARGENT DEVIENNENT ATOMIQUES
+
+Dette signalee le 1er octobre, troisieme reprise une a une. Quatre operations de
+« Reglements » etaient faites de DEUX ecritures successives depuis le navigateur
+— la ligne (paiement ou reduction), puis le recapitulatif `family_fees`. Entre
+les deux, un refus RLS ou une coupure laissait **une reduction enregistree sans
+que ce que doit la famille ait change**, ou un paiement encaisse dont le dossier
+restait « en attente ». Le travail du 01/10 avait rendu l incoherence VISIBLE,
+pas supprimee.
+
+**POSTGREST N A PAS DE TRANSACTION MULTI-REQUETES** : deux `await`, ce sont deux
+requetes HTTP. Seule une RPC peut les lier — meme raisonnement qu `import_foyer`
+le 16 aout. Migration `add-financement-rpc-atomiques.sql` : 4 RPC d ecriture +
+3 fonctions internes, toutes en **SECURITY INVOKER** pour que la RLS du 29/09
+s applique et que les declencheurs d audit des trois tables captent `auth.uid()`
+— une fonction DEFINER ecrirait quatre lignes d argent sans dire QUI.
+
+**LA MESURE A TRANCHE L ARBITRAGE A MA PLACE.** J avais presente deux options
+(la RPC recoit les valeurs calculees, ou elle calcule tout). Deux faits l ont
+decidee :
+1. **`family_fees.subtotal` n est ecrit QU A LA CREATION** et n est jamais
+   rafraichi — la base ne peut donc pas en deriver `total_due` ;
+2. le subtotal vivant repose sur la **remise fratrie** (ordre des enfants,
+   `sibling_discount_same_type`, un enfant sans cotisation qui compte quand meme
+   dans l ordre). Le porter en SQL dupliquerait la regle la plus subtile du
+   module : le defaut du 17 juillet.
+→ **`subtotal` est un PARAMETRE**, la base calcule ce qu elle POSSEDE (somme des
+ajustements, somme des paiements, total du, statut). **Seule duplication
+assumee : `feeStatus`**, cinq lignes, portee en `fin_statut_dossier`.
+
+**CE QUE LA RPC N AJOUTE PAS, et c est dit dans l en-tete** : un appelant
+pourrait passer un faux `subtotal`. Mais il ecrit deja `total_due` en direct, et
+la RLS accorde l ecriture a ces roles — ce n est pas pire. **L apport est
+l ATOMICITE, pas une autorite nouvelle.** Le pretendre aurait ete se mentir.
+
+**UNE INCOHERENCE DISPARAIT AU PASSAGE** : les deux fonctions de PAIEMENT
+calculaient le statut depuis le `total_due` **STOCKE**, quand les deux fonctions
+d AJUSTEMENT partaient du subtotal **VIVANT**. Le meme champ avait deux bases
+selon l operation, et la base stockee pouvait etre perimee.
+
+**TROIS DETAILS DE CONCEPTION QUI ONT COMPTE**
+- **Le paiement part en `jsonb`**, pas en dix parametres : `jsonb_populate_record
+  (null::fee_installments, ...)` le type d apres LA TABLE. On n a donc pas a
+  supposer le type de `payment_method` ni de `status` — **le depot n a plus de
+  `schema.sql` depuis le 5 aout**, et supposer aurait ete le defaut que ce retrait
+  visait. Meme technique pour coercer `status` dans l UPDATE de `family_fees`.
+- **Le dossier se DEDUIT** du paiement ou de la reduction supprimee : un appelant
+  ne choisit pas le dossier qu il recalcule.
+- **`REVOKE ... FROM public, anon`** et non `FROM public` seul : Supabase accorde
+  EXECUTE **nommement** a `anon`, qu un revoke sur le pseudo-role `public` ne
+  retire pas (regle du 3 octobre). La verification finale le controle.
+
+**LE TEST QUI GARDE LA DUPLICATION HONNETE** (`src/lib/financements/compute.test.ts`).
+Une divergence TS / SQL ne leverait AUCUNE erreur : elle afficherait un statut a
+l ecran et en enregistrerait un autre en base. Le fichier compare les deux sur
+une grille de 2 601 couples (bornes exactes comprises), et surtout **il LIT la
+migration** et verifie que ses cinq branches y sont dans l ordre — sans quoi il
+ne prouverait que l accord avec ma propre translitteration.
+- **Eprouve EN ROUGE** : une branche intervertie dans le SQL fait echouer le test
+  avec un message qui dit quoi corriger ; restauration, et il repasse au vert.
+  Empreinte du registre identique apres restauration, donc restitution a l octet.
+- Au passage, deux cas que personne n aurait verifies a la main : **du NUL**
+  (solde, pas « en attente » — branche `due <= 0` placee AVANT `paid >= due`) et
+  **du NEGATIF** (remboursement superieur aux cotisations : « solde » et non
+  « trop percu », parce que la 1re branche exige `due > 0`).
+
+**LE LINT A SERVI DE REVELATEUR, pas de correcteur de style** : `verifierEcriture`
+ET `feeStatus` sont devenus des imports morts dans `FinancementsClient`. Le second
+est un signal — le client ne calcule plus le statut pour ECRIRE, il ne le fait plus
+que pour AFFICHER, via `computeFamilyFinancials`. Ecran et base partent donc des
+memes lignes filles et du meme subtotal. 517 -> 515.
+- **Ma comparaison de depart etait fausse** : j avais lu « 517, niveau inchange »
+  alors que mon recablage avait ajoute un import mort et en avait retire un autre.
+  Comparer un TOTAL ne dit rien de ce qui a bouge.
+
+**SEQUENCEMENT — MIGRATION D ABORD, DEPLOIEMENT ENSUITE.** Cas ADDITIF du README :
+le code deploye AVANT la migration appellerait des fonctions inexistantes et
+casserait Reglements. La migration, elle, ne gene pas le code en place (il
+n appelle pas encore les RPC).
+
+**RESTE OUVERT — point E** : si les inscriptions d un foyer changent et qu aucun
+paiement ni ajustement ne suit, rien ne rafraichit `total_due`. L ecran ne le
+montre pas (il recalcule pour l annee en cours), mais **des la bascule d annee
+`total_due` devient la SOURCE DE VERITE des dettes vives** — `reglements/page.tsx`
+ne charge plus les inscriptions des annees passees, son commentaire le dit. Une
+valeur perimee figee a cet instant devient une dette fausse pour des annees. La
+reponse propre est un **septieme audit dans Passage d annee**, qui compare le
+stocke au recalcul et nomme les foyers qui divergent.
+
 **LA BARRE LATERALE EST DESORMAIS INSENSIBLE A LA LONGUEUR DES LIBELLES.** Ses
 libelles n'avaient JAMAIS porte de `truncate` : un libelle trop long ne se
 coupait pas, il passait a la ligne et deformait le menu. Rien ne l'attrapait —
@@ -5882,6 +5971,11 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   entre la base et le depot. Elle leve si les ancrages ont bouge, et se rejoue sans effet.
   **Jouee le 03/10** : l import de test a ecrit la note medicale de SABER Wassim
   (`ELV-202610-177`) — sans la migration, la valeur aurait ete ignoree EN SILENCE.
+- [ ] **A JOUER AVANT LE PROCHAIN DEPLOIEMENT** — `supabase/migrations/add-financement-rpc-atomiques.sql` :
+  les quatre ecritures d argent de « Reglements » deviennent ATOMIQUES (4 RPC en
+  SECURITY INVOKER). **Cas ADDITIF : la migration d abord, le deploiement ensuite** —
+  le code pousse avant appellerait des fonctions inexistantes et casserait le module.
+  La migration seule ne gene pas le code en place, qui n appelle pas encore les RPC.
 - [x] Executer `supabase/migrations/open-all-registered-to-resp-pedago.sql` : le
   responsable pedagogique lit desormais les messages « tous les contacts »
   (`all_registered`), qu'il ne voyait pas alors que l'enseignant, lui, les voit —
