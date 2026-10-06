@@ -8,6 +8,7 @@ import { createNotification } from '@/lib/notifications'
 import { marqueEcole } from '@/lib/email/marque-ecole'
 import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { formatJourLongFr } from '@/lib/dates'
+import { sanitize } from '@/lib/security/sanitize'
 
 /**
  * Suppression d'un devoir et d'une séance du cahier de texte.
@@ -340,6 +341,16 @@ export async function modifierDevoir(
     : ''
   let echecs = 0
 
+  // Consignes sanitisées : voir la note de `route.ts` (notification de création).
+  // La colonne porte du HTML de SAISIE, pas du HTML de confiance, et cet email
+  // part à toutes les familles de la classe. Calculé une seule fois, la boucle
+  // ci-dessous tournant une fois par FOYER.
+  //
+  // La comparaison `aChangeVisible` ci-dessus reste sur les valeurs BRUTES :
+  // elle répond à « l'auteur a-t-il modifié le champ ? », pas à « le rendu
+  // a-t-il changé ? ».
+  const consignes = sanitize(payload.description_html)
+
   for (const d of destinataires) {
     const titre = d.nom ? `Devoir modifié · ${d.nom}` : 'Devoir modifié'
     const corps = `${payload.title} · ${(hw.classes as { name?: string } | null)?.name ?? ''}`
@@ -359,8 +370,10 @@ export async function modifierDevoir(
           ['À rendre le', formatJourLongFr(payload.due_date)],
           ['Enseignant', teacherLabel],
         ] as [string, string][]).filter(([, v]) => !!v)),
-        payload.description_html
-          ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${payload.description_html}</div>`
+        // Valeur SANITISÉE testée, pas la brute : une consigne réduite à rien
+        // par la sanitisation ne doit pas laisser un encadré bordé vide.
+        consignes.trim()
+          ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${consignes}</div>`
           : '',
       ].filter(Boolean).join('\n'),
       ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },

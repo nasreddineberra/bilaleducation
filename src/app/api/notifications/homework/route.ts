@@ -5,6 +5,7 @@ import { createNotification } from '@/lib/notifications'
 import { requireRole } from '@/lib/auth/requireRole'
 import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { marqueEcole } from '@/lib/email/marque-ecole'
+import { sanitize } from '@/lib/security/sanitize'
 
 export async function POST(req: NextRequest) {
   try {
@@ -111,6 +112,22 @@ export async function POST(req: NextRequest) {
 
     if (recipients.length === 0) return NextResponse.json({ ok: true, sent: 0 })
 
+    // Les consignes viennent de l'editeur riche, donc d'une SAISIE : c'est du
+    // HTML de provenance inconnue, et non du HTML de confiance. La colonne
+    // `description_html` est ecrite DIRECTEMENT depuis le navigateur par
+    // `DevoirForm` — un appel REST peut donc y placer n'importe quoi, et ce mail
+    // part a toutes les familles de la classe. Les modales de detail sanitisent
+    // deja au rendu ; l'email etait le seul consommateur qui l'avait oublie.
+    //
+    // Calcule UNE FOIS, hors de la boucle : `sanitize()` analyse la chaine a
+    // chaque appel (l'instance est en cache, pas l'analyse), et la boucle
+    // ci-dessous tourne une fois par FOYER — soit 200-300 analyses de la meme
+    // chaine sur une classe pleine.
+    //
+    // Config standard, volontairement PAS durcie pour l'email : elle conserve
+    // `style`, dont la palette de couleurs de l'editeur a besoin.
+    const consignes = sanitize(hw.description_html)
+
     // 4. Un mail par foyer, qui nomme qui est concerne.
     let sent = 0
     for (const r of recipients) {
@@ -133,9 +150,11 @@ export async function POST(req: NextRequest) {
             ['À rendre le', `<strong>${dueFormatted}</strong>`],
             ['Enseignant', teacherLabel],
           ] as [string, string][]).filter(([, v]) => !!v)),
-          // Consignes redigees dans l'editeur riche : deja du HTML.
-          hw.description_html
-            ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${hw.description_html}</div>`
+          // On teste la valeur SANITISEE et non la brute : une consigne ne
+          // contenant qu'un `<script>` ressort vide, et un encadre borde vide
+          // se lirait comme un defaut d'affichage. Motif de DevoirDetailModal.
+          consignes.trim()
+            ? `              <div style="background:#faf8f6; border-left:3px solid ${C.bouton}; padding:14px 16px; border-radius:0 8px 8px 0; font-family:${POLICE}; font-size:14px; line-height:1.65; color:${C.encre};">${consignes}</div>`
             : '',
         ].filter(Boolean).join('\n'),
         ecole: { nom: ecole.nom, logoUrl: ecole.logoUrl },

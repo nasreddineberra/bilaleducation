@@ -6399,3 +6399,70 @@ seulement, `public/` et `assets/` restent suivis.
 - A SAVOIR : je ne peux pas lire une video (pas d outil, et `ffmpeg` absent du
   poste). **Des captures ou une description valent mieux** — les quatre etapes
   en images ont suffi a isoler la regression ci-dessus.
+
+#### 6 octobre 2026 — Les emails de devoir partaient avec du HTML non sanitise
+
+Dette signalee le 5 octobre, premiere des quatre reprises une a une. **Le defaut
+etait TOTAL** : la contre-epreuve montre **9 charges sur 9** qui passaient —
+`<script>`, `<iframe>`, `<svg onload>`, `javascript:` (y compris en casse
+melee), `data:text/html`, `onerror`, `onclick`, et un **`<form>` avec champ mot
+de passe**, c est-a-dire un formulaire d hameconnage dans l email signe de
+l ecole, envoye a toutes les familles de la classe.
+
+**LE COMMENTAIRE QUI A CAUSE LA FUITE ETAIT ENCORE EN PLACE** :
+« *Consignes redigees dans l editeur riche : deja du HTML.* » « Deja du HTML » a
+ete lu comme « donc injectable », alors que cela veut dire l inverse — c est du
+HTML **de provenance inconnue**, donc precisement ce qui doit etre sanitise.
+La colonne est ecrite **directement depuis le navigateur** par `DevoirForm` : un
+appel REST y place ce qu il veut.
+
+**LE RELEVE A DONNE EXACTEMENT DEUX FUITES, ET AUCUNE AUTRE** (tous les
+consommateurs des deux colonnes d editeur riche, pas un grep sur un motif
+devine) : l email de **creation** (`route.ts`) et celui de **modification**
+(`actions.ts`, ecrit la veille). Les deux modales de detail sanitisent, la liste
+passe par `stripHtml`, les trois envois de Communications sanitisent deja, et la
+**seance n a aucun consommateur email** — conforme a la decision du 11 juillet.
+
+**TROIS POINTS DE CONCEPTION**
+- **Calcule UNE FOIS, hors de la boucle.** Les deux emails sont construits
+  **par FOYER** : sanitiser a l interieur aurait fait **200-300 analyses jsdom de
+  la meme chaine** sur une classe pleine (l instance DOMPurify est en cache,
+  l analyse non).
+- **On teste la valeur SANITISEE, pas la brute.** Une consigne reduite a rien par
+  la sanitisation laisserait un **encadre borde vide**, qui se lirait comme un
+  defaut d affichage. Motif deja en place dans `DevoirDetailModal`. Eprouve sur
+  4 cas (absente, vide, espaces seuls, reduite a rien).
+- **Config standard, volontairement PAS durcie pour l email.** `sanitize()`
+  conserve `style`, dont la **palette de couleurs** de l editeur a besoin — celle
+  corrigee le 21 septembre ecrit `style="color:#..."`. Une config « email » plus
+  serree aurait efface les couleurs de l enseignant, en silence.
+
+**CE QUI N A PAS ETE FAIT, ET POURQUOI** : sanitiser a l ECRITURE. La creation
+insere depuis le navigateur, il n existe aucun point serveur pour l intercepter ;
+ne le faire que dans `modifierDevoir` stockerait du HTML propre pour un devoir
+modifie et du brut pour un devoir cree — une demi-mesure qui ferait croire au
+prochain lecteur que la colonne est propre. **Doctrine retenue : la colonne porte
+du HTML non fiable, chaque consommateur sanitise.**
+
+**DEUX PIEGES DE VERIFICATION**
+- **`sanitize.ts` NE SE CHARGE PAS EN NODE ESM NU.** Son `require('jsdom')` est
+  fourni par le bundler ; Node detecte la syntaxe ESM du fichier, le charge en
+  ESM, et `require` n y existe pas (`ReferenceError`). Le test du 20 septembre
+  (`node -e "require('jsdom')"`) passait justement parce qu il etait en CJS.
+  Pour eprouver ce module hors Next : poser `globalThis.require =
+  createRequire(import.meta.url)` **puis** importer dynamiquement (un import
+  statique serait hisse et evalue avant).
+- **PREMIER APPEL DE `sanitize()` DEPUIS UN *ROUTE HANDLER*** et non une server
+  action. Verifie plutot que suppose : aucune route n est en runtime `edge` (jsdom
+  n y fonctionnerait pas), `require('jsdom')` passe sous le drapeau de Vercel
+  (`--no-experimental-require-module`), et le build trace **499 fichiers jsdom**
+  pour cette route — **exactement le meme compte** que le chemin Communications
+  eprouve en production le 20 septembre. Donc paquet reel livre et `require` au
+  runtime, pas recopie dans le bundle.
+
+**UN TEST JAMAIS VU ROUGE NE PROUVE RIEN** : la verification rejoue la
+composition d email REELLE (coque + tableau + encadre), pas `sanitize()` en
+isolation, et porte un **temoin** (une consigne ordinaire doit produire
+l encadre et son texte — sans lui, une fonction qui renverrait une chaine vide
+ferait passer toutes les charges) plus une **contre-epreuve** sur l ancienne
+composition. 19 cas, puis script supprime.
