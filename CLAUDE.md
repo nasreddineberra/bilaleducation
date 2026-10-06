@@ -4142,6 +4142,17 @@ le code deploye AVANT la migration appellerait des fonctions inexistantes et
 casserait Reglements. La migration, elle, ne gene pas le code en place (il
 n appelle pas encore les RPC).
 
+**VERIFIE LE 06/10, DANS CET ORDRE** : migration jouee, puis le controle 06 sur un dossier
+REEL (subtotal 280, deja 180 percus) — et c est son arithmetique qui prouve, pas ses « OK ».
+Les quatre operations se sont revelees **mutuellement inverses** : 280/180 au depart,
+250 apres la reduction, 230 puis 260 percus, et retour exact a 280/180 a la fin. Le passage
+a 80 a franchi le seuil et declenche **`overpaid`** — la branche la plus delicate de
+`feeStatus` a donc ete exercee POUR DE VRAI, pas seulement en test unitaire. La preuve du
+risque principal tient en une ligne du rapport : `moyen relu=cash  reference relue={"bank":
+"LCL", "check_number": "CTRL-06"}` — `jsonb_populate_record` a coerce d apres la table, y
+compris le jsonb imbrique, sans qu on ait jamais vu le schema. Enseignant refuse en 42501.
+Puis **verifie a l ecran** par l utilisateur sur les cinq gestes.
+
 **RESTE OUVERT — point E** : si les inscriptions d un foyer changent et qu aucun
 paiement ni ajustement ne suit, rien ne rafraichit `total_due`. L ecran ne le
 montre pas (il recalcule pour l annee en cours), mais **des la bascule d annee
@@ -5971,7 +5982,10 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   entre la base et le depot. Elle leve si les ancrages ont bouge, et se rejoue sans effet.
   **Jouee le 03/10** : l import de test a ecrit la note medicale de SABER Wassim
   (`ELV-202610-177`) — sans la migration, la valeur aurait ete ignoree EN SILENCE.
-- [ ] **A JOUER AVANT LE PROCHAIN DEPLOIEMENT** — `supabase/migrations/add-financement-rpc-atomiques.sql` :
+- [x] Executer `supabase/migrations/add-financement-rpc-atomiques.sql` — **JOUEE le 06/10**,
+  puis `supabase/controles/06-financements-rpc-atomiques.sql` passe (les 4 RPC exercees sur un
+  dossier reel, tout annule), puis **verifie a l ecran** : paiement enregistre / modifie /
+  supprime, reduction ajoutee / retiree. Texte d origine :
   les quatre ecritures d argent de « Reglements » deviennent ATOMIQUES (4 RPC en
   SECURITY INVOKER). **Cas ADDITIF : la migration d abord, le deploiement ensuite** —
   le code pousse avant appellerait des fonctions inexistantes et casserait le module.
