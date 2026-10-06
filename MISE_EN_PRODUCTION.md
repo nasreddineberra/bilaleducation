@@ -571,6 +571,20 @@ cohérent. Trois blocs, dans cet ordre.
 - [ ] **Moi** — Effacer les données de test (`supabase/clean-all-data.sql`).
 - [ ] **Moi** — Créer l'établissement réel, son `admin` et sa `direction`.
 - [ ] **Toi** — Former les utilisateurs, en commençant par la direction.
+- [ ] **Toi** — **Passer Vercel en Pro** (~20 $/mois, déjà au budget : l'activité devient
+      commerciale), **puis ACTIVER la Skew Protection dans la foulée** —
+      *Settings → Advanced → Skew Protection*. Vérifié le 6 octobre : l'option est bien là,
+      mais **réservée à l'offre Pro** (interrupteur grisé, bouton « Upgrade »).
+      - **Ce qu'elle apporte, et que la bannière ne peut pas donner** : les requêtes d'un
+        onglet ancien sont routées vers **la version d'où il vient**, donc l'action
+        **RÉUSSIT** au lieu d'échouer. Aujourd'hui, sans elle, un onglet ouvert au moment
+        d'une mise en ligne voit son prochain enregistrement échouer sur un message anglais
+        du framework — vécu le 6 octobre.
+      - **La bannière « Une nouvelle version est disponible » reste utile ensuite** : la Skew
+        Protection a une fenêtre de rétention, elle ne couvre pas l'onglet laissé ouvert des
+        jours. Les deux se complètent, l'une n'annule pas l'autre.
+      - **À ne pas oublier au moment de payer** : c'est un interrupteur, pas un réglage
+        automatique. Payer Pro sans l'activer ne change rien.
 
 ---
 
