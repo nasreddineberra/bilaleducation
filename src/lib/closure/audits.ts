@@ -117,7 +117,8 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
       // La fiche du FOYER : c'est elle qui porte `tutorN_adult_courses`, la case
       // dont la coche sans inscription produit l'anomalie.
       ...adultesNonAffectes.map(a => ({
-        label: `${a.label} (adulte)`,
+        label: a.label,
+        badge: 'adulte',
         detail: 'Non affecté',
         href: `/dashboard/parents/${a.parentId}?from=audit`,
       })),
@@ -140,7 +141,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     .select('student_id, period_id, students:student_id(first_name, last_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
     .in('period_id', ctx.periodIds).eq('is_justified', false).eq('absence_type', 'absence')
 
-  const byStudent = new Map<string, { name: string; count: number; perPeriod: Map<string, number>; cls: any }>()
+  const byStudent = new Map<string, { name: string; adulte?: boolean; count: number; perPeriod: Map<string, number>; cls: any }>()
   for (const a of (abs ?? []) as any[]) {
     const cur = byStudent.get(a.student_id) ?? { name: nom(a.students?.last_name, a.students?.first_name), count: 0, perPeriod: new Map<string, number>(), cls: a.classes }
     cur.count++
@@ -161,7 +162,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     const nomA = a.tutor_number === 2
       ? nom(a.parents?.tutor2_last_name, a.parents?.tutor2_first_name)
       : nom(a.parents?.tutor1_last_name, a.parents?.tutor1_first_name)
-    const cur = byStudent.get(cle) ?? { name: `${nomA} (adulte)`, count: 0, perPeriod: new Map<string, number>(), cls: a.classes }
+    const cur = byStudent.get(cle) ?? { name: nomA, adulte: true, count: 0, perPeriod: new Map<string, number>(), cls: a.classes }
     cur.count++
     cur.perPeriod.set(a.period_id, (cur.perPeriod.get(a.period_id) ?? 0) + 1)
     byStudent.set(cle, cur)
@@ -180,6 +181,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     anomalies: total,
     items: ordonnerAnomalies(list.map(s => ({
       label: s.name,
+      ...(s.adulte ? { badge: 'adulte' } : {}),
       className: s.cls?.name,
       classInfo: classInfoOf(s.cls),
       detail: `${s.count} non justifiée(s) · ${perPeriodLabel(s.perPeriod)}`,
@@ -370,7 +372,7 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
       const miss = ctx.periodIds.filter(pid => !have.has(`${p.parent_id}|${p.tutor_number}|${p.class_id}|${pid}`))
       if (miss.length > 0) {
         adultMissing++
-        items.push({ label: `${name} (adulte)`, detail: `manque ${miss.map(periodLabel).join(', ')}`, href: '/dashboard/bulletins' })
+        items.push({ label: name, badge: 'adulte', detail: `manque ${miss.map(periodLabel).join(', ')}`, href: '/dashboard/bulletins' })
       }
     }
   }

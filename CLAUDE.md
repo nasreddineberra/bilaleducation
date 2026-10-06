@@ -7126,3 +7126,32 @@ resultat d AVANT la correction — un resultat d audit est un INSTANTANE, c est
 toute la conception du 9 aout (« relancer un audit remplace son resultat »). Il
 faut donc le relancer pour voir la ligne disparaitre. Le bouton est a cote.
 
+#### 6 octobre 2026 (fin) — « adulte » devient une PASTILLE, et non un suffixe
+
+Demande de l utilisateur : distinguer visuellement un adulte d un apprenant dans
+les listes d anomalies. « (adulte) » etait colle au libelle, perdu au milieu du
+texte — trois audits le faisaient (affectations, absences, bulletins).
+
+**CHAMP SEPARE (`badge`) ET NON SUFFIXE DE CHAINE**, et ce n est pas cosmetique :
+le libelle ORDONNE la liste depuis ce matin. Une parenthese y entrait dans la
+comparaison alphabetique. Le nom redevient un nom.
+
+**VIOLET, ET LE CHOIX SE MESURE.** Deux conventions coexistaient : une pastille
+`text-primary-700 bg-primary-50` sur la fiche parent, et un `text-violet-700`
+pour l entete « Cours adultes » du recapitulatif de Financements. **Le lien
+« Corriger » de la meme ligne est deja en `text-primary-700`** : une pastille
+turquoise a cote se serait concurrencee avec lui. Le violet evite la collision
+ET a son precedent pour cette categorie meme. Regle respectee : aucune couleur
+NOUVELLE — on reprend une valeur existante.
+- NB : « adulte » est une CATEGORIE, pas un etat. Le projet distingue les deux
+  depuis le 2 aout (« les verts de categorie sont conserves »), et `primary` sert
+  massivement aux etats — raison de plus de ne pas le prendre ici.
+
+**VERIFIE DANS LE CSS SERVI** : `.text-violet-700` et `.bg-violet-50` sont emises
+ET remappees par le pont sombre (`:root[data-theme=dark] :is(#main-content, ...)`),
+et la page vit dans `#main-content`.
+- **PIEGE DE MESURE, evite de justesse** : `grep -c` compte des LIGNES, et un CSS
+  minifie n en a qu UNE. Mon premier releve annoncait « 1 occurrence » pour
+  chaque classe, ce qui aurait pu passer pour « emise mais pas remappee ». Il en
+  y a 3 et 16. **Sur un fichier minifie, compter avec `grep -o | wc -l`.**
+

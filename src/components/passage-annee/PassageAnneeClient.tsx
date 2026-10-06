@@ -412,6 +412,18 @@ export default function PassageAnneeClient({
                           <li key={i} className="px-2.5 py-1 flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <span className="text-[11px] font-medium text-secondary-800">{it.label}</span>
+                              {/* Categorie du participant. VIOLET et non `primary` :
+                                  le lien « Corriger » de la meme ligne est deja en
+                                  `text-primary-700`, deux turquoises se seraient
+                                  concurrences. Le violet a son precedent pour cette
+                                  categorie meme — l'entete « Cours adultes » du
+                                  recapitulatif de Financements — et il est couvert
+                                  par le pont sombre (verifie dans globals.css). */}
+                              {it.badge && (
+                                <span className="ml-1.5 text-[10px] font-semibold text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                  {it.badge}
+                                </span>
+                              )}
                               {it.className && (
                                 <Tooltip content={it.classInfo ?? it.className} maxWidth="max-w-none">
                                   <span className="ml-1.5 text-[11px] text-warm-700 whitespace-nowrap">{it.className}</span>

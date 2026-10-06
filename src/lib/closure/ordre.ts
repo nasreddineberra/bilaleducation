@@ -12,6 +12,15 @@ export interface AuditItem {
   classInfo?: string
   detail?: string
   href?: string
+  /**
+   * Categorie du participant, rendue en pastille coloree a cote du nom.
+   *
+   * Un ADULTE et un APPRENANT se ressemblaient dans la liste : seul « (adulte) »
+   * colle au libelle les distinguait, perdu au milieu du texte. Champ separe et
+   * non suffixe de chaine : le libelle reste un NOM — c'est lui qui ordonne la
+   * liste, et une parenthese y entrait dans le tri.
+   */
+  badge?: string
 }
 
 export const ITEMS_CAP = 100
