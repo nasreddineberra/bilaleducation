@@ -6730,6 +6730,11 @@ ordre par magnitude oblige a parcourir toute la liste.
     `/tmp` (que Git Bash resout) pendant que je la relisais dans le scratchpad.
     Le piege `/tmp` du projet, repaye. Fichier remis depuis la vraie sauvegarde.
 
+**VERIFIE A L ECRAN par l utilisateur** (06/10) : l audit Financements passe,
+« Corriger » ouvre bien la fiche du foyer, le doublon a disparu, et le nouvel
+ordre alphabetique est constate sur DEUX audits relances — donc la regle vaut
+bien au-dela de celui qui l a motivee.
+
 **LINT : 515 -> 516, et le +1 est delibere.** Mes deux premiers essais en
 avaient ajoute trois ; deux etaient des `any` evitables, remplaces par un type
 local `LigneFeeStockee`. Le dernier est un `catch (e: any)` **identique a ses
