@@ -5753,10 +5753,19 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
     sur l hote exact et la session marcherait tout autant AU SEIN d un hote. Seule la mesure
     tranchait. `MISE_EN_PRODUCTION.md` la disait d ailleurs posee depuis le debut ; c est ce
     journal qui en doutait.
-  - **RESTE a verifier (celui-la, je ne peux pas)** : que l URL figure dans les **Redirect URLs**
-    du projet Supabase (Auth → URL Configuration) — sans quoi `redirect_to` est ignore et
-    l utilisateur atterrit sur la vitrine, jeton en main, sans que rien ne se passe (echec
-    silencieux, note du 8 aout).
+  - **COTE SUPABASE, VERIFIE AUSSI le 06/10** (capture utilisateur, Auth → URL Configuration) :
+    *Site URL* = `https://bilaleducation.fr`, **identique** a `NEXT_PUBLIC_SITE_URL` — deux
+    reglages dans deux consoles differentes, leur accord n allait pas de soi. *Redirect URLs* =
+    `https://*.bilaleducation.fr/**`, l unique entree, conforme au 8 aout.
+    - **LE `*` ET LE `**` NE SONT PAS INTERCHANGEABLES, et leur placement fait ici un travail de
+      SECURITE.** Le `*` du domaine ne couvre QU UN SEUL NIVEAU : `ecole.bilaleducation.fr`
+      passe, `www.ecole.bilaleducation.fr` **non**. C est exactement la contrainte du certificat
+      generique (8 aout) — un joker TLS ne couvre qu un niveau, et l echec survient AVANT toute
+      requete HTTP, donc aucun middleware ne peut le rattraper. L allow-list refuse ainsi ce que
+      le certificat ne couvrirait pas. Le `**` final autorise n importe quel CHEMIN, ce qu il
+      faut : les liens atterrissent sur `/auth/confirm`, `/auth/callback` ou
+      `/auth/reset-password`.
+    - L apex n a pas a y figurer : Supabase autorise toujours la *Site URL*.
 - [x] **Duree de validite des liens auth** verifiee le 8 aout (Supabase → Auth → *Email OTP
   expiration*) : **10 minutes**, et non 1 h. Les liens de reinitialisation sont a **usage unique**.
   Le gabarit annonce desormais la bonne duree (constante `VALIDITE`). **Reserve** : 10 min est
