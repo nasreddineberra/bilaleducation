@@ -7155,8 +7155,8 @@ et la page vit dans `#main-content`.
   chaque classe, ce qui aurait pu passer pour « emise mais pas remappee ». Il en
   y a 3 et 16. **Sur un fichier minifie, compter avec `grep -o | wc -l`.**
 
-**VERIFIE A L ECRAN par l utilisateur** (06/10) : la pastille. Le RETOUR PAR
-ORIGINE et la MEMOIRE DU DEPLIE, eux, ne se constatent qu en faisant l
-aller-retour complet vers une fiche — a eprouver au prochain usage reel des
-audits.
+**VERIFIE A L ECRAN par l utilisateur** (06/10) : la pastille, PUIS l aller-retour
+complet — « Corriger » mene a la fiche, le retour ramene a l audit, et le detail
+deplie est retrouve. Les trois ajouts du soir sont donc eprouves, pas seulement
+compiles.
 
