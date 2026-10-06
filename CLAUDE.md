@@ -7263,3 +7263,10 @@ avec un avertissement de MOINS** (515 — un `as any` retire du select de
 Notifications, le setter prenant desormais une chaine), build complet. Et les
 **trois pages de liste relisent bien `q` / `filter` / `page`** : sans cette
 derniere mesure, le voyage aurait pu etre parfait et inutile.
+
+**VERIFIE A L ECRAN par l utilisateur** (06/10) : les deux mecaniques eprouvees
+separement — une liste a URL (Apprenants) et une liste a `sessionStorage`
+(Utilisateurs / Notifications) — AINSI QUE la non-regression de l origine
+(« Corriger » depuis un audit ramene toujours a l audit). Ce dernier point est
+celui qui comptait : les trois tests le figent, mais seul un navigateur prouve
+que les deux regles se superposent sans se contredire.
