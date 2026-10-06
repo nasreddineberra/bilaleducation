@@ -28,6 +28,8 @@ interface Props {
   canValidate: boolean
   isTeacher: boolean
   isOwnSlot?: boolean
+  /** Qui couvre la classe ce jour-la, quand l'enseignant du creneau est absent. */
+  remplacantNom?: string | null
   validated: boolean
   /** Nombre de créneaux se partageant la largeur : pilote la densité d'affichage. */
   groupSize?: number
@@ -42,7 +44,7 @@ interface Props {
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false,
+  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplacantNom = null,
   validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onContextMenu, onKeyMenu,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -94,6 +96,13 @@ export default function SlotCapsule({
   // (`guard-presence-absence-exclusivity`) ; ceci l'annonce AVANT le clic.
   const absent = !!slot.teacherAbsent
 
+  // LE BADGE D'ABSENCE N'EST PAS UN CONTROLE DE VALIDATION, c'est un MARQUEUR
+  // D'ETAT — il ne depend donc pas de `canValidate`, la garde de date qui
+  // n'autorise le ✓ qu'a partir du jour de la seance. Sans cette distinction,
+  // une absence FUTURE (conge pose a l'avance) afficherait les hachures sans un
+  // mot d'explication : c'est le badge qui porte l'infobulle.
+  const marqueurAbsence = absent && (canEdit || (isTeacher && isOwnSlot)) && slot.slot_type !== 'pause'
+
   // Libellé du créneau — cours, classe/prof selon la vue, salle, horaire, statut.
   //
   // DEUX LECTURES, DEUX FORMES. L'`aria-label` reste d'un seul tenant : les
@@ -133,6 +142,9 @@ export default function SlotCapsule({
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1',
         menuActive && 'ring-2 ring-secondary-600 ring-offset-1 shadow-lg',
         colorClass,
+        // L'absence se marque par des HACHURES et non par une baisse d'opacite
+        // (qui ferait tomber le contraste des libelles). Voir `.edt-slot-absent`.
+        absent && 'edt-slot-absent',
         noTeacher && 'border-dashed border-orange-400',
         !noTeacher && slot.isModified && MODIFIED_BORDER,
         isDragging && 'opacity-30 scale-95',
@@ -217,12 +229,16 @@ export default function SlotCapsule({
       </Tooltip>
 
       {/* Validation impossible : la personne est absente ce demi-jour */}
-      {showValidation && absent && (
+      {marqueurAbsence && (
         <div className="absolute bottom-1 right-1" onClick={e => e.stopPropagation()}>
-          <Tooltip content="Absent ce jour : la présence ne peut pas être validée">
+          <Tooltip content={remplacantNom
+            ? `Absent ce jour · remplacé par ${remplacantNom}. La présence ne peut pas être validée.`
+            : 'Absent ce jour, et AUCUN remplaçant déclaré. La présence ne peut pas être validée.'}>
             <span
               role="img"
-              aria-label={`Présence non validable, absence enregistrée : ${ariaLabel}`}
+              aria-label={remplacantNom
+                ? `Présence non validable, absence enregistrée, remplacé par ${remplacantNom} : ${ariaLabel}`
+                : `Présence non validable, absence enregistrée, aucun remplaçant déclaré : ${ariaLabel}`}
               className="w-[15px] h-[15px] rounded border border-red-300 bg-red-50 text-red-500 flex items-center justify-center cursor-not-allowed"
             >
               <Ban size={10} strokeWidth={2.5} />

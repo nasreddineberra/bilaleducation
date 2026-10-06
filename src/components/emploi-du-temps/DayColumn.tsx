@@ -25,6 +25,8 @@ interface Props {
   /** « J'enseigne cette classe ce jour-la » — titulaire OU remplacant. Voir
    *  `jEnseigneCetteClasse` dans `EmploiDuTempsClient`. */
   jEnseigneCetteClasse?: (classId?: string | null, date?: string | null) => boolean
+  /** Qui couvre cette classe ce jour-la, hors l'enseignant du creneau. */
+  remplacantDeLaClasse?: (classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => string | null
   isValidated: (sourceSlotId: string, slotDate: string) => boolean
   onValidate: (slot: ResolvedSlot) => void
   onCancelValidation: (sourceSlotId: string, slotDate: string) => void
@@ -59,7 +61,7 @@ function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heigh
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
-  isTeacher, currentTeacherId, jEnseigneCetteClasse, fermeture, isValidated, onValidate, onCancelValidation,
+  isTeacher, currentTeacherId, jEnseigneCetteClasse, remplacantDeLaClasse, fermeture, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
@@ -187,6 +189,11 @@ export default function DayColumn({
               // qu'il assure, et elle ne serait comptee pour personne.
               isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId)
                          || jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
+              // Calcule ici seulement quand il sert : la capsule n'en a besoin
+              // que si l'enseignant du creneau est absent.
+              remplacantNom={slot.teacherAbsent
+                ? remplacantDeLaClasse?.(slot.class_id, dateStr, slot.teacher_id) ?? null
+                : null}
               validated={isValidated(slot.sourceSlotId, dateStr)}
               draggable={droppable}
               onValidate={() => onValidate(slot)}

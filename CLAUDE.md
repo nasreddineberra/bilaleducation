@@ -7016,3 +7016,49 @@ du planning qu on vient de lui rendre, pour fermer un document qui ne porte ni
 note, ni absence, ni montant. Le commentaire de `EmploiDuTempsClient` qui
 presentait ce bornage comme « a faire » est corrige.
 
+#### 6 octobre 2026 (fin) — CE QUE VOIT LE TITULAIRE ABSENT
+
+Question de l utilisateur dans la foulee : et le titulaire, que voit-il de la
+seance ou il est absent ? La mesure a montre un socle SAIN et deux manques.
+
+**CE QUI MARCHAIT DEJA** : le creneau reste VISIBLE (il porte son identifiant,
+il passe son filtre), un badge rouge barre remplace le ✓, et la detection croise
+les PLAGES HORAIRES de l absence avec celles du creneau. C est fin : le module
+Temps de presence ecrit **une ligne par creneau manque**, avec ses vrais
+horaires — pas une ligne « journee » vague. Une absence du MATIN ne barre donc
+que les seances du matin.
+
+**MANQUE 1 — il ne savait pas si la classe etait couverte, ni par qui.** La
+capsule affiche son propre nom, barre. `remplacantDeLaClasse` repond desormais
+dans l infobulle du badge : « Absent ce jour · remplace par X » — ou, et c est au
+moins aussi utile, « Absent ce jour, et AUCUN remplacant declare ».
+
+**MANQUE 2 — le marquage etait trop discret** : seul un badge de 15 px changeait.
+Classe `.edt-slot-absent` : **hachures en surcouche**, et NON une baisse
+d opacite — reduire l opacite ferait tomber le contraste des libelles, que la
+passe du 18 juillet a precisement releve. Le texte reste intact, seule la surface
+est barree. `pointer-events: none` pour ne pas intercepter le menu « ... », le
+badge ni le glisser-deposer.
+
+**TROIS POINTS QUE LA MESURE A CORRIGES EN COURS DE ROUTE**
+- **L infobulle de la CAPSULE n existe que sur un creneau dense ou court** (ailleurs
+  `content=''` + `pointer-events-none`). Y ajouter le nom du remplacant n aurait
+  rien montre sur un creneau normal. L information est donc allee sur l infobulle
+  du BADGE, toujours rendue — et c est la que l utilisateur survole deja pour
+  comprendre la marque.
+- **Le badge dependait de `canValidate`**, la garde de date qui n autorise le ✓
+  qu a partir du jour de la seance. Une absence FUTURE (conge pose a l avance)
+  aurait donc affiche les hachures SANS un mot d explication. Le badge n est pas
+  un controle de validation mais un MARQUEUR D ETAT : il en est decouple
+  (`marqueurAbsence`).
+- **Jeton `--edt-absent-hachure` par theme**, jamais une valeur dans la regle
+  (faute payee trois fois : `SIDEBAR_COLOR` sur l EDT, `#f0f5f7` et le degrade
+  recopie sur la connexion). Teinte d ENCRE et pas de rouge : le creneau a bien
+  lieu — c est la presence qui manque, pas la seance. Le rouge reste au badge,
+  qui porte l action refusee.
+
+**VERIFIE DANS LE CSS SERVI** (le fichier source ne prouve rien, le pont a ete
+casse deux fois) : `.edt-slot-absent:after` emis avec `position:absolute;inset:0`
+et `pointer-events:none`, et le jeton present dans les DEUX themes
+(`#2f455029` clair, `#ffffff24` sombre — le minifieur a converti les `rgba`).
+

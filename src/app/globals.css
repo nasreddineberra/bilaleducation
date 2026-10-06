@@ -128,6 +128,15 @@
        aucun rapport d'échelle. Ici, panneau `--brand-surface` = #0c5b51. */
     --logo-shadow:    0 12px 28px rgba(0,0,0,.70);
 
+    /* Hachures d un creneau d EDT dont l enseignant est absent. Jeton et non
+       valeur en dur : toutes les teintes du projet se declarent par theme, et
+       une valeur ecrite dans la regle a deja ete payee trois fois (SIDEBAR_COLOR
+       sur l EDT, #f0f5f7 et le degrade recopie sur la connexion).
+       Teinte d encre, PAS de rouge : le creneau a bien lieu — c est la presence
+       qui manque, pas la seance. Le rouge est reserve au badge, qui porte
+       l action refusee. */
+    --edt-absent-hachure: rgba(47,69,80,.16);
+
     /* Widgets NATIFS (icône d'horloge de <input type="time">, calendrier,
        liste déroulante d'un <select>, ascenseurs) : dessinés par le navigateur,
        inaccessibles à notre CSS. Seul `color-scheme` les fait basculer. */
@@ -166,6 +175,10 @@
     /* Panneau de marque plus sombre ici (#18242a) : une ombre noire y a moins
        de matière contre quoi se détacher, d'où la densité relevée. */
     --logo-shadow:    0 12px 28px rgba(0,0,0,.80);
+
+    /* Plus claire en sombre : des hachures sombres sur un aplat sombre ne se
+       verraient pas. */
+    --edt-absent-hachure: rgba(255,255,255,.14);
     --silhouette-ink: #8d9aa1;
 
     color-scheme: dark;
@@ -493,6 +506,27 @@
    Liseré accent en ombre INTERNE (et non en `border-color`) pour ne disputer
    la bordure à personne — le ✓ du coin reste le signal principal. */
 .edt-slot-validated { box-shadow: inset 0 0 0 2px var(--brand-accent); }
+
+/* Creneau dont l ENSEIGNANT EST ABSENT. Hachures legeres en surcouche, et non
+   une baisse d opacite : reduire l opacite ferait tomber le contraste des
+   libelles, que la passe du 18 juillet a precisement releve (warm-400 etait a
+   2,06:1). Le texte reste intact, seule la surface est barree.
+   `pointer-events: none` : la surcouche ne doit intercepter ni le menu « ... »,
+   ni le badge de validation, ni le glisser-deposer.
+   La capsule porte deja `overflow-hidden`, les hachures sont donc rognees a ses
+   coins arrondis. */
+.edt-slot-absent { position: relative; }
+.edt-slot-absent::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 5px,
+    var(--edt-absent-hachure) 5px 7px
+  );
+}
 
 /* ── Grille horaire de l'emploi du temps ───────────────────────────────────
    Hiérarchie voulue : heure > demie > quart d'heure. Elle passait par des

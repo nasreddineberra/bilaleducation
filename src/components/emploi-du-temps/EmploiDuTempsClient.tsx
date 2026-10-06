@@ -355,6 +355,24 @@ export default function EmploiDuTempsClient({
     )
   }, [classes, ownTeacherId])
 
+  /**
+   * Qui couvre cette classe ce jour-la, AUTRE que l'enseignant du creneau.
+   *
+   * Sert au titulaire ABSENT : sa capsule porte son propre nom, et rien ne lui
+   * disait si la classe etait couverte — ni par qui. `ClassForm` garantit un
+   * seul remplacant par periode (garde anti-chevauchement du 13 juillet), on
+   * rend donc le premier trouve.
+   */
+  const remplacantDeLaClasse = useCallback((classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => {
+    if (!classId || !date) return null
+    const cls = classes.find(c => c.id === classId)
+    const ct = (cls?.class_teachers ?? []).find(a =>
+      a.teacher_id !== exclureTeacherId
+      && (!a.effective_from  || a.effective_from  <= date)
+      && (!a.effective_until || a.effective_until >= date))
+    return ct?.teachers ? nomEnseignantCivilite(ct.teachers) : null
+  }, [classes])
+
   const jEnseigneCetteClasse = useCallback((classId?: string | null, date?: string | null) => {
     if (!classId || !date) return false
     // Comparaison de chaines `AAAA-MM-JJ` : exacte, et sans objet `Date`, donc
@@ -2017,6 +2035,7 @@ export default function EmploiDuTempsClient({
                   isTeacher={role === 'enseignant'}
                   currentTeacherId={ownTeacherId}
                   jEnseigneCetteClasse={jEnseigneCetteClasse}
+                  remplacantDeLaClasse={remplacantDeLaClasse}
                   fermeture={fermeture}
                   droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}
