@@ -48,6 +48,17 @@ function nom(last?: string | null, first?: string | null): string {
 }
 function cap<T>(arr: T[]): T[] { return arr.slice(0, ITEMS_CAP) }
 
+/**
+ * Le lien « Corriger » d'un foyer, qui OUVRE sa fiche de reglement.
+ *
+ * `reglements/page.tsx` lit `?parent=` et le passe en `initialParentId` : la
+ * capacite existait, l'audit ne s'en servait pas et deposait tout le monde sur
+ * la meme page vide.
+ */
+function lienFoyer(parentId: string): string {
+  return `/dashboard/financements/reglements?parent=${parentId}`
+}
+
 // ─── 1. Affectations (bloquant) : participants sans classe de l'annee ───────
 //
 // ELEVES **ET** ADULTES. L'audit ne regardait que `students` : un adulte inscrit
@@ -429,7 +440,16 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
   // depuis les inscriptions, pas depuis `family_fees`). On les signale donc
   // sans les compter en anomalie — le risque n'existe que pour une annee qui
   // ne serait jamais archivee.
+  //
+  // ── ET ON NE LES LISTE PAS A PART ────────────────────────────────────────
+  //
+  // Un foyer sans dossier n'a aucun versement enregistre, donc `remaining`
+  // vaut tout son du : il est TOUJOURS deja dans `debtors`. Les deux listes se
+  // recouvrent entierement, et la premiere version affichait donc la meme
+  // famille DEUX FOIS, avec le meme montant (vu a l'ecran le 06/10). La
+  // mention rejoint la ligne de debiteur au lieu d'en creer une seconde.
   const sansDossier = fin.rows.filter(r => r.storedDue === null && r.totalDue > 0)
+  const sansDossierIds = new Set(sansDossier.map(r => r.parentId))
 
   const parts: string[] = []
   if (debtors.length > 0) parts.push(`${debtors.length} foyer(s) débiteur(s) · reste ${eur(fin.kpi.outstanding)}`)
@@ -443,17 +463,22 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
     // depuis l'ecran, et ce qui empeche de cloturer sans les avoir vus.
     anomalies: debtors.length + perimes.length,
     aRafraichir: perimes.length,
+    // « Corriger » MENE AU FOYER, pas au module. L'ecran accepte `?parent=`
+    // depuis toujours (`reglements/page.tsx`), le lien ne s'en servait pas :
+    // l'audit nommait sept familles et chaque clic deposait sur la meme page,
+    // devant « Selectionnez une famille ». Signale a l'ecran le 06/10.
     items: cap([
       ...perimes.map(r => ({
         label: r.parentLabel,
         detail: `montant enregistré ${eur(r.storedDue!)} au lieu de ${eur(r.totalDue)} · à rafraîchir`,
-        href: '/dashboard/financements/reglements',
+        href: lienFoyer(r.parentId),
       })),
-      ...debtors.map(r => ({ label: r.parentLabel, detail: `reste ${eur(r.remaining)}`, href: '/dashboard/financements/reglements' })),
-      ...sansDossier.map(r => ({
+      ...debtors.map(r => ({
         label: r.parentLabel,
-        detail: `doit ${eur(r.totalDue)}, aucun dossier ouvert (l’archivage le couvre)`,
-        href: '/dashboard/financements/reglements',
+        detail: sansDossierIds.has(r.parentId)
+          ? `reste ${eur(r.remaining)} · aucun dossier ouvert (l’archivage le couvre)`
+          : `reste ${eur(r.remaining)}`,
+        href: lienFoyer(r.parentId),
       })),
     ]),
     summary: parts.length === 0 ? 'Tous les foyers sont soldés.' : parts.join(' · ') + '.',
