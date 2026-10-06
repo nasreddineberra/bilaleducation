@@ -7160,3 +7160,106 @@ complet — « Corriger » mene a la fiche, le retour ramene a l audit, et le de
 deplie est retrouve. Les trois ajouts du soir sont donc eprouves, pas seulement
 compiles.
 
+
+#### 6 octobre 2026 (fin) — LES FILTRES DES SIX LISTES SURVIVENT A L ALLER-RETOUR
+
+Signale par l utilisateur juste apres le retour par origine : on filtre une
+liste (carte cliquable), on ouvre une fiche, on revient — la liste est
+**entierement defiltree**. Sur 221 apprenants ou 134 foyers, c est le geste
+qu on repete a chaque correction. Le perimetre a ete porte d emblee a **toutes
+les listes a filtres**, pas aux deux signalees.
+
+**L INVENTAIRE A DICTE LE PLAN, parce qu il n y a pas UNE mecanique mais DEUX.**
+
+| Liste | Etat perdu | Ou vit l etat |
+|---|---|---|
+| Apprenants / Parents / Enseignants | carte + recherche + page | **URL** (`?filter=&q=&page=`) |
+| Utilisateurs | carte + recherche + onglet | **etat local** |
+| Classes | recherche | **etat local** |
+| Notifications | 2 filtres + recherche | **etat local** |
+
+- **Les trois a URL** filtrent cote SERVEUR, avec pagination : il n y avait
+  **rien a construire**, seulement trois cles a faire voyager jusqu a la fiche
+  et a rendre au retour (`lib/navigation/retour`).
+- **Les trois a etat local** filtrent cote CLIENT sur un tableau deja charge :
+  leur etat n existe **nulle part** dans l URL → `sessionStorage`, le motif du
+  projet (16 juillet).
+- **L inverse serait pire des deux cotes** : un `sessionStorage` sur une liste a
+  URL ferait rendre la page non filtree PUIS se rediriger (un clignotement et
+  **deux rendus serveur**) ; et porter dans l URL un filtre purement client
+  exigerait de reecrire le filtrage de trois ecrans.
+
+**SAINES, NON TOUCHEES** (verifie, pour ne pas corriger du sain) : Messages
+envoyes et Demandes de support **memorisent deja** ; Journal d activite ne
+navigue vers **aucune** fiche ; Annees scolaires n a **aucun** filtre. Les
+ecrans d affectation, la feuille d appel et Reglements ont des filtres mais
+**zero navigation sortante** — leur detail vit dans la meme page.
+
+**MA PREMIERE REGLE ETAIT FAUSSE, ET LA RELECTURE DES LIENS L A MONTREE.**
+J avais pose « `from` gagne, l etat est ignore » pour ne pas casser le retour
+vers l audit. Or **`from=parents` designe une LISTE** : on y serait revenu
+defiltre, soit le defaut qu on corrige, par un autre chemin. La bonne regle est
+plus simple — **l etat capture est celui de l ecran qu on QUITTE, et `from`
+pointe vers ce meme ecran** : ils sont donc toujours coherents, et l etat
+s appose a la destination quelle qu elle soit. L audit, lui, ne transporte
+aucun etat (ses liens sont batis cote serveur sans ces cles) : rien ne s y
+ajoute.
+
+**TROIS TESTS FIGENT CETTE NON-REGRESSION, ET ILS ONT ETE VUS ROUGES.** C est
+ce que l utilisateur avait explicitement demande de ne pas casser : une
+relecture ne suffisait pas. Sabotage (`const base = defaut`) → les trois tests
+d origine tombent ; restauration **verifiee par empreinte** (meme sha256), donc
+restitution a l octet. Le piege `/tmp` du 6 octobre est evite en employant **un
+seul et meme chemin** pour la sauvegarde et la relecture.
+- 16 tests au total, dont l **invariant d aller-retour** : ce que la liste pose,
+  la fiche le rend. Les deux moities du mecanisme vivent dans le meme module et
+  doivent se repondre — un test par moitie ne l aurait pas prouve.
+
+**PREFIXE RESERVE `lq` / `lf` / `lp`** et non `q` / `filter` / `page` tels
+quels : la fiche porte deja `tab` et `from`, et un `q` sur une fiche se lirait
+comme une recherche DANS la fiche. On ne reconstruit que des **cles CONNUES**,
+jamais une chaine de requete recue telle quelle — meme raison que la liste
+blanche de `from` (un `?retour=<url>` serait une redirection ouverte).
+
+**ENSEIGNANTS N AVAIT AUCUNE TUYAUTERIE** : pas de `searchParams` sur la page,
+`backHref` **jamais passe** a `TeacherForm`, lien de retour ecrit en dur. Elle
+n etait pas dans la demande (l utilisateur a cite Apprenants et Parents) mais
+porte exactement le meme defaut — laisser une liste sur trois se comporter
+autrement est ce qui a produit les divergences entre ecrans jumeaux dans ce
+projet.
+
+**`useFiltresMemorises`** extrait le motif `sessionStorage` plutot que de le
+recopier une 3e, 4e et 5e fois.
+- **Le drapeau d hydratation est un `state` et NON un `ref`** — piege du
+  16 juillet : en ref il passe a `true` des l effet de restauration, et l effet
+  de persistance, dans le MEME commit, reecrit les defauts par-dessus le
+  stockage avant que les valeurs restaurees ne s appliquent. La memorisation
+  parait alors ne pas marcher.
+- **Le hook garantit « une chaine », pas « une valeur valide »** : un filtre a
+  valeurs enumerees se valide **chez l appelant**, sinon une valeur bricolee a
+  la main dans le stockage laisserait l ecran sans onglet actif.
+- Benefice second, reel : la restauration se fait au REMONTAGE, donc elle couvre
+  aussi le **bouton Precedent** du navigateur, et elle ne demande **aucune**
+  modification cote fiche.
+
+**DEUX POINTS RELEVES EN MESURANT, invisibles a la lecture d un fichier seul**
+- **Utilisateurs** : `selectTab` remet **volontairement** recherche et filtre a
+  zero (les deux populations n ont rien a voir) — la valeur memorisee **suit**
+  desormais au lieu de resister. Et son onglet, deja depose en URL par
+  `replaceState`, etait perdu lui aussi au retour (l adresse de retour est nue) :
+  il est memorise, le **deep-link `?tab=` primant** sur la memoire — une adresse
+  qui porte explicitement un onglet est une intention, la memoire un repli.
+- **Notifications** : `readIds` n est **pas** un filtre mais les lignes marquees
+  lues dans CETTE visite. Les retenir ferait croire a des lectures qui n ont pas
+  eu lieu — non memorise, et le commentaire le dit sur place.
+
+**LE SAUT LATERAL** (frere ou soeur, sur la fiche apprenant) repasse l etat :
+sans cela on le perdait au premier saut et on revenait sur une liste defiltree —
+le meme defaut un cran plus loin. `StudentForm` etant un composant client, il
+lit ses propres parametres : aucune prop a faire descendre sur deux niveaux.
+
+**Verifie** : 70/70 tests (16 nouveaux), type-check vert, **0 erreur de lint
+avec un avertissement de MOINS** (515 — un `as any` retire du select de
+Notifications, le setter prenant desormais une chaine), build complet. Et les
+**trois pages de liste relisent bien `q` / `filter` / `page`** : sans cette
+derniere mesure, le voyage aurait pu etre parfait et inutile.
