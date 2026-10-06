@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Check, X, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
@@ -66,6 +66,9 @@ function horodate(iso: string): string {
  * ce qu'on a trouvé) ; le détail des anomalies s'ouvre en ACCORDÉON, un seul à la
  * fois ; et la liste d'anomalies défile dans son propre cadre.
  */
+/** Quel audit est deplie — garde pour la duree de l'onglet. */
+const CLE_DETAIL = 'passage-annee-detail'
+
 export default function PassageAnneeClient({
   annee, audits, precedentes,
 }: {
@@ -84,6 +87,42 @@ export default function PassageAnneeClient({
   // ACCORDÉON : un seul détail ouvert. Deux listes d'anomalies dépliées feraient
   // déborder la page, et l'on compare mal deux listes longues côte à côte.
   const [detail, setDetail]   = useState<string | null>(null)
+
+  /**
+   * L'AUDIT DEPLIE SURVIT A UN ALLER-RETOUR VERS UNE FICHE.
+   *
+   * Depuis le 6 octobre, « Corriger » mene a la fiche de l'apprenant ou du
+   * foyer, et le retour ramene ICI. Sans cette memoire, on retrouvait la liste
+   * entierement repliee : il fallait rouvrir le detail et retrouver sa place
+   * APRES CHAQUE correction — c'est-a-dire a chaque ligne d'une liste qui en
+   * compte parfois des dizaines.
+   *
+   * `sessionStorage` et non `localStorage` : cela n'a de sens que le temps de la
+   * session de travail en cours, et le motif est celui des filtres memorises
+   * (historique des messages, demandes de support).
+   *
+   * `hydrate` est un STATE et NON un ref — piege paye le 16 juillet : un ref
+   * passe a true des l'effet de restauration, et l'effet de persistance, dans le
+   * MEME commit, reecrit alors la valeur par defaut par-dessus le stockage avant
+   * que la valeur restauree ne s'applique. En state, il reste false pendant le
+   * commit de montage.
+   */
+  const [hydrate, setHydrate] = useState(false)
+  useEffect(() => {
+    try {
+      const v = sessionStorage.getItem(CLE_DETAIL)
+      if (v) setDetail(v)
+    } catch { /* stockage indisponible : liste repliee, comportement d'avant */ }
+    setHydrate(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrate) return
+    try {
+      if (detail) sessionStorage.setItem(CLE_DETAIL, detail)
+      else sessionStorage.removeItem(CLE_DETAIL)
+    } catch { /* ignore */ }
+  }, [hydrate, detail])
   const [modale, setModale]   = useState<null | 'cloture' | 'annulation'>(null)
   const [occupe, setOccupe]   = useState(false)
 

@@ -7100,3 +7100,29 @@ le defaut aurait eu l air intermittent.
 **A SAVOIR** : les liens d un audit sont figes dans `recap_json` au moment ou il
 tourne. Il faut RELANCER l audit pour que ses liens portent `?from=audit`.
 
+#### 6 octobre 2026 (fin) — L AUDIT DEPLIE SURVIT A L ALLER-RETOUR
+
+Suite directe du point precedent, et signale par l utilisateur : maintenant que
+« Corriger » ramene a l audit, encore faut-il y retrouver sa place. On revenait
+sur une liste ENTIEREMENT REPLIEE — il fallait rouvrir le detail et retrouver la
+ligne suivante APRES CHAQUE correction, sur une liste qui en compte parfois des
+dizaines (190 au premier audit des effectifs).
+
+**MOTIF RECOPIE, PAS REINVENTE** : la memorisation en `sessionStorage` existe
+depuis le 16 juillet (filtres de l historique des messages, puis des demandes de
+support). « Comme X » = aller LIRE X et le recopier, regle apprise ce jour-la.
+- `sessionStorage` et non `localStorage` : cela n a de sens que le temps de la
+  session de travail.
+- **`hydrate` est un STATE et NON un ref** — le piege du 16 juillet : un ref
+  passe a true des l effet de restauration, et l effet de persistance, dans le
+  MEME commit, reecrit la valeur par defaut par-dessus le stockage avant que la
+  valeur restauree ne s applique. En state, il reste false pendant le commit de
+  montage.
+- Les deux acces sont en `try/catch` : navigation privee, stockage bloque. Le
+  repli est la liste repliee, soit le comportement d avant.
+
+**A SAVOIR, et ce n est PAS un defaut** : au retour, l audit affiche toujours son
+resultat d AVANT la correction — un resultat d audit est un INSTANTANE, c est
+toute la conception du 9 aout (« relancer un audit remplace son resultat »). Il
+faut donc le relancer pour voir la ligne disparaitre. Le bouton est a cote.
+
