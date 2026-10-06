@@ -5734,21 +5734,29 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
     insuffisant (~500 dest./jour), Workspace (~2 000/j) tient, mais a ce volume un service
     transactionnel (Brevo/Resend/Mailgun) est le bon outil — rebonds, delivrabilite, reputation.
     Tous parlent SMTP : 4 champs de config, 0 ligne de code.
-- [ ] **`NEXT_PUBLIC_SITE_URL` — A VERIFIER DANS VERCEL** (la case d'origine etait mal posee,
-  corrigee le 01/10). Son absence de `.env.local` **n'est PAS un defaut** : elle est voulue et
-  documentee — `sessionCookieDomain()` renvoie `undefined` en local, car *un domaine pose sur
-  `localhost` est rejete par les navigateurs*. Et `proxy.ts` retombe sur `bilaleducation.fr`.
-  - **La vraie question est la PRODUCTION**, et elle n'a jamais ete verifiee. Cette variable y
-    pilote deux choses sensibles : le **domaine du cookie de session** (`proxy.ts`,
-    `session-config.ts`) et la **protection CSRF** (`lib/security/csrf.ts`). Si elle manquait, le
-    cookie serait pose **sans domaine** — exactement le defaut des deux ecrivains du 11 aout, qui
-    avait verrouille la production.
-  - Indice fort qu'elle EST definie : la session fonctionne sur `.bilaleducation.fr` depuis le
-    correctif du 11 aout. Mais un indice n'est pas une mesure. **Regarder Vercel → Settings →
-    Environment Variables.**
-  - Verifier au passage que l'URL figure dans les **Redirect URLs** du projet Supabase
-    (Auth → URL Configuration) — sans quoi `redirect_to` est ignore et l'utilisateur atterrit sur
-    la vitrine, jeton en main, sans que rien ne se passe (echec silencieux, note du 8 aout).
+- [x] **`NEXT_PUBLIC_SITE_URL` — VERIFIEE EN PRODUCTION le 06/10, valeur CORRECTE.**
+  - **COMMENT, sans rien demander a l utilisateur ni ouvrir Vercel** : le prefixe `NEXT_PUBLIC_`
+    signifie que la valeur est **inlinee dans le bundle navigateur a la compilation**. Elle est
+    donc lisible depuis une page PUBLIQUE. Un `curl` sur `/login`, les chunks `.js` listes, et
+    l un d eux contient `function r(){try{let e=new URL("https://bilaleducation.fr` — c est
+    `domaineRacine()` de `console-url.ts`, valeur inlinee comprise.
+    **REGLE : toute variable `NEXT_PUBLIC_` se verifie en production depuis le bundle servi.**
+  - Valeur juste sur les trois points qui comptent : domaine RACINE, `https://`, **sans `www.`**
+    (un `www.` aurait produit `ecole.www.bilaleducation.fr` — trois niveaux, aucun certificat, sur
+    des liens envoyes PAR EMAIL donc decouverts trop tard).
+  - Consequences, toutes correctes : cookie de session sur `.bilaleducation.fr`, origine CSRF
+    attendue, `schoolUrl()` qui rend une URL absolue (sans la variable il rendrait un **chemin
+    relatif**, et le lien de reinitialisation envoye depuis la console ne menerait nulle part),
+    domaine racine du middleware.
+  - **L INDICE NE VALAIT RIEN, et c est la lecon** : j avancais « la session fonctionne sur
+    `.bilaleducation.fr`, donc la variable est posee ». Faux — sans elle le cookie serait pose
+    sur l hote exact et la session marcherait tout autant AU SEIN d un hote. Seule la mesure
+    tranchait. `MISE_EN_PRODUCTION.md` la disait d ailleurs posee depuis le debut ; c est ce
+    journal qui en doutait.
+  - **RESTE a verifier (celui-la, je ne peux pas)** : que l URL figure dans les **Redirect URLs**
+    du projet Supabase (Auth → URL Configuration) — sans quoi `redirect_to` est ignore et
+    l utilisateur atterrit sur la vitrine, jeton en main, sans que rien ne se passe (echec
+    silencieux, note du 8 aout).
 - [x] **Duree de validite des liens auth** verifiee le 8 aout (Supabase → Auth → *Email OTP
   expiration*) : **10 minutes**, et non 1 h. Les liens de reinitialisation sont a **usage unique**.
   Le gabarit annonce desormais la bonne duree (constante `VALIDITE`). **Reserve** : 10 min est
