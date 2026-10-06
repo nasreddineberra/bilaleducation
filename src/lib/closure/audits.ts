@@ -4,16 +4,11 @@
 
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { classInfoOf } from '@/components/dashboard/classInfo'
+// La REGLE DE PRESENTATION vit a part : un module feuille, sans alias `@/`,
+// donc eprouvable par `node --test` (ce fichier ne l'est pas, il interroge la base).
+import { ordonnerAnomalies, type AuditItem } from './ordre'
+export type { AuditItem }
 
-export interface AuditItem {
-  label: string
-  /** Classe affichee apres le nom (avec tooltip `classInfo`). */
-  className?: string
-  /** Tooltip d'infos classe : « Civilité NOM Prénom · Cotisation · Niveau · horaires ». */
-  classInfo?: string
-  detail?: string
-  href?: string
-}
 export interface AuditResult {
   blocking: boolean
   anomalies: number
@@ -38,15 +33,12 @@ export interface YearCtx {
   periodLabels: Record<string, string>
 }
 
-const ITEMS_CAP = 100
-
 function eur(n: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 }
 function nom(last?: string | null, first?: string | null): string {
   return `${last ?? ''} ${first ?? ''}`.trim() || '(sans nom)'
 }
-function cap<T>(arr: T[]): T[] { return arr.slice(0, ITEMS_CAP) }
 
 /**
  * Le lien « Corriger » d'un foyer, qui OUVRE sa fiche de reglement.
@@ -105,7 +97,7 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
   return {
     blocking: true,
     anomalies: total,
-    items: cap([
+    items: ordonnerAnomalies([
       ...unassigned.map((s: any) => ({
         label: nom(s.last_name, s.first_name),
         detail: s.student_number ?? 'Non affecté',
@@ -162,7 +154,8 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     byStudent.set(cle, cur)
   }
 
-  const list = [...byStudent.values()].sort((x, y) => y.count - x.count)
+  // Plus de tri par nombre d'absences : `runAuditFor` ordonne par libelle.
+  const list = [...byStudent.values()]
   const total = (abs ?? []).length + (absA ?? []).length
 
   // Detail par periode, dans l'ordre des periodes de l'annee (ex. « S1 : 1 · S2 : 2 »).
@@ -172,7 +165,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
   return {
     blocking: false,
     anomalies: total,
-    items: cap(list.map(s => ({
+    items: ordonnerAnomalies(list.map(s => ({
       label: s.name,
       className: s.cls?.name,
       classInfo: classInfoOf(s.cls),
@@ -303,7 +296,7 @@ export async function auditNotes(supabase: any, ctx: YearCtx): Promise<AuditResu
   return {
     blocking: true,
     anomalies: items.length,
-    items: cap(items),
+    items: ordonnerAnomalies(items),
     summary: items.length === 0
       ? 'Chaque classe a des évaluations notées sur toutes les périodes.'
       : parts.join(' · ') + '.',
@@ -379,7 +372,7 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
   return {
     blocking: true,
     anomalies: total,
-    items: cap(items),
+    items: ordonnerAnomalies(items),
     summary: total === 0
       ? 'Élèves et adultes ont tous leurs bulletins archivés, sur toutes les périodes.'
       : `Bulletins manquants : ${parts.join(' · ')}.`,
@@ -403,7 +396,7 @@ export async function auditTempsPresence(supabase: any, ctx: YearCtx): Promise<A
   return {
     blocking: false,
     anomalies: noEntry.length,
-    items: cap(noEntry.map((s: any) => ({ label: nom(s.last_name, s.first_name), detail: 'aucune saisie sur l’année', href: '/dashboard/temps-presence' }))),
+    items: ordonnerAnomalies(noEntry.map((s: any) => ({ label: nom(s.last_name, s.first_name), detail: 'aucune saisie sur l’année', href: '/dashboard/temps-presence' }))),
     summary: noEntry.length === 0
       ? 'Tout le personnel a au moins une saisie de présence.'
       : `${noEntry.length} membre(s) du personnel sans aucune saisie.`,
@@ -415,7 +408,9 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
   const fin = await getFamilyFinancials(supabase, {
     id: ctx.yearId, label: ctx.yearLabel, start_date: ctx.startDate, end_date: ctx.endDate,
   })
-  const debtors = fin.rows.filter(r => r.remaining > 0).sort((a, b) => b.remaining - a.remaining)
+  // Plus de tri par montant : `runAuditFor` ordonne par libelle. `fin.rows` est
+  // deja alphabetique, mais on ne s'appuie pas dessus — le tri central fait foi.
+  const debtors = fin.rows.filter(r => r.remaining > 0)
   const overpaid = fin.rows.filter(r => r.remaining < 0)
 
   // ── SECOND VOLET : les recapitulatifs PERIMES ────────────────────────────
@@ -467,7 +462,7 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
     // depuis toujours (`reglements/page.tsx`), le lien ne s'en servait pas :
     // l'audit nommait sept familles et chaque clic deposait sur la meme page,
     // devant « Selectionnez une famille ». Signale a l'ecran le 06/10.
-    items: cap([
+    items: ordonnerAnomalies([
       ...perimes.map(r => ({
         label: r.parentLabel,
         detail: `montant enregistré ${eur(r.storedDue!)} au lieu de ${eur(r.totalDue)} · à rafraîchir`,

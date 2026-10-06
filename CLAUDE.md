@@ -6691,6 +6691,45 @@ forme**.
 - Comparaison au CENTIME (`>= 0.01`) : l egalite stricte entre flottants
   signalerait des ecarts qui n existent pas.
 
+**DEUX DEFAUTS VUS A L ECRAN, corriges dans la foulee** (06/10)
+- **« Corriger » deposait sur le MODULE**, devant « Selectionnez une famille ».
+  L ecran accepte pourtant `?parent=` depuis toujours (`reglements/page.tsx` le
+  lit et le passe en `initialParentId`) : la capacite existait, le lien ne s en
+  servait pas. **Mesure sur les cinq autres audits** : seul `temps-presence`
+  accepte un parametre, et c est le MOIS, pas une personne — les autres
+  demanderaient d ajouter le parametre a leur ecran, chantier a part.
+- **Un foyer sans dossier apparaissait DEUX FOIS**, avec le meme montant. Sans
+  dossier, il n a aucun versement enregistre, donc son reste vaut tout son du :
+  il est TOUJOURS deja dans les debiteurs. Les deux listes se recouvraient
+  entierement. La mention rejoint la ligne de debiteur.
+
+**L ORDRE DES ANOMALIES PASSE A L ALPHABETIQUE, DANS LES SIX AUDITS**
+(decision utilisateur). Ils triaient chacun a leur facon — absences
+decroissantes, montant du decroissant — en repondant a « ou agir en premier ? ».
+A l usage c est l inverse qu on fait : **on CHERCHE un foyer ou un eleve**, et un
+ordre par magnitude oblige a parcourir toute la liste.
+- **UN SEUL ENDROIT** : `ordonnerAnomalies`, par ou passent les six audits. Un
+  audit ajoute demain en herite sans que personne y pense.
+- **LE TRI PRECEDE LE PLAFOND, et j avais d abord fait l inverse.** Mon premier
+  jet triait dans le dispatcher, APRES le `cap()` de chaque audit : au-dela de
+  100 anomalies on aurait garde un sous-ensemble ARBITRAIRE avant de l ordonner
+  joliment. Le tri est donc entre dans `cap()` lui-meme.
+- **LE TRI EST STABLE, et c est ce qui sauve les regroupements** : les tris
+  internes deviennent le DEPARTAGE a libelle egal. Cela compte pour
+  « Evaluations & notes », dont le libelle est un nom de CLASSE repete une fois
+  par periode — les lignes d une classe restent groupees, periodes dans l ordre.
+- `localeCompare('fr')` et non `<` : sinon « Elodie » accentue passerait apres
+  « Zoe ». L ordre des accents n est pas celui des octets.
+- **EXTRAIT DANS UN MODULE FEUILLE** (`src/lib/closure/ordre.ts`) : `audits.ts`
+  importe en `@/`, que **Node ne resout pas** (seul Turbopack le fait), donc il
+  n est pas eprouvable par `node --test`. La regle de PRESENTATION n a de toute
+  facon rien a faire avec la logique de requete.
+- **5 tests, et celui qui compte a ete VU ROUGE** : plafond place avant le tri →
+  il echoue en nommant la cause ; restaure → vert.
+  - **Et ma restauration a d abord echoue** : la sauvegarde etait partie dans
+    `/tmp` (que Git Bash resout) pendant que je la relisais dans le scratchpad.
+    Le piege `/tmp` du projet, repaye. Fichier remis depuis la vraie sauvegarde.
+
 **LINT : 515 -> 516, et le +1 est delibere.** Mes deux premiers essais en
 avaient ajoute trois ; deux etaient des `any` evitables, remplaces par un type
 local `LigneFeeStockee`. Le dernier est un `catch (e: any)` **identique a ses
