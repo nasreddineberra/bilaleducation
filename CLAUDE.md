@@ -6466,3 +6466,61 @@ isolation, et porte un **temoin** (une consigne ordinaire doit produire
 l encadre et son texte — sans lui, une fonction qui renverrait une chaine vide
 ferait passer toutes les charges) plus une **contre-epreuve** sur l ancienne
 composition. 19 cas, puis script supprime.
+
+**VERIFIE EN PRODUCTION le 6 octobre** (capture de l email reel) : lien YouTube
+**cliquable**, passage en **rouge** conserve, **gras** conserve. C est la moitie
+que le test ne pouvait pas prouver — qu on nettoie sans rien abimer.
+
+#### 6 octobre 2026 (suite) — UN CLIENT PERIME IMITE PARFAITEMENT UN PLANTAGE SERVEUR
+
+Juste apres le deploiement ci-dessus, la modification d un devoir a echoue sur
+« **An unexpected response was received from the server.** ». Le reflexe evident
+— « c est ton correctif de ce matin » — etait **FAUX**, et c est la mesure qui
+l a montre, pas l intuition.
+
+**LE FAIT QUI A TOUT ORIENTE : le devoir n etait PAS enregistre.** L UPDATE est
+la PREMIERE ecriture de `modifierDevoir` ; si rien n est ecrit, l action n a
+jamais demarre. Cela ecarte d un coup le plantage apres ecriture, le depassement
+de delai dans la boucle d emails (elle vient apres), et toute erreur de base.
+**Demander « qu est-ce qui a ete ecrit ? » vaut mieux que lire le code**, parce
+que la reponse partitionne les hypotheses au lieu de les enumerer.
+
+**CINQ HYPOTHESES ELIMINEES PAR LA MESURE**
+1. **Mon correctif** — `sanitize()` traite le contenu EXACT de la capture (lien
+   YouTube avec esperluettes, span colore, gras) sans lever et sans rien perdre.
+2. **L import de jsdom dans un fichier `'use server'`** (la panne du 20/09) —
+   `communications/actions.ts` importe la paire IDENTIQUE (`sanitize` +
+   `shell.mjs`) et tourne en production depuis ce jour-la.
+3. **Un export non-async dans un `'use server'`** (cause connue de 500, payee le
+   15/07 et le 03/08) — le fichier n exporte que 4 fonctions async. Au passage :
+   `communications/actions.ts` exporte des `type` et des `interface` et
+   fonctionne — ils sont effaces a la compilation.
+4. **Une garde refusee** — elles rendent `{ error }`, donc un toast **FRANCAIS**.
+   Le message etait **anglais** : il vient du framework, pas de nous. *La langue
+   du message dit la couche ou il est ne.*
+5. **Un deref de null avant l UPDATE** — `effectiveRole` est null-safe,
+   `joursEcoules` est de l arithmetique.
+
+**LA CAUSE : LE CLIENT ETAIT PERIME.** L onglet executait le bundle d un
+deploiement anterieur, dont l identifiant d action serveur n existe plus cote
+serveur. Next renvoie alors une reponse qui n est pas une action, et React
+affiche exactement ce message. **Ctrl+F5 a suffi.**
+
+**CE QU AUCUN `try/catch` N AURAIT ATTRAPE** : l action n a jamais demarre,
+aucun code a nous ne s est execute. J avais propose d envelopper l action pour
+journaliser la cause (regle du 7 aout) — c etait **sans effet sur CE defaut**.
+Une parade doit viser la couche ou le defaut nait.
+
+**CONSEQUENCE DE PRODUCTION, A ARBITRER** : a CHAQUE deploiement, tout
+utilisateur ayant l application ouverte verra ce message anglais a sa prochaine
+action et croira avoir perdu sa saisie. Le **service worker** (notifications
+push) peut faire durer l etat au-dela d un rechargement ordinaire. Deux
+reponses : la **Skew Protection de Vercel** (epingle les requetes a la version
+servie au client — a verifier dans l offre souscrite), ou **cote application**
+reconnaitre ce cas et afficher « une nouvelle version est disponible, rechargez
+la page ». Non urgent tant que l utilisateur est seul sur le site.
+
+**ET LA REGLE DE SEANCE QUI VA AVEC** : j ai pousse puis demande de regarder, ce
+qui est la bonne regle (03/10) — mais un deploiement qui tombe PENDANT qu une
+page est ouverte fabrique ce faux positif. Prevenir « rechargez d abord » quand
+on demande une verification juste apres un push.
