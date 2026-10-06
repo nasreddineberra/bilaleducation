@@ -109,14 +109,17 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
       ...unassigned.map((s: any) => ({
         label: nom(s.last_name, s.first_name),
         detail: s.student_number ?? 'Non affecté',
-        href: `/dashboard/students/${s.id}`,
+        // `?from=audit` : apres avoir rendu l'apprenant inactif, on revient ICI
+        // et non sur la liste des apprenants — sinon on perd l'audit en cours et
+        // la liste des suivants a traiter. Voir `lib/navigation/retour`.
+        href: `/dashboard/students/${s.id}?from=audit`,
       })),
       // La fiche du FOYER : c'est elle qui porte `tutorN_adult_courses`, la case
       // dont la coche sans inscription produit l'anomalie.
       ...adultesNonAffectes.map(a => ({
         label: `${a.label} (adulte)`,
         detail: 'Non affecté',
-        href: `/dashboard/parents/${a.parentId}`,
+        href: `/dashboard/parents/${a.parentId}?from=audit`,
       })),
     ]),
     summary: total === 0

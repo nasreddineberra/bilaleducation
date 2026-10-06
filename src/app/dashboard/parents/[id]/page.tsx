@@ -2,14 +2,20 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { hrefRetour } from '@/lib/navigation/retour'
 import ParentDetail from '@/components/parents/ParentDetail'
 
 interface Props {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ from?: string }>
 }
 
-export default async function EditParentPage({ params }: Props) {
+export default async function EditParentPage({ params, searchParams }: Props) {
   const { id } = await params
+  // Le retour suit l'ORIGINE : la liste des foyers par defaut, l'AUDIT quand on
+  // en vient (un adulte coche « cours adultes » sans inscription se corrige ici).
+  const { from } = await searchParams
+  const backHref = hrefRetour(from, '/dashboard/parents')
   const supabase = await createClient()
 
   const { data: parent } = await supabase
@@ -62,7 +68,7 @@ export default async function EditParentPage({ params }: Props) {
     <div className="space-y-6 animate-fade-in">
 
       <Link
-        href="/dashboard/parents"
+        href={backHref}
         className="inline-flex items-center gap-1.5 text-sm text-warm-700 hover:text-secondary-700 transition-colors"
       >
         <ChevronLeft size={15} />
@@ -71,6 +77,7 @@ export default async function EditParentPage({ params }: Props) {
 
       <ParentDetail
         parent={parent}
+        backHref={backHref}
         tutor1AdultEnrolled={enrolledTutors.has(1)}
         tutor2AdultEnrolled={enrolledTutors.has(2)}
         adultHistory={(adultHistory ?? []) as any[]}

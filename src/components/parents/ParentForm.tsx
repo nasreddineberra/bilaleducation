@@ -73,6 +73,9 @@ type FormData = {
 }
 
 interface ParentFormProps {
+  /** Ou revenir apres enregistrement. Par defaut la liste des foyers, mais
+   *  l'AUDIT quand on vient de lui — voir `lib/navigation/retour`. */
+  backHref?: string
   parent?: Parent
   onClose?: () => void
   /** Tuteur inscrit a une classe adulte → case « Inscrit aux cours adultes » grisee. */
@@ -81,7 +84,7 @@ interface ParentFormProps {
 }
 
 // ─── Composant principal ──────────────────────────────────────────────────────
-export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = false, tutor2AdultEnrolled = false }: ParentFormProps) {
+export default function ParentForm({ parent, onClose, backHref = '/dashboard/parents', tutor1AdultEnrolled = false, tutor2AdultEnrolled = false }: ParentFormProps) {
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!parent
@@ -224,7 +227,7 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
         if (onClose) {
           onClose()
         } else {
-          router.push('/dashboard/parents')
+          router.push(backHref)
         }
       } else {
         // Création avec comptes utilisateurs automatiques
@@ -242,7 +245,7 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
           if (onClose) {
             onClose()
           } else {
-            router.push('/dashboard/parents')
+            router.push(backHref)
           }
         }
       }
@@ -282,7 +285,7 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
               if (onClose) {
                 onClose()
               } else {
-                router.push('/dashboard/parents')
+                router.push(backHref)
               }
             }}
           >
@@ -613,7 +616,7 @@ export default function ParentForm({ parent, onClose, tutor1AdultEnrolled = fals
         <FloatButton
           type="button"
           variant="secondary"
-          onClick={() => onClose ? onClose() : router.push('/dashboard/parents')}
+          onClick={() => onClose ? onClose() : router.push(backHref)}
         >
           Annuler
         </FloatButton>

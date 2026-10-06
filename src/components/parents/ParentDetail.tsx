@@ -16,6 +16,8 @@ type TabKey = typeof TABS[number]['key']
 
 interface Props {
   parent: Parent
+  /** Ou revenir apres enregistrement — depend de l'origine. */
+  backHref?: string
   tutor1AdultEnrolled: boolean
   tutor2AdultEnrolled: boolean
   adultHistory: any[]
@@ -23,7 +25,7 @@ interface Props {
   adultsNonAffectes: { tutor_number: number; last_name: string; first_name: string }[]
 }
 
-export default function ParentDetail({ parent, tutor1AdultEnrolled, tutor2AdultEnrolled, adultHistory, adultCurrent, adultsNonAffectes }: Props) {
+export default function ParentDetail({ parent, backHref, tutor1AdultEnrolled, tutor2AdultEnrolled, adultHistory, adultCurrent, adultsNonAffectes }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
 
@@ -83,7 +85,7 @@ export default function ParentDetail({ parent, tutor1AdultEnrolled, tutor2AdultE
       {/* Contenu */}
       {activeTab === 'identite' && (
         <div role="tabpanel" id="panel-identite" aria-labelledby="tab-identite">
-          <ParentForm parent={parent} tutor1AdultEnrolled={tutor1AdultEnrolled} tutor2AdultEnrolled={tutor2AdultEnrolled} />
+          <ParentForm parent={parent} backHref={backHref} tutor1AdultEnrolled={tutor1AdultEnrolled} tutor2AdultEnrolled={tutor2AdultEnrolled} />
         </div>
       )}
 

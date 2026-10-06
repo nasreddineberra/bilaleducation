@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { hrefRetour } from '@/lib/navigation/retour'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
@@ -21,7 +22,9 @@ const PARENTS_SELECT = [
 export default async function EditStudentPage({ params, searchParams }: Props) {
   const { id } = await params
   const { from } = await searchParams
-  const backHref  = from === 'parents' ? '/dashboard/parents' : '/dashboard/students'
+  // Le retour suit l'ORIGINE : liste des apprenants par defaut, mais fiche foyer
+  // ou AUDIT quand on en vient. Voir `lib/navigation/retour`.
+  const backHref  = hrefRetour(from, '/dashboard/students')
   const backLabel = from === 'parents' ? 'Retour aux parents' : 'Retour à la liste'
   const supabase = await createClient()
 

@@ -7062,3 +7062,41 @@ casse deux fois) : `.edt-slot-absent:after` emis avec `position:absolute;inset:0
 et `pointer-events:none`, et le jeton present dans les DEUX themes
 (`#2f455029` clair, `#ffffff24` sombre — le minifieur a converti les `rgba`).
 
+#### 6 octobre 2026 (fin) — LE RETOUR SUIT L ORIGINE, PLUS LA LISTE
+
+Signale par l utilisateur apres le travail sur les audits. La regle du projet est
+« retour a la liste apres enregistrement » (memoire `redirect-to-list-after-save`).
+Elle etait juste tant qu on n atteignait une fiche QUE depuis sa liste.
+
+**CE N EST PLUS VRAI DEPUIS AUJOURD HUI** : l audit « Affectations & effectifs »
+mene lui aussi a la fiche, et le geste attendu depuis l audit est precisement
+d ouvrir la fiche pour rendre l apprenant INACTIF. On revenait alors sur la liste
+des apprenants — en perdant l audit, c est-a-dire la seule chose qu on etait en
+train de traiter, et la liste des suivants. **C est le lien « Corriger » que j ai
+pose ce matin qui a cree ce parcours**, donc le defaut avec.
+
+**LE MECANISME EXISTAIT DEJA, A MOITIE** : la fiche apprenant lisait `?from=`
+depuis longtemps, mais ne connaissait qu une origine (`parents`, pose par
+`ParentsTable`). La fiche FOYER, elle, n avait rien — quatre `/dashboard/parents`
+ecrits en dur dans `ParentForm`.
+
+**`src/lib/navigation/retour.ts`** : une liste blanche d origines, et un seul
+point ou l ajouter. Ajouter une origine = une ligne, plus `?from=<nom>` sur le
+lien.
+
+**UNE LISTE BLANCHE, PAS UNE URL DANS LE LIEN.** Un `?retour=/n-importe-quoi`
+serait une surface de REDIRECTION OUVERTE — le projet garde deja le `next=` de
+l authentification pour cette raison (9 aout). Ici la question ne se pose meme
+pas : le parametre ne porte qu un NOM, et seules les destinations ecrites dans le
+module existent. Un nom inconnu retombe sur la liste, soit le comportement
+d avant — **fail-open**, comme la session.
+
+**VERIFIE PLUTOT QUE SUPPOSE** : les deux fiches reecrivent leur URL au
+changement d onglet (`?tab=`, `history.replaceState`). Elles partent de
+`new URLSearchParams(searchParams.toString())` et n ajoutent que `tab` — `from`
+survit donc. Sans cela, le retour aurait casse au premier clic sur un onglet, et
+le defaut aurait eu l air intermittent.
+
+**A SAVOIR** : les liens d un audit sont figes dans `recap_json` au moment ou il
+tourne. Il faut RELANCER l audit pour que ses liens portent `?from=audit`.
+
