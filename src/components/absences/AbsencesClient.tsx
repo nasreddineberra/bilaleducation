@@ -11,6 +11,7 @@ import { jourFerme } from '@/lib/school-year/jours-fermes'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import type { Period, Absence, AbsenceType } from '@/types/database'
@@ -604,6 +605,11 @@ export default function AbsencesClient({
                   </FloatButton>
                 </Tooltip>
               </div>
+              {/* UNE seule ligne pour les DEUX boutons : même cause, et deux
+                  messages identiques l'un sous l'autre se liraient comme un
+                  bégaiement. Posée ici, elle s'intercale entre les boutons et
+                  les compteurs — donc juste sous ce qu'elle explique. */}
+              <RaisonBloquee raison={isAllClasses ? 'Choisissez une classe pour saisir un appel ou imprimer sa feuille.' : null} />
               <div className="flex items-center gap-4 text-xs text-warm-700">
                 <span>{summary.abs} absence{summary.abs > 1 ? 's' : ''} <span className="text-red-500 font-semibold">({summary.absNJ} NJ)</span></span>
                 <span>{summary.ret} retard{summary.ret > 1 ? 's' : ''}</span>
@@ -1589,6 +1595,11 @@ function SaisieModal({
                 ].filter(Boolean).join(', ')
             }
           </span>
+          {/* Le plus utile des quatre : « enregistrez vos modifications avant
+              d'imprimer » ne se devine depuis AUCUN autre élément de l'écran.
+              Placée entre le résumé et les boutons, elle tombe juste au-dessus
+              de celui qu'elle explique. */}
+          <RaisonBloquee raison={printBlockedReason} />
           <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
             <Tooltip content={printBlockedReason ?? "Imprimer la feuille d'appel enregistrée de cette date"}>
               <span>

@@ -6524,3 +6524,79 @@ la page ». Non urgent tant que l utilisateur est seul sur le site.
 qui est la bonne regle (03/10) — mais un deploiement qui tombe PENDANT qu une
 page est ouverte fabrique ce faux positif. Prevenir « rechargez d abord » quand
 on demande une verification juste apres un push.
+
+#### 6 octobre 2026 (suite) — « 55 title= natifs » : il y en avait DEUX
+
+Seconde dette reprise une a une. **Le chiffre du journal etait faux**, et c est
+la mesure qui l a dit — un comptage lache, du genre que ce projet se fait un
+devoir de ne pas croire sur parole.
+
+| | annonce (05/10) | mesure (06/10) |
+|---|---|---|
+| `title=` natifs | 55 | **2** |
+
+Sur **82** occurrences de `title=` : **79 sont des PROPS DE COMPOSANTS**
+(`ConfirmModal` 33, `StatCard` 18, `Btn` 12, `FormModal` 6, `Modal` 4,
+`VizCard` 4), une est un **commentaire qui enonce la regle**, et les 12 de la
+barre d outils de l editeur passaient **deja** par `<Tooltip>` + `aria-label`.
+**REGLE DE MESURE** : un `grep title=` ne compte rien d exploitable — il faut
+classer chaque occurrence par la BALISE QUI LA PORTE (majuscule = composant,
+minuscule = attribut HTML). Trois lignes de script, et le sujet change de taille.
+
+**LA VRAIE DETTE ETAIT LA VOISINE, et elle est bornee.** Celle notee le meme
+jour : « les infobulles sur bouton DESACTIVE ne disent plus pourquoi sur
+telephone ». Sur **184 `<Tooltip>`**, 34 habillent un controle desactive — mais
+**7 seulement** sont sur un ecran que le filtre de menu laisse atteindre depuis
+un telephone. Et le tri en retire encore trois :
+- **2 ne sont pas des blocages** : `disabled` pendant une action EN COURS
+  (bouton push, export PDF). La bulle dit ce que fait le bouton, pas pourquoi il
+  est gris. Rien a faire.
+- **1 est deja doublee** : `TempsPresenceClient` affiche `addBlockReason` en
+  banniere ambre **en plus** de l infobulle. C etait le modele a suivre.
+
+**QUATRE TROUS REELS, trois poses** (les deux boutons de la feuille d appel
+partagent une cause, donc UNE ligne — deux messages identiques l un sous l autre
+se liraient comme un begaiement) : feuille d appel « Ajouter » + « Feuille
+vierge » (mode toutes classes), feuille d appel « Imprimer la saisie », cahier
+de texte « Ajouter une seance / un devoir ».
+- **Le plus utile est « Imprimer la saisie »** : sa raison est « enregistrez vos
+  modifications avant d imprimer », et **rien a l ecran ne permet de la
+  deviner**. Les trois autres sont inferables (le selecteur de classe est a
+  cote), mais jamais enonces.
+
+**`src/components/ui/RaisonBloquee.tsx`** — la raison en TEXTE, sous le controle.
+- **En CSS (`md:hidden`) et non en JS** : il n y a ici ni attribut a piloter ni
+  element a remplacer, seulement de l affichage — `usePetitEcran` serait du poids
+  pour rien. Au-dessus du seuil l infobulle fait deja le travail, et afficher les
+  deux serait le doublon que la regle « pas de texte explicatif » proscrit. Ce
+  texte n est pas une explication oisive : c est un message d ETAT qui appelle
+  une action, et il disparait des que le controle redevient actif.
+- **`w-full` par defaut** : ces controles vivent dans un groupe `flex flex-wrap`,
+  ou la ligne doit occuper sa propre rangee — `flex-wrap` ne replie que ce qui
+  deborde (motif paye six fois les 04-05/10).
+- **La MEME chaine sert l infobulle et la ligne**, passee en prop : deux libelles
+  separes finiraient par diverger.
+- **Aucune classe `dark:`** : le pont remappe `.text-amber-700` (verifie dans
+  `globals.css` ligne 704, pas suppose).
+
+**LES DEUX NATIFS CONVERTIS**, bien que leurs ecrans soient hors mobile — pour
+que la regle n ait plus d exception. Taux horaire d absence (`CotisationsClient`)
+et « Intervenir » de la console. Deux precautions : on n enveloppe **que le cas
+bloque** (sinon une bulle sur chaque champ de taux), et `w-full` **des deux
+cotes** sur le champ — le wrapper de `Tooltip` est `inline-flex`, donc
+dimensionne par son contenu, et le champ aurait retreci (piege des capsules EDT,
+2 aout). Le `<span>` interieur du bouton recopie le motif de la feuille d appel :
+un element `disabled` n emet pas d evenement de pointeur.
+
+**VERIFIE** : 0 `title=` natif restant (les 4 « inconnus » du releve sont des
+COMMENTAIRES enoncant la regle, dont deux ecrits ce jour) ; et dans le **CSS
+SERVI**, `.md\:hidden{display:none}` est emis **a l interieur de
+`@media (min-width:768px)`**, soit le `SEUIL_MOBILE_PX` du projet.
+
+**TROIS FAUX ZEROS DANS MON PROPRE OUTILLAGE, en une seance** : `grep -P`
+indisponible ici (« supports only unibyte and UTF-8 locales » suivi d un 0), un
+motif ou j avais ecrit des entites HTML (`&lt;`), et deux `grep -oE` dont
+l echappement ne mordait pas. **Un controle qui ne mesure rien annonce 0** —
+sixieme fois. Et le backslash s est de nouveau effondre dans un heredoc : les
+scripts delicats passent par un FICHIER ECRIT, la regle existait, je l ai
+enfreinte.

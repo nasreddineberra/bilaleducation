@@ -6,6 +6,7 @@ import { enterSchool, leaveSchool } from '@/app/superadmin/support-actions'
 import { schoolUrl } from '@/lib/tenant/console-url'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import Tooltip from '@/components/ui/Tooltip'
 
 /**
  * Entrée dans une école depuis la console.
@@ -52,15 +53,33 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setAConfirmer(true)}
-        disabled={pending || disabled}
-        title={disabled ? 'Une intervention est déjà en cours sur une autre école.' : undefined}
-        className={`${classe} disabled:opacity-40 disabled:cursor-not-allowed`}
-      >
-        {pending ? 'Ouverture…' : 'Intervenir'}
-      </button>
+      {/* `title=` natif remplace par le `Tooltip` du projet (clavier + theme).
+          Le `<span>` interieur recopie le motif de la feuille d'appel : un
+          element `disabled` n'emet pas d'evenement de pointeur, c'est le
+          wrapper qui recoit le survol. On n'enveloppe que le cas bloque — sur
+          un bouton actif, le libelle se suffit. */}
+      {disabled ? (
+        <Tooltip content="Une intervention est déjà en cours sur une autre école.">
+          <span>
+            <button
+              type="button"
+              disabled
+              className={`${classe} disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+              Intervenir
+            </button>
+          </span>
+        </Tooltip>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAConfirmer(true)}
+          disabled={pending}
+          className={`${classe} disabled:opacity-40 disabled:cursor-not-allowed`}
+        >
+          {pending ? 'Ouverture…' : 'Intervenir'}
+        </button>
+      )}
       {erreur && <p role="alert" className="text-xs text-red-600 mt-1">{erreur}</p>}
 
       {/* Entrer chez un client n'est jamais anodin : on le confirme, et on dit

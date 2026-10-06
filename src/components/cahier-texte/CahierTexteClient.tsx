@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import SeanceForm from './SeanceForm'
 import DevoirForm from './DevoirForm'
 
@@ -223,12 +224,18 @@ export default function CahierTexteClient({
           })()}
           {canCreate && (() => {
             const addLabel = tab === 'journal' ? 'Ajouter une séance' : 'Ajouter un devoir'
+            // La MEME chaine sert l'infobulle et la ligne de petit ecran : deux
+            // libelles separes finiraient par diverger.
+            const raisonBlocage = `Sélectionnez une classe précise pour ${tab === 'journal' ? 'ajouter une séance' : 'ajouter un devoir'}.`
             return (!filterClass || isAllClasses) ? (
-              <Tooltip content={`Sélectionnez une classe précise pour ${tab === 'journal' ? 'ajouter une séance' : 'ajouter un devoir'}`}>
-                <FloatButton variant="submit" type="button" disabled className="whitespace-nowrap">
-                  {addLabel}
-                </FloatButton>
-              </Tooltip>
+              <>
+                <Tooltip content={raisonBlocage}>
+                  <FloatButton variant="submit" type="button" disabled className="whitespace-nowrap">
+                    {addLabel}
+                  </FloatButton>
+                </Tooltip>
+                <RaisonBloquee raison={raisonBlocage} />
+              </>
             ) : (
               <FloatButton
                 variant="submit"

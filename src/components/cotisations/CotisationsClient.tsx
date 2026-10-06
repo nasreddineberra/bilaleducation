@@ -506,21 +506,36 @@ export default function CotisationsClient({
                         <span className="truncate">{pt.label}</span>
                         {isMissing && <AlertTriangle size={11} className="text-amber-500 flex-shrink-0 ml-auto" />}
                       </label>
-                      <div className="relative">
-                        <input
-                          id={`rate-${pt.id}`}
-                          aria-label={pt.is_absence ? `Taux horaire ${pt.label} (non facturé)` : `Taux horaire ${pt.label}${isMissing ? ' (non enregistré)' : ''}`}
-                          type="number" step="0.10" min="0"
-                          value={pt.is_absence ? '0.00' : (rates[pt.id] ?? '')}
-                          onChange={e => setRates(prev => ({ ...prev, [pt.id]: e.target.value }))}
-                          onBlur={e => setRates(prev => ({ ...prev, [pt.id]: to2(e.target.value) }))}
-                          disabled={pt.is_absence}
-                          title={pt.is_absence ? 'Une absence n\'est jamais facturée' : undefined}
-                          className={clsx('input text-sm pr-8 w-full disabled:bg-warm-100 disabled:text-warm-700 disabled:cursor-not-allowed', isMissing && 'border-amber-400 bg-amber-50/40')}
-                          placeholder="0"
-                        />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">/h</span>
-                      </div>
+                      {(() => {
+                        // `title=` natif remplace par le `Tooltip` du projet : une
+                        // bulle native ne s'ouvre pas au clavier et ne suit pas le
+                        // theme. On n'enveloppe QUE le cas bloque, pour ne pas poser
+                        // une bulle sur chaque champ de taux.
+                        //
+                        // `w-full` des DEUX cotes : le wrapper de `Tooltip` est
+                        // `inline-flex`, donc dimensionne par son contenu — sans
+                        // cela le champ retrecirait a sa largeur intrinseque (piege
+                        // paye sur les capsules de l'EDT le 2 aout).
+                        const champ = (
+                          <div className="relative w-full">
+                            <input
+                              id={`rate-${pt.id}`}
+                              aria-label={pt.is_absence ? `Taux horaire ${pt.label} (non facturé)` : `Taux horaire ${pt.label}${isMissing ? ' (non enregistré)' : ''}`}
+                              type="number" step="0.10" min="0"
+                              value={pt.is_absence ? '0.00' : (rates[pt.id] ?? '')}
+                              onChange={e => setRates(prev => ({ ...prev, [pt.id]: e.target.value }))}
+                              onBlur={e => setRates(prev => ({ ...prev, [pt.id]: to2(e.target.value) }))}
+                              disabled={pt.is_absence}
+                              className={clsx('input text-sm pr-8 w-full disabled:bg-warm-100 disabled:text-warm-700 disabled:cursor-not-allowed', isMissing && 'border-amber-400 bg-amber-50/40')}
+                              placeholder="0"
+                            />
+                            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">/h</span>
+                          </div>
+                        )
+                        return pt.is_absence
+                          ? <Tooltip content="Une absence n'est jamais facturée" className="w-full">{champ}</Tooltip>
+                          : champ
+                      })()}
                     </div>
                     )
                   })}
