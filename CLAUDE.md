@@ -5773,7 +5773,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] Executer `supabase/migrations/guard-limite-inscrits.sql` (limite d inscrits controlee en base, sur
+- [x] Executer `supabase/migrations/guard-limite-inscrits.sql` (limite d inscrits controlee en base, sur
   eleves actifs + adultes inscrits), PUIS `supabase/controles/07-limite-inscrits.sql`. **Migration avant
   le deploiement** : la page Sante lit la nouvelle colonne `base_facturable`.
 - [x] **DEUX COLLAGES — FAITS le 04/10.** Registre en place : **132 lignes,
@@ -7713,5 +7713,7 @@ comparait la limite a TOUS les eleves, inactifs compris.
 - **Controle `supabase/controles/07-limite-inscrits.sql`** : 7 cas (reactivation refusee, adulte
   refuse, lot net +1 refuse SANS application partielle, lot net 0 accepte, place liberee puis
   occupee, desactivation au-dessus d'une limite abaissee, sans limite).
+- **Joue et EPROUVE le 07/10** : controle 07 conforme sur les 7 cas (base facturable 18), dont le
+  lot net +1 refuse SANS application partielle (base apres = 18).
 - **Reste** : le pre-controle d'`import_foyer` ne compte que les eleves ; le declencheur, plus
   strict, prime. Un refus d'import peut donc arriver avec l'un ou l'autre message.
