@@ -7371,3 +7371,156 @@ couleur nouvelle. Et dans le **CSS SERVI** : les deux utilitaires sont emises su
 `bg-warm-50`, `text-amber-700`, `text-secondary-800` sont bien remappees **DANS**
 la portee `[role="dialog"]` (658 occurrences de ce scope), que le pont sombre
 couvre.
+
+#### 7 octobre 2026 (suite) — SAUVEGARDE LOCALE, ET LA RESTAURATION EPROUVEE
+
+Point 2 du plan cote editeur. **Il n existait AUCUNE sauvegarde** : celles de
+Supabase sont une ligne du plan « une fois en Pro », et `supabase/restore/` ne
+porte qu un instantane de SCHEMA du 6 aout — **sans une seule donnee**, son
+README le dit lui-meme.
+
+**LA MESURE A DECIDE DE LA FORME, et elle a sorti trois choses.**
+
+| | Mesure du 7 octobre |
+|---|---|
+| `pg_dump` local / serveur | **17.10 / 17.6** — le client est plus recent, c est le sens qui fonctionne |
+| Connexion | directe, port 5432, hote **IPv6 seulement** ; elle aboutit depuis ce poste |
+| Base | **20 Mo**, 99 tables, **1168 lignes**. Dump complet en **9 secondes** |
+| Storage | **13 fichiers, 4,7 Mo — PAS dans Postgres** |
+| `GET /config/auth` | **238 champs** (verifie sur la specification publique) |
+
+1. **LES FICHIERS DE STORAGE NE SONT PAS DANS LE DUMP.** Treize fichiers, dont
+   **SEPT BULLETINS**. Un `pg_dump` seul restaurerait une base annoncant
+   « bulletin archive » avec un **LIEN MORT** — or ce sont des documents
+   PUBLIES, remis aux familles, et l historique de cloture les agrege depuis le
+   9 aout *precisement pour ne jamais les contredire*. **Une sauvegarde qui les
+   oublie n est pas une sauvegarde.** Ils passent par l API Storage : le SQL ne
+   peut pas les toucher (regle du 17 juillet).
+2. **LA CONFIGURATION DU TABLEAU DE BORD NE VIT NI EN BASE NI AU DEPOT.**
+   Question de l utilisateur — « est-ce que je peux exporter la configuration
+   Supabase ? » — et la reponse mesuree est **oui, plus completement que je ne
+   le pensais** : `site_url`, `uri_allow_list`, `mailer_otp_exp`, les **treize**
+   `mailer_templates_*_content`, le SMTP du projet, les reglages 2FA et de
+   session. Ce que j avais classe « hors de portee » y est en entier.
+   - **Benefice que je n avais pas vu** : les gabarits etant dans la reponse,
+     l export devient un **controle de DERIVE** entre `supabase/email-templates/`
+     et ce qui est reellement colle. Leur conformite n avait ete verifiee qu UNE
+     FOIS, a la main, le 9 aout.
+   - **Prix** : un jeton personnel Supabase, de niveau COMPTE (il gouverne tous
+     les projets). Il n existe pas de chemin moins cher — la CLI emploie le meme.
+3. **J AI FAILLI REPRODUIRE LE DEFAUT QUE LE README INTERDIT.** Mon premier
+   essai portait `--no-acl` : **780 Ko au lieu de 844, et 157 declarations de
+   privileges jetees**. C est `--no-privileges` sous un autre nom.
+
+**SECRETS CONSERVES, par decision de l utilisateur.** J avais propose de les
+masquer ; il a prefere les garder — la restauration devient alors reellement en
+une etape. **Consequence nommee une fois** : une fuite du dossier n exposerait
+plus seulement les donnees de 290 familles (dont des donnees de sante, art. 9)
+mais AUSSI le controle du projet Supabase et du compte de messagerie. D ou trois
+protections posees sans les faire arbitrer : le **nom** du fichier
+(`configuration-supabase-SECRETS.json` + une cle `_avertissement` en tete), le
+drapeau **`contient_des_secrets`** du manifeste, et un **LISEZ-MOI** a la racine
+du dossier — qui tombera dessus dans deux ans doit savoir ce qu il tient sans
+ouvrir un fichier.
+
+**LE MANIFESTE EST LA PIECE QUI COMPTE.** Sans compte de reference, une
+sauvegarde TRONQUEE se lit exactement comme une sauvegarde reussie — le defaut
+« un controle qui ne mesure rien annonce zero », paye sept fois. Il porte donc le
+nombre de lignes **table par table**, compte **exactement** (`query_to_xml`, et
+non l estimation de `reltuples`, qui vaut -1 sur une table jamais analysee).
+
+**UN DRAPEAU DE RESUME QUI MENT EST PIRE QUE PAS DE DRAPEAU.** Mon premier jet
+ecrivait `complete: true` alors que la configuration n etait pas sauvegardee
+(jeton absent). Deux notions distinctes desormais : **`incident`** (quelque
+chose a ECHOUE — bloque la purge, une panne ne doit pas emporter les
+sauvegardes saines) et **`couverture`** (ce que la sauvegarde porte REELLEMENT).
+`complete` n a droit a `true` que si les trois pieces sont la ET que rien n a
+echoue ; sinon le script annonce **« Sauvegarde PARTIELLE — non couvert : … »**
+et dit quoi faire.
+
+**LA VERIFICATION A DEUX NIVEAUX, ET LE VERDICT NOMME LEQUEL IL A ATTEINT.**
+- **Niveau 1, sans aucun identifiant** : archive lisible **de bout en bout**
+  (`pg_restore -f NUL` force la lecture du corps, la ou un `-l` ne lit que la
+  table des matieres et ne verrait pas une troncature), donnees presentes pour
+  les 62 tables non vides, **privileges dans l archive**, fichiers conformes au
+  manifeste, et les gabarits du depot **retrouves en place**.
+- **Niveau 2, avec un PostgreSQL local** : base jetable, les **7 roles Supabase**
+  crees (mesures sur l archive reelle, sinon des centaines de `GRANT` echouent et
+  le rapport se noie), `pg_restore --no-owner`, puis **RECOMPTAGE et comparaison
+  au manifeste**.
+- « Verifiee » sans restauration et « verifiee » avec **ne sont pas la meme
+  affirmation**. Les confondre donnerait exactement la fausse assurance que ce
+  script combat : le verdict dit `ARCHIVE SAINE — restauration NON eprouvee` tant
+  que `VERIF_DB_URL` n est pas renseignee.
+- **Le motif de correspondance des gabarits est VOLONTAIREMENT absent** : on
+  cherche le contenu de chaque fichier du depot dans *n importe quel* champ
+  `mailer_templates_*`. Une table de correspondance se perimerait — ce qu on
+  cherche justement a detecter.
+
+**TROIS SABOTAGES, TROIS ECHECS FRANCS** (un test jamais vu rouge ne prouve rien) :
+un fichier de Storage efface → l ecart est **NOMME** (« disque 12/4,5 Mo contre
+manifeste 13/4,7 Mo ») ; le dump `--no-acl` de mon premier essai → « **AUCUNE
+entree ACL** — un `--no-acl` a ete reintroduit » ; archive tronquee a 60 % →
+l integrite mord.
+
+**LA RETENTION EST LA SEULE PARTIE QUI SUPPRIME — elle vit donc dans un module
+PUR, avec son test.** `scripts/lib/retention.mjs`, et `npm test` couvre desormais
+`scripts/**/*.test.mjs` (13 tests, 70 → 83). Motif de `src/lib/closure/ordre.ts`.
+**Deux defauts y ont ete trouves PAR L EPREUVE, aucun ne se voyait a la lecture :**
+1. garder « les 7 plus recentes » n est **pas** garder « les 7 derniers JOURS » :
+   quelques lancements manuels le meme jour **evincaient une semaine
+   d historique**, en silence ;
+2. les semaines deja couvertes par la passe quotidienne **CONSOMMAIENT le budget
+   hebdomadaire** — on en gardait 2 au lieu des 4 annoncees. Constate sur le
+   dossier reel (« 2 gardees » la ou la regle n en justifiait qu une), puis fige
+   par deux tests nommes.
+- **Garde structurelle** : un dossier etranger ne figure dans **AUCUNE** des deux
+  listes rendues, donc une purge ne peut pas l emporter. Plus deux gardes de
+  disque : le nom doit correspondre au motif, et un `manifeste.json` doit etre
+  present (preuve que le dossier vient de ce script).
+
+**AUTOMATIQUE POUR DE VRAI.** Tache planifiee enregistree **puis DECLENCHEE et
+verifiee** — resultat 0, journal rempli. Une tache enregistree mais incapable de
+se lancer ne vaut rien. Trois reglages que les defauts de Windows prendraient a
+l envers :
+- **`StartWhenAvailable`** : un poste eteint a l heure dite **raterait** la
+  sauvegarde, sans que rien ne le dise. C est le reglage qui compte le plus sur
+  un portable ;
+- **`AllowStartIfOnBatteries`** : faux par defaut — sur batterie, Windows
+  **sauterait** la tache ;
+- **`IgnoreNew`** : deux `pg_dump` concurrents ne produiraient rien de bon.
+- Et une **enveloppe `.cmd`** plutot que l appel direct : le Planificateur ne
+  positionne pas le dossier courant (le script lit `.env.local` a la racine), et
+  une tache planifiee n a **aucune sortie visible** — une sauvegarde qui echoue
+  chaque nuit sans que personne ne le voie est pire que pas de sauvegarde. Tout
+  part dans `journal.txt`, avec son code de sortie.
+
+**CE QU AUCUN TEST LOCAL NE PROUVERA, ecrit dans le script** : la greffe sur un
+VRAI projet Supabase. Et un point **mesure sur le dump** : pour
+`etablissement_smtp`, `pg_dump` n emet que `GRANT ALL TO service_role` et **aucun
+`REVOKE`** — or un projet neuf porte un `ALTER DEFAULT PRIVILEGES` qui rendrait
+la table a `anon`/`authenticated` des sa creation. La RLS sans policy, **qui est
+dans l archive**, continue de bloquer la lecture : le mot de passe SMTP reste
+inaccessible, mais **la defense passe de deux couches a une**.
+`add-etablissement-smtp.sql` est a rejouer apres restauration, son REVOKE etant
+idempotent.
+
+**DEUX PIEGES REPAYES, tous deux documentes**
+- **Le backslash s est effondre dans un python en ligne** (sabotage n°3, qui n a
+  donc pas tourne du premier coup) : les scripts delicats passent par un FICHIER
+  ECRIT. `head -c` a suffi, sans echappement.
+- **Mon harnais de test a execute le vrai script** : un `import()` dynamique
+  lance `principal()`. Il a cree une vraie sauvegarde et purge — sans dommage, et
+  c est meme ce qui a revele le defaut de repechage. Le harnais extrait desormais
+  la fonction **par texte**, puis la logique a ete sortie dans son module.
+
+**Verifie** : type-check vert, **83/83 tests** (13 nouveaux), 0 erreur de lint
+(515 avertissements, niveau inchange — `scripts/` n est pas linte, comme
+`migrations-etat.mjs`), build complet. Et la chaine entiere eprouvee **sur la
+base reelle**, tache planifiee comprise.
+
+**IL RESTE DEUX CHOSES COTE UTILISATEUR**, et chacune complete le dispositif :
+`SUPABASE_ACCESS_TOKEN` (sans lui la configuration n est **pas** sauvegardee, et
+le script l annonce « PARTIELLE » a chaque passage) et `VERIF_DB_URL` (sans lui
+la verification s arrete au niveau 1 : l archive est saine, mais personne n a
+encore verifie que les lignes en ressortent).

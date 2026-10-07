@@ -173,9 +173,24 @@ n'existe donc plus d'artefact de reconstruction. La réponse n'est pas de le ré
       `DO` qui se **termine par une exception volontaire**, donc incapable d'écrire.
       Précédent : le 6 août, mes scripts de test ont fermé une intervention de support
       en cours d'utilisation.
-- [ ] **Moi** — Mettre en place une **sauvegarde automatique locale** (`pg_dump`,
-      désormais installé). Elle ne remplace pas celles de Supabase : elle couvre la
-      période où il y aura de vraies données sans que le Pro soit encore souscrit.
+- [x] **Moi** — **Sauvegarde automatique locale : FAITE le 7 octobre.** Tâche planifiée
+      quotidienne à 20:00 (`scripts/planifier-sauvegarde.ps1`), enregistrée, **déclenchée
+      et vérifiée** — résultat 0, journal rempli. Quatre pièces par sauvegarde : la base
+      (3 schémas, données comprises), **les 13 fichiers de Storage** (qui ne sont PAS dans
+      Postgres — dont 7 bulletins publiés), la configuration du tableau de bord Supabase,
+      et un **manifeste** portant le nombre de lignes table par table.
+      - **La restauration est éprouvée** (`scripts/verifier-sauvegarde.mjs`), à deux
+        niveaux, et le verdict dit lequel il a atteint. Trois sabotages éprouvés.
+      - **Le dossier est CONFIDENTIEL** : données de 290 familles **et secrets en clair**
+        (mot de passe SMTP du projet, clés d'API) — choix assumé pour une restauration en
+        une étape. Il vit hors du dépôt, porte un LISEZ-MOI, et `.gitignore` fait ceinture.
+      - **DEUX CHOSES RESTENT DE TON CÔTÉ**, et chacune complète le dispositif :
+        1. `SUPABASE_ACCESS_TOKEN` dans `.env.local` (jeton personnel Supabase) — sans lui
+           la configuration du tableau de bord n'est **pas** sauvegardée, et le script
+           l'annonce « PARTIELLE » à chaque passage ;
+        2. `VERIF_DB_URL` dans `.env.local` (mot de passe du PostgreSQL **local**) — sans
+           lui la vérification s'arrête au niveau 1 : l'archive est saine, mais personne
+           n'a encore vérifié que les lignes en ressortent.
 - [ ] **Toi** — Une fois en Pro : vérifier que les sauvegardes quotidiennes sont actives
       et **tester une restauration**. Une sauvegarde jamais restaurée n'est pas une
       sauvegarde.
