@@ -7524,3 +7524,83 @@ base reelle**, tache planifiee comprise.
 le script l annonce « PARTIELLE » a chaque passage) et `VERIF_DB_URL` (sans lui
 la verification s arrete au niveau 1 : l archive est saine, mais personne n a
 encore verifie que les lignes en ressortent).
+
+#### 7 octobre 2026 (fin) — LE JETON POSE, ET L EXPORT TROUVE UN ECART DES SA 1re EXECUTION
+
+Jeton cree **limite au projet, en lecture seule** — l ecran de Supabase offre
+desormais la portee (« Access tokens can now be scoped »), ce que je n avais pas
+pu etablir la veille : l incertitude s est levee dans le bon sens. **Sept
+permissions** accordees, toutes en lecture : `Project Settings` ·
+`Database Config` · `Connection Pooling` · `Auth Config` · `API Keys` ·
+`API Key Secrets` · `Storage Config`. Tout le reste a `None`, dont les deux
+categories entieres **Infrastructure and delivery** et **Account and
+organization** — cette derniere annulerait la portee projet.
+
+**TROIS LIBELLES TENDENT UN PIEGE**, et la mesure les a tranches :
+- **`Storage`** (« File storage buckets and objects ») n est **pas** necessaire :
+  les 13 fichiers passent par l **API Storage avec la cle service-role**, pas par
+  l API de gestion ;
+- **`Backups`**, **`Database`**, **`Migrations`** non plus : le script ne passe
+  **jamais** par l API pour les donnees, il se connecte avec `SUPABASE_DB_URL` et
+  `pg_dump`. Et `Backups` donne la **restauration** — un pouvoir destructeur
+  qu une sauvegarde n a aucune raison d avoir ;
+- **`API Key Secrets`** est en revanche indispensable, et l ecran le dit :
+  « Requires API Keys set to read ». Sans elle on sauvegarde les cles **sans leur
+  valeur**.
+
+**Resultat : 6/6 points, 243 champs d auth, « Sauvegarde complete ».**
+
+**DEUX CORRECTIONS QUE CES CAPTURES ONT RENDUES NECESSAIRES**
+1. **`/secrets` retire** : il ne rend que les secrets des Edge Functions, et le
+   projet n en a **aucune** (verifie : ni `supabase/functions/`, ni le moindre
+   `functions.invoke`). Le garder aurait exige une permission HIGH RISK de plus
+   pour rapporter un tableau vide.
+2. **Un point de configuration absent ne bloque plus la purge.** C etait un vrai
+   defaut : le jeton etant limite au strict necessaire, un point refuse est le cas
+   **NORMAL** — en faire un echec aurait bloque la retention **pour toujours**, et
+   les sauvegardes se seraient accumulees sans fin. La partie irremplacable a
+   reussi ; seule la COUVERTURE est entamee, et le message de fin la nomme.
+
+**LE CONTROLE DE DERIVE PRODUISAIT DU BRUIT.** Les trois gabarits ressortaient
+« derives » — et l ecart ne portait **que sur un commentaire HTML**, le rendu
+etant rigoureusement identique. Un controle qui sonne sur une virgule de
+commentaire finit ignore, et le jour ou le texte change vraiment personne ne
+regarde plus. On compare donc le **RENDU** (commentaires retires, espaces
+normalises) : c est deja la doctrine de `preparerCorps` (20 septembre), qui
+retire ces memes commentaires AVANT l envoi — ils ne font pas partie du message.
+- **Eprouve dans les DEUX sens** : vert sur l ecart de commentaire, et il **MORD
+  toujours** sur un changement de texte visible (« 10 minutes » → « 30 minutes »
+  dans le corps). Restauration verifiee par empreinte. Ignorer les commentaires
+  ne l a pas rendu aveugle.
+
+**ET L EXPORT A TROUVE UN ECART REEL, DES SA PREMIERE EXECUTION** — c est
+exactement ce qu il etait cense faire.
+
+| | |
+|---|---|
+| tableau de bord | `mailer_otp_exp = 3600` s, soit **60 minutes** |
+| `reset-password.html` | « Un lien valable **10 minutes** » |
+| `build.mjs` | `VALIDITE = '10 minutes'` |
+
+**Les emails annoncent 10 minutes pour un lien qui en dure 60.** Le journal du
+8 aout nomme precisement ce couplage — « la constante **RECOPIE** le reglage
+Supabase, elle ne le fixe pas : **les deux changent ensemble** » — et **rien ne
+les tenait ensemble**. Le 24 septembre consignait encore « la validite reste a
+10 minutes » : le reglage a donc bouge depuis, sans que les gabarits suivent.
+
+**D ou un controle de plus** : « duree annoncee dans les emails = duree reelle ».
+Il est **ROUGE**, et il doit le rester jusqu a l arbitrage.
+- **Le SENS de l ecart importe** : promettre PLUS que la realite ferait echouer
+  des liens annonces valables. Promettre MOINS, comme ici, ne fait que decourager
+  un clic qui aurait abouti. Dans les deux cas on ment, et c est le destinataire
+  d un parcours de **recuperation** qui le paie — quelqu un deja en difficulte.
+- **Les deux issues** : soit le reglage revient a **600 s** (un menu deroulant,
+  rien a recoller, c est ce que tout le depot ecrit) ; soit on **assume les
+  60 minutes** — `VALIDITE = '1 heure'`, `node build.mjs`, et **un seul** gabarit
+  a recoller, `reset-password.html`. Mesure : les deux autres n annoncent aucune
+  duree, et les **deux** mentions de ce gabarit (le corps ET la ligne d apercu,
+  piege du 8 aout) viennent de la meme constante.
+- L argument POUR 60 minutes existe et il est au journal du 8 aout : 10 minutes
+  est tres court pour **le directeur d une ecole nouvelle**, a qui le lien part
+  quand l editeur cree l etablissement, et dont l echec tomberait sur la premiere
+  impression d un client payant.
