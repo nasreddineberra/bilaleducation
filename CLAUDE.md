@@ -5773,7 +5773,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] Executer `supabase/migrations/add-smtp-verifie-le.sql` (colonne `verifie_le`, messagerie eprouvee).
+- [x] Executer `supabase/migrations/add-smtp-verifie-le.sql` (colonne `verifie_le`, messagerie eprouvee).
   **Avant le deploiement** : sans elle, la fiche ecole afficherait la messagerie « non configuree ».
 - [x] Executer `supabase/migrations/guard-limite-inscrits.sql` (limite d inscrits controlee en base, sur
   eleves actifs + adultes inscrits), PUIS `supabase/controles/07-limite-inscrits.sql`. **Migration avant
