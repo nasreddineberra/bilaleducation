@@ -2,12 +2,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { Building2, Users, GraduationCap, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import { formatDateFr, formatDateHeureFr } from '@/lib/dates'
 import { abonnementExpire } from '@/lib/tenant/abonnement'
+import { depuis, SEUIL_INACTIVITE_JOURS } from '@/lib/tenant/activite'
 
 // Le fuseau est FIXE : cette page est rendue cote SERVEUR, qui tourne en UTC.
 // Les heures d'intervention s'affichaient avec deux heures de retard.
@@ -34,7 +35,7 @@ export default async function SuperAdminPage() {
 
   const { data: etablissements } = await supabase
     .from('etablissements')
-    .select('id, slug, nom, is_active, subscription_expires_at, logo_url')
+    .select('id, slug, nom, is_active, subscription_expires_at, logo_url, max_students')
     .order('nom', { ascending: true })
 
   // UN SEUL appel pour tous les comptages. Cette page en faisait trois PAR
@@ -43,10 +44,14 @@ export default async function SuperAdminPage() {
   // intervention, il gonflerait l'effectif de l'école qu'il dépanne.
   const { data: sante } = await supabase.rpc('get_etablissements_sante')
 
-  type Sante = { etablissement_id: string; users_count: number; students_count: number; classes_count: number }
+  type Sante = {
+    etablissement_id: string; users_count: number; base_facturable: number
+    classes_count: number; last_sign_in: string | null
+  }
   const statsMap = Object.fromEntries(
     ((sante ?? []) as Sante[]).map(s => [s.etablissement_id, {
-      users: s.users_count, students: s.students_count, classes: s.classes_count,
+      users: s.users_count, inscrits: s.base_facturable, classes: s.classes_count,
+      derniereConnexion: s.last_sign_in,
     }])
   )
 
@@ -122,9 +127,10 @@ export default async function SuperAdminPage() {
                 <th scope="col" className="list-th text-left">Établissement</th>
                 <th scope="col" className="list-th text-left">Statut</th>
                 <th scope="col" className="list-th text-left">Abonnement</th>
+                <th scope="col" className="list-th text-right">Inscrits</th>
+                <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
                 <th scope="col" className="list-th text-right">Utilisateurs</th>
                 <th scope="col" className="list-th text-right whitespace-nowrap">Classes</th>
-                <th scope="col" className="list-th text-right">Élèves</th>
                 <th scope="col" className="list-th" />
               </tr>
             </thead>
@@ -133,6 +139,11 @@ export default async function SuperAdminPage() {
                 const expired = isExpired(e.subscription_expires_at)
                 const dateStr = formatDate(e.subscription_expires_at)
                 const s       = statsMap[e.id]
+                // Base facturable (eleves actifs + adultes inscrits) : le chiffre
+                // qui fixe le prix, et que la limite d'inscrits plafonne.
+                const quota    = e.max_students && s ? s.inscrits / e.max_students : null
+                const activite = depuis(s?.derniereConnexion ?? null, maintenant)
+                const dormante = e.is_active && (activite.jours === null || activite.jours >= SEUIL_INACTIVITE_JOURS)
 
                 return (
                   <ClickableRow
@@ -181,6 +192,17 @@ export default async function SuperAdminPage() {
                         <span className="text-xs text-warm-700">Sans expiration</span>
                       )}
                     </td>
+                    <td className="list-td text-right whitespace-nowrap tabular-nums">
+                      <span className={quota !== null && quota >= 0.9 ? 'text-amber-700 font-medium' : 'text-warm-700'}>
+                        {s?.inscrits ?? '·'}
+                        {e.max_students ? ` / ${e.max_students}` : ''}
+                      </span>
+                    </td>
+                    <td className="list-td whitespace-nowrap">
+                      <span className={dormante ? 'text-amber-700 font-medium' : 'text-warm-700'}>
+                        {s ? activite.texte : '·'}
+                      </span>
+                    </td>
                     <td className="list-td text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Users className="w-3.5 h-3.5" />{s?.users ?? '·'}
@@ -189,11 +211,6 @@ export default async function SuperAdminPage() {
                     <td className="list-td text-right">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Layers className="w-3.5 h-3.5" />{s?.classes ?? '·'}
-                      </span>
-                    </td>
-                    <td className="list-td text-right">
-                      <span className="inline-flex items-center gap-1 text-warm-700">
-                        <GraduationCap className="w-3.5 h-3.5" />{s?.students ?? '·'}
                       </span>
                     </td>
                     <td className="list-td" data-no-row-nav>

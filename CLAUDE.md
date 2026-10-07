@@ -7717,3 +7717,16 @@ comparait la limite a TOUS les eleves, inactifs compris.
   lot net +1 refuse SANS application partielle (base apres = 18).
 - **Reste** : le pre-controle d'`import_foyer` ne compte que les eleves ; le declencheur, plus
   strict, prime. Un refus d'import peut donc arriver avec l'un ou l'autre message.
+
+#### 7 octobre 2026 (nuit, suite) — Console : liste des etablissements et notes
+
+- Tests a l'ecran de l'utilisateur : les 3 verifications de la limite d'inscrits ET le test
+  d'expiration d'abonnement sont **OK**.
+- Fiche ecole : « Notes internes » sur **7 lignes** ; libelle « Limite d'eleves » sans « (mode essai) ».
+- **Liste des etablissements** : colonnes **Inscrits** (`base / limite`, ambre a 90 %) et
+  **Derniere connexion** (ambre au-dela de 30 j ou jamais, ecole active seulement) ; colonne
+  « Eleves » RETIREE (elle comptait les inactifs : 221 pour 15 actifs, ni facturable ni signal).
+  Ordre : Etablissement · Statut · Abonnement · Inscrits · Derniere connexion · Utilisateurs ·
+  Classes. Aucune requete ajoutee : tout vient de `get_etablissements_sante`. La messagerie reste
+  sur la page Sante (pas de doublon).
+- `depuis()` extrait de la page Sante vers `src/lib/tenant/activite.ts` a son 2e usage.

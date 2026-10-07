@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import ClickableRow from '../ClickableRow'
 import { formatDateFr } from '@/lib/dates'
 import { joursRestants } from '@/lib/tenant/abonnement'
+import { depuis } from '@/lib/tenant/activite'
 
 /**
  * Santé des établissements clients.
@@ -20,22 +21,6 @@ import { joursRestants } from '@/lib/tenant/abonnement'
 /** Nombre de jours entre aujourd'hui et une date (négatif = passé). */
 // Jours calendaires de Paris, jour d'echeance inclus (0 = dernier jour d'acces).
 const joursAvant = (date: string | null): number | null => joursRestants(date)
-
-/**
- * « aujourd'hui », « il y a 3 j », « il y a 2 mois ».
- *
- * Une date brute obligerait à compter mentalement : ce qu'on veut savoir, c'est
- * si l'école s'est connectée récemment, pas le jour exact.
- */
-function depuis(date: string | null): { texte: string; jours: number | null } {
-  if (!date) return { texte: 'Jamais', jours: null }
-  const jours = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000)
-  if (jours <= 0) return { texte: "Aujourd'hui", jours }
-  if (jours === 1) return { texte: 'Hier', jours }
-  if (jours < 31) return { texte: `Il y a ${jours} j`, jours }
-  const mois = Math.floor(jours / 30)
-  return { texte: `Il y a ${mois} mois`, jours }
-}
 
 function formatDate(date: string | null | undefined) {
   if (!date) return null
