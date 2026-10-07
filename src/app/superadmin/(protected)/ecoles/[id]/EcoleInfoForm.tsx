@@ -160,7 +160,7 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               placeholder="Observations, historique commercial, contacts clés..."
-              rows={3}
+              rows={7}
               className="input resize-none text-sm"
             />
           </Field>
