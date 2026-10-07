@@ -1090,7 +1090,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
             </SidebarTooltip>
           ) : (
             <p className={clsx(
-              'text-xs leading-snug',
+              'text-xs leading-snug text-center',
               abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]'
             )}>
               Fin abonnement au
