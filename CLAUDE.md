@@ -7270,3 +7270,104 @@ separement — une liste a URL (Apprenants) et une liste a `sessionStorage`
 (« Corriger » depuis un audit ramene toujours a l audit). Ce dernier point est
 celui qui comptait : les trois tests le figent, mais seul un navigateur prouve
 que les deux regles se superposent sans se contredire.
+
+#### 7 octobre 2026 — LA PROCEDURE DE MESSAGERIE VIT DANS SON ENCADRE
+
+Point 1 du plan cote editeur. **Idee de l utilisateur** : « est-ce qu on ne
+mettrait pas un lien de la procedure dans l encadre Messagerie ? elle sera
+disponible tout le temps. » Trois mesures l ont confirmee, et une l a
+transformee.
+
+**CE QUI LA CONFIRME** : l encadre ne s affiche que si la lecture de la config a
+reussi, donc pour **admin et direction seulement** — exactement le public, et
+**aucune garde a ajouter** ; c est l ecran ou l on EST quand on en a besoin ; et
+il portait deja deux lignes d aide en miniature (le conseil Gmail, la regle de
+l adresse d expedition), que la procedure prolonge au lieu d inventer un endroit.
+
+**CE QUI L A TRANSFORMEE** : « mettre un lien » supposait un document. **Il n en
+existait aucun** — les seules mentions de SMTP vivaient dans `CLAUDE.md` et
+`MISE_EN_PRODUCTION.md`, deux documents INTERNES, invisibles d une ecole. Il
+fallait donc l ecrire, et d abord choisir sa FORME.
+
+**TROIS FORMES ECARTEES, chacune pour une raison mesuree**
+- **PDF dans `public/`** (precedent du gabarit d import, qui existe bel et bien) :
+  imprimable et transmissible, mais **il se perime EN SILENCE** — et la partie
+  la plus perissable est justement le chemin de clic chez le fournisseur. Defaut
+  deja paye sur `policies.sql`, `schema.sql` et le commentaire `app-open`.
+- **PAGE d aide** : une route, un titre dans `DashboardNav`, une garde de role et
+  **une forme de plus dans la carte des 47 routes de `RouteSkeleton`** —
+  beaucoup de tuyauterie pour un document, et elle eloignerait du formulaire
+  qu on est en train de remplir.
+- **Email d accueil** : il se perd. La procedure sert surtout le jour ou la
+  messagerie **CESSE** de fonctionner, des mois apres l ouverture.
+
+**MODALE DE LECTURE SUR `FormModal`**, comme `SupportRequestDetailModal` — la
+seule autre modale de lecture du projet, lue et recopiee (regle « comme X »).
+Sa coque est documentee « pour la SAISIE », donc un peu trop verrouillee pour un
+texte qu on ne fait que lire : la doctrine du 3 aout autoriserait Echap ici. Mais
+l ajouter imposerait soit de modifier `FormModal` (qui porte toutes les modales
+de saisie), soit d ecrire une seconde coque. **La coherence avec le precedent
+vaut mieux qu un gain marginal** — et une seconde coque serait le defaut de
+divergence que ce projet combat.
+
+**LE CONTENU VIT A UN SEUL ENDROIT.** Pas de `.md` jumeau : la duplication est le
+defaut qui revient le plus ici (le calcul comptable divergent dans trois
+sous-menus, les quatre tables de situation familiale, les sept tables de libelles
+de role). Consequence assumee : il n est pas envoyable en fichier.
+
+**CE QUI EST PERISSABLE EST ENONCE PAR SON OBJECTIF.** Les reglages de securite
+des fournisseurs changent de place sans prevenir. On dit donc **ce qu il faut
+OBTENIR** (« cherchez *mot de passe d application* dans les reglages de
+securite ») et **pourquoi** (le fournisseur refuse le mot de passe habituel des
+que la 2FA est active), plutot qu un pas-a-pas de douze etapes qui pourrirait
+sans que personne ne s en apercoive. Le chemin Google est donne en indication,
+pas en verite.
+
+**SIX SECTIONS, LES PLUS UTILES D ABORD** : les 4 informations a reunir · le
+tableau des fournisseurs · le mot de passe d application · l adresse
+d expedition · pourquoi le test envoie un VRAI message · les trois causes
+d echec par frequence reelle.
+- Le **tableau** (Gmail, Microsoft 365, Infomaniak, OVH) est la seule partie
+  reellement **transmissible** telle quelle. Gmail et Infomaniak sont les deux
+  valeurs **eprouvees en service** (la premiere ecole et l editeur) ; les deux
+  autres sont les plus probables pour les suivantes, et la documentation du
+  fournisseur est annoncee comme faisant foi.
+- La **restriction propre a Microsoft 365** (l envoi SMTP y est souvent desactive
+  par defaut, et cela se debloque chez le fournisseur, pas chez nous) est
+  signalee **sous** le tableau et non dans une colonne : elle ne concerne qu une
+  ligne, et une colonne presque vide se lit comme un oubli.
+- Le **test** est explique par ce qu il PROUVE : « un serveur qui repond ne prouve
+  rien — le compte peut avoir atteint son quota, refuser l adresse d expedition,
+  ou etre restreint par son administrateur. » C est la raison d etre de l envoi
+  reel, decidee le 15 juillet et jamais expliquee a l ecran.
+
+**EN-TETE : `justify-between` -> `gap-3` + `ml-auto`.** Le lien est groupe avec le
+TITRE (il porte sur son sujet) et la pastille garde le bord droit. A trois
+enfants, `justify-between` les aurait espaces a egalite, ce qui aurait detache le
+lien de son sujet.
+
+**LIMITE ASSUMEE, signalee plutot qu enterree** : la direction **ne peut pas
+transmettre** cette procedure a un prestataire informatique, ce qu un PDF ferait
+mieux. Le tableau se lit a voix haute ou se capture ; si le besoin se confirme,
+jsPDF est deja dans le projet.
+
+**C EST LE PREMIER ECRAN D AIDE DE L APPLICATION** (verifie : aucun motif
+« aide / documentation / guide » n existait dans `src/app`). La forme retenue
+devient donc le motif des suivants.
+
+**UN FAUX ZERO DANS MA PROPRE MESURE, le septieme.** Mon controle du CSS servi
+annoncait **0 occurrence** de `.section-title` et `.list-th-compact` — j ai failli
+conclure qu elles n etaient pas emises. Je regardais `.next/static/css/`, **un
+dossier qui n existe pas** : le CSS atterrit dans `.next/static/chunks/`. Le
+journal du 24 septembre le disait deja. **Verifier que l outil mesure quelque
+chose avant de croire son zero** : `ls` sur le dossier, et un comptage de la
+chaine sous une forme quelconque, auraient tranche en deux secondes.
+
+**Verifie** : type-check vert, 70/70 tests, 0 erreur de lint et **aucun
+avertissement sur les deux fichiers touches**, build complet. Les **10 classes de
+couleur** employees existent deja ailleurs (50 a 154 fichiers chacune) — aucune
+couleur nouvelle. Et dans le **CSS SERVI** : les deux utilitaires sont emises sur
+`var(--ink-muted)`, donc elles suivent le theme **par construction** ; et
+`bg-warm-50`, `text-amber-700`, `text-secondary-800` sont bien remappees **DANS**
+la portee `[role="dialog"]` (658 occurrences de ce scope), que le pont sombre
+couvre.
