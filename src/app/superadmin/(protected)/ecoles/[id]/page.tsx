@@ -88,8 +88,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     const ct = c.cotisation_types as { is_adult?: boolean } | { is_adult?: boolean }[] | null
     return Array.isArray(ct) ? Boolean(ct[0]?.is_adult) : Boolean(ct?.is_adult)
   }
-  const classesAdultes   = classes ? classes.filter(estAdulte).length : null
-  const classesApprenants = classes && classesAdultes !== null ? classes.length - classesAdultes : null
+  const classesAdultes = classes ? classes.filter(estAdulte).length : null
 
   const { data: { user } } = await (await createClient()).auth.getUser()
   const { data: moi } = user
@@ -97,7 +96,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     : { data: null }
   const interventionAilleurs = Boolean(moi?.etablissement_id) && moi!.etablissement_id !== id
 
-  const compteurs: { label: string; value: number | null; detail?: string; facturable?: boolean }[] = [
+  const compteurs: { label: string; value: number | null; facturable?: boolean }[] = [
     { label: 'Utilisateurs',     value: profiles?.length ?? 0 },
     { label: 'Élèves',           value: studentsCount },
     { label: 'Élèves actifs',    value: elevesActifs },
@@ -106,11 +105,10 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     // Le prix de l'abonnement se calcule sur ce chiffre : il est mis en avant.
     { label: 'Base facturable',  value: baseFacturable, facturable: true },
     {
-      label: 'Classes',
+      // Les classes sont en general des classes d'enfants : on ne precise que
+      // les adultes, et seulement s'il y en a (« dont 0 adulte » n'apprend rien).
+      label: classesAdultes ? `Classes (dont ${classesAdultes} adulte${classesAdultes > 1 ? 's' : ''})` : 'Classes',
       value: classes ? classes.length : null,
-      detail: classesApprenants !== null
-        ? `${classesApprenants} apprenant${classesApprenants > 1 ? 's' : ''} · ${classesAdultes} adulte${(classesAdultes ?? 0) > 1 ? 's' : ''}`
-        : undefined,
     },
   ]
 
@@ -167,7 +165,6 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
                 {c.value ?? '?'}
               </p>
               <p className="stat-label mt-1 whitespace-nowrap">{c.label}</p>
-              {c.detail && <p className="text-[10px] text-warm-700 whitespace-nowrap tabular-nums">{c.detail}</p>}
             </div>
           ))}
 

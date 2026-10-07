@@ -7669,7 +7669,8 @@ facturable** · Classes.
   tuteur 1 et 2 comptes SEPAREMENT. Pendant d'« eleve actif » : inscrit, pas forcement affecte.
 - **Base facturable** = eleves actifs + adultes inscrits, mise en avant (`ring-primary-600`).
 - **Classes** : celles de l'ANNEE EN COURS (sinon les classes de l'an passe doubleraient le
-  chiffre apres un passage d'annee), detail « N apprenants · N adultes » via `cotisation.is_adult`.
+  chiffre apres un passage d annee), libelle « Classes (dont N adultes) » via `cotisation.is_adult`
+  (les classes sont en general des classes d enfants ; rien a preciser s il n y a aucun adulte).
 - Un comptage `head` impossible rend `count: null` SANS erreur : il s'affiche « ? », jamais 0 —
   un zero faux sur un chiffre de facturation est pire qu'un trou visible.
 - **Verifie sur la base reelle** (script jetable, supprime) : 221 eleves, 15 actifs, 134 foyers,
