@@ -122,10 +122,13 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
       () => updateMaxStudents(ecole.id, maxStudents.trim() ? parseInt(maxStudents, 10) : null),
       maxStudents.trim() ? 'Limite enregistrée.' : 'Limite retirée.')
 
+  // UNE colonne : Informations puis Acces et abonnement, empiles. La fiche ne doit
+  // pas defiler sur un ecran 1080p : l'encadre Acces est donc compact (libelle a
+  // gauche, saisie et boutons sur la meme ligne), et les Notes gardent 7 lignes.
   return (
-    <>
+    <div className="space-y-4">
       <form onSubmit={handleSubmit} noValidate>
-        <div className="card p-4 space-y-3">
+        <div className="card p-3 space-y-2.5">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Informations</h2>
 
           <Field label={<>Nom <span className="text-red-400">*</span></>} error={touched.has('nom') && vNom ? 'Obligatoire.' : undefined}>
@@ -178,7 +181,7 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
         </div>
       </form>
 
-      <div className="card p-4 space-y-3">
+      <div className="card p-3 space-y-2.5">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Accès et abonnement</h2>
 
         {message && (
@@ -192,40 +195,39 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
             <p className="text-sm font-medium text-secondary-700">Statut d'accès</p>
             <p className="text-xs text-warm-700 mt-0.5">{ecole.is_active ? "L'école peut se connecter." : "L'accès est bloqué."}</p>
           </div>
-          <button type="button" onClick={() => (ecole.is_active ? setAConfirmer('acces') : handleToggle())} disabled={toggling} className={clsx('btn text-sm px-4 py-2', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
+          <button type="button" onClick={() => (ecole.is_active ? setAConfirmer('acces') : handleToggle())} disabled={toggling} className={clsx('btn text-sm px-4 py-1.5', ecole.is_active ? 'btn-danger' : 'btn-primary', toggling && 'opacity-50 cursor-not-allowed')}>
             {toggling ? '...' : ecole.is_active ? 'Désactiver' : 'Activer'}
           </button>
         </div>
 
-        <div className="border-t border-warm-100 pt-3">
-          <p className="text-sm font-medium text-secondary-700 mb-2">Expiration abonnement</p>
-          <div className="flex items-center gap-2">
-            <input type="date" value={subExpiry} onChange={e => setSubExpiry(e.target.value)} className="input flex-1" />
-            <button type="button" onClick={handleSaveDate} disabled={savingDate} className="btn btn-secondary text-sm px-3 py-2 whitespace-nowrap">
+        <div className="border-t border-warm-100 pt-2.5 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="ecole-expiration" className="w-28 shrink-0 text-sm font-medium text-secondary-700">Expiration</label>
+            <input id="ecole-expiration" type="date" value={subExpiry} onChange={e => setSubExpiry(e.target.value)} className="input flex-1 min-w-0 py-1.5" />
+            <button type="button" onClick={handleSaveDate} disabled={savingDate} className="btn btn-secondary text-sm px-3 py-1.5 whitespace-nowrap">
               {savingDate ? '...' : 'Enregistrer'}
             </button>
             {subExpiry && (
-              <button type="button" onClick={() => setAConfirmer('abonnement')} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
+              <button type="button" onClick={() => setAConfirmer('abonnement')} className="btn btn-secondary text-sm px-3 py-1.5 text-warm-700 whitespace-nowrap">
                 Aucune
               </button>
             )}
           </div>
-        </div>
 
-        <div className="border-t border-warm-100 pt-3">
-          <p className="text-sm font-medium text-secondary-700 mb-0.5">Limite d'élèves</p>
-          <p className="text-xs text-warm-700 mb-2">Laisser vide pour un accès illimité</p>
-          <div className="flex items-center gap-2">
+          {/* Vide = illimite : le texte d'aide est porte par le placeholder. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <label htmlFor="ecole-limite" className="w-28 shrink-0 text-sm font-medium text-secondary-700">Limite d'élèves</label>
             <input
+              id="ecole-limite"
               type="number" min="1" placeholder="Illimité"
               value={maxStudents} onChange={e => setMaxStudents(e.target.value)}
-              className="input flex-1"
+              className="input flex-1 min-w-0 py-1.5"
             />
-            <button type="button" onClick={handleSaveMax} disabled={savingMax} className="btn btn-secondary text-sm px-3 py-2 whitespace-nowrap">
+            <button type="button" onClick={handleSaveMax} disabled={savingMax} className="btn btn-secondary text-sm px-3 py-1.5 whitespace-nowrap">
               {savingMax ? '...' : 'Enregistrer'}
             </button>
             {maxStudents && (
-              <button type="button" onClick={() => setAConfirmer('limite')} className="btn btn-secondary text-sm px-3 py-2 text-warm-700 whitespace-nowrap">
+              <button type="button" onClick={() => setAConfirmer('limite')} className="btn btn-secondary text-sm px-3 py-1.5 text-warm-700 whitespace-nowrap">
                 Aucune
               </button>
             )}
@@ -271,6 +273,6 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
           onCancel={() => setAConfirmer(null)}
         />
       )}
-    </>
+    </div>
   )
 }

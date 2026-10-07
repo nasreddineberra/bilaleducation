@@ -7754,3 +7754,9 @@ dans la section Utilisateurs) · 6 (filtres de la liste) · 7 (depart d'une ecol
   configuration enregistree. Le premier envoi reel reussi la pose aussi (`marquerMessagerieEprouvee`,
   memo par signature : un envoi a 300 familles ne paie pas 300 ecritures). **Remise a vide** des que
   la configuration enregistree change (`saveSmtpSettings` compare les signatures).
+- **Fiche ecole reorganisee** (demande utilisateur) : gauche = Informations + Acces et abonnement
+  EMPILES ; centre = Mise en service ; droite = Utilisateurs. **Sans barre de defilement** : hauteurs
+  estimees sur les styles reels (champ ~66 px, saisie 46, bouton 40) — empiles tels quels, la colonne
+  faisait ~860 px, soit > 1000 px de page. « Acces et abonnement » compacte (libelle a gauche,
+  saisie et boutons sur la meme ligne, `py-1.5`, texte d'aide de la limite porte par le placeholder)
+  et marges `p-3 space-y-2.5` : colonne ~710 px, page ~890 px. Notes inchangees (7 lignes).

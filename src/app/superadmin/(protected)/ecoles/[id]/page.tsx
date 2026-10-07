@@ -263,11 +263,11 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className="grid grid-cols-3 gap-4 items-start">
+        {/* Gauche : Informations + Acces et abonnement · Centre : Mise en service
+            · Droite : Utilisateurs. */}
         <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} />
-        <div className="space-y-4">
-          <MiseEnService installation={installation} demarrage={demarrage} />
-          <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
-        </div>
+        <MiseEnService installation={installation} demarrage={demarrage} />
+        <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
       </div>
 
     </div>
