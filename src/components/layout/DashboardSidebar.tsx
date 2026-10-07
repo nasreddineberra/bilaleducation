@@ -1070,44 +1070,17 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         })}
       </nav>
 
-      {/* ── Fin d'abonnement ─────────────────────────────────────────────────
-          Pour admin et direction (meme condition que le support) : ce sont eux
-          qui renouvellent. Rien sans echeance — une ligne « sans echeance »
-          n'appellerait aucune action. */}
-      {peutContacterSupport && abonnement && (
-        <div className={clsx(
-          'border-t border-white/10 flex-shrink-0',
-          collapsed ? 'py-2 flex justify-center' : 'px-6 py-2'
-        )}>
-          {collapsed ? (
-            <SidebarTooltip label={`Fin abonnement au ${abonnement.date}`} className="w-auto">
-              <span
-                className={clsx('flex p-2', abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]')}
-                aria-label={`Fin abonnement au ${abonnement.date}`}
-              >
-                <CalendarClock size={20} aria-hidden="true" />
-              </span>
-            </SidebarTooltip>
-          ) : (
-            <p className={clsx(
-              'text-xs leading-snug text-center',
-              abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]'
-            )}>
-              Fin abonnement au
-              <span className="block font-semibold tabular-nums">{abonnement.date}</span>
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* ── Contacter le support ─────────────────────────────────────────────
+      {/* ── Contacter le support (+ fin d'abonnement) ─────────────────────────
           Placé JUSTE AU-DESSUS des informations d'application : c'est le bas de
           page, là où l'on cherche un contact — et non dans la navigation, où il
-          se lirait comme une rubrique de travail. */}
+          se lirait comme une rubrique de travail.
+          La fin d'abonnement vit dans le MEME encadré, sous le lien : même public
+          (admin et direction, ceux qui renouvellent). Rien sans échéance — une
+          ligne « sans échéance » n'appellerait aucune action. */}
       {peutContacterSupport && (
         <div className={clsx(
           'border-t border-white/10 flex-shrink-0',
-          collapsed ? 'py-2 flex justify-center' : 'px-3 py-2'
+          collapsed ? 'py-2 flex flex-col items-center gap-1' : 'px-3 py-2'
         )}>
           <SidebarTooltip
             label="Support technique"
@@ -1132,6 +1105,25 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
               {!collapsed && <span className="text-sm truncate">Support technique</span>}
             </Link>
           </SidebarTooltip>
+
+          {abonnement && (collapsed ? (
+            <SidebarTooltip label={`Fin abonnement au ${abonnement.date}`} className="w-auto">
+              <span
+                className={clsx('flex p-2', abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]')}
+                aria-label={`Fin abonnement au ${abonnement.date}`}
+              >
+                <CalendarClock size={20} aria-hidden="true" />
+              </span>
+            </SidebarTooltip>
+          ) : (
+            <p className={clsx(
+              'mt-1 text-xs leading-snug text-center',
+              abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]'
+            )}>
+              Fin abonnement au
+              <span className="block font-semibold tabular-nums">{abonnement.date}</span>
+            </p>
+          ))}
         </div>
       )}
 

@@ -7634,8 +7634,8 @@ mis a jour.
 #### 7 octobre 2026 (soir) — Fin d'abonnement affichee dans la barre laterale
 
 Point 1 des trois dernieres actions (verifier l'expiration d'abonnement). Demande utilisateur :
-la date de fin d'abonnement, visible de l'admin et de la direction, **juste au-dessus de
-« Support technique »**, sur deux lignes : « Fin abonnement au » / la date.
+la date de fin d'abonnement, visible de l'admin et de la direction, **dans l'encadre de
+« Support technique », sous le lien**, centree, sur deux lignes : « Fin abonnement au » / la date.
 - Meme condition d'affichage que le support (`ROLES_SUPPORT`) : ce sont eux qui renouvellent.
 - **Ambre a 30 jours ou moins** (`ALERTE_ABONNEMENT_JOURS`), `amber-400` = l'accent deja en place
   dans la barre. Rien sans echeance. Barre reduite : icone `CalendarClock` + infobulle.
