@@ -1,0 +1,2 @@
+# cmd.exe exige des fins de ligne CRLF : en LF il lit mal les lignes (rem casse).
+*.cmd text eol=crlf

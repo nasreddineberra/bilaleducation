@@ -71,7 +71,7 @@ ATTENTION : le dossier produit contient des donnees personnelles de familles
 ET des secrets en clair (mot de passe SMTP du projet, cles d API). Ne le
 transmettez pas.
 
-Journal : D:\Sauvegardes-BILALEDUCATION\journal.txt
+Journal : D:\#2. Sauvegardes Supabase - BilalEducation\journal.txt
 Eprouver une sauvegarde : node scripts\verifier-sauvegarde.mjs
 "@
 
@@ -84,7 +84,7 @@ Write-Host "Tache enregistree." -ForegroundColor Green
 Write-Host "  nom     : $nom"
 Write-Host "  heure   : $Heure, chaque jour (rattrapee si le poste etait eteint)"
 Write-Host "  lance   : $enveloppe"
-Write-Host "  journal : D:\Sauvegardes-BILALEDUCATION\journal.txt"
+Write-Host "  journal : D:\#2. Sauvegardes Supabase - BilalEducation\journal.txt"
 Write-Host ""
 Write-Host "  Essai immediat : Start-ScheduledTask -TaskName '$nom'" -ForegroundColor DarkGray
 Write-Host "  Retirer        : ...\planifier-sauvegarde.ps1 -Retirer" -ForegroundColor DarkGray

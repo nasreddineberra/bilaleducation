@@ -7622,3 +7622,11 @@ mis a jour.
   retention). Alias repointe sur `sauvegarder.mjs`, ancien script supprime, 2 README alignes.
   **Une seule facon de sauvegarder.** L ancien dossier n est plus alimente ; a supprimer a la main
   une fois inutile.
+- **Dossier des sauvegardes renomme** : `D:\#2. Sauvegardes Supabase - BilalEducation` (ex-
+  `D:\Sauvegardes-BILALEDUCATION`), chemin mis a jour dans les 2 scripts, l enveloppe, le script de
+  planification et `.gitignore`. La tache planifiee n a pas a etre reenregistree (elle appelle le
+  `.cmd` du depot).
+- **`sauvegarder.cmd` etait en LF avec deux tirets longs** : cmd.exe lisait mal ses lignes `rem`
+  (une erreur par ligne de commentaire au lancement manuel ; la sauvegarde aboutissait quand meme).
+  Repasse en ASCII + CRLF, et `.gitattributes` impose `*.cmd text eol=crlf`, sans quoi git le
+  remettrait en LF. **Regle : un `.cmd` est en ASCII et en CRLF.**

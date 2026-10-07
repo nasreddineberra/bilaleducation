@@ -64,7 +64,7 @@ next-env.d.ts
 __pycache__/
 *.pyc
 
-# SAUVEGARDES LOCALES. Elles vivent HORS du depot (D:\Sauvegardes-BILALEDUCATION)
+# SAUVEGARDES LOCALES. Elles vivent HORS du depot (D:\#2. Sauvegardes Supabase - BilalEducation)
 # et `scripts/sauvegarder.mjs` REFUSE de s executer si on l oriente a
 # l interieur. Ces regles sont une ceinture : elles couvrent une copie deposee
 # ici a la main.

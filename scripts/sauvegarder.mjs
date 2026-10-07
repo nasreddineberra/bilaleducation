@@ -64,7 +64,7 @@ import { choisirAGarder, MOTIF_DOSSIER } from './lib/retention.mjs'
 // ─── Reglages ───────────────────────────────────────────────────────────────
 
 /** Hors du depot, et la garde plus bas le verifie. */
-const RACINE_DEFAUT = 'D:\\Sauvegardes-BILALEDUCATION'
+const RACINE_DEFAUT = 'D:\\#2. Sauvegardes Supabase - BilalEducation'
 const QUOTIDIENNES_GARDEES = 7
 const HEBDOMADAIRES_GARDEES = 4
 

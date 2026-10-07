@@ -52,7 +52,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const RACINE_DEFAUT = 'D:\\Sauvegardes-BILALEDUCATION'
+const RACINE_DEFAUT = 'D:\\#2. Sauvegardes Supabase - BilalEducation'
 const BINAIRES_CANDIDATS = [
   'C:\\Program Files\\PostgreSQL\\17\\bin',
   'C:\\Program Files\\PostgreSQL\\16\\bin',
