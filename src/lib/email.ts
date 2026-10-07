@@ -54,8 +54,9 @@ const MAX_MESSAGES_PER_RATE_DELTA = 5   // ~5 messages/seconde au plus
 type CacheEntry = { transporter: Transporter; signature: string }
 const cache = new Map<string, CacheEntry>()
 
-/** Signature de la config : si elle change, le transporteur en cache est perime. */
-function signatureOf(c: SmtpConfig): string {
+/** Signature de la config : si elle change, le transporteur en cache est perime.
+ *  Sert aussi a dire si deux configurations sont la meme (messagerie eprouvee). */
+export function signatureOf(c: SmtpConfig): string {
   return `${c.host}|${c.port}|${c.secure}|${c.username}|${c.password}|${c.from_email}|${c.from_name ?? ''}`
 }
 
@@ -93,6 +94,30 @@ async function getTransporter(etablissementId: string): Promise<{ transporter: T
 /** Compose l'expediteur : nom d'affichage lisible + adresse du compte SMTP. */
 function formatFrom(c: SmtpConfig): string {
   return c.from_name ? `"${c.from_name.replace(/"/g, '')}" <${c.from_email}>` : c.from_email
+}
+
+// ─── Messagerie « eprouvee » ─────────────────────────────────────────────────
+// `etablissement_smtp.verifie_le` : un email est REELLEMENT parti avec la
+// configuration enregistree (migration `add-smtp-verifie-le`). La liste de mise
+// en service de la console le lit. Pose au premier envoi reussi, remis a vide
+// quand la configuration change (`saveSmtpSettings`).
+//
+// Une seule ecriture par configuration et par instance : sans ce memo, un envoi
+// a 300 familles paierait 300 allers-retours pour une colonne deja posee.
+const dejaMarquees = new Set<string>()
+
+export async function marquerMessagerieEprouvee(etablissementId: string, config: SmtpConfig): Promise<void> {
+  const cle = `${etablissementId}|${signatureOf(config)}`
+  if (dejaMarquees.has(cle)) return
+  const { error } = await createAdminClient()
+    .from('etablissement_smtp')
+    .update({ verifie_le: new Date().toISOString() })
+    .eq('etablissement_id', etablissementId)
+    .is('verifie_le', null)
+  // Trace secondaire : un echec ne doit jamais faire echouer l'envoi qui, lui,
+  // a reussi. Mais il ne doit pas non plus passer en silence.
+  if (error) { console.error('[email] verifie_le non pose :', error.message); return }
+  dejaMarquees.add(cle)
 }
 
 // ─── Envoi ───────────────────────────────────────────────────────────────────
@@ -145,6 +170,7 @@ export async function sendNotificationEmail(params: {
         contentType: a.contentType,
       })),
     })
+    await marquerMessagerieEprouvee(params.etablissementId, resolved.config)
     return { success: true }
   } catch (e: any) {
     return { success: false, error: e.message }

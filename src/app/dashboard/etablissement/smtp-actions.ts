@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
-import { verifySmtpConfig, sendTestEmail, type SmtpConfig } from '@/lib/email'
+import { verifySmtpConfig, sendTestEmail, getSmtpConfig, signatureOf, marquerMessagerieEprouvee, type SmtpConfig } from '@/lib/email'
 import { revalidatePath } from 'next/cache'
 
 // La messagerie engage l'etablissement entier : reservee a admin/direction.
@@ -123,11 +123,19 @@ export async function saveSmtpSettings(payload: SaveSmtpPayload): Promise<{ erro
   const config = await resolveConfig(ctx.etablissementId, payload)
   if (!config) return { error: 'Le mot de passe est obligatoire.' }
 
+  // Une configuration MODIFIEE n'est plus eprouvee : l'envoi reussi portait sur
+  // l'ancienne. Enregistrer la meme configuration ne remet rien a zero.
+  const avant  = await getSmtpConfig(ctx.etablissementId)
+  const change = !avant || signatureOf(avant) !== signatureOf(config)
+
   const admin = createAdminClient()
   const echec = erreurEcriture(
     await admin
       .from('etablissement_smtp')
-      .upsert({ etablissement_id: ctx.etablissementId, ...config }, { onConflict: 'etablissement_id' })
+      .upsert(
+        { etablissement_id: ctx.etablissementId, ...config, ...(change ? { verifie_le: null } : {}) },
+        { onConflict: 'etablissement_id' },
+      )
       .select('etablissement_id'),
     'La configuration',
   )
@@ -186,6 +194,13 @@ export async function testSmtpSettings(payload: SaveSmtpPayload): Promise<{ erro
 
   const sent = await sendTestEmail(config, contact)
   if (!sent.ok) return { error: `Connexion réussie, mais l'envoi a échoué : ${sent.error}` }
+
+  // Le test ne vaut « messagerie eprouvee » que s'il porte sur la configuration
+  // ENREGISTREE : une saisie non enregistree n'est pas celle qui enverra.
+  const enregistree = await getSmtpConfig(ctx.etablissementId)
+  if (enregistree && signatureOf(enregistree) === signatureOf(config)) {
+    await marquerMessagerieEprouvee(ctx.etablissementId, config)
+  }
 
   return { message: `Connexion réussie. Un message de test a été envoyé à ${contact}.` }
 }

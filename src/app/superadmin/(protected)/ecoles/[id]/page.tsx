@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/server'
 import { EnterButton } from '../../SupportControls'
 import EcoleInfoForm from './EcoleInfoForm'
 import EcoleUsersSection from './EcoleUsersSection'
+import MiseEnService, { type Etape } from './MiseEnService'
+import { formatDateFr } from '@/lib/dates'
 
 /**
  * Fiche d'un établissement client.
@@ -48,7 +50,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
   // celles de l'an passe restent en base et doubleraient le chiffre.
   const { data: anneeCourante } = await supabase
     .from('school_years')
-    .select('label')
+    .select('id, label')
     .eq('etablissement_id', id)
     .eq('is_current', true)
     .maybeSingle()
@@ -89,6 +91,80 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     return Array.isArray(ct) ? Boolean(ct[0]?.is_adult) : Boolean(ct?.is_adult)
   }
   const classesAdultes = classes ? classes.filter(estAdulte).length : null
+
+  // ── Mise en service ────────────────────────────────────────────────────────
+  // Les comptes qui pilotent l'ecole : admin et direction actifs.
+  const pilotes = (profiles ?? []).filter(p => ['admin', 'direction'].includes(p.role) && p.is_active)
+
+  const [{ data: smtp }, { count: cotisations }, comptesAuth] = await Promise.all([
+    // Table serveur uniquement : lue en service-role, le secret n'est pas demande.
+    supabase.from('etablissement_smtp').select('verifie_le').eq('etablissement_id', id).maybeSingle(),
+    anneeCourante?.id
+      ? supabase.from('cotisation_types').select('id', { count: 'exact', head: true })
+          .eq('etablissement_id', id).eq('school_year_id', anneeCourante.id)
+      : Promise.resolve({ count: 0 }),
+    // Compte par compte, et PAS `listUsers()` : il ne renvoie pas les facteurs
+    // de double authentification (piege constate le 15 aout). Deux ou trois
+    // comptes par ecole, le cout est negligeable.
+    Promise.all(pilotes.map(async p => {
+      const { data } = await supabase.auth.admin.getUserById(p.id)
+      const u = data?.user
+      return {
+        role:        p.role as string,
+        deuxFacteurs: Boolean(u?.factors?.some(f => f.factor_type === 'totp' && f.status === 'verified')),
+        connexion:   u?.last_sign_in_at ?? null,
+      }
+    })),
+  ])
+
+  const aAdmin     = comptesAuth.some(c => c.role === 'admin')
+  const aDirection = comptesAuth.some(c => c.role === 'direction')
+  const avec2FA    = comptesAuth.filter(c => c.deuxFacteurs).length
+  const connexionDirection = comptesAuth
+    .filter(c => c.role === 'direction' && c.connexion)
+    .map(c => c.connexion as string)
+    .sort()
+    .at(-1) ?? null  // la PLUS RECENTE : `last_sign_in_at` est la derniere connexion, pas la premiere
+
+  const installation: Etape[] = [
+    { label: 'Logo chargé', ok: Boolean(ecole.logo_url) },
+    {
+      label: 'Email de contact renseigné',
+      ok: Boolean(ecole.contact?.trim()),
+      // Adresse de reponse OBLIGATOIRE de tous les envois aux familles.
+      detail: ecole.contact?.trim() || 'Aucun envoi aux familles possible sans lui',
+    },
+    { label: 'Messagerie configurée', ok: Boolean(smtp) },
+    {
+      label: 'Messagerie éprouvée',
+      ok: Boolean(smtp?.verifie_le),
+      detail: smtp?.verifie_le
+        ? `Envoi réussi le ${formatDateFr(smtp.verifie_le)}`
+        : smtp ? 'Aucun envoi réussi depuis la dernière modification' : undefined,
+    },
+    { label: 'Année scolaire en cours', ok: Boolean(anneeCourante), detail: anneeCourante?.label },
+    {
+      label: 'Comptes admin et direction actifs',
+      ok: aAdmin && aDirection,
+      detail: `Admin ${aAdmin ? 'oui' : 'non'} · Direction ${aDirection ? 'oui' : 'non'}`,
+    },
+    {
+      label: 'Double authentification activée',
+      ok: comptesAuth.length > 0 && avec2FA === comptesAuth.length,
+      detail: comptesAuth.length > 0 ? `${avec2FA}/${comptesAuth.length} compte${comptesAuth.length > 1 ? 's' : ''}` : undefined,
+    },
+    {
+      label: 'Première connexion de la direction',
+      ok: Boolean(connexionDirection),
+      detail: connexionDirection ? `Dernière connexion le ${formatDateFr(connexionDirection)}` : 'Jamais connectée',
+    },
+  ]
+
+  const demarrage: Etape[] = [
+    { label: "Cotisations de l'année définies", ok: (cotisations ?? 0) > 0, detail: cotisations !== null ? String(cotisations) : undefined },
+    { label: "Classes de l'année créées",       ok: (classes?.length ?? 0) > 0, detail: classes ? String(classes.length) : undefined },
+    { label: 'Élèves actifs',                   ok: (elevesActifs ?? 0) > 0, detail: elevesActifs !== null ? String(elevesActifs) : undefined },
+  ]
 
   const { data: { user } } = await (await createClient()).auth.getUser()
   const { data: moi } = user
@@ -188,7 +264,10 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
 
       <div className="grid grid-cols-3 gap-4 items-start">
         <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} />
-        <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+        <div className="space-y-4">
+          <MiseEnService installation={installation} demarrage={demarrage} />
+          <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+        </div>
       </div>
 
     </div>

@@ -5773,6 +5773,8 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/add-smtp-verifie-le.sql` (colonne `verifie_le`, messagerie eprouvee).
+  **Avant le deploiement** : sans elle, la fiche ecole afficherait la messagerie « non configuree ».
 - [x] Executer `supabase/migrations/guard-limite-inscrits.sql` (limite d inscrits controlee en base, sur
   eleves actifs + adultes inscrits), PUIS `supabase/controles/07-limite-inscrits.sql`. **Migration avant
   le deploiement** : la page Sante lit la nouvelle colonne `base_facturable`.
@@ -7730,3 +7732,25 @@ comparait la limite a TOUS les eleves, inactifs compris.
   Classes. Aucune requete ajoutee : tout vient de `get_etablissements_sante`. La messagerie reste
   sur la page Sante (pas de doublon).
 - `depuis()` extrait de la page Sante vers `src/lib/tenant/activite.ts` a son 2e usage.
+
+#### 7 octobre 2026 (nuit, fin) — Console : liste de MISE EN SERVICE sur la fiche ecole (point 3/7)
+
+Programme arrete par l'utilisateur, un point a la fois : 3 (mise en service) · 1 (releve mensuel de
+la base facturable) · 2 (facturation sur la fiche) · 4 (historique des actions editeur) · 5 (2FA
+dans la section Utilisateurs) · 6 (filtres de la liste) · 7 (depart d'une ecole / RGPD).
+
+- Encadre `MiseEnService.tsx` en tete de la 3e colonne, au-dessus d'Utilisateurs. **Mise en
+  service (8)** : logo · email de contact (adresse de reponse obligatoire des envois) · messagerie
+  configuree · **messagerie eprouvee** · annee en cours · comptes admin ET direction actifs · 2FA
+  (n/m) · connexion de la direction. **Demarrage (3)** : cotisations de l'annee, classes de
+  l'annee, eleves actifs. Compteur n/N par groupe (turquoise si complet, ambre sinon).
+- 2FA et connexions lues compte par compte (`auth.admin.getUserById`), jamais `listUsers()` qui ne
+  renvoie pas les facteurs.
+- **`last_sign_in_at` est la DERNIERE connexion**, pas la premiere : le detail dit « Derniere
+  connexion le … ».
+- **« Eprouvee » (migration `add-smtp-verifie-le.sql`)** : `etablissement_smtp.verifie_le` = un
+  email est REELLEMENT parti avec la configuration ENREGISTREE. Le bouton de test teste la saisie,
+  le plus souvent AVANT l'enregistrement : il ne pose la trace que si la saisie est identique a la
+  configuration enregistree. Le premier envoi reel reussi la pose aussi (`marquerMessagerieEprouvee`,
+  memo par signature : un envoi a 300 familles ne paie pas 300 ecritures). **Remise a vide** des que
+  la configuration enregistree change (`saveSmtpSettings` compare les signatures).
