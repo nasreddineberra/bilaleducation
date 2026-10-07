@@ -113,6 +113,20 @@ function tailleDossier(d) {
 
 const poids = o => o < 1024 ? `${o} o` : o < 1048576 ? `${(o / 1024).toFixed(0)} Ko` : `${(o / 1048576).toFixed(1)} Mo`
 
+/**
+ * CE QUE LE DESTINATAIRE RECOIT REELLEMENT : commentaires de developpement
+ * retires, espaces normalises.
+ *
+ * On ne compare PAS octet pour octet. Mesure du 7 octobre : les trois gabarits
+ * differaient du depot — et UNIQUEMENT par un commentaire HTML, le rendu etant
+ * rigoureusement identique. Un controle qui sonne sur une virgule de
+ * commentaire finit ignore, et le jour ou le texte change vraiment, personne ne
+ * regarde plus. C'est deja la doctrine de `preparerCorps` (20 septembre), qui
+ * retire ces memes commentaires AVANT l'envoi : ils ne font pas partie du
+ * message.
+ */
+const rendu = s => s.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim()
+
 // ─── Niveau 1 ───────────────────────────────────────────────────────────────
 
 function niveau1(dossier, manifeste, pgRestore) {
@@ -182,13 +196,39 @@ function niveau1(dossier, manifeste, pgRestore) {
     else {
       const absents = []
       for (const f of fichiers) {
-        const attendu = fs.readFileSync(path.join(dossierG, f), 'utf8').replace(/\r\n/g, '\n').trim()
-        const trouve = champs.some(([, v]) => typeof v === 'string' && v.replace(/\r\n/g, '\n').trim() === attendu)
+        const attendu = rendu(fs.readFileSync(path.join(dossierG, f), 'utf8'))
+        const trouve = champs.some(([, v]) => typeof v === 'string' && rendu(v) === attendu)
         if (!trouve) absents.push(f)
       }
-      if (absents.length === 0) ok(`gabarits d email identiques au depot`, `${fichiers.length} fichiers retrouves`)
+      if (absents.length === 0) ok(`gabarits d email identiques au depot`, `${fichiers.length} gabarits, au rendu`)
       else rate(`gabarits d email identiques au depot`,
-                `non retrouves a l identique : ${absents.join(', ')} — le tableau de bord a derive du depot`)
+                `non retrouves : ${absents.join(', ')} — le tableau de bord a derive du depot`)
+    }
+
+    // ── LE COUPLAGE QUE PERSONNE NE SURVEILLE ────────────────────────────
+    //
+    // Le gabarit ANNONCE au destinataire la duree de validite du lien, et la
+    // constante `VALIDITE` de `build.mjs` ne fait que RECOPIER le reglage
+    // Supabase — elle ne le fixe pas (journal du 8 aout : « les deux changent
+    // ensemble »). Rien ne les tenait ensemble : au premier export, le tableau
+    // de bord annoncait 3600 s quand les gabarits disaient « 10 minutes ».
+    //
+    // Le sens de l'ecart importe : promettre PLUS que la realite ferait echouer
+    // des liens qu'on a dit valables. Promettre MOINS, comme ici, ne fait que
+    // decourager un clic qui aurait abouti. Dans les deux cas on ment, et c'est
+    // le destinataire d'un parcours de recuperation qui le paie.
+    const otp = c.auth?.mailer_otp_exp
+    const buildMjs = path.join(dossierG, 'build.mjs')
+    if (typeof otp !== 'number' || !fs.existsSync(buildMjs)) {
+      note('duree annoncee dans les emails = duree reelle', 'reglage ou `build.mjs` absent')
+    } else {
+      const brut = (fs.readFileSync(buildMjs, 'utf8').match(/VALIDITE\s*=\s*['"]([^'"]+)/) || [])[1]
+      const n = Number((brut || '').match(/\d+/)?.[0])
+      const annonce = !brut || !n ? null : /heure/i.test(brut) ? n * 3600 : n * 60
+      if (annonce === null) note('duree annoncee dans les emails = duree reelle', 'constante VALIDITE illisible')
+      else if (annonce === otp) ok('duree annoncee dans les emails = duree reelle', brut)
+      else rate('duree annoncee dans les emails = duree reelle',
+                `les gabarits disent « ${brut} », Supabase applique ${otp} s (${Math.round(otp / 60)} min)`)
     }
   }
 

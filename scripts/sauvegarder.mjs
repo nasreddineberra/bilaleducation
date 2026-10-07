@@ -240,7 +240,12 @@ const POINTS_CONFIG = [
   ['storage',         '/config/storage'],
   ['pooler',          '/config/database/pooler'],
   ['postgres',        '/config/database/postgres'],
-  ['secrets',         '/secrets'],
+  // `/secrets` RETIRE : ce point ne rend que les secrets des Edge Functions, et
+  // le projet n'en a AUCUNE (ni `supabase/functions/`, ni le moindre
+  // `functions.invoke` dans `src` — verifie le 7 octobre). Le garder aurait
+  // exige une permission HIGH RISK de plus pour rapporter un tableau vide, et
+  // aurait fait annoncer « PARTIELLE » a chaque passage. A remettre le jour ou
+  // une Edge Function apparait.
 ]
 
 async function sauverConfiguration(ref, pat, fichier) {
@@ -469,7 +474,12 @@ async function principal() {
       const c = await sauverConfiguration(ref, pat, path.join(dossier, 'configuration-supabase-SECRETS.json'))
       manifeste.configuration = c
       couverture.configuration = c.manque.length === 0
-      if (c.manque.length) incident = true
+      // PAS un incident, et c'est delibere. Un point refuse signifie le plus
+      // souvent qu'on a VOULU ne pas accorder la permission (le jeton est
+      // limite au strict necessaire) — en faire un echec bloquerait la purge
+      // POUR TOUJOURS, et les sauvegardes s'accumuleraient sans fin. La partie
+      // irremplacable, elle, a reussi : seule la COUVERTURE est entamee, et le
+      // message de fin la nomme.
       console.log(
         (c.manque.length ? ROUGE('partiel') : VERT('ok'))
         + GRIS(` — ${c.points - c.manque.length}/${c.points} points`)
