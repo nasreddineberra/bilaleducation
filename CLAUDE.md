@@ -7659,3 +7659,18 @@ la date de fin d'abonnement, visible de l'admin et de la direction, **dans l'enc
     console reste « Active ». Repousser la date suffit a retablir l'acces.
   - **Signale, non traite** : la coupure ne vaut que pour les PAGES. Un jeton deja emis reste
     servi par l'API REST, la RLS ignorant l'abonnement.
+
+#### 7 octobre 2026 (soir, suite) — Fiche ecole de la console : compteurs de facturation
+
+Le prix de l'abonnement se calculera sur **eleves actifs + adultes inscrits**. Ordre arrete par
+l'utilisateur : Utilisateurs · Eleves · Eleves actifs · Foyers · Adultes inscrits · **Base
+facturable** · Classes.
+- **Adultes inscrits = option A** : tuteurs coches « cours adultes » (`tutor1/2_adult_courses`),
+  tuteur 1 et 2 comptes SEPAREMENT. Pendant d'« eleve actif » : inscrit, pas forcement affecte.
+- **Base facturable** = eleves actifs + adultes inscrits, mise en avant (`ring-primary-600`).
+- **Classes** : celles de l'ANNEE EN COURS (sinon les classes de l'an passe doubleraient le
+  chiffre apres un passage d'annee), detail « N apprenants · N adultes » via `cotisation.is_adult`.
+- Un comptage `head` impossible rend `count: null` SANS erreur : il s'affiche « ? », jamais 0 —
+  un zero faux sur un chiffre de facturation est pire qu'un trou visible.
+- **Verifie sur la base reelle** (script jetable, supprime) : 221 eleves, 15 actifs, 134 foyers,
+  3 adultes inscrits (2 + 1), base facturable 18, 3 classes dont 1 adulte.

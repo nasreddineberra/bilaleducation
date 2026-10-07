@@ -44,10 +44,52 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     .eq('etablissement_id', id)
     .order('last_name', { ascending: true })
 
-  const [{ count: studentsCount }, { count: classesCount }] = await Promise.all([
+  // Les classes se comptent sur l'ANNEE EN COURS : apres un passage d'annee,
+  // celles de l'an passe restent en base et doubleraient le chiffre.
+  const { data: anneeCourante } = await supabase
+    .from('school_years')
+    .select('label')
+    .eq('etablissement_id', id)
+    .eq('is_current', true)
+    .maybeSingle()
+
+  let requeteClasses = supabase
+    .from('classes')
+    .select('id, cotisation_types(is_adult)')
+    .eq('etablissement_id', id)
+  if (anneeCourante?.label) requeteClasses = requeteClasses.eq('academic_year', anneeCourante.label)
+
+  const [
+    { count: studentsCount },
+    { count: elevesActifs },
+    { count: foyers },
+    { count: adultesT1 },
+    { count: adultesT2 },
+    { data: classes },
+  ] = await Promise.all([
     supabase.from('students').select('id', { count: 'exact', head: true }).eq('etablissement_id', id),
-    supabase.from('classes').select('id', { count: 'exact', head: true }).eq('etablissement_id', id),
+    supabase.from('students').select('id', { count: 'exact', head: true }).eq('etablissement_id', id).eq('is_active', true),
+    supabase.from('parents').select('id', { count: 'exact', head: true }).eq('etablissement_id', id),
+    // Adultes inscrits = tuteurs coches « cours adultes », tuteur 1 et tuteur 2
+    // comptes SEPAREMENT (un foyer peut en compter deux). C'est le pendant
+    // d'« eleve actif » : inscrit, pas forcement deja affecte a une classe.
+    supabase.from('parents').select('id', { count: 'exact', head: true }).eq('etablissement_id', id).eq('tutor1_adult_courses', true),
+    supabase.from('parents').select('id', { count: 'exact', head: true }).eq('etablissement_id', id).eq('tutor2_adult_courses', true),
+    requeteClasses,
   ])
+
+  // Sur un comptage `head`, une requete impossible rend `count: null` SANS
+  // erreur. Un `?? 0` ferait d'une panne un zero — inacceptable sur des chiffres
+  // qui servent a facturer. On affiche alors « ? ».
+  const adultesInscrits = adultesT1 === null || adultesT2 === null ? null : adultesT1 + adultesT2
+  const baseFacturable  = elevesActifs === null || adultesInscrits === null ? null : elevesActifs + adultesInscrits
+
+  const estAdulte = (c: { cotisation_types: unknown }) => {
+    const ct = c.cotisation_types as { is_adult?: boolean } | { is_adult?: boolean }[] | null
+    return Array.isArray(ct) ? Boolean(ct[0]?.is_adult) : Boolean(ct?.is_adult)
+  }
+  const classesAdultes   = classes ? classes.filter(estAdulte).length : null
+  const classesApprenants = classes && classesAdultes !== null ? classes.length - classesAdultes : null
 
   const { data: { user } } = await (await createClient()).auth.getUser()
   const { data: moi } = user
@@ -55,10 +97,21 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     : { data: null }
   const interventionAilleurs = Boolean(moi?.etablissement_id) && moi!.etablissement_id !== id
 
-  const compteurs = [
-    { label: 'Utilisateurs', value: profiles?.length ?? 0 },
-    { label: 'Élèves',       value: studentsCount ?? 0   },
-    { label: 'Classes',      value: classesCount ?? 0    },
+  const compteurs: { label: string; value: number | null; detail?: string; facturable?: boolean }[] = [
+    { label: 'Utilisateurs',     value: profiles?.length ?? 0 },
+    { label: 'Élèves',           value: studentsCount },
+    { label: 'Élèves actifs',    value: elevesActifs },
+    { label: 'Foyers',           value: foyers },
+    { label: 'Adultes inscrits', value: adultesInscrits },
+    // Le prix de l'abonnement se calcule sur ce chiffre : il est mis en avant.
+    { label: 'Base facturable',  value: baseFacturable, facturable: true },
+    {
+      label: 'Classes',
+      value: classes ? classes.length : null,
+      detail: classesApprenants !== null
+        ? `${classesApprenants} apprenant${classesApprenants > 1 ? 's' : ''} · ${classesAdultes} adulte${(classesAdultes ?? 0) > 1 ? 's' : ''}`
+        : undefined,
+    },
   ]
 
   return (
@@ -103,12 +156,18 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Compteurs : trois nombres ne méritaient pas trois cartes pleine largeur. */}
+        {/* Compteurs : des nombres seuls ne méritaient pas des cartes pleine largeur. */}
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
           {compteurs.map(c => (
-            <div key={c.label} className="card px-3 py-1.5 text-center min-w-[84px]">
-              <p className="text-base font-bold text-secondary-800 leading-none tabular-nums">{c.value}</p>
-              <p className="stat-label mt-1">{c.label}</p>
+            <div
+              key={c.label}
+              className={`card px-3 py-1.5 text-center min-w-[84px] ${c.facturable ? 'ring-2 ring-primary-600' : ''}`}
+            >
+              <p className={`text-base font-bold leading-none tabular-nums ${c.facturable ? 'text-primary-700' : 'text-secondary-800'}`}>
+                {c.value ?? '?'}
+              </p>
+              <p className="stat-label mt-1 whitespace-nowrap">{c.label}</p>
+              {c.detail && <p className="text-[10px] text-warm-700 whitespace-nowrap tabular-nums">{c.detail}</p>}
             </div>
           ))}
 
