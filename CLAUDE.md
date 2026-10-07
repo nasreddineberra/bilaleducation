@@ -7630,3 +7630,17 @@ mis a jour.
   (une erreur par ligne de commentaire au lancement manuel ; la sauvegarde aboutissait quand meme).
   Repasse en ASCII + CRLF, et `.gitattributes` impose `*.cmd text eol=crlf`, sans quoi git le
   remettrait en LF. **Regle : un `.cmd` est en ASCII et en CRLF.**
+
+#### 7 octobre 2026 (soir) — Fin d'abonnement affichee dans la barre laterale
+
+Point 1 des trois dernieres actions (verifier l'expiration d'abonnement). Demande utilisateur :
+la date de fin d'abonnement, visible de l'admin et de la direction, **juste au-dessus de
+« Support technique »**, sur deux lignes : « Fin abonnement au » / la date.
+- Meme condition d'affichage que le support (`ROLES_SUPPORT`) : ce sont eux qui renouvellent.
+- **Ambre a 30 jours ou moins** (`ALERTE_ABONNEMENT_JOURS`), `amber-400` = l'accent deja en place
+  dans la barre. Rien sans echeance. Barre reduite : icone `CalendarClock` + infobulle.
+- Date formatee a l'heure de **Paris** (`timestamptz` : en UTC, une echeance a minuit tomberait la
+  veille). `getEtablissement` lit une colonne de plus sur la MEME ligne, aucune requete ajoutee.
+- **A verifier pendant le test** : la resolution de l'ecole dans `proxy.ts` porte un
+  `revalidate: 3600`. Si la redirection vers `/abonnement-expire` tarde apres un changement
+  d'echeance, c'est ce cache — et il retarderait aussi le RETABLISSEMENT d'un client qui a paye.

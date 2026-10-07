@@ -506,6 +506,8 @@ interface DashboardSidebarProps {
   etablissementNom?:  string | null
   etablissementLogo?: string | null
   anneeCourante?:     string | null
+  /** Echeance de l'abonnement (`etablissements.subscription_expires_at`). */
+  finAbonnement?:     string | null
   /** Auteur affiché dans « informations jointes » de la demande de support.
    *  Pour l'AFFICHAGE seulement : la server action relit l'identité en session. */
   auteur?:            { nom: string; email: string; role: string } | null
@@ -531,7 +533,27 @@ function getInitiales(nom: string): string {
     .join('') || 'BE'
 }
 
-export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante }: DashboardSidebarProps) {
+/**
+ * Seuil d'alerte avant la fin de l'abonnement : a 30 jours ou moins, la ligne
+ * passe en ambre. Le but est de prevenir AVANT la coupure, qui renvoie toute
+ * l'ecole vers `/abonnement-expire`.
+ */
+const ALERTE_ABONNEMENT_JOURS = 30
+
+/**
+ * La colonne est un `timestamptz` : on formate a l'heure de PARIS, sinon une
+ * echeance posee a minuit s'afficherait la veille selon le fuseau du poste.
+ */
+function lireFinAbonnement(valeur: string | null | undefined): { date: string; bientot: boolean } | null {
+  if (!valeur) return null
+  const fin = new Date(valeur)
+  if (Number.isNaN(fin.getTime())) return null
+  const date = fin.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' })
+  const joursRestants = (fin.getTime() - Date.now()) / 86_400_000
+  return { date, bientot: joursRestants <= ALERTE_ABONNEMENT_JOURS }
+}
+
+export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante, finAbonnement }: DashboardSidebarProps) {
   const pathname   = usePathname()
 
   const { collapsed, setCollapsed, ouvertMobile, setOuvertMobile } = useSidebar()
@@ -563,6 +585,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
     return () => document.removeEventListener('keydown', surTouche)
   }, [ouvertMobile, setOuvertMobile])
   const peutContacterSupport = Boolean(role && ROLES_SUPPORT.includes(role))
+  const abonnement = lireFinAbonnement(finAbonnement)
   const [tempExpanded,  setTempExpanded]  = useState(false)  // expand temporaire depuis état réduit
 
   // Collecter tous les hrefs pour déterminer le match le plus spécifique
@@ -1046,6 +1069,36 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           )
         })}
       </nav>
+
+      {/* ── Fin d'abonnement ─────────────────────────────────────────────────
+          Pour admin et direction (meme condition que le support) : ce sont eux
+          qui renouvellent. Rien sans echeance — une ligne « sans echeance »
+          n'appellerait aucune action. */}
+      {peutContacterSupport && abonnement && (
+        <div className={clsx(
+          'border-t border-white/10 flex-shrink-0',
+          collapsed ? 'py-2 flex justify-center' : 'px-6 py-2'
+        )}>
+          {collapsed ? (
+            <SidebarTooltip label={`Fin abonnement au ${abonnement.date}`} className="w-auto">
+              <span
+                className={clsx('flex p-2', abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]')}
+                aria-label={`Fin abonnement au ${abonnement.date}`}
+              >
+                <CalendarClock size={20} aria-hidden="true" />
+              </span>
+            </SidebarTooltip>
+          ) : (
+            <p className={clsx(
+              'text-xs leading-snug',
+              abonnement.bientot ? 'text-amber-400' : 'text-[var(--brand-muted)]'
+            )}>
+              Fin abonnement au
+              <span className="block font-semibold tabular-nums">{abonnement.date}</span>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Contacter le support ─────────────────────────────────────────────
           Placé JUSTE AU-DESSUS des informations d'application : c'est le bas de

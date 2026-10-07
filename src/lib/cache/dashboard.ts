@@ -61,7 +61,7 @@ export const getEtablissement = cache(async (etablissementId: string) => {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('etablissements')
-    .select('nom, logo_url')
+    .select('nom, logo_url, subscription_expires_at')
     .eq('id', etablissementId)
     .maybeSingle()
   return data
