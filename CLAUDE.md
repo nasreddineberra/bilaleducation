@@ -7622,7 +7622,7 @@ mis a jour.
   retention). Alias repointe sur `sauvegarder.mjs`, ancien script supprime, 2 README alignes.
   **Une seule facon de sauvegarder.** L ancien dossier n est plus alimente ; a supprimer a la main
   une fois inutile.
-- **Dossier des sauvegardes renomme** : `D:\#2. Sauvegardes Supabase - BilalEducation` (ex-
+- **Dossier des sauvegardes renomme** : `D:\# 2. Sauvegardes Supabase - BilalEducation` (ex-
   `D:\Sauvegardes-BILALEDUCATION`), chemin mis a jour dans les 2 scripts, l enveloppe, le script de
   planification et `.gitignore`. La tache planifiee n a pas a etre reenregistree (elle appelle le
   `.cmd` du depot).

@@ -17,8 +17,8 @@ rem ---------------------------------------------------------------------------
 cd /d "%~dp0.."
 
 rem Le journal vit AVEC les sauvegardes, hors du depot.
-set "JOURNAL=D:\#2. Sauvegardes Supabase - BilalEducation\journal.txt"
-if not exist "D:\#2. Sauvegardes Supabase - BilalEducation" mkdir "D:\#2. Sauvegardes Supabase - BilalEducation"
+set "JOURNAL=D:\# 2. Sauvegardes Supabase - BilalEducation\journal.txt"
+if not exist "D:\# 2. Sauvegardes Supabase - BilalEducation" mkdir "D:\# 2. Sauvegardes Supabase - BilalEducation"
 
 echo. >> "%JOURNAL%"
 echo ===== %DATE% %TIME% ===== >> "%JOURNAL%"
