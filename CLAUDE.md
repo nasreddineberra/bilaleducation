@@ -7604,3 +7604,14 @@ Il est **ROUGE**, et il doit le rester jusqu a l arbitrage.
   est tres court pour **le directeur d une ecole nouvelle**, a qui le lien part
   quand l editeur cree l etablissement, et dont l echec tomberait sur la premiere
   impression d un client payant.
+
+#### 7 octobre 2026 (fin, suite) — Duree des liens : 60 minutes, ecart resorbe
+
+Arbitrage utilisateur : **les liens d authentification durent 1 heure.** Le reglage Supabase
+(`Email OTP expiration`) valait deja 3600 s ; c etait le gabarit qui annoncait 10 minutes.
+`VALIDITE = '1 heure'` dans `build.mjs`, gabarits regeneres : **seul `reset-password.html`
+change** (apercu ET corps), les deux autres n annoncent aucune duree. README des gabarits
+mis a jour.
+- **RESTE COTE UTILISATEUR** : recoller `reset-password.html` dans Supabase (Authentication →
+  Emails → Templates → Reset Password). Puis le controle « duree annoncee = duree reelle » de la
+  sauvegarde doit passer au vert.

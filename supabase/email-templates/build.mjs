@@ -69,10 +69,11 @@ const ICI = dirname(fileURLToPath(import.meta.url))
  * Les deux changent ensemble — un email qui promet une heure sur un lien valable
  * dix minutes produit un appel au support a chaque envoi.
  *
- * Reglage constate le 8 aout : 10 minutes. Reserve a arbitrer : c'est tres court
- * pour le directeur d'une ecole nouvelle, qui ouvre sa boite quand il peut.
+ * Reglage : 3600 s, soit 1 heure (arbitre le 7 octobre). Dix minutes etaient
+ * trop courtes pour le directeur d'une ecole nouvelle, qui ouvre sa boite quand
+ * il peut. L'export de configuration de la sauvegarde controle l'accord.
  */
-const VALIDITE = '10 minutes'
+const VALIDITE = '1 heure'
 
 /**
  * Lien du bouton de reinitialisation — PAS `{{ .ConfirmationURL }}`.

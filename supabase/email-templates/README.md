@@ -76,24 +76,19 @@ créée dans l'heure.
 
 ### 2. Durée de validité (Authentication → Email OTP expiration)
 
-**Réglage constaté le 8 août : 10 minutes.**
+**Réglage : 3600 secondes, soit 1 heure** (arbitré le 7 octobre).
 
 La constante `VALIDITE` de `build.mjs` **recopie** cette valeur, elle ne la fixe
-pas. **Les deux changent ensemble** — un email qui promet une heure sur un lien
-valable dix minutes produit un appel au support à chaque envoi, et l'utilisateur
-croit le service cassé.
+pas. **Les deux changent ensemble** — un email qui annonce une durée fausse fait
+échouer des liens annoncés valables, ou décourage un clic qui aurait abouti.
+L'export de configuration de la sauvegarde locale (`scripts/sauvegarde`) compare
+les deux à chaque passage.
 
-> **Réserve à arbitrer.** Dix minutes conviennent à qui vient de cliquer « mot de
-> passe oublié » : il est devant son écran. C'est beaucoup plus court pour le cas
-> qui compte commercialement — le **directeur d'une école nouvelle**, à qui le lien
-> part au moment où l'éditeur crée l'établissement, et qui ouvre sa boîte quand il
-> le peut. Là, dix minutes ratent presque à coup sûr, et l'échec tombe sur la
-> **première impression d'un client payant**.
->
-> Le repli existe — « Mot de passe oublié » sur l'écran de connexion de son école,
-> et le mot de passe provisoire affiché une fois à la création — mais il se paie
-> d'un aller-retour. Une heure sur ce réglage supprimerait le problème ; c'est un
-> arbitrage entre sécurité et friction, à trancher, pas un défaut.
+> **Pourquoi une heure.** Dix minutes convenaient à qui vient de cliquer « mot de
+> passe oublié », mais ratent presque à coup sûr le cas qui compte commercialement :
+> le **directeur d'une école nouvelle**, à qui le lien part quand l'éditeur crée
+> l'établissement, et qui ouvre sa boîte quand il le peut. Le lien reste à usage
+> unique.
 
 ### 3. Redirect URLs (Authentication → URL Configuration)
 
