@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import AideMessagerie from './AideMessagerie'
 import {
   saveSmtpSettings,
   testSmtpSettings,
@@ -49,6 +50,7 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [aideOuverte, setAideOuverte] = useState(false)
 
   const set = (k: keyof FormData, v: string) => {
     setForm(f => ({ ...f, [k]: v }))
@@ -107,17 +109,29 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
 
   return (
     <div className="card p-5 space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        {/* Le lien d'aide est groupe avec le TITRE (il porte sur son sujet) et la
+            pastille garde le bord droit : d'ou `gap-3` + `ml-auto`, et non le
+            `justify-between` d'origine qui espacerait les trois a egalite. */}
+        <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Messagerie</h2>
+          <button
+            type="button"
+            onClick={() => setAideOuverte(true)}
+            className="text-xs font-medium text-primary-700 hover:text-primary-800 hover:underline rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          >
+            Comment configurer ?
+          </button>
           <span
             role="status"
-            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+            className={`ml-auto text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
               isConfigured ? 'bg-primary-50 text-primary-700' : 'bg-amber-100 text-amber-700'
             }`}
           >
             {isConfigured ? 'Configurée' : 'Non configurée'}
           </span>
         </div>
+
+        {aideOuverte && <AideMessagerie onClose={() => setAideOuverte(false)} />}
 
         {!isConfigured && (
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
