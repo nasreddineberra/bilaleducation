@@ -32,6 +32,8 @@ interface StudentsClientProps {
   /** Actifs avec au moins une absence / retard / avertissement cette annee. */
   totalDiscipline: number
   maxStudents?:  number | null
+  /** Eleves actifs + adultes inscrits : la mesure de la limite d'inscrits. */
+  baseFacturable?: { eleves: number; adultes: number; total: number } | null
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -98,7 +100,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 
 export default function StudentsClient({
   students, filteredCount, page, q, filter,
-  totalAll, totalActive, totalNoParent, totalUnassigned, totalDiscipline, maxStudents,
+  totalAll, totalActive, totalNoParent, totalUnassigned, totalDiscipline, maxStudents, baseFacturable,
 }: StudentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -107,7 +109,9 @@ export default function StudentsClient({
   const activeFilter = (filter || '') as StatFilter
 
   const totalPages   = Math.ceil(filteredCount / PAGE_SIZE)
-  const limitReached = maxStudents != null && totalActive >= maxStudents
+  // Limite d'inscrits = eleves actifs + adultes inscrits. Comptage en echec :
+  // on ne grise pas, la base garde la limite elle-meme.
+  const limitReached = maxStudents != null && baseFacturable != null && baseFacturable.total >= maxStudents
 
   useEffect(() => { setInputValue(q) }, [q])
 
@@ -178,13 +182,15 @@ export default function StudentsClient({
             className="bg-red-100/60 border-red-200"
           />
         )}
-        {maxStudents != null && (
-          <ListStatCard
-            value={`${totalActive}/${maxStudents}`}
-            label={<>quota<br/>essai</>}
-            valueColor={limitReached ? 'text-orange-500' : 'text-secondary-800'}
-            className={limitReached ? 'border-orange-300 bg-orange-50' : undefined}
-          />
+        {maxStudents != null && baseFacturable != null && (
+          <Tooltip content={`${baseFacturable.eleves} élève${baseFacturable.eleves > 1 ? 's' : ''} actif${baseFacturable.eleves > 1 ? 's' : ''} + ${baseFacturable.adultes} adulte${baseFacturable.adultes > 1 ? 's' : ''} inscrit${baseFacturable.adultes > 1 ? 's' : ''}`}>
+            <ListStatCard
+              value={`${baseFacturable.total}/${maxStudents}`}
+              label={<>limite<br/>inscrits</>}
+              valueColor={limitReached ? 'text-orange-500' : 'text-secondary-800'}
+              className={limitReached ? 'border-orange-300 bg-orange-50' : undefined}
+            />
+          </Tooltip>
         )}
 
         <div className="flex-1" />
@@ -207,7 +213,7 @@ export default function StudentsClient({
 
         {/* Ajouter */}
         {limitReached ? (
-          <Tooltip content={`Limite de ${maxStudents} élèves atteinte`}>
+          <Tooltip content={`Limite de l'abonnement atteinte : ${maxStudents} inscrits au maximum`}>
           <span
             className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] opacity-40 cursor-not-allowed whitespace-nowrap"
           >

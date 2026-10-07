@@ -59,6 +59,7 @@ export default async function SantePage() {
     etablissement_id: string
     users_count: number
     students_count: number
+    base_facturable: number
     classes_count: number
     last_sign_in: string | null
     smtp_configured: boolean
@@ -69,7 +70,10 @@ export default async function SantePage() {
     const s        = parId[e.id]
     const activite = depuis(s?.last_sign_in ?? null)
     const jAvant   = joursAvant(e.subscription_expires_at ?? null)
-    const quota    = e.max_students && s ? s.students_count / e.max_students : null
+    // La limite d'inscrits porte sur la BASE FACTURABLE (eleves actifs + adultes
+    // inscrits), pas sur tous les eleves : inactifs compris, le pourcentage
+    // etait sans rapport avec ce que la base controle.
+    const quota    = e.max_students && s ? s.base_facturable / e.max_students : null
 
     // Un signal n'est une alerte que s'il appelle une action. Un établissement
     // désactivé n'en produit aucune : son silence et sa messagerie absente sont
@@ -78,7 +82,7 @@ export default async function SantePage() {
       !s?.smtp_configured                  && 'Messagerie non configurée',
       activite.jours === null              && 'Jamais connecté',
       activite.jours !== null && activite.jours >= 30 && `Sans connexion depuis ${activite.texte.toLowerCase().replace('il y a ', '')}`,
-      quota !== null && quota >= 0.9       && "Effectif proche de la limite",
+      quota !== null && quota >= 0.9       && "Inscrits proches de la limite",
       jAvant !== null && jAvant < 0        && 'Abonnement expiré',
       jAvant !== null && jAvant >= 0 && jAvant <= 30 && `Abonnement dans ${jAvant} j`,
     ].filter(Boolean) as string[] : []
@@ -108,7 +112,7 @@ export default async function SantePage() {
               <th scope="col" className="list-th text-left">Établissement</th>
               <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
               <th scope="col" className="list-th text-left">Messagerie</th>
-              <th scope="col" className="list-th text-right">Élèves</th>
+              <th scope="col" className="list-th text-right">Inscrits</th>
               <th scope="col" className="list-th text-left">Abonnement</th>
               <th scope="col" className="list-th text-left">À surveiller</th>
             </tr>
@@ -154,7 +158,7 @@ export default async function SantePage() {
 
                 <td className="list-td text-right whitespace-nowrap tabular-nums">
                   <span className={quota !== null && quota >= 0.9 ? 'text-amber-700 font-medium' : 'text-warm-700'}>
-                    {s?.students_count ?? '·'}
+                    {s?.base_facturable ?? '·'}
                     {e.max_students ? ` / ${e.max_students}` : ''}
                   </span>
                 </td>

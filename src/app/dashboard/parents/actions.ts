@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { messageDoublon } from '@/lib/doublons'
+import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
@@ -202,7 +203,7 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
     // francais et nommant le foyer en conflit. Le remplacer par un texte
     // generique — ce que faisait cette ligne — priverait l'utilisateur de la
     // seule information qui lui permet d'agir.
-    return { error: messageDoublon(parentError) ?? 'Erreur lors de la création de la fiche parents.' }
+    return { error: messageDoublon(parentError) ?? messageLimiteInscrits(parentError) ?? 'Erreur lors de la création de la fiche parents.' }
   }
 
   return { parentId: parent.id, accounts }
@@ -258,7 +259,7 @@ export async function updateParentRecord(
 
   // Meme raison qu'a la creation : renommer un tuteur peut le faire entrer en
   // conflit avec un autre foyer, et c'est le declencheur qui le dit le mieux.
-  if (resMaj.error) return { error: messageDoublon(resMaj.error) ?? resMaj.error.message }
+  if (resMaj.error) return { error: messageDoublon(resMaj.error) ?? messageLimiteInscrits(resMaj.error) ?? resMaj.error.message }
   const echecMaj = erreurEcriture(resMaj, 'Ce foyer')
   if (echecMaj) return { error: echecMaj }
   return {}

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { messageDoublon } from '@/lib/doublons'
+import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { logAudit } from '@/lib/audit'
 import { COLONNES } from '@/lib/import/colonnes'
 
@@ -110,7 +111,7 @@ export async function enregistrerFoyers(
         cle: lot.cle,
         libelle: lot.libelle,
         ok: false,
-        message: messageDoublon(error) ?? error.message,
+        message: messageDoublon(error) ?? messageLimiteInscrits(error) ?? error.message,
       })
       continue
     }

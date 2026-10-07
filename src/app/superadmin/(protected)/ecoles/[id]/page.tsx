@@ -96,14 +96,15 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     : { data: null }
   const interventionAilleurs = Boolean(moi?.etablissement_id) && moi!.etablissement_id !== id
 
-  const compteurs: { label: string; value: number | null; facturable?: boolean }[] = [
+  const compteurs: { label: string; value: number | null; limite?: number | null; facturable?: boolean }[] = [
     { label: 'Utilisateurs',     value: profiles?.length ?? 0 },
     { label: 'Élèves',           value: studentsCount },
     { label: 'Élèves actifs',    value: elevesActifs },
     { label: 'Foyers',           value: foyers },
     { label: 'Adultes inscrits', value: adultesInscrits },
     // Le prix de l'abonnement se calcule sur ce chiffre : il est mis en avant.
-    { label: 'Base facturable',  value: baseFacturable, facturable: true },
+    // La limite d'inscrits (`max_students`) porte sur ce meme chiffre.
+    { label: 'Base facturable',  value: baseFacturable, limite: ecole.max_students, facturable: true },
     {
       // Les classes sont en general des classes d'enfants : on ne precise que
       // les adultes, et seulement s'il y en a (« dont 0 adulte » n'apprend rien).
@@ -163,6 +164,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
             >
               <p className={`text-base font-bold leading-none tabular-nums ${c.facturable ? 'text-primary-700' : 'text-secondary-800'}`}>
                 {c.value ?? '?'}
+                {c.limite != null && <span className="text-warm-700 font-semibold"> / {c.limite}</span>}
               </p>
               <p className="stat-label mt-1 whitespace-nowrap">{c.label}</p>
             </div>

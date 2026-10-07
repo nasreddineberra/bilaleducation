@@ -13,6 +13,7 @@ import { useToast } from '@/lib/toast-context'
 import { suffixeLateral } from '@/lib/navigation/retour'
 import { sameName } from '@/lib/normalize-name'
 import { messageDoublon } from '@/lib/doublons'
+import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatRadioCard, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { Student, Parent } from '@/types/database'
@@ -306,10 +307,13 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       // attribuer tout 23505 au numero d'eleve — ce que faisait ce bloc —
       // afficherait « ce numero est deja utilise » sur un doublon de personne.
       const doublon = messageDoublon(err)
+      const limite  = messageLimiteInscrits(err)
       if (err?.message === 'ECRITURE_REFUSEE') {
         toast.error("Votre role ne permet pas de modifier cette fiche.")
       } else if (doublon) {
         toast.error(doublon)
+      } else if (limite) {
+        toast.error(limite)
       } else if (err?.code === '23505') {
         toast.error("Ce numéro d'élève est déjà utilisé.")
       } else {

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ChevronLeft, AlertCircle } from 'lucide-react'
 import StudentForm from '@/components/students/StudentForm'
+import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 
 const PARENTS_SELECT = [
   'id',
@@ -17,7 +18,7 @@ export default async function NewStudentPage() {
   const year  = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
 
-  const [{ data: parents }, { data: lastStudents }, { data: etablissement }, { count: activeCount }] = await Promise.all([
+  const [{ data: parents }, { data: lastStudents }, { data: etablissement }, base] = await Promise.all([
     supabase
       .from('parents')
       .select(PARENTS_SELECT)
@@ -34,11 +35,12 @@ export default async function NewStudentPage() {
 
     supabase.from('etablissements').select('id, max_students').single(),
 
-    supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
+    compterBaseFacturable(supabase),
   ])
 
   const maxStudents = etablissement?.max_students ?? null
-  const limitReached = maxStudents != null && (activeCount ?? 0) >= maxStudents
+  // Comptage en echec : on ne bloque pas l ecran, la base garde la limite elle-meme.
+  const limitReached = maxStudents != null && base !== null && base.total >= maxStudents
 
   // Incrément annuel, préfixe avec année + mois courant
   // ex : ELV-202601-001 en jan, ELV-202603-006 en mars (si 5 élèves créés en jan)
@@ -66,10 +68,11 @@ export default async function NewStudentPage() {
         <div className="card p-6 flex flex-col items-center gap-4 text-center max-w-lg">
           <AlertCircle className="text-orange-400" size={36} />
           <div>
-            <p className="text-base font-semibold text-secondary-800">Limite d'élèves atteinte</p>
+            <p className="text-base font-semibold text-secondary-800">Limite de l&apos;abonnement atteinte</p>
             <p className="text-sm text-warm-700 mt-1">
-              Votre accès essai est limité à <strong>{maxStudents} élève{maxStudents! > 1 ? 's' : ''}</strong> actif{maxStudents! > 1 ? 's' : ''}.
-              Contactez-nous pour passer à un abonnement complet.
+              Votre abonnement est limité à <strong>{maxStudents} inscrit{maxStudents! > 1 ? 's' : ''}</strong>
+              {base ? <> ({base.eleves} élève{base.eleves > 1 ? 's' : ''} actif{base.eleves > 1 ? 's' : ''} + {base.adultes} adulte{base.adultes > 1 ? 's' : ''} inscrit{base.adultes > 1 ? 's' : ''})</> : null}.
+              Contactez l&apos;éditeur pour l&apos;augmenter.
             </p>
           </div>
           <Link href="/dashboard/students" className="btn btn-secondary text-sm">

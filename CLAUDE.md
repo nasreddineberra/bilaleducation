@@ -5773,6 +5773,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/guard-limite-inscrits.sql` (limite d inscrits controlee en base, sur
+  eleves actifs + adultes inscrits), PUIS `supabase/controles/07-limite-inscrits.sql`. **Migration avant
+  le deploiement** : la page Sante lit la nouvelle colonne `base_facturable`.
 - [x] **DEUX COLLAGES — FAITS le 04/10.** Registre en place : **132 lignes,
   60 attestees, 72 presumees**, conforme a l attendu. Et la question des objets
   fantomes est TRANCHEE : **aucun orphelin** (voir le journal du 04/10).
@@ -7675,3 +7678,40 @@ facturable** · Classes.
   un zero faux sur un chiffre de facturation est pire qu'un trou visible.
 - **Verifie sur la base reelle** (script jetable, supprime) : 221 eleves, 15 actifs, 134 foyers,
   3 adultes inscrits (2 + 1), base facturable 18, 3 classes dont 1 adulte.
+
+#### 7 octobre 2026 (nuit) — LIMITE D'INSCRITS : controlee en base, sur la base facturable
+
+`etablissements.max_students` sert aux DEUX usages (arbitrage utilisateur) : limite d'essai ET
+plafond d'abonnement payant. Elle compte donc la meme chose que la facturation :
+**eleves actifs + adultes inscrits** (tuteurs coches « cours adultes », 1 et 2 separement).
+
+**Avant** : controlee par l'ecran de creation et par l'import seulement, sur les eleves actifs.
+**Reactiver un eleve** (fiche, « Tout actif » en lot, pastille de la liste parents) et **cocher
+« cours adultes »** la contournaient — et la creation ecrit depuis le navigateur. La page Sante
+comparait la limite a TOUS les eleves, inactifs compris.
+
+- **Migration `guard-limite-inscrits.sql`** : `fn_base_facturable(etab)` (DEFINER, revoquee aux
+  roles de l'API) + declencheur **AFTER ROW** sur `students` (`is_active`) et `parents`
+  (`tutor1/2_adult_courses`). Ne mord que sur une HAUSSE ; diminuer n'est jamais bloque (une
+  ecole au-dessus d'une limite abaissee continue de travailler). **AFTER et non BEFORE** : il voit
+  le total FINAL d'une instruction en lot, et un refus annule l'instruction entiere — jamais un
+  lot applique a moitie. `get_etablissements_sante` recree (type de retour change) avec
+  `base_facturable`.
+- **Message** : repere `HINT = 'limite_inscrits'` + chiffres en `DETAIL`, reformules en francais
+  accentue par `src/lib/tenant/limite-inscrits.ts` (5 tests, dont un qui LIT la migration pour
+  garder repere et format alignes). Branche dans `erreurEcriture`/`erreurEcritureLot` (couvre la
+  pastille de la liste parents et le lot « cours adultes ») et aux 4 chemins qui lisaient l'erreur
+  eux-memes : statuts en lot, `setStudentActive`, fiche foyer (creation/modif), import, fiche eleve.
+- **Statuts en lot : DESACTIVER D'ABORD.** L'ordre etait activer puis desactiver : a la limite,
+  un lot « +2 / -3 » aurait ete refuse avant que les places se liberent.
+- **Ecrans** : carte « limite inscrits 18/50 » (infobulle eleves + adultes) et « Ajouter » grise
+  sur la base facturable ; le mot « essai » disparait (page de creation : « Limite de
+  l'abonnement atteinte »). Comptage en echec → on ne grise pas, la base garde la limite.
+  Pas d'alerte avant la limite cote ecole (arbitrage) ; la console garde son signal a 90 %.
+- **Console** : fiche ecole « Base facturable 18 / 50 », page Sante sur la base facturable
+  (colonne « Inscrits »).
+- **Controle `supabase/controles/07-limite-inscrits.sql`** : 7 cas (reactivation refusee, adulte
+  refuse, lot net +1 refuse SANS application partielle, lot net 0 accepte, place liberee puis
+  occupee, desactivation au-dessus d'une limite abaissee, sans limite).
+- **Reste** : le pre-controle d'`import_foyer` ne compte que les eleves ; le declencheur, plus
+  strict, prime. Un refus d'import peut donc arriver avec l'un ou l'autre message.

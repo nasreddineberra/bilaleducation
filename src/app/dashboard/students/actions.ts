@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
+import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 
 export type StudentStatusRow = {
   id:           string
@@ -124,15 +125,9 @@ export async function saveStudentsActive(
   const toTrue  = clean.filter(u => u.is_active).map(u => u.id)
   const toFalse = clean.filter(u => !u.is_active).map(u => u.id)
 
-  if (toTrue.length > 0) {
-    const res = await supabase.from('students').update({ is_active: true }).in('id', toTrue).select('id')
-    if (res.error) return { error: `Erreur lors de l'activation des apprenants : ${res.error.message}` }
-    // Le compte RENDU doit egaler le compte demande : un refus partiel passerait
-    // inapercu si l'on se contentait de « au moins une ligne ».
-    if ((res.data?.length ?? 0) !== toTrue.length) {
-      return { error: `Activation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toTrue.length} : vos droits ne permettent pas de modifier les autres.` }
-    }
-  }
+  // DESACTIVER D'ABORD : a la limite d'inscrits, un lot qui active 2 eleves et
+  // en desactive 3 doit passer. Dans l'ordre inverse, l'activation serait
+  // refusee par la base avant que les places ne se liberent.
   if (toFalse.length > 0) {
     const res = await supabase.from('students').update({ is_active: false }).in('id', toFalse).select('id')
     if (res.error) return { error: `Erreur lors de la désactivation des apprenants : ${res.error.message}` }
@@ -140,6 +135,17 @@ export async function saveStudentsActive(
     // inapercu si l'on se contentait de « au moins une ligne ».
     if ((res.data?.length ?? 0) !== toFalse.length) {
       return { error: `Désactivation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toFalse.length} : vos droits ne permettent pas de modifier les autres.` }
+    }
+  }
+  if (toTrue.length > 0) {
+    const res = await supabase.from('students').update({ is_active: true }).in('id', toTrue).select('id')
+    // Refus de la limite d'inscrits : le lot d'activation est rejete EN ENTIER
+    // par la base (declencheur AFTER), jamais applique a moitie.
+    if (res.error) return { error: messageLimiteInscrits(res.error) ?? `Erreur lors de l'activation des apprenants : ${res.error.message}` }
+    // Le compte RENDU doit egaler le compte demande : un refus partiel passerait
+    // inapercu si l'on se contentait de « au moins une ligne ».
+    if ((res.data?.length ?? 0) !== toTrue.length) {
+      return { error: `Activation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toTrue.length} : vos droits ne permettent pas de modifier les autres.` }
     }
   }
   if (toTrue.length + toFalse.length > 0) {
@@ -295,7 +301,7 @@ export async function setStudentActive(id: string, active: boolean): Promise<{ e
     .from('students').update({ is_active: active }).eq('id', id).select('id')
 
   if (error || !data || data.length === 0) {
-    return { error: 'Erreur lors de la mise à jour du statut.' }
+    return { error: messageLimiteInscrits(error) ?? 'Erreur lors de la mise à jour du statut.' }
   }
 
   // « actif » au feminin est « active », pas « actifve » : la forme entiere,

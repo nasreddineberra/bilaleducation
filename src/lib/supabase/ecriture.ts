@@ -16,9 +16,13 @@
  * a un refus systematique.
  */
 
+import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
+
+type ErreurEcriture = { message: string; details?: string | null; hint?: string | null; code?: string }
+
 type ResultatEcriture = {
   data: unknown[] | null
-  error: { message: string } | null
+  error: ErreurEcriture | null
 }
 
 /**
@@ -47,7 +51,9 @@ export function verifierEcriture(resultat: ResultatEcriture, quoi: string): void
  * Rend `null` quand l'ecriture a bien eu lieu.
  */
 export function erreurEcriture(resultat: ResultatEcriture, quoi: string): string | null {
-  if (resultat.error) return `${quoi} : ${resultat.error.message}`
+  // Le refus de la limite d'inscrits porte deja un message complet : le
+  // prefixer de « Cette inscription : » le rendrait moins lisible, pas plus.
+  if (resultat.error) return messageLimiteInscrits(resultat.error) ?? `${quoi} : ${resultat.error.message}`
   if (!resultat.data?.length) {
     return `${quoi} n'a pas pu etre enregistre : vos droits ne le permettent pas, ou l'element n'existe plus.`
   }
@@ -71,13 +77,14 @@ export function erreurEcriture(resultat: ResultatEcriture, quoi: string): string
  * A n'employer QUE dans ce cas. Des qu'une ecriture vise un `id`, c'est
  * `verifierEcriture` qu'il faut.
  */
-export function erreurEcritureLot(resultat: { error: { message: string } | null }, quoi: string): string | null {
-  return resultat.error ? `${quoi} : ${resultat.error.message}` : null
+export function erreurEcritureLot(resultat: { error: ErreurEcriture | null }, quoi: string): string | null {
+  if (!resultat.error) return null
+  return messageLimiteInscrits(resultat.error) ?? `${quoi} : ${resultat.error.message}`
 }
 
 /** Meme controle que `erreurEcritureLot`, mais LEVE. Pour les appelants sous
  *  `try/catch` ; les autres prennent la version qui rend le message. */
-export function verifierEcritureLot(resultat: { error: { message: string } | null }, quoi: string): void {
+export function verifierEcritureLot(resultat: { error: ErreurEcriture | null }, quoi: string): void {
   const message = erreurEcritureLot(resultat, quoi)
   if (message) throw new Error(message)
 }

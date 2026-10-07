@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import StudentsClient from '@/components/students/StudentsClient'
 import { classInfoOf } from '@/components/dashboard/classInfo'
+import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 
 const PAGE_SIZE = 20
 // Sentinelle pour un `.in()` sur un ensemble vide (sinon PostgREST renvoie tout).
@@ -76,11 +77,13 @@ export default async function StudentsPage({
     { data: etablissement },
     { count: totalAll },
     { count: totalNoParent },
+    baseFacturable,
   ] = await Promise.all([
     studentsQuery,
     supabase.from('etablissements').select('max_students').single(),
     supabase.from('students').select('*', { count: 'exact', head: true }),
     supabase.from('students').select('*', { count: 'exact', head: true }).is('parent_id', null),
+    compterBaseFacturable(supabase),
   ])
 
   // Discipline détaillée : uniquement pour les élèves actifs de la page affichée.
@@ -140,6 +143,7 @@ export default async function StudentsPage({
       totalUnassigned={unassignedIds.length}
       totalDiscipline={flaggedIds.size}
       maxStudents={etablissement?.max_students ?? null}
+      baseFacturable={baseFacturable}
     />
   )
 }
