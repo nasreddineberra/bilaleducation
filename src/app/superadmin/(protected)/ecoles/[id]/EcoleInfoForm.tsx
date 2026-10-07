@@ -213,7 +213,7 @@ export default function EcoleInfoForm({ ecole, notes }: { ecole: Etablissement; 
         </div>
 
         <div className="border-t border-warm-100 pt-3">
-          <p className="text-sm font-medium text-secondary-700 mb-0.5">Limite d'élèves (mode essai)</p>
+          <p className="text-sm font-medium text-secondary-700 mb-0.5">Limite d'élèves</p>
           <p className="text-xs text-warm-700 mb-2">Laisser vide pour un accès illimité</p>
           <div className="flex items-center gap-2">
             <input

@@ -67,7 +67,7 @@ export async function createTenant(data: {
   telephone?: string
   /** Échéance d'abonnement, réglable dès l'ouverture du compte client. */
   subscription_expires_at?: string | null
-  /** Limite d'élèves (mode essai) ; absente = illimité. */
+  /** Limite d'inscrits (élèves actifs + adultes inscrits) ; absente = illimité. */
   max_students?: number | null
   director: {
     first_name: string
