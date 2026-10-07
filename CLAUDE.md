@@ -5489,6 +5489,16 @@ deplacement.
 
 ## Prochaine etape
 
+> **A LA REPRISE (arret du 7 octobre au soir) — dans cet ordre, un point a la fois :**
+> console editeur **1** releve mensuel de la base facturable · **2** facturation sur la fiche
+> (payeur + tarif) · **4** historique des actions editeur sur la fiche · **5** etat 2FA dans
+> Utilisateurs · **6** filtres de la liste · **7** depart d'une ecole (RGPD). Puis : **verifier
+> que le journal attribue les actions de support au super_admin** (entree/modif/sortie, aucune
+> colonne Utilisateur vide). Puis le **JOUR J** : effacer les donnees de test, creer l'etablissement
+> reel avec admin + direction — **`clean-all-data.sql` NE DOIT PAS servir tel quel** (il vide le
+> registre des migrations et les tables editeur, laisse les comptes `auth.users` et les fichiers
+> Storage, garde l'etablissement de test). Point 3 (mise en service) : FAIT et vu a l'ecran.
+
 > **MISE EN PRODUCTION EN COURS** — le plan de suivi vit dans `MISE_EN_PRODUCTION.md`
 > (racine). Document de travail a cocher, a supprimer une fois la production stable.
 > Modele retenu : editeur logiciel, abonnement par etablissement, un sous-domaine par
