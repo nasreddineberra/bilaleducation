@@ -81,7 +81,8 @@ créée dans l'heure.
 La constante `VALIDITE` de `build.mjs` **recopie** cette valeur, elle ne la fixe
 pas. **Les deux changent ensemble** — un email qui annonce une durée fausse fait
 échouer des liens annoncés valables, ou décourage un clic qui aurait abouti.
-L'export de configuration de la sauvegarde locale (`scripts/sauvegarde`) compare
+L'export de configuration de la sauvegarde locale (`npm run sauvegarde`, puis
+`scripts/verifier-sauvegarde.mjs`) compare
 les deux à chaque passage.
 
 > **Pourquoi une heure.** Dix minutes convenaient à qui vient de cliquer « mot de

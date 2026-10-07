@@ -7615,3 +7615,10 @@ mis a jour.
 - **RESTE COTE UTILISATEUR** : recoller `reset-password.html` dans Supabase (Authentication →
   Emails → Templates → Reset Password). Puis le controle « duree annoncee = duree reelle » de la
   sauvegarde doit passer au vert.
+- **Verifie le soir meme** : gabarit recolle, la sauvegarde complete passe au vert sur « gabarits
+  identiques au depot » ET « duree annoncee = duree reelle — 1 heure ».
+- **`npm run sauvegarde` pointait encore sur l ANCIEN script** (`scripts/sauvegarde.mjs`, sans la
+  configuration, ecrivant dans `D:\# 2. Sauvegardes Supabase - BilalEducation` avec sa propre
+  retention). Alias repointe sur `sauvegarder.mjs`, ancien script supprime, 2 README alignes.
+  **Une seule facon de sauvegarder.** L ancien dossier n est plus alimente ; a supprimer a la main
+  une fois inutile.

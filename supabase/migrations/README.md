@@ -59,7 +59,8 @@ c'est « une écriture va échouer », c'est restrictif.
 ## 2. Avant de jouer : la sauvegarde
 
 Supabase conserve des sauvegardes quotidiennes **sur les projets payants**, et le
-projet dispose de `scripts/sauvegarde.mjs` pour une copie locale.
+projet dispose de `npm run sauvegarde` (`scripts/sauvegarder.mjs`) pour une copie locale
+complète — base, fichiers de Storage et configuration du tableau de bord.
 
 > ⚠️ **Réserve à connaître, et elle est sérieuse : la RESTAURATION n'a jamais
 > été éprouvée.** Une sauvegarde dont on n'a jamais testé le retour arrière est
