@@ -7,6 +7,7 @@ import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import { formatDateFr, formatDateHeureFr } from '@/lib/dates'
+import { abonnementExpire } from '@/lib/tenant/abonnement'
 
 // Le fuseau est FIXE : cette page est rendue cote SERVEUR, qui tourne en UTC.
 // Les heures d'intervention s'affichaient avec deux heures de retard.
@@ -24,10 +25,9 @@ function duree(debut: string, fin: string) {
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
 }
 
-function isExpired(date: string | null | undefined) {
-  if (!date) return false
-  return new Date(date) < new Date()
-}
+// Meme regle que le middleware : jour d'echeance inclus. Sinon la console
+// annoncerait « Expire » le dernier jour, quand l'ecole y a encore acces.
+const isExpired = (date: string | null | undefined) => abonnementExpire(date)
 
 export default async function SuperAdminPage() {
   const supabase = createAdminClient()

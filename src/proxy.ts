@@ -6,6 +6,7 @@ import { INACTIVITY_SECONDS as INACTIVITY_TIMEOUT, MAX_SESSION_SECONDS as MAX_SE
 import { evaluerSession } from '@/lib/auth/session-decision'
 import { COOKIE_SESSION, entetesDePurge, doitPurger } from '@/lib/auth/session-cookies'
 import { estSousDomaineConsole } from '@/lib/tenant/console-host'
+import { abonnementExpire } from '@/lib/tenant/abonnement'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -293,9 +294,8 @@ export async function proxy(request: NextRequest) {
 
         // Vérifier l'abonnement uniquement pour le dashboard
         if (pathname.startsWith('/dashboard')) {
-          const isExpired =
-            tenant.subscription_expires_at &&
-            new Date(tenant.subscription_expires_at) < new Date()
+          // Jour d'echeance INCLUS : coupure le lendemain a 0 h, heure de Paris.
+          const isExpired = abonnementExpire(tenant.subscription_expires_at)
 
           if (!tenant.is_active || isExpired) {
             return NextResponse.redirect(new URL('/abonnement-expire', request.url))

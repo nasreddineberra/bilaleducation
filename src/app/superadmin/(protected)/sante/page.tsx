@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import ClickableRow from '../ClickableRow'
 import { formatDateFr } from '@/lib/dates'
+import { joursRestants } from '@/lib/tenant/abonnement'
 
 /**
  * Santé des établissements clients.
@@ -17,10 +18,8 @@ import { formatDateFr } from '@/lib/dates'
  */
 
 /** Nombre de jours entre aujourd'hui et une date (négatif = passé). */
-function joursAvant(date: string | null): number | null {
-  if (!date) return null
-  return Math.ceil((new Date(date).getTime() - Date.now()) / 86_400_000)
-}
+// Jours calendaires de Paris, jour d'echeance inclus (0 = dernier jour d'acces).
+const joursAvant = (date: string | null): number | null => joursRestants(date)
 
 /**
  * « aujourd'hui », « il y a 3 j », « il y a 2 mois ».

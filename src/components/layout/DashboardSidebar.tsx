@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import { useSidebar } from './SidebarContext'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import { REQUETE_CADRE } from '@/lib/mobile'
+import { joursRestants } from '@/lib/tenant/abonnement'
 
 import {
   Upload,
@@ -549,8 +550,8 @@ function lireFinAbonnement(valeur: string | null | undefined): { date: string; b
   const fin = new Date(valeur)
   if (Number.isNaN(fin.getTime())) return null
   const date = fin.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' })
-  const joursRestants = (fin.getTime() - Date.now()) / 86_400_000
-  return { date, bientot: joursRestants <= ALERTE_ABONNEMENT_JOURS }
+  const restants = joursRestants(valeur)
+  return { date, bientot: restants !== null && restants <= ALERTE_ABONNEMENT_JOURS }
 }
 
 export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante, finAbonnement }: DashboardSidebarProps) {

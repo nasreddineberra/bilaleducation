@@ -7644,3 +7644,18 @@ la date de fin d'abonnement, visible de l'admin et de la direction, **dans l'enc
 - **A verifier pendant le test** : la resolution de l'ecole dans `proxy.ts` porte un
   `revalidate: 3600`. Si la redirection vers `/abonnement-expire` tarde apres un changement
   d'echeance, c'est ce cache — et il retarderait aussi le RETABLISSEMENT d'un client qui a paye.
+- **Le jour d'echeance est desormais INCLUS** (arbitrage utilisateur) : coupure le LENDEMAIN a
+  0 h, heure de Paris. La console enregistre une date seule, rangee a minuit UTC = 2 h (ete) / 1 h
+  (hiver) a Paris LE JOUR MEME : l'ancien `new Date(echeance) < new Date()` coupait l'ecole le 31
+  au petit matin, alors que la barre annonce « Fin abonnement au 31/07 ».
+  - Source unique `src/lib/tenant/abonnement.ts` (`abonnementExpire`, `joursRestants`), en JOURS
+    CALENDAIRES de Paris compares comme des chaines `AAAA-MM-JJ` : aucune arithmetique de fuseau,
+    donc aucun piege aux changements d'heure. 5 tests (ete, hiver, minuit Paris, passage a
+    l'heure d'hiver).
+  - Branchee aux QUATRE endroits qui en jugeaient : middleware, liste des ecoles (« Expire »),
+    page Sante (« Abonnement dans N j »), barre laterale (ambre). Sans cela la console aurait
+    annonce « Expire » le dernier jour, quand l'ecole y a encore acces.
+  - **Expiration ≠ desactivation** : rien n'est ecrit en base a l'echeance, l'interrupteur de la
+    console reste « Active ». Repousser la date suffit a retablir l'acces.
+  - **Signale, non traite** : la coupure ne vaut que pour les PAGES. Un jeton deja emis reste
+    servi par l'API REST, la RLS ignorant l'abonnement.
