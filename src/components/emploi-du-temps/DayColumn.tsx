@@ -27,6 +27,7 @@ interface Props {
   jEnseigneCetteClasse?: (classId?: string | null, date?: string | null) => boolean
   /** Qui couvre cette classe ce jour-la, hors l'enseignant du creneau. */
   remplacantDeLaClasse?: (classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => string | null
+  remplacementActif?: (classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => boolean
   isValidated: (sourceSlotId: string, slotDate: string) => boolean
   onValidate: (slot: ResolvedSlot) => void
   onCancelValidation: (sourceSlotId: string, slotDate: string) => void
@@ -61,7 +62,7 @@ function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heigh
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
-  isTeacher, currentTeacherId, jEnseigneCetteClasse, remplacantDeLaClasse, fermeture, isValidated, onValidate, onCancelValidation,
+  isTeacher, currentTeacherId, jEnseigneCetteClasse, remplacantDeLaClasse, remplacementActif, fermeture, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
@@ -191,7 +192,7 @@ export default function DayColumn({
               // date : l'heure est assuree (et comptee) par le remplacant. Sans
               // cette exclusion, les deux pouvaient la valider.
               isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId
-                          && !remplacantDeLaClasse?.(slot.class_id, dateStr, slot.teacher_id))
+                          && !remplacementActif?.(slot.class_id, dateStr, slot.teacher_id))
                          || jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
               // Calcule ici seulement quand il sert : la capsule n'en a besoin
               // que si l'enseignant du creneau est absent.

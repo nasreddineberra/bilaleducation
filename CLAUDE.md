@@ -7811,3 +7811,9 @@ Correctif : la branche « mon creneau » exige `!remplacantDeLaClasse(classe, da
 (`profile_id` = remplacant, `replaced_profile_id` = titulaire).
 **Non traite** : la base n'interdit pas au titulaire d'ecrire sa propre ligne (RLS `profile_id =
 auth.uid()`), l'interdiction est applicative.
+- **Correctif du 8 octobre (2e passe, le 1er etait FAUX)** : `remplacantDeLaClasse` rend `null` quand
+  le NOM du remplacant est illisible — or un enseignant ne lit que SA ligne `teachers` (RLS), donc
+  pour la titulaire le nom de la remplacante revient vide et la garde ne mordait pas. Nouvelle
+  `remplacementActif()` : repond par la PRESENCE d'une affectation couvrant la date, sans lire le
+  nom. **Regle : une garde de droit ne depend jamais d'une donnee que le role concerne ne peut pas
+  lire.** (Meme piege que le titulaire affiche du 24/09.)

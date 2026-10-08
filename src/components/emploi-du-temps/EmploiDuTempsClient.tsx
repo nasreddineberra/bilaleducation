@@ -373,6 +373,21 @@ export default function EmploiDuTempsClient({
     return ct?.teachers ? nomEnseignantCivilite(ct.teachers) : null
   }, [classes])
 
+  /**
+   * Un AUTRE enseignant couvre-t-il la classe a cette date ? Repond sans lire le
+   * NOM : un enseignant ne lit que SA propre ligne `teachers` (RLS), donc le nom
+   * du remplacant lui revient vide et `remplacantDeLaClasse` rendrait `null`
+   * comme s'il n'y avait personne — le titulaire remplace validait alors quand meme.
+   */
+  const remplacementActif = useCallback((classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => {
+    if (!classId || !date) return false
+    const cls = classes.find(c => c.id === classId)
+    return (cls?.class_teachers ?? []).some(a =>
+      a.teacher_id !== exclureTeacherId
+      && (!a.effective_from  || a.effective_from  <= date)
+      && (!a.effective_until || a.effective_until >= date))
+  }, [classes])
+
   const jEnseigneCetteClasse = useCallback((classId?: string | null, date?: string | null) => {
     if (!classId || !date) return false
     // Comparaison de chaines `AAAA-MM-JJ` : exacte, et sans objet `Date`, donc
@@ -1508,7 +1523,7 @@ export default function EmploiDuTempsClient({
     // Garde cote logique (l'affichage du bouton est deja ferme) : le titulaire
     // dont un remplacant couvre la date ne valide pas, la base ne le refuserait pas.
     if (estEnseignant && !!ownTeacherId && resolved.teacher_id === ownTeacherId
-        && remplacantDeLaClasse(resolved.class_id, slotDate, resolved.teacher_id)) {
+        && remplacementActif(resolved.class_id, slotDate, resolved.teacher_id)) {
       toastError('Un remplaçant assure cette séance : lui seul peut la valider.')
       return
     }
@@ -1581,7 +1596,7 @@ export default function EmploiDuTempsClient({
       confirmLabel: 'Valider',
       onConfirm: doValidate,
     })
-  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError, estEnseignant, ownTeacherId, jEnseigneCetteClasse, remplacantDeLaClasse])
+  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError, estEnseignant, ownTeacherId, jEnseigneCetteClasse, remplacementActif])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
@@ -2044,6 +2059,7 @@ export default function EmploiDuTempsClient({
                   currentTeacherId={ownTeacherId}
                   jEnseigneCetteClasse={jEnseigneCetteClasse}
                   remplacantDeLaClasse={remplacantDeLaClasse}
+                  remplacementActif={remplacementActif}
                   fermeture={fermeture}
                   droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}
