@@ -211,11 +211,21 @@ export default function SlotFormModal({
       if (isRecurring && s.is_recurring && s.day_of_week === dayOfWeek) sameDay = true
       if (!isRecurring && !s.is_recurring && s.slot_date === slotDate) sameDay = true
       if (isRecurring && !s.is_recurring) {
-        // recurring vs ponctual: check if ponctual falls on same dow
+        // Serie contre creneau ponctuel : meme jour de semaine ET date DANS la periode de
+        // la serie. Sans le second critere, un ponctuel isole du 08/08 (un samedi) entrait
+        // en conflit avec une serie du samedi qui ne commence que le 07/09 : faux conflit.
+        // Modification d'UNE seule seance : seule la date visee compte.
         if (s.slot_date) {
           const d = new Date(s.slot_date)
-          if (d.getDay() === dayOfWeek) sameDay = true
+          const dansLaSerie = (!slot?.effective_from || s.slot_date >= slot.effective_from)
+                           && (!slot?.effective_until || s.slot_date <= slot.effective_until)
+          if (d.getDay() === dayOfWeek && (isEditingThisOnly ? s.slot_date === editDate : dansLaSerie)) sameDay = true
         }
+      }
+      // Modification d'UNE seance : une autre serie ne gene que si elle couvre cette date.
+      if (isEditingThisOnly && s.is_recurring && editDate
+          && ((s.effective_from && s.effective_from > editDate) || (s.effective_until && s.effective_until < editDate))) {
+        continue
       }
       if (!sameDay) continue
 
@@ -246,7 +256,7 @@ export default function SlotFormModal({
       }
     }
     return msgs
-  }, [existingSlots, slot, classId, teacherId, roomId, dayOfWeek, slotDate, startTime, endTime, isRecurring])
+  }, [existingSlots, slot, classId, teacherId, roomId, dayOfWeek, slotDate, startTime, endTime, isRecurring, isEditingThisOnly, editDate])
 
   const handleSubmit = async () => {
     if (!isValid || isRecurring === null) return

@@ -7826,3 +7826,9 @@ auth.uid()`), l'interdiction est applicative.
 - **Remplacant** : sa propre seance affiche « Remplacement de NOM Prénom » (titulaire), en rouge comme
   le message du titulaire remplace. Noms des titulaires de creneaux completes cote serveur
   (`emploi-du-temps/page.tsx`), le remplacant ne lisant pas leur ligne `teachers`.
+- **Faux conflit EDT (8 octobre)** : modifier UNE seance (ou une serie) signalait « Conflit classe /
+  enseignant » a cause d'un creneau PONCTUEL isole du 08/08/2026 : meme jour de semaine (samedi), alors
+  que la serie ne commence que le 07/09. La regle « serie contre ponctuel » ne regardait que le jour de
+  semaine : elle exige maintenant que la date du ponctuel soit DANS la periode de la serie, et, pour une
+  seule seance, que ce soit la date visee. Une autre serie ne gene une seance que si elle couvre cette
+  date. **Infobulles** sur « Remplace par » et « Remplacement de » (le texte est tronque dans la capsule).

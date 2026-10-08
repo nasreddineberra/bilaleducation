@@ -224,15 +224,19 @@ export default function SlotCapsule({
           {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
               et AVANT l'horaire pour rester visible meme quand la capsule est courte. */}
           {remplaceParNom && slot.slot_type !== 'pause' && (
-            <div className={clsx('leading-tight font-bold text-red-600 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-              Remplacé par {remplaceParNom}
-            </div>
+            <Tooltip content={`Remplacé par ${remplaceParNom} sur cette séance : la présence est validée par le remplaçant.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
+              <div className={clsx('leading-tight font-bold text-red-600', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+                Remplacé par {remplaceParNom}
+              </div>
+            </Tooltip>
           )}
 
           {remplacementDe && slot.teachers && slot.slot_type !== 'pause' && (
-            <div className={clsx('leading-tight font-bold text-red-600 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-              Remplacement de {nomEnseignant(slot.teachers)}
-            </div>
+            <Tooltip content={`Remplacement de ${nomEnseignant(slot.teachers)} : vous assurez sa séance et validez votre présence à sa place.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
+              <div className={clsx('leading-tight font-bold text-red-600', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+                Remplacement de {nomEnseignant(slot.teachers)}
+              </div>
+            </Tooltip>
           )}
 
           {/* Horaire — même police que la ligne titre. Retiré en densité minimale :
