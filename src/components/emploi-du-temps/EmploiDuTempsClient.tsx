@@ -1505,6 +1505,14 @@ export default function EmploiDuTempsClient({
       && resolved.teacher_id !== ownTeacherId
       && jEnseigneCetteClasse(resolved.class_id, slotDate)
 
+    // Garde cote logique (l'affichage du bouton est deja ferme) : le titulaire
+    // dont un remplacant couvre la date ne valide pas, la base ne le refuserait pas.
+    if (estEnseignant && !!ownTeacherId && resolved.teacher_id === ownTeacherId
+        && remplacantDeLaClasse(resolved.class_id, slotDate, resolved.teacher_id)) {
+      toastError('Un remplaçant assure cette séance : lui seul peut la valider.')
+      return
+    }
+
     const titulaireProfileId = teacherProfileMap[resolved.teacher_id]
     const teacherProfileId = jeRemplace ? currentUserId : titulaireProfileId
 
@@ -1573,7 +1581,7 @@ export default function EmploiDuTempsClient({
       confirmLabel: 'Valider',
       onConfirm: doValidate,
     })
-  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError, estEnseignant, ownTeacherId, jEnseigneCetteClasse])
+  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError, estEnseignant, ownTeacherId, jEnseigneCetteClasse, remplacantDeLaClasse])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)

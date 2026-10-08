@@ -7798,3 +7798,16 @@ dans la section Utilisateurs) · 6 (filtres de la liste) · 7 (depart d'une ecol
   (base et montant), **total par annee scolaire** (mois rattaches par `start_date`/`end_date`).
 - Piege evite : l'interface `FacturationEcole` vit dans `src/lib/tenant/facturation.ts`, pas dans
   le fichier `'use server'` (un export non-fonction y provoque un 500).
+
+#### 8 octobre 2026 (suite) — EDT : le titulaire REMPLACE ne valide plus la seance
+
+Constat utilisateur (ZERROUKI remplace BERRA sur MAT-SM-BL2, 01 au 04/10) : le remplacant voyait bien
+la seance et pouvait la valider, **mais le titulaire la validait aussi**. Cause : `isOwnSlot` etait
+vrai des que `slot.teacher_id` = l'enseignant connecte, sans regarder si un remplacant couvre la
+date (le creneau garde l'identifiant du titulaire, seule `class_teachers` porte le remplacement).
+Correctif : la branche « mon creneau » exige `!remplacantDeLaClasse(classe, date, titulaire)`
+(`DayColumn`), plus une garde dans `handleValidate`. Donnees du remplacement : `class_teachers`
+(`is_main_teacher = false`, `effective_from/until`) ; heures : `staff_time_entries`
+(`profile_id` = remplacant, `replaced_profile_id` = titulaire).
+**Non traite** : la base n'interdit pas au titulaire d'ecrire sa propre ligne (RLS `profile_id =
+auth.uid()`), l'interdiction est applicative.

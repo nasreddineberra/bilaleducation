@@ -187,7 +187,11 @@ export default function DayColumn({
               // Le creneau d'un remplacement porte encore le TITULAIRE : sans
               // la seconde branche, le remplacant n'aurait pas le ✓ sur l'heure
               // qu'il assure, et elle ne serait comptee pour personne.
-              isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId)
+              // Le TITULAIRE ne valide plus sa seance quand un remplacant couvre la
+              // date : l'heure est assuree (et comptee) par le remplacant. Sans
+              // cette exclusion, les deux pouvaient la valider.
+              isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId
+                          && !remplacantDeLaClasse?.(slot.class_id, dateStr, slot.teacher_id))
                          || jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
               // Calcule ici seulement quand il sert : la capsule n'en a besoin
               // que si l'enseignant du creneau est absent.
