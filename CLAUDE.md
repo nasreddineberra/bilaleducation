@@ -5783,6 +5783,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/add-releves-facturation.sql` (releve mensuel + pg_cron). Avant le deploiement.
 - [x] Executer `supabase/migrations/add-smtp-verifie-le.sql` (colonne `verifie_le`, messagerie eprouvee).
   **Avant le deploiement** : sans elle, la fiche ecole afficherait la messagerie « non configuree ».
 - [x] Executer `supabase/migrations/guard-limite-inscrits.sql` (limite d inscrits controlee en base, sur
@@ -7770,3 +7771,14 @@ dans la section Utilisateurs) · 6 (filtres de la liste) · 7 (depart d'une ecol
   faisait ~860 px, soit > 1000 px de page. « Acces et abonnement » compacte (libelle a gauche,
   saisie et boutons sur la meme ligne, `py-1.5`, texte d'aide de la limite porte par le placeholder)
   et marges `p-3 space-y-2.5` : colonne ~710 px, page ~890 px. Notes inchangees (7 lignes).
+
+#### 8 octobre 2026 — Console : releve mensuel de la base facturable (point 1/7)
+
+- Migration `add-releves-facturation.sql` : table `releves_facturation` (ecole, mois = 1er du mois
+  Paris, eleves actifs, adultes inscrits, limite, date) en regime SERVEUR UNIQUEMENT ;
+  `fn_releve_facturation()` releve toutes les ecoles, `ON CONFLICT DO NOTHING` (un releve pris
+  n'est jamais reecrit). **pg_cron quotidien a 23 h 05 UTC** : cron ne connait que l'UTC, « le 1er
+  a 0 h 05 Paris » n'y a pas d'expression fixe ; le passage quotidien est sans effet tant que le
+  releve du mois existe. Premier releve pris par la migration.
+- Console : menu « Facturation » (`/superadmin/facturation`), select d'ecole (`?ecole=`), tableau
+  mois par mois, bouton « Relever maintenant » (`facturation-actions.ts`, `requireEditor`).
