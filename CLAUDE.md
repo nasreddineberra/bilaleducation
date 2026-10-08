@@ -7817,3 +7817,9 @@ auth.uid()`), l'interdiction est applicative.
   `remplacementActif()` : repond par la PRESENCE d'une affectation couvrant la date, sans lire le
   nom. **Regle : une garde de droit ne depend jamais d'une donnee que le role concerne ne peut pas
   lire.** (Meme piege que le titulaire affiche du 24/09.)
+- **Correctif du 8 octobre (3e passe)** : la coche restait visible pour le titulaire remplace — la
+  2e branche de `isOwnSlot` (« une affectation de moi couvre la date ») valait AUSSI pour lui. Elle
+  ne vaut plus que pour un creneau qui n'est pas le sien. **Message rouge dans la capsule**
+  « Remplacé par NOM Prénom » (`remplaceParNom`), visible de tous sauf du remplacant. Les noms des
+  enseignants rattaches aux classes sont completes cote serveur (`emploi-du-temps/page.tsx`, client
+  admin, SEULS ids deja lus dans `class_teachers`) : un enseignant ne lit que SA ligne `teachers`.

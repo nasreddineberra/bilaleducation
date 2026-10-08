@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import dynamic from 'next/dynamic'
 import { effectiveRole } from '@/lib/auth/effective-role'
 
@@ -43,6 +44,22 @@ export default async function EmploiDuTempsPage() {
     .select('id, name, level, room_id, day_of_week, start_time, end_time, teaching_mode, class_teachers(teacher_id, is_main_teacher, subject, effective_from, effective_until, teachers(id, first_name, last_name, civilite)), cotisation_types(label)')
     .eq('academic_year', currentYear.label)
     .order('name')
+
+  // Un enseignant ne lit que SA ligne `teachers` (RLS) : le nom d'un collegue
+  // remplacant revient vide. On le complete cote serveur, pour les SEULS
+  // identifiants deja lus dans `class_teachers` (donc de l'ecole) — c'est ce
+  // qui permet d'afficher « Remplace par NOM Prenom ».
+  type AffectationClasse = { teacher_id: string; teachers: unknown }
+  const affectations = (classes ?? []).flatMap(c => (c.class_teachers ?? []) as unknown as AffectationClasse[])
+  const manquants = [...new Set(affectations.filter(a => !a.teachers).map(a => a.teacher_id))]
+  if (manquants.length > 0) {
+    const { data: noms } = await createAdminClient()
+      .from('teachers')
+      .select('id, first_name, last_name, civilite')
+      .in('id', manquants)
+    const parId = new Map((noms ?? []).map(t => [t.id, t]))
+    for (const a of affectations) if (!a.teachers) a.teachers = parId.get(a.teacher_id) ?? null
+  }
 
   // Enseignants actifs
   const { data: teachers } = await supabase

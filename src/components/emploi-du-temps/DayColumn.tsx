@@ -191,9 +191,20 @@ export default function DayColumn({
               // Le TITULAIRE ne valide plus sa seance quand un remplacant couvre la
               // date : l'heure est assuree (et comptee) par le remplacant. Sans
               // cette exclusion, les deux pouvaient la valider.
+              // « Mon creneau » : le titulaire seulement s'il n'est pas remplace ; le
+              // remplacant (affectation qui couvre la date, sur un creneau qui n'est
+              // pas le sien). La seconde branche valait aussi pour le TITULAIRE (sa
+              // propre affectation couvre la date) : la coche restait affichee.
               isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId
                           && !remplacementActif?.(slot.class_id, dateStr, slot.teacher_id))
-                         || jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
+                         || (slot.teacher_id !== currentTeacherId
+                             && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true)}
+              // Message rouge dans la seance : visible de tous SAUF du remplacant lui-meme.
+              remplaceParNom={!!slot.teacher_id
+                && remplacementActif?.(slot.class_id, dateStr, slot.teacher_id) === true
+                && !(slot.teacher_id !== currentTeacherId && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true)
+                ? (remplacantDeLaClasse?.(slot.class_id, dateStr, slot.teacher_id) ?? 'un remplaçant')
+                : null}
               // Calcule ici seulement quand il sert : la capsule n'en a besoin
               // que si l'enseignant du creneau est absent.
               remplacantNom={slot.teacherAbsent

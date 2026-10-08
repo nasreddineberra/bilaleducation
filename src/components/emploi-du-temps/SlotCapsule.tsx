@@ -30,6 +30,8 @@ interface Props {
   isOwnSlot?: boolean
   /** Qui couvre la classe ce jour-la, quand l'enseignant du creneau est absent. */
   remplacantNom?: string | null
+  /** Le titulaire est remplace sur cette seance : nom du remplacant (message rouge). */
+  remplaceParNom?: string | null
   validated: boolean
   /** Nombre de créneaux se partageant la largeur : pilote la densité d'affichage. */
   groupSize?: number
@@ -44,7 +46,7 @@ interface Props {
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplacantNom = null,
+  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplacantNom = null, remplaceParNom = null,
   validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onContextMenu, onKeyMenu,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -214,6 +216,14 @@ export default function SlotCapsule({
           {slot.rooms && !dense && !court && (
             <div className="text-[9px] leading-tight truncate opacity-60">
               {slot.rooms.name}
+            </div>
+          )}
+
+          {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
+              et AVANT l'horaire pour rester visible meme quand la capsule est courte. */}
+          {remplaceParNom && slot.slot_type !== 'pause' && (
+            <div className={clsx('leading-tight font-bold text-red-600 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+              Remplacé par {remplaceParNom}
             </div>
           )}
 
