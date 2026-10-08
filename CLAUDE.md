@@ -7832,3 +7832,8 @@ auth.uid()`), l'interdiction est applicative.
   semaine : elle exige maintenant que la date du ponctuel soit DANS la periode de la serie, et, pour une
   seule seance, que ce soit la date visee. Une autre serie ne gene une seance que si elle couvre cette
   date. **Infobulles** sur « Remplace par » et « Remplacement de » (le texte est tronque dans la capsule).
+- **EDT : vue « Jour » (grand ecran)**, a cote de Semaine et Mois (8 octobre). Pas de 3e `viewType` :
+  c'est la semaine filtree sur UNE journee (`selectedDay`) avec les fleches de navigation du telephone
+  (`allerAuJour`, qui change de semaine aux bornes) ; etat `vueJour`, bascule `choisirVue`. Les
+  fleches de la barre avancent d'un jour, le retour a la periode courante repose aujourd'hui, et
+  changer de mode Globale/Classe/Enseignant ne quitte pas la vue Jour.

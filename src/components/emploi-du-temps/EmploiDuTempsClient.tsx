@@ -420,6 +420,10 @@ export default function EmploiDuTempsClient({
 
   // View type: week or month
   const [viewType, setViewType] = useState<'week' | 'month'>('week')
+  // Vue « Jour » (grand ecran) : la semaine filtree sur UNE journee, avec les memes fleches
+  // de navigation que le telephone. Ce n'est pas un 3e `viewType` : tout le rendu et la
+  // navigation par semaine existent deja, il suffit de fixer `selectedDay`.
+  const [vueJour, setVueJour] = useState(false)
   const [monthOffset, setMonthOffset] = useState(0)
 
   const currentMonth = useMemo(() => {
@@ -561,6 +565,17 @@ export default function EmploiDuTempsClient({
 
   // Avance d un JOUR TRAVAILLE, en changeant de semaine aux bornes : un
   // vendredi suivi d un lundi, jamais un samedi que l ecole n ouvre pas.
+  const choisirVue = useCallback((v: 'jour' | 'week' | 'month') => {
+    setVueJour(v === 'jour')
+    setViewType(v === 'month' ? 'month' : 'week')
+    if (v === 'jour') {
+      // Jour courant s'il est travaille et visible, sinon le premier jour de la semaine.
+      setSelectedDay(orderedDays.includes(todayRealDow) && weekOffset === 0 ? todayRealDow : orderedDays[0] ?? null)
+    } else {
+      setSelectedDay(null)
+    }
+  }, [orderedDays, todayRealDow, weekOffset])
+
   const allerAuJour = useCallback((delta: number) => {
     setSelectedDay(jour => {
       if (jour === null || orderedDays.length === 0) return jour
@@ -1724,9 +1739,9 @@ export default function EmploiDuTempsClient({
               key={v}
               onClick={() => {
                 setViewMode(v)
-                if (v === 'global') { setSelectedClassId(''); setSelectedTeacherId(''); setSelectedDay(null) }
-                if (v === 'class') { setSelectedClassId(''); setSelectedTeacherId(''); setSelectedDay(null) }
-                if (v === 'teacher') { setSelectedClassId(''); setSelectedTeacherId(ownTeacherId); setSelectedDay(null) }
+                if (v === 'global') { setSelectedClassId(''); setSelectedTeacherId(''); if (!vueJour) setSelectedDay(null) }
+                if (v === 'class') { setSelectedClassId(''); setSelectedTeacherId(''); if (!vueJour) setSelectedDay(null) }
+                if (v === 'teacher') { setSelectedClassId(''); setSelectedTeacherId(ownTeacherId); if (!vueJour) setSelectedDay(null) }
               }}
               aria-pressed={viewMode === v}
               className={clsx(
@@ -1863,19 +1878,29 @@ export default function EmploiDuTempsClient({
 
         {/* View type toggle: Semaine / Mois — masque sur telephone (la vue mois
             y est illisible, et « Semaine » contredirait l affichage a la journee) */}
-        <div className={clsx('rounded-lg overflow-hidden text-xs font-medium border border-warm-200', petitEcran ? 'hidden' : 'flex')} role="group" aria-label="Affichage semaine ou mois">
+        <div className={clsx('rounded-lg overflow-hidden text-xs font-medium border border-warm-200', petitEcran ? 'hidden' : 'flex')} role="group" aria-label="Affichage jour, semaine ou mois">
           <button
-            onClick={() => setViewType('week')}
-            aria-pressed={viewType === 'week'}
+            onClick={() => choisirVue('jour')}
+            aria-pressed={vueJour}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
-              viewType === 'week' ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
+              vueJour ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
+            )}
+          >
+            Jour
+          </button>
+          <button
+            onClick={() => choisirVue('week')}
+            aria-pressed={viewType === 'week' && !vueJour}
+            className={clsx(
+              'px-2.5 py-1.5 transition-colors',
+              viewType === 'week' && !vueJour ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
             Semaine
           </button>
           <button
-            onClick={() => setViewType('month')}
+            onClick={() => choisirVue('month')}
             aria-pressed={viewType === 'month'}
             className={clsx(
               'px-2.5 py-1.5 transition-colors',
@@ -1890,7 +1915,11 @@ export default function EmploiDuTempsClient({
         {((viewType === 'week' && !isCurrentWeek) || (viewType === 'month' && !isCurrentMonth)) && (
           <Tooltip content={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}>
             <button
-              onClick={() => viewType === 'week' ? setWeekOffset(0) : setMonthOffset(0)}
+              onClick={() => {
+                if (viewType !== 'week') { setMonthOffset(0); return }
+                setWeekOffset(0)
+                if (vueJour && orderedDays.includes(todayRealDow)) setSelectedDay(todayRealDow)
+              }}
               aria-label={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}
               className="p-1 rounded-lg hover:bg-warm-100 text-amber-600 transition-colors"
             >
@@ -1902,8 +1931,8 @@ export default function EmploiDuTempsClient({
         {/* Navigation */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => viewType === 'week' ? setWeekOffset(o => o - 1) : setMonthOffset(o => o - 1)}
-            aria-label={viewType === 'week' ? 'Semaine précédente' : 'Mois précédent'}
+            onClick={() => vueJour ? allerAuJour(-1) : viewType === 'week' ? setWeekOffset(o => o - 1) : setMonthOffset(o => o - 1)}
+            aria-label={vueJour ? 'Jour précédent' : viewType === 'week' ? 'Semaine précédente' : 'Mois précédent'}
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors"
           >
             <ChevronLeft size={16} />
@@ -1914,7 +1943,9 @@ export default function EmploiDuTempsClient({
             'text-xs font-medium whitespace-nowrap px-2 py-1 text-warm-700 select-none',
             !petitEcran && 'capitalize'
           )}>
-            {viewType === 'week'
+            {vueJour && selectedDay !== null
+              ? `S${weekNum} · ${DAY_LABELS[selectedDay]} ${dayDatesDisplay[selectedDay]}`
+              : viewType === 'week'
               ? (petitEcran
                   ? `S${weekNum} · du ${fmtDateCourt(currentWeekStart)} au ${fmtDateCourt(currentWeekEnd)}`
                   : `S${weekNum} · ${fmtDateFull(currentWeekStart)} au ${fmtDateFull(currentWeekEnd)} ${currentWeekEnd.getFullYear()}`)
@@ -1922,8 +1953,8 @@ export default function EmploiDuTempsClient({
             }
           </span>
           <button
-            onClick={() => viewType === 'week' ? setWeekOffset(o => o + 1) : setMonthOffset(o => o + 1)}
-            aria-label={viewType === 'week' ? 'Semaine suivante' : 'Mois suivant'}
+            onClick={() => vueJour ? allerAuJour(1) : viewType === 'week' ? setWeekOffset(o => o + 1) : setMonthOffset(o => o + 1)}
+            aria-label={vueJour ? 'Jour suivant' : viewType === 'week' ? 'Semaine suivante' : 'Mois suivant'}
             className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors"
           >
             <ChevronRight size={16} />
@@ -1970,7 +2001,7 @@ export default function EmploiDuTempsClient({
               // Sur telephone l en-tete CESSE d etre le bouton de filtre et
               // devient la navigation : un clic y annulerait l affichage a la
               // journee et ramenerait des colonnes de 70 px.
-              petitEcran ? (
+              (petitEcran || vueJour) ? (
                 <div
                   key={d}
                   className={clsx(
