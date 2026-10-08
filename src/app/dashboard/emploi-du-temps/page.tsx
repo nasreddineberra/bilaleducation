@@ -76,6 +76,21 @@ export default async function EmploiDuTempsPage() {
     .eq('is_active', true)
     .order('start_time')
 
+  // Meme raison que ci-dessus : le remplacant ne lit pas la ligne `teachers` du
+  // titulaire, donc `slot.teachers` lui revient vide. On le complete pour
+  // afficher « Remplacement de NOM Prenom » (ids deja lus dans les creneaux).
+  type CreneauNom = { teacher_id: string | null; teachers: unknown }
+  const creneaux = (slots ?? []) as unknown as CreneauNom[]
+  const sansNom = [...new Set(creneaux.filter(s => s.teacher_id && !s.teachers).map(s => s.teacher_id as string))]
+  if (sansNom.length > 0) {
+    const { data: noms } = await createAdminClient()
+      .from('teachers')
+      .select('id, first_name, last_name, civilite')
+      .in('id', sansNom)
+    const parId = new Map((noms ?? []).map(t => [t.id, t]))
+    for (const s of creneaux) if (s.teacher_id && !s.teachers) s.teachers = parId.get(s.teacher_id) ?? null
+  }
+
   // Types de présence RÉSERVÉS de l'année : correspondance slot_type ('cours'/'activite')
   // → code réel du type (ex. 'CRS'/'ACT') écrit dans staff_time_entries à la validation.
   const { data: reservedPresenceTypes } = await supabase

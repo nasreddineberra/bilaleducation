@@ -32,6 +32,8 @@ interface Props {
   remplacantNom?: string | null
   /** Le titulaire est remplace sur cette seance : nom du remplacant (message rouge). */
   remplaceParNom?: string | null
+  /** Le connecte est le REMPLACANT sur cette seance : affiche le titulaire remplace. */
+  remplacementDe?: boolean
   validated: boolean
   /** Nombre de créneaux se partageant la largeur : pilote la densité d'affichage. */
   groupSize?: number
@@ -46,7 +48,7 @@ interface Props {
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplacantNom = null, remplaceParNom = null,
+  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplacantNom = null, remplaceParNom = null, remplacementDe = false,
   validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onContextMenu, onKeyMenu,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -224,6 +226,12 @@ export default function SlotCapsule({
           {remplaceParNom && slot.slot_type !== 'pause' && (
             <div className={clsx('leading-tight font-bold text-red-600 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
               Remplacé par {remplaceParNom}
+            </div>
+          )}
+
+          {remplacementDe && slot.teachers && slot.slot_type !== 'pause' && (
+            <div className={clsx('leading-tight font-bold text-red-600 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+              Remplacement de {nomEnseignant(slot.teachers)}
             </div>
           )}
 

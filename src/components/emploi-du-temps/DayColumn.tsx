@@ -199,6 +199,9 @@ export default function DayColumn({
                           && !remplacementActif?.(slot.class_id, dateStr, slot.teacher_id))
                          || (slot.teacher_id !== currentTeacherId
                              && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true)}
+              // Le REMPLACANT voit de qui il prend la suite (le creneau porte le titulaire).
+              remplacementDe={!!slot.teacher_id && slot.teacher_id !== currentTeacherId
+                && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
               // Message rouge dans la seance : visible de tous SAUF du remplacant lui-meme.
               remplaceParNom={!!slot.teacher_id
                 && remplacementActif?.(slot.class_id, dateStr, slot.teacher_id) === true

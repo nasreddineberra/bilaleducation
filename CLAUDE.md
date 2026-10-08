@@ -7823,3 +7823,6 @@ auth.uid()`), l'interdiction est applicative.
   « Remplacé par NOM Prénom » (`remplaceParNom`), visible de tous sauf du remplacant. Les noms des
   enseignants rattaches aux classes sont completes cote serveur (`emploi-du-temps/page.tsx`, client
   admin, SEULS ids deja lus dans `class_teachers`) : un enseignant ne lit que SA ligne `teachers`.
+- **Remplacant** : sa propre seance affiche « Remplacement de NOM Prénom » (titulaire), en rouge comme
+  le message du titulaire remplace. Noms des titulaires de creneaux completes cote serveur
+  (`emploi-du-temps/page.tsx`), le remplacant ne lisant pas leur ligne `teachers`.
