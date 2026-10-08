@@ -40,6 +40,13 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     .eq('etablissement_id', id)
     .maybeSingle()
 
+  // Table serveur uniquement (payeur + tarif).
+  const { data: facturation } = await supabase
+    .from('etablissement_facturation')
+    .select('structure, identifiant, adresse, responsable, email, prix_inscrit, forfait')
+    .eq('etablissement_id', id)
+    .maybeSingle()
+
   const { data: profiles } = await supabase
     .from('profiles')
     .select('*')
@@ -190,7 +197,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
   ]
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-3 animate-fade-in">
 
       {/* Retour, au niveau page — même forme que les fiches classe et année scolaire. */}
       <Link
@@ -265,7 +272,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
       <div className="grid grid-cols-3 gap-4 items-start">
         {/* Gauche : Informations + Acces et abonnement · Centre : Mise en service
             · Droite : Utilisateurs. */}
-        <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} />
+        <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} facturation={facturation ?? null} />
         <MiseEnService installation={installation} demarrage={demarrage} />
         <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
       </div>

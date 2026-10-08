@@ -5783,6 +5783,7 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/add-etablissement-facturation.sql` (payeur + tarif). Avant le deploiement.
 - [x] Executer `supabase/migrations/add-releves-facturation.sql` (releve mensuel + pg_cron). Avant le deploiement.
 - [x] Executer `supabase/migrations/add-smtp-verifie-le.sql` (colonne `verifie_le`, messagerie eprouvee).
   **Avant le deploiement** : sans elle, la fiche ecole afficherait la messagerie « non configuree ».
@@ -7782,3 +7783,18 @@ dans la section Utilisateurs) · 6 (filtres de la liste) · 7 (depart d'une ecol
   releve du mois existe. Premier releve pris par la migration.
 - Console : menu « Facturation » (`/superadmin/facturation`), select d'ecole (`?ecole=`), tableau
   mois par mois, bouton « Relever maintenant » (`facturation-actions.ts`, `requireEditor`).
+
+#### 8 octobre 2026 (suite) — Console : facturation sur la fiche ecole (point 2/7)
+
+- Migration `add-etablissement-facturation.sql` : table `etablissement_facturation` (payeur :
+  structure, SIRET/RNA, adresse, responsable, email ; tarif : prix par inscrit, forfait mensuel),
+  SERVEUR UNIQUEMENT. Le releve mensuel FIGE AUSSI LE TARIF (`prix_inscrit`, `forfait`) : un
+  changement de tarif ne reecrit pas les mois passes ; seul le releve du mois EN COURS suit le
+  nouveau tarif (`enregistrerFacturation`).
+- Fiche ecole : champs de facturation EN BAS de l'encadre « Informations », un seul Enregistrer.
+  **Tous les champs de la fiche en taille compacte** (charte : `FloatInput compact`,
+  `FloatButton size="mini"`) pour tenir sur une page sans defilement, Notes a 7 lignes comprises.
+- Ecran Facturation : colonnes Montant (forfait + base x prix) et **Ecart avec le mois precedent**
+  (base et montant), **total par annee scolaire** (mois rattaches par `start_date`/`end_date`).
+- Piege evite : l'interface `FacturationEcole` vit dans `src/lib/tenant/facturation.ts`, pas dans
+  le fichier `'use server'` (un export non-fonction y provoque un 500).

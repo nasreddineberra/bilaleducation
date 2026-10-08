@@ -20,13 +20,22 @@ export default async function FacturationPage({ searchParams }: { searchParams: 
   const { data: releves } = choisie
     ? await supabase
         .from('releves_facturation')
-        .select('mois, eleves_actifs, adultes_inscrits, limite, releve_le')
+        .select('mois, eleves_actifs, adultes_inscrits, limite, releve_le, prix_inscrit, forfait')
         .eq('etablissement_id', choisie.id)
         .order('mois', { ascending: false })
     : { data: [] }
 
+  // Les annees scolaires de l ecole servent a totaliser les montants par annee.
+  const { data: annees } = choisie
+    ? await supabase
+        .from('school_years')
+        .select('label, start_date, end_date')
+        .eq('etablissement_id', choisie.id)
+    : { data: [] }
+
   return (
     <FacturationClient
+      annees={annees ?? []}
       ecoles={ecoles ?? []}
       ecoleId={choisie?.id ?? null}
       releves={(releves ?? []) as Releve[]}
