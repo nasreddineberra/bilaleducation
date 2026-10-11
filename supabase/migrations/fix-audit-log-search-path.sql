@@ -35,6 +35,4 @@ BEGIN
   END IF;
 END
 $verif$;
-
--- Registre des migrations (voir supabase/migrations/README.md).
 SELECT enregistrer_migration('fix-audit-log-search-path.sql', '8af8ac3c1ccd6f0070a1b903ff98f4633b3a55c4829d03c71b22aa276c1a705f');

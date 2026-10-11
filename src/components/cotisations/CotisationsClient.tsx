@@ -184,6 +184,24 @@ export default function CotisationsClient({
     }
   }
 
+  // Avant la confirmation : un type utilise par une classe de l'ANNEE EN COURS ne
+  // se supprime pas (la cle detache la classe sans erreur, et elle ne facturerait
+  // plus rien). Le declencheur de la base applique la meme regle.
+  const startDelete = async (row: CotisationType) => {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('name')
+      .eq('cotisation_type_id', row.id)
+      .eq('academic_year', currentYear.label)
+    if (error) { toast.error('Vérification impossible. Réessayez.'); return }
+    if (data && data.length > 0) {
+      const noms = data.map(c => c.name).sort((a, b) => a.localeCompare(b)).join(', ')
+      toast.error(`Suppression impossible : « ${row.label} » est utilisé par ${data.length} classe${data.length > 1 ? 's' : ''} de l'année en cours (${noms}). Changez d'abord leur cotisation.`)
+      return
+    }
+    setConfirmDeleteId(row.id)
+  }
+
   const remove = async (id: string) => {
     setSaving(true)
     try {
@@ -376,7 +394,7 @@ export default function CotisationsClient({
                           <button onClick={() => startEdit(row)} disabled={!!editing} aria-label={`Modifier ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100')}><Pencil size={13} /></button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
-                          <button onClick={() => setConfirmDeleteId(row.id)} disabled={!!editing} aria-label={`Supprimer ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-600 hover:bg-red-50')}><Trash2 size={13} /></button>
+                          <button onClick={() => startDelete(row)} disabled={!!editing} aria-label={`Supprimer ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-600 hover:bg-red-50')}><Trash2 size={13} /></button>
                         </Tooltip>
                       </div>
                     )}
