@@ -261,7 +261,10 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                     <td className="list-td text-secondary-600 whitespace-nowrap">
                       {titulaire?.teachers
                         ? `${titulaire.teachers.last_name} ${titulaire.teachers.first_name}`
-                        : <span className="text-warm-700 text-xs italic">Non affecté</span>}
+                        : titulaire
+                          // Un titulaire existe mais sa fiche n'est pas lisible par ce role : pas d'alerte.
+                          ? <span className="text-warm-700">·</span>
+                          : <span className="text-red-600 text-xs font-semibold">Sans titulaire</span>}
                     </td>
                     <td className="list-td">
                       {remplacements.length === 0 ? (

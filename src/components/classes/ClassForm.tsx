@@ -192,6 +192,9 @@ export default function ClassForm({
   } | null>(null)
 
   const hasActiveMain     = assignments.some(a => !a.effective_until && a.is_main_teacher)
+  // Un titulaire a deja existe (meme clos) : un nouveau titulaire est date, au lieu
+  // de prendre la place de « 1re affectation = debut d'annee ».
+  const hasAnyMain        = assignments.some(a => a.is_main_teacher)
   // N'exclut que les enseignants avec une affectation ACTIVE (titulaire actif ou
   // remplacement en cours) — ceux qui ne sont qu'en historique restent sélectionnables.
   const activeAssignedIds = new Set(
@@ -233,11 +236,26 @@ export default function ClassForm({
         teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
         is_main_teacher: true,
         subject:         '',
-        effective_from:  hasActiveMain ? date : null,   // 1re affectation = début d'année (null)
+        effective_from:  hasAnyMain ? date : null,   // 1re affectation = début d'année (null)
         effective_until: null,
       }]
     })
     setShowAddRow(false)
+  }
+
+  // Retirer le titulaire : la classe peut rester SANS titulaire. L'affectation est
+  // cloturee (historique conserve) ; les creneaux de l'EDT ne sont PAS clotures, ils
+  // passent « sans enseignant » a l'enregistrement et reprennent un titulaire des
+  // qu'on en affecte un autre.
+  const openRemoveTitulaire = (realIdx: number) => {
+    const a = assignments[realIdx]
+    setPendingAssignAction({
+      type: 'delete', idx: realIdx, effectiveDate: todayISO(),
+      applyFn: (date: string) => {
+        setAssignments(prev => prev.map((x, i) => i === realIdx ? { ...x, effective_until: date } : x))
+      },
+      message: `Indiquez le dernier jour de "${a.teacher_name}" comme titulaire (inclus). La classe n'aura plus de titulaire ; ses créneaux resteront au planning, sans enseignant.`,
+    })
   }
 
   const removeAssignmentAt = (idx: number) =>
@@ -368,10 +386,9 @@ export default function ClassForm({
   // ── Validation ────────────────────────────────────────────────────────────
   const vName        = form.name.trim().length < 2
   const vCotisation  = !form.cotisation_type_id
-  const vAssignments = !hasActiveMain
   const selectedRoom = rooms.find(r => r.id === form.room_id)
   const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
-  const isFormValid  = !vName && !vCotisation && !vAssignments && !vCapacity
+  const isFormValid  = !vName && !vCotisation && !vCapacity
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const touch = (field: string) => setTouched(prev => new Set([...prev, field]))
   const set = (field: keyof FormData, value: string) =>
@@ -386,7 +403,7 @@ export default function ClassForm({
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setTouched(new Set([...Object.keys(form), 'assignments']))
+    setTouched(new Set(Object.keys(form)))
     if (!isFormValid) return
 
     setIsSubmitting(true)
@@ -463,7 +480,10 @@ export default function ClassForm({
 
       // Cloturer les slots EDT des affectations cloturees en cours d'annee
       if (currentSchoolYear?.id) {
-        const closedAssignments = assignments.filter(a => a.effective_until && a.teacher_id)
+        // Un titulaire retire SANS successeur ne clot pas ses creneaux : ils passent
+        // sans enseignant (voir plus bas) et reprendront un titulaire a l'affectation suivante.
+        const mainActif = assignments.some(a => !a.effective_until && a.is_main_teacher)
+        const closedAssignments = assignments.filter(a => a.effective_until && a.teacher_id && !(a.is_main_teacher && !mainActif))
         for (const ca of closedAssignments) {
           verifierEcritureLot(
             await supabase
@@ -484,6 +504,22 @@ export default function ClassForm({
       if (isEditing) {
         const newMain = assignments.find(a => !a.effective_until && a.is_main_teacher)
         const oldMain = initialAssignments.find(a => !a.effective_until && a.is_main_teacher)
+        if (!newMain && oldMain?.teacher_id) {
+          verifierEcritureLot(
+            await supabase
+              .from('schedule_slots')
+              .update({ teacher_id: null })
+              .eq('class_id', classId)
+              .eq('is_active', true)
+              .eq('teacher_id', oldMain.teacher_id),
+            'Le retrait du titulaire sur le planning',
+          )
+          logAudit(supabase, {
+            action: 'UPDATE',
+            entityType: 'schedule_slots',
+            description: `Titulaire retiré : les créneaux de ${form.name.trim()} passent sans enseignant`,
+          })
+        }
         if (newMain && newMain.teacher_id !== oldMain?.teacher_id) {
           verifierEcritureLot(
             await supabase
@@ -683,10 +719,18 @@ export default function ClassForm({
                 <div className="flex items-center justify-between">
                   <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Titulaire</h3>
                   {!showAddRow && (
-                    <button type="button" onClick={openTitulairePanel}
-                      className="text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
-                      {activeTit ? 'Changer' : 'Affecter un titulaire'}
-                    </button>
+                    <span className="flex items-center gap-3">
+                      {activeTit && (
+                        <button type="button" onClick={() => openRemoveTitulaire(assignments.indexOf(activeTit))}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">
+                          Retirer
+                        </button>
+                      )}
+                      <button type="button" onClick={openTitulairePanel}
+                        className="text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+                        {activeTit ? 'Changer' : 'Affecter un titulaire'}
+                      </button>
+                    </span>
                   )}
                 </div>
 
@@ -699,12 +743,9 @@ export default function ClassForm({
                   </div>
                 ) : (
                   !showAddRow && (
-                    <div className={clsx('flex items-center gap-2 text-sm rounded-xl px-3 py-2',
-                      touched.has('assignments') && vAssignments
-                        ? 'text-red-600 bg-red-50 border border-red-200'
-                        : 'text-warm-700 bg-warm-50')}>
+                    <div className="flex items-center gap-2 text-sm rounded-xl px-3 py-2 text-red-600 bg-red-50 border border-red-200">
                       <BookOpen size={14} />
-                      {touched.has('assignments') && vAssignments ? 'Un titulaire est requis.' : 'Aucun titulaire affecté.'}
+                      Sans titulaire.
                     </div>
                   )
                 )}
@@ -715,7 +756,7 @@ export default function ClassForm({
                       <option value="" />
                       {availableTeachers.map(t => (<option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>))}
                     </FloatSelect>
-                    {hasActiveMain && (
+                    {hasAnyMain && (
                       <FloatInput label="À compter du" type="date" value={titulaireFrom} onChange={e => setTitulaireFrom(e.target.value)} />
                     )}
                     <div className="flex gap-2 justify-end pt-1">
