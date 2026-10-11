@@ -583,7 +583,7 @@ cohérent. Trois blocs, dans cet ordre.
 ## Phase 7 · Ouverture
 
 - [ ] **Toi** — Décider la **date**. Éviter une veille de rentrée : choisir une période calme.
-- [ ] **Moi** — Effacer les données de test (`supabase/clean-all-data.sql`).
+- [x] **Moi** — Effacer les données de test (`supabase/nettoyage-avant-livraison.sql`, 11 octobre : sauvegarde, passage à blanc puis nettoyage réel ; 3 fichiers supprimés par l API).
 - [ ] **Moi** — Créer l'établissement réel, son `admin` et sa `direction`.
 - [ ] **Toi** — Former les utilisateurs, en commençant par la direction.
 - [ ] **Toi** — **Passer Vercel en Pro** (~20 $/mois, déjà au budget : l'activité devient
