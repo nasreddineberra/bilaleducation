@@ -269,9 +269,23 @@ export async function deleteTeacher(teacherId: string): Promise<{ error?: string
 
   // 5. Supprimer le compte auth (le profil part en cascade via la migration)
   if (teacher?.user_id) {
-    await admin.auth.admin.deleteUser(teacher.user_id).catch((e) =>
-      console.error('[deleteTeacher] Échec suppression compte auth:', e)
-    )
+    // Les messages d'equipe RECUS par cette personne referencent son profil sans
+    // cascade : ils empechaient la suppression du compte, qui echouait en silence
+    // (le compte restait, sans fiche, bloque en « modifier » dans Utilisateurs).
+    // Ce sont des lignes de reception : le message lui-meme n'est pas touche.
+    const resRecus = await supabase.from('announcement_staff_recipients').delete().eq('profile_id', teacher.user_id).select('id')
+    if (resRecus.error) {
+      console.error('[deleteTeacher] Échec nettoyage des messages reçus:', resRecus.error)
+      return { error: 'La fiche est supprimée, mais le compte de connexion n\'a pas pu l\'être (messages reçus). Supprimez-le depuis Utilisateurs.' }
+    }
+
+    // L'echec est RENDU : `deleteUser` ne leve pas, il renvoie `{ error }`, que
+    // l'ancien `.catch` ne voyait jamais — l'ecran annoncait un succes.
+    const { error: errAuth } = await admin.auth.admin.deleteUser(teacher.user_id)
+    if (errAuth) {
+      console.error('[deleteTeacher] Échec suppression compte auth:', errAuth)
+      return { error: `La fiche est supprimée, mais le compte de connexion n'a pas pu l'être : ${errAuth.message}` }
+    }
   }
 
   return {}
