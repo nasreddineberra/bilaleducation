@@ -1,5 +1,6 @@
 'use client'
 
+import { normalizeNom } from '@/lib/normalize-name'
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
@@ -410,12 +411,15 @@ export default function ClassForm({
     try {
       const supabase = createClient()
 
+      // Nom UNIQUE PAR ANNEE (casse et accents ignores) : le meme nom redevient
+      // possible l'annee suivante. Meme normalisation que l'index en base
+      // `idx_classes_unique_name_per_year`, qui reste la vraie garantie.
       const { data: same } = await supabase
         .from('classes')
-        .select('id')
-        .ilike('name', form.name.trim())
-      if (same?.find(c => c.id !== cls?.id)) {
-        toast.error(`Une classe "${form.name.trim()}" existe déjà.`)
+        .select('id, name')
+        .eq('academic_year', currentYear?.label ?? '')
+      if (same?.find(c => c.id !== cls?.id && normalizeNom(c.name) === normalizeNom(form.name))) {
+        toast.error(`Une classe "${form.name.trim()}" existe déjà pour cette année.`)
         setIsSubmitting(false)
         return
       }
@@ -633,8 +637,13 @@ export default function ClassForm({
       toast.success(isEditing ? 'Classe modifiée avec succès.' : 'Classe créée avec succès.')
       router.push(backHref)
       router.refresh()
-    } catch {
-      toast.error('Une erreur est survenue. Veuillez réessayer.')
+    } catch (err) {
+      // Doublon refuse par la base (enregistrement simultane, ou controle contourne).
+      if (String((err as { message?: string })?.message ?? '').includes('idx_classes_unique_name_per_year')) {
+        toast.error(`Une classe "${form.name.trim()}" existe déjà pour cette année.`)
+      } else {
+        toast.error('Une erreur est survenue. Veuillez réessayer.')
+      }
     } finally {
       setIsSubmitting(false)
     }
