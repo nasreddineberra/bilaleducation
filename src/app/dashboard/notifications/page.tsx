@@ -42,6 +42,9 @@ export default async function NotificationsPage() {
     `)
     .eq('profile_id', userId)
     .neq('announcements.channel', 'email')
+    // Notifications supprimees par le destinataire : masquees, pas effacees (la trace
+    // d'envoi de l'expediteur reste intacte).
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   // Notifications parent (le user est lié à un parent)

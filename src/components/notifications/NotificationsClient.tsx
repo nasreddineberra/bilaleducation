@@ -4,13 +4,15 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText } from 'lucide-react'
+import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import PushSubscribeButton from './PushSubscribeButton'
 import { SearchField, FloatSelect } from '@/components/ui/FloatFields'
+import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,7 +88,7 @@ function stripHtml(html: string): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function NotificationsClient({ notifications, role, yearLabel }: Props) {
+export default function NotificationsClient({ notifications: toutes, role, yearLabel }: Props) {
   const router = useRouter()
   // Recherche et DEUX filtres MEMORISES : on ouvre une notification, on revient,
   // et la liste est retrouvee telle quelle. Filtrage cote CLIENT, donc rien dans
@@ -110,6 +112,12 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
   // l'utilisateur vient de marquer comme lues dans CETTE visite. Les retenir
   // ferait croire a des lectures qui n'ont pas eu lieu.
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
+  // Notifications supprimees dans CETTE visite (masquees tout de suite, la page ne
+  // se recharge qu'apres l'ecriture).
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  // Notification dont la suppression attend confirmation.
+  const [aSupprimer, setASupprimer] = useState<AnnouncementNotif | null>(null)
+  const notifications = useMemo(() => toutes.filter(n => !deletedIds.has(n.id)), [toutes, deletedIds])
 
   const filtered = useMemo(() => {
     let list = notifications
@@ -162,6 +170,26 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
     }
     // Le badge de la cloche est rendu par le layout, que cette page ne
     // re-rend pas : on le lui demande.
+    router.refresh()
+  }
+
+  // Suppression d'une notification LUE de l'equipe : on la masque (`deleted_at`),
+  // on ne l'efface pas — la ligne porte aussi la trace d'envoi de l'expediteur.
+  const deleteNotif = async (notif: AnnouncementNotif) => {
+    setDeletedIds(prev => new Set(prev).add(notif.id))
+    const supabase = createClient()
+    const echec = erreurEcriture(
+      await supabase.from('announcement_staff_recipients')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', notif.id)
+        .select('id'),
+      'Cette notification',
+    )
+    if (echec) {
+      setDeletedIds(prev => { const copie = new Set(prev); copie.delete(notif.id); return copie })
+      toast.error(echec)
+      return
+    }
     router.refresh()
   }
 
@@ -330,11 +358,36 @@ export default function NotificationsClient({ notifications, role, yearLabel }: 
                     )}
                   </div>
                 </div>
+                {/* Suppression : uniquement une notification de l'equipe deja LUE. */}
+                {isRead && n.recipientType === 'staff' && (
+                  <Tooltip content="Supprimer la notification">
+                    <button
+                      type="button"
+                      aria-label={`Supprimer la notification ${ann.title}`}
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setASupprimer(n) }}
+                      className="p-1.5 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
+                  </Tooltip>
+                )}
               </Link>
             )
           })}
         </div>
       )}
+
+      <ConfirmModal
+        open={!!aSupprimer}
+        variant="danger"
+        confirmColor="red"
+        title="Supprimer la notification"
+        message={`Supprimer « ${aSupprimer?.announcements?.title ?? ''} » de vos notifications ? Le message reste dans l'historique de son expéditeur.`}
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        onConfirm={() => { const n = aSupprimer; setASupprimer(null); if (n) void deleteNotif(n) }}
+        onCancel={() => setASupprimer(null)}
+      />
     </div>
   )
 }
