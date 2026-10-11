@@ -5,12 +5,11 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { X, Users, Info, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { saveStudentEnrollments } from '@/app/dashboard/affectation/actions'
+import { saveStudentEnrollments, verifierRetraitEleve } from '@/app/dashboard/affectation/actions'
 
 const POOL_PAGE_SIZE = 20
 
@@ -307,6 +306,8 @@ export default function AffectationClient({ classes, students, enrollments, curr
 
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(null)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  // Appreciations de bulletin rattachees aux eleves retires, a confirmer avant suppression.
+  const [confirmAppreciations, setConfirmAppreciations] = useState<{ nom: string; periodes: string[] }[] | null>(null)
   const [roster,         setRoster]         = useState<string[]>(() =>
     selectedClassId
       ? enrollments.filter(e => e.class_id === selectedClassId).map(e => e.student_id)
@@ -364,63 +365,30 @@ export default function AffectationClient({ classes, students, enrollments, curr
 
   // ── Retrait depuis le panel droit ─────────────────────────────────────────
   const removeFromRoster = async (studentId: string) => {
-    if (currentYearId) {
-      const supabase = createClient()
-
-      // Vérifier grades sur l'année courante (via evaluations → period → school_year)
-      const { count: gradesCount } = await supabase
-        .from('grades')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', studentId)
-        .in(
-          'evaluation_id',
-          (await supabase
-            .from('evaluations')
-            .select('id')
-            .in(
-              'period_id',
-              (await supabase
-                .from('periods')
-                .select('id')
-                .eq('school_year_id', currentYearId)
-              ).data?.map(p => p.id) ?? []
-            )
-          ).data?.map(e => e.id) ?? []
-        )
-
-      // Vérifier bulletins archivés sur l'année courante
-      const { count: bulletinsCount } = await supabase
-        .from('bulletin_archives')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', studentId)
-        .in(
-          'period_id',
-          (await supabase
-            .from('periods')
-            .select('id')
-            .eq('school_year_id', currentYearId)
-          ).data?.map(p => p.id) ?? []
-        )
-
-      if ((gradesCount ?? 0) > 0 || (bulletinsCount ?? 0) > 0) {
-        toast.error('Impossible de retirer cet élève : il a des évaluations ou des bulletins enregistrés sur l\'année en cours.')
-        return
-      }
+    // Controle cote serveur, sur le duo eleve/classe : notes, absences, bulletins
+    // archives. Le message dit combien et ou agir. Les appreciations ne bloquent
+    // pas ici, elles se confirment a l'enregistrement.
+    if (selectedClassId && originalRoster.includes(studentId)) {
+      const { error } = await verifierRetraitEleve(selectedClassId, studentId)
+      if (error) { toast.error(error); return }
     }
     setRoster(prev => prev.filter(id => id !== studentId))
   }
 
   // ── Sauvegarde (server action + traçabilité journal) ───────────────────────
-  const save = async () => {
+  const save = async (supprimerAppreciations = false) => {
     if (!selectedClassId) return
     setSaving(true)
 
     const toAdd    = roster.filter(id => !originalRoster.includes(id))
     const toRemove = originalRoster.filter(id => !roster.includes(id))
 
-    const { error } = await saveStudentEnrollments(selectedClassId, toAdd, toRemove)
+    const { error, confirmation } = await saveStudentEnrollments(selectedClassId, toAdd, toRemove, supprimerAppreciations)
     setSaving(false)
     if (error) { toast.error(error); return }
+    // Des appreciations de bulletin sont rattachees aux eleves retires : rien n'a
+    // ete ecrit, on demande confirmation avant de les supprimer avec le retrait.
+    if (confirmation) { setConfirmAppreciations(confirmation); return }
 
     setOriginalRoster([...roster])
     toast.success('Affectations enregistrées avec succès.')
@@ -691,7 +659,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
           <FloatButton
             variant={originalRoster.length > 0 ? 'edit' : 'submit'}
             type="button"
-            onClick={save}
+            onClick={() => save()}
             disabled={!hasChanges}
             loading={saving}
           >
@@ -706,6 +674,26 @@ export default function AffectationClient({ classes, students, enrollments, curr
         onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
         onCancel={() => setPendingConfirm(null)}
       />
+
+      <ConfirmModal
+        open={!!confirmAppreciations}
+        variant="danger"
+        confirmColor="red"
+        title="Supprimer les appréciations ?"
+        confirmLabel="Retirer et supprimer"
+        cancelLabel="Annuler"
+        onConfirm={() => { setConfirmAppreciations(null); void save(true) }}
+        onCancel={() => setConfirmAppreciations(null)}
+      >
+        <p className="text-sm text-secondary-800">
+          Le retrait supprime aussi l'appréciation de bulletin saisie pour :
+        </p>
+        <ul className="mt-2 text-sm text-secondary-800 space-y-0.5">
+          {(confirmAppreciations ?? []).map(a => (
+            <li key={a.nom}><span className="font-semibold">{a.nom}</span> ({a.periodes.join(', ')})</li>
+          ))}
+        </ul>
+      </ConfirmModal>
 
       {/* Tooltip identité — rendu dans document.body via portal (évite les ancêtres avec transform) */}
       {tooltip && typeof document !== 'undefined' && createPortal(

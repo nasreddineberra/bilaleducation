@@ -577,6 +577,30 @@ export default function BulletinsClient({
     setAppreciationError(null)
     try {
       const supabase = createClient()
+
+      // Texte vide : on SUPPRIME la ligne au lieu d'en garder une vide. Une ligne
+      // vide ne dit rien mais bloque quand meme le retrait de l'eleve de sa classe.
+      // Zero ligne touchee est normal (rien n'avait ete saisi), seule l'erreur compte.
+      if (text.trim() === '') {
+        let suppression = supabase
+          .from(isAdultClass ? 'adult_bulletin_appreciations' : 'bulletin_appreciations')
+          .delete()
+          .eq('class_id', selectedClassId)
+          .eq('period_id', selectedPeriodId)
+        if (isAdultClass) {
+          const sep = studentId.lastIndexOf('-')
+          suppression = suppression
+            .eq('parent_id', studentId.slice(0, sep))
+            .eq('tutor_number', parseInt(studentId.slice(sep + 1), 10))
+        } else {
+          suppression = suppression.eq('student_id', studentId)
+        }
+        const { error: errSuppr } = await suppression
+        if (errSuppr) throw errSuppr
+        setAppreciations(prev => prev.filter(a => !(a.student_id === studentId && a.class_id === selectedClassId && a.period_id === selectedPeriodId)))
+        return
+      }
+
       let payload: Record<string, unknown>
       let conflict: string
       if (isAdultClass) {

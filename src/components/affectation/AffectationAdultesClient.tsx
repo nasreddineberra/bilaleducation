@@ -218,6 +218,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const [saving,   setSaving]   = useState(false)
   const [onlyUnassigned, setOnlyUnassigned] = useState(false)
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const [confirmAppreciations, setConfirmAppreciations] = useState<{ nom: string; periodes: string[] }[] | null>(null)
 
   const selectedClass = classes.find(c => c.id === selectedClassId) ?? null
   const hasChanges    = JSON.stringify([...roster].sort()) !== JSON.stringify([...originalRoster].sort())
@@ -250,14 +251,17 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
   const removeFromRoster = (tutorId: string) =>
     setRoster(prev => prev.filter(id => id !== tutorId))
 
-  const save = async () => {
+  const save = async (supprimerAppreciations = false) => {
     if (!selectedClassId) return
     setSaving(true)
     const toAdd    = roster.filter(id => !originalRoster.includes(id))
     const toRemove = originalRoster.filter(id => !roster.includes(id))
-    const { error } = await saveParentEnrollments(selectedClassId, toAdd, toRemove)
+    const { error, confirmation } = await saveParentEnrollments(selectedClassId, toAdd, toRemove, supprimerAppreciations)
     setSaving(false)
     if (error) { toast.error(error); return }
+    // Appreciations rattachees aux participants retires : rien n'a ete ecrit,
+    // confirmation demandee avant de les supprimer avec le retrait.
+    if (confirmation) { setConfirmAppreciations(confirmation); return }
     setOriginalRoster([...roster])
     toast.success('Affectations enregistrées avec succès.')
     router.refresh()
@@ -469,7 +473,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
           <FloatButton
             variant={originalRoster.length > 0 ? 'edit' : 'submit'}
             type="button"
-            onClick={save}
+            onClick={() => save()}
             disabled={!hasChanges}
             loading={saving}
           >
@@ -484,6 +488,26 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
         onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
         onCancel={() => setPendingConfirm(null)}
       />
+
+      <ConfirmModal
+        open={!!confirmAppreciations}
+        variant="danger"
+        confirmColor="red"
+        title="Supprimer les appréciations ?"
+        confirmLabel="Retirer et supprimer"
+        cancelLabel="Annuler"
+        onConfirm={() => { setConfirmAppreciations(null); void save(true) }}
+        onCancel={() => setConfirmAppreciations(null)}
+      >
+        <p className="text-sm text-secondary-800">
+          Le retrait supprime aussi l'appréciation de bulletin saisie pour :
+        </p>
+        <ul className="mt-2 text-sm text-secondary-800 space-y-0.5">
+          {(confirmAppreciations ?? []).map(a => (
+            <li key={a.nom}><span className="font-semibold">{a.nom}</span> ({a.periodes.join(', ')})</li>
+          ))}
+        </ul>
+      </ConfirmModal>
 
     </div>
   )

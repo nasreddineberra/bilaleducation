@@ -162,11 +162,13 @@ export default function SlotCapsule({
       aria-label={ariaLabel}
       {...(isDraggableEnabled ? { ...listeners, ...attributes } : {})}
     >
-      {/* En densité réduite, le détail retiré de la capsule reste accessible au
+      {/* Quand le libellé rouge de remplacement est affiché, il porte SA propre
+          infobulle : celle de la capsule est coupée pour ne pas en ouvrir deux.
+          En densité réduite, le détail retiré de la capsule reste accessible au
           survol. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
           contenu ne remplirait pas la capsule. */}
       <Tooltip
-        content={dense || court ? (
+        content={(dense || court) && !((remplaceParNom || (remplacementDe && slot.teachers)) && slot.slot_type !== 'pause') ? (
           <span className="flex flex-col gap-0.5 text-left">
             {infoLignes.map((l, i) => <span key={i}>{l}</span>)}
           </span>
