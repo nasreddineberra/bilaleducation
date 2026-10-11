@@ -534,6 +534,36 @@ export default function ClassForm({
             entityType: 'schedule_slots',
             description: `Cascade : tous les créneaux de ${form.name.trim()} affectés à ${newMain.teacher_name}`,
           })
+
+          // Le cahier de texte de la classe suit le titulaire : séances et devoirs
+          // rédigés par les ANCIENS TITULAIRES de cette classe passent au nouveau.
+          // Les remplaçants ne sont pas concernés, et seule cette classe l'est. Le
+          // droit d'écriture est celui de la base (admin, direction, resp. pédago) ;
+          // pour un autre rôle la mise à jour touche zéro ligne, sans erreur.
+          const anciens = [...new Set(assignments
+            .filter(a => a.is_main_teacher && a.teacher_id && a.teacher_id !== newMain.teacher_id)
+            .map(a => a.teacher_id as string))]
+          if (anciens.length > 0) {
+            let seances = 0, devoirs = 0
+            for (const [table, nom] of [['class_journal', 'séances'], ['homework', 'devoirs']] as const) {
+              const res = await supabase
+                .from(table)
+                .update({ teacher_id: newMain.teacher_id })
+                .eq('class_id', classId)
+                .in('teacher_id', anciens)
+                .select('id')
+              verifierEcritureLot(res, `Le transfert des ${nom} du cahier de texte`)
+              if (table === 'class_journal') seances = res.data?.length ?? 0
+              else devoirs = res.data?.length ?? 0
+            }
+            if (seances + devoirs > 0) {
+              logAudit(supabase, {
+                action: 'UPDATE',
+                entityType: 'class_journal',
+                description: `Cahier de texte de ${form.name.trim()} : ${seances} séance(s) et ${devoirs} devoir(s) transférés à ${newMain.teacher_name}`,
+              })
+            }
+          }
         }
       }
 
