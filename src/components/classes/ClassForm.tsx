@@ -699,7 +699,7 @@ export default function ClassForm({
         {/* ── Colonne droite — Enseignant ── */}
         <div className="card p-4 space-y-4 flex flex-col">
           <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-            Enseignant <span className="text-red-400">*</span>
+            Enseignant
           </h2>
 
           {(() => {
