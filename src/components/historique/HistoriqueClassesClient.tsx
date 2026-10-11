@@ -76,10 +76,9 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
 
   if (annees.length === 0) {
     return (
-      <div className="card px-6 py-12 text-center">
-        <History size={32} className="mx-auto text-warm-700 mb-2" />
+      <div className="card px-6 py-10 text-center">
+        <History size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
         <p className="text-sm text-warm-700">Aucune année archivée pour le moment.</p>
-        <p className="text-xs text-warm-700 mt-1">L&apos;historique se construit à l&apos;archivage du passage d&apos;année.</p>
       </div>
     )
   }
@@ -87,68 +86,68 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
   return (
     <div className="space-y-2">
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <FloatSelect
-          label="Année"
-          compact
-          aria-label="Choisir l'année archivée"
-          wrapperClassName="w-40"
-          value={annee}
-          onChange={e => setEtat({ annee: e.target.value })}
-        >
-          {annees.map(a => <option key={a} value={a}>{a}</option>)}
-        </FloatSelect>
         <SearchField
           value={search}
           onChange={v => setEtat({ search: v })}
           placeholder="Classe, enseignant, élève…"
           ariaLabel="Rechercher une classe, un enseignant ou un participant"
-          className="max-w-xs"
         />
-        <span className="ml-auto text-xs text-warm-700">
-          {lignes.length} classe{lignes.length > 1 ? 's' : ''}
-        </span>
+        <FloatSelect
+          label="Année"
+          compact
+          aria-label="Choisir l'année archivée"
+          wrapperClassName="w-fit ml-auto"
+          value={annee}
+          onChange={e => setEtat({ annee: e.target.value })}
+        >
+          {annees.map(a => <option key={a} value={a}>{a}</option>)}
+        </FloatSelect>
       </div>
 
-      <div className="card p-0 overflow-x-auto">
+      {lignes.length === 0 ? (
+        <div className="card px-6 py-10 text-center">
+          <History size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
+          <p className="text-sm text-warm-700">Aucune classe ne correspond.</p>
+        </div>
+      ) : (
+      <div className="card p-0 overflow-hidden">
         <table className="w-full text-left text-xs" aria-label={`Classes de l'année ${annee}`}>
           <thead>
             <tr className="border-b border-warm-100">
-              <th className="list-th">Classe</th>
-              <th className="list-th">Niveau</th>
-              <th className="list-th">Cotisation</th>
-              <th className="list-th">Titulaire</th>
-              <th className="list-th">Remplacements</th>
-              <th className="list-th">Créneau</th>
-              <th className="list-th text-center">Effectif</th>
+              <th scope="col" className="list-th">Classe</th>
+              <th scope="col" className="list-th">Niveau</th>
+              <th scope="col" className="list-th">Cotisation</th>
+              <th scope="col" className="list-th">Titulaire</th>
+              <th scope="col" className="list-th">Remplacements</th>
+              <th scope="col" className="list-th">Créneau</th>
+              <th scope="col" className="list-th text-center">Effectif</th>
             </tr>
           </thead>
-          <tbody>
-            {lignes.length === 0 ? (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-warm-700">Aucune classe ne correspond.</td></tr>
-            ) : lignes.map(c => (
+          <tbody className="divide-y divide-warm-50">
+            {lignes.map(c => (
               <tr
                 key={c.id}
                 onClick={() => setOuverte(c)}
-                className="border-b border-warm-50 hover:bg-warm-50 cursor-pointer"
+                className="hover:bg-warm-50 transition-colors cursor-pointer"
               >
                 <td className="list-td">
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); setOuverte(c) }}
-                    className="list-name text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    className="list-name text-left hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
                   >
                     {c.class_name}
                   </button>
                   {c.is_adult && (
-                    <span className="ml-1.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">Adultes</span>
+                    <span className="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-violet-50 text-violet-700">Adultes</span>
                   )}
                 </td>
-                <td className="list-td text-secondary-600">{c.level || <span className="text-warm-700">·</span>}</td>
-                <td className="list-td text-secondary-600">{c.cotisation_label || <span className="text-warm-700">·</span>}</td>
-                <td className="list-td text-secondary-600 whitespace-nowrap">
+                <td className="list-td text-warm-700">{c.level || <span className="text-warm-700">·</span>}</td>
+                <td className="list-td text-warm-700">{c.cotisation_label || <span className="text-warm-700">·</span>}</td>
+                <td className="list-td text-warm-700 whitespace-nowrap">
                   {titulaireAffiche(c.titulaires) ?? <span className="text-warm-700">·</span>}
                 </td>
-                <td className="list-td text-secondary-600">
+                <td className="list-td text-warm-700">
                   {c.remplacements.length === 0 ? <span className="text-warm-700">·</span> : (
                     <div className="flex flex-col gap-0.5">
                       {c.remplacements.map((r, i) => (
@@ -159,7 +158,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
                     </div>
                   )}
                 </td>
-                <td className="list-td text-secondary-600">
+                <td className="list-td text-warm-700">
                   {c.creneaux.length === 0 ? <span className="text-warm-700">·</span> : (
                     <div className="flex flex-col gap-0.5">
                       {c.creneaux.map((cr, i) => <span key={i} className="whitespace-nowrap">{libelleCreneau(cr)}</span>)}
@@ -174,6 +173,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
           </tbody>
         </table>
       </div>
+      )}
 
       {ouverte && (
         <FormModal
