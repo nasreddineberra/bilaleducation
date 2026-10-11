@@ -10,6 +10,7 @@ import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatButton, FloatInput, FloatSelect, FloatTextarea } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
+import TruncatedText from '@/components/ui/TruncatedText'
 import { useTheme } from '@/components/layout/ThemeContext'
 
 /** 1re lettre en majuscule a la volee (meme motif que le referentiel des cours). */
@@ -426,14 +427,16 @@ export default function SyntheseClient({
                 {expenses.map(e => (
                   <tr key={e.id} className="hover:bg-warm-50">
                     <td className="px-2 py-[2px] text-warm-700 whitespace-nowrap w-0">{fmtDate(e.expense_date)}</td>
-                    <td className="px-2 py-[2px] text-left">
-                      {e.notes ? (
-                        <Tooltip content={e.notes}>
-                          <span className="block truncate cursor-help">{e.label}{e.category ? ` (${e.category})` : ''}</span>
-                        </Tooltip>
-                      ) : (
-                        <span className="block truncate">{e.label}{e.category ? ` (${e.category})` : ''}</span>
-                      )}
+                    {/* `max-w-0 w-full` : sans lui, un libelle long elargit la colonne
+                        (disposition auto du tableau) et fait apparaitre un defilement
+                        horizontal au lieu d'etre tronque. */}
+                    <td className="px-2 py-[2px] text-left max-w-0 w-full">
+                      <div className="flex">
+                        <TruncatedText
+                          text={`${e.label}${e.category ? ` (${e.category})` : ''}`}
+                          tooltip={e.notes ? <span className="flex flex-col gap-0.5 text-left"><span>{e.label}{e.category ? ` (${e.category})` : ''}</span><span>{e.notes}</span></span> : undefined}
+                        />
+                      </div>
                     </td>
                     <td className="px-2 py-[2px] text-right font-medium text-warm-700 tabular-nums whitespace-nowrap w-0">{fmt(Number(e.amount))}</td>
                     <td className="px-1 py-[2px] w-0">
@@ -503,14 +506,13 @@ export default function SyntheseClient({
                 {revenues.map(r => (
                   <tr key={r.id} className="hover:bg-warm-50">
                     <td className="px-2 py-[2px] text-warm-700 whitespace-nowrap w-0">{fmtDate(r.revenue_date)}</td>
-                    <td className="px-2 py-[2px] text-left">
-                      {r.notes ? (
-                        <Tooltip content={r.notes}>
-                          <span className="block truncate cursor-help">{r.label}{r.source_type ? ` (${r.source_type})` : ''}</span>
-                        </Tooltip>
-                      ) : (
-                        <span className="block truncate">{r.label}{r.source_type ? ` (${r.source_type})` : ''}</span>
-                      )}
+                    <td className="px-2 py-[2px] text-left max-w-0 w-full">
+                      <div className="flex">
+                        <TruncatedText
+                          text={`${r.label}${r.source_type ? ` (${r.source_type})` : ''}`}
+                          tooltip={r.notes ? <span className="flex flex-col gap-0.5 text-left"><span>{r.label}{r.source_type ? ` (${r.source_type})` : ''}</span><span>{r.notes}</span></span> : undefined}
+                        />
+                      </div>
                     </td>
                     <td className="px-2 py-[2px] text-right font-medium text-warm-700 tabular-nums whitespace-nowrap w-0">{fmt(Number(r.amount))}</td>
                     <td className="px-1 py-[2px] w-12">

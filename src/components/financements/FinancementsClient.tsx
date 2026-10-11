@@ -1113,7 +1113,6 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     <th className="list-th-compact text-right">Montant</th>
                     <th className="list-th-compact">Moyen</th>
                     <th className="list-th-compact">Référence</th>
-                    <th className="list-th-compact">N° Reçu</th>
                     <th className="px-1 py-2 w-6"></th>
                     <th className="px-1 py-2 w-14"></th>
                   </tr>
@@ -1142,7 +1141,6 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                             </Tooltip>
                           ) : <span className="text-warm-700">·</span>}
                         </td>
-                        <td className="px-2 py-1.5 text-xs text-secondary-500 whitespace-nowrap">{p.receipt_number || <span className="text-warm-700">·</span>}</td>
                         <td className="px-2 py-1.5 text-center">
                           {p.notes && (
                             <Tooltip content={p.notes}>
