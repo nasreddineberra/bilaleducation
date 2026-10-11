@@ -451,15 +451,16 @@
   .bg-white\/12 { background-color: rgba(255, 255, 255, 0.12); }
 
   .animate-fade-in {
-    animation: fadeIn 0.25s ease-out both;
+    animation: fadeIn 0.25s ease-out backwards;
   }
 
-  /* Le keyframe final ne déclare PAS `transform` : avec `fill: both`, l'élément
-     conserverait sinon `transform: translateY(0)` et deviendrait le bloc
-     conteneur de tout `position: fixed` descendant — les modales se caleraient
-     sur lui (sous le header) au lieu du viewport. Sans transform à 100 %, la
-     valeur retenue est `none` : plus de bloc conteneur, le mouvement d'entrée
-     est conservé. */
+  /* `backwards` et NON `both` : l'animation ne laisse rien derriere elle une fois
+     terminee. Avec `both`, l'element garde l'etat final de l'animation (opacite)
+     et reste un CONTEXTE D'EMPILEMENT : une modale `fixed` posee dans la page,
+     meme a z-index 10000, restait enfermee dans ce contexte, donc SOUS l'en-tete
+     (z-30) — le haut de la fenetre passait derriere lui. Le keyframe final ne
+     declare pas `transform` pour la meme famille de raisons (bloc conteneur des
+     descendants `fixed`). Le mouvement d'entree est conserve. */
   @keyframes fadeIn {
     from {
       opacity: 0;

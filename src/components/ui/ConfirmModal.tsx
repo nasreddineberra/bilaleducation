@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import { FloatButton } from '@/components/ui/FloatFields'
 
@@ -32,11 +33,13 @@ export default function ConfirmModal({
     return () => document.removeEventListener('keydown', handler)
   }, [open, onCancel])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
   const isDanger = variant === 'danger' || confirmColor === 'red'
 
-  return (
+  // Portee dans <body> : la fenetre se centre sur l'ECRAN, quel que soit l'ancetre
+  // qui la contient (contexte d'empilement, transform), et passe au-dessus de l'en-tete.
+  return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30">
       <div
         role="dialog"
@@ -80,6 +83,7 @@ export default function ConfirmModal({
           </FloatButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
