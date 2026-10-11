@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import SyntheseClient from '@/components/financements/SyntheseClient'
 import { isFinanceRole } from '@/lib/financements/roles'
-import { computeFamilyFinancials, siblingDiscounts, lineTotal } from '@/lib/financements/compute'
+import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { AlertTriangle } from 'lucide-react'
 import { effectiveRole } from '@/lib/auth/effective-role'
 
@@ -33,91 +33,12 @@ export default async function SynthesePage() {
     )
   }
 
-  // ── Cotisations : eleves actifs inscrits cette annee ────────────────────
-  const { data: parentsRaw } = await supabase
-    .from('parents')
-    .select(`
-      id,
-      tutor1_last_name, tutor1_first_name,
-      tutor2_last_name, tutor2_first_name,
-      students!inner (
-        id, is_active,
-        enrollments!inner (
-          status,
-          classes!inner (
-            academic_year,
-            cotisation_types ( id, amount, registration_fee, sibling_discount, sibling_discount_same_type )
-          )
-        )
-      )
-    `)
-    .eq('students.is_active', true)
-    .eq('students.enrollments.status', 'active')
-    .eq('students.enrollments.classes.academic_year', currentYear.label)
-
-  // Inscriptions adultes
-  const { data: adultEnrollments } = await supabase
-    .from('parent_class_enrollments')
-    .select(`parent_id, tutor_number, classes ( cotisation_types ( id, amount, registration_fee ) )`)
-    .eq('status', 'active')
-
-  // Paiements (fee_installments via family_fees)
-  const { data: familyFees } = await supabase
-    .from('family_fees')
-    .select('id, parent_id, total_due, fee_installments ( amount_paid ), fee_adjustments ( amount )')
-    .eq('school_year_id', currentYear.id)
-
-  // Lignes family_fees par parent (le calcul est fait par le helper partage).
-  const feesByParent: Record<string, any[]> = {}
-  for (const ff of (familyFees ?? []) as any[]) {
-    if (!feesByParent[ff.parent_id]) feesByParent[ff.parent_id] = []
-    feesByParent[ff.parent_id].push(ff)
-  }
-
-  // Index adult enrollments par parent
-  const adultByParent: Record<string, any[]> = {}
-  for (const ae of (adultEnrollments ?? []) as any[]) {
-    if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
-    adultByParent[ae.parent_id].push(ae)
-  }
-
-  // Tous les parent_ids (eleves + adultes)
-  const allParentIds = new Set<string>()
-  for (const p of (parentsRaw ?? [])) allParentIds.add(p.id)
-  for (const ae of (adultEnrollments ?? []) as any[]) allParentIds.add(ae.parent_id)
-
-  // Calcul cotisations
-  let totalCotisationsDue = 0
-  let totalCotisationsPaid = 0
-
-  for (const parentId of allParentIds) {
-    const pData = (parentsRaw ?? []).find((p: any) => p.id === parentId) as any
-    const students = pData?.students ?? []
-
-    // Remise fratrie + modele comptable : helper partage avec Reglements et
-    // Stats reglements. Ne PAS reimplementer ici (c'est ce qui faisait diverger
-    // les trois sous-menus, les reductions etant retranchees du percu).
-    const discounts = siblingDiscounts(
-      students.map((s: any) => (s.enrollments ?? [])[0]?.classes?.cotisation_types)
-    )
-
-    let subtotal = 0
-    students.forEach((s: any, i: number) => {
-      const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
-      if (!ct) return
-      subtotal += lineTotal(ct, discounts[i])
-    })
-
-    for (const ae of (adultByParent[parentId] ?? [])) {
-      const ct = ae.classes?.cotisation_types
-      if (!ct) continue
-      subtotal += lineTotal(ct)
-    }
-
-    const { totalDue, netPercu } = computeFamilyFinancials(subtotal, feesByParent[parentId] ?? [])
-    totalCotisationsDue  += totalDue
-    totalCotisationsPaid += netPercu
-  }
+  // ── Cotisations ─────────────────────────────────────────────────────────
+  // Calcul PARTAGE (`getFamilyFinancials`), le meme que Statistiques, le tableau
+  // de bord et l'archive de cloture. Cette page en avait sa propre copie : elle
+  // ignorait les familles sans inscription (depart en cours d'annee) et ne
+  // bornait pas les cours adultes a l'annee.
+  const fin = await getFamilyFinancials(supabase, currentYear)
 
   // ── Cout enseignement : staff_time_entries + presence_type_rates ──────────
   const [
@@ -232,11 +153,11 @@ export default async function SynthesePage() {
         yearLabel={currentYear.label}
         schoolYearId={currentYear.id}
         cotisations={{
-          totalDue: totalCotisationsDue,
-          totalPaid: totalCotisationsPaid,
-          remaining: totalCotisationsDue - totalCotisationsPaid,
-          familyCount: allParentIds.size,
-          collectRate: totalCotisationsDue > 0 ? Math.round((totalCotisationsPaid / totalCotisationsDue) * 100) : 0,
+          totalDue: fin.kpi.billed,
+          totalPaid: fin.kpi.collected,
+          remaining: fin.kpi.outstanding,
+          familyCount: fin.rows.length,
+          collectRate: fin.kpi.rate,
         }}
         teachingCosts={{
           total: totalTeachingCost,
