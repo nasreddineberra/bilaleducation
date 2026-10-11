@@ -71,8 +71,9 @@ export async function createUser(data: {
   }
 
   // 2. Insérer le profil via RPC, avec le client SESSION : le trigger d'audit capte
-  //    alors l'acteur (auth.uid()). Le RPC est SECURITY INVOKER et la policy
-  //    « Admin and direction can insert profiles » autorise l'insertion.
+  //    alors l'acteur (auth.uid()). Le RPC est SECURITY DEFINER (profiles n'a aucune
+  //    policy d'insertion, a dessein) et porte ses gardes : appelant admin/direction,
+  //    role creable, meme etablissement (fix-create-profile-only-definer.sql).
   const session = await createClient()
   const { error: rpcError } = await session.rpc('create_profile_only', {
     p_profile_id:       authData.user.id,
