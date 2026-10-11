@@ -1005,7 +1005,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     <td colSpan={3} className="px-3 py-2.5 text-xs text-warm-700 text-left">
                       {selectedParent.maxInstallments > 0 && `Échéances max : ${selectedParent.maxInstallments}`}
                     </td>
-                    <td colSpan={2} className="px-3 py-2.5 text-sm font-semibold text-secondary-700 text-right">Total cotisations</td>
+                    <td colSpan={2} className="px-3 py-2.5 text-sm font-semibold text-secondary-700 text-right">{selectedParent.sansInscription ? 'Total cotisations enregistré' : 'Total cotisations'}</td>
                     <td className="px-3 py-2.5 text-sm font-bold text-secondary-800 text-right tabular-nums">{fmtEur(subtotal)}</td>
                   </tr>
                 </tfoot>
