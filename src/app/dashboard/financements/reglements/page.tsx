@@ -114,9 +114,6 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     additionalParents = (data ?? []).map(p => ({ ...p, students: [] }))
   }
 
-  const allParents = [...(parents ?? []), ...additionalParents]
-    .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
-
   // Family fees existants pour cette année
   const { data: familyFees } = await supabase
     .from('family_fees')
@@ -127,6 +124,25 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     `)
     .eq('school_year_id', currentYear.id)
     .order('created_at')
+
+  // Foyers qui ont un dossier de cotisation cette annee mais PLUS AUCUNE inscription
+  // active (enfant retire de sa classe, depart en cours d'annee). Sans eux, la
+  // famille disparaissait de l'ecran alors que ses paiements restent en base : plus
+  // moyen de les voir, de rembourser ni d'etablir une attestation.
+  const dejaListes = new Set([...existingParentIds, ...adultParentIds])
+  const sansInscriptionIds = [...new Set((familyFees ?? []).map((f: any) => f.parent_id))]
+    .filter(id => !dejaListes.has(id))
+  let parentsSansInscription: any[] = []
+  if (sansInscriptionIds.length > 0) {
+    const { data } = await supabase
+      .from('parents')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name, tutor1_adult_courses, tutor2_adult_courses, tutor1_relationship, tutor2_relationship, situation_familiale')
+      .in('id', sansInscriptionIds)
+    parentsSansInscription = (data ?? []).map(p => ({ ...p, students: [], sansInscription: true }))
+  }
+
+  const allParents = [...(parents ?? []), ...additionalParents, ...parentsSansInscription]
+    .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
 
   // Historique des communications comptables (relance / attestation) de l'annee.
   const { data: communications } = await supabase

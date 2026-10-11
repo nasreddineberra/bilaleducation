@@ -66,6 +66,8 @@ interface ParentOption {
   maxInstallments: number   // 0 = pas de limite d'echeances
   students: StudentLine[]
   adultLines: AdultLine[]
+  /** Dossier de cotisation de l'annee, mais plus aucune inscription active. */
+  sansInscription: boolean
 }
 
 
@@ -134,9 +136,13 @@ const METHOD_LABELS: Record<string, string> = {
 // (source unique partagee avec Stats reglements). Ici, seul l'assemblage du
 // sous-total a partir des lignes deja totalisees de la famille.
 function familyFinancials(parent: ParentOption | null, fee: any): FamilyFinancials {
-  const subtotal = parent
-    ? parent.students.reduce((a, s) => a + s.total, 0) + parent.adultLines.reduce((a, x) => a + x.total, 0)
-    : 0
+  // Sans inscription active, il n'y a plus de lignes d'ou recalculer le sous-total :
+  // on reprend celui ENREGISTRE au dernier calcul (quand l'enfant etait inscrit).
+  // Recalculer donnerait 0 — tout le paye deviendrait un « trop percu », et la
+  // prochaine ecriture (paiement, reduction) reecrirait le du a 0 en base.
+  const subtotal = !parent ? 0
+    : parent.sansInscription ? Number(fee?.subtotal ?? 0)
+    : parent.students.reduce((a, s) => a + s.total, 0) + parent.adultLines.reduce((a, x) => a + x.total, 0)
   return computeFamilyFinancials(subtotal, fee)
 }
 
@@ -248,6 +254,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
       maxInstallments,
       students,
       adultLines,
+      sansInscription: !!p.sansInscription,
     }
   })
 }
@@ -836,6 +843,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     <div className="flex items-center gap-2">
                       <span className={clsx('w-2 h-2 rounded-full shrink-0', STATUS_DOT[f.status])} aria-hidden="true" />
                       <span className={clsx('text-xs font-medium truncate flex-1', active ? 'text-primary-700' : 'text-secondary-700')}>{name}</span>
+                      {p.sansInscription && (
+                        <Tooltip content="Plus aucune inscription cette année">
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">Sans inscr.</span>
+                        </Tooltip>
+                      )}
                       <span className={clsx('text-xs tabular-nums whitespace-nowrap', f.status === 'overpaid' ? 'text-red-600 font-medium' : 'text-warm-700')}>
                         {f.status === 'paid' ? 'Soldé'
                           : f.status === 'overpaid' ? `+ ${fmtEur(Math.abs(f.remaining))}`
@@ -885,6 +897,9 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               <span className={clsx('font-bold uppercase text-[10px] px-2 py-0.5 rounded-full', STATUS_COLORS[derivedStatus])}>
                 {STATUS_LABELS[derivedStatus]}
               </span>
+              {selectedParent.sansInscription && (
+                <span className="font-bold uppercase text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Sans inscription</span>
+              )}
             </div>
           </div>
 
@@ -922,6 +937,13 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   </tr>
                 </thead>
                 <tbody>
+                  {selectedParent.sansInscription && (
+                    <tr className="border-b border-warm-50">
+                      <td colSpan={6} className="px-2 py-1.5 text-xs text-amber-700">
+                        Plus aucune inscription cette année. Montant conservé du dernier enregistrement.
+                      </td>
+                    </tr>
+                  )}
                   {selectedParent.students.map(s => (
                     <tr key={s.id} className="border-b border-warm-50">
                       <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{s.last_name.toUpperCase()} {s.first_name}</td>
