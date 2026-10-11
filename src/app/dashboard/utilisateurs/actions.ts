@@ -9,7 +9,7 @@ import { validatePasswordServer } from '@/lib/validation/password'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
-import { requestOrigin } from '@/lib/tenant/request-origin'
+import { envoyerLienMotDePasse } from '@/lib/auth/lien-mot-de-passe'
 import { CreateUserSchema, UpdateProfileSchema, validateInput } from '@/lib/validation/schemas'
 import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
 
@@ -24,7 +24,7 @@ export async function createUser(data: {
   last_name:  string
   phone?:     string
   notes?:     string
-}): Promise<{ error?: string }> {
+}): Promise<{ error?: string; lienEnvoye?: boolean }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction'])
   if (roleError) return { error: roleError }
 
@@ -107,8 +107,21 @@ export async function createUser(data: {
     if (echecNotes) console.error('[createUser] Remarques non enregistrees:', echecNotes)
   }
 
+  // Envoi AUTOMATIQUE du lien « Définissez votre mot de passe » : la personne
+  // choisit le sien, personne n'a a lui transmettre quoi que ce soit. Un echec
+  // n'annule pas la creation (le compte existe) : il est remonte a l'ecran.
+  const echecLien = await envoyerLienMotDePasse(data.email)
+  if (!echecLien) {
+    try {
+      await logAudit(session, {
+        action: 'UPDATE', entityType: 'auth',
+        description: `Envoi du lien de définition du mot de passe à ${data.email} (création du compte)`,
+      })
+    } catch { /* non bloquant */ }
+  }
+
   revalidatePath('/dashboard/utilisateurs')
-  return {}
+  return { lienEnvoye: !echecLien }
 }
 
 // ─── Modifier un profil ───────────────────────────────────────────────────────
@@ -320,16 +333,7 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
   const { data: cible } = await session.from('profiles').select('id').eq('email', email).maybeSingle()
   if (!cible) return { error: 'Aucun compte ne correspond a cette adresse.' }
 
-  const supabase = createAdminClient()
-
-  // Le lien ramene sur le SOUS-DOMAINE de l'ecole, jamais sur NEXT_PUBLIC_SITE_URL :
-  // cette variable vaut le domaine racine, devenu la vitrine, ou aucun
-  // etablissement n'est resolu. Le lien partait et menait nulle part.
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await requestOrigin()}/auth/confirm?next=/auth/reset-password`,
-  })
-
-  if (error) return { error: 'Erreur lors de l\'envoi de l\'email.' }
+  if (await envoyerLienMotDePasse(email)) return { error: 'Erreur lors de l\'envoi de l\'email.' }
 
   // Tracabilite : action sensible declenchee par un admin/direction.
   // Client SESSION → l'acteur est capte (le client admin serait anonyme).

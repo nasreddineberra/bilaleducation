@@ -182,7 +182,13 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
         return
       }
 
-      toast.success(isEditing ? 'Utilisateur modifié avec succès.' : 'Utilisateur créé avec succès.')
+      if (isEditing) {
+        toast.success('Utilisateur modifié avec succès.')
+      } else if ('lienEnvoye' in result && result.lienEnvoye) {
+        toast.success(`Utilisateur créé. Un email a été envoyé à ${form.email.trim()} pour définir son mot de passe.`)
+      } else {
+        toast.warning('Utilisateur créé, mais l\'email de définition du mot de passe n\'a pas pu partir. Transmettez-lui son mot de passe.')
+      }
       router.push('/dashboard/utilisateurs')
       router.refresh()
     } catch {

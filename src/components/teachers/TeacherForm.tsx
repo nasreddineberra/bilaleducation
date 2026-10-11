@@ -72,6 +72,8 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
   const [touched,        setTouched]        = useState<Set<string>>(new Set())
   const [isSubmitting,   setIsSubmitting]   = useState(false)
   const [tempPassword,   setTempPassword]   = useState<string | null>(null)
+  // Lien « Définissez votre mot de passe » envoyé automatiquement à la création.
+  const [lienEnvoye,     setLienEnvoye]     = useState(false)
   const [copied,         setCopied]         = useState(false)
 
   const copyPassword = async () => {
@@ -159,7 +161,8 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           setIsSubmitting(false)
           return
         }
-        // Afficher le mot de passe temporaire
+        // Afficher le resultat : lien envoye, mot de passe provisoire en secours
+        setLienEnvoye(!!result.lienEnvoye)
         setTempPassword(result.tempPassword ?? null)
       }
     } catch (err) {
@@ -180,8 +183,17 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
             Un compte utilisateur a été créé automatiquement pour{' '}
             <span className="font-semibold">{form.last_name} {form.first_name}</span> ({form.email}).
           </p>
+          {lienEnvoye ? (
+            <p role="status" className="text-sm text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-4 py-3">
+              Un email lui a été envoyé pour qu&apos;il définisse son mot de passe.
+            </p>
+          ) : (
+            <p role="alert" className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+              L&apos;email de définition du mot de passe n&apos;a pas pu partir. Transmettez-lui le mot de passe ci-dessous.
+            </p>
+          )}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Mot de passe temporaire</p>
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Mot de passe temporaire{lienEnvoye ? ' (en secours)' : ''}</p>
             <div className="flex items-center gap-2">
               <p className="flex-1 text-lg font-mono font-bold text-secondary-800 select-all">{tempPassword}</p>
               <Tooltip content={copied ? 'Copié' : 'Copier'}>

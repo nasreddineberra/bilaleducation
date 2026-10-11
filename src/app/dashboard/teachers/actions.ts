@@ -8,6 +8,8 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { sameName } from '@/lib/normalize-name'
 import { CreateTeacherSchema, UpdateTeacherSchema, validateInput } from '@/lib/validation/schemas'
+import { envoyerLienMotDePasse } from '@/lib/auth/lien-mot-de-passe'
+import { logAudit } from '@/lib/audit'
 
 function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64url').slice(0, 12)
@@ -26,7 +28,7 @@ export async function createTeacherWithAccount(data: {
   specialization:  string | null
   is_active:       boolean
   notes:           string | null
-}): Promise<{ error?: string; tempPassword?: string }> {
+}): Promise<{ error?: string; tempPassword?: string; lienEnvoye?: boolean }> {
   const { error: roleError } = await requireRoleServer(['admin', 'direction', 'secretaire'])
   if (roleError) return { error: roleError }
 
@@ -119,7 +121,20 @@ export async function createTeacherWithAccount(data: {
     if (echecNotes) console.error('[createTeacherWithAccount] Échec enregistrement des notes:', echecNotes)
   }
 
-  return { tempPassword }
+  // Envoi AUTOMATIQUE du lien « Définissez votre mot de passe » : l'enseignant
+  // choisit le sien. Le mot de passe provisoire reste affiche, en secours. Un
+  // echec d'envoi n'annule pas la creation : il est signale a l'ecran.
+  const echecLien = await envoyerLienMotDePasse(data.email)
+  if (!echecLien) {
+    try {
+      await logAudit(supabase, {
+        action: 'UPDATE', entityType: 'auth',
+        description: `Envoi du lien de définition du mot de passe à ${data.email} (création du compte enseignant)`,
+      })
+    } catch { /* non bloquant */ }
+  }
+
+  return { tempPassword, lienEnvoye: !echecLien }
 }
 
 // ─── Mettre à jour un enseignant ──────────────────────────────────────────────
