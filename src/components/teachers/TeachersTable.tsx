@@ -5,8 +5,7 @@ import { clsx } from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { deleteTeacher, setTeacherActive } from '@/app/dashboard/teachers/actions'
+import { deleteTeacher, getTeacherDeleteDeps, setTeacherActive } from '@/app/dashboard/teachers/actions'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { suffixeFiche } from '@/lib/navigation/retour'
@@ -21,9 +20,12 @@ interface TeachersTableProps {
 
 interface DeleteDeps {
   classes:     number
+  historique:  number
   edt:         number
   evaluations: number
   grades:      number
+  seances:     number
+  devoirs:     number
 }
 
 export default function TeachersTable({ teachers, classesByTeacher, canDelete = true }: TeachersTableProps) {
@@ -41,26 +43,10 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
   // Ouvre la modale après avoir compté les dépendances
   const startDelete = async (teacher: Teacher) => {
     setDeleteError(null)
-    const supabase = createClient()
-    const [
-      { count: classes },
-      { count: slots },
-      { count: exceptions },
-      { count: evaluations },
-      { count: grades },
-    ] = await Promise.all([
-      supabase.from('class_teachers').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
-      supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
-      supabase.from('schedule_exceptions').select('id', { count: 'exact', head: true }).eq('override_teacher_id', teacher.id),
-      supabase.from('evaluations').select('id', { count: 'exact', head: true }).eq('teacher_id', teacher.id),
-      supabase.from('grades').select('id', { count: 'exact', head: true }).eq('graded_by', teacher.id),
-    ])
-    setDeps({
-      classes:     classes ?? 0,
-      edt:         (slots ?? 0) + (exceptions ?? 0),
-      evaluations: evaluations ?? 0,
-      grades:      grades ?? 0,
-    })
+    // Comptage fait cote serveur (meme source que la suppression elle-meme).
+    const { error, deps } = await getTeacherDeleteDeps(teacher.id)
+    if (error || !deps) { setDeleteError(error ?? 'Vérification impossible.'); return }
+    setDeps(deps)
     setDeleteTarget(teacher)
   }
 
@@ -88,7 +74,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
     router.refresh()
   }
 
-  const hasBlocking = !!deps && (deps.classes + deps.edt + deps.evaluations + deps.grades) > 0
+  const hasBlocking = !!deps && (deps.classes + deps.edt + deps.evaluations + deps.grades + deps.seances + deps.devoirs) > 0
 
   if (teachers.length === 0) {
     return (
@@ -268,7 +254,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
               </p>
               <ul className="text-sm text-secondary-700 space-y-1 ml-4 list-disc">
                 {deps.classes > 0 && (
-                  <li><strong>{deps.classes}</strong> affectation{deps.classes > 1 ? 's' : ''} à des classes</li>
+                  <li><strong>{deps.classes}</strong> affectation{deps.classes > 1 ? 's' : ''} à des classes en cours</li>
                 )}
                 {deps.edt > 0 && (
                   <li><strong>{deps.edt}</strong> élément{deps.edt > 1 ? 's' : ''} d&apos;emploi du temps</li>
@@ -278,6 +264,12 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                 )}
                 {deps.grades > 0 && (
                   <li><strong>{deps.grades}</strong> note{deps.grades > 1 ? 's' : ''} saisie{deps.grades > 1 ? 's' : ''}</li>
+                )}
+                {deps.seances > 0 && (
+                  <li><strong>{deps.seances}</strong> séance{deps.seances > 1 ? 's' : ''} du cahier de texte</li>
+                )}
+                {deps.devoirs > 0 && (
+                  <li><strong>{deps.devoirs}</strong> devoir{deps.devoirs > 1 ? 's' : ''}</li>
                 )}
               </ul>
               <p className="text-xs text-warm-700">
@@ -289,6 +281,9 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
             <p className="text-sm text-secondary-700">
               Aucune donnée n&apos;est rattachée à cet enseignant. Sa fiche <strong>et son compte de
               connexion</strong> seront supprimés définitivement. Cette action est irréversible.
+              {deps && deps.historique > 0 && (
+                <> Son historique d&apos;affectation ({deps.historique} ligne{deps.historique > 1 ? 's' : ''}) sera supprimé avec la fiche.</>
+              )}
             </p>
           )}
         </ConfirmModal>

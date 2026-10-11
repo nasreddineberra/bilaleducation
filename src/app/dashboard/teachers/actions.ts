@@ -209,6 +209,60 @@ export async function setTeacherActive(
   return {}
 }
 
+// ─── Dépendances d'un enseignant ──────────────────────────────────────────────
+// Source UNIQUE du comptage : la modale de la liste et la suppression l'emploient
+// toutes deux, pour qu'elles ne puissent pas diverger.
+//
+// BLOQUANT : affectations EN COURS ou à venir, emploi du temps, évaluations, notes,
+// et le cahier de texte (séances, devoirs) — ces deux tables partent en CASCADE avec
+// la fiche, donc les ignorer détruirait en silence ce que l'enseignant a rédigé.
+// NON BLOQUANT : les affectations TERMINÉES (historique). Elles disparaissent avec la
+// fiche ; la modale l'annonce (`historique`).
+type DepsEnseignant = {
+  classes: number; historique: number; edt: number; evaluations: number
+  grades: number; seances: number; devoirs: number
+}
+
+function aujourdhuiLocal(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof createClient>>, teacherId: string): Promise<DepsEnseignant | null> {
+  const today = aujourdhuiLocal()
+  const compte = (table: string, col: string) =>
+    supabase.from(table).select('id', { count: 'exact', head: true }).eq(col, teacherId)
+  const r = await Promise.all([
+    // « en cours ou a venir » : sans date de fin, ou fin >= aujourd'hui (fin INCLUSE)
+    compte('class_teachers', 'teacher_id').or(`effective_until.is.null,effective_until.gte.${today}`),
+    compte('class_teachers', 'teacher_id').lt('effective_until', today),
+    compte('schedule_slots', 'teacher_id'),
+    compte('schedule_exceptions', 'override_teacher_id'),
+    compte('evaluations', 'teacher_id'),
+    compte('grades', 'graded_by'),
+    compte('class_journal', 'teacher_id'),
+    compte('homework', 'teacher_id'),
+  ])
+  // Un comptage `head` impossible rend `count: null` SANS erreur : on refuse de
+  // conclure plutot que de prendre une panne pour « aucune donnee ».
+  if (r.some(x => x.count === null)) return null
+  const [classes, historique, slots, exceptions, evaluations, grades, seances, devoirs] = r.map(x => x.count as number)
+  return { classes, historique, edt: slots + exceptions, evaluations, grades, seances, devoirs }
+}
+
+const dependancesBloquantes = (d: DepsEnseignant) =>
+  d.classes + d.edt + d.evaluations + d.grades + d.seances + d.devoirs
+
+// Pour la modale de la liste.
+export async function getTeacherDeleteDeps(teacherId: string): Promise<{ error?: string; deps?: DepsEnseignant }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction'])
+  if (roleError) return { error: roleError }
+  const supabase = await createClient()
+  const deps = await compterDependancesEnseignant(supabase, teacherId)
+  if (!deps) return { error: 'Vérification des données rattachées impossible. Réessayez.' }
+  return { deps }
+}
+
 // ─── Supprimer définitivement un enseignant (fiche + compte) ──────────────────
 // Uniquement si aucune donnée liée ne le référence.
 
@@ -222,24 +276,10 @@ export async function deleteTeacher(teacherId: string): Promise<{ error?: string
   const supabase = await createClient() // client SESSION → audit tracé
   const admin = createAdminClient()     // suppression Storage + compte auth
 
-  // 1. Re-contrôle serveur des dépendances bloquantes
-  const [
-    { count: classesCount },
-    { count: slotsCount },
-    { count: exceptionsCount },
-    { count: evaluationsCount },
-    { count: gradesCount },
-  ] = await Promise.all([
-    supabase.from('class_teachers').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-    supabase.from('schedule_slots').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-    supabase.from('schedule_exceptions').select('id', { count: 'exact', head: true }).eq('override_teacher_id', teacherId),
-    supabase.from('evaluations').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
-    supabase.from('grades').select('id', { count: 'exact', head: true }).eq('graded_by', teacherId),
-  ])
-
-  const total = (classesCount ?? 0) + (slotsCount ?? 0) + (exceptionsCount ?? 0)
-    + (evaluationsCount ?? 0) + (gradesCount ?? 0)
-  if (total > 0) {
+  // 1. Re-contrôle serveur des dépendances bloquantes (mêmes règles que la modale)
+  const deps = await compterDependancesEnseignant(supabase, teacherId)
+  if (!deps) return { error: 'Vérification des données rattachées impossible. Réessayez.' }
+  if (dependancesBloquantes(deps) > 0) {
     return { error: 'Des données sont rattachées à cet enseignant. Rendez-le inactif plutôt que de le supprimer.' }
   }
 
