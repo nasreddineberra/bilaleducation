@@ -286,6 +286,9 @@ export async function reopenYear(yearId: string): Promise<{ error?: string }> {
   ) ?? erreurEcritureLot(
     await supabase.from('family_year_finance').delete().eq('school_year_id', yearId),
     'historique des foyers',
+  ) ?? erreurEcritureLot(
+    await supabase.from('class_year_history').delete().eq('school_year_id', yearId),
+    'historique des classes',
   )
   if (echecHist) return { error: echecHist }
 
@@ -335,7 +338,7 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   const ctx = await getYearCtx(supabase, etablissementId, yearId)
   if (!ctx) return { error: 'Année introuvable.' }
 
-  const { studentRows, familyRows } = await generateArchive(supabase, ctx)
+  const { studentRows, familyRows, classRows } = await generateArchive(supabase, ctx)
 
   const echecVidage = erreurEcritureLot(
     await supabase.from('student_year_history').delete().eq('school_year_id', yearId),
@@ -343,6 +346,9 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   ) ?? erreurEcritureLot(
     await supabase.from('family_year_finance').delete().eq('school_year_id', yearId),
     'historique des foyers',
+  ) ?? erreurEcritureLot(
+    await supabase.from('class_year_history').delete().eq('school_year_id', yearId),
+    'historique des classes',
   )
   if (echecVidage) return { error: echecVidage }
 
@@ -353,6 +359,10 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   if (familyRows.length > 0) {
     const { error } = await supabase.from('family_year_finance').insert(familyRows)
     if (error) return { error: `Archivage foyers : ${error.message}` }
+  }
+  if (classRows.length > 0) {
+    const { error } = await supabase.from('class_year_history').insert(classRows)
+    if (error) return { error: `Archivage classes : ${error.message}` }
   }
 
   const echecMarque = erreurEcriture(
@@ -367,7 +377,7 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   try {
     await logAudit(supabase, {
       action: 'UPDATE', entityType: 'school_years', entityId: yearId,
-      description: `Année ${ctx.yearLabel} archivée (${studentRows.length} participant(s), ${familyRows.length} foyer(s))`,
+      description: `Année ${ctx.yearLabel} archivée (${studentRows.length} participant(s), ${familyRows.length} foyer(s), ${classRows.length} classe(s))`,
     })
   } catch { /* non bloquant */ }
 

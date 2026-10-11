@@ -14,7 +14,18 @@ import type { YearCtx } from './audits'
 export interface ArchiveResult {
   studentRows: any[]
   familyRows: any[]
+  classRows: any[]
 }
+
+// Jours : `classes.day_of_week` est un nom anglais, `schedule_slots.day_of_week`
+// un nombre (0 = dimanche). On fige un LIBELLE francais dans l'archive.
+const JOUR_NOM: Record<string, string> = {
+  monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi', thursday: 'Jeudi',
+  friday: 'Vendredi', saturday: 'Samedi', sunday: 'Dimanche',
+}
+const JOUR_NUM = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+const nomEnseignant = (t: any) => t ? [t.last_name, t.first_name].filter(Boolean).join(' ') : ''
+const heure = (h: string | null | undefined) => h ? String(h).slice(0, 5) : null
 
 export async function generateArchive(supabase: any, ctx: YearCtx): Promise<ArchiveResult> {
   const periodLabel = (id: string) => ctx.periodLabels[id] ?? '?'
@@ -22,14 +33,14 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
   // 1. Classes de l'annee (+ cotisation pour libelle / remise fratrie / adulte)
   const { data: classes } = await supabase
     .from('classes')
-    .select('id, name, level, cotisation_type_id, cotisation_types:cotisation_type_id(label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type)')
+    .select('id, name, level, max_students, day_of_week, start_time, end_time, room_number, cotisation_type_id, cotisation_types:cotisation_type_id(label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type)')
     .eq('academic_year', ctx.yearLabel)
   const classList = (classes ?? []) as any[]
   const classById = new Map(classList.map(c => [c.id, c]))
   const classIds = classList.map(c => c.id)
   const isAdultClass = (c: any) => !!c?.cotisation_types?.is_adult
 
-  if (classIds.length === 0) return { studentRows: [], familyRows: [] }
+  if (classIds.length === 0) return { studentRows: [], familyRows: [], classRows: [] }
 
   // 2. Eleves actifs inscrits + 3. Adultes + 4. Evals scored + 5. Notes + 6. Absences + 7. Bulletins
   const [
@@ -195,6 +206,9 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
   const parentIds = [...new Set([
     ...students.map((e: any) => e.students?.parent_id).filter(Boolean),
     ...adults.map((p: any) => p.parent_id),
+    // Foyers SANS inscription mais avec un dossier de l'annee (depart en cours
+    // d'annee) : le calcul partage les compte, leurs paiements s'archivent aussi.
+    ...fin.rows.map(r => r.parentId),
   ])]
 
   // Noms des tuteurs (foyer)
@@ -273,5 +287,76 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
     }
   })
 
-  return { studentRows: [...studentRows, ...adultRows], familyRows }
+  // ── class_year_history : composition de chaque classe ──
+  // Enseignants (titulaires + remplacements, avec leurs dates) et creneaux
+  // recurrents de l'annee. Ni notes, ni absences, ni montants (decision
+  // utilisateur) : seulement qui etait dans la classe, avec qui, et quand.
+  const [{ data: ct }, { data: slots }] = await Promise.all([
+    supabase.from('class_teachers')
+      .select('class_id, is_main_teacher, effective_from, effective_until, teachers(last_name, first_name)')
+      .in('class_id', classIds),
+    supabase.from('schedule_slots')
+      .select('class_id, day_of_week, start_time, end_time, effective_from, effective_until, rooms(name)')
+      .in('class_id', classIds)
+      .eq('school_year_id', ctx.yearId)
+      .eq('is_recurring', true)
+      .eq('is_active', true),
+  ])
+  const parDates = (a: any, b: any) => String(a.du ?? '').localeCompare(String(b.du ?? ''))
+  const classRows: any[] = classList.map(c => {
+    const affect = ((ct ?? []) as any[]).filter(x => x.class_id === c.id && x.teachers)
+    const ligne = (x: any) => ({ nom: nomEnseignant(x.teachers), du: x.effective_from ?? null, au: x.effective_until ?? null })
+    const titulaires = affect.filter(x => x.is_main_teacher).map(ligne).sort(parDates)
+    const remplacements = affect.filter(x => !x.is_main_teacher).map(ligne).sort(parDates)
+
+    let creneaux = ((slots ?? []) as any[]).filter(sl => sl.class_id === c.id).map(sl => ({
+      jour: sl.day_of_week != null ? (JOUR_NUM[sl.day_of_week] ?? null) : null,
+      debut: heure(sl.start_time), fin: heure(sl.end_time),
+      salle: sl.rooms?.name ?? null,
+      du: sl.effective_from ?? null, au: sl.effective_until ?? null,
+    })).sort(parDates)
+    // Sans creneau d'emploi du temps : le creneau de reference porte par la classe.
+    if (creneaux.length === 0 && (c.day_of_week || c.start_time)) {
+      creneaux = [{
+        jour: c.day_of_week ? (JOUR_NOM[c.day_of_week] ?? c.day_of_week) : null,
+        debut: heure(c.start_time), fin: heure(c.end_time),
+        salle: c.room_number ?? null, du: null, au: null,
+      }]
+    }
+
+    const adulte = isAdultClass(c)
+    const participants = adulte
+      ? adults.filter((p: any) => p.class_id === c.id).map((p: any) => ({
+          type: 'adulte',
+          nom: (p.tutor_number === 2 ? p.parents?.tutor2_last_name : p.parents?.tutor1_last_name) ?? '',
+          prenom: (p.tutor_number === 2 ? p.parents?.tutor2_first_name : p.parents?.tutor1_first_name) ?? '',
+          numero: null,
+        }))
+      : students.filter((e: any) => e.class_id === c.id).map((e: any) => ({
+          type: 'eleve',
+          nom: e.students?.last_name ?? '',
+          prenom: e.students?.first_name ?? '',
+          numero: e.students?.student_number ?? null,
+        }))
+    participants.sort((a: any, b: any) => a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr'))
+
+    return {
+      etablissement_id: ctx.etablissementId,
+      school_year_id: ctx.yearId,
+      year_label: ctx.yearLabel,
+      class_id: c.id,
+      class_name: c.name,
+      level: c.level ?? null,
+      cotisation_label: c.cotisation_types?.label ?? null,
+      is_adult: adulte,
+      max_students: c.max_students ?? null,
+      titulaires,
+      remplacements,
+      creneaux,
+      participants,
+      effectif: participants.length,
+    }
+  })
+
+  return { studentRows: [...studentRows, ...adultRows], familyRows, classRows }
 }

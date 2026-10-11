@@ -53,6 +53,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/logs':              'Journal d\'activité',
   '/dashboard/emploi-du-temps':   'Emploi du temps',
   '/dashboard/cahier-texte':      'Cahier de texte',
+  '/dashboard/historique-classes': 'Historique des classes',
   '/dashboard/cahier-texte/new':  'Nouvelle séance',
   '/dashboard/mon-compte':        'Mon compte',
   '/dashboard/support':           'Support technique',

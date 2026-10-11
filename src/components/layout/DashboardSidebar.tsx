@@ -43,6 +43,7 @@ import {
   Boxes,
   ScrollText,
   CalendarCheck,
+  History,
   X,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -323,6 +324,15 @@ const navItems: NavItem[] = [
     mobile: true,
   },
   {
+    // Composition des annees ARCHIVEES (classes, enseignants, creneaux, eleves
+    // et adultes). Ouvert a tout le personnel, enseignant compris (decision
+    // utilisateur). Libelle court : la barre laterale tronque au-dela.
+    name:  'Classes archivées',
+    href:  '/dashboard/historique-classes',
+    icon:  History,
+    roles: ['admin', 'direction', 'secretaire', 'responsable_pedagogique', 'comptable', 'enseignant'],
+  },
+  {
     name:  'Communications',
     icon:  MessageSquare,
     // `enseignant` reintroduit le 01/10 : il n'ECRIT toujours pas (ni aux
@@ -485,6 +495,7 @@ const SECTION_OF: Record<string, string> = {
   'Évaluations':        'Pédagogie',
   'Emploi du temps':    'Pédagogie',
   'Cahier de texte':    'Pédagogie',
+  'Classes archivées':  'Pédagogie',
   'Communications':     'Gestion',
   'Financements':       'Gestion',
   'Audits & Passage d\'année': 'Clôture',
