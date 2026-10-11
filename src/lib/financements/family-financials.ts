@@ -131,20 +131,11 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     additionalParents = (data ?? []).map((p: any) => ({ ...p, students: [] }))
   }
 
-  const allParents = [...(parents ?? []), ...additionalParents]
-    .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
-
-  const adultByParent: Record<string, any[]> = {}
-  for (const ae of (adultEnrollments ?? []) as any[]) {
-    if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
-    adultByParent[ae.parent_id].push(ae)
-  }
-
   // Family fees avec installments + ajustements
   const { data: familyFees } = await supabase
     .from('family_fees')
     .select(`
-      id, parent_id, total_due, status,
+      id, parent_id, subtotal, total_due, status,
       fee_adjustments ( adjustment_type, amount ),
       fee_installments ( amount_paid, payment_method, paid_date, created_at )
     `)
@@ -154,6 +145,30 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
   for (const ff of (familyFees ?? []) as any[]) {
     if (!feeByParent[ff.parent_id]) feeByParent[ff.parent_id] = { fees: [] }
     feeByParent[ff.parent_id].fees.push(ff)
+  }
+
+  // Foyers qui ont un dossier cette annee mais PLUS AUCUNE inscription active
+  // (enfant retire de sa classe, depart en cours d'annee). Sans eux, leurs
+  // paiements disparaissaient des statistiques, du tableau de bord et de
+  // l'archive de cloture. Meme regle que l'ecran Reglements.
+  const dejaListes = new Set([...existingParentIds, ...adultParentIds])
+  const sansInscriptionIds = Object.keys(feeByParent).filter(id => !dejaListes.has(id))
+  let parentsSansInscription: any[] = []
+  if (sansInscriptionIds.length > 0) {
+    const { data } = await supabase
+      .from('parents')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name')
+      .in('id', sansInscriptionIds)
+    parentsSansInscription = (data ?? []).map((p: any) => ({ ...p, students: [], sansInscription: true }))
+  }
+
+  const allParents = [...(parents ?? []), ...additionalParents, ...parentsSansInscription]
+    .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
+
+  const adultByParent: Record<string, any[]> = {}
+  for (const ae of (adultEnrollments ?? []) as any[]) {
+    if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
+    adultByParent[ae.parent_id].push(ae)
   }
 
   const rows: FamilyRow[] = []
@@ -189,6 +204,14 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
       const t = lineTotal(ct)
       subtotal += t
       addCotis(ct, t)
+    }
+
+    // Sans inscription : plus de lignes d'ou recalculer, on reprend le sous-total
+    // ENREGISTRE (le recalcul donnerait 0). Range a part dans « facture par
+    // activite », pour que la somme des activites reste egale au facture.
+    if (p.sansInscription) {
+      subtotal = ((feeByParent[p.id]?.fees ?? []) as any[]).reduce((a, f) => a + Number(f.subtotal ?? 0), 0)
+      if (subtotal > 0) addCotis({ label: 'Sans inscription' }, subtotal)
     }
 
     // Type local plutot que `any` : ces lignes servent au calcul (via `FeeLike`)
