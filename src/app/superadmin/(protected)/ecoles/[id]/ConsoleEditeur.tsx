@@ -1,4 +1,5 @@
 import { formatDateFr } from '@/lib/dates'
+import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 
 /**
  * Colonne « Console éditeur » de la fiche école : ce que l'éditeur a fait chez ce
@@ -20,6 +21,11 @@ const heure = (d: string) =>
 
 // Valeurs stockees -> libelles : on n'affiche jamais un identifiant de base.
 const MOTIF: Record<string, string> = { manuelle: 'sortie manuelle', expiration: 'expirée (4 h)' }
+
+// Au-dela de la duree maximale (+ 10 min de marge pour la tache planifiee, qui
+// passe toutes les 5 min), l'acces est reste ouvert trop longtemps : signale.
+const depasse = (debut: string, fin: string) =>
+  new Date(fin).getTime() - new Date(debut).getTime() > (INTERVENTION_MAX_HEURES * 60 + 10) * 60000
 
 function duree(debut: string, fin: string): string {
   const min = Math.max(0, Math.round((new Date(fin).getTime() - new Date(debut).getTime()) / 60000))
@@ -48,7 +54,7 @@ export default function ConsoleEditeur({ interventions }: { interventions: Inter
                   {formatDateFr(i.opened_at)} · {heure(i.opened_at)}
                 </span>
                 {i.closed_at
-                  ? <span className="text-warm-700 whitespace-nowrap tabular-nums">{duree(i.opened_at, i.closed_at)}</span>
+                  ? <span className={`whitespace-nowrap tabular-nums ${depasse(i.opened_at, i.closed_at) ? 'text-amber-700 font-semibold' : 'text-warm-700'}`}>{duree(i.opened_at, i.closed_at)}</span>
                   : <span className="text-amber-700 font-semibold whitespace-nowrap">En cours</span>}
               </div>
               <div className="text-warm-700 truncate">

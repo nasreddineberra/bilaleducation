@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import SuperAdminSidebar from '@/components/superadmin/SuperAdminSidebar'
 import SingleTabGuard from '@/components/layout/SingleTabGuard'
+import { expirerSiDepassee } from '@/lib/support/intervention'
 
 export default async function SuperAdminProtectedLayout({
   children,
@@ -30,6 +31,11 @@ export default async function SuperAdminProtectedLayout({
   if (profile?.role !== 'super_admin') {
     redirect('/superadmin/login')
   }
+
+  // Une intervention de support qui a depasse sa duree est refermee (et
+  // l'editeur detache) des l'ouverture de la console, sans attendre la tache
+  // planifiee de la base (toutes les 5 min) : l'ecran dit tout de suite la verite.
+  await expirerSiDepassee(user.id)
 
   return (
     <SingleTabGuard>
