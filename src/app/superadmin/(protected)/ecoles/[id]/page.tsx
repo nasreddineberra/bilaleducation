@@ -181,7 +181,15 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     .select('id, super_admin_email, opened_at, closed_at, closed_reason')
     .eq('etablissement_id', id)
     .order('opened_at', { ascending: false })
-    .limit(50)
+    .limit(200)
+
+  // Historique des actions de l'editeur (table serveur uniquement).
+  const { data: actionsEditeur } = await supabase
+    .from('actions_editeur')
+    .select('id, super_admin_email, description, est_purge, created_at')
+    .eq('etablissement_id', id)
+    .order('created_at', { ascending: false })
+    .limit(200)
 
   const { data: { user } } = await (await createClient()).auth.getUser()
   const { data: moi } = user
@@ -299,8 +307,12 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
             <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
           </div>
         </div>
-        <div className="self-start">
-          <ConsoleEditeur interventions={interventions ?? []} />
+        {/* Meme technique que la colonne centrale : la Console editeur s'etire
+            sur la hauteur de la colonne de gauche sans la faire grandir. */}
+        <div className="relative">
+          <div className="absolute inset-0 flex flex-col">
+            <ConsoleEditeur etablissementId={id} actions={actionsEditeur ?? []} interventions={interventions ?? []} />
+          </div>
         </div>
       </div>
 

@@ -7,7 +7,7 @@ import { validatePasswordServer } from '@/lib/validation/password'
 import { validateSlug } from '@/lib/tenant/slug'
 import { requireEditor } from '@/lib/auth/requireEditor'
 import { createClient } from '@/lib/supabase/server'
-import { logAudit } from '@/lib/audit'
+import { tracerConsole } from '@/lib/support/actions-editeur'
 import { schoolUrl } from '@/lib/tenant/console-url'
 
 /**
@@ -38,8 +38,10 @@ async function envoyerLienMotDePasse(email: string, slug: string): Promise<boole
  * Elles s'executent en service-role, donc HORS RLS : chaque ecriture doit porter
  * son propre cloisonnement, rien ne la rattrapera.
  *
- * La tracabilite passe par `logAudit` avec un etablissement EXPLICITE : l'editeur
- * n'en a aucun hors intervention, et la trace serait abandonnee en silence.
+ * La tracabilite passe par `tracerConsole` avec un etablissement EXPLICITE : l'editeur
+ * n'en a aucun hors intervention, et la trace serait abandonnee en silence. Elle
+ * ecrit au journal de l'ECOLE et a l'historique de l'EDITEUR (`actions_editeur`),
+ * qui survit a une purge de ce journal par l'ecole.
  */
 
 // ─── Créer un tenant complet (établissement + directeur initial) ──────────────
@@ -162,7 +164,7 @@ export async function createTenant(data: {
 
   const emailEnvoye = await envoyerLienMotDePasse(data.director.email, data.slug.trim().toLowerCase())
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'INSERT',
     entityType: 'etablissements',
     entityId: etablissement.id,
@@ -222,7 +224,7 @@ export async function updateEtablissement(id: string, data: {
 
   // La trace ne dit PAS ce que contiennent les notes : le journal de l'école est
   // lisible par son admin et sa direction.
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'etablissements',
     entityId: id,
@@ -260,7 +262,7 @@ export async function toggleEtablissementActive(
     return { error: 'Erreur lors de la mise à jour du statut.' }
   }
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'etablissements',
     entityId: id,
@@ -298,7 +300,7 @@ export async function updateMaxStudents(
     return { error: 'Erreur lors de la mise à jour.' }
   }
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'etablissements',
     entityId: id,
@@ -339,7 +341,7 @@ export async function updateSubscription(
     return { error: 'Erreur lors de la mise à jour de l\'abonnement.' }
   }
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'etablissements',
     entityId: id,
@@ -441,7 +443,7 @@ export async function createTenantUser(
     .from('etablissements').select('slug').eq('id', etablissementId).single()
   if (ecoleSlug?.slug) await envoyerLienMotDePasse(data.email, ecoleSlug.slug)
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'INSERT',
     entityType: 'profiles',
     entityId: authData.user.id,
@@ -488,7 +490,7 @@ export async function resendTenantUserReset(
     return { error: "L'email n'a pas pu être envoyé. Vérifiez la messagerie du projet Supabase." }
   }
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'auth',
     entityId: profileId,
@@ -538,7 +540,7 @@ export async function updateTenantUser(
   const quoi = data.role !== undefined
     ? `rôle changé en ${data.role}`
     : `compte ${p.is_active ? 'réactivé' : 'désactivé'}`
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'profiles',
     entityId: profileId,

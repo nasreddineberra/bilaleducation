@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { logAudit } from '@/lib/audit'
+import { tracerConsole } from '@/lib/support/actions-editeur'
 import { requireEditor } from '@/lib/auth/requireEditor'
 import { revalidatePath } from 'next/cache'
 import type { FacturationEcole } from '@/lib/tenant/facturation'
@@ -60,7 +60,7 @@ export async function enregistrerFacturation(
     .eq('mois', mois)
   if (errReleve) console.error('[facturation] tarif du releve en cours :', errReleve.message)
 
-  await logAudit(await createClient(), {
+  await tracerConsole(await createClient(), {
     action: 'UPDATE',
     entityType: 'etablissements',
     entityId: etablissementId,
