@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
-import { UserX, UserCheck, ChevronLeft, ChevronRight, KeyRound } from 'lucide-react'
+import { UserX, UserCheck, KeyRound } from 'lucide-react'
 import FormModal from '@/components/ui/FormModal'
 import TempPasswordField from '@/components/superadmin/TempPasswordField'
 import { createTenantUser, updateTenantUser, resendTenantUserReset } from '@/app/superadmin/actions'
@@ -52,7 +52,6 @@ function parRolePuisNom(a: Profile, b: Profile): number {
   return (a.first_name ?? '').localeCompare(b.first_name ?? '', 'fr', { sensitivity: 'base' })
 }
 
-const PAR_PAGE = 5
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 export default function EcoleUsersSection({ profiles, etablissementId, etablissementNom }: {
@@ -70,15 +69,11 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
   const [envoiId,      setEnvoiId]      = useState<string | null>(null)
   const [envoye,       setEnvoye]       = useState<string | null>(null)
   const router = useRouter()
-  const [page, setPage] = useState(1)
   const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: ROLE_CREABLE })
 
   const setField = (f: keyof typeof newUser, v: string) => setNewUser(p => ({ ...p, [f]: v }))
 
   const triees = useMemo(() => [...profiles].sort(parRolePuisNom), [profiles])
-  const nbPages = Math.max(1, Math.ceil(triees.length / PAR_PAGE))
-  const pageSure = Math.min(page, nbPages)
-  const visibles = triees.slice((pageSure - 1) * PAR_PAGE, pageSure * PAR_PAGE)
 
   const canSubmit = isValidEmail(newUser.email.trim()) &&
     isPasswordValid(newUser.password, newUser.first_name, newUser.last_name) &&
@@ -137,7 +132,7 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
   }
 
   return (
-    <div className="card p-3 space-y-2">
+    <div className="card p-3 flex flex-col gap-2 flex-1 min-h-0">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
         <button
@@ -221,8 +216,10 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
       {profiles.length === 0 ? (
         <p className="text-sm text-warm-700 text-center py-4">Aucun utilisateur</p>
       ) : (
-        <div className="space-y-1">
-          {visibles.map(p => (
+        // La liste DEFILE dans l'encadre : il occupe la hauteur restante de la
+        // colonne (jusqu'au bas d'« Acces et abonnement »), jamais plus.
+        <div className="flex-1 min-h-0 overflow-y-auto list-scroll space-y-1 pr-1">
+          {triees.map(p => (
             <div key={p.id} className={clsx('flex items-center justify-between px-3 py-1.5 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-secondary-800 leading-tight">{p.last_name} {p.first_name}</p>
@@ -268,34 +265,6 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
         </div>
       )}
 
-      {nbPages > 1 && (
-        <nav className="flex items-center justify-between pt-1" aria-label="Pagination des utilisateurs">
-          <p className="text-xs text-warm-700">
-            {(pageSure - 1) * PAR_PAGE + 1}<span aria-hidden="true">-</span>{Math.min(pageSure * PAR_PAGE, triees.length)} sur {triees.length}
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={pageSure === 1}
-              aria-label="Page précédente"
-              className="p-1 rounded-lg text-warm-700 hover:bg-warm-100 disabled:opacity-40 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-            >
-              <ChevronLeft size={15} />
-            </button>
-            <span className="text-xs text-warm-700 tabular-nums px-1">{pageSure} / {nbPages}</span>
-            <button
-              type="button"
-              onClick={() => setPage(p => Math.min(nbPages, p + 1))}
-              disabled={pageSure === nbPages}
-              aria-label="Page suivante"
-              className="p-1 rounded-lg text-warm-700 hover:bg-warm-100 disabled:opacity-40 disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-            >
-              <ChevronRight size={15} />
-            </button>
-          </div>
-        </nav>
-      )}
 
       {/* Confirmation dans les DEUX SENS. Réactiver rend un accès : c'est une
           décision aussi engageante que le retirer, et elle n'appartient pas

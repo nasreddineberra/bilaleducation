@@ -279,17 +279,29 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 items-start">
+      <div className="grid grid-cols-3 gap-4">
         {/* Gauche : Informations + Acces et abonnement · Centre : Mise en service
             puis Utilisateurs · Droite : Console editeur. SANS barre de
-            defilement : la liste des comptes est paginee (5) et l'historique de
-            la console est borne en hauteur. */}
-        <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} facturation={facturation ?? null} />
-        <div className="space-y-3">
-          <MiseEnService installation={installation} demarrage={demarrage} />
-          <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+            defilement.
+
+            C'est la colonne de GAUCHE (hauteur fixe) qui donne la hauteur de la
+            rangee. La colonne centrale est en `absolute inset-0` : elle ne pese
+            pas dans ce calcul — sinon une longue liste de comptes allongerait la
+            rangee — et s'etire exactement jusqu'au bas d'« Acces et abonnement ».
+            Mise en service garde sa taille, Utilisateurs prend le reste et
+            defile a l'interieur. */}
+        <div className="self-start">
+          <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} facturation={facturation ?? null} />
         </div>
-        <ConsoleEditeur interventions={interventions ?? []} />
+        <div className="relative">
+          <div className="absolute inset-0 flex flex-col gap-3">
+            <MiseEnService installation={installation} demarrage={demarrage} />
+            <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+          </div>
+        </div>
+        <div className="self-start">
+          <ConsoleEditeur interventions={interventions ?? []} />
+        </div>
       </div>
 
     </div>
