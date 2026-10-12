@@ -8,6 +8,7 @@ import { EnterButton } from '../../SupportControls'
 import EcoleInfoForm from './EcoleInfoForm'
 import EcoleUsersSection from './EcoleUsersSection'
 import MiseEnService, { type Etape } from './MiseEnService'
+import ConsoleEditeur from './ConsoleEditeur'
 import { formatDateFr } from '@/lib/dates'
 
 /**
@@ -173,6 +174,15 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     { label: 'Élèves actifs',                   ok: (elevesActifs ?? 0) > 0, detail: elevesActifs !== null ? String(elevesActifs) : undefined },
   ]
 
+  // Interventions de support de l'editeur (table serveur uniquement, invisible de
+  // l'ecole et epargnee par la purge de son journal).
+  const { data: interventions } = await supabase
+    .from('support_interventions')
+    .select('id, super_admin_email, opened_at, closed_at, closed_reason')
+    .eq('etablissement_id', id)
+    .order('opened_at', { ascending: false })
+    .limit(50)
+
   const { data: { user } } = await (await createClient()).auth.getUser()
   const { data: moi } = user
     ? await supabase.from('profiles').select('etablissement_id').eq('id', user.id).single()
@@ -271,10 +281,15 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
 
       <div className="grid grid-cols-3 gap-4 items-start">
         {/* Gauche : Informations + Acces et abonnement · Centre : Mise en service
-            · Droite : Utilisateurs. */}
+            puis Utilisateurs · Droite : Console editeur. SANS barre de
+            defilement : la liste des comptes est paginee (5) et l'historique de
+            la console est borne en hauteur. */}
         <EcoleInfoForm ecole={ecole} notes={notesRow?.notes ?? ''} facturation={facturation ?? null} />
-        <MiseEnService installation={installation} demarrage={demarrage} />
-        <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+        <div className="space-y-3">
+          <MiseEnService installation={installation} demarrage={demarrage} />
+          <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+        </div>
+        <ConsoleEditeur interventions={interventions ?? []} />
       </div>
 
     </div>

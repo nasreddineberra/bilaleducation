@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle } from 'lucide-react'
+import TruncatedText from '@/components/ui/TruncatedText'
 
 /**
  * Liste de mise en service d'une ecole (console de l'editeur).
@@ -28,16 +29,20 @@ function Groupe({ titre, etapes }: { titre: string; etapes: Etape[] }) {
           {faites}/{etapes.length}
         </span>
       </div>
-      <ul className="space-y-1">
+      {/* UNE LIGNE par information : libelle a gauche, precision a droite,
+          tronquee (infobulle seulement si elle est reellement coupee). */}
+      <ul className="space-y-0.5">
         {etapes.map(e => (
-          <li key={e.label} className="flex items-start gap-2 text-xs">
+          <li key={e.label} className="flex items-center gap-2 text-xs">
             {e.ok
               ? <CheckCircle2 className="w-4 h-4 text-primary-600 flex-shrink-0" aria-label="Fait" />
               : <Circle className="w-4 h-4 text-warm-700 flex-shrink-0" aria-label="À faire" />}
-            <span className="min-w-0">
-              <span className={e.ok ? 'text-secondary-800' : 'text-secondary-800 font-medium'}>{e.label}</span>
-              {e.detail && <span className="block text-warm-700">{e.detail}</span>}
-            </span>
+            <span className={`whitespace-nowrap ${e.ok ? 'text-secondary-800' : 'text-secondary-800 font-medium'}`}>{e.label}</span>
+            {e.detail && (
+              <span className="flex-1 min-w-0 flex justify-end text-warm-700 text-right">
+                <TruncatedText text={e.detail} />
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -47,7 +52,7 @@ function Groupe({ titre, etapes }: { titre: string; etapes: Etape[] }) {
 
 export default function MiseEnService({ installation, demarrage }: { installation: Etape[]; demarrage: Etape[] }) {
   return (
-    <div className="card p-4 space-y-4">
+    <div className="card p-3 space-y-2.5">
       <Groupe titre="Mise en service" etapes={installation} />
       <div className="border-t border-warm-100" />
       <Groupe titre="Démarrage" etapes={demarrage} />

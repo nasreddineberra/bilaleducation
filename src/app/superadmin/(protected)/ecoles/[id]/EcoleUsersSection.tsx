@@ -52,7 +52,7 @@ function parRolePuisNom(a: Profile, b: Profile): number {
   return (a.first_name ?? '').localeCompare(b.first_name ?? '', 'fr', { sensitivity: 'base' })
 }
 
-const PAR_PAGE = 10
+const PAR_PAGE = 5
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
 export default function EcoleUsersSection({ profiles, etablissementId, etablissementNom }: {
@@ -137,7 +137,7 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
   }
 
   return (
-    <div className="card p-4 space-y-3 self-start">
+    <div className="card p-3 space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
         <button
@@ -223,7 +223,7 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
       ) : (
         <div className="space-y-1">
           {visibles.map(p => (
-            <div key={p.id} className={clsx('flex items-center justify-between px-3 py-2 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
+            <div key={p.id} className={clsx('flex items-center justify-between px-3 py-1.5 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-secondary-800 leading-tight">{p.last_name} {p.first_name}</p>
                 <p className="text-xs text-warm-700 leading-tight mt-0.5">{p.email}</p>
