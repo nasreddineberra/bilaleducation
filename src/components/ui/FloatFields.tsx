@@ -4,6 +4,15 @@ import { useState, useEffect, useRef } from 'react'
 import { Loader2, Search, X } from 'lucide-react'
 import Tooltip from './Tooltip'
 
+// ─── Variante « bordure » ─────────────────────────────────────────────────────
+// Libelle pose SUR LE TRAIT du cadre (style Material « outlined ») au lieu de
+// monter a l'interieur : le champ n'a plus a reserver de marge haute, il gagne
+// environ 10 px. Teste d'abord sur la fiche etablissement de la console.
+// Le fond du libelle est `bg-white`, comme le champ : le pont du theme sombre le
+// remappe de la meme facon, le trait reste donc masque derriere le libelle.
+const BORDURE_LABEL = 'left-2 px-1 bg-white'
+const BORDURE_HAUT  = '-top-2 text-[10px] font-semibold tracking-wide uppercase'
+
 // ─── FloatInput ───────────────────────────────────────────────────────────────
 
 export interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -12,9 +21,11 @@ export interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElem
   error?:    string
   locked?:   boolean
   compact?:  boolean
+  /** Libelle sur le trait du cadre (voir « Variante bordure »). */
+  bordure?:  boolean
 }
 
-export function FloatInput({ label, required, error, locked, compact, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
+export function FloatInput({ label, required, error, locked, compact, bordure, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
   const isDate = type === 'date'
   // Pour les champs date : afficher type="text" quand vide et non focusé
   // afin de masquer le placeholder navigateur (jj/mm/aaaa)
@@ -32,7 +43,7 @@ export function FloatInput({ label, required, error, locked, compact, className,
         onBlur={e => { setFocused(false); onBlur?.(e) }}
         className={[
           'peer w-full px-3 rounded-lg border text-sm',
-          compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
+          bordure ? 'py-1.5' : compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
           'transition-all duration-200',
           'focus:outline-none focus:ring-2',
           locked
@@ -44,9 +55,12 @@ export function FloatInput({ label, required, error, locked, compact, className,
         ].join(' ')}
       />
       <label className={[
-        'absolute left-3 transition-all duration-200 pointer-events-none select-none origin-left',
-        compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
-        compact
+        'absolute transition-all duration-200 pointer-events-none select-none origin-left',
+        bordure ? BORDURE_LABEL : 'left-3',
+        bordure ? 'top-1.5 text-xs' : compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
+        bordure
+          ? 'peer-focus:-top-2 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:-top-2 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase'
+          : compact
           ? 'peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:top-1 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase'
           : 'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase',
         locked
@@ -71,9 +85,11 @@ export interface FloatSelectProps extends React.SelectHTMLAttributes<HTMLSelectE
   children:          React.ReactNode
   wrapperClassName?: string
   compact?:          boolean
+  /** Libelle sur le trait du cadre (voir « Variante bordure »). */
+  bordure?:          boolean
 }
 
-export function FloatSelect({ label, required, error, children, className, wrapperClassName, compact, ...props }: FloatSelectProps) {
+export function FloatSelect({ label, required, error, children, className, wrapperClassName, compact, bordure, ...props }: FloatSelectProps) {
   const hasValue = !!props.value && props.value !== ''
   return (
     <div className={['relative', wrapperClassName].filter(Boolean).join(' ')}>
@@ -81,7 +97,7 @@ export function FloatSelect({ label, required, error, children, className, wrapp
         {...props}
         className={[
           'peer w-full pl-3 pr-8 rounded-lg border text-sm text-gray-800',
-          compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
+          bordure ? 'py-1.5' : compact ? 'pt-4 pb-1' : 'pt-5 pb-1.5',
           'bg-white transition-all duration-200 appearance-none',
           'focus:outline-none focus:ring-2',
           error
@@ -99,11 +115,16 @@ export function FloatSelect({ label, required, error, children, className, wrapp
         </svg>
       </span>
       <label className={[
-        'absolute left-3 transition-all duration-200 pointer-events-none select-none origin-left',
-        hasValue
+        'absolute transition-all duration-200 pointer-events-none select-none origin-left',
+        bordure ? BORDURE_LABEL : 'left-3',
+        bordure
+          ? hasValue ? BORDURE_HAUT : 'top-1.5 text-xs'
+          : hasValue
           ? compact ? 'top-1 text-[10px] font-semibold tracking-wide uppercase' : 'top-1.5 text-[10px] font-semibold tracking-wide uppercase'
           : compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
-        compact
+        bordure
+          ? 'peer-focus:-top-2 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase'
+          : compact
           ? 'peer-focus:top-1 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase'
           : 'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase',
         error
@@ -125,9 +146,11 @@ export interface FloatTextareaProps extends React.TextareaHTMLAttributes<HTMLTex
   label:     string
   required?: boolean
   error?:    string
+  /** Libelle sur le trait du cadre (voir « Variante bordure »). */
+  bordure?:  boolean
 }
 
-export function FloatTextarea({ label, required, error, className, placeholder, onFocus, onBlur, ...props }: FloatTextareaProps) {
+export function FloatTextarea({ label, required, error, bordure, className, placeholder, onFocus, onBlur, ...props }: FloatTextareaProps) {
   const [focused, setFocused] = useState(false)
   const hasValue = !!props.value || !!props.defaultValue
   const labelUp = focused || hasValue
@@ -142,7 +165,8 @@ export function FloatTextarea({ label, required, error, className, placeholder, 
         onFocus={e => { setFocused(true); onFocus?.(e) }}
         onBlur={e => { setFocused(false); onBlur?.(e) }}
         className={[
-          'peer w-full px-3 pt-7 pb-2 rounded-lg border text-sm text-gray-800',
+          'peer w-full px-3 rounded-lg border text-sm text-gray-800',
+          bordure ? 'pt-2.5 pb-1.5' : 'pt-7 pb-2',
           'bg-white transition-all duration-200 resize-none',
           'focus:outline-none focus:ring-2',
           error
@@ -152,8 +176,11 @@ export function FloatTextarea({ label, required, error, className, placeholder, 
         ].join(' ')}
       />
       <label className={[
-        'absolute left-3 pointer-events-none select-none origin-left transition-all duration-200',
-        labelUp
+        'absolute pointer-events-none select-none origin-left transition-all duration-200',
+        bordure ? BORDURE_LABEL : 'left-3',
+        bordure
+          ? labelUp ? BORDURE_HAUT : 'top-2 text-xs'
+          : labelUp
           ? 'top-1.5 text-[10px] font-semibold tracking-wide uppercase'
           : 'top-4 text-sm',
         error

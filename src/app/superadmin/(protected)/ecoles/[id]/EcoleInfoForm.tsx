@@ -27,7 +27,7 @@ function Compteur({ n, max }: { n: number; max: number }) {
 
 /**
  * Fiche ecole de la console. TOUS LES CHAMPS EN TAILLE COMPACTE (charte :
- * `FloatInput compact`, `FloatButton size="mini"`) : la fiche doit tenir sur une
+ * `FloatInput bordure`, `FloatButton size="mini"`) : la fiche doit tenir sur une
  * page sans barre de defilement, Notes (7 lignes) et facturation comprises.
  */
 export default function EcoleInfoForm({ ecole, notes, facturation }: {
@@ -174,42 +174,42 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
           <h2 className={titre}>Informations</h2>
 
           <div className="relative">
-            <FloatInput compact required label="Nom" maxLength={ETAB_NOM_MAX} value={form.nom}
+            <FloatInput bordure required label="Nom" maxLength={ETAB_NOM_MAX} value={form.nom}
               onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')}
               error={vu('nom') && vNom ? 'Obligatoire.' : undefined} className="pr-12" />
             <Compteur n={form.nom.length} max={ETAB_NOM_MAX} />
           </div>
           <div className="relative">
-            <FloatInput compact label="Adresse" maxLength={ETAB_ADRESSE_MAX} value={form.adresse}
+            <FloatInput bordure label="Adresse" maxLength={ETAB_ADRESSE_MAX} value={form.adresse}
               onChange={e => set('adresse', e.target.value)} className="pr-12" />
             <Compteur n={form.adresse.length} max={ETAB_ADRESSE_MAX} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <FloatInput compact label="Téléphone" type="tel" value={form.telephone} onChange={e => set('telephone', e.target.value)} />
-            <FloatInput compact label="Email contact" type="email" value={form.contact}
+            <FloatInput bordure label="Téléphone" type="tel" value={form.telephone} onChange={e => set('telephone', e.target.value)} />
+            <FloatInput bordure label="Email contact" type="email" value={form.contact}
               onChange={e => set('contact', e.target.value)} onBlur={() => touch('contact')}
               error={vu('contact') && vContact ? 'Adresse invalide.' : undefined} />
           </div>
-          <FloatTextarea label="Notes internes" rows={7} value={form.notes}
+          <FloatTextarea bordure label="Notes internes" rows={7} value={form.notes}
             onChange={e => set('notes', e.target.value)} className="resize-none text-xs" />
 
           <h3 className={`${titre} pt-1`}>Facturation</h3>
           <div className="grid grid-cols-2 gap-2">
-            <FloatInput compact label="Structure" value={form.structure} onChange={e => set('structure', e.target.value)} />
-            <FloatInput compact label="SIRET / RNA" value={form.identifiant} onChange={e => set('identifiant', e.target.value)} />
+            <FloatInput bordure label="Structure" value={form.structure} onChange={e => set('structure', e.target.value)} />
+            <FloatInput bordure label="SIRET / RNA" value={form.identifiant} onChange={e => set('identifiant', e.target.value)} />
           </div>
-          <FloatInput compact label="Adresse de facturation" value={form.adresseFact} onChange={e => set('adresseFact', e.target.value)} />
+          <FloatInput bordure label="Adresse de facturation" value={form.adresseFact} onChange={e => set('adresseFact', e.target.value)} />
           <div className="grid grid-cols-2 gap-2">
-            <FloatInput compact label="Responsable" value={form.responsable} onChange={e => set('responsable', e.target.value)} />
-            <FloatInput compact label="Email facturation" type="email" value={form.email}
+            <FloatInput bordure label="Responsable" value={form.responsable} onChange={e => set('responsable', e.target.value)} />
+            <FloatInput bordure label="Email facturation" type="email" value={form.email}
               onChange={e => set('email', e.target.value)} onBlur={() => touch('email')}
               error={vu('email') && vEmail ? 'Adresse invalide.' : undefined} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <FloatInput compact label="Prix par inscrit (€)" inputMode="decimal" value={form.prixInscrit}
+            <FloatInput bordure label="Prix par inscrit (€)" inputMode="decimal" value={form.prixInscrit}
               onChange={e => set('prixInscrit', e.target.value)} onBlur={() => touch('prixInscrit')}
               error={vu('prixInscrit') && vPrix ? 'Montant invalide.' : undefined} />
-            <FloatInput compact label="Forfait mensuel (€)" inputMode="decimal" value={form.forfait}
+            <FloatInput bordure label="Forfait mensuel (€)" inputMode="decimal" value={form.forfait}
               onChange={e => set('forfait', e.target.value)} onBlur={() => touch('forfait')}
               error={vu('forfait') && vForfait ? 'Montant invalide.' : undefined} />
           </div>
@@ -250,7 +250,7 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
 
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
-            <FloatInput compact label="Expiration" type="date" value={subExpiry} onChange={e => setSubExpiry(e.target.value)} />
+            <FloatInput bordure label="Expiration" type="date" value={subExpiry} onChange={e => setSubExpiry(e.target.value)} />
           </div>
           <FloatButton type="button" size="mini" variant="secondary" loading={savingDate} onClick={handleSaveDate}>Enregistrer</FloatButton>
           {subExpiry && (
@@ -261,7 +261,7 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
             {/* Vide = illimite. */}
-            <FloatInput compact label="Limite d'élèves (vide = illimitée)" type="number" min={1}
+            <FloatInput bordure label="Limite d'élèves (vide = illimitée)" type="number" min={1}
               value={maxStudents} onChange={e => setMaxStudents(e.target.value)} />
           </div>
           <FloatButton type="button" size="mini" variant="secondary" loading={savingMax} onClick={handleSaveMax}>Enregistrer</FloatButton>
