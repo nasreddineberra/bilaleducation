@@ -100,11 +100,13 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
   }
   const classesAdultes = classes ? classes.filter(estAdulte).length : null
 
-  // ── Mise en service ────────────────────────────────────────────────────────
-  // Les comptes qui pilotent l'ecole : admin et direction actifs.
-  const pilotes = (profiles ?? []).filter(p => ['admin', 'direction'].includes(p.role) && p.is_active)
+  // ── Personnel ──────────────────────────────────────────────────────────────
+  // L'encadre Utilisateurs ne montre que le PERSONNEL, jamais les comptes
+  // parents (decision utilisateur du 12/10).
+  const personnel = (profiles ?? []).filter(p => p.role !== 'parent')
 
-  const [{ data: smtp }, { count: cotisations }, comptesAuth] = await Promise.all([
+
+  const [{ data: smtp }, { count: cotisations }, comptesPersonnel] = await Promise.all([
     // Table serveur uniquement : lue en service-role, le secret n'est pas demande.
     supabase.from('etablissement_smtp').select('verifie_le').eq('etablissement_id', id).maybeSingle(),
     anneeCourante?.id
@@ -112,18 +114,27 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           .eq('etablissement_id', id).eq('school_year_id', anneeCourante.id)
       : Promise.resolve({ count: 0 }),
     // Compte par compte, et PAS `listUsers()` : il ne renvoie pas les facteurs
-    // de double authentification (piege constate le 15 aout). Deux ou trois
-    // comptes par ecole, le cout est negligeable.
-    Promise.all(pilotes.map(async p => {
+    // de double authentification (piege constate le 15 aout). Lu pour TOUT le
+    // personnel : l'encadre Utilisateurs affiche l'etat 2FA de chaque compte.
+    // Quelques dizaines de comptes par ecole, le cout reste negligeable.
+    Promise.all(personnel.map(async p => {
       const { data } = await supabase.auth.admin.getUserById(p.id)
       const u = data?.user
       return {
+        id:          p.id,
         role:        p.role as string,
+        actif:       Boolean(p.is_active),
         deuxFacteurs: Boolean(u?.factors?.some(f => f.factor_type === 'totp' && f.status === 'verified')),
         connexion:   u?.last_sign_in_at ?? null,
       }
     })),
   ])
+
+  const authParCompte = Object.fromEntries(
+    comptesPersonnel.map(c => [c.id, { deuxFacteurs: c.deuxFacteurs, connexion: c.connexion }]),
+  )
+  // Mise en service : les comptes qui pilotent l'ecole, admin et direction actifs.
+  const comptesAuth = comptesPersonnel.filter(c => ['admin', 'direction'].includes(c.role) && c.actif)
 
   const aAdmin     = comptesAuth.some(c => c.role === 'admin')
   const aDirection = comptesAuth.some(c => c.role === 'direction')
@@ -198,7 +209,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
   const interventionAilleurs = Boolean(moi?.etablissement_id) && moi!.etablissement_id !== id
 
   const compteurs: { label: string; value: number | null; limite?: number | null; facturable?: boolean }[] = [
-    { label: 'Utilisateurs',     value: profiles?.length ?? 0 },
+    { label: 'Utilisateurs',     value: personnel.length },
     { label: 'Élèves',           value: studentsCount },
     { label: 'Élèves actifs',    value: elevesActifs },
     { label: 'Foyers',           value: foyers },
@@ -304,7 +315,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
         <div className="relative">
           <div className="absolute inset-0 flex flex-col gap-3">
             <MiseEnService installation={installation} demarrage={demarrage} />
-            <EcoleUsersSection profiles={profiles ?? []} etablissementId={id} etablissementNom={ecole.nom} />
+            <EcoleUsersSection profiles={personnel} auth={authParCompte} etablissementId={id} etablissementNom={ecole.nom} />
           </div>
         </div>
         {/* Meme technique que la colonne centrale : la Console editeur s'etire

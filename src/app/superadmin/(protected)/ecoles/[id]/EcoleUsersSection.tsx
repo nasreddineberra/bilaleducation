@@ -12,6 +12,7 @@ import { createTenantUser, updateTenantUser, resendTenantUserReset } from '@/app
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
 import { libelleRole } from '@/lib/auth/role-labels'
+import { formatDateFr } from '@/lib/dates'
 
 
 /**
@@ -54,8 +55,10 @@ function parRolePuisNom(a: Profile, b: Profile): number {
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
-export default function EcoleUsersSection({ profiles, etablissementId, etablissementNom }: {
+export default function EcoleUsersSection({ profiles, auth, etablissementId, etablissementNom }: {
   profiles: Profile[]
+  /** Etat d'authentification par compte : 2FA verifiee, derniere connexion. */
+  auth: Record<string, { deuxFacteurs: boolean; connexion: string | null }>
   etablissementId: string
   etablissementNom: string
 }) {
@@ -226,6 +229,20 @@ export default function EcoleUsersSection({ profiles, etablissementId, etablisse
                 <p className="text-xs text-warm-700 leading-tight mt-0.5">{p.email}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                {/* Etat 2FA, avec la derniere connexion en infobulle : elle dit si
+                    « Sans 2FA » est normal (compte jamais utilise) ou anormal
+                    (compte actif qui y echappe). Lecture seule : la 2FA se gere
+                    dans l'application, par l'admin ou la direction. */}
+                {auth[p.id] && (
+                  <Tooltip content={auth[p.id].connexion ? `Dernière connexion le ${formatDateFr(auth[p.id].connexion as string)}` : 'Jamais connecté'}>
+                    <span className={clsx(
+                      'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap cursor-default',
+                      auth[p.id].deuxFacteurs ? 'bg-primary-100 text-primary-700' : 'bg-amber-100 text-amber-700',
+                    )}>
+                      {auth[p.id].deuxFacteurs ? '2FA' : 'Sans 2FA'}
+                    </span>
+                  </Tooltip>
+                )}
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{libelleRole(p.role, 'court')}</span>
                 {/* Reserve a la direction, comme la creation : un « mot de passe
                     oublie » d'enseignant se traite dans l'ecole, qui a l'ecran
