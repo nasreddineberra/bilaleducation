@@ -7,7 +7,8 @@ import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import { formatDateFr, formatDateHeureFr } from '@/lib/dates'
-import { abonnementExpire } from '@/lib/tenant/abonnement'
+import { abonnementExpire, joursRestants } from '@/lib/tenant/abonnement'
+import FiltresEcoles, { type Filtre } from './FiltresEcoles'
 import { depuis, SEUIL_INACTIVITE_JOURS } from '@/lib/tenant/activite'
 
 // Le fuseau est FIXE : cette page est rendue cote SERVEUR, qui tourne en UTC.
@@ -30,7 +31,18 @@ function duree(debut: string, fin: string) {
 // annoncerait « Expire » le dernier jour, quand l'ecole y a encore acces.
 const isExpired = (date: string | null | undefined) => abonnementExpire(date)
 
-export default async function SuperAdminPage() {
+// Recherche insensible aux accents et a la casse.
+const norm = (v: string) => v.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+
+/** Echeance dans 30 jours ou moins, ou deja depassee. */
+const SEUIL_ECHEANCE_JOURS = 30
+
+export default async function SuperAdminPage({ searchParams }: {
+  searchParams: Promise<{ filtre?: string; q?: string }>
+}) {
+  const sp = await searchParams
+  const filtre: Filtre = (['surveiller', 'echeance', 'inactives'] as const).find(f => f === sp.filtre) ?? 'toutes'
+  const q = (sp.q ?? '').trim()
   const supabase = createAdminClient()
 
   const { data: etablissements } = await supabase
@@ -85,6 +97,37 @@ export default async function SuperAdminPage() {
     ? (maintenant - new Date(ouverte.opened_at).getTime()) / 3_600_000
     : null
 
+  // ── Filtres ────────────────────────────────────────────────────────────────
+  // Memes regles que les couleurs des cellules : un filtre et une couleur ne
+  // peuvent pas se contredire. Jour d'echeance inclus (`joursRestants`).
+  const signaux = (e: NonNullable<typeof etablissements>[number]) => {
+    const st = statsMap[e.id]
+    const jours = joursRestants(e.subscription_expires_at, new Date(maintenant))
+    const echeance = jours !== null && jours <= SEUIL_ECHEANCE_JOURS
+    const quotaAtteint = Boolean(e.max_students && st && st.inscrits / e.max_students >= 0.9)
+    const act = depuis(st?.derniereConnexion ?? null, maintenant)
+    const dormante = act.jours === null || act.jours >= SEUIL_INACTIVITE_JOURS
+    return {
+      echeance,
+      surveiller: Boolean(e.is_active) && (echeance || quotaAtteint || dormante),
+      inactive: !e.is_active,
+    }
+  }
+  const toutes = etablissements ?? []
+  const comptes: Record<Filtre, number> = {
+    toutes:     toutes.length,
+    surveiller: toutes.filter(e => signaux(e).surveiller).length,
+    echeance:   toutes.filter(e => signaux(e).echeance).length,
+    inactives:  toutes.filter(e => signaux(e).inactive).length,
+  }
+  const qn = norm(q)
+  const visibles = toutes
+    .filter(e => filtre === 'toutes'
+      || (filtre === 'surveiller' && signaux(e).surveiller)
+      || (filtre === 'echeance' && signaux(e).echeance)
+      || (filtre === 'inactives' && signaux(e).inactive))
+    .filter(e => !qn || norm(e.nom ?? '').includes(qn) || norm(e.slug ?? '').includes(qn))
+
   return (
     <div className="space-y-6 animate-fade-in">
 
@@ -111,7 +154,8 @@ export default async function SuperAdminPage() {
 
       <div className="grid grid-cols-4 gap-4 items-start">
 
-      <div className="col-span-3">
+      <div className="col-span-3 space-y-2">
+      {toutes.length > 0 && <FiltresEcoles filtre={filtre} q={q} comptes={comptes} />}
       {!etablissements?.length ? (
         <div className="card p-12 text-center">
           <Building2 className="w-12 h-12 text-warm-700 mx-auto mb-3" />
@@ -135,7 +179,10 @@ export default async function SuperAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
-              {etablissements.map(e => {
+              {visibles.length === 0 && (
+                <tr><td colSpan={9} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
+              )}
+              {visibles.map(e => {
                 const expired = isExpired(e.subscription_expires_at)
                 const dateStr = formatDate(e.subscription_expires_at)
                 const s       = statsMap[e.id]
