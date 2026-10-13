@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle } from 'lucide-react'
+import { CheckCircle2, XCircle } from 'lucide-react'
 import TruncatedText from '@/components/ui/TruncatedText'
 
 /**
@@ -36,7 +36,7 @@ function Groupe({ titre, etapes }: { titre: string; etapes: Etape[] }) {
           <li key={e.label} className="flex items-center gap-2 text-xs">
             {e.ok
               ? <CheckCircle2 className="w-4 h-4 text-primary-600 flex-shrink-0" aria-label="Fait" />
-              : <Circle className="w-4 h-4 text-warm-700 flex-shrink-0" aria-label="À faire" />}
+              : <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" aria-label="À faire" />}
             <span className={`whitespace-nowrap ${e.ok ? 'text-secondary-800' : 'text-secondary-800 font-medium'}`}>{e.label}</span>
             {e.detail && (
               <span className="flex-1 min-w-0 flex justify-end text-warm-700 text-right">
