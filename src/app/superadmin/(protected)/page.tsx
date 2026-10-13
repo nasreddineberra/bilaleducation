@@ -212,7 +212,7 @@ export default async function SuperAdminPage({ searchParams }: {
                           width={32}
                           height={32}
                           unoptimized
-                          className="w-8 h-8 rounded-lg object-contain bg-[#ffffff] ring-1 ring-warm-200"
+                          className="w-8 h-8 max-w-none rounded-lg object-contain bg-[#ffffff] ring-1 ring-warm-200"
                         />
                       ) : (
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
