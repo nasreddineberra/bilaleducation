@@ -13,6 +13,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { FloatSelect, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
+import { ueEffective, moduleEffectif, ordonnerUes, appliquerOrdre, grouperParGabarit } from '@/lib/evaluations/ordre'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,53 +156,21 @@ export default function GradesClient({
   const coursById = useMemo(() => new Map(cours.map(c => [c.id, c])), [cours])
 
   // ── Helpers UE/Module effectifs (display override > naturel) ─────────────────
-  const getEffUeId = useCallback((e: EvaluationRow) =>
-    e.display_ue_id ?? coursById.get(e.cours_id ?? '')?.unite_enseignement_id ?? '',
-    [coursById]
-  )
-  const getEffModId = useCallback((e: EvaluationRow): string | null =>
-    e.display_ue_id !== null
-      ? e.display_module_id
-      : coursById.get(e.cours_id ?? '')?.module_id ?? null,
-    [coursById]
-  )
+  // Regle partagee avec le bulletin PDF : `@/lib/evaluations/ordre`.
+  const getEffUeId = useCallback((e: EvaluationRow) => ueEffective(e, coursById), [coursById])
+  const getEffModId = useCallback((e: EvaluationRow) => moduleEffectif(e, coursById), [coursById])
 
-  // ── UEs du panneau gauche, dans l'ordre sauvegardé ───────────────────────────
-  const rightUEIds = useMemo(() => {
-    const ids = new Set<string>()
-    currentEvals.forEach(e => { const id = getEffUeId(e); if (id) ids.add(id) })
-    return ids
-  }, [currentEvals, getEffUeId])
-
-  const leftUEs = useMemo(() => {
-    const natural  = ues.filter(ue => rightUEIds.has(ue.id))
-    const ueOrder  = orderConfig?.ue_order ?? []
-    if (ueOrder.length === 0) return natural
-    const known    = ueOrder.filter(id => rightUEIds.has(id)).map(id => ues.find(u => u.id === id)).filter((u): u is UniteEnseignement => Boolean(u))
-    const newOnes  = natural.filter(ue => !ueOrder.includes(ue.id))
-    return [...known, ...newOnes]
-  }, [ues, rightUEIds, orderConfig])
+  // ── UEs du panneau gauche, dans l'ordre de l'enseignant ──────────────────────
+  const leftUEs = useMemo(() =>
+    ordonnerUes(ues, new Set(currentEvals.map(getEffUeId).filter(Boolean)), orderConfig),
+    [ues, currentEvals, getEffUeId, orderConfig]
+  )
 
   // ── Liste plate ordonnée (pour prev / next) ──────────────────────────────────
-  const orderedEvals = useMemo(() => {
-    const result: EvaluationRow[] = []
-    for (const ue of leftUEs) {
-      const ueEvals  = currentEvals.filter(e => getEffUeId(e) === ue.id)
-      const directs  = ueEvals.filter(e => getEffModId(e) === null)
-      result.push(...directs)
-
-      const naturalModIds = [...new Set(ueEvals.map(e => getEffModId(e)).filter((id): id is string => id !== null))]
-      const savedOrder    = orderConfig?.module_order?.[ue.id]
-      const modIds = savedOrder
-        ? [...savedOrder.filter(id => naturalModIds.includes(id)), ...naturalModIds.filter(id => !savedOrder.includes(id))]
-        : naturalModIds
-
-      for (const modId of modIds) {
-        result.push(...ueEvals.filter(e => getEffModId(e) === modId))
-      }
-    }
-    return result
-  }, [currentEvals, leftUEs, getEffUeId, getEffModId, orderConfig])
+  const orderedEvals = useMemo(() =>
+    grouperParGabarit(currentEvals, ues, coursById, orderConfig).flatMap(g => g.evals),
+    [currentEvals, ues, coursById, orderConfig]
+  )
 
   // ── Évaluation sélectionnée ──────────────────────────────────────────────────
   const selectedEval  = evaluations.find(e => e.id === selectedEvalId) ?? null
@@ -568,10 +537,7 @@ export default function GradesClient({
                   const expanded = expandedUEs.has(ue.id)
 
                   const naturalModIds = [...new Set(ueEvals.map(e => getEffModId(e)).filter((id): id is string => id !== null))]
-                  const savedOrder    = orderConfig?.module_order?.[ue.id]
-                  const modIds = savedOrder
-                    ? [...savedOrder.filter(id => naturalModIds.includes(id)), ...naturalModIds.filter(id => !savedOrder.includes(id))]
-                    : naturalModIds
+                  const modIds = appliquerOrdre(naturalModIds, orderConfig?.module_order?.[ue.id])
                   const ueMods = modIds.map(id => modules.find(m => m.id === id)).filter((m): m is CoursModule => Boolean(m))
                   const directEvals = ueEvals.filter(e => getEffModId(e) === null)
 

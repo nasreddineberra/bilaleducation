@@ -7837,3 +7837,50 @@ auth.uid()`), l'interdiction est applicative.
   (`allerAuJour`, qui change de semaine aux bornes) ; etat `vueJour`, bascule `choisirVue`. Les
   fleches de la barre avancent d'un jour, le retour a la periode courante repose aujourd'hui, et
   changer de mode Globale/Classe/Enseignant ne quitte pas la vue Jour.
+
+#### 13 octobre 2026 — Console : depart d'une ecole (RGPD), et l'ordre des Gabarits qui ne s'enregistrait pas
+
+**DEPART D'UNE ECOLE** (point 7 de la console). Modele arrete par l'utilisateur en cours de route :
+on efface les DONNEES, on garde la FICHE. Elle reste dans la liste (ligne grisee, badge « Donnees
+effacees »), s'ouvre grisee et en lecture seule, et peut etre ROUVERTE des mois plus tard — l'ecole
+repart alors VIDE, desactivee, et l'editeur recree son compte direction.
+- **Exporter** (`exporter_etablissement` + `depart-actions.ts`) : ZIP d'un CSV par table (`;`, BOM,
+  CRLF : il s'ouvre dans Excel FR ; `=`/`@` neutralises), des fichiers deposes, d'un LISEZ-MOI et
+  d'un manifeste. Depose dans le bucket prive `exports-ecoles` et servi par URL signee : la reponse
+  d'une fonction est plafonnee a quelques Mo. Un fichier irrecuperable est NOMME, jamais omis. Le
+  journal d'activite n'en fait pas partie (decision du 13/10). `fflate` epingle en direct (0.8.3,
+  deja installe via jsPDF : rien de telecharge).
+- **Effacer** (`effacer_etablissement`, une transaction) : conserve la ligne `etablissements`, le
+  LOGO, et les 6 tables de l'editeur (notes, facturation, releves, actions, interventions,
+  `etablissement_departs`) ; efface tout le reste, les comptes `auth.users` et les fichiers. La
+  SIMULATION fait le meme travail puis l'annule : le compte rendu montre est exact. Filet : chaque
+  table comptee avant/apres, en entier et pour l'ecole — une ligne d'une AUTRE ecole qui bouge annule
+  tout. Etat sur la fiche (`donnees_effacees_le`), historique dans `etablissement_departs`.
+- **Ce que la base imposait** : `expenses`/`other_revenues` en NO ACTION, `students.parent_id` et la
+  chaine `cours` en RESTRICT (ordre de cascade non garanti), `evaluation_order_config` SANS cle
+  etrangere (la cascade l'aurait oubliee), et une dizaine de gardes faites pour refuser. Elles
+  laissent passer quand `app.effacement_etablissement` est pose (`set_config` local a la
+  transaction, inaccessible a un client). Le reste est efface table par table, une suppression
+  refusee par une cle etant retentee a la passe suivante : aucun ordre suppose.
+- **Faille trouvee en eprouvant** : supprimer un cours met `evaluations.cours_id` a NULL, c'est un
+  UPDATE, que la garde de periode archivee refusait si une archive ADULTE existait encore. La 1re
+  version passait par chance (l'archive eleve partait avec l'eleve). Gardes elargies aux UPDATE ;
+  contre-epreuve faite : sans elles, le controle echoue sur cette archive.
+- **Garde serveur** `refuserSiEffacee` sur les 7 actions de la console qui ecrivent pour une ecole
+  (modifier, activer, limite, echeance, compte, facturation, Intervenir) et sur l'export.
+- **Controle** `supabase/controles/08-depart-ecole.sql` : ecole jetable portant chaque piege, 10/10.
+
+**L'ORDRE DES UE ET MODULES DES GABARITS NE S'ETAIT JAMAIS ENREGISTRE.** `fn_audit_log` lisait
+`NEW.id` par son nom ; `evaluation_order_config` n'a pas de colonne `id` → toute ecriture en 42703,
+table vide en base, et « Enregistrer le gabarit » affichait une erreur a CHAQUE clic (l'ordre des
+evaluations, ecrit en 1re etape, l'etait pourtant). Regle du 7 aout repayee : dans un declencheur
+generique, jamais un champ par son nom (`to_jsonb`). Migration `fix-audit-log-entity-id.sql`.
+- **Decision utilisateur** : l'ordre est celui de l'ENSEIGNANT, par classe et periode. Repris par la
+  Saisie des notes (deja le cas) et par le CONTENU du bulletin PDF, qui l'ignorait : la page
+  chargeait la config et le composant ne la lisait jamais. Le bulletin pouvait aussi couper une UE en
+  deux blocs, et reattribuait a une evaluation « affichee sous » une UE sans module le module
+  d'origine de son cours. Regle unique `src/lib/evaluations/ordre.ts` (7 tests, dont un qui echoue si
+  les Gabarits divergent — eprouve en sabotant). La LISTE de l'ecran Bulletins reste par NOM Prenom.
+
+**Signale, non traite** : la policy de `evaluation_order_config` controle le role mais pas l'ecole ;
+`npm audit` remonte des avis eleves sur `brace-expansion` et `braces` (outillage de developpement).

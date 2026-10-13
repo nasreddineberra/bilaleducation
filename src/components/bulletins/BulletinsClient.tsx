@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useCallback, useRef } from 'react'
+import { grouperParGabarit } from '@/lib/evaluations/ordre'
 import {
   Download, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare,
 } from 'lucide-react'
@@ -155,7 +156,7 @@ export type BulletinData = {
 export default function BulletinsClient({
   classes, periods, evalTypeConfigs, ues, modules, cours,
   evaluations, students, grades, absences, etablissement, yearLabel,
-  etablissementId, initialArchives, initialAppreciations,
+  etablissementId, initialArchives, initialAppreciations, orderConfigs,
 }: Props) {
 
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
@@ -273,26 +274,25 @@ export default function BulletinsClient({
       ? [selectedClass.main_teacher_civilite, selectedClass.main_teacher_name].filter(Boolean).join(' ')
       : ''
 
-    // Trier les évaluations par sort_order (gabarit) avant groupement
-    const sortedEvals = [...evals].sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))
+    // Dans un bloc, les évaluations suivent l'ordre du gabarit (sort_order).
+    const sortedEvals = [...evals]
+      .filter(ev => ev.cours_id && coursById.has(ev.cours_id))
+      .sort((a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999))
 
-    // Grouper les évaluations par UE (et éventuellement module)
+    // Blocs UE / module dans l'ORDRE DE L'ENSEIGNANT (Gabarits), le même que la
+    // Saisie des notes. Une UE n'est plus jamais coupée en deux blocs.
+    const orderConfig = orderConfigs.find(c => c.class_id === selectedClassId && c.period_id === selectedPeriodId)
+    const placees = grouperParGabarit(sortedEvals, ues, coursById, orderConfig)
+      .flatMap(g => g.evals.map(ev => ({ ev, ueId: g.ueId, modId: g.modId })))
+
     const ueBlocksMap = new Map<string, BulletinUEBlock>()
     // Évaluations rattachées à chaque bloc (par clé) — pour un calcul de stats
     // robuste basé sur ev.id (et non sur un matching fragile par nom de cours).
     const blockEvals = new Map<string, EvaluationRow[]>()
 
-    for (const ev of sortedEvals) {
-      if (!ev.cours_id) continue
-      const c = coursById.get(ev.cours_id)
-      if (!c) continue
-
-      // Déterminer l'UE (priorité au display_ue_id)
-      const ueId = ev.display_ue_id ?? c.unite_enseignement_id
+    for (const { ev, ueId, modId } of placees) {
+      const c = coursById.get(ev.cours_id!)!
       const ue = ues.find(u => u.id === ueId)
-
-      // Déterminer le module (priorité au display_module_id)
-      const modId = ev.display_module_id ?? c.module_id
       const mod = modId ? modules.find(m => m.id === modId) : null
 
       const blockKey = `${ueId}:${modId ?? 'none'}`
@@ -335,8 +335,7 @@ export default function BulletinsClient({
       })
     }
 
-    // Les blocs sont déjà dans l'ordre du gabarit grâce au tri par sort_order
-    // (la Map préserve l'ordre d'insertion)
+    // La Map préserve l'ordre d'insertion, donc celui des groupes.
     const ueBlocks = Array.from(ueBlocksMap.values())
 
     // Moyenne pondérée (sur 20) d'un élève pour un ensemble d'évaluations notées.
@@ -428,7 +427,7 @@ export default function BulletinsClient({
       appreciation: appreciationMap.get(student.student_id) || null,
       isAdult: selectedClass?.is_adult ?? false,
     }
-  }, [currentEvals, selectedPeriod, selectedClass, coursById, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
+  }, [currentEvals, selectedPeriod, selectedClass, selectedClassId, selectedPeriodId, orderConfigs, coursById, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
 
   // Télécharger un bulletin individuel
   const handleDownloadOne = useCallback(async (student: StudentRow) => {
