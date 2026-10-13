@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
-import { EnterButton, SupportBar } from './SupportControls'
+import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import { formatDateHeureFr } from '@/lib/dates'
@@ -181,12 +181,11 @@ export default async function SuperAdminPage({ searchParams }: {
                 <th scope="col" className="list-th w-px whitespace-nowrap text-left">Dernière connexion</th>
                 <th scope="col" className="list-th w-px whitespace-nowrap text-center">Utilisateurs</th>
                 <th scope="col" className="list-th w-px whitespace-nowrap text-center">Classes</th>
-                <th scope="col" className="list-th w-px" />
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
               {visibles.length === 0 && (
-                <tr><td colSpan={9} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
+                <tr><td colSpan={8} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
               )}
               {visibles.map(e => {
                 const expired = isExpired(e.subscription_expires_at)
@@ -270,17 +269,6 @@ export default async function SuperAdminPage({ searchParams }: {
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Layers className="w-3.5 h-3.5" />{s?.classes ?? '·'}
                       </span>
-                    </td>
-                    <td className="list-td whitespace-nowrap" data-no-row-nav>
-                      <div className="flex items-center justify-center">
-                        <EnterButton
-                          id={e.id}
-                          slug={e.slug}
-                          nom={e.nom}
-                          disabled={Boolean(supportEcole) && supportEcole?.id !== e.id}
-                          dejaOuverte={supportEcole?.id === e.id}
-                        />
-                      </div>
                     </td>
                   </ClickableRow>
                 )
