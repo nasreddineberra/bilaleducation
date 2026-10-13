@@ -6,7 +6,6 @@ import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-r
 import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
-import { formatDateHeureFr } from '@/lib/dates'
 import { abonnementExpire, joursRestants } from '@/lib/tenant/abonnement'
 import FiltresEcoles, { type Filtre } from './FiltresEcoles'
 import { depuis, SEUIL_INACTIVITE_JOURS } from '@/lib/tenant/activite'
@@ -21,7 +20,12 @@ function formatDate(date: string | null | undefined) {
   })
 }
 
-const formatDateHeure = formatDateHeureFr
+/** « 07/10/26, 22:49 », heure de Paris. */
+function formatDateHeure(date: string) {
+  return new Date(date).toLocaleString('fr-FR', {
+    timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
+}
 
 /** Durée d'une intervention, en heures et minutes. */
 function duree(debut: string, fin: string) {
@@ -84,7 +88,9 @@ export default async function SuperAdminPage({ searchParams }: {
     .from('support_interventions')
     .select('id, etablissement_id, opened_at, closed_at, closed_reason')
     .order('opened_at', { ascending: false })
-    .limit(10)
+    // Pas de limite (decision du 13/10) : la colonne defile a l'interieur. Seul
+    // le plafond de l'API (1 000 lignes) s'applique ; la purge de chaque fiche
+    // ecole garde l'historique loin de ce seuil.
 
   const nomEcole = Object.fromEntries((etablissements ?? []).map(e => [e.id, e.nom]))
 
@@ -132,7 +138,9 @@ export default async function SuperAdminPage({ searchParams }: {
     .filter(e => !qn || norm(e.nom ?? '').includes(qn) || norm(e.slug ?? '').includes(qn))
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    // `min-h-full` + grille en `flex-1` : la colonne des interventions descend
+    // jusqu'au bas de la fenetre, sans barre de defilement de page.
+    <div className="min-h-full flex flex-col gap-6 animate-fade-in">
 
       {supportEcole && (
         <SupportBar
@@ -155,7 +163,7 @@ export default async function SuperAdminPage({ searchParams }: {
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 items-start">
+      <div className="flex-1 grid grid-cols-4 gap-4 items-start">
 
       <div className="col-span-3 space-y-2">
       {toutes.length > 0 && <FiltresEcoles filtre={filtre} q={q} comptes={comptes} />}
@@ -283,21 +291,24 @@ export default async function SuperAdminPage({ searchParams }: {
           la pleine largeur permettait une ligne. Encadré toujours affiché, même
           vide : masqué faute de lignes, il laissait croire que la fonctionnalité
           n'existait pas. */}
-      <div className="col-span-1 space-y-2">
+      {/* Hauteur FIXEE a celle de la page (`relative` + `absolute inset-0`) : la
+          liste ne pousse pas la page, elle defile a l'interieur. */}
+      <div className="col-span-1 self-stretch relative min-h-[12rem]">
+      <div className="absolute inset-0 flex flex-col gap-2">
         {/* Le délai vit dans le titre : sur une colonne étroite, une phrase
             d'explication coûtait deux lignes pour une information qui tient en
             trois mots. La valeur reste tirée de la constante — la changer ne doit
             pas laisser un libellé qui ment. */}
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-          Interventions de support (expir. session {INTERVENTION_MAX_HEURES}h)
+        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap truncate">
+          Interventions de support ({INTERVENTION_MAX_HEURES} h max)
         </h2>
 
         {/* `card p-0` : un tableau de liste ne prend pas le retrait de 24 px.
             Padding réduit à `px-2` — sur un quart de largeur, les 16 px de
             `.list-th` mangeraient un cinquième de la place utile. */}
-        <div className="card p-0 overflow-hidden">
+        <div className="card p-0 flex-1 min-h-0 overflow-y-auto list-scroll">
           <table className="w-full text-xs" aria-label="Interventions de support">
-            <thead>
+            <thead className="sticky top-0 bg-white z-10">
               <tr>
                 <th scope="col" className="list-th px-2 text-left">Établissement</th>
                 <th scope="col" className="list-th px-2 text-left">Date</th>
@@ -327,16 +338,11 @@ export default async function SuperAdminPage({ searchParams }: {
                       {!i.closed_at ? (
                         <span className="text-amber-700 font-medium whitespace-nowrap">En cours</span>
                       ) : (
-                        <>
-                          <span className="text-warm-700 whitespace-nowrap">
-                            {i.closed_reason === 'expiration' ? 'Refermée' : 'Terminée'}
-                          </span>
-                          {/* La durée sous le statut : elle dit ce que la date ne
-                              dit pas — combien de temps l'accès est resté ouvert. */}
-                          <span className="block text-warm-700 whitespace-nowrap">
-                            {duree(i.opened_at, i.closed_at)}
-                          </span>
-                        </>
+                        // Sur une ligne : la duree dit ce que la date ne dit pas,
+                        // combien de temps l'acces est reste ouvert.
+                        <span className="text-warm-700 whitespace-nowrap">
+                          {i.closed_reason === 'expiration' ? 'Refermée' : 'Terminée'} · {duree(i.opened_at, i.closed_at)}
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -345,6 +351,7 @@ export default async function SuperAdminPage({ searchParams }: {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       </div>{/* fin grille */}
