@@ -7,6 +7,7 @@ import { schoolUrl } from '@/lib/tenant/console-url'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
+import { FloatButton } from '@/components/ui/FloatFields'
 
 /**
  * Entrée dans une école depuis la console.
@@ -29,9 +30,8 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
   const [erreur, setErreur] = useState<string | null>(null)
   const [aConfirmer, setAConfirmer] = useState(false)
 
-  const classe = taille === 'sm'
-    ? 'btn btn-secondary text-sm py-1.5 px-3'
-    : 'btn btn-secondary text-xs py-1.5 px-3'
+  // Bouton de la charte, variante `submit` (comme « Nouvelle année »).
+  const taillePx = taille === 'sm' ? 'normal' : 'mini'
 
   const entrer = () => {
     setAConfirmer(false)
@@ -47,7 +47,7 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
   // de toute façon sans effet. On propose ce qu'on veut réellement faire.
   if (dejaOuverte) {
     return (
-      <a href={schoolUrl(slug)} className={classe}>Ouvrir l&apos;école</a>
+      <FloatButton href={schoolUrl(slug)} variant="submit" size={taillePx}>Ouvrir l&apos;école</FloatButton>
     )
   }
 
@@ -61,24 +61,15 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
       {disabled ? (
         <Tooltip content="Une intervention est déjà en cours sur une autre école.">
           <span>
-            <button
-              type="button"
-              disabled
-              className={`${classe} disabled:opacity-40 disabled:cursor-not-allowed`}
-            >
+            <FloatButton type="button" variant="submit" size={taillePx} disabled>
               Intervenir
-            </button>
+            </FloatButton>
           </span>
         </Tooltip>
       ) : (
-        <button
-          type="button"
-          onClick={() => setAConfirmer(true)}
-          disabled={pending}
-          className={`${classe} disabled:opacity-40 disabled:cursor-not-allowed`}
-        >
+        <FloatButton type="button" variant="submit" size={taillePx} onClick={() => setAConfirmer(true)} loading={pending}>
           {pending ? 'Ouverture…' : 'Intervenir'}
-        </button>
+        </FloatButton>
       )}
       {erreur && <p role="alert" className="text-xs text-red-600 mt-1">{erreur}</p>}
 

@@ -1,10 +1,10 @@
-import Link from 'next/link'
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
+import { FloatButton } from '@/components/ui/FloatFields'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import { abonnementExpire, joursRestants } from '@/lib/tenant/abonnement'
 import FiltresEcoles, { type Filtre } from './FiltresEcoles'
@@ -158,9 +158,9 @@ export default async function SuperAdminPage({ searchParams }: {
             {etablissements?.length ?? 0} établissement{(etablissements?.length ?? 0) > 1 ? 's' : ''} enregistré{(etablissements?.length ?? 0) > 1 ? 's' : ''}
           </p>
         </div>
-        <Link href="/superadmin/ecoles/new" className="btn btn-primary">
+        <FloatButton href="/superadmin/ecoles/new" variant="submit">
           Nouvel établissement
-        </Link>
+        </FloatButton>
       </div>
 
       <div className="flex-1 grid grid-cols-4 gap-4 items-start">
