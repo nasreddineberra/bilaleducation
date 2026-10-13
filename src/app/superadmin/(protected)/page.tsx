@@ -47,7 +47,7 @@ export default async function SuperAdminPage({ searchParams }: {
 
   const { data: etablissements } = await supabase
     .from('etablissements')
-    .select('id, slug, nom, is_active, subscription_expires_at, logo_url, max_students')
+    .select('id, slug, nom, is_active, subscription_expires_at, logo_url, max_students, donnees_effacees_le')
     .order('nom', { ascending: true })
 
   // UN SEUL appel pour tous les comptages. Cette page en faisait trois PAR
@@ -197,6 +197,7 @@ export default async function SuperAdminPage({ searchParams }: {
                     key={e.id}
                     href={`/superadmin/ecoles/${e.id}`}
                     label={`Fiche de ${e.nom}`}
+                    className={e.donnees_effacees_le ? 'opacity-60 grayscale' : ''}
                   >
                     <td className="list-td">
                       {e.logo_url ? (
@@ -219,7 +220,11 @@ export default async function SuperAdminPage({ searchParams }: {
                       <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
                     </td>
                     <td className="list-td">
-                      {e.is_active ? (
+                      {e.donnees_effacees_le ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warm-700 bg-warm-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                          <XCircle className="w-3.5 h-3.5" /> Données effacées
+                        </span>
+                      ) : e.is_active ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Actif
                         </span>

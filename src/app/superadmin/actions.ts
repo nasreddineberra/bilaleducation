@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { validatePasswordServer } from '@/lib/validation/password'
 import { validateSlug } from '@/lib/tenant/slug'
 import { requireEditor } from '@/lib/auth/requireEditor'
+import { refuserSiEffacee } from '@/lib/tenant/effacement'
 import { createClient } from '@/lib/supabase/server'
 import { tracerConsole } from '@/lib/support/actions-editeur'
 import { schoolUrl } from '@/lib/tenant/console-url'
@@ -187,6 +188,8 @@ export async function updateEtablissement(id: string, data: {
 }): Promise<{ error?: string }> {
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
+  const effacee = await refuserSiEffacee(id)
+  if (effacee) return { error: effacee }
 
   const supabase = createAdminClient()
 
@@ -245,6 +248,8 @@ export async function toggleEtablissementActive(
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
+  const effacee = await refuserSiEffacee(id)
+  if (effacee) return { error: effacee }
 
   const supabase = createAdminClient()
 
@@ -283,6 +288,8 @@ export async function updateMaxStudents(
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
+  const effacee = await refuserSiEffacee(id)
+  if (effacee) return { error: effacee }
 
   const supabase = createAdminClient()
 
@@ -320,6 +327,8 @@ export async function updateSubscription(
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
+  const effacee = await refuserSiEffacee(id)
+  if (effacee) return { error: effacee }
 
   const supabase = createAdminClient()
 
@@ -388,6 +397,8 @@ export async function createTenantUser(
 ): Promise<{ error?: string }> {
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
+  const effacee = await refuserSiEffacee(etablissementId)
+  if (effacee) return { error: effacee }
 
   if (!(ROLES_TENANT as readonly string[]).includes(data.role)) {
     return { error: 'Ce rôle ne peut pas être attribué depuis la console.' }

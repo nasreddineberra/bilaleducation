@@ -9,6 +9,7 @@ import EcoleInfoForm from './EcoleInfoForm'
 import EcoleUsersSection from './EcoleUsersSection'
 import MiseEnService, { type Etape } from './MiseEnService'
 import ConsoleEditeur from './ConsoleEditeur'
+import RouvrirEcole from './RouvrirEcole'
 import { formatDateFr } from '@/lib/dates'
 
 /**
@@ -33,6 +34,17 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     .single()
 
   if (!ecole) notFound()
+
+  // Donnees effacees (depart, RGPD) : la fiche reste, grisee et en lecture seule,
+  // jusqu'a sa reouverture. Le dernier depart dit quand et par qui.
+  const effacee = Boolean(ecole.donnees_effacees_le)
+  const { data: depart } = effacee
+    ? await supabase.from('etablissement_departs')
+        .select('efface_le, efface_par_email, lignes, comptes, fichiers, fichiers_effaces')
+        .eq('etablissement_id', id).order('efface_le', { ascending: false }).limit(1).maybeSingle()
+    : { data: null }
+  const lignesEffacees = depart ? Object.values(depart.lignes as Record<string, number>).reduce((a, b) => a + b, 0) : 0
+  const grise = effacee ? 'opacity-60 grayscale' : ''
 
   // Table serveur uniquement : ni l'école ni son navigateur n'y ont accès.
   const { data: notesRow } = await supabase
@@ -240,7 +252,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
       {/* Bandeau d'identité, calqué sur les fiches de l'application (élève,
           enseignant, utilisateur) : le logo tient lieu d'avatar, le nom est le
           `h1`, et les repères tiennent sur la ligne du dessous. */}
-      <div className="flex items-center gap-3">
+      <div className={`flex items-center gap-3 ${grise}`}>
         {ecole.logo_url ? (
           <Image
             src={ecole.logo_url}
@@ -261,9 +273,11 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
             <span className="font-mono">{ecole.slug}.bilaleducation.fr</span>
             <span aria-hidden="true">·</span>
-            {ecole.is_active
-              ? <span className="bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium">Actif</span>
-              : <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">Accès coupé</span>}
+            {effacee
+              ? <span className="bg-warm-100 text-warm-700 px-1.5 py-0.5 rounded font-medium">Données effacées</span>
+              : ecole.is_active
+                ? <span className="bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium">Actif</span>
+                : <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">Accès coupé</span>}
           </div>
         </div>
 
@@ -285,7 +299,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           {/* Entrer depuis la fiche : c'est ici qu'on constate le problème d'un
               client, donc ici qu'on veut y aller — plutôt que de revenir à la
               liste pour retrouver la même ligne. */}
-          <div className="ml-2">
+          <fieldset disabled={effacee} className="ml-2 min-w-0">
             <EnterButton
               id={ecole.id}
               slug={ecole.slug}
@@ -294,11 +308,22 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
               dejaOuverte={moi?.etablissement_id === id}
               taille="sm"
             />
-          </div>
+          </fieldset>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      {effacee && (
+        <div role="status" className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <p className="flex-1 min-w-0">
+            <span className="font-semibold">Données effacées le {formatDateFr(ecole.donnees_effacees_le as string)}</span>
+            {depart?.efface_par_email && <> par {depart.efface_par_email}</>}
+            {depart && <> · {lignesEffacees} lignes, {depart.comptes} compte(s), {depart.fichiers_effaces ?? depart.fichiers} fichier(s)</>}
+          </p>
+          <RouvrirEcole etablissementId={id} nom={ecole.nom} />
+        </div>
+      )}
+
+      <fieldset disabled={effacee} className={`grid grid-cols-3 gap-4 min-w-0 ${grise}`}>
         {/* Gauche : Informations + Acces et abonnement · Centre : Mise en service
             puis Utilisateurs · Droite : Console editeur. SANS barre de
             defilement.
@@ -325,7 +350,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
             <ConsoleEditeur etablissementId={id} actions={actionsEditeur ?? []} interventions={interventions ?? []} />
           </div>
         </div>
-      </div>
+      </fieldset>
 
     </div>
   )

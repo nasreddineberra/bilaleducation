@@ -10,6 +10,7 @@ import type { Etablissement } from '@/types/database'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
+import DepartEcole from './DepartEcole'
 
 const isValidEmail = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -269,6 +270,8 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
             <FloatButton type="button" size="mini" variant="secondary" onClick={() => setAConfirmer('limite')}>Aucune</FloatButton>
           )}
         </div>
+
+        <DepartEcole etablissementId={ecole.id} slug={ecole.slug} nom={ecole.nom} actif={Boolean(ecole.is_active)} />
       </div>
 
       {aConfirmer === 'acces' && (

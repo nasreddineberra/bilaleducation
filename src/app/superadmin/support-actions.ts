@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { requireEditor } from '@/lib/auth/requireEditor'
+import { refuserSiEffacee } from '@/lib/tenant/effacement'
 import { ouvrirIntervention, fermerIntervention } from '@/lib/support/intervention'
 import { updateTag } from 'next/cache'
 
@@ -35,6 +36,8 @@ import { updateTag } from 'next/cache'
 export async function enterSchool(etablissementId: string): Promise<{ error?: string }> {
   const { userId, error: roleError } = await requireEditor()
   if (roleError || !userId) return { error: roleError }
+  const effacee = await refuserSiEffacee(etablissementId)
+  if (effacee) return { error: effacee }
 
   const session = await createClient()
   const admin = createAdminClient()

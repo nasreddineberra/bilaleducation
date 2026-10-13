@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { tracerConsole } from '@/lib/support/actions-editeur'
 import { requireEditor } from '@/lib/auth/requireEditor'
+import { refuserSiEffacee } from '@/lib/tenant/effacement'
 import { revalidatePath } from 'next/cache'
 import type { FacturationEcole } from '@/lib/tenant/facturation'
 
@@ -36,6 +37,8 @@ export async function enregistrerFacturation(
 ): Promise<{ error?: string }> {
   const { error: garde } = await requireEditor()
   if (garde) return { error: garde }
+  const effacee = await refuserSiEffacee(etablissementId)
+  if (effacee) return { error: effacee }
 
   const montant = (v: number | null) => v === null || (Number.isFinite(v) && v >= 0)
   if (!montant(donnees.prix_inscrit) || !montant(donnees.forfait)) {
