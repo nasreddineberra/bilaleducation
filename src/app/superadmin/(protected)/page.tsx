@@ -6,16 +6,19 @@ import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-r
 import { EnterButton, SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
-import { formatDateFr, formatDateHeureFr } from '@/lib/dates'
+import { formatDateHeureFr } from '@/lib/dates'
 import { abonnementExpire, joursRestants } from '@/lib/tenant/abonnement'
 import FiltresEcoles, { type Filtre } from './FiltresEcoles'
 import { depuis, SEUIL_INACTIVITE_JOURS } from '@/lib/tenant/activite'
 
 // Le fuseau est FIXE : cette page est rendue cote SERVEUR, qui tourne en UTC.
 // Les heures d'intervention s'affichaient avec deux heures de retard.
+/** Échéance d'abonnement au format 31/07/2026, heure de Paris. */
 function formatDate(date: string | null | undefined) {
   if (!date) return null
-  return formatDateFr(date)
+  return new Date(date).toLocaleDateString('fr-FR', {
+    timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric',
+  })
 }
 
 const formatDateHeure = formatDateHeureFr
@@ -167,15 +170,18 @@ export default async function SuperAdminPage({ searchParams }: {
           <table className="w-full text-xs" aria-label="Établissements clients">
             <thead>
               <tr>
-                <th scope="col" className="list-th w-14" />
+                {/* Toutes les colonnes a la largeur de leur contenu (`w-px` +
+                    `whitespace-nowrap`), sauf Etablissement qui prend le reste.
+                    Donnees centrees, sauf Etablissement et Derniere connexion. */}
+                <th scope="col" className="list-th w-px px-2" />
                 <th scope="col" className="list-th text-left">Établissement</th>
-                <th scope="col" className="list-th text-left">Statut</th>
-                <th scope="col" className="list-th text-left">Abonnement</th>
-                <th scope="col" className="list-th text-right">Inscrits</th>
-                <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
-                <th scope="col" className="list-th text-right">Utilisateurs</th>
-                <th scope="col" className="list-th text-right whitespace-nowrap">Classes</th>
-                <th scope="col" className="list-th" />
+                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Statut</th>
+                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Abonnement</th>
+                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Inscrits</th>
+                <th scope="col" className="list-th w-px whitespace-nowrap text-left">Dernière connexion</th>
+                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Utilisateurs</th>
+                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Classes</th>
+                <th scope="col" className="list-th w-px" />
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
@@ -199,7 +205,7 @@ export default async function SuperAdminPage({ searchParams }: {
                     label={`Fiche de ${e.nom}`}
                     className={e.donnees_effacees_le ? 'opacity-60 grayscale' : ''}
                   >
-                    <td className="list-td">
+                    <td className="list-td px-2">
                       {e.logo_url ? (
                         <Image
                           src={e.logo_url}
@@ -219,7 +225,7 @@ export default async function SuperAdminPage({ searchParams }: {
                       <p className="list-name">{e.nom}</p>
                       <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
                     </td>
-                    <td className="list-td">
+                    <td className="list-td whitespace-nowrap text-center">
                       {e.donnees_effacees_le ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warm-700 bg-warm-100 px-2.5 py-1 rounded-full whitespace-nowrap">
                           <XCircle className="w-3.5 h-3.5" /> Données effacées
@@ -234,7 +240,7 @@ export default async function SuperAdminPage({ searchParams }: {
                         </span>
                       )}
                     </td>
-                    <td className="list-td">
+                    <td className="list-td whitespace-nowrap text-center">
                       {dateStr ? (
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${expired ? 'text-red-600 bg-red-50' : 'text-warm-700 bg-warm-100'}`}>
                           <Clock className="w-3.5 h-3.5" />
@@ -244,7 +250,7 @@ export default async function SuperAdminPage({ searchParams }: {
                         <span className="text-xs text-warm-700">Sans expiration</span>
                       )}
                     </td>
-                    <td className="list-td text-right whitespace-nowrap tabular-nums">
+                    <td className="list-td text-center whitespace-nowrap tabular-nums">
                       <span className={quota !== null && quota >= 0.9 ? 'text-amber-700 font-medium' : 'text-warm-700'}>
                         {s?.inscrits ?? '·'}
                         {e.max_students ? ` / ${e.max_students}` : ''}
@@ -255,18 +261,18 @@ export default async function SuperAdminPage({ searchParams }: {
                         {s ? activite.texte : '·'}
                       </span>
                     </td>
-                    <td className="list-td text-right">
+                    <td className="list-td text-center whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Users className="w-3.5 h-3.5" />{s?.users ?? '·'}
                       </span>
                     </td>
-                    <td className="list-td text-right">
+                    <td className="list-td text-center whitespace-nowrap">
                       <span className="inline-flex items-center gap-1 text-warm-700">
                         <Layers className="w-3.5 h-3.5" />{s?.classes ?? '·'}
                       </span>
                     </td>
-                    <td className="list-td" data-no-row-nav>
-                      <div className="flex items-center justify-end">
+                    <td className="list-td whitespace-nowrap" data-no-row-nav>
+                      <div className="flex items-center justify-center">
                         <EnterButton
                           id={e.id}
                           slug={e.slug}
