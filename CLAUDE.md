@@ -5489,6 +5489,12 @@ deplacement.
 
 ## Prochaine etape
 
+> **TACHE AJOUTEE le 14/10 — modele de champ** : adopter dans l'application le champ de l'encadre
+> « Informations » de la fiche etablissement de la console (variante `bordure` de `FloatInput` /
+> `FloatSelect` / `FloatTextarea` : libelle pose sur le trait du cadre). **Essai d'abord sur UNE fiche
+> pilote** (a choisir) ; si concluant, generalisation a tous les champs des fiches ET des modales de l'app. Point a
+> regler en chemin : sur un champ verrouille, le fond blanc du libelle deborde sur le gris.
+
 > **A LA REPRISE (arret du 7 octobre au soir) — dans cet ordre, un point a la fois :**
 > console editeur **1** releve mensuel de la base facturable · **2** facturation sur la fiche
 > (payeur + tarif) · **4** historique des actions editeur sur la fiche · **5** etat 2FA dans
