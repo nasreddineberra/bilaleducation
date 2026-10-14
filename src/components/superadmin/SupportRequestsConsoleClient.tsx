@@ -90,64 +90,62 @@ export default function SupportRequestsConsoleClient({
   return (
     <div className="space-y-2">
 
-      {/* Filtres */}
-      <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
+      {/* Filtres : UNE ligne, quatre controles de meme hauteur. Les six natures
+          etaient des boutons qui occupaient toute une ligne et repoussaient les
+          deux selecteurs sur une seconde. Variante `bordure` (libelle sur le
+          trait, celle de la fiche ecole) ramenee a la hauteur du champ de
+          recherche par `py-2`. Largeurs FIXES : un nom d'ecole long se coupe
+          dans le selecteur ferme, la liste deroulante l'affiche en entier. */}
+      <div className="card px-3 pt-3.5 pb-2.5 flex flex-wrap items-center gap-2">
         <SearchField
           value={search}
           onChange={setSearch}
           placeholder="Rechercher par objet…"
           ariaLabel="Rechercher une demande par objet"
         />
-        <div className="flex flex-wrap items-center gap-1.5">
-          {FILTERS.map(cat => {
-            const active = filterCat === cat
-            return (
-              <button
-                key={cat}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setFilterCat(cat)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                  active
-                    ? 'border-primary-300 bg-primary-50 text-primary-700'
-                    : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50'
-                )}
-              >
-                {cat === '' ? 'Toutes les demandes' : categoryLabel(cat)}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex items-center gap-2 ml-auto">
+        <FloatSelect
+          label="Nature"
+          bordure
+          className="py-2 truncate"
+          // '__all__' : valeur NON vide, sinon le libelle flottant retombe sur
+          // le texte de l'option. L'etat garde '' pour « toutes ».
+          value={filterCat || '__all__'}
+          onChange={e => setFilterCat(e.target.value === '__all__' ? '' : e.target.value)}
+          wrapperClassName="w-56"
+        >
+          {FILTERS.map(cat => (
+            <option key={cat || '__all__'} value={cat || '__all__'}>
+              {cat === '' ? 'Toutes' : categoryLabel(cat)}
+            </option>
+          ))}
+        </FloatSelect>
+        <FloatSelect
+          label="Établissement"
+          bordure
+          className="py-2 truncate"
+          value={filterEcole}
+          onChange={e => setFilterEcole(e.target.value)}
+          wrapperClassName="w-56"
+        >
           {/* TOUTES les ecoles, meme sans demande : « cette ecole m'a-t-elle deja
-              ecrit ? » est une vraie question. Le filtre n'etait affiche qu'a partir
-              de deux ecoles ayant ecrit, donc jamais tant qu'aucune n'avait ecrit. */}
-          <FloatSelect
-            label="Établissement"
-            compact
-            value={filterEcole}
-            onChange={e => setFilterEcole(e.target.value)}
-            wrapperClassName="w-fit"
-          >
-            <option value="__all__">Tous</option>
-            {ecoles.map(e => (
-              <option key={e.id} value={e.id}>{e.nom}</option>
-            ))}
-          </FloatSelect>
-          <FloatSelect
-            label="Email"
-            compact
-            value={filterStatut}
-            onChange={e => setFilterStatut(e.target.value)}
-            wrapperClassName="w-fit"
-          >
-            <option value="__all__">Toutes</option>
-            <option value="sent">Reçues</option>
-            <option value="failed">Non reçues</option>
-          </FloatSelect>
-        </div>
+              ecrit ? » est une vraie question. */}
+          <option value="__all__">Tous</option>
+          {ecoles.map(e => (
+            <option key={e.id} value={e.id}>{e.nom}</option>
+          ))}
+        </FloatSelect>
+        <FloatSelect
+          label="Email"
+          bordure
+          className="py-2"
+          value={filterStatut}
+          onChange={e => setFilterStatut(e.target.value)}
+          wrapperClassName="w-36"
+        >
+          <option value="__all__">Toutes</option>
+          <option value="sent">Reçues</option>
+          <option value="failed">Non reçues</option>
+        </FloatSelect>
       </div>
 
       {/* Tableau */}

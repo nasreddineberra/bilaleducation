@@ -7949,3 +7949,8 @@ marque ; les vraies ecoles gardent leur plaque.
   s'affichait qu'a partir de deux ecoles ayant ecrit — donc jamais, la base n'ayant aucune demande.
   « Cette ecole m'a-t-elle deja ecrit ? » est une vraie question ; une ecole sans demande rend
   « Aucune demande ne correspond ». Ordre servi par la base (demonstration d'abord, puis par nom).
+- **Barre de filtres des Demandes de support sur UNE ligne** (« pas tres pro » sur deux) : les six
+  boutons de nature deviennent un selecteur « Nature » ; Recherche · Nature · Etablissement · Email,
+  selecteurs en variante `bordure` ramenee a la hauteur du champ de recherche (`py-2`, qui l'emporte
+  sur `py-1.5` : verifie dans le CSS servi), largeurs fixes. « Toutes » porte la sentinelle `__all__`.
+  L'ecran de l'ECOLE garde ses boutons.
