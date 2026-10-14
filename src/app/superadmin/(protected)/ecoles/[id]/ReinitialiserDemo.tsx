@@ -20,7 +20,8 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
       const r = await reinitialiserEcoleDemo(etablissementId)
       if (r.error) { toast.error(r.error); return }
       setAConfirmer(false)
-      toast.success("L'école de démonstration est remise à zéro.")
+      if (r.logo === false) toast.warning("L'école de démonstration est remise à zéro, mais son logo n'a pas pu être posé.")
+      else toast.success("L'école de démonstration est remise à zéro.")
       router.refresh()
     } finally {
       setEnCours(false)

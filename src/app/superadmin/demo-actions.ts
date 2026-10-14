@@ -1,6 +1,8 @@
 'use server'
 
 import { randomInt } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -59,7 +61,43 @@ async function effacerFichiers(admin: ReturnType<typeof createAdminClient>, fich
   return n
 }
 
-export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; motDePasse?: string }> {
+/**
+ * Le logo de l'école de démonstration est celui de Bilal Education. Il est
+ * déposé là où une école dépose le sien (`etablissement-logos/{id}/logo.png`),
+ * pour s'afficher partout comme un vrai logo d'école : console, barre latérale,
+ * écrans de connexion, en-têtes des PDF.
+ *
+ * Source : l'icône de l'application (version transparente), lue sur le SITE en
+ * production — les sources ne sont pas présentes sur le serveur déployé — et sur
+ * le disque en local. Reposé à chaque remise à zéro : si le logo de l'application
+ * change, la démonstration suit. Non bloquant : rend `false` si la copie échoue.
+ */
+async function poserLogoDemo(admin: ReturnType<typeof createAdminClient>, etablissementId: string): Promise<boolean> {
+  try {
+    let octets: Uint8Array | null = null
+    const site = process.env.NEXT_PUBLIC_SITE_URL
+    if (site) {
+      const r = await fetch(new URL('/icon.png', site), { cache: 'no-store' })
+      if (r.ok) octets = new Uint8Array(await r.arrayBuffer())
+    }
+    if (!octets) octets = new Uint8Array(await readFile(path.join(process.cwd(), 'src', 'app', 'icon.png')))
+
+    const chemin = `${etablissementId}/logo.png`
+    const { error: eUp } = await admin.storage.from('etablissement-logos')
+      .upload(chemin, octets, { upsert: true, contentType: 'image/png' })
+    if (eUp) throw eUp
+    const { data: { publicUrl } } = admin.storage.from('etablissement-logos').getPublicUrl(chemin)
+    const { error: eMaj } = await admin.from('etablissements')
+      .update({ logo_url: `${publicUrl}?t=${Date.now()}` }).eq('id', etablissementId).select('id')
+    if (eMaj) throw eMaj
+    return true
+  } catch (e) {
+    console.error('[demo] logo:', e)
+    return false
+  }
+}
+
+export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; motDePasse?: string; logo?: boolean }> {
   const { error: refus } = await requireEditor()
   if (refus) return { error: refus }
 
@@ -116,12 +154,14 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
   const { error: eNotes } = await admin.from('etablissement_notes').upsert({ etablissement_id: ecole.id, notes })
   if (eNotes) console.error('[demo] notes:', eNotes)
 
+  const logo = await poserLogoDemo(admin, ecole.id)
+
   await tracerActionEditeur(await createClient(), { etablissementId: ecole.id, description: "Création de l'école de démonstration" })
   revalidatePath('/superadmin')
-  return { id: ecole.id, motDePasse: mdp }
+  return { id: ecole.id, motDePasse: mdp, logo }
 }
 
-export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{ error?: string; fichiers?: number }> {
+export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{ error?: string; fichiers?: number; logo?: boolean }> {
   const { error: refus } = await requireEditor()
   if (refus) return { error: refus }
 
@@ -134,6 +174,7 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   // Apres la base : sur un echec de la base, rien n'est perdu ; ici un echec ne
   // laisse que des fichiers orphelins.
   const fichiers = await effacerFichiers(admin, (data.fichiers ?? []) as Fichier[])
+  const logo = await poserLogoDemo(admin, etablissementId)
 
   await tracerActionEditeur(await createClient(), {
     etablissementId,
@@ -141,5 +182,5 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   })
   revalidatePath('/superadmin')
   revalidatePath(`/superadmin/ecoles/${etablissementId}`)
-  return { fichiers }
+  return { fichiers, logo }
 }

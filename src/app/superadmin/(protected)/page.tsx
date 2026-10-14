@@ -137,6 +137,9 @@ export default async function SuperAdminPage({ searchParams }: {
       || (filtre === 'echeance' && signaux(e).echeance)
       || (filtre === 'inactives' && signaux(e).inactive))
     .filter(e => !qn || norm(e.nom ?? '').includes(qn) || norm(e.slug ?? '').includes(qn))
+    // L'ecole de demonstration toujours en tete (tri STABLE : les autres gardent
+    // leur ordre).
+    .sort((a, b) => Number(Boolean(b.est_demo)) - Number(Boolean(a.est_demo)))
 
   return (
     // `min-h-full` + grille en `flex-1` : la colonne des interventions descend

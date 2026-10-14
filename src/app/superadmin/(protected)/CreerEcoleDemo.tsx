@@ -25,6 +25,7 @@ export default function CreerEcoleDemo() {
       const r = await creerEcoleDemo()
       if (r.error || !r.id || !r.motDePasse) { toast.error(r.error ?? 'Création impossible.'); return }
       setAConfirmer(false)
+      if (r.logo === false) toast.warning("Le logo de l'école de démonstration n'a pas pu être posé : « Réinitialiser » le reposera.")
       setCree({ id: r.id, motDePasse: r.motDePasse })
     } finally {
       setEnCours(false)
