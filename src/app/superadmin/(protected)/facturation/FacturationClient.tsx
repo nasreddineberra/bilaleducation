@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, Fragment } from 'react'
+import { FloatButton } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import { releverMaintenant } from '../../facturation-actions'
 import { montantMensuel } from '@/lib/tenant/facturation'
@@ -84,9 +85,9 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees }: 
         >
           {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
         </select>
-        <button type="button" onClick={relever} disabled={enCours} className="btn btn-secondary text-sm px-4 py-2">
-          {enCours ? '...' : 'Relever maintenant'}
-        </button>
+        <FloatButton type="button" variant="secondary" loading={enCours} onClick={relever}>
+          Relever maintenant
+        </FloatButton>
       </div>
 
       {message && (

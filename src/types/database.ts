@@ -55,6 +55,7 @@ export interface Etablissement {
   subscription_expires_at?: string
   max_students?: number | null    // NULL = illimité
   donnees_effacees_le?: string | null  // départ (RGPD) : fiche grisée jusqu'à réouverture
+  est_demo?: boolean                   // école de démonstration (hors facturation)
   // `notes` a QUITTÉ cette table : les observations commerciales de l'éditeur
   // vivent dans `etablissement_notes`, hors de portée de l'école — la ligne
   // ci-dessus est lisible par tous ses comptes.

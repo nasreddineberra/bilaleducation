@@ -7884,3 +7884,37 @@ generique, jamais un champ par son nom (`to_jsonb`). Migration `fix-audit-log-en
 
 **Signale, non traite** : la policy de `evaluation_order_config` controle le role mais pas l'ecole ;
 `npm audit` remonte des avis eleves sur `brace-expansion` et `braces` (outillage de developpement).
+
+#### 14 octobre 2026 — Ecole de demonstration, et la console suit la charte
+
+**ECOLE DE DEMONSTRATION** (decisions utilisateur : 3 enseignants, ~20 eleves par classe, remise a
+zero par un BOUTON de la fiche, comptes CONSERVES a la remise a zero, slug `demonstration` — `demo`
+est reserve). Une ecole COMME LES AUTRES, donc cloisonnee comme un client.
+- **Migration `add-ecole-demo.sql`** : `etablissements.est_demo`, pose et retire en SERVICE-ROLE
+  seulement (declencheur : une ecole qui se marquerait « demo » sortirait de la facturation) ; ecole
+  exclue du releve mensuel ; `reinitialiser_ecole_demo(id)` vide puis repeuple en UNE transaction et
+  REFUSE toute ecole non marquee.
+- **Le vidage reprend la mecanique du depart** (`fn_depart_tables`, passes successives, marqueur
+  `app.effacement_etablissement` qui desarme gardes et journal) SANS toucher `profiles` ni
+  `auth.users` : la 2FA s'enrole une seule fois. Les fiches `teachers` sont des DONNEES, recreees et
+  rattachees aux memes comptes.
+- **Contenu DATE depuis le jour de la remise a zero** (annee sept.-juin en cours, periode courante
+  calculee, evaluations tous les 11 jours tant qu'elles sont passees, absences sur les samedis
+  ecoules, devoir pour le samedi suivant) : la demonstration parait toujours vivante. 4 classes
+  (CP/CE1/CM1 + adultes), 60 eleves, 30 foyers, notes chiffrees et diagnostiques (adultes compris),
+  EDT, cahier de texte, reglements 1/3 soldes, 1/3 partiels, 1/3 sans versement. Notes
+  deterministes (`hashtext`), donc reproductibles d'une remise a zero a l'autre.
+- **Les comptes** (7, en `@demonstration.invalid`, domaine garanti sans messagerie, et aucune
+  messagerie configuree sur l'ecole) sont crees par la console via l'API d'authentification —
+  `create_profile_only` refuse le role enseignant et exige une session d'ecole. Mot de passe commun
+  affiche une fois ET range dans les notes internes de l'editeur (table serveur uniquement).
+- La remise a zero rend aussi la liste des fichiers deposes pendant une demonstration ; la console
+  les efface (sauf le logo). Les fichiers APRES la base, comme au depart.
+- **Controle `supabase/controles/09-ecole-demo.sql`** : deux remises a zero de suite sans doublon,
+  comptes conserves, ECOLE BILAL intacte table par table, refus sur une ecole non marquee, marqueur
+  refuse hors service-role. 5/5 du premier coup.
+
+**LA CONSOLE SUIT LA CHARTE** (decision utilisateur) : plus aucun `btn-primary` (ambre, abandonne
+fin juillet) ni `btn-secondary` dans `src/app/superadmin` — creation d'une ecole, ajout d'un compte,
+releve, et le bandeau d'intervention (dont le « Quitter » ambre fait main) passent par `FloatButton`.
+« Nouvel etablissement » et « Intervenir » en `submit`, le vert de « Nouvelle annee ».

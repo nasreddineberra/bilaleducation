@@ -164,17 +164,12 @@ export function SupportBar({ ecole, slug, depuis, maxHeures }: {
       {erreur && <span role="alert" className="text-xs font-medium text-red-700">{erreur}</span>}
 
       <div className="ml-auto flex items-center gap-2 shrink-0">
-        <a href={schoolUrl(slug)} className="btn btn-secondary text-xs py-1.5 px-3">
+        <FloatButton href={schoolUrl(slug)} size="mini" variant="secondary">
           Ouvrir l&apos;école
-        </a>
-        <button
-          type="button"
-          onClick={quitter}
-          disabled={pending}
-          className="px-3 py-1.5 text-xs font-medium rounded-md border border-amber-400 text-amber-900 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 disabled:opacity-50"
-        >
-          {pending ? 'Fermeture…' : 'Quitter'}
-        </button>
+        </FloatButton>
+        <FloatButton type="button" size="mini" variant="secondary" loading={pending} onClick={quitter}>
+          Quitter
+        </FloatButton>
       </div>
     </div>
   )

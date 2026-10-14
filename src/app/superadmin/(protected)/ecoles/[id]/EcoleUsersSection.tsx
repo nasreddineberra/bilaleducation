@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { FloatButton } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -138,13 +139,9 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
     <div className="card p-3 flex flex-col gap-2 flex-1 min-h-0">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Utilisateurs</h2>
-        <button
-          type="button"
-          onClick={() => { setError(null); setShowForm(true) }}
-          className="btn btn-secondary text-xs py-1 px-2.5"
-        >
+        <FloatButton type="button" size="mini" variant="secondary" onClick={() => { setError(null); setShowForm(true) }}>
           Ajouter
-        </button>
+        </FloatButton>
       </div>
 
       {showForm && (
@@ -154,17 +151,12 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
           footer={
             <>
               <span className="text-xs text-red-400 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
-              <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary text-sm">
+              <FloatButton type="button" variant="secondary" onClick={() => setShowForm(false)}>
                 Annuler
-              </button>
-              <button
-                type="submit"
-                form="form-nouveau-compte"
-                disabled={submitting || !canSubmit}
-                className={clsx('btn btn-primary text-sm', (!canSubmit || submitting) && 'opacity-50 cursor-not-allowed')}
-              >
-                {submitting ? 'Création…' : 'Créer'}
-              </button>
+              </FloatButton>
+              <FloatButton type="submit" form="form-nouveau-compte" variant="submit" loading={submitting} disabled={submitting || !canSubmit}>
+                Créer
+              </FloatButton>
             </>
           }
         >

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
+import CreerEcoleDemo from './CreerEcoleDemo'
 import { FloatButton } from '@/components/ui/FloatFields'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
 import { abonnementExpire, joursRestants } from '@/lib/tenant/abonnement'
@@ -54,7 +55,7 @@ export default async function SuperAdminPage({ searchParams }: {
 
   const { data: etablissements } = await supabase
     .from('etablissements')
-    .select('id, slug, nom, is_active, subscription_expires_at, logo_url, max_students, donnees_effacees_le')
+    .select('id, slug, nom, is_active, subscription_expires_at, logo_url, max_students, donnees_effacees_le, est_demo')
     .order('nom', { ascending: true })
 
   // UN SEUL appel pour tous les comptages. Cette page en faisait trois PAR
@@ -158,9 +159,12 @@ export default async function SuperAdminPage({ searchParams }: {
             {etablissements?.length ?? 0} établissement{(etablissements?.length ?? 0) > 1 ? 's' : ''} enregistré{(etablissements?.length ?? 0) > 1 ? 's' : ''}
           </p>
         </div>
-        <FloatButton href="/superadmin/ecoles/new" variant="submit">
-          Nouvel établissement
-        </FloatButton>
+        <div className="flex items-center gap-2">
+          {!(etablissements ?? []).some(e => e.est_demo) && <CreerEcoleDemo />}
+          <FloatButton href="/superadmin/ecoles/new" variant="submit">
+            Nouvel établissement
+          </FloatButton>
+        </div>
       </div>
 
       <div className="flex-1 grid grid-cols-4 gap-4 items-start">
@@ -229,7 +233,12 @@ export default async function SuperAdminPage({ searchParams }: {
                       )}
                     </td>
                     <td className="list-td">
-                      <p className="list-name">{e.nom}</p>
+                      <p className="list-name flex items-center gap-2">
+                        {e.nom}
+                        {e.est_demo && (
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">Démo</span>
+                        )}
+                      </p>
                       <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
                     </td>
                     <td className="list-td whitespace-nowrap text-center">

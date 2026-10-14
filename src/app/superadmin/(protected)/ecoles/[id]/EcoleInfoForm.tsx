@@ -11,6 +11,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
 import DepartEcole from './DepartEcole'
+import ReinitialiserDemo from './ReinitialiserDemo'
 
 const isValidEmail = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -271,6 +272,7 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
           )}
         </div>
 
+        {ecole.est_demo && <ReinitialiserDemo etablissementId={ecole.id} />}
         <DepartEcole etablissementId={ecole.id} slug={ecole.slug} nom={ecole.nom} actif={Boolean(ecole.is_active)} />
       </div>
 

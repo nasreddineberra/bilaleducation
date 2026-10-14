@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { FloatButton } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
@@ -134,12 +135,8 @@ export default function NewEcolePage() {
           </div>
 
           <div className="flex items-center gap-2 pt-1">
-            <Link href={`/superadmin/ecoles/${cree.id}`} className="btn btn-primary text-sm">
-              Ouvrir la fiche
-            </Link>
-            <Link href="/superadmin" className="btn btn-secondary text-sm">
-              Retour à la liste
-            </Link>
+            <FloatButton href={`/superadmin/ecoles/${cree.id}`} variant="submit">Ouvrir la fiche</FloatButton>
+            <FloatButton href="/superadmin" variant="secondary">Retour à la liste</FloatButton>
           </div>
         </div>
       </div>
@@ -273,10 +270,10 @@ export default function NewEcolePage() {
 
         <div className="flex items-center justify-end gap-3 pt-1">
           <span className="text-xs text-red-400 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
-          <Link href="/superadmin" className="btn btn-secondary">Annuler</Link>
-          <button type="submit" disabled={isSubmitting || !isValid} className={clsx('btn btn-primary', (isSubmitting || !isValid) && 'opacity-50 cursor-not-allowed')}>
-            {isSubmitting ? 'Création...' : "Créer l'établissement"}
-          </button>
+          <FloatButton href="/superadmin" variant="secondary">Annuler</FloatButton>
+          <FloatButton type="submit" variant="submit" loading={isSubmitting} disabled={isSubmitting || !isValid}>
+            Créer l&apos;établissement
+          </FloatButton>
         </div>
       </form>
     </div>
