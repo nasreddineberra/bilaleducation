@@ -5783,9 +5783,9 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
-- [ ] Executer `supabase/migrations/update-ecole-demo-cosmopolite.sql` (donnees cosmopolites de la
+- [x] Executer `supabase/migrations/update-ecole-demo-cosmopolite.sql` (donnees cosmopolites de la
   demonstration), puis « Reinitialiser » sur la fiche de l'ecole de demonstration.
-- [ ] Executer `supabase/migrations/fix-ecole-demo-jour-fr.sql` (jour de classe en francais), apres la
+- [x] Executer `supabase/migrations/fix-ecole-demo-jour-fr.sql` (jour de classe en francais), apres la
   precedente, puis « Reinitialiser ».
 - [x] Executer `supabase/migrations/add-etablissement-facturation.sql` (payeur + tarif). Avant le deploiement.
 - [x] Executer `supabase/migrations/add-releves-facturation.sql` (releve mensuel + pg_cron). Avant le deploiement.
@@ -7939,3 +7939,9 @@ marque ; les vraies ecoles gardent leur plaque.
   FRANCAIS, ecrit par la fiche classe (« Samedi ») et affiche tel quel par la plupart des ecrans. Le
   peuplement ecrivait `'saturday'`. Corrige a la source (`fix-ecole-demo-jour-fr.sql`) plutot que
   d'ajouter une table de traduction de plus. Controle 09 : 5/5, jours = Samedi.
+- **Demonstration en tete de TOUTES les listes d'ecoles** de la console (liste, Sante, selecteur de
+  Facturation, filtre des Demandes de support), puis les autres par nom. Pas l'historique des
+  interventions : il est chronologique.
+- **Barre horizontale du panneau « Interventions de support »** : en disposition automatique un tableau
+  s'elargit a son contenu et la troncature du nom n'agit pas. `table-fixed`, Date et Statut a largeur
+  mesuree, le nom prend le reste (`TruncatedText`).

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
 import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
+import TruncatedText from '@/components/ui/TruncatedText'
 import CreerEcoleDemo from './CreerEcoleDemo'
 import { FloatButton } from '@/components/ui/FloatFields'
 import { INTERVENTION_MAX_HEURES } from '@/lib/support/duree'
@@ -319,12 +320,16 @@ export default async function SuperAdminPage({ searchParams }: {
             Padding réduit à `px-2` — sur un quart de largeur, les 16 px de
             `.list-th` mangeraient un cinquième de la place utile. */}
         <div className="card p-0 flex-1 min-h-0 overflow-y-auto list-scroll">
-          <table className="w-full text-xs" aria-label="Interventions de support">
+          {/* `table-fixed` : en disposition automatique, un tableau s'elargit a son
+              contenu et la troncature du nom n'agit pas — « Refermee · 1 h 04 »
+              poussait une barre de defilement horizontale. Date et statut ont une
+              largeur taillee sur leur valeur la plus longue, le nom prend le reste. */}
+          <table className="w-full table-fixed text-xs" aria-label="Interventions de support">
             <thead className="sticky top-0 bg-white z-10">
               <tr>
                 <th scope="col" className="list-th px-2 text-left">Établissement</th>
-                <th scope="col" className="list-th px-2 text-left">Date</th>
-                <th scope="col" className="list-th px-2 text-left">Statut</th>
+                <th scope="col" className="list-th px-2 text-left w-[6.75rem]">Date</th>
+                <th scope="col" className="list-th px-2 text-left w-[7.75rem]">Statut</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
@@ -339,9 +344,9 @@ export default async function SuperAdminPage({ searchParams }: {
                 interventions.map(i => (
                   <tr key={i.id}>
                     <td className="list-td px-2">
-                      <span className="list-name block truncate">
-                        {nomEcole[i.etablissement_id] ?? 'Établissement supprimé'}
-                      </span>
+                      <div className="flex min-w-0">
+                        <TruncatedText className="list-name" text={nomEcole[i.etablissement_id] ?? 'Établissement supprimé'} />
+                      </div>
                     </td>
                     <td className="list-td px-2 text-warm-700 whitespace-nowrap">
                       {formatDateHeure(i.opened_at)}

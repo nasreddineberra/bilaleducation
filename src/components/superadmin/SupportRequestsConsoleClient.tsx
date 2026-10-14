@@ -27,6 +27,8 @@ import { formatDateHeureFr } from '@/lib/dates'
 export type SupportRequestConsoleRow = SupportRequestRow & {
   etablissement_id: string
   ecole: string
+  /** Ecole de demonstration : elle passe en tete du filtre Etablissement. */
+  ecoleDemo: boolean
 }
 
 const FILTERS = ['', ...SUPPORT_CATEGORIES.map(c => c.value)] as const
@@ -74,9 +76,13 @@ export default function SupportRequestsConsoleClient({
   // Les écoles réellement présentes, pas la liste de tous les clients : un
   // filtre qui ne filtre rien n'a pas sa place.
   const ecoles = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const d of demandes) m.set(d.etablissement_id, d.ecole)
-    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'fr'))
+    // L'ecole de demonstration d'abord, puis les autres par nom (regle de toutes
+    // les listes d'ecoles de la console).
+    const m = new Map<string, { nom: string; demo: boolean }>()
+    for (const d of demandes) m.set(d.etablissement_id, { nom: d.ecole, demo: d.ecoleDemo })
+    return [...m.entries()]
+      .sort((a, b) => Number(b[1].demo) - Number(a[1].demo) || a[1].nom.localeCompare(b[1].nom, 'fr'))
+      .map(([id, e]) => [id, e.nom] as [string, string])
   }, [demandes])
 
   const filtered = useMemo(() => {

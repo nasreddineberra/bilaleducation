@@ -13,6 +13,8 @@ export default async function FacturationPage({ searchParams }: { searchParams: 
   const { data: ecoles } = await supabase
     .from('etablissements')
     .select('id, nom')
+    // L'ecole de demonstration d'abord, puis les autres par nom (regle de toutes les listes d'ecoles).
+    .order('est_demo', { ascending: false })
     .order('nom', { ascending: true })
 
   const choisie = (ecoles ?? []).find(e => e.id === ecole) ?? (ecoles ?? [])[0] ?? null

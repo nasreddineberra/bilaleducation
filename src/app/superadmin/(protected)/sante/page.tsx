@@ -34,6 +34,8 @@ export default async function SantePage() {
     supabase
       .from('etablissements')
       .select('id, slug, nom, is_active, logo_url, max_students, subscription_expires_at')
+      // L'ecole de demonstration d'abord, puis les autres par nom (regle de toutes les listes d'ecoles).
+      .order('est_demo', { ascending: false })
       .order('nom', { ascending: true }),
     // Un seul appel pour tous les établissements : la liste faisait trois
     // requêtes par école, en boucle.
