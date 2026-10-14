@@ -27,8 +27,6 @@ import { formatDateHeureFr } from '@/lib/dates'
 export type SupportRequestConsoleRow = SupportRequestRow & {
   etablissement_id: string
   ecole: string
-  /** Ecole de demonstration : elle passe en tete du filtre Etablissement. */
-  ecoleDemo: boolean
 }
 
 const FILTERS = ['', ...SUPPORT_CATEGORIES.map(c => c.value)] as const
@@ -37,8 +35,11 @@ const STORAGE_KEY = 'console-support-filters'
 
 export default function SupportRequestsConsoleClient({
   demandes,
+  ecoles,
 }: {
   demandes: SupportRequestConsoleRow[]
+  /** TOUTES les ecoles, deja ordonnees (demonstration d'abord, puis par nom). */
+  ecoles: { id: string; nom: string }[]
 }) {
   const [search, setSearch]           = useState('')
   const [filterCat, setFilterCat]     = useState<string>('')
@@ -72,18 +73,6 @@ export default function SupportRequestsConsoleClient({
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ search, cat: filterCat, ecole: filterEcole, statut: filterStatut }))
     } catch { /* ignore */ }
   }, [hydrated, search, filterCat, filterEcole, filterStatut])
-
-  // Les écoles réellement présentes, pas la liste de tous les clients : un
-  // filtre qui ne filtre rien n'a pas sa place.
-  const ecoles = useMemo(() => {
-    // L'ecole de demonstration d'abord, puis les autres par nom (regle de toutes
-    // les listes d'ecoles de la console).
-    const m = new Map<string, { nom: string; demo: boolean }>()
-    for (const d of demandes) m.set(d.etablissement_id, { nom: d.ecole, demo: d.ecoleDemo })
-    return [...m.entries()]
-      .sort((a, b) => Number(b[1].demo) - Number(a[1].demo) || a[1].nom.localeCompare(b[1].nom, 'fr'))
-      .map(([id, e]) => [id, e.nom] as [string, string])
-  }, [demandes])
 
   const filtered = useMemo(() => {
     let list = demandes
@@ -132,20 +121,21 @@ export default function SupportRequestsConsoleClient({
         </div>
 
         <div className="flex items-center gap-2 ml-auto">
-          {ecoles.length > 1 && (
-            <FloatSelect
-              label="Établissement"
-              compact
-              value={filterEcole}
-              onChange={e => setFilterEcole(e.target.value)}
-              wrapperClassName="w-fit"
-            >
-              <option value="__all__">Tous</option>
-              {ecoles.map(([id, nom]) => (
-                <option key={id} value={id}>{nom}</option>
-              ))}
-            </FloatSelect>
-          )}
+          {/* TOUTES les ecoles, meme sans demande : « cette ecole m'a-t-elle deja
+              ecrit ? » est une vraie question. Le filtre n'etait affiche qu'a partir
+              de deux ecoles ayant ecrit, donc jamais tant qu'aucune n'avait ecrit. */}
+          <FloatSelect
+            label="Établissement"
+            compact
+            value={filterEcole}
+            onChange={e => setFilterEcole(e.target.value)}
+            wrapperClassName="w-fit"
+          >
+            <option value="__all__">Tous</option>
+            {ecoles.map(e => (
+              <option key={e.id} value={e.id}>{e.nom}</option>
+            ))}
+          </FloatSelect>
           <FloatSelect
             label="Email"
             compact

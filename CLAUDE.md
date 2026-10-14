@@ -7945,3 +7945,7 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Barre horizontale du panneau « Interventions de support »** : en disposition automatique un tableau
   s'elargit a son contenu et la troncature du nom n'agit pas. `table-fixed`, Date et Statut a largeur
   mesuree, le nom prend le reste (`TruncatedText`).
+- **Filtre Etablissement des Demandes de support TOUJOURS visible**, avec TOUTES les ecoles : il ne
+  s'affichait qu'a partir de deux ecoles ayant ecrit — donc jamais, la base n'ayant aucune demande.
+  « Cette ecole m'a-t-elle deja ecrit ? » est une vraie question ; une ecole sans demande rend
+  « Aucune demande ne correspond ». Ordre servi par la base (demonstration d'abord, puis par nom).

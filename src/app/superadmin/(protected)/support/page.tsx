@@ -18,18 +18,26 @@ import SupportRequestsConsoleClient, {
 export default async function ConsoleSupportPage() {
   const admin = createAdminClient()
 
-  const { data: demandes } = await admin
+  const [{ data: demandes }, { data: ecoles }] = await Promise.all([admin
     .from('support_requests')
     .select(`
       id, etablissement_id, category, impact, subject, message, attachment_path, context,
       email_status, email_error, author_name, author_email, author_role, created_at,
-      etablissements ( nom, est_demo )
+      etablissements ( nom )
     `)
     .order('created_at', { ascending: false })
-    .limit(500)
+    .limit(500),
+    // Le filtre propose TOUTES les ecoles. Demonstration d'abord, puis par nom
+    // (regle de toutes les listes d'ecoles de la console).
+    admin
+      .from('etablissements')
+      .select('id, nom')
+      .order('est_demo', { ascending: false })
+      .order('nom', { ascending: true }),
+  ])
 
   type Brut = Omit<SupportRequestConsoleRow, 'ecole'> & {
-    etablissements: { nom: string; est_demo: boolean } | { nom: string; est_demo: boolean }[] | null
+    etablissements: { nom: string } | { nom: string }[] | null
   }
 
   const lignes: SupportRequestConsoleRow[] = ((demandes ?? []) as unknown as Brut[]).map(d => {
@@ -39,7 +47,7 @@ export default async function ConsoleSupportPage() {
     const rel = Array.isArray(d.etablissements) ? d.etablissements[0] : d.etablissements
     const { etablissements: _rel, ...reste } = d
     void _rel
-    return { ...reste, ecole: rel?.nom ?? '', ecoleDemo: Boolean(rel?.est_demo) }
+    return { ...reste, ecole: rel?.nom ?? '' }
   })
 
   const nonRecues = lignes.filter(l => l.email_status !== 'sent').length
@@ -59,7 +67,7 @@ export default async function ConsoleSupportPage() {
         </p>
       </div>
 
-      <SupportRequestsConsoleClient demandes={lignes} />
+      <SupportRequestsConsoleClient demandes={lignes} ecoles={ecoles ?? []} />
 
     </div>
   )
