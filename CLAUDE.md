@@ -5783,6 +5783,8 @@ Chaque entite suit le pattern : Table + Form + Client wrapper + pages (list, new
   securite / friction a trancher, voir `supabase/email-templates/README.md`.
 
 ## Actions SQL en attente
+- [ ] Executer `supabase/migrations/update-ecole-demo-cosmopolite.sql` (donnees cosmopolites de la
+  demonstration), puis « Reinitialiser » sur la fiche de l'ecole de demonstration.
 - [x] Executer `supabase/migrations/add-etablissement-facturation.sql` (payeur + tarif). Avant le deploiement.
 - [x] Executer `supabase/migrations/add-releves-facturation.sql` (releve mensuel + pg_cron). Avant le deploiement.
 - [x] Executer `supabase/migrations/add-smtp-verifie-le.sql` (colonne `verifie_le`, messagerie eprouvee).
@@ -7918,3 +7920,16 @@ est reserve). Une ecole COMME LES AUTRES, donc cloisonnee comme un client.
 fin juillet) ni `btn-secondary` dans `src/app/superadmin` — creation d'une ecole, ajout d'un compte,
 releve, et le bandeau d'intervention (dont le « Quitter » ambre fait main) passent par `FloatButton`.
 « Nouvel etablissement » et « Intervenir » en `submit`, le vert de « Nouvelle annee ».
+
+**DEMONSTRATION COSMOPOLITE** (decision utilisateur : l'application ne s'adresse a aucune communaute
+en particulier, sa demonstration non plus). Migration `update-ecole-demo-cosmopolite.sql` :
+`fn_demo_peupler` reprise en n'y changeant que les DONNEES — familles d'origines variees (une origine
+par foyer, prenoms assortis), les deux enfants d'un foyer de sexes opposes (10 garcons / 10 filles par
+classe), classes CP / CE1 / CM1 / ADULTES, cotisations ENFANTS / ADULTES, referentiel neutre sans nom
+arabe (Francais : Lecture, Ecriture · Mathematiques : Calcul, Problemes), cahier de texte neutre.
+Les 7 comptes portent des noms varies, REMIS A JOUR a chaque remise a zero par adresse
+(`appliquerComptes`, avant le peuplement : les fiches enseignant sont recreees depuis les profils) ;
+mot de passe et 2FA intacts, notes de la fiche reecrites en gardant le mot de passe. Controle 09
+rejoue en transaction annulee : 5/5. **Logo de la demo SANS plaque blanche** dans la barre laterale
+(`logoSansPlaque`, relief `.logo-relief`) : c'est le logo de l'application, dessine pour le fond de
+marque ; les vraies ecoles gardent leur plaque.

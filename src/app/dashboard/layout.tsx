@@ -185,6 +185,7 @@ export default async function DashboardLayout({
           role={displayRole}
           etablissementNom={etablissement?.nom ?? null}
           etablissementLogo={etablissement?.logo_url ?? null}
+          logoSansPlaque={Boolean(etablissement?.est_demo)}
           anneeCourante={currentYear?.label ?? null}
           finAbonnement={etablissement?.subscription_expires_at ?? null}
           auteur={profile ? {

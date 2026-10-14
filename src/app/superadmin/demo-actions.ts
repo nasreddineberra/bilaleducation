@@ -29,15 +29,49 @@ import { validatePasswordServer } from '@/lib/validation/password'
 const SLUG_DEMO = 'demonstration'
 const DOMAINE = 'demonstration.invalid'
 
+// Noms fictifs et cosmopolites : l'application ne vise aucune communaute en
+// particulier. Ils sont remis a jour a chaque remise a zero (`appliquerComptes`),
+// un changement ici prend donc effet sans recreer les comptes.
 const COMPTES = [
-  { role: 'direction',               civilite: 'M.',  nom: 'KHALDI',    prenom: 'Sofiane',  email: 'direction' },
-  { role: 'comptable',               civilite: 'Mme', nom: 'ARAB',      prenom: 'Nadia',    email: 'comptable' },
-  { role: 'secretaire',              civilite: 'Mme', nom: 'BENMOUSSA', prenom: 'Lamia',    email: 'secretariat' },
-  { role: 'responsable_pedagogique', civilite: 'M.',  nom: 'HALIMI',    prenom: 'Walid',    email: 'pedagogie' },
-  { role: 'enseignant',              civilite: 'Mme', nom: 'AZIZI',     prenom: 'Fatima',   email: 'enseignant1' },
-  { role: 'enseignant',              civilite: 'M.',  nom: 'BENHADJ',   prenom: 'Omar',     email: 'enseignant2' },
-  { role: 'enseignant',              civilite: 'Mme', nom: 'SAHRAOUI',  prenom: 'Khadija',  email: 'enseignant3' },
+  { role: 'direction',               civilite: 'M.',  nom: 'MOREAU',    prenom: 'Laurent',  email: 'direction' },
+  { role: 'comptable',               civilite: 'Mme', nom: 'COSTA',     prenom: 'Ana',      email: 'comptable' },
+  { role: 'secretaire',              civilite: 'Mme', nom: 'NGUYEN',    prenom: 'Linh',     email: 'secretariat' },
+  { role: 'responsable_pedagogique', civilite: 'M.',  nom: 'BIANCHI',   prenom: 'Marco',    email: 'pedagogie' },
+  { role: 'enseignant',              civilite: 'Mme', nom: 'LEFEBVRE',  prenom: 'Camille',  email: 'enseignant1' },
+  { role: 'enseignant',              civilite: 'M.',  nom: 'OKAFOR',    prenom: 'Daniel',   email: 'enseignant2' },
+  { role: 'enseignant',              civilite: 'Mme', nom: 'BENSAID',   prenom: 'Yasmina',  email: 'enseignant3' },
 ] as const
+
+const LIGNE_MDP = 'Mot de passe commun des comptes : '
+
+/** Notes internes de la fiche : mot de passe + liste des comptes. */
+function notesDemo(mdp: string | null): string {
+  return [
+    'École de démonstration (données fictives).',
+    `${LIGNE_MDP}${mdp ?? '(inconnu)'}`,
+    ...COMPTES.map(c => `${c.email}@${DOMAINE} · ${c.nom} ${c.prenom}`),
+  ].join('\n')
+}
+
+/**
+ * Remet les noms des comptes a ceux de `COMPTES`, par adresse. Ni le mot de
+ * passe ni la 2FA ne sont touches (ils vivent dans `auth`, pas dans `profiles`).
+ * Appelee AVANT le peuplement : les fiches enseignant sont recreees depuis les
+ * profils. Les notes de la fiche suivent, en gardant le mot de passe range.
+ */
+async function appliquerComptes(admin: ReturnType<typeof createAdminClient>, etablissementId: string): Promise<void> {
+  for (const c of COMPTES) {
+    const { error } = await admin.from('profiles')
+      .update({ civilite: c.civilite, first_name: c.prenom, last_name: c.nom })
+      .eq('etablissement_id', etablissementId).eq('email', `${c.email}@${DOMAINE}`).select('id')
+    if (error) console.error('[demo] nom du compte %s non mis a jour :', c.email, error)
+  }
+  const { data } = await admin.from('etablissement_notes').select('notes').eq('etablissement_id', etablissementId).maybeSingle()
+  const ligne = (data?.notes ?? '').split('\n').find((l: string) => l.startsWith(LIGNE_MDP))
+  const mdp = ligne ? ligne.slice(LIGNE_MDP.length) : null
+  const { error } = await admin.from('etablissement_notes').upsert({ etablissement_id: etablissementId, notes: notesDemo(mdp) })
+  if (error) console.error('[demo] notes:', error)
+}
 
 type Fichier = { bucket: string; nom: string }
 
@@ -146,12 +180,7 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
   // Le mot de passe n'est affiche qu'une fois a l'ecran : on le garde aussi dans
   // les notes de l'EDITEUR (table serveur uniquement), seul endroit ou il le
   // retrouvera. Ce sont des comptes de demonstration sur donnees fictives.
-  const notes = [
-    'École de démonstration (données fictives).',
-    `Mot de passe commun des comptes : ${mdp}`,
-    ...COMPTES.map(c => `${c.email}@${DOMAINE} · ${c.nom} ${c.prenom}`),
-  ].join('\n')
-  const { error: eNotes } = await admin.from('etablissement_notes').upsert({ etablissement_id: ecole.id, notes })
+  const { error: eNotes } = await admin.from('etablissement_notes').upsert({ etablissement_id: ecole.id, notes: notesDemo(mdp) })
   if (eNotes) console.error('[demo] notes:', eNotes)
 
   const logo = await poserLogoDemo(admin, ecole.id)
@@ -166,6 +195,12 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   if (refus) return { error: refus }
 
   const admin = createAdminClient()
+  // Marquee « demo » AVANT de toucher aux noms des comptes : la RPC le verifie,
+  // mais elle passe apres.
+  const { data: ecole } = await admin.from('etablissements').select('est_demo').eq('id', etablissementId).maybeSingle()
+  if (!ecole?.est_demo) return { error: "Ce n'est pas l'école de démonstration." }
+  await appliquerComptes(admin, etablissementId)
+
   const { data, error } = await admin.rpc('reinitialiser_ecole_demo', { p_id: etablissementId })
   if (error || !data) {
     console.error('[demo] remise a zero:', error)

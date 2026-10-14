@@ -517,6 +517,9 @@ interface DashboardSidebarProps {
   role?:              UserRole
   etablissementNom?:  string | null
   etablissementLogo?: string | null
+  /** Logo affiche SANS plaque blanche (ecole de demonstration : son logo est
+   *  celui de l'application, dessine pour le fond de marque). */
+  logoSansPlaque?:    boolean
   anneeCourante?:     string | null
   /** Echeance de l'abonnement (`etablissements.subscription_expires_at`). */
   finAbonnement?:     string | null
@@ -565,7 +568,7 @@ function lireFinAbonnement(valeur: string | null | undefined): { date: string; b
   return { date, bientot: restants !== null && restants <= ALERTE_ABONNEMENT_JOURS }
 }
 
-export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, anneeCourante, finAbonnement }: DashboardSidebarProps) {
+export default function DashboardSidebar({ role, etablissementNom, etablissementLogo, logoSansPlaque = false, anneeCourante, finAbonnement }: DashboardSidebarProps) {
   const pathname   = usePathname()
 
   const { collapsed, setCollapsed, ouvertMobile, setOuvertMobile } = useSidebar()
@@ -782,7 +785,10 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           )}
         >
         {/* Avatar / Logo établissement */}
-        {etablissementLogo ? (
+        {etablissementLogo && logoSansPlaque ? (
+          // Comme sur l'ecran de connexion : relief qui epouse la forme du logo.
+          <Image src={etablissementLogo} alt={etablissementNom ?? ''} width={36} height={36} className="flex-shrink-0 w-9 h-9 object-contain select-none logo-relief" unoptimized />
+        ) : etablissementLogo ? (
           <div
             className="flex-shrink-0 w-9 h-9 rounded-lg overflow-hidden select-none"
             style={{
