@@ -5,6 +5,7 @@ import { ChevronLeft } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { EnterButton } from '../../SupportControls'
+import ReinitialiserDemo from './ReinitialiserDemo'
 import EcoleInfoForm from './EcoleInfoForm'
 import EcoleUsersSection from './EcoleUsersSection'
 import MiseEnService, { type Etape } from './MiseEnService'
@@ -299,7 +300,10 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           {/* Entrer depuis la fiche : c'est ici qu'on constate le problème d'un
               client, donc ici qu'on veut y aller — plutôt que de revenir à la
               liste pour retrouver la même ligne. */}
-          <fieldset disabled={effacee} className="ml-2 min-w-0">
+          {/* Dans l'en-tete, a gauche d'« Intervenir » : dans l'encadre « Acces
+              et abonnement », la ligne en plus faisait defiler la page. */}
+          <fieldset disabled={effacee} className="ml-2 min-w-0 flex items-center gap-2">
+            {ecole.est_demo && <ReinitialiserDemo etablissementId={ecole.id} />}
             <EnterButton
               id={ecole.id}
               slug={ecole.slug}

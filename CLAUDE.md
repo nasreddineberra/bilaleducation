@@ -7954,3 +7954,6 @@ marque ; les vraies ecoles gardent leur plaque.
   selecteurs en variante `bordure` ramenee a la hauteur du champ de recherche (`py-2`, qui l'emporte
   sur `py-1.5` : verifie dans le CSS servi), largeurs fixes. « Toutes » porte la sentinelle `__all__`.
   L'ecran de l'ECOLE garde ses boutons.
+- **« Reinitialiser » (ecole de demonstration) passe dans l'EN-TETE de la fiche**, a gauche
+  d'« Intervenir », meme taille (`size="normal"` explicite) : dans l'encadre « Acces et abonnement »,
+  sa ligne faisait apparaitre une barre de defilement sur une fiche concue sans.

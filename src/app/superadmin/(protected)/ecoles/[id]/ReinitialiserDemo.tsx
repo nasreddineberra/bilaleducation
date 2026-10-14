@@ -29,9 +29,9 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
   }
 
   return (
-    <div className="flex items-center justify-between gap-2">
-      <p className="text-xs text-secondary-700 font-medium">École de démonstration</p>
-      <FloatButton type="button" size="mini" variant="secondary" loading={enCours} onClick={() => setAConfirmer(true)}>
+    <>
+      {/* Meme taille qu'« Intervenir », a cote duquel il se place. */}
+      <FloatButton type="button" size="normal" variant="secondary" loading={enCours} onClick={() => setAConfirmer(true)}>
         Réinitialiser
       </FloatButton>
       {aConfirmer && (
@@ -45,6 +45,6 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
           onCancel={() => setAConfirmer(false)}
         />
       )}
-    </div>
+    </>
   )
 }
