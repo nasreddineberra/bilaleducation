@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
 import { SearchField } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import StudentsTable from './StudentsTable'
 import StudentsStatusSyncModal from './StudentsStatusSyncModal'
 import type { Student } from '@/types/database'
@@ -142,46 +143,18 @@ export default function StudentsClient({
       <div className="flex items-center gap-3 flex-wrap">
 
         {/* Statistiques (cliquables = filtres) */}
-        <ListStatCard
-          value={totalAll}
-          label="au total"
-          active={activeFilter === ''}
-          onClick={() => toggleFilter('')}
+        <FiltreSwitch
+          ariaLabel="Filtrer les apprenants"
+          actif={activeFilter}
+          onChange={v => toggleFilter(v as StatFilter)}
+          options={[
+            { valeur: '',           nombre: totalAll,        libelle: 'au total' },
+            { valeur: 'active',     nombre: totalActive,     libelle: `actif${totalActive > 1 ? 's' : ''}`, couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
+            { valeur: 'unassigned', nombre: totalUnassigned, libelle: 'non affectés',       couleur: 'text-orange-600' },
+            { valeur: 'discipline', nombre: totalDiscipline, libelle: 'alertes discipline', couleur: 'text-amber-600' },
+            ...(totalNoParent > 0 ? [{ valeur: 'no_parent', nombre: totalNoParent, libelle: 'sans rattachement', couleur: 'text-red-500' }] : []),
+          ]}
         />
-        <ListStatCard
-          value={totalActive}
-          label={`actif${totalActive > 1 ? 's' : ''}`}
-          valueColor="text-primary-600"
-          activeRing="ring-primary-600"
-          active={activeFilter === 'active'}
-          onClick={() => toggleFilter('active')}
-        />
-        <ListStatCard
-          value={totalUnassigned}
-          label={<>non<br/>affectés</>}
-          valueColor="text-orange-600"
-          activeRing="ring-orange-600"
-          active={activeFilter === 'unassigned'}
-          onClick={() => toggleFilter('unassigned')}
-        />
-        <ListStatCard
-          value={totalDiscipline}
-          label={<>alertes<br/>discipline</>}
-          valueColor="text-amber-600"
-          activeRing="ring-amber-600"
-          active={activeFilter === 'discipline'}
-          onClick={() => toggleFilter('discipline')}
-        />
-        {totalNoParent > 0 && (
-          <ListStatCard
-            value={totalNoParent}
-            label={<span className="text-red-400">sans<br/>rattachement</span>}
-            valueColor="text-red-500"
-            active={activeFilter === 'no_parent'}
-            onClick={() => toggleFilter('no_parent')}
-            className="bg-red-100/60 border-red-200"
-          />
-        )}
         {maxStudents != null && baseFacturable != null && (
           <Tooltip content={`${baseFacturable.eleves} élève${baseFacturable.eleves > 1 ? 's' : ''} actif${baseFacturable.eleves > 1 ? 's' : ''} + ${baseFacturable.adultes} adulte${baseFacturable.adultes > 1 ? 's' : ''} inscrit${baseFacturable.adultes > 1 ? 's' : ''}`}>
             <ListStatCard

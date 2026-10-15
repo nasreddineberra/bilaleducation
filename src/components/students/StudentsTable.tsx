@@ -43,23 +43,12 @@ function DisciplineInfo({ discipline }: { discipline: Discipline | null }) {
   )
 }
 
-function StudentAvatar({ lastName, firstName, gender }: { lastName: string; firstName: string; gender: string | null | undefined }) {
+function StudentAvatar({ lastName, firstName }: { lastName: string; firstName: string; gender?: string | null }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
-  // Avatar neutre (gris beige) ; le genre est indiqué par un liseré coloré.
-  // Même teinte que le bandeau de la fiche apprenant : les `ring-*` ne sont pas
-  // remappés par le pont de thème, une variante pâle se délavait sur fond sombre.
-  const ring = gender === 'male'
-    ? 'ring-2 ring-blue-500'
-    : gender === 'female'
-      ? 'ring-2 ring-pink-500'
-      : 'ring-1 ring-warm-200'
-  // 24px + liseré : les lignes sont très compactes (.list-td py-[2px]), les
-  // avatars se touchaient en 28px.
+  // Charte du 15/10/2026 : avatar CARRE, sans liseré de genre (la fiche garde
+  // le sien). 24px : les lignes sont tres compactes (.list-td py-[2px]).
   return (
-    <div className={clsx(
-      'w-6 h-6 my-0.5 rounded-full flex items-center justify-center font-bold text-[9px] flex-shrink-0 select-none bg-warm-100 text-warm-700',
-      ring
-    )}>
+    <div className="w-6 h-6 my-0.5 rounded-md flex items-center justify-center font-bold text-[9px] flex-shrink-0 select-none bg-warm-100 text-warm-700">
       {initiales}
     </div>
   )
@@ -158,10 +147,10 @@ export default function StudentsTable({ students }: StudentsTableProps) {
         </div>
       )}
 
-      <div className="card p-0 overflow-hidden">
+      <div className="liste">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-warm-100">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="text-left list-th w-3/12">
                 Élève
               </th>
@@ -191,6 +180,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                   // = warm-50 (bande grise discrete), survol = warm-100 (toujours
                   // plus fonce que l'inactif → jamais confondu avec lui).
                   'transition-colors cursor-pointer',
+                  student.is_active && 'ligne-active',
                   student.has_pai
                     ? 'bg-red-50/70 hover:bg-red-100/70'
                     : student.is_active

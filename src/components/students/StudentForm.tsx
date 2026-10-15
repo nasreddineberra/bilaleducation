@@ -348,8 +348,8 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
         {/* Identité de l'élève */}
         <div className="card p-3 space-y-2">
-          <div className="flex items-center">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap">
+          <div className="encadre-titre flex items-center">
+            <h2 className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">
               Identité de l'élève
             </h2>
             <div className="flex-1 flex justify-center">
@@ -484,7 +484,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         {parentData && (
           <div className="grid grid-cols-2 gap-2 flex-1">
             <div className="card p-3 space-y-1.5">
-              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
+              <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Adresse</h2>
               <div className="text-sm text-secondary-700 space-y-0.5">
                 <p>{tutorInfo?.address || <span className="text-warm-700 italic">Non renseignée</span>}</p>
                 {(tutorInfo?.postal_code || tutorInfo?.city) && (
@@ -495,7 +495,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
               </div>
             </div>
             <div className="card p-3 space-y-1.5">
-              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+              <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
                 {"Contact d'urgence & Santé"}
               </h2>
               <div className="text-sm text-secondary-700 space-y-0.5">
@@ -515,8 +515,8 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
           {/* Rattachement parental */}
           <div className="card p-3 space-y-3">
             {/* « Voir / Modifier » dans l'en-tete de l'encadre, a droite du titre. */}
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            <div className="encadre-titre flex items-center justify-between gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest">
                 Rattachement parental
               </h2>
               {parentData && (
@@ -591,7 +591,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
               {/* Frères / Sœurs */}
               <div className="card p-3 space-y-1.5 flex-1">
-                <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+                <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
                   {"Frères / Sœurs"}
                 </h2>
                 {siblings.length === 0 ? (
@@ -648,7 +648,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
       {/* ── Autorisations & Suivi particulier ── */}
       <div className="card p-3 space-y-2 max-w-5xl">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
           Autorisations & Suivi particulier
         </h2>
 

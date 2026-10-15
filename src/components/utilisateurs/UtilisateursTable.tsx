@@ -100,10 +100,10 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
           {deleteError}
         </div>
       )}
-      <div className="card p-0 overflow-hidden">
+      <div className="liste">
         <table className="w-full text-xs" aria-label="Utilisateurs">
           <thead>
-            <tr className="border-b border-warm-100">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="list-th w-3/12">Utilisateur</th>
               <th className="list-th w-3/12">Email</th>
               <th className="list-th w-2/12">Rôle</th>
@@ -123,7 +123,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                   onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
                   className={clsx(
                     'transition-colors cursor-pointer',
-                    profile.is_active ? 'hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
+                    profile.is_active ? 'ligne-active hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
                   )}
                 >
                   {/* Nom */}

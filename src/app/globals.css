@@ -300,6 +300,65 @@
     @apply text-xs font-bold text-[var(--ink-muted)] uppercase tracking-widest;
   }
 
+  /* ── LISTES (charte du 15/10/2026, validee sur la page modele) ──────────────
+     `.liste` remplace `card p-0` autour d'un tableau de liste : PLUS DE CADRE
+     (ni gauche, ni droite, ni bas) — seuls le trait du haut et les separateurs
+     de lignes subsistent. Les lignes gardent le fond de carte ; `:where()` (specificite nulle)
+     laisse gagner les fonds propres d'une ligne (inactif, PAI…).
+     `.liste-entete` (sur le <tr> d'en-tete) : teinte du vert de marque, intitules
+     en vert fonce, bordures gauche et droite sur l'en-tete SEUL.
+     `.ligne-active` (sur un <tr>) : barre verticale vive a gauche, reservee aux
+     elements ACTIFS. */
+  .liste {
+    border-top: 1px solid var(--card-border);
+  }
+  :where(.liste) tbody tr {
+    background-color: var(--surface-card);
+  }
+  .liste-entete {
+    background-color: color-mix(in srgb, var(--brand-surface) 8%, var(--surface-card));
+  }
+  .liste-entete > th {
+    color: var(--brand-surface);
+    border-color: var(--card-border);
+  }
+  .liste-entete > th:first-child { border-left-width: 1px; }
+  .liste-entete > th:last-child  { border-right-width: 1px; }
+  .ligne-active > td:first-child { position: relative; }
+  .ligne-active > td:first-child::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 4px; bottom: 4px;
+    width: 4px;
+    border-radius: 0 9999px 9999px 0;
+    background-color: var(--brand-surface);
+  }
+
+  /* ── INTITULE D'ENCADRE (charte du 15/10/2026) ──────────────────────────────
+     Bandeau en DEGRADE ESTOMPE en tete d'un encadre de fiche : le vert de marque
+     a 12 % s'efface vers la droite. Hauteur FIXE (1.75rem) : deux encadres voisins
+     dont l'un porte un switch dans son titre gardent leurs champs alignes.
+     Les marges negatives suivent le remplissage de la carte (`--encadre-pad`,
+     0.75rem = p-3 par defaut ; poser `[--encadre-pad:1rem]` sur une carte p-4).
+     Le titre peut etre un <h2> seul ou une rangee (titre + action a droite). */
+  .encadre-titre {
+    display: flex;
+    align-items: center;
+    height: 1.75rem;
+    margin: calc(-1 * var(--encadre-pad, 0.75rem));
+    /* 0.75rem sous le bandeau : un libelle de champ pose sur le trait (-8 px)
+       ne vient pas le toucher, quel que soit le `space-y` de la carte (les
+       marges se fusionnent, la plus grande l'emporte). */
+    margin-bottom: 0.75rem;
+    padding: 0 var(--encadre-pad, 0.75rem);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    background-image: linear-gradient(to right, color-mix(in srgb, var(--brand-surface) 12%, var(--surface-card)), var(--surface-card));
+  }
+  .encadre-titre, .encadre-titre h2 {
+    color: var(--brand-surface);
+  }
+
   /* RELIEF DU LOGO sur les blocs de marque en fond sombre (connexion, vitrine,
      connexion de la console). Ces trois écrans se déclarent identiques dans
      leurs commentaires : la valeur vit donc ICI, sinon ils divergent — c'est la
@@ -1319,3 +1378,10 @@
 @media (prefers-reduced-motion: reduce) {
   .nom-vague { animation: none; }
 }
+
+/* Listes, theme sombre : le vert de marque (#18242a) se confond avec l'ardoise. */
+:root[data-theme="dark"] .liste-entete { background-color: color-mix(in srgb, var(--brand-accent) 12%, var(--surface-card)); }
+:root[data-theme="dark"] .liste-entete > th { color: var(--brand-accent); }
+:root[data-theme="dark"] .ligne-active > td:first-child::before { background-color: var(--brand-accent); }
+:root[data-theme="dark"] .encadre-titre { background-image: linear-gradient(to right, color-mix(in srgb, var(--brand-accent) 12%, var(--surface-card)), var(--surface-card)); }
+:root[data-theme="dark"] .encadre-titre, :root[data-theme="dark"] .encadre-titre h2 { color: var(--brand-accent); }

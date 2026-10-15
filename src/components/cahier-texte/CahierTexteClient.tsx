@@ -1,5 +1,6 @@
 'use client'
 
+import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { useState, useMemo, useEffect } from 'react'
 import SeanceDetailModal from './SeanceDetailModal'
 import DevoirDetailModal from './DevoirDetailModal'
@@ -252,19 +253,15 @@ export default function CahierTexteClient({
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-1 border-b border-warm-200" role="tablist" aria-label="Cahier de texte">
+      <Onglets ariaLabel="Cahier de texte" actifIndex={tab === 'journal' ? 0 : 1}>
         <button
           role="tab"
           id="tab-journal"
           aria-selected={tab === 'journal'}
           aria-controls="panel-journal"
           onClick={() => setTab('journal')}
-          className={clsx(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            tab === 'journal' ? 'border-primary-500 text-primary-700' : 'border-transparent text-warm-700 hover:text-warm-700'
-          )}
+          className={classeOnglet(tab === 'journal')}
         >
-          <CalendarDays size={14} className="inline mr-1.5" />
           Journal de séance
         </button>
         <button
@@ -273,15 +270,11 @@ export default function CahierTexteClient({
           aria-selected={tab === 'devoirs'}
           aria-controls="panel-devoirs"
           onClick={() => setTab('devoirs')}
-          className={clsx(
-            'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            tab === 'devoirs' ? 'border-primary-500 text-primary-700' : 'border-transparent text-warm-700 hover:text-warm-700'
-          )}
+          className={classeOnglet(tab === 'devoirs')}
         >
-          <ClipboardList size={14} className="inline mr-1.5" />
           Devoirs
         </button>
-      </div>
+      </Onglets>
 
       {/* Contenu */}
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>

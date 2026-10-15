@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
-import ListStatCard from '@/components/ui/ListStatCard'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import ParentsTable from './ParentsTable'
 import ParentsAdultSyncModal from './ParentsAdultSyncModal'
 import type { Parent } from '@/types/database'
@@ -134,27 +134,15 @@ export default function ParentsClient({
       <div className="flex items-center gap-3 flex-wrap">
 
         {/* Statistiques (cliquables = filtres) */}
-        <ListStatCard
-          value={totalAll}
-          label={`fiche${totalAll > 1 ? 's' : ''}`}
-          active={activeFilter === ''}
-          onClick={() => toggleFilter('')}
-        />
-        <ListStatCard
-          value={totalAdultCourses}
-          label={<>inscrits<br/>aux cours</>}
-          valueColor="text-primary-600"
-          activeRing="ring-primary-600"
-          active={activeFilter === 'adult_courses'}
-          onClick={() => toggleFilter('adult_courses')}
-        />
-        <ListStatCard
-          value={totalUnassigned}
-          label={<>non<br/>affectés</>}
-          valueColor="text-orange-600"
-          activeRing="ring-orange-600"
-          active={activeFilter === 'unassigned'}
-          onClick={() => toggleFilter('unassigned')}
+        <FiltreSwitch
+          ariaLabel="Filtrer les fiches parents"
+          actif={activeFilter}
+          onChange={v => toggleFilter(v as StatFilter)}
+          options={[
+            { valeur: '',              nombre: totalAll,          libelle: `fiche${totalAll > 1 ? 's' : ''}` },
+            { valeur: 'adult_courses', nombre: totalAdultCourses, libelle: 'inscrits aux cours', couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
+            { valeur: 'unassigned',    nombre: totalUnassigned,   libelle: 'non affectés',       couleur: 'text-orange-600' },
+          ]}
         />
 
         <div className="flex-1" />

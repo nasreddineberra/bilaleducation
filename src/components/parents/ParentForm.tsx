@@ -344,7 +344,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
 
           {/* Infos tuteur 1 */}
           <div className="card p-3 space-y-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
               Tuteur 1 · Responsable principal
             </h2>
 
@@ -414,7 +414,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
 
           {/* Adresse tuteur 1 */}
           <div className="card p-3 space-y-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Adresse</h2>
             <FloatInput
               label="Adresse"
               value={form.tutor1_address}
@@ -444,8 +444,8 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
             {/* Titre a gauche, switch Oui / Non a droite. Hauteur figee a celle
                 du titre du tuteur 1 (h-4) : les champs des deux colonnes restent
                 alignes ; le switch compact (~17 px) deborde d'un pixel, sans effet. */}
-            <div className="flex items-center justify-between gap-2 h-4">
-              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            <div className="encadre-titre flex items-center justify-between gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest">
                 Tuteur 2 · Responsable secondaire
               </h2>
               <SwitchOuiNon
@@ -533,8 +533,8 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
             <div className="card p-3 space-y-2">
               {/* Meme en-tete que le titre du tuteur 2 : hauteur h-4, switch
                   compact a droite, precede de son libelle. */}
-              <div className="flex items-center justify-between gap-2 h-4">
-                <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
+              <div className="encadre-titre flex items-center justify-between gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-widest">Adresse</h2>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-warm-700">Identique tuteur 1</span>
                   <SwitchOuiNon
@@ -574,12 +574,12 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
 
       {/* ── Situation familiale ── */}
       <div className="card p-3 space-y-2">
-        <div className="flex gap-3">
-          <h2 className="min-w-[200px] text-xs font-bold text-warm-700 uppercase tracking-widest">
+        <div className="encadre-titre flex gap-3">
+          <h2 className="min-w-[200px] text-xs font-bold uppercase tracking-widest">
             Situation familiale
           </h2>
           {SITUATIONS_WITH_GARDE.has(form.situation_familiale) && (
-            <span className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+            <span className="text-xs font-bold uppercase tracking-widest">
               Type de garde
             </span>
           )}

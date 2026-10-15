@@ -216,6 +216,11 @@ interface DashboardNavProps {
   supportEcole?: string | null
 }
 
+/** Barre oblique de separation de la zone compte (un trait incline, pas un « / »). */
+function Oblique() {
+  return <span aria-hidden className="h-7 w-px rotate-[20deg] bg-[var(--brand-icon)] opacity-60 flex-shrink-0" />
+}
+
 export default function DashboardNav({ profile, unreadNotifCount = 0, supportEcole = null }: DashboardNavProps) {
   const pathname  = usePathname()
   const { collapsed, ouvertMobile, setOuvertMobile } = useSidebar()
@@ -236,9 +241,9 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
   useInactivityLogout(() => doLogout('inactivity'))
 
   return (
-    <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none px-6 sticky top-0 z-30">
+    <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none pl-6 sticky top-0 z-30">
       {/* `relative` : ancre du rappel d'intervention, centré en absolu. */}
-      <div className="relative w-full flex items-center justify-between">
+      <div className="relative w-full h-full flex items-center justify-between">
 
         {/* ── Ouverture du tiroir de navigation (petit ecran) ──────────────────
             A gauche du titre : c est la place attendue, et le titre est deja
@@ -287,7 +292,11 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
             L'espace y est libre, et le rappel ne prend rien à la zone de contenu. */}
         {supportEcole && <SupportBanner ecole={supportEcole} />}
 
-        <div className="flex items-center gap-3 ml-auto">
+        {/* ZONE COMPTE (charte du 15/10/2026) : bandeau aux couleurs de marque,
+            coupe EN BIAIS a gauche, elements separes par des barres obliques.
+            Pleine hauteur et colle au bord droit (le <nav> n'a plus de marge
+            droite). */}
+        <div className="ml-auto self-stretch flex items-center gap-3 pl-14 pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
           {/* ── Bascule thème clair / sombre — sélecteur segmenté ──────────────
               MASQUÉE PENDANT UNE INTERVENTION DE SUPPORT. Le thème est une
               préférence PERSONNELLE, rangée dans `profiles.theme` — donc dans le
@@ -304,7 +313,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
           <div
             role="group"
             aria-label="Thème de l'interface"
-            className="flex items-center gap-0.5 p-0.5 rounded-full bg-warm-100 dark:bg-white/5 border border-warm-200 dark:border-white/10"
+            className="flex items-center gap-0.5 p-0.5 rounded-full bg-black/20"
           >
             <Tooltip content="Thème clair" position="bottom">
             <button
@@ -315,8 +324,8 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
               className={clsx(
                 'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                 theme === 'light'
-                  ? 'bg-white text-[var(--brand-surface)] shadow-sm'
-                  : 'text-secondary-400 dark:text-[#8b9aa0] hover:text-secondary-600 dark:hover:text-white',
+                  ? 'bg-[var(--brand-accent)] text-[var(--brand-surface-2)]'
+                  : 'text-[var(--brand-icon)] hover:text-white',
               )}
             >
               <Sun className="w-3.5 h-3.5" />
@@ -331,8 +340,8 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
               className={clsx(
                 'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
                 theme === 'dark'
-                  ? 'bg-[#0e1418] text-[var(--brand-accent)] shadow-sm'
-                  : 'text-[var(--brand-surface)] hover:text-[var(--brand-surface-2)]',
+                  ? 'bg-[var(--brand-accent)] text-[var(--brand-surface-2)]'
+                  : 'text-[var(--brand-icon)] hover:text-white',
               )}
             >
               <Moon className="w-3.5 h-3.5" />
@@ -341,35 +350,38 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
           </div>
           )}
 
+          {!supportEcole && <Oblique />}
+
           {/* Notifications */}
           <Tooltip content={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'} position="bottom">
           <Link
             href="/dashboard/notifications"
-            className="relative p-2 text-[var(--brand-surface)] hover:text-[var(--brand-surface-2)] hover:bg-warm-100 dark:text-[#8b9aa0] dark:hover:text-white dark:hover:bg-white/10 rounded-xl transition-all duration-200"
+            className="relative p-2 text-[var(--brand-text)] hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
             aria-label={unreadNotifCount > 0 ? `Notifications (${unreadNotifCount} non lues)` : 'Notifications'}
           >
             <Bell className="w-5 h-5" />
             {unreadNotifCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full ring-2 ring-white px-1">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full ring-2 ring-[var(--brand-surface)] px-1">
                 {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
               </span>
             )}
           </Link>
           </Tooltip>
 
+          <Oblique />
+
           {/* Déconnexion — juste après les notifications */}
           <Tooltip content="Déconnexion" position="bottom">
           <button
             onClick={handleLogout}
-            className="relative p-2 text-[var(--brand-surface)] hover:text-[var(--brand-surface-2)] hover:bg-warm-100 dark:text-[#8b9aa0] dark:hover:text-white dark:hover:bg-white/10 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="relative p-2 text-[var(--brand-text)] hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
             aria-label="Déconnexion"
           >
             <Power className="w-5 h-5" />
           </button>
           </Tooltip>
 
-          {/* Séparateur */}
-          <div className="w-px h-6 bg-warm-200 dark:bg-[#243139]" />
+          <Oblique />
 
           {/* Profil utilisateur → Mon compte */}
           <Tooltip content="Mon compte" position="bottom">
@@ -379,7 +391,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
             className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <div className="hidden md:block text-right">
-              <p className="text-sm font-semibold text-secondary-800 dark:text-[#e7eef0] leading-tight">
+              <p className="text-sm font-semibold text-white leading-tight">
                 {/* NOM avant Prénom, règle du projet — le nommage des colonnes
                     invite au piège inverse. */}
                 {profile?.last_name} {profile?.first_name}
@@ -388,7 +400,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
                   est un identifiant technique, qu'un `capitalize` CSS rendait
                   « Responsable Pedagogique », sans accent. Forme COURTE : la
                   ligne est étroite, sous le nom. */}
-              <p className="text-xs text-warm-700 dark:text-[#8b9aa0] leading-tight mt-0.5">
+              <p className="text-xs text-[var(--brand-text)] leading-tight mt-0.5">
                 {libelleRole(profile?.role, 'court')}
               </p>
             </div>

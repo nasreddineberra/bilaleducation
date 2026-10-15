@@ -1,11 +1,11 @@
 'use client'
 
+import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { clsx } from 'clsx'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { SearchField } from '@/components/ui/FloatFields'
-import ListStatCard from '@/components/ui/ListStatCard'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import UtilisateursTable from './UtilisateursTable'
 import type { Profile, UserRole } from '@/types/database'
 
@@ -116,7 +116,7 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
     <div className="space-y-2 animate-fade-in">
 
       {/* Onglets */}
-      <div role="tablist" aria-label="Type d'utilisateur" className="flex items-center gap-1 bg-warm-100 rounded-xl p-1 w-fit">
+      <Onglets ariaLabel="Type d'utilisateur" actifIndex={TABS.findIndex(t => t.key === tab)}>
         {TABS.map((t, idx) => {
           const active = tab === t.key
           const count = t.key === 'staff' ? staffProfiles.length : parentProfiles.length
@@ -131,34 +131,24 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
               tabIndex={active ? 0 : -1}
               onClick={() => selectTab(t.key)}
               onKeyDown={e => onTabKeyDown(e, idx)}
-              className={clsx(
-                'px-4 py-1.5 rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-                active
-                  ? 'bg-white text-secondary-800 shadow-sm'
-                  : 'text-warm-700 hover:text-secondary-700'
-              )}
+              className={classeOnglet(active)}
             >
               {t.label} ({count})
             </button>
           )
         })}
-      </div>
+      </Onglets>
 
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
-        <ListStatCard
-          value={currentProfiles.length}
-          label="au total"
-          active={activeFilter === ''}
-          onClick={() => toggleFilter('')}
-        />
-        <ListStatCard
-          value={totalActifs}
-          label={`actif${totalActifs > 1 ? 's' : ''}`}
-          valueColor="text-primary-600"
-          activeRing="ring-primary-600"
-          active={activeFilter === 'active'}
-          onClick={() => toggleFilter('active')}
+        <FiltreSwitch
+          ariaLabel="Filtrer les comptes"
+          actif={activeFilter}
+          onChange={v => toggleFilter(v as '' | 'active')}
+          options={[
+            { valeur: '',       nombre: currentProfiles.length, libelle: 'au total' },
+            { valeur: 'active', nombre: totalActifs,            libelle: `actif${totalActifs > 1 ? 's' : ''}`, couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
+          ]}
         />
 
         <div className="flex-1" />

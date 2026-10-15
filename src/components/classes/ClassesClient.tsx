@@ -192,10 +192,10 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           </div>
         </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="liste">
           <table className="w-full text-xs" aria-label="Classes">
             <thead>
-              <tr className="border-b border-warm-100">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th className="text-left list-th">Nom</th>
                 <th className="text-left list-th">Niveau</th>
                 <th className="text-left list-th">Salle</th>

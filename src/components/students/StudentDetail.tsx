@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
+import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { User, GraduationCap, ShieldAlert, FileText, Clock } from 'lucide-react'
 import StudentForm from './StudentForm'
 import StudentScolarite from './StudentScolarite'
@@ -144,9 +145,8 @@ export default function StudentDetail({
       </div>
 
       {/* Onglets */}
-      <div role="tablist" aria-label="Sections de la fiche élève" className="flex gap-1 border-b border-warm-200">
+      <Onglets ariaLabel="Sections de la fiche élève" actifIndex={TABS.findIndex(t => t.key === activeTab)}>
         {TABS.map((tab, idx) => {
-          const Icon = tab.icon
           const active = activeTab === tab.key
           return (
             <button
@@ -159,20 +159,13 @@ export default function StudentDetail({
               tabIndex={active ? 0 : -1}
               onClick={() => selectTab(tab.key)}
               onKeyDown={e => onTabKeyDown(e, idx)}
-              className={clsx(
-                'flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px rounded-t',
-                'outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
-                active
-                  ? 'border-primary-600 text-primary-700'
-                  : 'border-transparent text-warm-700 hover:text-secondary-800 hover:border-warm-300'
-              )}
+              className={classeOnglet(active)}
             >
-              <Icon size={15} />
               {tab.label}
             </button>
           )
         })}
-      </div>
+      </Onglets>
 
       {/* Contenu */}
       {activeTab === 'identite' && (

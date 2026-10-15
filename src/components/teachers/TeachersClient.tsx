@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
-import ListStatCard from '@/components/ui/ListStatCard'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import TeachersTable from './TeachersTable'
 import type { Teacher } from '@/types/database'
 
@@ -126,19 +126,14 @@ export default function TeachersClient({ teachers, canDelete, filteredCount, pag
       <div className="flex items-center gap-3 flex-wrap">
 
         {/* Statistiques (cliquables = filtres) */}
-        <ListStatCard
-          value={totalCount}
-          label="au total"
-          active={activeFilter === ''}
-          onClick={() => toggleFilter('')}
-        />
-        <ListStatCard
-          value={totalActive}
-          label={`actif${totalActive > 1 ? 's' : ''}`}
-          valueColor="text-primary-600"
-          activeRing="ring-primary-600"
-          active={activeFilter === 'active'}
-          onClick={() => toggleFilter('active')}
+        <FiltreSwitch
+          ariaLabel="Filtrer les enseignants"
+          actif={activeFilter}
+          onChange={v => toggleFilter(v as StatFilter)}
+          options={[
+            { valeur: '',       nombre: totalCount,  libelle: 'au total' },
+            { valeur: 'active', nombre: totalActive, libelle: `actif${totalActive > 1 ? 's' : ''}`, couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
+          ]}
         />
 
         <div className="flex-1" />

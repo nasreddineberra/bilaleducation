@@ -94,10 +94,10 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
         </div>
       )}
 
-      <div className="card p-0 overflow-hidden">
+      <div className="liste">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-warm-100">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="text-left list-th">
                 Nom
               </th>
@@ -126,7 +126,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                 key={teacher.id}
                 onClick={() => router.push(hrefFiche(teacher.id))}
                 className={`transition-colors cursor-pointer ${
-                  teacher.is_active ? 'hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
+                  teacher.is_active ? 'ligne-active hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
                 }`}
               >
 

@@ -230,8 +230,8 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
         {/* ── Identité ── */}
         <div className="card p-3 space-y-4">
-          <div className="flex items-center">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          <div className="encadre-titre flex items-center">
+            <h2 className="text-xs font-bold uppercase tracking-widest">
               Identité de l'enseignant
             </h2>
             <div className="flex-1 flex justify-center">
@@ -331,7 +331,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
         {/* ── Contact & Spécialisation ── */}
         <div className="card p-3 space-y-4">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
             Contact & Spécialisation
           </h2>
 
@@ -370,7 +370,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
         {/* ── Remarques ── */}
         <div className="card p-3 space-y-4">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
             Remarques
           </h2>
           <FloatTextarea

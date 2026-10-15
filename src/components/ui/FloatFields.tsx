@@ -488,6 +488,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
   // valeur lui-meme » (restauration de filtres, bouton effacer exterieur) de
   // « c'est notre propre emission qui revient ».
   const dernierEmis = useRef(value)
+  const champ = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (value !== dernierEmis.current) {
@@ -505,34 +506,49 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher…', cl
     }
   }
 
+  // CHARTE DU 15/10/2026 : champ clair arrondi prolonge a droite par un bouton
+  // CARRE au vert de marque portant la loupe. La recherche reste « a la frappe »
+  // (regle ci-dessus) : le bouton ne declenche rien, il rend le focus au champ.
   return (
-    <div className={['relative flex items-center', className ?? 'w-64'].join(' ')}>
-      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-warm-700 pointer-events-none" />
-      <input
-        type="text"
-        value={saisi}
-        onChange={e => emettre(e.target.value)}
-        onFocus={onFocus}
-        placeholder={placeholder}
-        aria-label={ariaLabel ?? placeholder}
-        className={[
-          'pl-8 py-2 text-sm rounded-lg border w-full',
-          'bg-white text-secondary-800 placeholder:text-warm-700',
-          'border-warm-300 transition-all duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400',
-          saisi ? 'pr-8' : 'pr-3',
-        ].join(' ')}
-      />
-      {saisi && (
-        <button
-          type="button"
-          onClick={() => emettre('')}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors"
-          aria-label="Effacer"
-        >
-          <X size={13} />
-        </button>
-      )}
+    <div className={[
+      'flex items-stretch h-9 rounded-lg border border-warm-300 bg-white overflow-hidden transition-all duration-200',
+      'focus-within:border-[var(--brand-surface)] focus-within:ring-1 focus-within:ring-[var(--brand-surface)] dark:focus-within:border-[var(--brand-accent)] dark:focus-within:ring-[var(--brand-accent)]',
+      className ?? 'w-64',
+    ].join(' ')}>
+      <div className="relative flex-1 min-w-0">
+        <input
+          ref={champ}
+          type="text"
+          value={saisi}
+          onChange={e => emettre(e.target.value)}
+          onFocus={onFocus}
+          placeholder={placeholder}
+          aria-label={ariaLabel ?? placeholder}
+          className={[
+            'w-full h-full pl-3 text-sm bg-transparent text-secondary-800 placeholder:text-warm-700 focus:outline-none',
+            saisi ? 'pr-7' : 'pr-2',
+          ].join(' ')}
+        />
+        {saisi && (
+          <button
+            type="button"
+            onClick={() => { emettre(''); champ.current?.focus() }}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-warm-700 hover:text-secondary-600 transition-colors"
+            aria-label="Effacer"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => champ.current?.focus()}
+        aria-label="Rechercher"
+        className="flex items-center justify-center w-9 flex-shrink-0 text-white bg-[var(--brand-surface)] hover:bg-[var(--brand-surface-2)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:opacity-90 transition-colors"
+      >
+        <Search size={15} />
+      </button>
     </div>
   )
 }

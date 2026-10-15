@@ -232,8 +232,8 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
 
       <div className="card p-4 space-y-3">
 
-        <div className="flex items-center">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+        <div className="encadre-titre [--encadre-pad:1rem] flex items-center">
+          <h2 className="text-xs font-bold uppercase tracking-widest">
             {isEditing ? 'Informations du compte' : 'Nouveau compte utilisateur'}
           </h2>
           {canToggleActive && (

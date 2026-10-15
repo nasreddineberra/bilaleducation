@@ -180,10 +180,10 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
         </div>
       )}
 
-      <div className="card p-0 overflow-hidden">
+      <div className="liste">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-warm-100">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="text-left list-th w-4/12">
                 Tuteur 1
               </th>
