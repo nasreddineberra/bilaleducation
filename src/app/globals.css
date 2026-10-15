@@ -143,6 +143,9 @@
     /* Teinte des silhouettes d'avatar (trombinoscope). Une seule valeur : les
        silhouettes sont pleines et sans fond, elles se détachent sur la carte. */
     --silhouette-ink: #555b5e;
+    /* Fond PLEIN d'un champ verrouille (variante « bordure ») : le libelle pose
+       sur le trait raccorde sa moitie basse a cette couleur. ~ warm-100 a 75 %. */
+    --champ-verrou:   #f4f1ee;
 
     color-scheme: light;
   }
@@ -180,6 +183,7 @@
        verraient pas. */
     --edt-absent-hachure: rgba(255,255,255,.14);
     --silhouette-ink: #8d9aa1;
+    --champ-verrou:   #1d2a31;
 
     color-scheme: dark;
   }

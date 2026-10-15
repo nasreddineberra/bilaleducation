@@ -28,7 +28,7 @@ import { execSync } from 'node:child_process'
 import { join } from 'node:path'
 
 const DIR = 'supabase/migrations'
-const JOURNAL = 'CLAUDE.md'
+const JOURNAL = 'docs/JOURNAL.md'
 
 // ── L EMPREINTE ───────────────────────────────────────────────────────────
 /**

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { clsx } from 'clsx'
 import { useRouter } from 'next/navigation'
 import { createParentWithAccounts, updateParentRecord, type TutorAccountResult, type CreateParentPayload, type UpdateParentPayload } from '@/app/dashboard/parents/actions'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatSelect, FloatCheckbox, FloatTextarea, FloatButton, FloatRadioCard } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import { FloatPhoneInput, COUNTRY_CODES } from '@/components/ui/FloatPhoneInput'
 import { SITUATIONS_FAMILIALES, libelleSituation } from '@/lib/parents/situation-familiale'
 import type { Parent, TutorRelationship } from '@/types/database'
@@ -47,7 +48,7 @@ const SITUATIONS_WITH_GARDE = new Set(['séparés', 'divorcés'])
 type FormData = {
   tutor1_last_name:    string
   tutor1_first_name:   string
-  tutor1_relationship: TutorRelationship
+  tutor1_relationship: TutorRelationship | ''
   tutor1_phone_code:   string
   tutor1_phone_number: string
   tutor1_email:        string
@@ -57,7 +58,7 @@ type FormData = {
   tutor1_profession:   string
   tutor2_last_name:    string
   tutor2_first_name:   string
-  tutor2_relationship: TutorRelationship
+  tutor2_relationship: TutorRelationship | ''
   tutor2_phone_code:   string
   tutor2_phone_number: string
   tutor2_email:        string
@@ -95,7 +96,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
   const [form, setForm] = useState<FormData>({
     tutor1_last_name:    parent?.tutor1_last_name    ?? '',
     tutor1_first_name:   parent?.tutor1_first_name   ?? '',
-    tutor1_relationship: parent?.tutor1_relationship ?? 'père',
+    tutor1_relationship: parent?.tutor1_relationship ?? '',
     tutor1_phone_code:   t1Phone.code,
     tutor1_phone_number: t1Phone.number,
     tutor1_email:        parent?.tutor1_email        ?? '',
@@ -105,7 +106,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
     tutor1_profession:   parent?.tutor1_profession   ?? '',
     tutor2_last_name:    parent?.tutor2_last_name    ?? '',
     tutor2_first_name:   parent?.tutor2_first_name   ?? '',
-    tutor2_relationship: parent?.tutor2_relationship ?? 'mère',
+    tutor2_relationship: parent?.tutor2_relationship ?? '',
     tutor2_phone_code:   t2Phone.code,
     tutor2_phone_number: t2Phone.number,
     tutor2_email:        parent?.tutor2_email        ?? '',
@@ -143,13 +144,15 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
     t1LastName:  form.tutor1_last_name.trim().length  < 2,
     t1FirstName: form.tutor1_first_name.trim().length < 2,
     t1Email:     !form.tutor1_email || !isValidEmail(form.tutor1_email),
+    t1Rel:       !form.tutor1_relationship,
     t2LastName:  form.tutor2_last_name.trim().length  < 2,
     t2FirstName: form.tutor2_first_name.trim().length < 2,
     t2Email:     !form.tutor2_email || !isValidEmail(form.tutor2_email),
+    t2Rel:       !form.tutor2_relationship,
   }
 
-  const isFormValid = !v.t1LastName && !v.t1FirstName && !v.t1Email &&
-    (!showTutor2 || (!v.t2LastName && !v.t2FirstName && !v.t2Email))
+  const isFormValid = !v.t1LastName && !v.t1FirstName && !v.t1Email && !v.t1Rel &&
+    (!showTutor2 || (!v.t2LastName && !v.t2FirstName && !v.t2Email && !v.t2Rel))
 
   const isUnchanged = isEditing &&
     (Object.keys(form) as (keyof FormData)[]).every(k => form[k] === initialForm.current[k]) &&
@@ -190,7 +193,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
       const payload = {
         tutor1_last_name:    form.tutor1_last_name.trim(),
         tutor1_first_name:   form.tutor1_first_name.trim(),
-        tutor1_relationship: form.tutor1_relationship,
+        tutor1_relationship: form.tutor1_relationship as TutorRelationship,
         tutor1_phone:        t1Phone,
         tutor1_email:        clean(form.tutor1_email),
         tutor1_address:      clean(form.tutor1_address),
@@ -200,7 +203,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
         tutor2_last_name:    showTutor2 ? clean(form.tutor2_last_name)   : null,
         tutor2_first_name:   showTutor2 ? clean(form.tutor2_first_name)  : null,
         tutor2_relationship: showTutor2 && form.tutor2_last_name.trim()
-                               ? form.tutor2_relationship : null,
+                               ? (form.tutor2_relationship || null) as TutorRelationship | null : null,
         tutor2_phone:        t2Phone,
         tutor2_email:        showTutor2 ? clean(form.tutor2_email)       : null,
         tutor2_address:      showTutor2 ? (sameAddressT1 ? clean(form.tutor1_address)     : clean(form.tutor2_address))     : null,
@@ -358,9 +361,11 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
             <div className="grid grid-cols-2 gap-2">
               <FloatSelect
                 label="Qualité"
+                required
                 value={form.tutor1_relationship}
                 onChange={e => set('tutor1_relationship', e.target.value)}
               >
+                <option value="" disabled hidden></option>
                 {RELATIONSHIP_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
@@ -390,8 +395,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
               />
             </div>
 
-            <FloatCheckbox
-              variant="compact"
+            <SwitchOuiNon
               label="Inscrit aux cours adultes"
               checked={form.tutor1_adult_courses}
               disabled={tutor1AdultEnrolled}
@@ -428,9 +432,15 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
 
           {/* Infos tuteur 2 */}
           <div className="card p-3 space-y-2">
-            <div className="flex items-center gap-2">
-              <FloatCheckbox
-                variant="compact"
+            {/* Titre a gauche, switch Oui / Non a droite. Hauteur figee a celle
+                du titre du tuteur 1 (h-4) : les champs des deux colonnes restent
+                alignes ; le switch compact (~17 px) deborde d'un pixel, sans effet. */}
+            <div className="flex items-center justify-between gap-2 h-4">
+              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+                Tuteur 2 · Responsable secondaire
+              </h2>
+              <SwitchOuiNon
+                seul
                 label="Tuteur 2 · Responsable secondaire"
                 checked={showTutor2}
                 onChange={setShowTutor2}
@@ -461,9 +471,11 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
                 <div className="grid grid-cols-2 gap-2">
                   <FloatSelect
                     label="Qualité"
+                    required
                     value={form.tutor2_relationship}
                     onChange={e => set('tutor2_relationship', e.target.value)}
                   >
+                    <option value="" disabled hidden></option>
                     {RELATIONSHIP_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
@@ -493,8 +505,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
                   />
                 </div>
 
-                <FloatCheckbox
-                  variant="compact"
+                <SwitchOuiNon
                   label="Inscrit aux cours adultes"
                   checked={form.tutor2_adult_courses}
                   disabled={tutor2AdultEnrolled}
@@ -503,7 +514,7 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
               </>
             ) : (
               <p className="text-xs text-warm-700 italic">
-                Cochez la case ci-dessus pour renseigner un second responsable.
+                Choisissez « Oui » ci-dessus pour renseigner un second responsable.
               </p>
             )}
           </div>
@@ -511,14 +522,19 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
           {/* Adresse tuteur 2 */}
           {showTutor2 && (
             <div className="card p-3 space-y-2">
-              <div className="flex items-center justify-between mb-2">
+              {/* Meme en-tete que le titre du tuteur 2 : hauteur h-4, switch
+                  compact a droite, precede de son libelle. */}
+              <div className="flex items-center justify-between gap-2 h-4">
                 <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
-                <FloatCheckbox
-                  variant="compact"
-                  label="Identique tuteur 1"
-                  checked={sameAddressT1}
-                  onChange={setSameAddressT1}
-                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-warm-700">Identique tuteur 1</span>
+                  <SwitchOuiNon
+                    seul
+                    label="Adresse identique à celle du tuteur 1"
+                    checked={sameAddressT1}
+                    onChange={setSameAddressT1}
+                  />
+                </div>
               </div>
               <FloatInput
                 label="Adresse"
@@ -582,18 +598,30 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
           </div>
 
           {SITUATIONS_WITH_GARDE.has(form.situation_familiale) && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {GARDE_OPTIONS.map(opt => (
-                <FloatRadioCard
-                  key={opt.value}
-                  name="type_garde"
-                  value={opt.value}
-                  checked={form.type_garde === opt.value}
-                  onChange={() => setForm(prev => ({ ...prev, type_garde: opt.value }))}
-                >
-                  {opt.label}
-                </FloatRadioCard>
-              ))}
+            // SWITCH segmente (charte du 15/10), a la hauteur du champ Situation.
+            // Aucun segment actif tant qu'aucun type de garde n'est choisi.
+            <div role="radiogroup" aria-label="Type de garde" className="flex flex-wrap rounded-lg overflow-hidden text-sm font-medium border border-warm-300">
+              {GARDE_OPTIONS.map((opt, i) => {
+                const actif = form.type_garde === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={actif}
+                    onClick={() => setForm(prev => ({ ...prev, type_garde: opt.value }))}
+                    className={clsx(
+                      'px-3 py-1.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300',
+                      i > 0 && 'border-l border-warm-300',
+                      actif
+                        ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
+                        : 'bg-white text-warm-700 hover:bg-warm-50',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>

@@ -91,6 +91,7 @@ export default function ForgotPasswordPage() {
 
                   {/* Email */}
                   <FloatInput
+                bordure={false}
                     label="Adresse email"
                     type="email"
                     required

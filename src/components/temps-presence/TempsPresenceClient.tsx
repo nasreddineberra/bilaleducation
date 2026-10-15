@@ -15,6 +15,7 @@ import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { FloatSelect } from '@/components/ui/FloatFields'
 import { generateStaffTimePDF } from './staffTimePdf'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 
@@ -738,21 +739,22 @@ export default function TempsPresenceClient({
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:ml-auto">
           {canManage && (
-            <div className="flex items-center gap-1.5">
-              <label htmlFor="member-filter" className="text-xs font-medium text-warm-700">Membre</label>
-              <select
-                id="member-filter"
-                value={memberFilter}
-                onChange={e => setMemberFilter(e.target.value)}
-                aria-label="Filtrer par membre"
-                className="text-xs border border-warm-200 rounded-lg px-2 py-1 bg-white text-secondary-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 max-w-[180px]"
-              >
-                <option value="">Tous</option>
-                {assignableStaff.map(s => (
-                  <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
-                ))}
-              </select>
-            </div>
+            // Modele de champ de la charte (libelle sur le trait). « Tous » porte
+            // la sentinelle `__all__` : une valeur vide laisserait le libelle
+            // retomber par-dessus le texte de l'option.
+            <FloatSelect
+              label="Membre"
+              value={memberFilter || '__all__'}
+              onChange={e => setMemberFilter(e.target.value === '__all__' ? '' : e.target.value)}
+              aria-label="Filtrer par membre"
+              wrapperClassName="w-52"
+              className="truncate"
+            >
+              <option value="__all__">Tous</option>
+              {assignableStaff.map(s => (
+                <option key={s.id} value={s.id}>{s.last_name} {s.first_name}</option>
+              ))}
+            </FloatSelect>
           )}
           {canSeeRecap && (
             <button

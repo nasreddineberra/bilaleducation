@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User, Users } from 'lucide-react'
+import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User } from 'lucide-react'
+import { clsx } from 'clsx'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -14,7 +15,7 @@ import { suffixeLateral } from '@/lib/navigation/retour'
 import { sameName } from '@/lib/normalize-name'
 import { messageDoublon } from '@/lib/doublons'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
-import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatRadioCard, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { Student, Parent } from '@/types/database'
 
@@ -333,8 +334,12 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
           `fieldset disabled` desactive NATIVEMENT tout ce qu'il contient —
           champs, selects, cases et boutons — y compris ceux qu'on ajoutera plus
           tard. Verrouiller champ par champ aurait laisse passer le prochain,
-          EN SILENCE. `display: contents` pour que la mise en page ne bouge pas. */}
-      <fieldset disabled={lectureSeule} className="contents">
+          EN SILENCE. `display: contents` pour que la mise en page ne bouge pas.
+
+          ESPACEMENT : le `space-y-2` du <form> ne vise que ses enfants DIRECTS,
+          donc le fieldset lui-meme, pas les encadres qu'il contient. Sans
+          `[&>*+*]:mt-2`, ils se collaient les uns aux autres. */}
+      <fieldset disabled={lectureSeule} className="contents [&>*+*]:mt-2">
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
 
@@ -473,29 +478,31 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
           </div>
         </div>
 
-        {/* Adresse + Contact d'urgence côte à côte */}
+        {/* Adresse + Contact d'urgence côte à côte. `flex-1` : ils s'etirent
+            jusqu'au bas de la colonne, donc au niveau du bas de Frères / Sœurs
+            (qui s'etire aussi, a droite). */}
         {parentData && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 flex-1">
             <div className="card p-3 space-y-1.5">
               <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Adresse</h2>
-              <InfoBlock>
+              <div className="text-sm text-secondary-700 space-y-0.5">
                 <p>{tutorInfo?.address || <span className="text-warm-700 italic">Non renseignée</span>}</p>
                 {(tutorInfo?.postal_code || tutorInfo?.city) && (
                   <p className="text-warm-700">
                     {[tutorInfo.postal_code, tutorInfo.city].filter(Boolean).join(' ')}
                   </p>
                 )}
-              </InfoBlock>
+              </div>
             </div>
             <div className="card p-3 space-y-1.5">
               <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
                 {"Contact d'urgence & Santé"}
               </h2>
-              <InfoBlock>
+              <div className="text-sm text-secondary-700 space-y-0.5">
                 <p className="font-medium">{tutorInfo?.name || <span className="text-warm-700 italic">·</span>}</p>
                 <p className="font-mono text-xs text-warm-700">{tutorInfo?.phone || '·'}</p>
                 <p className="text-warm-700 text-xs">{tutorInfo?.email || '·'}</p>
-              </InfoBlock>
+              </div>
             </div>
           </div>
         )}
@@ -506,24 +513,25 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         <div className="flex flex-col gap-2">
 
           {/* Rattachement parental */}
-          <div className="card p-3 space-y-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-              Rattachement parental
-            </h2>
+          <div className="card p-3 space-y-3">
+            {/* « Voir / Modifier » dans l'en-tete de l'encadre, a droite du titre. */}
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+                Rattachement parental
+              </h2>
+              {parentData && (
+                <button
+                  type="button"
+                  onClick={handleOpenParentModal}
+                  className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors"
+                >
+                  <ExternalLink size={12} />
+                  Voir / Modifier
+                </button>
+              )}
+            </div>
 
             <div className="flex flex-col gap-1">
-              {parentData && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleOpenParentModal}
-                    className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors"
-                  >
-                    <ExternalLink size={12} />
-                    Voir / Modifier
-                  </button>
-                </div>
-              )}
               <FloatSelect
                 label="Fiche parents"
                 value={form.parent_id}
@@ -551,39 +559,41 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
                 <p className="text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">
                   Reprendre les informations (adresse et contact) du responsable
                 </p>
-                <div className="flex flex-col gap-1.5">
-                  <FloatRadioCard
-                    name="tutorSource"
-                    value="tutor1"
-                    checked={tutorSource === 'tutor1'}
-                    onChange={() => setTutorSource('tutor1')}
-                  >
-                    <span className="font-medium">{relLabel(parentData.tutor1_relationship, 'Tuteur 1')}</span>
-                    {' · '}{parentData.tutor1_last_name} {parentData.tutor1_first_name}
-                  </FloatRadioCard>
-
-                  {hasTutor2 && (
-                    <FloatRadioCard
-                      name="tutorSource"
-                      value="tutor2"
-                      checked={tutorSource === 'tutor2'}
-                      onChange={() => setTutorSource('tutor2')}
-                    >
-                      <span className="font-medium">{relLabel(parentData.tutor2_relationship, 'Tuteur 2')}</span>
-                      {' · '}{parentData.tutor2_last_name} {parentData.tutor2_first_name}
-                    </FloatRadioCard>
-                  )}
+                {/* SWITCH (motif des bascules de l'EDT) a la place des boutons
+                    d'option : un segment par responsable. */}
+                <div role="radiogroup" aria-label="Responsable dont reprendre l'adresse et le contact" className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200 w-fit max-w-full">
+                  {([
+                    { cle: 'tutor1' as const, rel: relLabel(parentData.tutor1_relationship, 'Tuteur 1'), nom: `${parentData.tutor1_last_name} ${parentData.tutor1_first_name}` },
+                    ...(hasTutor2 ? [{ cle: 'tutor2' as const, rel: relLabel(parentData.tutor2_relationship, 'Tuteur 2'), nom: `${parentData.tutor2_last_name} ${parentData.tutor2_first_name}` }] : []),
+                  ]).map((t, i) => {
+                    const actif = tutorSource === t.cle
+                    return (
+                      <button
+                        key={t.cle}
+                        type="button"
+                        role="radio"
+                        aria-checked={actif}
+                        onClick={() => setTutorSource(t.cle)}
+                        className={clsx(
+                          'px-3 py-1.5 truncate transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300',
+                          i > 0 && 'border-l border-warm-200',
+                          actif
+                            ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
+                            : 'bg-white text-warm-700 hover:bg-warm-50',
+                        )}
+                      >
+                        <span className="font-semibold">{t.rel}</span>{' · '}{t.nom}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               {/* Frères / Sœurs */}
               <div className="card p-3 space-y-1.5 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <Users size={13} className="text-warm-700" />
-                  <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-                    {"Frères / Sœurs"}
-                  </h2>
-                </div>
+                <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+                  {"Frères / Sœurs"}
+                </h2>
                 {siblings.length === 0 ? (
                   <p className="text-[11px] text-warm-700 italic">{"Aucun frère ou sœur enregistré."}</p>
                 ) : (
@@ -643,21 +653,21 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <FloatCheckbox
+          <SwitchOuiNon
             label="Autorisation de sortie"
             checked={form.exit_authorization}
             onChange={v => set('exit_authorization', v)}
           />
-          <FloatCheckbox
+          <SwitchOuiNon
             label="Autorisation média"
             checked={form.media_authorization}
             onChange={v => set('media_authorization', v)}
           />
-          <FloatCheckbox
+          <SwitchOuiNon
             label="Projet d'aide individualisé"
             checked={form.has_pai}
             onChange={v => set('has_pai', v)}
-            variant="danger-card"
+            danger
           />
         </div>
 
@@ -666,7 +676,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       {/* ── Notes médicales ── */}
       <div className="card p-3 max-w-5xl">
         <FloatTextarea
-          label="Notes médicales"
+          label="Notes générales et médicales"
           placeholder="Allergies, traitements en cours, aménagements pédagogiques…"
           value={form.medical_notes}
           onChange={e => set('medical_notes', e.target.value)}
@@ -760,16 +770,6 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       )}
 
     </form>
-  )
-}
-
-// ─── Sous-composants locaux ───────────────────────────────────────────────────
-
-function InfoBlock({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="bg-warm-50 border border-warm-100 rounded-lg px-3 py-2.5 text-sm text-secondary-700 space-y-0.5">
-      {children}
-    </div>
   )
 }
 

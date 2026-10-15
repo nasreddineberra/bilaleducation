@@ -18,8 +18,8 @@ function Toggle({ active, disabled, onChange, label }: {
       type="button" role="switch" aria-checked={active} aria-label={label}
       disabled={disabled} onClick={onChange}
       className={clsx(
-        'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-        active ? 'bg-primary-500' : 'bg-warm-300 dark:bg-[var(--line-strong)]',
+        'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)]',
+        active ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]' : 'bg-warm-300 dark:bg-[var(--line-strong)]',
         disabled && 'opacity-50 cursor-not-allowed',
       )}
     >
@@ -108,7 +108,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-secondary-800">{name}</span>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={clsx('text-[11px] font-medium w-16 text-right whitespace-nowrap', active ? 'text-primary-600' : 'text-warm-400')}>
+          <span className={clsx('text-[11px] font-medium w-16 text-right whitespace-nowrap', active ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-400')}>
             {active ? 'Inscrit' : 'Non inscrit'}
           </span>
           {locked
@@ -131,7 +131,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-warm-100">
           <h3 id="adult-title" className="text-sm font-bold text-secondary-800">Inscriptions aux cours adultes</h3>
           <button onClick={() => !saving && onClose()} aria-label="Fermer"
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)]">
             <X size={16} />
           </button>
         </div>
@@ -143,7 +143,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
             <div className="flex-1 flex items-center justify-center gap-2">
               <Tooltip content="Tout inscrire (sauf verrouillés)">
                 <button type="button" onClick={() => setAll(true)} aria-label="Tout inscrire aux cours adultes"
-                  className="p-1 rounded-lg text-warm-700 hover:text-primary-600 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50">
+                  className="p-1 rounded-lg text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-surface)]">
                   <ToggleRight size={26} />
                 </button>
               </Tooltip>
@@ -155,13 +155,13 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
               </Tooltip>
               <Tooltip content="Recharger depuis la base">
                 <button type="button" onClick={load} aria-label="Recharger depuis la base"
-                  className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50">
+                  className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-surface)]">
                   <RotateCcw size={18} />
                 </button>
               </Tooltip>
             </div>
             <span className="text-xs text-warm-700 whitespace-nowrap">
-              <strong className="text-primary-600">{enrolledCount}</strong> inscrit{enrolledCount > 1 ? 's' : ''} / {tutorTotal}
+              <strong className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{enrolledCount}</strong> inscrit{enrolledCount > 1 ? 's' : ''} / {tutorTotal}
             </span>
           </div>
         )}

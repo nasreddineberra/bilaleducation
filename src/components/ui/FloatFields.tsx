@@ -4,14 +4,21 @@ import { useState, useEffect, useRef } from 'react'
 import { Loader2, Search, X } from 'lucide-react'
 import Tooltip from './Tooltip'
 
-// ─── Variante « bordure » ─────────────────────────────────────────────────────
+// ─── Variante « bordure » — STYLE PAR DEFAUT depuis le 15/10/2026 ────────────
 // Libelle pose SUR LE TRAIT du cadre (style Material « outlined ») au lieu de
 // monter a l'interieur : le champ n'a plus a reserver de marge haute, il gagne
-// environ 10 px. Teste d'abord sur la fiche etablissement de la console.
-// Le fond du libelle est `bg-white`, comme le champ : le pont du theme sombre le
-// remappe de la meme facon, le trait reste donc masque derriere le libelle.
-const BORDURE_LABEL = 'left-2 px-1 bg-white'
-const BORDURE_HAUT  = '-top-2 text-[10px] font-semibold tracking-wide uppercase'
+// environ 10 px. Valide sur la page modele (/dashboard/test-design) puis
+// generalise : `bordure` vaut true par defaut, `bordure={false}` rend l'ancien
+// rendu (libelle a l'interieur), reserve aux ecrans de marque (connexion).
+//
+// Le fond du libelle masque le trait : il prend la couleur de la CARTE. Sur un
+// champ verrouille, il est COUPE en deux (carte en haut, `--champ-verrou` en
+// bas) : sinon un rectangle blanc deborderait sur le gris. D'ou aussi une
+// couleur PLEINE pour le champ verrouille (l'ancienne opacite a 75 % empechait
+// les deux moities de se raccorder). Jetons dans globals.css, clair et sombre.
+export const BORDURE_LABEL = 'left-2 px-1 bg-[var(--surface-card)]'
+export const BORDURE_LABEL_VERROU = 'left-2 px-1 bg-[linear-gradient(to_bottom,var(--surface-card)_50%,var(--champ-verrou)_50%)]'
+export const BORDURE_HAUT  = '-top-2 text-[10px] font-semibold tracking-wide uppercase'
 
 // ─── FloatInput ───────────────────────────────────────────────────────────────
 
@@ -25,7 +32,7 @@ export interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElem
   bordure?:  boolean
 }
 
-export function FloatInput({ label, required, error, locked, compact, bordure, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
+export function FloatInput({ label, required, error, locked, compact, bordure = true, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
   const isDate = type === 'date'
   // Pour les champs date : afficher type="text" quand vide et non focusé
   // afin de masquer le placeholder navigateur (jj/mm/aaaa)
@@ -47,7 +54,9 @@ export function FloatInput({ label, required, error, locked, compact, bordure, c
           'transition-all duration-200',
           'focus:outline-none focus:ring-2',
           locked
-            ? 'bg-warm-100 text-warm-400 cursor-default border-warm-200 focus:ring-0 focus:border-warm-200 opacity-75'
+            ? bordure
+              ? 'bg-[var(--champ-verrou)] text-warm-400 cursor-default border-warm-200 focus:ring-0 focus:border-warm-200'
+              : 'bg-warm-100 text-warm-400 cursor-default border-warm-200 focus:ring-0 focus:border-warm-200 opacity-75'
             : error
               ? 'bg-white text-gray-800 border-red-400 focus:border-red-400 focus:ring-red-400/20'
               : 'bg-white text-gray-800 border-warm-300 focus:border-primary-400 focus:ring-primary-400/20',
@@ -56,7 +65,7 @@ export function FloatInput({ label, required, error, locked, compact, bordure, c
       />
       <label className={[
         'absolute transition-all duration-200 pointer-events-none select-none origin-left',
-        bordure ? BORDURE_LABEL : 'left-3',
+        bordure ? (locked ? BORDURE_LABEL_VERROU : BORDURE_LABEL) : 'left-3',
         bordure ? 'top-1.5 text-xs' : compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
         bordure
           ? 'peer-focus:-top-2 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase peer-[&:not(:placeholder-shown)]:-top-2 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase'
@@ -89,7 +98,7 @@ export interface FloatSelectProps extends React.SelectHTMLAttributes<HTMLSelectE
   bordure?:          boolean
 }
 
-export function FloatSelect({ label, required, error, children, className, wrapperClassName, compact, bordure, ...props }: FloatSelectProps) {
+export function FloatSelect({ label, required, error, children, className, wrapperClassName, compact, bordure = true, ...props }: FloatSelectProps) {
   const hasValue = !!props.value && props.value !== ''
   return (
     <div className={['relative', wrapperClassName].filter(Boolean).join(' ')}>
@@ -150,7 +159,7 @@ export interface FloatTextareaProps extends React.TextareaHTMLAttributes<HTMLTex
   bordure?:  boolean
 }
 
-export function FloatTextarea({ label, required, error, bordure, className, placeholder, onFocus, onBlur, ...props }: FloatTextareaProps) {
+export function FloatTextarea({ label, required, error, bordure = true, className, placeholder, onFocus, onBlur, ...props }: FloatTextareaProps) {
   const [focused, setFocused] = useState(false)
   const hasValue = !!props.value || !!props.defaultValue
   const labelUp = focused || hasValue
@@ -192,6 +201,61 @@ export function FloatTextarea({ label, required, error, bordure, className, plac
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {error && <p className="mt-0.5 text-xs text-red-500">{error}</p>}
+    </div>
+  )
+}
+
+// ─── SwitchOuiNon ─────────────────────────────────────────────────────────────
+// Choix binaire en SWITCH segmente « Oui | Non » (motif des bascules de l'EDT,
+// charte du 15/10/2026), a la place d'une case a cocher. `danger` : le « Oui »
+// actif passe en rouge (option sensible, ex. PAI).
+
+export function SwitchOuiNon({ label, checked, onChange, danger, disabled, seul }: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  danger?: boolean
+  disabled?: boolean
+  /** Le switch SEUL, sans cadre ni libelle visible (le libelle reste lu par
+   *  les lecteurs d'ecran) : pour le poser a droite d'un titre d'encadre. */
+  seul?: boolean
+}) {
+  const segment = (valeur: boolean, texte: string, i: number) => {
+    const actif = checked === valeur
+    return (
+      <button
+        key={texte}
+        type="button"
+        role="radio"
+        aria-checked={actif}
+        disabled={disabled}
+        onClick={() => onChange(valeur)}
+        className={[
+          seul ? 'px-2 py-0.5 text-[11px] leading-none' : 'px-3 py-1',
+          'transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300 disabled:cursor-default',
+          i > 0 ? 'border-l border-warm-200' : '',
+          actif
+            ? valeur && danger
+              ? 'bg-red-600 text-white'
+              : 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
+            : 'bg-white text-warm-700 hover:bg-warm-50',
+        ].join(' ')}
+      >
+        {texte}
+      </button>
+    )
+  }
+  const interrupteur = (
+    <div role="radiogroup" aria-label={label} aria-disabled={disabled || undefined} className={['flex flex-shrink-0 rounded-lg overflow-hidden text-xs font-medium border border-warm-200', disabled ? 'opacity-60' : ''].join(' ')}>
+      {segment(true, 'Oui', 0)}
+      {segment(false, 'Non', 1)}
+    </div>
+  )
+  if (seul) return interrupteur
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-warm-200 px-3 py-1.5">
+      <span className={['text-sm', danger && checked ? 'text-red-700 font-medium' : 'text-warm-700'].join(' ')}>{label}</span>
+      {interrupteur}
     </div>
   )
 }
@@ -245,7 +309,8 @@ export function FloatCheckbox({
         <span className={[
           'relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent',
           'transition-colors duration-200',
-          checked ? 'bg-primary-500' : 'bg-warm-300',
+          // Vert de MARQUE (celui des switches segmentes), pas le turquoise.
+          checked ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]' : 'bg-warm-300',
         ].join(' ')}>
           <span className={[
             'inline-block h-4 w-4 rounded-full bg-white shadow',
@@ -262,7 +327,7 @@ export function FloatCheckbox({
         />
         <span className={[
           'text-xs font-semibold uppercase tracking-wide',
-          checked ? 'text-primary-600' : 'text-warm-400',
+          checked ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-400',
         ].join(' ')}>
           {displayLabel}
         </span>
@@ -280,7 +345,7 @@ export function FloatCheckbox({
       ].join(' ')}>
         <span className={[
           'flex-shrink-0 w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors',
-          checked ? 'bg-primary-500 border-primary-500' : 'border-warm-300 bg-white',
+          checked ? 'bg-[var(--brand-surface)] border-[var(--brand-surface)] dark:bg-[var(--brand-accent)] dark:border-[var(--brand-accent)]' : 'border-warm-300 bg-white',
         ].join(' ')}>
           {checked && (
             <svg width="7" height="5.5" viewBox="0 0 9 7" fill="none">
@@ -332,7 +397,7 @@ export function FloatCheckbox({
     ].join(' ')}>
       <span className={[
         'flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
-        checked ? 'bg-primary-500 border-primary-500' : 'border-warm-300 bg-white',
+        checked ? 'bg-[var(--brand-surface)] border-[var(--brand-surface)] dark:bg-[var(--brand-accent)] dark:border-[var(--brand-accent)]' : 'border-warm-300 bg-white',
       ].join(' ')}>
         {checked && CHECK_ICON}
       </span>
@@ -365,9 +430,9 @@ export function FloatRadioCard({ name, value, checked, onChange, children }: Flo
       {/* Cercle radio custom */}
       <span className={[
         'flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
-        checked ? 'border-primary-500 bg-white' : 'border-warm-300 bg-white',
+        checked ? 'border-[var(--brand-surface)] dark:border-[var(--brand-accent)] bg-white' : 'border-warm-300 bg-white',
       ].join(' ')}>
-        {checked && <span className="w-2 h-2 rounded-full bg-primary-500 block" />}
+        {checked && <span className="w-2 h-2 rounded-full bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] block" />}
       </span>
       <input
         type="radio"

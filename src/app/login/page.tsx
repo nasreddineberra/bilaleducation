@@ -290,6 +290,7 @@ export default function LoginPage() {
 
               {/* Email */}
               <FloatInput
+                bordure={false}
                 label="Adresse email"
                 type="email"
                 required
@@ -304,6 +305,7 @@ export default function LoginPage() {
               {/* Mot de passe */}
               <div className="relative">
                 <FloatInput
+                bordure={false}
                   label="Mot de passe"
                   type={showPassword ? 'text' : 'password'}
                   required

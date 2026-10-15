@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { BORDURE_LABEL, BORDURE_HAUT } from './FloatFields'
 
 // ─── Country codes ────────────────────────────────────────────────────────────
 
@@ -109,7 +110,9 @@ export function FloatPhoneInput({
           )}
         </div>
 
-        {/* Champ numéro avec label flottant */}
+        {/* Champ numéro. Le libellé est posé sur le trait du cadre (modèle
+            « bordure » de la charte), au-dessus du sélecteur d'indicatif : il
+            reste toujours en haut, l'indicatif occupant déjà le champ. */}
         <div className="relative flex-1 min-w-0">
           <input
             type="text"
@@ -118,23 +121,18 @@ export function FloatPhoneInput({
             onChange={e => onNumberChange(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder=" "
-            className="peer w-full px-3 pt-5 pb-1.5 text-sm text-gray-800 bg-white rounded-r-lg focus:outline-none"
+            className="w-full px-3 py-1.5 text-sm text-gray-800 bg-white rounded-r-lg focus:outline-none"
           />
-          <label className={[
-            'absolute left-3 transition-all duration-200 pointer-events-none select-none origin-left',
-            'top-3.5 text-sm',
-            'peer-focus:top-1.5 peer-focus:text-[10px] peer-focus:font-semibold peer-focus:tracking-wide peer-focus:uppercase',
-            'peer-[&:not(:placeholder-shown)]:top-1.5 peer-[&:not(:placeholder-shown)]:text-[10px] peer-[&:not(:placeholder-shown)]:font-semibold peer-[&:not(:placeholder-shown)]:tracking-wide peer-[&:not(:placeholder-shown)]:uppercase',
-            error
-              ? 'text-red-500 peer-focus:text-red-500'
-              : 'text-warm-700 peer-focus:text-primary-600 peer-[&:not(:placeholder-shown)]:text-warm-700',
-          ].join(' ')}>
-            {label}
-          </label>
         </div>
 
       </div>
+      <label className={[
+        'absolute pointer-events-none select-none',
+        BORDURE_LABEL, BORDURE_HAUT,
+        error ? 'text-red-500' : focused ? 'text-primary-600' : 'text-warm-700',
+      ].join(' ')}>
+        {label}
+      </label>
       {error && <p className="mt-0.5 text-xs text-red-500">{error}</p>}
     </div>
   )
