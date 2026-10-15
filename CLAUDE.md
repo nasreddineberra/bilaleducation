@@ -254,7 +254,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Champs** (`ui/FloatFields.tsx`) : `FloatInput`, `FloatSelect`, `FloatTextarea`,
   `FloatCheckbox` (`card` / `danger-card` / `switch` / `compact`), `FloatPhoneInput`.
   Libelle flottant, `*` automatique si `required`. Props : `compact`, `locked` (pas `disabled`,
-  ecrase), **`bordure`** (libelle sur le trait du cadre, gain ~10 px ; modele cible a generaliser).
+  ecrase), **`bordure`** (libelle sur le trait du cadre) = **style par defaut** ; `bordure={false}` seulement
+  sur les ecrans de connexion.
   `FloatSelect` : `wrapperClassName` (souvent `w-fit`), valeur jamais vide si une option doit
   s'afficher (sentinelle `__all__`).
 - **Boutons** (`FloatButton`) : `submit` (surface de marque — Valider/Enregistrer), `edit`
@@ -263,6 +264,11 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `variant={isEditing ? 'edit' : 'submit'}`. Les classes `.btn-*` sont abandonnees.
 - **Modales** : `FormModal` (saisie, portail), `ConfirmModal` (confirmation, recap via `children`).
   Toujours **portalisees dans `<body>`** (`animate-fade-in` capture le `fixed`).
+- **Refonte du 15/10** : `.liste` / `.liste-entete` / `.ligne-active` (listes sans cadre, en-tete teinte,
+  barre des actifs), `FiltreSwitch` (filtres de liste en switch segmente), `.encadre-titre` (bandeau en
+  degrade estompe des encadres de fiche, hauteur fixe), `Onglets` + `classeOnglet` (soulignement anime),
+  `SwitchOuiNon` (choix binaire, option `seul`), jeton `--champ-verrou`. Le **vert de marque**
+  (`--brand-surface`, sombre : `--brand-accent`) remplace le turquoise au fil des pages.
 - **Autres** : `Tooltip` (jamais `title=`), `TruncatedText` (infobulle si coupe), `SearchField`
   (2 caracteres minimum), `ListStatCard` (cartes stat cliquables = filtres), `RaisonBloquee`
   (raison d'un bouton grise, sur telephone), `Cliquable`, `RouteSkeleton` (chargements), `Toast`
@@ -331,9 +337,10 @@ console editeur, messagerie d'ecole eprouvee en reel, authentification eprouvee 
 financements, retention…), ecole de demonstration.
 
 ### Reste a faire
-1. **Modele de champ `bordure`** (tache du 14/10) : essai sur une fiche pilote (a choisir), puis
-   generalisation a tous les champs des fiches ET des modales si concluant. Regler en chemin le fond
-   blanc du libelle sur un champ verrouille.
+1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
+   (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Reste : passe
+   PAGE PAR PAGE** pour remplacer le turquoise (`primary`) par le vert de marque et ajuster chaque ecran
+   (decision utilisateur : pas de remplacement global de la palette).
 2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et

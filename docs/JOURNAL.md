@@ -7969,3 +7969,26 @@ marque ; les vraies ecoles gardent leur plaque.
 - **« Reinitialiser » (ecole de demonstration) passe dans l'EN-TETE de la fiche**, a gauche
   d'« Intervenir », meme taille (`size="normal"` explicite) : dans l'encadre « Acces et abonnement »,
   sa ligne faisait apparaitre une barre de defilement sur une fiche concue sans.
+
+#### 15 octobre 2026 — CLAUDE.md epure, refonte de l'interface (lots 1 a 6)
+
+- **CLAUDE.md ramene de 7 965 a ~360 lignes** ; le journal complet vit ici (`docs/JOURNAL.md`) ;
+  `scripts/migrations-etat.mjs` y lit desormais les attestations.
+- **Page modele** `/dashboard/test-design` (donnees fictives, hors menu, a garder) : choix valides un par
+  un par l'utilisateur — en-tete coupe en biais, listes sans cadre avec barre des actifs, en-tete de tableau
+  teinte, intitules en degrade estompe, onglets a soulignement anime, recherche a bouton carre, filtres en
+  switch. Le vert plein des intitules a ete juge trop vif ; quatre styles d'onglets ont ete compares.
+- **Lot 1, champs** : `bordure` devient le style par defaut (215 champs, 47 fichiers, par le composant
+  partage) ; champ verrouille corrige (fond de libelle coupe en deux, jeton `--champ-verrou`, plus
+  d'opacite) ; telephone aligne. Nouveau `SwitchOuiNon` ; fiches apprenant et parent passees en switches.
+  Qualite du tuteur vide par defaut et obligatoire ; « Identique tuteur 1 » sur Oui par defaut.
+  - **Defaut ancien trouve** : le `space-y-2` du formulaire apprenant ne touchait que le `<fieldset
+    display:contents>` pose le 24/09, les encadres se collaient. `[&>*+*]:mt-2` sur le fieldset.
+- **Lots 2 a 6** : `SearchField`, `DashboardNav`, classes `.liste*` + `FiltreSwitch`, `.encadre-titre`,
+  composant `Onglets`. Pagination au vert de marque.
+- **Decision** : le turquoise (`primary`) est remplace par le vert de marque **page par page**, pas par un
+  remappage global de la palette (~900 usages, 111 fichiers).
+- **Piege** : une opacite sur une couleur en variable (`ring-[var(--x)]/20`) n'est PAS emise par
+  Tailwind 3 — pas de classe, donc pas de halo. Une classe construite par interpolation de chaine n'est pas
+  detectee non plus. Verifier dans le CSS compile.
+
