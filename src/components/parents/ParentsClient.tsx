@@ -70,7 +70,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
             onClick={() => onNavigate(p)}
             className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors ${
               p === page
-                ? 'bg-primary-500 text-white shadow-sm'
+                ? 'bg-[var(--brand-surface)] text-white shadow-sm dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
                 : 'text-secondary-600 hover:bg-warm-100'
             }`}
           >

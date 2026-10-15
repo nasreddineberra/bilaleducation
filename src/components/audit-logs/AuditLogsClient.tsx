@@ -156,7 +156,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
             aria-current={p === page ? 'page' : undefined}
             className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${
               p === page
-                ? 'bg-primary-500 text-white shadow-sm'
+                ? 'bg-[var(--brand-surface)] text-white shadow-sm dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
                 : 'text-secondary-600 hover:bg-warm-100'
             }`}
           >
