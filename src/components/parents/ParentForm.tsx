@@ -123,10 +123,19 @@ export default function ParentForm({ parent, onClose, backHref = '/dashboard/par
 
   const initialForm           = useRef<FormData>({ ...form })
   const initialShowTutor2     = useRef(!!parent?.tutor2_last_name)
-  const initialSameAddressT1  = useRef(false)
+  // « Identique tuteur 1 » : OUI par defaut a la creation (cas le plus
+  // frequent). Sur une fiche existante, oui seulement si l'adresse du tuteur 2
+  // est reellement celle du tuteur 1 (ou vide) : sinon on masquerait une
+  // adresse differente deja saisie.
+  const adresseIdentique = !parent || (
+    (parent.tutor2_address ?? '') === (parent.tutor1_address ?? '') &&
+    (parent.tutor2_city ?? '') === (parent.tutor1_city ?? '') &&
+    (parent.tutor2_postal_code ?? '') === (parent.tutor1_postal_code ?? '')
+  ) || (!parent.tutor2_address && !parent.tutor2_city && !parent.tutor2_postal_code)
+  const initialSameAddressT1  = useRef(adresseIdentique)
 
   const [showTutor2,         setShowTutor2]         = useState(!!parent?.tutor2_last_name)
-  const [sameAddressT1,      setSameAddressT1]      = useState(false)
+  const [sameAddressT1,      setSameAddressT1]      = useState(adresseIdentique)
   const [touched,            setTouched]            = useState<Set<string>>(new Set())
   const [isSubmitting,       setIsSubmitting]       = useState(false)
   const [createdAccounts,    setCreatedAccounts]    = useState<TutorAccountResult[] | null>(null)
