@@ -147,6 +147,30 @@
        sur le trait raccorde sa moitie basse a cette couleur. ~ warm-100 a 75 %. */
     --champ-verrou:   #f4f1ee;
 
+    /* ── Tableau de bord (refonte du 16/10) ──
+       Tuiles en couleur PLEINE : marque, ambre, ardoise, encre. Les deux
+       premieres ne changent pas avec le theme (la marque reste verte sur
+       l'ardoise sombre, c'est ce qui la distingue) ; seule l'encre s'eclaircit
+       en sombre, sinon elle se fondrait dans la page. */
+    --tuile-marque:      #0c5b51;
+    --tuile-marque-2:    #063a33;
+    --tuile-ambre:       #ffa200;
+    --tuile-ambre-encre: #3d2600;
+    --tuile-ardoise:     #507583;
+    --tuile-ardoise-2:   #3b5966;
+    --tuile-encre:       #1f2e35;
+    --tuile-encre-2:     #142026;
+    --tuile-lisere:      transparent;
+    /* Fond des jauges et des barres d'histogramme (piste vide). */
+    --jauge-fond:        #efe8de;
+    /* Encre des pastilles d'ETAT, posee sur sa propre teinte a 14 %. */
+    --etat-ok:           #0c5b51;
+    --etat-attente:      #8a5300;
+    --etat-info:         #3b5966;
+    --etat-remplacement: #4a3aa7;
+    --etat-danger:       #b3261e;
+    --etat-orange:       #9a3412;
+
     color-scheme: light;
   }
 
@@ -184,6 +208,17 @@
     --edt-absent-hachure: rgba(255,255,255,.14);
     --silhouette-ink: #8d9aa1;
     --champ-verrou:   #1d2a31;
+
+    --tuile-encre:       #22323a;
+    --tuile-encre-2:     #1a272e;
+    --tuile-lisere:      rgba(255,255,255,.06);
+    --jauge-fond:        #243139;
+    --etat-ok:           #4bd6c4;
+    --etat-attente:      #ffc04d;
+    --etat-info:         #a9c3cd;
+    --etat-remplacement: #a99cf0;
+    --etat-danger:       #ff8a80;
+    --etat-orange:       #fdba74;
 
     color-scheme: dark;
   }
@@ -506,6 +541,213 @@
     .sidebar-section { transition: none; }
   }
 }
+
+/* HORS de `@layer components` : Tailwind y purge les classes absentes du
+   code source, or `tuile-${ton}` et `ton-${ton}` sont construites par
+   interpolation. Du CSS hors couche n'est jamais purge. */
+/* ── TABLEAU DE BORD (refonte du 16/10) ─────────────────────────────────
+   Tuiles colorees en tete, encadres blancs dessous. Toutes les teintes
+   viennent des jetons `--tuile-*` / `--etat-*` (:root et sombre). La tuile
+   fixe ses propres couleurs de texte : le pont du theme sombre remappe les
+   classes Tailwind, il ne doit pas toucher un texte pose sur un aplat. */
+.tuile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-height: 9.25rem;
+  padding: 1rem 1.125rem 0.875rem;
+  border-radius: 1rem;
+  border: 1px solid var(--tuile-lisere);
+  box-shadow: var(--card-shadow);
+  color: var(--tuile-texte);
+  background: var(--tuile-fond);
+}
+.tuile-marque {
+  --tuile-fond: linear-gradient(135deg, var(--tuile-marque), var(--tuile-marque-2));
+  --tuile-texte: #d7efe9;
+  --tuile-titre: #8fc9be;
+  --tuile-fort: #ffffff;
+  --tuile-icone-fond: rgba(255,255,255,.12);
+  --tuile-icone: #4bd6c4;
+  --tuile-piste: rgba(255,255,255,.14);
+  --tuile-jauge: #4bd6c4;
+}
+.tuile-ambre {
+  --tuile-fond: var(--tuile-ambre);
+  --tuile-texte: var(--tuile-ambre-encre);
+  --tuile-titre: #5c3900;
+  --tuile-fort: #1f1300;
+  --tuile-icone-fond: rgba(255,255,255,.35);
+  --tuile-icone: var(--tuile-ambre-encre);
+  --tuile-piste: rgba(61,38,0,.15);
+  --tuile-jauge: var(--tuile-ambre-encre);
+}
+.tuile-ardoise {
+  --tuile-fond: linear-gradient(135deg, var(--tuile-ardoise), var(--tuile-ardoise-2));
+  --tuile-texte: #e3edf0;
+  --tuile-titre: #c9dbe1;
+  --tuile-fort: #ffffff;
+  --tuile-icone-fond: rgba(255,255,255,.14);
+  --tuile-icone: #ffffff;
+  --tuile-piste: rgba(255,255,255,.18);
+  --tuile-jauge: #ffffff;
+}
+.tuile-encre {
+  --tuile-fond: linear-gradient(135deg, var(--tuile-encre), var(--tuile-encre-2));
+  --tuile-texte: #c8d4d9;
+  --tuile-titre: #8fa3ac;
+  --tuile-fort: #ffffff;
+  --tuile-icone-fond: rgba(255,255,255,.08);
+  --tuile-icone: #4bd6c4;
+  --tuile-piste: rgba(255,255,255,.12);
+  --tuile-jauge: #4bd6c4;
+}
+.tuile-titre {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--tuile-titre);
+}
+.tuile-fort { color: var(--tuile-fort); }
+.tuile-icone {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--tuile-icone-fond);
+  color: var(--tuile-icone);
+}
+.tuile-piste {
+  height: 6px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--tuile-piste);
+}
+.tuile-jauge {
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--tuile-jauge);
+}
+.tuile-lien {
+  color: var(--tuile-fort);
+  font-weight: 600;
+  border-radius: 0.25rem;
+  outline: none;
+}
+.tuile-lien:hover { text-decoration: underline; text-underline-offset: 2px; }
+.tuile-lien:focus-visible { box-shadow: 0 0 0 2px var(--tuile-fort); }
+
+/* Encadre du tableau de bord : la carte, en plus arrondie et plus serree.
+   `:where()` sur la ligne : ce bloc hors couche passe APRES les utilitaires,
+   une specificite nulle laisse `px-2`, `items-start`... l emporter. */
+.encadre-tdb {
+  border-radius: 0.875rem;
+  padding: 1rem 1.125rem;
+  min-width: 0;
+}
+:where(.ligne-tdb) {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+:where(.ligne-tdb:first-child) { border-top: 0; }
+.piste-tdb {
+  height: 6px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--jauge-fond);
+}
+
+/* Pastilles d'etat et compteurs : teinte a 14 % sous une encre par theme. */
+.puce {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+}
+.compteur {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.625rem;
+  height: 1.375rem;
+  padding: 0 0.4375rem;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ton-ok           { color: var(--etat-ok);           background: color-mix(in srgb, #18aa99 14%, transparent); }
+.ton-attente      { color: var(--etat-attente);      background: color-mix(in srgb, #ffa200 18%, transparent); }
+.ton-info         { color: var(--etat-info);         background: color-mix(in srgb, #507583 16%, transparent); }
+.ton-remplacement { color: var(--etat-remplacement); background: color-mix(in srgb, #7d6bd0 16%, transparent); }
+.ton-danger       { color: var(--etat-danger);       background: color-mix(in srgb, #dc2626 14%, transparent); }
+.ton-orange       { color: var(--etat-orange);       background: color-mix(in srgb, #f97316 16%, transparent); }
+.ton-neutre       { color: var(--ink-muted);         background: var(--jauge-fond); }
+
+/* Raccourcis en pilule, a droite du bonjour. */
+.raccourci {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-surface);
+  background: var(--surface-card);
+  border: 1px solid color-mix(in srgb, var(--brand-surface) 22%, transparent);
+  transition: background-color .15s, color .15s;
+  outline: none;
+}
+.raccourci:hover { background: color-mix(in srgb, var(--brand-surface) 8%, var(--surface-card)); }
+.raccourci:focus-visible { box-shadow: 0 0 0 2px var(--brand-surface); }
+:root[data-theme="dark"] .raccourci { color: var(--brand-accent); border-color: color-mix(in srgb, var(--brand-accent) 30%, transparent); }
+:root[data-theme="dark"] .raccourci:hover { background: color-mix(in srgb, var(--brand-accent) 10%, var(--surface-card)); }
+:root[data-theme="dark"] .raccourci:focus-visible { box-shadow: 0 0 0 2px var(--brand-accent); }
+
+/* Lien d'encadre (« Voir tout ») au vert de marque. */
+.lien-tdb {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-surface);
+  border-radius: 0.25rem;
+  outline: none;
+}
+.lien-tdb:hover { color: var(--brand-surface-2); text-decoration: underline; text-underline-offset: 2px; }
+.lien-tdb:focus-visible { box-shadow: 0 0 0 2px var(--brand-surface); }
+:root[data-theme="dark"] .lien-tdb { color: var(--brand-accent); }
+:root[data-theme="dark"] .lien-tdb:hover { color: var(--brand-accent); }
+
+/* Barres de l'histogramme mensuel : piste = attendu, remplissage = encaisse. */
+.histo-barre {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 2.125rem;
+  border-radius: 0.4375rem;
+  overflow: hidden;
+  background: var(--jauge-fond);
+}
+.histo-plein {
+  border-radius: 0.4375rem;
+  background: linear-gradient(180deg, #18aa99, var(--tuile-marque));
+}
+
+
 
 @layer utilities {
   .rtl { direction: rtl; }

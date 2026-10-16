@@ -7992,3 +7992,26 @@ marque ; les vraies ecoles gardent leur plaque.
   Tailwind 3 — pas de classe, donc pas de halo. Une classe construite par interpolation de chaine n'est pas
   detectee non plus. Verifier dans le CSS compile.
 
+
+#### 16 octobre 2026 — Tableau de bord : refonte, lot Direction / admin
+
+- **Maquette validee** (canevas « Tableau de bord BILAL EDUCATION ») : 4 tuiles en couleur PLEINE (marque,
+  ambre, ardoise, encre), encadres blancs plus arrondis, raccourcis en pilule a droite du bonjour.
+- **Direction / admin** : inscrits / limite de l'abonnement, recouvrement, assiduite du mois, seances du
+  jour ; journee en cours (statut validee / a valider / en cours / a venir / annulee, remplacements) ;
+  A traiter enrichi (seances a valider sur 30 jours, evaluations passees sans note, fiches sans tous les
+  documents requis — ligne masquee tant qu'aucun document n'est obligatoire) ; encaissements par mois
+  contre echeances prevues ; familles par statut ; remplissage des classes ; absences 30 jours et eleves a
+  surveiller (3 et plus sur la periode) ; activite recente (journal) ; agenda 14 jours.
+- **Calcul pur et teste** `lib/dashboard/seances.ts` (7 tests) : seances d'une date pour toutes les classes,
+  statut, seances a valider (jours fermes, annulations et enseignants absents exclus), assiduite = part
+  des presences attendues (classe x jour de cours x effectif). « Aujourd'hui » et l'heure sont ceux de
+  PARIS (`jourParis`, `heureParis`) : le serveur tourne en UTC.
+- **Securite** (demande utilisateur) : `getCachedAdminStats` (service-role, sans RLS, cloisonnement par
+  filtre ecrit a la main) est RETIRE ; tout le tableau de bord Direction lit par le client de session
+  (`lib/dashboard/direction.ts`), la RLS verifie l'ecole ET le role. Controle rejoue en base : chaque
+  role de l'ecole de demonstration simule, 18 tables, **0 ligne hors ecole** ; le meme controle sans RLS
+  voit 175 eleves et 28 lignes de journal d'une autre ecole (vu rouge avant d'etre cru vert).
+- **Piege** : les classes construites par interpolation (`ton-${ton}`) etaient PURGEES de
+  `@layer components`. Le bloc du tableau de bord vit hors couche ; il passe donc apres les utilitaires,
+  d'ou `:where(.ligne-tdb)` (specificite nulle) pour laisser `px-2`, `items-start` l'emporter.

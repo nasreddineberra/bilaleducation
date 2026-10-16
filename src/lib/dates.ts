@@ -35,6 +35,13 @@ export function formatDateHeureFr(date: string | Date): string {
   })
 }
 
+/** « 09:05 » — l'heure murale à Paris, pour comparer à un `start_time` d'EDT. */
+export function heureParis(instant: Date): string {
+  return instant.toLocaleTimeString('fr-FR', {
+    timeZone: FUSEAU, hour: '2-digit', minute: '2-digit', hour12: false,
+  })
+}
+
 /** « jeudi 7 août 2026 » — pour les emails et les en-têtes. */
 export function formatJourLongFr(date: string | Date): string {
   return new Date(date).toLocaleDateString('fr-FR', {

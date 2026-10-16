@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getCachedProfile, getCurrentYear, getCachedAdminStats } from '@/lib/cache/dashboard'
+import { getCachedProfile, getCurrentYear } from '@/lib/cache/dashboard'
+import { chargerDonneesDirection } from '@/lib/dashboard/direction'
+import { jourParis } from '@/lib/tenant/abonnement'
+import { heureParis } from '@/lib/dates'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { getPeriodHint } from '@/lib/school-year/current-period-hint'
 import { effectiveRole } from '@/lib/auth/effective-role'
@@ -135,121 +138,20 @@ export default async function DashboardPage() {
   //  ADMIN / DIRECTION
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'admin' || role === 'direction') {
-    const etablissementId = profile?.etablissement_id ?? ''
-
-    // `getCurrentYear` renvoie desormais les bornes : la requete `school_years`
-    // qui les rechargeait ici a disparu.
-    const yearFull = currentYear
-
-    // Tendance des absences : 30 derniers jours (glissants). Fenetre
-    // DIFFERENTE de la carte « Absences ce mois », qui est calendaire — choix
-    // assume : la courbe montre une dynamique, la carte un total de periode.
-    const trendFrom = new Date()
-    trendFrom.setDate(trendFrom.getDate() - 29)
-    const trendFromKey = `${trendFrom.getFullYear()}-${String(trendFrom.getMonth() + 1).padStart(2, '0')}-${String(trendFrom.getDate()).padStart(2, '0')}`
-
-    const [cachedStats, financials, results] = await Promise.all([
-      getCachedAdminStats(etablissementId, currentYear?.label ?? null, currentYear?.start_date ?? null, currentYear?.end_date ?? null),
-      yearFull ? getFamilyFinancials(supabase, yearFull) : Promise.resolve(null),
-      Promise.allSettled([
-        // Classes de l'ANNEE EN COURS. Sans ce filtre, les classes des annees
-        // passees s'ajoutaient aux effectifs des la premiere rentree suivante.
-        currentYear
-          ? supabase.from('classes').select('id, name, max_students').eq('academic_year', currentYear.label).order('name')
-          : Promise.resolve({ data: [] }),
-        supabase.from('absences').select('id, absence_date, absence_type, is_justified, students:student_id(id, first_name, last_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))').neq('absence_type', 'retard').order('absence_date', { ascending: false }).limit(5),
-        supabase.from('absences').select('absence_date, is_justified').neq('absence_type', 'retard').gte('absence_date', trendFromKey),
-      ]),
-    ])
-
-    const classesList = results[0].status === 'fulfilled' ? results[0].value.data : []
-    const recentAbsences = results[1].status === 'fulfilled' ? results[1].value.data : []
-    const trendAbs = results[2].status === 'fulfilled' ? results[2].value.data : []
-
-    for (const [i, r] of results.entries()) {
-      if (r.status === 'rejected') console.error(`[dashboard admin] requête ${i}:`, r.reason)
-    }
-
-    // ── Effectifs par classe ────────────────────────────────────────────
-    // Le comptage imbrique `enrollments(count)` etait faux DEUX FOIS : il
-    // ignorait le statut (un eleve radie restait dans l'effectif) et ne
-    // connaissait que les eleves — une classe ADULTE affichait donc 0, ses
-    // participants vivant dans `parent_class_enrollments`.
-    const classIds = (classesList ?? []).map((c: any) => c.id)
-    const [studentEnrol, adultEnrol] = classIds.length > 0
-      ? await Promise.all([
-          supabase.from('enrollments').select('class_id').eq('status', 'active').in('class_id', classIds),
-          supabase.from('parent_class_enrollments').select('class_id').eq('status', 'active').in('class_id', classIds),
-        ])
-      : [{ data: [] }, { data: [] }]
-
-    const tally = (rows: any[] | null) =>
-      (rows ?? []).reduce<Record<string, number>>((m, r) => (m[r.class_id] = (m[r.class_id] ?? 0) + 1, m), {})
-    const byClassStudents = tally(studentEnrol.data)
-    const byClassAdults = tally(adultEnrol.data)
-
-    const classCapacity = (classesList ?? []).map((c: any) => ({
-      name: c.name,
-      // Somme des deux tables : une classe releve de l'une ou de l'autre, la
-      // somme est donc juste quel que soit son type, sans avoir a le tester.
-      enrolled: (byClassStudents[c.id] ?? 0) + (byClassAdults[c.id] ?? 0),
-      max: c.max_students ?? 30,
-    }))
-
-    // Serie de tendance : 30 jours consecutifs, justifiees vs non.
-    const byDay: Record<string, { justified: number; unjustified: number }> = {}
-    for (const a of (trendAbs ?? []) as any[]) {
-      const k = String(a.absence_date).slice(0, 10)
-      if (!byDay[k]) byDay[k] = { justified: 0, unjustified: 0 }
-      if (a.is_justified) byDay[k].justified++
-      else byDay[k].unjustified++
-    }
-    const absenceTrend: { label: string; justified: number; unjustified: number }[] = []
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(trendFrom)
-      d.setDate(trendFrom.getDate() + i)
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      const b = byDay[k] ?? { justified: 0, unjustified: 0 }
-      absenceTrend.push({ label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, ...b })
-    }
-
-    const kpi = financials?.kpi ?? { billed: 0, collected: 0, outstanding: 0, overpaid: 0, counts: { pending: 0, partial: 0, paid: 0, overpaid: 0 }, rate: 0 }
-    // « A traiter » = familles n'ayant fait AUCUN paiement (statut `pending`),
-    // et non toutes celles qui doivent encore quelque chose. Une famille a jour
-    // de ses echeances n'a rien a traiter ; celle qui n'a jamais rien verse, si.
-    const debtorFamilies = kpi.counts.pending
+    // Toutes les lectures passent par le client de SESSION (RLS : ecole + role).
+    // Voir `lib/dashboard/direction.ts`. « Aujourd'hui » et l'heure sont ceux
+    // de PARIS : le serveur tourne en UTC.
+    const instant = new Date()
+    const donnees = await chargerDonneesDirection(
+      supabase, currentYear, currentPeriod?.id ?? null, jourParis(instant), heureParis(instant),
+    )
 
     return (
       <DashboardAdmin
         {...common}
-        stats={{
-          studentsActive: cachedStats.studentsActive,
-          studentsTotal: cachedStats.studentsTotal,
-          teachersActive: cachedStats.teachersActive,
-          classesCount: cachedStats.classesCount,
-          enrollmentsStudents: cachedStats.enrollmentsStudents,
-          enrollmentsAdults: cachedStats.enrollmentsAdults,
-          absencesThisMonth: cachedStats.absencesMonth,
-          absencesUnjustified: cachedStats.absencesUnjustifiedMonth,
-          billed: kpi.billed,
-          collected: kpi.collected,
-          outstanding: kpi.outstanding,
-          rate: kpi.rate,
-          statusCounts: kpi.counts,
-          classCapacity,
-          absenceTrend,
-          recentAbsences: (recentAbsences ?? []) as any[],
-          // Rappel de bascule de periode — encadrement uniquement, l'action
-          // reste manuelle (rien n'est bloque ailleurs dans l'application).
-          periodHint: getPeriodHint((periodRows ?? []) as any[]),
-          todo: {
-            debtorFamilies,
-            // Borne a l'ANNEE (et non au mois) : un pense-bete ne s'efface pas
-            // au changement de mois. Voir `getCachedAdminStats`.
-            unjustifiedAbsences: cachedStats.absencesUnjustifiedYear,
-            unreadNotifs,
-          },
-        }}
+        donnees={donnees}
+        // Rappel de bascule de periode : l'action reste manuelle.
+        periodHint={getPeriodHint((periodRows ?? []) as any[])}
       />
     )
   }

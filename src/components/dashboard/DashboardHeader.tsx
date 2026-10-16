@@ -26,7 +26,16 @@ function formatDate(d: string | null): string {
   })
 }
 
-export default function DashboardHeader({ firstName, roleLabel, unreadNotifs, recentNotifs }: Props) {
+export default function DashboardHeader({
+  firstName, roleLabel, unreadNotifs, recentNotifs, sousTitre, actions, masquerNotifs,
+}: Props & {
+  /** Remplace « role · date » quand la variante a mieux a dire. */
+  sousTitre?: string
+  /** Raccourcis a droite du bonjour (refonte du 16/10). */
+  actions?: React.ReactNode
+  /** La variante affiche deja les non lues ailleurs (ligne « A traiter »). */
+  masquerNotifs?: boolean
+}) {
   // Rendu cote SERVEUR : sans fuseau, « aujourd'hui » affiche la veille entre
   // minuit et 2 h du matin, heure de Paris.
   const today = formatJourLongFr(new Date())
@@ -34,19 +43,20 @@ export default function DashboardHeader({ firstName, roleLabel, unreadNotifs, re
   return (
     <div className="space-y-4">
       {/* Bandeau bienvenue */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-secondary-800">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-extrabold tracking-tight text-secondary-800">
             Bonjour, {firstName}
           </h2>
-          <p className="text-warm-700 mt-1 text-sm">
-            {roleLabel} · {today}
+          <p className="text-warm-700 mt-1 text-sm first-letter:uppercase">
+            {sousTitre ?? `${roleLabel} · ${today}`}
           </p>
         </div>
+        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
 
       {/* Notifications recentes */}
-      {unreadNotifs > 0 && (
+      {unreadNotifs > 0 && !masquerNotifs && (
         <div className="card p-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">

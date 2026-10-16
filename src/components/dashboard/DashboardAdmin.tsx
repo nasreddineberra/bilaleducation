@@ -4,17 +4,20 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import type { Raccourci } from '@/lib/mobile'
+import type { DonneesDirection, SeanceAffichee } from '@/lib/dashboard/direction'
+import type { StatutSeance } from '@/lib/dashboard/seances'
+import { formatDateHeureFr } from '@/lib/dates'
+import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip as RTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
-import { Users, GraduationCap, BookOpen, AlertTriangle } from 'lucide-react'
+import {
+  Users, Wallet, CheckCheck, CalendarDays, AlertTriangle,
+  UserPlus, Mail, CalendarX, FileText, Banknote, ClipboardList,
+} from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
-import StatCard from './StatCard'
-import Tooltip from '@/components/ui/Tooltip'
-import { SERIES, INK, VizTooltip, VizCard, VizLegend, fmtEur } from './viz'
-import { classInfoOf } from './classInfo'
-import type { FeeStatus } from '@/types/database'
+import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, Puce, Vide, type Ton } from './tdb'
+import { SERIES, INK, STATUS_COLOR, VizTooltip, VizLegend, fmtEur } from './viz'
 
 interface Props {
   firstName: string
@@ -25,39 +28,13 @@ interface Props {
   periodLabel: string
   unreadNotifs: number
   recentNotifs: any[]
-  stats: {
-    studentsActive: number
-    studentsTotal: number
-    teachersActive: number
-    classesCount: number
-    enrollmentsStudents: number
-    enrollmentsAdults: number
-    absencesThisMonth: number
-    absencesUnjustified: number
-    billed: number
-    collected: number
-    outstanding: number
-    rate: number
-    statusCounts: Record<FeeStatus, number>
-    classCapacity: { name: string; enrolled: number; max: number }[]
-    absenceTrend: { label: string; justified: number; unjustified: number }[]
-    recentAbsences: { id: string; absence_date: string; absence_type: string; is_justified: boolean; students: { id: string; first_name: string; last_name: string } | null; classes: any | null }[]
-    /** Rappel de bascule de période, ou null s'il n'y a rien à signaler. */
-    periodHint: { message: string; missing: boolean } | null
-    todo: { debtorFamilies: number; unjustifiedAbsences: number; unreadNotifs: number }
-  }
+  donnees: DonneesDirection
+  /** Rappel de bascule de période, ou null s'il n'y a rien à signaler. */
+  periodHint: { message: string; missing: boolean } | null
 }
 
-// La table ne connait que 'absence' et 'retard' (CHECK) : « authorized_absence »
-// etait une entree morte.
-const ABSENCE_TYPE: Record<string, string> = {
-  absence: 'Absence', retard: 'Retard',
-}
-
-// `mobile` : meme drapeau que la barre laterale. Trois de ces quatre
-// raccourcis menent a des ecrans masques sur telephone — les proposer en tete
-// du tableau de bord, la ou ils sont les plus visibles, serait offrir ce que le
-// menu refuse.
+// `mobile` : meme drapeau que la barre laterale. Les ecrans masques sur
+// telephone ne sont pas proposes en raccourci.
 const RACCOURCIS: Raccourci[] = [
   { href: '/dashboard/students/new', label: 'Nouvel élève' },
   { href: '/dashboard/communications/new', label: 'Nouveau message' },
@@ -65,248 +42,366 @@ const RACCOURCIS: Raccourci[] = [
   { href: '/dashboard/absences', label: "Feuille d'appel", mobile: true },
 ]
 
-export default function DashboardAdmin({ stats, ...headerProps }: Props) {
+const STATUT: Record<StatutSeance, { label: string; ton: Ton; barre: string }> = {
+  validee:   { label: 'Validée',   ton: 'ok',      barre: 'bg-primary-500' },
+  a_valider: { label: 'À valider', ton: 'attente', barre: 'bg-amber-500' },
+  en_cours:  { label: 'En cours',  ton: 'info',    barre: 'bg-secondary-500' },
+  a_venir:   { label: 'À venir',   ton: 'neutre',  barre: 'bg-warm-300' },
+  annulee:   { label: 'Annulée',   ton: 'danger',  barre: 'bg-red-500' },
+}
+
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
+
+/** Icone et ton d'une ligne du journal, selon la table touchee. */
+function natureActivite(entity: string): { icone: typeof Users; ton: Ton } {
+  if (entity.startsWith('fee_') || entity.startsWith('family_') || entity === 'expenses' || entity === 'other_revenues') return { icone: Banknote, ton: 'ok' }
+  if (entity === 'students' || entity === 'parents' || entity.includes('enrollments')) return { icone: UserPlus, ton: 'info' }
+  if (entity.startsWith('announcement')) return { icone: Mail, ton: 'remplacement' }
+  if (entity.includes('absences')) return { icone: CalendarX, ton: 'danger' }
+  if (entity.includes('grades') || entity.includes('bulletin') || entity === 'evaluations') return { icone: ClipboardList, ton: 'attente' }
+  return { icone: FileText, ton: 'neutre' }
+}
+
+export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps }: Props) {
   const petitEcran = usePetitEcran()
+  // Lien neutralise sur telephone quand l'ecran de destination y est masque.
+  const lien = (href: string, mobile = false) => (petitEcran && !mobile ? null : href)
 
-  const treso = [
-    { name: 'Encaissé', value: Math.round(stats.collected), fill: SERIES.primary },
-    { name: 'Reste', value: Math.round(stats.outstanding), fill: SERIES.orange },
-  ].filter(d => d.value > 0)
+  const [, mm] = d.aujourdhui.split('-').map(Number)
+  const nomMois = MOIS[mm - 1]
 
-  const trendHasData = stats.absenceTrend.some(d => d.justified > 0 || d.unjustified > 0)
+  // ── Tuile « Aujourd'hui » ──
+  const tenues = d.seances.filter(s => s.statut !== 'annulee')
+  const nbValidees = tenues.filter(s => s.statut === 'validee').length
+  const nbAValider = tenues.filter(s => s.statut === 'a_valider').length
+  const nbRemplacements = tenues.filter(s => s.remplacement).length
+  const nbClasses = new Set(tenues.map(s => s.classe)).size
+
+  const f = d.finances
+  const maxMensuel = Math.max(1, ...(f?.mensuel ?? []).map(m => Math.max(m.attendu, m.encaisse)))
+
+  const trendHasData = d.tendance.some(t => t.justified > 0 || t.unjustified > 0)
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <DashboardHeader {...headerProps} />
-
-      {/* Raccourcis (libelle seul) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
-          <Link key={r.href} href={r.href} className="btn btn-secondary w-full !py-2 text-xs !rounded-lg">
-            {r.label}
-          </Link>
+      <DashboardHeader
+        {...headerProps}
+        masquerNotifs
+        sousTitre={[
+          new Date(`${d.aujourdhui}T12:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }),
+          headerProps.periodLabel ? expandPeriodLabel(headerProps.periodLabel) : null,
+          d.fermeture ? `école fermée (${d.fermeture})` : null,
+        ].filter(Boolean).join(' · ')}
+        actions={RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
+          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
         ))}
-      </div>
+      />
 
-      {/* KPIs principaux */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard title="Élèves actifs" value={stats.studentsActive} subtitle={`${stats.studentsTotal} au total`} icon={Users} tone="primary" />
-        <StatCard title="Enseignants" value={stats.teachersActive} subtitle="actifs" icon={GraduationCap} tone="ardoise" />
-        {/* Élèves et adultes comptés séparément : ils vivent dans deux tables
-            distinctes (`enrollments` / `parent_class_enrollments`) et le
-            sous-titre n'en montrait qu'une. */}
-        <StatCard
-          title="Classes"
-          value={stats.classesCount}
-          subtitle={`${stats.enrollmentsStudents} élève${stats.enrollmentsStudents > 1 ? 's' : ''} · ${stats.enrollmentsAdults} adulte${stats.enrollmentsAdults > 1 ? 's' : ''}`}
-          icon={BookOpen}
-          tone="amber"
-        />
-        <StatCard title="Absences ce mois" value={stats.absencesThisMonth} subtitle={`${stats.absencesUnjustified} non justifiées`} icon={AlertTriangle} tone="orange" />
-      </div>
+      {/* ── 4 tuiles ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+        <Tuile
+          ton="marque" titre="Inscrits" icone={Users}
+          valeur={d.inscrits?.total ?? '-'}
+          unite={d.limite ? `/ ${d.limite} de l'abonnement` : undefined}
+          pied={d.inscrits
+            ? `${pluriel(d.inscrits.eleves, 'élève')} · ${pluriel(d.inscrits.adultes, 'adulte')}${d.nouveauxCeMois ? ` · +${d.nouveauxCeMois} ce mois` : ''}`
+            : 'Comptage indisponible'}
+          lien={{ href: lien('/dashboard/students'), label: 'Apprenants' }}
+        >
+          {d.limite && d.inscrits ? <JaugeTuile pct={(d.inscrits.total / d.limite) * 100} /> : null}
+        </Tuile>
 
-      {/* Tresorerie (donut) + A traiter */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="card p-3">
-          <div className="flex items-baseline justify-between mb-2">
-            <h3 className="stat-label">Recouvrement · {headerProps.yearLabel}</h3>
-            {!petitEcran && (
-              <Link href="/dashboard/financements/vue-globale" className="text-xs text-primary-600 hover:text-primary-700">Statistiques</Link>
-            )}
-          </div>
-          {stats.billed === 0 ? (
-            <p className="text-xs text-warm-700 italic py-8 text-center">Aucune facturation.</p>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-              {/* Empile sous 640 px : cote a cote, le donut (128 px fixes) ne
-                  laissait que ~57 px par colonne et les montants se
-                  chevauchaient. En colonne, les 3 chiffres ont toute la largeur. */}
-              <div className="relative shrink-0" style={{ width: 128, height: 128 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={treso} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="90%"
-                      paddingAngle={2} stroke="#ffffff" strokeWidth={2} isAnimationActive={false}>
-                      {treso.map(d => <Cell key={d.name} fill={d.fill} />)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                  <div className="text-center">
-                    <p className="text-xl font-bold text-secondary-800 tabular-nums leading-none">{stats.rate}%</p>
-                    <p className="text-[9px] text-warm-700 uppercase tracking-wide">encaissé</p>
-                  </div>
-                </div>
-              </div>
-              <dl className="w-full sm:flex-1 grid grid-cols-3 gap-2 sm:gap-4">
-                <div className="border-l-2 border-primary-500 pl-2.5">
-                  <dd className="text-lg font-bold text-primary-600 tabular-nums leading-none">{fmtEur(stats.collected)}</dd>
-                  <dt className="text-[10px] text-warm-700 mt-1">encaissé</dt>
-                </div>
-                <div className="border-l-2 border-orange-500 pl-2.5">
-                  <dd className="text-lg font-bold text-orange-700 tabular-nums leading-none">{fmtEur(stats.outstanding)}</dd>
-                  <dt className="text-[10px] text-warm-700 mt-1">reste à encaisser</dt>
-                </div>
-                <div className="border-l-2 border-warm-300 pl-2.5">
-                  <dd className="text-lg font-bold text-warm-700 tabular-nums leading-none">{fmtEur(stats.billed)}</dd>
-                  <dt className="text-[10px] text-warm-700 mt-1">facturé</dt>
-                </div>
-              </dl>
+        <Tuile
+          ton="ambre" titre="Recouvrement" icone={Wallet}
+          valeur={f ? `${f.rate} %` : '-'}
+          unite={f ? 'encaissé' : undefined}
+          pied={f ? `${fmtEur(f.collected)} sur ${fmtEur(f.billed)}` : 'Aucune année en cours'}
+          lien={{ href: lien('/dashboard/financements/reglements'), label: 'Règlements' }}
+        >
+          {f ? <JaugeTuile pct={f.rate} /> : null}
+        </Tuile>
+
+        <Tuile
+          ton="ardoise" titre={`Assiduité · ${nomMois}`} icone={CheckCheck}
+          valeur={d.assiduite ? `${d.assiduite.taux.toLocaleString('fr-FR')} %` : '-'}
+          pied={d.absencesMois === null
+            ? 'Comptage indisponible'
+            : `${pluriel(d.absencesMois, 'absence')} · ${d.absencesMoisNonJustifiees ?? 0} non justifiée${(d.absencesMoisNonJustifiees ?? 0) > 1 ? 's' : ''}`}
+          lien={{ href: lien('/dashboard/absences', true), label: 'Appel' }}
+        >
+          <Sparkline
+            valeurs={d.tendance.map(t => t.justified + t.unjustified)}
+            label="Allure des absences sur 30 jours"
+          />
+        </Tuile>
+
+        <Tuile
+          ton="encre" titre="Aujourd'hui" icone={CalendarDays}
+          valeur={d.fermeture ? '-' : tenues.length}
+          unite={d.fermeture ? 'école fermée' : `séance${tenues.length > 1 ? 's' : ''} · ${pluriel(nbClasses, 'classe')}`}
+          pied={d.fermeture
+            ? d.fermeture
+            : tenues.length === 0
+              ? 'Aucune séance aujourd’hui'
+              : `${nbValidees} validée${nbValidees > 1 ? 's' : ''} · ${nbAValider} à valider${nbRemplacements ? ` · ${pluriel(nbRemplacements, 'remplacement')}` : ''}`}
+          lien={{ href: lien('/dashboard/emploi-du-temps', true), label: 'EDT' }}
+        >
+          {tenues.length > 0 && (
+            <div className="flex gap-1" role="presentation">
+              {tenues.map(s => (
+                <div key={s.id} className="h-1.5 flex-1 rounded-full" style={{
+                  background: s.statut === 'validee' ? 'var(--tuile-jauge)' : s.statut === 'a_valider' ? 'var(--tuile-ambre)' : 'var(--tuile-piste)',
+                }} />
+              ))}
             </div>
           )}
-        </section>
-
-        <section className="card p-3">
-          <h3 className="stat-label mb-2">À traiter</h3>
-          <div className="space-y-1.5">
-            {/* Rappel de bascule de période, en TÊTE de liste : il ne se compte
-                pas, il se lit — d'où un bandeau pleine largeur plutôt qu'une
-                ligne à compteur. Simple rappel : rien n'est bloqué ailleurs,
-                la bascule reste une action manuelle de la direction. */}
-            {stats.periodHint && (() => {
-              const contenu = (
-                <>
-                  <AlertTriangle size={14} className="shrink-0" />
-                  <span className="font-medium">{stats.periodHint.message}</span>
-                </>
-              )
-              const base = 'flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs animate-fade-in'
-              // Sur telephone le rappel se LIT encore mais ne mene plus nulle
-              // part : l annee scolaire est un ecran masque. Le masquer en
-              // entier ferait perdre l information, qui a sa valeur seule.
-              return petitEcran
-                ? <div className={base}>{contenu}</div>
-                : <Link href="/dashboard/annee-scolaire" className={clsx(base, 'hover:bg-amber-100 transition-colors')}>{contenu}</Link>
-            })()}
-            {/* Libellé aligné sur ce qui est réellement compté : les familles
-                au statut « en attente », c'est-à-dire sans aucun versement.
-                « Avec impayé » englobait aussi les paiements échelonnés en
-                cours, qui ne demandent aucune action. */}
-            <TodoRow href={petitEcran ? null : '/dashboard/financements/reglements'} label="Familles sans aucun paiement" count={stats.todo.debtorFamilies} tone="orange" />
-            <TodoRow href="/dashboard/absences" label="Absences non justifiées" count={stats.todo.unjustifiedAbsences} tone="red" />
-            <TodoRow href="/dashboard/notifications" label="Notifications non lues" count={stats.todo.unreadNotifs} tone="primary" />
-          </div>
-        </section>
+        </Tuile>
       </div>
 
-      {/* Effectifs (barres CSS, denominateur par classe) + Tendance absences (courbe) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="card p-3">
-          <h3 className="stat-label mb-2">Effectifs par classe</h3>
-          {stats.classCapacity.length === 0 ? (
-            <p className="text-xs text-warm-700 italic py-4 text-center">Aucune classe.</p>
+      {/* ── Journée + À traiter ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        <Encadre titre="Journée en cours" lien={{ href: lien('/dashboard/emploi-du-temps', true), label: 'Emploi du temps' }} className="lg:col-span-2">
+          {d.fermeture ? (
+            <Vide>École fermée aujourd’hui · {d.fermeture}</Vide>
+          ) : d.seances.length === 0 ? (
+            <Vide>Aucune séance aujourd’hui.</Vide>
           ) : (
-            /* 3 colonnes et hauteur PLAFONNÉE (`.list-scroll`) : à 15 classes
-               la carte dépassait 250 px et imposait sa hauteur au graphique
-               d'en face, qui se retrouvait avec du vide sous lui. */
-            <div className="grid grid-cols-3 gap-x-4 gap-y-1.5 max-h-[168px] overflow-y-auto list-scroll pr-1">
-              {stats.classCapacity.map(c => {
+            <div className="max-h-[248px] overflow-y-auto list-scroll pr-1">
+              {d.seances.map(s => <LigneSeance key={s.id} s={s} />)}
+            </div>
+          )}
+        </Encadre>
+
+        <Encadre titre="À traiter">
+          {periodHint && (() => {
+            const contenu = (
+              <>
+                <AlertTriangle size={14} className="shrink-0" aria-hidden="true" />
+                <span className="font-semibold">{periodHint.message}</span>
+              </>
+            )
+            const base = 'flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 text-xs mb-2'
+            return lien('/dashboard/annee-scolaire')
+              ? <Link href="/dashboard/annee-scolaire" className={clsx(base, 'hover:bg-amber-100 transition-colors')}>{contenu}</Link>
+              : <div className={base}>{contenu}</div>
+          })()}
+          <div>
+            <LigneATraiter href={lien('/dashboard/financements/reglements')} label="Familles sans aucun paiement" n={d.aTraiter.famillesSansPaiement} ton="orange" />
+            <LigneATraiter href={lien('/dashboard/absences', true)} label="Absences non justifiées" n={d.aTraiter.absencesNonJustifiees} ton="danger" />
+            <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Séances à valider · 30 jours" n={d.aTraiter.seancesAValider} ton="attente" />
+            <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations passées sans note" n={d.aTraiter.evaluationsSansNote} ton="info" />
+            {/* Masquee tant qu'aucun document n'est declare obligatoire : un
+                « 0 » laisserait croire que les dossiers sont complets. */}
+            {d.aTraiter.fichesIncompletes !== null && (
+              <LigneATraiter href={lien('/dashboard/students')} label="Fiches sans tous les documents requis" n={d.aTraiter.fichesIncompletes} ton="info" />
+            )}
+            <LigneATraiter href={lien('/dashboard/notifications', true)} label="Notifications non lues" n={headerProps.unreadNotifs} ton="ok" />
+          </div>
+        </Encadre>
+      </div>
+
+      {/* ── Finances ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        <Encadre
+          titre={`Encaissements par mois · ${headerProps.yearLabel}`}
+          className="lg:col-span-2"
+          aside={f && (
+            <div className="ml-auto mr-3 hidden sm:block">
+              <VizLegend items={[{ label: 'Encaissé', color: SERIES.primary }, { label: 'Échéances prévues', color: 'var(--jauge-fond)' }]} />
+            </div>
+          )}
+          lien={{ href: lien('/dashboard/financements/vue-globale'), label: 'Statistiques' }}
+        >
+          {!f || f.mensuel.length === 0 ? (
+            <Vide>Aucune facturation.</Vide>
+          ) : (
+            <div className="flex items-end gap-2 sm:gap-3 h-[172px]" role="img"
+              aria-label={`Encaissements par mois : ${f.mensuel.map(m => `${m.label} ${fmtEur(m.encaisse)}`).join(', ')}`}>
+              {f.mensuel.map(m => {
+                const haut = Math.max(m.attendu, m.encaisse)
+                return (
+                  <div key={m.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1.5">
+                    <span className="text-[10px] text-warm-700 tabular-nums whitespace-nowrap">
+                      {m.encaisse > 0 ? `${(m.encaisse / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} k` : ''}
+                    </span>
+                    <div className="histo-barre" style={{ height: `${Math.max(4, (haut / maxMensuel) * 128)}px` }}>
+                      <div className="histo-plein" style={{ height: haut > 0 ? `${(m.encaisse / haut) * 100}%` : 0 }} />
+                    </div>
+                    <span className="text-[10px] font-semibold text-warm-700">{m.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Encadre>
+
+        <Encadre titre={f ? `Familles · ${pluriel(f.familles, 'dossier')}` : 'Familles'} lien={{ href: lien('/dashboard/financements/reglements'), label: 'Détail' }}>
+          {!f || f.familles === 0 ? (
+            <Vide>Aucun dossier.</Vide>
+          ) : (
+            <>
+              <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mb-3 mt-1" role="presentation">
+                {([['paid', f.counts.paid], ['partial', f.counts.partial], ['pending', f.counts.pending], ['overpaid', f.counts.overpaid]] as const)
+                  .filter(([, n]) => n > 0)
+                  .map(([k, n]) => <div key={k} style={{ flex: n, background: STATUS_COLOR[k] }} />)}
+              </div>
+              {([
+                ['paid', 'Soldées', f.counts.paid],
+                ['partial', 'Paiement partiel', f.counts.partial],
+                ['pending', 'Aucun versement', f.counts.pending],
+                ['overpaid', 'Trop perçu', f.counts.overpaid],
+              ] as const).filter(([k, , n]) => k !== 'overpaid' || n > 0).map(([k, label, n]) => (
+                <div key={k} className="ligne-tdb text-secondary-800">
+                  <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: STATUS_COLOR[k] }} aria-hidden="true" />
+                  <span className="flex-1">{label}</span>
+                  <b className="tabular-nums">{n}</b>
+                </div>
+              ))}
+              <div className="mt-auto pt-3">
+                <div className="flex justify-between items-center rounded-lg bg-warm-50 px-3 py-2 text-xs">
+                  <span className="text-warm-700">Reste dû sur les échéances de {nomMois}</span>
+                  <b className="tabular-nums text-secondary-800">{fmtEur(f.echeancesDuMois)}</b>
+                </div>
+              </div>
+            </>
+          )}
+        </Encadre>
+      </div>
+
+      {/* ── Classes, absences, activité ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        <Encadre titre="Remplissage des classes" lien={{ href: lien('/dashboard/classes'), label: 'Classes' }}>
+          {d.classes.length === 0 ? (
+            <Vide>Aucune classe.</Vide>
+          ) : (
+            <div className="space-y-2.5 max-h-[260px] overflow-y-auto list-scroll pr-1">
+              {d.classes.map(c => {
                 const pct = c.max > 0 ? Math.round((c.enrolled / c.max) * 100) : 0
                 return (
                   <div key={c.name}>
-                    <div className="flex items-center justify-between text-[11px] mb-0.5">
-                      <span className="text-warm-700 font-medium truncate">{c.name}</span>
-                      <span className="text-warm-700 flex-shrink-0 tabular-nums">{c.enrolled}/{c.max}</span>
+                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                      <span className="font-semibold text-secondary-800 truncate">
+                        {c.name}
+                        {c.adulte && <span className="ml-1.5 align-middle"><Puce ton="remplacement">Adultes</Puce></span>}
+                      </span>
+                      <span className="text-warm-700 tabular-nums shrink-0">{c.enrolled} / {c.max}</span>
                     </div>
-                    <div className="h-1.5 bg-warm-100 rounded-full overflow-hidden">
-                      <div
-                        className={clsx('h-full rounded-full transition-all', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-orange-500' : 'bg-primary-500')}
-                        style={{ width: `${Math.min(pct, 100)}%` }}
-                      />
+                    <div className="piste-tdb">
+                      <div className={clsx('h-full rounded-full', pct >= 100 ? 'bg-red-500' : pct >= 85 ? 'bg-orange-500' : 'bg-primary-500')}
+                        style={{ width: `${Math.min(pct, 100)}%` }} />
                     </div>
                   </div>
                 )
               })}
             </div>
           )}
-        </section>
+        </Encadre>
 
-        <VizCard title="Absences · 30 derniers jours" height={160}>
-          {!trendHasData ? (
-            <p className="text-xs text-warm-700 italic grid place-items-center h-full">Aucune absence sur la période.</p>
-          ) : (
-            <>
+        <Encadre titre="Absences · 30 jours" lien={{ href: lien('/dashboard/absences', true), label: 'Appel' }}>
+          <div className="h-[130px] min-w-0">
+            {!trendHasData ? (
+              <p className="text-xs text-warm-700 italic grid place-items-center h-full">Aucune absence sur la période.</p>
+            ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.absenceTrend} margin={{ top: 6, right: 10, bottom: 0, left: -18 }}>
+                <LineChart data={d.tendance} margin={{ top: 6, right: 8, bottom: 0, left: -22 }}>
                   <CartesianGrid vertical={false} stroke={INK.grid} />
                   <XAxis dataKey="label" tick={{ fill: INK.muted, fontSize: 9 }} axisLine={{ stroke: INK.axis }} tickLine={false} interval={6} />
                   <YAxis allowDecimals={false} tick={{ fill: INK.muted, fontSize: 10 }} axisLine={false} tickLine={false} width={32} />
                   <RTooltip content={<VizTooltip unit="absence" />} cursor={{ stroke: INK.axis }} />
-                  <Line type="monotone" dataKey="unjustified" name="Non justifiées" stroke={SERIES.orange} strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 2, stroke: '#ffffff' }} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="justified" name="Justifiées" stroke={SERIES.primary} strokeWidth={2} dot={false} activeDot={{ r: 3, strokeWidth: 2, stroke: '#ffffff' }} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="unjustified" name="Non justifiées" stroke={SERIES.orange} strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="justified" name="Justifiées" stroke={SERIES.primary} strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
-              <VizLegend items={[
-                { label: 'Non justifiées', color: SERIES.orange },
-                { label: 'Justifiées', color: SERIES.primary },
-              ]} />
-            </>
+            )}
+          </div>
+          {trendHasData && (
+            <VizLegend items={[{ label: 'Non justifiées', color: SERIES.orange }, { label: 'Justifiées', color: SERIES.primary }]} />
           )}
-        </VizCard>
+          <p className="stat-label mt-3 mb-1">À surveiller · 3 absences et plus{headerProps.periodLabel ? ` · ${expandPeriodLabel(headerProps.periodLabel)}` : ''}</p>
+          {d.aSurveiller.length === 0 ? (
+            <p className="text-xs text-warm-700 italic py-1">Aucun apprenant.</p>
+          ) : d.aSurveiller.map(e => (
+            <div key={e.id} className="ligne-tdb">
+              {lien(`/dashboard/students/${e.id}`) ? (
+                <Link href={`/dashboard/students/${e.id}`} className="flex-1 font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]">{e.nom}</Link>
+              ) : (
+                <span className="flex-1 font-semibold text-secondary-800 truncate">{e.nom}</span>
+              )}
+              <span className="text-warm-700">{e.classe}</span>
+              <span className="compteur ton-danger">{e.nb}</span>
+            </div>
+          ))}
+        </Encadre>
+
+        <Encadre titre="Activité récente" lien={{ href: lien('/dashboard/logs'), label: 'Journal' }}>
+          {d.activite.length === 0 ? (
+            <Vide>Aucune activité.</Vide>
+          ) : d.activite.map(a => {
+            const { icone: Icone, ton } = natureActivite(a.nature)
+            return (
+              <div key={a.id} className="ligne-tdb items-start">
+                <span className={clsx('compteur !h-7 !min-w-7 !px-0 !rounded-lg shrink-0', `ton-${ton}`)} aria-hidden="true"><Icone size={14} /></span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-secondary-800 line-clamp-2">{a.texte}</p>
+                  <p className="text-[11px] text-warm-700">{formatDateHeureFr(a.quand)}{a.auteur ? ` · ${a.auteur}` : ''}</p>
+                </div>
+              </div>
+            )
+          })}
+        </Encadre>
       </div>
 
-      {/* Dernieres absences */}
-      <section className="card p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="stat-label">Dernières absences</h3>
-          <Link href="/dashboard/absences" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>
-        </div>
-        {stats.recentAbsences.length === 0 ? (
-          <p className="text-xs text-warm-700 italic py-4 text-center">Aucune absence récente.</p>
+      {/* ── À venir ── */}
+      <Encadre titre="À venir · 14 jours">
+        {d.agenda.length === 0 ? (
+          <Vide>Rien de prévu dans les 14 prochains jours.</Vide>
         ) : (
-          <div className="space-y-1">
-            {stats.recentAbsences.map(a => {
-              const info = classInfoOf(a.classes)
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
+            {d.agenda.map((g, i) => {
+              const [, gm, gj] = g.date.split('-').map(Number)
+              const ton: Ton = g.nature === 'evaluation' ? 'info' : g.nature === 'fermeture' ? 'attente' : 'ok'
               return (
-                <div key={a.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs">
-                  <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', a.is_justified ? 'bg-primary-500' : 'bg-red-500')} />
-                  {a.students?.id && !petitEcran ? (
-                    <Link href={`/dashboard/students/${a.students.id}`} className="font-medium text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
-                      {a.students?.last_name} {a.students?.first_name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-warm-700 truncate">{a.students?.last_name} {a.students?.first_name}</span>
-                  )}
-                  {info ? (
-                    <Tooltip content={info} maxWidth="max-w-none">
-                      <span className="text-warm-700 flex-shrink-0 cursor-help underline decoration-dotted decoration-warm-300 underline-offset-2">{a.classes?.name}</span>
-                    </Tooltip>
-                  ) : (
-                    <span className="text-warm-700 flex-shrink-0">{a.classes?.name}</span>
-                  )}
-                  <span className="ml-auto text-warm-700 flex-shrink-0">{ABSENCE_TYPE[a.absence_type] ?? a.absence_type}</span>
-                  <span className="text-warm-700 flex-shrink-0 tabular-nums">{new Date(a.absence_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
+                <div key={`${g.date}-${i}`} className="flex items-center gap-2.5 rounded-xl bg-warm-50 p-2.5 min-w-0">
+                  <div className="w-11 shrink-0 text-center rounded-lg bg-white border border-[var(--card-border)] py-1">
+                    <p className="text-[17px] font-extrabold leading-none tabular-nums text-secondary-800">{String(gj).padStart(2, '0')}</p>
+                    <p className="text-[9px] font-bold uppercase text-warm-700">{MOIS_COURT[gm - 1]}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-secondary-800 truncate">{g.titre}</p>
+                    <Puce ton={ton}>{g.detail}</Puce>
+                  </div>
                 </div>
               )
             })}
           </div>
         )}
-      </section>
+      </Encadre>
     </div>
   )
 }
 
-// ─── Ligne « A traiter » ────────────────────────────────────────────────────
-const TODO_TONE: Record<string, string> = {
-  orange: 'bg-orange-100 text-orange-700',
-  red: 'bg-red-100 text-red-700',
-  primary: 'bg-primary-100 text-primary-700',
-}
-
-// `href: null` = le compteur reste affiche mais ne mene nulle part (ecran
-// masque sur telephone). On ne retire pas la ligne : le chiffre a sa valeur.
-function TodoRow({ href, label, count, tone }: { href: string | null; label: string; count: number; tone: string }) {
-  const corps = (
-    <>
-      <span className={clsx('inline-grid place-items-center min-w-[1.5rem] h-6 px-1.5 rounded-full font-bold tabular-nums', count > 0 ? TODO_TONE[tone] : 'bg-warm-100 text-warm-700')}>
-        {count}
-      </span>
-      <span className="font-medium text-warm-700">{label}</span>
-    </>
+function LigneSeance({ s }: { s: SeanceAffichee }) {
+  const st = STATUT[s.statut]
+  return (
+    <div className="ligne-tdb">
+      <span className="w-[86px] shrink-0 tabular-nums font-semibold text-warm-700">{s.debut}-{s.fin}</span>
+      <span className={clsx('w-1 h-7 rounded-full shrink-0', s.remplacement ? 'bg-violet-500' : st.barre)} aria-hidden="true" />
+      <div className="flex-1 min-w-0">
+        <p className={clsx('font-semibold text-secondary-800 truncate', s.statut === 'annulee' && 'line-through')}>
+          {s.classe}{s.cours ? ` · ${s.cours}` : ''}
+        </p>
+        <p className="text-[11px] text-warm-700 truncate">
+          {s.enseignant || 'Sans enseignant'}{s.titulaire ? `, remplace ${s.titulaire}` : ''}
+        </p>
+      </div>
+      <span className="hidden sm:inline w-20 shrink-0 text-right text-warm-700 tabular-nums">{pluriel(s.effectif, 'inscrit')}</span>
+      <div className="flex gap-1 shrink-0">
+        {s.remplacement && <Puce ton="remplacement">Remplacement</Puce>}
+        <Puce ton={st.ton}>{st.label}</Puce>
+      </div>
+    </div>
   )
-
-  const base = 'flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-2 text-xs'
-
-  return href
-    ? <Link href={href} className={clsx(base, 'hover:bg-warm-100 transition-colors')}>{corps}</Link>
-    : <div className={base}>{corps}</div>
 }

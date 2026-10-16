@@ -1,0 +1,119 @@
+import Link from 'next/link'
+import { clsx } from 'clsx'
+import type { LucideIcon } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
+import { Cliquable } from '@/components/ui/Cliquable'
+
+/**
+ * Briques du tableau de bord (refonte du 16/10). Les couleurs vivent dans les
+ * classes `.tuile-*`, `.ton-*`, `.encadre-tdb` de `globals.css`, adossees a
+ * des jetons : aucune teinte ecrite ici.
+ */
+
+export type TonTuile = 'marque' | 'ambre' | 'ardoise' | 'encre'
+export type Ton = 'ok' | 'attente' | 'info' | 'remplacement' | 'danger' | 'orange' | 'neutre'
+
+/** Tuile en couleur pleine : titre, icone, chiffre, visuel libre, pied. */
+export function Tuile({ ton, titre, icone: Icone, valeur, unite, children, pied, lien }: {
+  ton: TonTuile
+  titre: string
+  icone: LucideIcon
+  valeur: React.ReactNode
+  unite?: string
+  children?: React.ReactNode
+  pied: React.ReactNode
+  /** `href: null` = lien neutralise (ecran masque sur telephone). */
+  lien?: { href: string | null; label: string }
+}) {
+  return (
+    <section className={clsx('tuile', `tuile-${ton}`)} aria-label={titre}>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="tuile-titre">{titre}</h3>
+        <span className="tuile-icone" aria-hidden="true"><Icone size={18} strokeWidth={2} /></span>
+      </div>
+      <p className="leading-none">
+        <span className="tuile-fort text-[28px] font-extrabold tabular-nums tracking-tight">{valeur}</span>
+        {unite && <span className="text-xs ml-1.5">{unite}</span>}
+      </p>
+      {children}
+      <div className="mt-auto flex items-center justify-between gap-2 text-[11px] font-medium">
+        <span className="min-w-0 truncate">{pied}</span>
+        {lien?.href && (
+          <Link href={lien.href} className="tuile-lien shrink-0">{lien.label}</Link>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/** Jauge de tuile (0 a 100). */
+export function JaugeTuile({ pct }: { pct: number }) {
+  return (
+    <div className="tuile-piste" role="presentation">
+      <div className="tuile-jauge" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+    </div>
+  )
+}
+
+/** Mini-courbe en couleur du texte de la tuile (aucune echelle : une allure). */
+export function Sparkline({ valeurs, label }: { valeurs: number[]; label: string }) {
+  if (valeurs.length < 2) return null
+  const max = Math.max(1, ...valeurs)
+  const pts = valeurs
+    .map((v, i) => `${(i / (valeurs.length - 1)) * 200},${26 - (v / max) * 22}`)
+    .join(' ')
+  return (
+    <svg viewBox="0 0 200 28" width="100%" height="26" preserveAspectRatio="none" role="img" aria-label={label}>
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
+
+/** Encadre blanc : titre, lien a droite, contenu. */
+export function Encadre({ titre, lien, aside, className, children }: {
+  titre: string
+  lien?: { href: string | null; label: string }
+  aside?: React.ReactNode
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className={clsx('card encadre-tdb flex flex-col', className)}>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="text-[13px] font-bold text-secondary-800">{titre}</h3>
+        {aside}
+        {lien?.href && <Link href={lien.href} className="lien-tdb shrink-0">{lien.label}</Link>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** Ligne « A traiter » : compteur colore si non nul, libelle, chevron si lien. */
+export function LigneATraiter({ href, label, n, ton }: {
+  href: string | null
+  label: string
+  /** `null` = comptage impossible : « - », jamais un faux zero. */
+  n: number | null
+  ton: Ton
+}) {
+  return (
+    <Cliquable
+      href={href}
+      className="ligne-tdb text-secondary-800"
+      classNameLien="rounded-md hover:bg-warm-50 -mx-2 px-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]"
+    >
+      <span className={clsx('compteur', n ? `ton-${ton}` : 'ton-neutre')}>{n ?? '-'}</span>
+      <span className="flex-1 font-medium">{label}</span>
+      {href && <ChevronRight size={14} className="text-warm-700 shrink-0" aria-hidden="true" />}
+    </Cliquable>
+  )
+}
+
+export function Puce({ ton, children }: { ton: Ton; children: React.ReactNode }) {
+  return <span className={clsx('puce', `ton-${ton}`)}>{children}</span>
+}
+
+export function Vide({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-warm-700 italic py-6 text-center">{children}</p>
+}
