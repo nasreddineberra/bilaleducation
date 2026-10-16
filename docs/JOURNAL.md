@@ -8052,3 +8052,25 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Remplissage des classes** (demande utilisateur) : a cote du nom, le titulaire actif (Civilite NOM
   Prenom) et la seance (« Samedi 09:00-12:00 »), tronques avec infobulle. La seance sort de
   `classInfo.ts` (`seanceDeClasse`, reutilisee par `classInfoWithTeacher`) : un seul format.
+
+#### 16 octobre 2026 — Ecole de demonstration : acces prospect
+
+- **Demande utilisateur** : depuis la console, mettre l'adresse d'un prospect sur un compte de la
+  demonstration pour lui donner un acces temporaire. Icone « Ouvrir un acces prospect » (adresse + mot de
+  passe propre au compte, affiche une fois), repere « Prospect », bouton « Retablir ». Ecole marquee
+  `est_demo` seulement ; une vraie ecole gere ses comptes elle-meme.
+- **Trois precautions** : la 2FA du compte est RETIREE (enrolee sur le telephone de l'editeur, elle
+  bloquerait le prospect, a qui l'application fait enroler la sienne) ; mot de passe PROPRE (le commun
+  ouvre les six autres comptes) ; sessions COUPEES au retablissement — l'API d'auth ne ferme que les
+  sessions de l'appelant, d'ou `demo_couper_sessions` (migration `add-demo-couper-sessions.sql`,
+  service-role ET compte d'une ecole demo seulement ; controle 11 : rouge avant, vert apres).
+- **Identite de demonstration** : la remise a zero retrouvait les comptes PAR ADRESSE ; la cle
+  (`enseignant1`...) est rangee dans `app_metadata.demo_compte` (l'API FUSIONNE : role et
+  etablissement_id conserves, verifie). « Reinitialiser » retablit d'abord tous les acces prospects, et
+  s'annule si l'un echoue. Le compte de l'editeur en intervention est ignore.
+- **Essai reel** sur enseignant3 (demonstration) : adresse et mot de passe du prospect poses, connexion
+  du prospect, mot de passe commun refuse, coupure : jeton de rafraichissement refuse ET jeton d'acces
+  refuse par le serveur (`getUser`), retablissement, connexion d'origine retrouvee, adresse du prospect
+  refusee. Le compte est revenu a son etat d'origine (plus la cle `demo_compte`).
+- **Effet de bord du 16/10 corrige** : la confirmation « Desactiver ce compte » de la console annoncait
+  une trace au journal de l'ecole, qui n'existe plus pour l'editeur.

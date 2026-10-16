@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
-import { UserX, UserCheck, KeyRound } from 'lucide-react'
+import { UserX, UserCheck, KeyRound, AtSign, Undo2 } from 'lucide-react'
 import FormModal from '@/components/ui/FormModal'
 import TempPasswordField from '@/components/superadmin/TempPasswordField'
 import { createTenantUser, updateTenantUser, resendTenantUserReset } from '@/app/superadmin/actions'
+import { ouvrirAccesProspect, retablirCompteDemo } from '@/app/superadmin/demo-actions'
 import type { Profile, UserRole } from '@/types/database'
 import { isPasswordValid } from '@/lib/validation/password'
 import { libelleRole } from '@/lib/auth/role-labels'
@@ -56,8 +57,13 @@ function parRolePuisNom(a: Profile, b: Profile): number {
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
-export default function EcoleUsersSection({ profiles, auth, etablissementId, etablissementNom }: {
+/** Domaine des comptes de l'ecole de demonstration (voir `demo-actions.ts`). */
+const DOMAINE_DEMO = '@demonstration.invalid'
+
+export default function EcoleUsersSection({ profiles, auth, etablissementId, etablissementNom, estDemo = false }: {
   profiles: Profile[]
+  /** Ecole de demonstration : acces prospect (changer l'adresse d'un compte, la retablir). */
+  estDemo?: boolean
   /** Etat d'authentification par compte : 2FA verifiee, derniere connexion. */
   auth: Record<string, { deuxFacteurs: boolean; connexion: string | null }>
   etablissementId: string
@@ -72,6 +78,13 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
   const [aDesactiver,  setADesactiver]  = useState<Profile | null>(null)
   const [envoiId,      setEnvoiId]      = useState<string | null>(null)
   const [envoye,       setEnvoye]       = useState<string | null>(null)
+  // Acces prospect (ecole de demonstration seulement).
+  const [prospectPour, setProspectPour] = useState<Profile | null>(null)
+  const [prospect,     setProspect]     = useState({ email: '', password: '' })
+  const [prospectErr,  setProspectErr]  = useState<string | null>(null)
+  const [ouvert,       setOuvert]       = useState<{ email: string; password: string } | null>(null)
+  const [aRetablir,    setARetablir]    = useState<Profile | null>(null)
+  const [retablissant, setRetablissant] = useState<string | null>(null)
   const router = useRouter()
   const [newUser, setNewUser] = useState({ last_name: '', first_name: '', email: '', password: '', role: ROLE_CREABLE })
 
@@ -119,6 +132,40 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
       setError('Une erreur est survenue.')
     } finally {
       setTogglingId(null)
+    }
+  }
+
+  const prospectValide = isValidEmail(prospect.email.trim()) && !prospect.email.trim().toLowerCase().endsWith(DOMAINE_DEMO)
+    && !!prospectPour && isPasswordValid(prospect.password, prospectPour.first_name ?? '', prospectPour.last_name ?? '')
+
+  const ouvrirProspect = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!prospectPour || !prospectValide) return
+    setSubmitting(true); setProspectErr(null)
+    try {
+      const res = await ouvrirAccesProspect(prospectPour.id, etablissementId, prospect.email.trim(), prospect.password)
+      if (res.error) { setProspectErr(res.error); return }
+      setOuvert({ email: prospect.email.trim().toLowerCase(), password: prospect.password })
+      setProspectPour(null)
+      router.refresh()
+    } catch {
+      setProspectErr('Une erreur est survenue.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const retablirCompte = async (p: Profile) => {
+    setRetablissant(p.id); setError(null); setOuvert(null)
+    try {
+      const res = await retablirCompteDemo(p.id, etablissementId)
+      if (res.error) { setError(res.error); return }
+      if (res.avertissement) setError(res.avertissement)
+      router.refresh()
+    } catch {
+      setError('Une erreur est survenue.')
+    } finally {
+      setRetablissant(null)
     }
   }
 
@@ -202,6 +249,12 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
         <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">{error}</p>
       )}
 
+      {ouvert && (
+        <p role="status" className="text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+          Accès ouvert pour <span className="font-semibold">{ouvert.email}</span> · mot de passe <span className="font-semibold font-mono">{ouvert.password}</span>
+        </p>
+      )}
+
       {envoye && (
         <p role="status" className="text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
           Lien envoyé à {envoye}.
@@ -235,7 +288,39 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
                     </span>
                   </Tooltip>
                 )}
+                {estDemo && p.role !== 'super_admin' && !p.email?.endsWith(DOMAINE_DEMO) && (
+                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap bg-violet-100 text-violet-700">Prospect</span>
+                )}
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{libelleRole(p.role, 'court')}</span>
+                {estDemo && p.role !== 'super_admin' && (
+                  p.email?.endsWith(DOMAINE_DEMO) ? (
+                    <Tooltip content="Ouvrir un accès prospect">
+                      <button
+                        type="button"
+                        onClick={() => { setProspectErr(null); setProspect({ email: '', password: '' }); setProspectPour(p) }}
+                        aria-label={`Ouvrir un accès prospect sur le compte de ${p.last_name} ${p.first_name}`}
+                        className="p-1 rounded-lg text-warm-700 hover:text-[var(--brand-surface)] hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)]"
+                      >
+                        <AtSign size={15} />
+                      </button>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip content="Fermer l'accès prospect et rétablir le compte">
+                      <button
+                        type="button"
+                        onClick={() => setARetablir(p)}
+                        disabled={retablissant === p.id}
+                        aria-label={`Rétablir le compte de ${p.last_name} ${p.first_name}`}
+                        className={clsx(
+                          'p-1 rounded-lg text-warm-700 hover:text-[var(--brand-surface)] hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)]',
+                          retablissant === p.id && 'opacity-40 cursor-not-allowed',
+                        )}
+                      >
+                        <Undo2 size={15} />
+                      </button>
+                    </Tooltip>
+                  )
+                )}
                 {/* Reserve a la direction, comme la creation : un « mot de passe
                     oublie » d'enseignant se traite dans l'ecole, qui a l'ecran
                     pour le faire. */}
@@ -275,6 +360,48 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
       )}
 
 
+      {prospectPour && (
+        <FormModal
+          title={`Accès prospect · ${prospectPour.last_name} ${prospectPour.first_name}`}
+          onClose={() => setProspectPour(null)}
+          footer={
+            <>
+              <span className="text-xs text-red-400 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
+              <FloatButton type="button" variant="secondary" onClick={() => setProspectPour(null)}>Annuler</FloatButton>
+              <FloatButton type="submit" form="form-acces-prospect" variant="submit" loading={submitting} disabled={submitting || !prospectValide}>
+                Ouvrir l&apos;accès
+              </FloatButton>
+            </>
+          }
+        >
+          <form id="form-acces-prospect" onSubmit={ouvrirProspect} noValidate className="space-y-4 pt-1">
+            <FloatInput
+              label="Email du prospect" type="email" required autoComplete="off"
+              value={prospect.email} onChange={e => setProspect(v => ({ ...v, email: e.target.value }))}
+            />
+            <Champ label="Mot de passe de ce compte">
+              <TempPasswordField value={prospect.password} onChange={v => setProspect(p => ({ ...p, password: v }))} compact />
+            </Champ>
+            {prospectErr && <p role="alert" className="text-xs text-red-600">{prospectErr}</p>}
+          </form>
+        </FormModal>
+      )}
+
+      {aRetablir && (
+        <ConfirmModal
+          title="Fermer l'accès prospect ?"
+          confirmLabel="Rétablir"
+          onConfirm={() => { const p = aRetablir; setARetablir(null); retablirCompte(p) }}
+          onCancel={() => setARetablir(null)}
+        >
+          <p className="text-sm text-secondary-700">
+            <span className="font-semibold">{aRetablir.email}</span> ne pourra plus se connecter : le compte de{' '}
+            <span className="font-semibold">{aRetablir.last_name} {aRetablir.first_name}</span> retrouve son adresse et le
+            mot de passe commun, sa 2FA est retirée et ses sessions ouvertes sont fermées.
+          </p>
+        </ConfirmModal>
+      )}
+
       {/* Confirmation dans les DEUX SENS. Réactiver rend un accès : c'est une
           décision aussi engageante que le retirer, et elle n'appartient pas
           davantage à l'éditeur. Le texte rappelle au nom de qui l'on agit et
@@ -295,10 +422,10 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
                 ? ' ne pourra plus se connecter. Le compte et ses données sont conservés.'
                 : ' pourra de nouveau se connecter.'}
             </p>
+            {/* Depuis le 16/10, l'editeur n'est plus trace au journal de l'ecole :
+                l'action va a l'historique de la console (`actions_editeur`). */}
             <p className="text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 leading-snug">
               Vous intervenez <span className="font-semibold">au nom de la direction de {etablissementNom}</span>.
-              Cette action sera inscrite au <span className="font-semibold">journal d&apos;activité de
-              l&apos;établissement</span>, à votre nom : l&apos;école pourra la voir et savoir qu&apos;elle vient de vous.
             </p>
           </div>
         </ConfirmModal>

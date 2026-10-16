@@ -344,7 +344,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
         <div className="relative">
           <div className="absolute inset-0 flex flex-col gap-3">
             <MiseEnService installation={installation} demarrage={demarrage} />
-            <EcoleUsersSection profiles={personnel} auth={authParCompte} etablissementId={id} etablissementNom={ecole.nom} />
+            <EcoleUsersSection profiles={personnel} auth={authParCompte} etablissementId={id} etablissementNom={ecole.nom} estDemo={Boolean(ecole.est_demo)} />
           </div>
         </div>
         {/* Meme technique que la colonne centrale : la Console editeur s'etire

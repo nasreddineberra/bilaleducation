@@ -190,6 +190,165 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
   return { id: ecole.id, motDePasse: mdp, logo }
 }
 
+// ─── ACCES PROSPECT ──────────────────────────────────────────────────────────
+//
+// L'editeur donne a un prospect l'usage d'un compte de la demonstration en y
+// mettant SON adresse, puis le « retablit » (ou remet l'ecole a zero, ce qui
+// retablit tous les comptes). Trois precautions, sans lesquelles l'acces ne
+// marcherait pas ou exposerait les autres comptes :
+//   - la 2FA du compte est retiree : enrolee sur le telephone de l'editeur, elle
+//     bloquerait le prospect ; l'application lui fera enroler la sienne ;
+//   - le compte recoit un mot de passe PROPRE : le mot de passe commun ouvre les
+//     six autres comptes ;
+//   - au retablissement, ses sessions ouvertes sont coupees
+//     (`demo_couper_sessions`), sinon un jeton de rafraichissement survivrait.
+//
+// IDENTITE DE DEMONSTRATION : la remise a zero retrouvait chaque compte par son
+// adresse. Une adresse de prospect la casserait : la cle (`enseignant1`...) est
+// donc rangee dans `app_metadata.demo_compte` au premier changement d'adresse
+// (fusionne par l'API, `role` et `etablissement_id` sont conserves).
+
+type CompteDemo = { id: string; email: string; cle: string | null; prenom: string; nom: string }
+
+/** Compte de la demonstration, CLOISONNE : il doit appartenir a l'ecole affichee, marquee demo. */
+async function lireCompteDemo(
+  admin: ReturnType<typeof createAdminClient>, profileId: string, etablissementId: string,
+): Promise<CompteDemo | { error: string }> {
+  const { data: ecole } = await admin.from('etablissements').select('est_demo').eq('id', etablissementId).maybeSingle()
+  if (!ecole?.est_demo) return { error: "Ce n'est pas l'école de démonstration." }
+  const { data: p } = await admin.from('profiles').select('id, email, first_name, last_name')
+    .eq('id', profileId).eq('etablissement_id', etablissementId).maybeSingle()
+  if (!p) return { error: "Ce compte n'appartient pas à l'école de démonstration." }
+  const { data: u } = await admin.auth.admin.getUserById(profileId)
+  const email = String(p.email ?? '')
+  const parAdresse = email.endsWith(`@${DOMAINE}`) ? email.slice(0, -DOMAINE.length - 1) : null
+  const cle = (u?.user?.app_metadata?.demo_compte as string | undefined) ?? parAdresse
+  return { id: p.id, email, cle: cle && COMPTES.some(c => c.email === cle) ? cle : null, prenom: p.first_name ?? '', nom: p.last_name ?? '' }
+}
+
+/** Retire la 2FA du compte et coupe ses sessions. Rend un message si quelque chose a echoue. */
+async function remettreAuPropre(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<string | null> {
+  const { data, error } = await admin.auth.admin.mfa.listFactors({ userId })
+  if (error) return 'lecture de la 2FA impossible'
+  for (const f of data?.factors ?? []) {
+    const { error: e } = await admin.auth.admin.mfa.deleteFactor({ userId, id: f.id })
+    if (e) return 'retrait de la 2FA impossible'
+  }
+  const { error: eS } = await admin.rpc('demo_couper_sessions', { p_user: userId })
+  if (eS) return 'coupure des sessions impossible'
+  return null
+}
+
+const estEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+
+export async function ouvrirAccesProspect(
+  profileId: string, etablissementId: string, email: string, motDePasse: string,
+): Promise<{ error?: string }> {
+  const { error: refus } = await requireEditor()
+  if (refus) return { error: refus }
+
+  const adresse = email.trim().toLowerCase()
+  if (!estEmail(adresse)) return { error: 'Adresse email invalide.' }
+  if (adresse.endsWith(`@${DOMAINE}`)) return { error: `Saisissez l'adresse du prospect, pas une adresse @${DOMAINE}.` }
+
+  const admin = createAdminClient()
+  const compte = await lireCompteDemo(admin, profileId, etablissementId)
+  if ('error' in compte) return compte
+  if (!compte.cle) return { error: "Ce compte n'est pas un compte de démonstration reconnu." }
+
+  const mdpInvalide = validatePasswordServer(motDePasse, compte.prenom, compte.nom)
+  if (mdpInvalide) return { error: mdpInvalide }
+
+  const { data: deja } = await admin.from('profiles').select('id').ilike('email', adresse).neq('id', profileId).limit(1)
+  if (deja?.length) return { error: 'Cette adresse est déjà utilisée par un autre compte.' }
+
+  // Sessions et 2FA d'abord : si l'editeur avait ouvert ce compte, rien ne
+  // doit passer au prospect.
+  const sale = await remettreAuPropre(admin, profileId)
+  if (sale) return { error: `Accès non ouvert : ${sale}.` }
+
+  const { error: eAuth } = await admin.auth.admin.updateUserById(profileId, {
+    email: adresse, email_confirm: true, password: motDePasse,
+    app_metadata: { demo_compte: compte.cle },
+  })
+  if (eAuth) {
+    return { error: /already|exists|registered/i.test(eAuth.message) ? 'Cette adresse est déjà utilisée par un autre compte.' : `Adresse non modifiée : ${eAuth.message}` }
+  }
+  const { error: eProfil } = await admin.from('profiles').update({ email: adresse })
+    .eq('id', profileId).eq('etablissement_id', etablissementId).select('id')
+  if (eProfil) console.error('[demo] email du profil non mis a jour :', eProfil)
+
+  await tracerActionEditeur(await createClient(), {
+    etablissementId,
+    description: `Accès prospect ouvert : ${compte.nom} ${compte.prenom} (${compte.cle}) → ${adresse}`,
+  })
+  revalidatePath(`/superadmin/ecoles/${etablissementId}`)
+  return {}
+}
+
+/** Rend son adresse, le mot de passe commun et un etat sans 2FA ni session a un compte. */
+async function retablir(
+  admin: ReturnType<typeof createAdminClient>, compte: CompteDemo, etablissementId: string, mdp: string | null,
+): Promise<string | null> {
+  if (!compte.cle) return `${compte.email} : compte de démonstration non reconnu`
+  const origine = `${compte.cle}@${DOMAINE}`
+  const sale = await remettreAuPropre(admin, compte.id)
+  if (sale) return `${compte.email} : ${sale}`
+  const { error } = await admin.auth.admin.updateUserById(compte.id, {
+    email: origine, email_confirm: true, ...(mdp ? { password: mdp } : {}),
+  })
+  if (error) return `${compte.email} : ${error.message}`
+  const { error: eProfil } = await admin.from('profiles').update({ email: origine })
+    .eq('id', compte.id).eq('etablissement_id', etablissementId).select('id')
+  if (eProfil) return `${compte.email} : profil non mis à jour`
+  return null
+}
+
+function motDePasseCommun(notes: string | null | undefined): string | null {
+  const ligne = (notes ?? '').split('\n').find(l => l.startsWith(LIGNE_MDP))
+  const mdp = ligne ? ligne.slice(LIGNE_MDP.length).trim() : ''
+  return mdp && mdp !== '(inconnu)' ? mdp : null
+}
+
+export async function retablirCompteDemo(profileId: string, etablissementId: string): Promise<{ error?: string; avertissement?: string }> {
+  const { error: refus } = await requireEditor()
+  if (refus) return { error: refus }
+
+  const admin = createAdminClient()
+  const compte = await lireCompteDemo(admin, profileId, etablissementId)
+  if ('error' in compte) return compte
+  const { data: n } = await admin.from('etablissement_notes').select('notes').eq('etablissement_id', etablissementId).maybeSingle()
+  const mdp = motDePasseCommun(n?.notes)
+
+  const echec = await retablir(admin, compte, etablissementId, mdp)
+  if (echec) return { error: `Rétablissement incomplet · ${echec}` }
+
+  await tracerActionEditeur(await createClient(), {
+    etablissementId,
+    description: `Accès prospect fermé : ${compte.nom} ${compte.prenom} (${compte.cle}), ancienne adresse ${compte.email}`,
+  })
+  revalidatePath(`/superadmin/ecoles/${etablissementId}`)
+  return mdp ? {} : { avertissement: 'Adresse rétablie, mais le mot de passe commun est introuvable dans les notes : le mot de passe du prospect reste en place.' }
+}
+
+/** Retablit tous les comptes dont l'adresse n'est plus celle d'origine. Rend les echecs. */
+async function retablirTous(admin: ReturnType<typeof createAdminClient>, etablissementId: string): Promise<string[]> {
+  const { data: profils } = await admin.from('profiles').select('id, email').eq('etablissement_id', etablissementId)
+  const { data: n } = await admin.from('etablissement_notes').select('notes').eq('etablissement_id', etablissementId).maybeSingle()
+  const mdp = motDePasseCommun(n?.notes)
+  const echecs: string[] = []
+  for (const p of profils ?? []) {
+    if (String(p.email ?? '').endsWith(`@${DOMAINE}`)) continue
+    const compte = await lireCompteDemo(admin, p.id, etablissementId)
+    // Pas un compte de demonstration (l'editeur en intervention, un compte cree
+    // a la main pendant une demo) : il n'a pas d'adresse d'origine a retrouver.
+    if ('error' in compte || !compte.cle) continue
+    const echec = await retablir(admin, compte, etablissementId, mdp)
+    if (echec) echecs.push(echec)
+  }
+  return echecs
+}
+
 export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{ error?: string; fichiers?: number; logo?: boolean }> {
   const { error: refus } = await requireEditor()
   if (refus) return { error: refus }
@@ -199,6 +358,10 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   // mais elle passe apres.
   const { data: ecole } = await admin.from('etablissements').select('est_demo').eq('id', etablissementId).maybeSingle()
   if (!ecole?.est_demo) return { error: "Ce n'est pas l'école de démonstration." }
+  // Fin de TOUS les acces prospects : les adresses d'origine d'abord, sans
+  // quoi `appliquerComptes` (qui retrouve les comptes par adresse) les sauterait.
+  const echecs = await retablirTous(admin, etablissementId)
+  if (echecs.length) return { error: `Accès prospects non fermés, remise à zéro annulée · ${echecs.join(' · ')}` }
   await appliquerComptes(admin, etablissementId)
 
   const { data, error } = await admin.rpc('reinitialiser_ecole_demo', { p_id: etablissementId })
