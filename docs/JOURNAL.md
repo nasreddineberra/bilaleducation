@@ -8019,3 +8019,17 @@ marque ; les vraies ecoles gardent leur plaque.
   des evaluations a venir supprimees avec eux). Deux rangees de trois : Journee en cours · Remplissage des
   classes · A traiter, puis Encaissements par mois · Absences 30 jours · Familles. En tiers de largeur,
   la legende des encaissements passe sous le graphique et l'effectif d'une seance ne s'affiche qu'en 2xl.
+
+#### 16 octobre 2026 — Tableau de bord : lot Enseignant
+
+- **Direction validee par l'utilisateur.** Lot Enseignant selon la maquette : carte « Prochaine seance » en
+  tuile de marque (quand, classe et cours, horaire, salle, inscrits, devoir a rendre ce jour-la, absents a la
+  seance precedente, boutons Faire l'appel et Cahier de texte) ; compteurs Mes eleves, Seances a valider
+  (30 jours), Evaluations sans note ; Ma semaine (jours ou il a cours, plus aujourd'hui) ; Mes classes
+  (inscrits, assiduite du mois, moyenne /20 de la periode) ; Devoirs a venir ; Eleves a suivre (3 absences
+  et plus sur la periode, arrivees des 21 derniers jours) ; Mes heures du mois contre les heures prevues a
+  l'emploi du temps.
+- **Securite** : `lib/dashboard/enseignant.ts`, client de session. La RLS ouvre a l'enseignant l'EDT de
+  TOUTE l'ecole (decision du 29/09) : les seances sont donc filtrees sur l'enseignant qui les assure
+  REELLEMENT (le sien, ou celui qu'il remplace ; un titulaire remplace ne voit plus la seance), et seules
+  les siennes partent au navigateur. Validations et heures filtrees sur `profile_id` EN PLUS de la RLS.

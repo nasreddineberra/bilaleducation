@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCurrentYear } from '@/lib/cache/dashboard'
 import { chargerDonneesDirection } from '@/lib/dashboard/direction'
+import { chargerDonneesEnseignant } from '@/lib/dashboard/enseignant'
 import { jourParis } from '@/lib/tenant/abonnement'
 import { heureParis } from '@/lib/dates'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
@@ -257,98 +258,13 @@ export default async function DashboardPage() {
   //  ENSEIGNANT
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'enseignant') {
-    // Resolution FIABLE : par user_id (et non par email, qui peut diverger).
-    const { data: teacher } = await supabase
-      .from('teachers')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    const teacherId = teacher?.id
-    const today = todayKey()
-    const todayDow = new Date().getDay() // 0=dimanche … 6=samedi (comme schedule_slots)
-
-    let myClasses: any[] = []
-    let myStudentsCount = 0
-    let absencesToday = 0
-    let recentAbsences: any[] = []
-    let todaySlots: any[] = []
-
-    if (teacherId) {
-      // Classes ou je suis affecte AUJOURD'HUI (titulaire ou remplacant).
-      // Classes de l'ANNEE EN COURS (`classes!inner`) : une affectation ancienne
-      // restee ouverte (`effective_until` nul) ramenait sinon une classe de
-      // l'annee passee. L'effectif n'est PLUS compte ici — voir plus bas.
-      const { data: classTeachers } = currentYear
-        ? await supabase
-            .from('class_teachers')
-            .select('class_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, level, academic_year)')
-            .eq('teacher_id', teacherId)
-            .eq('classes.academic_year', currentYear.label)
-        : { data: [] }
-
-      const activeCt = (classTeachers ?? []).filter((ct: any) =>
-        (!ct.effective_from || ct.effective_from <= today) &&
-        (!ct.effective_until || ct.effective_until >= today)
-      )
-      const myClassIds = [...new Set(activeCt.map((ct: any) => ct.class_id).filter(Boolean))]
-
-      // Effectifs : memes regles que le tableau de bord admin — inscriptions
-      // ACTIVES seulement, et les deux tables (une classe d'adultes affichait 0).
-      const [teacherStudents, teacherAdults] = myClassIds.length > 0
-        ? await Promise.all([
-            supabase.from('enrollments').select('class_id').eq('status', 'active').in('class_id', myClassIds),
-            supabase.from('parent_class_enrollments').select('class_id').eq('status', 'active').in('class_id', myClassIds),
-          ])
-        : [{ data: [] }, { data: [] }]
-
-      const countByClass = [...(teacherStudents.data ?? []), ...(teacherAdults.data ?? [])]
-        .reduce<Record<string, number>>((m, r: any) => (m[r.class_id] = (m[r.class_id] ?? 0) + 1, m), {})
-
-      myClasses = activeCt.map((ct: any) => ({
-        id: ct.classes?.id,
-        name: ct.classes?.name,
-        level: ct.classes?.level,
-        isMain: ct.is_main_teacher,
-        enrolled: countByClass[ct.class_id] ?? 0,
-      }))
-      myStudentsCount = myClasses.reduce((s, c) => s + c.enrolled, 0)
-
-      if (myClassIds.length > 0) {
-        const [{ data: slots }, { count: absToday }, { data: recentAbs }] = await Promise.all([
-          // Emploi du temps du JOUR (creneaux recurrents de mes classes).
-          supabase.from('schedule_slots')
-            .select('id, class_id, start_time, end_time, slot_type, effective_from, effective_until, classes:class_id(name)')
-            .in('class_id', myClassIds)
-            .eq('day_of_week', todayDow)
-            .eq('is_active', true)
-            .eq('is_recurring', true)
-            .order('start_time'),
-          supabase.from('absences').select('id', { count: 'exact', head: true })
-            .neq('absence_type', 'retard').eq('absence_date', today).in('class_id', myClassIds),
-          supabase.from('absences').select('id, absence_date, absence_type, students:student_id(id, first_name, last_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
-            .neq('absence_type', 'retard').in('class_id', myClassIds).order('absence_date', { ascending: false }).limit(5),
-        ])
-
-        // Fenetre d'effet filtree cote JS : null = borne ouverte (from <= today <= until).
-        todaySlots = ((slots ?? []) as any[])
-          .filter((s: any) => (!s.effective_from || s.effective_from <= today) && (!s.effective_until || s.effective_until >= today))
-          .map((s: any) => ({
-            id: s.id, classId: s.class_id, className: s.classes?.name,
-            start: s.start_time, end: s.end_time, slotType: s.slot_type,
-          }))
-        absencesToday = absToday ?? 0
-        recentAbsences = (recentAbs ?? []) as any[]
-      }
-    }
-
-    return (
-      <DashboardEnseignant
-        {...common}
-        stats={{ myClasses, myStudentsCount, absencesToday, recentAbsences, todaySlots }}
-      />
+    // Client de SESSION ; les seances sont filtrees sur l'enseignant connecte
+    // (la RLS lui ouvre l'EDT de toute l'ecole). Voir `lib/dashboard/enseignant.ts`.
+    const instant = new Date()
+    const donnees = await chargerDonneesEnseignant(
+      supabase, userId, currentYear, currentPeriod?.id ?? null, jourParis(instant), heureParis(instant),
     )
+    return <DashboardEnseignant {...common} donnees={donnees} />
   }
 
   // ══════════════════════════════════════════════════════════════════════

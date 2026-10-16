@@ -731,6 +731,76 @@
 :root[data-theme="dark"] .lien-tdb { color: var(--brand-accent); }
 :root[data-theme="dark"] .lien-tdb:hover { color: var(--brand-accent); }
 
+/* Boutons poses SUR une tuile (carte « Prochaine seance » de l'enseignant). */
+.bouton-tuile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--tuile-marque-2);
+  background: var(--tuile-jauge);
+  outline: none;
+  transition: filter .15s;
+}
+.bouton-tuile:hover { filter: brightness(1.08); }
+.bouton-tuile:focus-visible { box-shadow: 0 0 0 2px var(--tuile-fort); }
+.bouton-tuile-contour {
+  color: var(--tuile-fort);
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.28);
+}
+.bouton-tuile-contour:hover { filter: none; background: rgba(255,255,255,.14); }
+/* Etiquette claire sur une tuile (devoir du jour, absents la derniere fois). */
+.etiquette-tuile {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  background: rgba(255,255,255,.12);
+}
+/* Anneau decoratif de la tuile de marque (coin haut droit). */
+.tuile-anneau {
+  position: absolute;
+  right: -3.75rem;
+  top: -3.75rem;
+  width: 13.75rem;
+  height: 13.75rem;
+  border-radius: 9999px;
+  border: 1.75rem solid color-mix(in srgb, var(--tuile-jauge) 12%, transparent);
+  pointer-events: none;
+}
+/* Jour de la semaine de l'enseignant : aujourd'hui teinte de marque. */
+.jour-tdb {
+  border-radius: 0.75rem;
+  padding: 0.625rem;
+  min-height: 7.5rem;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+}
+.jour-tdb-actif {
+  background: color-mix(in srgb, var(--brand-surface) 9%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--brand-surface) 28%, transparent);
+}
+:root[data-theme="dark"] .jour-tdb-actif {
+  background: color-mix(in srgb, var(--brand-accent) 10%, var(--surface-card));
+  border-color: color-mix(in srgb, var(--brand-accent) 35%, transparent);
+}
+.seance-tdb {
+  border-radius: 0.375rem;
+  padding: 0.3125rem 0.4375rem;
+  margin-bottom: 0.375rem;
+  background: var(--surface-card);
+  border-left: 3px solid var(--brand-surface);
+  font-size: 11px;
+}
+:root[data-theme="dark"] .seance-tdb { border-left-color: var(--brand-accent); }
+
 /* Barres de l'histogramme mensuel : piste = attendu, remplissage = encaisse. */
 .histo-barre {
   display: flex;

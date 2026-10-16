@@ -110,6 +110,28 @@ export function LigneATraiter({ href, label, n, ton }: {
   )
 }
 
+/** Compteur en carte blanche : icone teintee, libelle, chiffre, action. */
+export function CarteCompteur({ icone: Icone, ton, label, valeur, lien }: {
+  icone: LucideIcon
+  ton: Ton
+  label: string
+  valeur: React.ReactNode
+  lien?: { href: string | null; label: string }
+}) {
+  return (
+    <section className="card encadre-tdb flex items-center gap-3 !py-3" aria-label={label}>
+      <span className={clsx('grid place-items-center w-10 h-10 rounded-xl shrink-0', `ton-${ton}`)} aria-hidden="true">
+        <Icone size={20} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="stat-label">{label}</p>
+        <p className="text-xl font-extrabold tabular-nums text-secondary-800 leading-tight">{valeur}</p>
+      </div>
+      {lien?.href && <Link href={lien.href} className="lien-tdb shrink-0">{lien.label}</Link>}
+    </section>
+  )
+}
+
 export function Puce({ ton, children }: { ton: Ton; children: React.ReactNode }) {
   return <span className={clsx('puce', `ton-${ton}`)}>{children}</span>
 }
