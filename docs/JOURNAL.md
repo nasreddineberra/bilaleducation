@@ -8033,3 +8033,19 @@ marque ; les vraies ecoles gardent leur plaque.
   TOUTE l'ecole (decision du 29/09) : les seances sont donc filtrees sur l'enseignant qui les assure
   REELLEMENT (le sien, ou celui qu'il remplace ; un titulaire remplace ne voit plus la seance), et seules
   les siennes partent au navigateur. Validations et heures filtrees sur `profile_id` EN PLUS de la RLS.
+
+#### 16 octobre 2026 — Journal d'activite sans les comptes admin ni l'editeur
+
+- **Decision utilisateur** : le role `admin` et l'editeur (`super_admin`, en intervention comme depuis la
+  console) ne laissent plus AUCUNE trace dans le journal d'une ecole ; les traces existantes sont
+  supprimees. (Le choix du role d'intervention dans la console, envisage, est abandonne.)
+- **Une seule regle, en base** : `fn_audit_logs_sans_editeur`, declencheur `BEFORE INSERT` sur
+  `audit_logs` (`RETURN NULL`). Il couvre les deux chemins d'ecriture (`fn_audit_log` sur 38 tables,
+  `logAudit`) et tout chemin futur ; l'action observee n'est jamais bloquee, seule la trace l'est.
+  L'historique de l'editeur (`support_interventions`) n'est pas touche.
+- Migration `add-journal-sans-editeur.sql` : sauvegarde locale prise avant (2026-10-16_15h19), 48 traces
+  supprimees (28 ECOLE BILAL, 20 demonstration).
+- **Controle 10** (`supabase/controles/10-journal-sans-editeur.sql`) : vu ROUGE avant (admin et
+  super_admin : 2 traces chacun, 53 traces restantes), VERT apres, en transaction annulee puis en reel —
+  direction toujours tracee, admin et super_admin 0 trace, action effectuee dans les trois cas.
+- La tache « verifier que le journal attribue les actions de support au super_admin » est sans objet.

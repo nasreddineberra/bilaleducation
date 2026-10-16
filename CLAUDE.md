@@ -178,6 +178,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp` (secret).
 - **Journal d'activite** : trigger `fn_audit_log()` (lit `auth.uid()`) + `logAudit` (colonne
   `description`). Tables ecrites avec le **client SESSION** ; client admin reserve aux comptes `auth`.
+  **Les comptes `admin` et l'editeur (`super_admin`) ne sont JAMAIS traces** (16/10) : declencheur
+  `BEFORE INSERT` sur `audit_logs` (`fn_audit_logs_sans_editeur`), controle 10.
 - **Adultes** : classe adulte = `cotisation_types.is_adult`. Participants =
   `parent_class_enrollments` (cle `parentId-tutorNumber`), tables miroir `adult_grades`,
   `adult_bulletin_appreciations`, `adult_bulletin_archives`, `adult_homework_status`,
@@ -345,8 +347,8 @@ financements, retention…), ecole de demonstration.
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
    l'ordre des Gabarits.
-4. **Verifier** que le journal attribue les actions de support au super_admin (aucune colonne
-   Utilisateur vide).
+4. **Tableau de bord** (refonte du 16/10) : Direction et Enseignant faits ; reste Comptable,
+   Resp. pedagogique, Secretaire.
 5. **Jour J** : effacer les donnees de test, creer l'etablissement reel (admin + direction).
    `clean-all-data.sql` NE DOIT PAS servir tel quel (vide le registre des migrations et les tables
    editeur, laisse `auth.users` et Storage).
