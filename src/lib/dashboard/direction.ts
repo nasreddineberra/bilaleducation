@@ -45,13 +45,6 @@ export interface SeanceAffichee {
   remplacement: boolean
 }
 
-export interface AgendaItem {
-  date: string
-  titre: string
-  detail: string
-  nature: 'evaluation' | 'fermeture' | 'echeance'
-}
-
 export interface DonneesDirection {
   aujourdhui: string
   fermeture: string | null
@@ -82,8 +75,6 @@ export interface DonneesDirection {
     fichesIncompletes: number | null
   }
   classes: { name: string; enrolled: number; max: number; adulte: boolean }[]
-  activite: { id: string; texte: string; auteur: string | null; quand: string; nature: string }[]
-  agenda: AgendaItem[]
 }
 
 const cle = (d: Date) =>
@@ -106,7 +97,6 @@ export async function chargerDonneesDirection(
   const [ay, am] = aujourdhui.split('-').map(Number)
   const finMois = cle(new Date(ay, am, 1)) // 1er du mois suivant (exclu)
   const il30j = decaler(aujourdhui, -29)
-  const dans14j = decaler(aujourdhui, 14)
   // Fenetre des seances a valider : 30 jours, jamais avant la rentree.
   const duValider = annee?.start_date && annee.start_date > il30j ? annee.start_date : il30j
   // Les exceptions servent aussi a l'assiduite du mois, qui peut commencer un
@@ -119,7 +109,7 @@ export async function chargerDonneesDirection(
     nouveauxEleves, nouveauxAdultes,
     classesRes, slotsRes, teachersRes, typesAbsRes,
     absMoisRes, absTendanceRes, absNonJustAnRes, absPeriodeRes,
-    evalsPeriodeRes, docConfigsRes, auditRes, evalsAVenirRes, echeancesRes,
+    evalsPeriodeRes, docConfigsRes, echeancesRes,
   ] = await Promise.all([
     annee ? supabase.from('school_years').select('vacations, jours_feries').eq('id', annee.id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from('etablissements').select('max_students').maybeSingle(),
@@ -149,8 +139,6 @@ export async function chargerDonneesDirection(
       ? supabase.from('evaluations').select('id, class_id').eq('period_id', periodeId).lte('evaluation_date', aujourdhui)
       : Promise.resolve({ data: [] }),
     supabase.from('document_type_configs').select('doc_key').eq('is_required', true),
-    supabase.from('audit_logs').select('id, description, user_name, entity_type, action, created_at').order('created_at', { ascending: false }).limit(6),
-    supabase.from('evaluations').select('id, title, evaluation_date, classes:class_id(name)').gte('evaluation_date', aujourdhui).lte('evaluation_date', dans14j).order('evaluation_date'),
     annee
       ? supabase.from('fee_installments').select('due_date, amount_due, amount_paid, family_fee_id, family_fees!inner(school_year_id)').eq('family_fees.school_year_id', annee.id)
       : Promise.resolve({ data: [] }),
@@ -316,32 +304,6 @@ export async function chargerDonneesDirection(
       }
     : null
 
-  // ── Agenda des 14 prochains jours ──────────────────────────────────────────
-  const agenda: AgendaItem[] = []
-  for (const e of (((evalsAVenirRes as any).data ?? []) as any[])) {
-    agenda.push({ date: e.evaluation_date, titre: `${e.classes?.name ?? ''} · ${e.title}`, detail: 'Évaluation', nature: 'evaluation' })
-  }
-  for (const v of vacations) {
-    if (v.start_date >= aujourdhui && v.start_date <= dans14j) {
-      agenda.push({ date: v.start_date, titre: v.label?.trim() || 'Vacances', detail: 'École fermée', nature: 'fermeture' })
-    }
-  }
-  for (const f of feries) {
-    if (f.date >= aujourdhui && f.date <= dans14j) {
-      agenda.push({ date: f.date, titre: f.label?.trim() || 'Jour férié', detail: 'École fermée', nature: 'fermeture' })
-    }
-  }
-  const echeancesParJour = new Map<string, Set<string>>()
-  for (const e of echeances) {
-    if (!e.due_date || e.due_date < aujourdhui || e.due_date > dans14j || reste(e) <= 0) continue
-    if (!echeancesParJour.has(e.due_date)) echeancesParJour.set(e.due_date, new Set())
-    echeancesParJour.get(e.due_date)!.add(e.family_fee_id)
-  }
-  for (const [date, dossiers] of echeancesParJour) {
-    agenda.push({ date, titre: 'Échéance de paiement', detail: `${dossiers.size} dossier${dossiers.size > 1 ? 's' : ''}`, nature: 'echeance' })
-  }
-  agenda.sort((a, b) => a.date.localeCompare(b.date))
-
   // ── Assemblage ─────────────────────────────────────────────────────────────
   const n1 = (nouveauxEleves as any).count as number | null
   const n2 = (nouveauxAdultes as any).count as number | null
@@ -367,13 +329,5 @@ export async function chargerDonneesDirection(
       fichesIncompletes,
     },
     classes,
-    activite: (((auditRes as any).data ?? []) as any[]).map(l => ({
-      id: l.id,
-      texte: l.description ?? `${l.action} · ${l.entity_type}`,
-      auteur: l.user_name ?? null,
-      quand: l.created_at,
-      nature: l.entity_type ?? '',
-    })),
-    agenda: agenda.slice(0, 8),
   }
 }

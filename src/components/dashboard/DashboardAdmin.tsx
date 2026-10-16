@@ -6,15 +6,11 @@ import { usePetitEcran } from '@/hooks/usePetitEcran'
 import type { Raccourci } from '@/lib/mobile'
 import type { DonneesDirection, SeanceAffichee } from '@/lib/dashboard/direction'
 import type { StatutSeance } from '@/lib/dashboard/seances'
-import { formatDateHeureFr } from '@/lib/dates'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import {
   ResponsiveContainer, Tooltip as RTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
-import {
-  Users, Wallet, CheckCheck, CalendarDays, AlertTriangle,
-  UserPlus, Mail, CalendarX, FileText, Banknote, ClipboardList,
-} from 'lucide-react'
+import { Users, Wallet, CheckCheck, CalendarDays, AlertTriangle } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, Puce, Vide, type Ton } from './tdb'
 import { SERIES, INK, STATUS_COLOR, VizTooltip, VizLegend, fmtEur } from './viz'
@@ -51,19 +47,8 @@ const STATUT: Record<StatutSeance, { label: string; ton: Ton; barre: string }> =
 }
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
 
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
-
-/** Icone et ton d'une ligne du journal, selon la table touchee. */
-function natureActivite(entity: string): { icone: typeof Users; ton: Ton } {
-  if (entity.startsWith('fee_') || entity.startsWith('family_') || entity === 'expenses' || entity === 'other_revenues') return { icone: Banknote, ton: 'ok' }
-  if (entity === 'students' || entity === 'parents' || entity.includes('enrollments')) return { icone: UserPlus, ton: 'info' }
-  if (entity.startsWith('announcement')) return { icone: Mail, ton: 'remplacement' }
-  if (entity.includes('absences')) return { icone: CalendarX, ton: 'danger' }
-  if (entity.includes('grades') || entity.includes('bulletin') || entity === 'evaluations') return { icone: ClipboardList, ton: 'attente' }
-  return { icone: FileText, ton: 'neutre' }
-}
 
 export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps }: Props) {
   const petitEcran = usePetitEcran()
@@ -161,9 +146,9 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
         </Tuile>
       </div>
 
-      {/* ── Journée + À traiter ── */}
+      {/* ── Journée · Remplissage · À traiter ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
-        <Encadre titre="Journée en cours" lien={{ href: lien('/dashboard/emploi-du-temps', true), label: 'Emploi du temps' }} className="lg:col-span-2">
+        <Encadre titre="Journée en cours" lien={{ href: lien('/dashboard/emploi-du-temps', true), label: 'Emploi du temps' }}>
           {d.fermeture ? (
             <Vide>École fermée aujourd’hui · {d.fermeture}</Vide>
           ) : d.seances.length === 0 ? (
@@ -171,6 +156,33 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
           ) : (
             <div className="max-h-[248px] overflow-y-auto list-scroll pr-1">
               {d.seances.map(s => <LigneSeance key={s.id} s={s} />)}
+            </div>
+          )}
+        </Encadre>
+
+        <Encadre titre="Remplissage des classes" lien={{ href: lien('/dashboard/classes'), label: 'Classes' }}>
+          {d.classes.length === 0 ? (
+            <Vide>Aucune classe.</Vide>
+          ) : (
+            <div className="space-y-2.5 max-h-[260px] overflow-y-auto list-scroll pr-1">
+              {d.classes.map(c => {
+                const pct = c.max > 0 ? Math.round((c.enrolled / c.max) * 100) : 0
+                return (
+                  <div key={c.name}>
+                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                      <span className="font-semibold text-secondary-800 truncate">
+                        {c.name}
+                        {c.adulte && <span className="ml-1.5 align-middle"><Puce ton="remplacement">Adultes</Puce></span>}
+                      </span>
+                      <span className="text-warm-700 tabular-nums shrink-0">{c.enrolled} / {c.max}</span>
+                    </div>
+                    <div className="piste-tdb">
+                      <div className={clsx('h-full rounded-full', pct >= 100 ? 'bg-red-500' : pct >= 85 ? 'bg-orange-500' : 'bg-primary-500')}
+                        style={{ width: `${Math.min(pct, 100)}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </Encadre>
@@ -203,29 +215,24 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
         </Encadre>
       </div>
 
-      {/* ── Finances ── */}
+      {/* ── Encaissements · Absences · Familles ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
         <Encadre
-          titre={`Encaissements par mois · ${headerProps.yearLabel}`}
-          className="lg:col-span-2"
-          aside={f && (
-            <div className="ml-auto mr-3 hidden sm:block">
-              <VizLegend items={[{ label: 'Encaissé', color: SERIES.primary }, { label: 'Échéances prévues', color: 'var(--jauge-fond)' }]} />
-            </div>
-          )}
+          titre="Encaissements par mois"
           lien={{ href: lien('/dashboard/financements/vue-globale'), label: 'Statistiques' }}
         >
           {!f || f.mensuel.length === 0 ? (
             <Vide>Aucune facturation.</Vide>
           ) : (
-            <div className="flex items-end gap-2 sm:gap-3 h-[172px]" role="img"
+            <>
+            <div className="flex items-end gap-1 h-[172px]" role="img"
               aria-label={`Encaissements par mois : ${f.mensuel.map(m => `${m.label} ${fmtEur(m.encaisse)}`).join(', ')}`}>
               {f.mensuel.map(m => {
                 const haut = Math.max(m.attendu, m.encaisse)
                 return (
                   <div key={m.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1.5">
-                    <span className="text-[10px] text-warm-700 tabular-nums whitespace-nowrap">
-                      {m.encaisse > 0 ? `${(m.encaisse / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} k` : ''}
+                    <span className="text-[9px] text-warm-700 tabular-nums whitespace-nowrap">
+                      {m.encaisse > 0 ? `${(m.encaisse / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k` : ''}
                     </span>
                     <div className="histo-barre" style={{ height: `${Math.max(4, (haut / maxMensuel) * 128)}px` }}>
                       <div className="histo-plein" style={{ height: haut > 0 ? `${(m.encaisse / haut) * 100}%` : 0 }} />
@@ -235,68 +242,8 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
                 )
               })}
             </div>
-          )}
-        </Encadre>
-
-        <Encadre titre={f ? `Familles · ${pluriel(f.familles, 'dossier')}` : 'Familles'} lien={{ href: lien('/dashboard/financements/reglements'), label: 'Détail' }}>
-          {!f || f.familles === 0 ? (
-            <Vide>Aucun dossier.</Vide>
-          ) : (
-            <>
-              <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mb-3 mt-1" role="presentation">
-                {([['paid', f.counts.paid], ['partial', f.counts.partial], ['pending', f.counts.pending], ['overpaid', f.counts.overpaid]] as const)
-                  .filter(([, n]) => n > 0)
-                  .map(([k, n]) => <div key={k} style={{ flex: n, background: STATUS_COLOR[k] }} />)}
-              </div>
-              {([
-                ['paid', 'Soldées', f.counts.paid],
-                ['partial', 'Paiement partiel', f.counts.partial],
-                ['pending', 'Aucun versement', f.counts.pending],
-                ['overpaid', 'Trop perçu', f.counts.overpaid],
-              ] as const).filter(([k, , n]) => k !== 'overpaid' || n > 0).map(([k, label, n]) => (
-                <div key={k} className="ligne-tdb text-secondary-800">
-                  <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: STATUS_COLOR[k] }} aria-hidden="true" />
-                  <span className="flex-1">{label}</span>
-                  <b className="tabular-nums">{n}</b>
-                </div>
-              ))}
-              <div className="mt-auto pt-3">
-                <div className="flex justify-between items-center rounded-lg bg-warm-50 px-3 py-2 text-xs">
-                  <span className="text-warm-700">Reste dû sur les échéances de {nomMois}</span>
-                  <b className="tabular-nums text-secondary-800">{fmtEur(f.echeancesDuMois)}</b>
-                </div>
-              </div>
+            <VizLegend items={[{ label: 'Encaissé', color: SERIES.primary }, { label: 'Échéances prévues', color: 'var(--jauge-fond)' }]} />
             </>
-          )}
-        </Encadre>
-      </div>
-
-      {/* ── Classes, absences, activité ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
-        <Encadre titre="Remplissage des classes" lien={{ href: lien('/dashboard/classes'), label: 'Classes' }}>
-          {d.classes.length === 0 ? (
-            <Vide>Aucune classe.</Vide>
-          ) : (
-            <div className="space-y-2.5 max-h-[260px] overflow-y-auto list-scroll pr-1">
-              {d.classes.map(c => {
-                const pct = c.max > 0 ? Math.round((c.enrolled / c.max) * 100) : 0
-                return (
-                  <div key={c.name}>
-                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span className="font-semibold text-secondary-800 truncate">
-                        {c.name}
-                        {c.adulte && <span className="ml-1.5 align-middle"><Puce ton="remplacement">Adultes</Puce></span>}
-                      </span>
-                      <span className="text-warm-700 tabular-nums shrink-0">{c.enrolled} / {c.max}</span>
-                    </div>
-                    <div className="piste-tdb">
-                      <div className={clsx('h-full rounded-full', pct >= 100 ? 'bg-red-500' : pct >= 85 ? 'bg-orange-500' : 'bg-primary-500')}
-                        style={{ width: `${Math.min(pct, 100)}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
           )}
         </Encadre>
 
@@ -336,49 +283,38 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
           ))}
         </Encadre>
 
-        <Encadre titre="Activité récente" lien={{ href: lien('/dashboard/logs'), label: 'Journal' }}>
-          {d.activite.length === 0 ? (
-            <Vide>Aucune activité.</Vide>
-          ) : d.activite.map(a => {
-            const { icone: Icone, ton } = natureActivite(a.nature)
-            return (
-              <div key={a.id} className="ligne-tdb items-start">
-                <span className={clsx('compteur !h-7 !min-w-7 !px-0 !rounded-lg shrink-0', `ton-${ton}`)} aria-hidden="true"><Icone size={14} /></span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-secondary-800 line-clamp-2">{a.texte}</p>
-                  <p className="text-[11px] text-warm-700">{formatDateHeureFr(a.quand)}{a.auteur ? ` · ${a.auteur}` : ''}</p>
+        <Encadre titre={f ? `Familles · ${pluriel(f.familles, 'dossier')}` : 'Familles'} lien={{ href: lien('/dashboard/financements/reglements'), label: 'Détail' }}>
+          {!f || f.familles === 0 ? (
+            <Vide>Aucun dossier.</Vide>
+          ) : (
+            <>
+              <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mb-3 mt-1" role="presentation">
+                {([['paid', f.counts.paid], ['partial', f.counts.partial], ['pending', f.counts.pending], ['overpaid', f.counts.overpaid]] as const)
+                  .filter(([, n]) => n > 0)
+                  .map(([k, n]) => <div key={k} style={{ flex: n, background: STATUS_COLOR[k] }} />)}
+              </div>
+              {([
+                ['paid', 'Soldées', f.counts.paid],
+                ['partial', 'Paiement partiel', f.counts.partial],
+                ['pending', 'Aucun versement', f.counts.pending],
+                ['overpaid', 'Trop perçu', f.counts.overpaid],
+              ] as const).filter(([k, , n]) => k !== 'overpaid' || n > 0).map(([k, label, n]) => (
+                <div key={k} className="ligne-tdb text-secondary-800">
+                  <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: STATUS_COLOR[k] }} aria-hidden="true" />
+                  <span className="flex-1">{label}</span>
+                  <b className="tabular-nums">{n}</b>
+                </div>
+              ))}
+              <div className="mt-auto pt-3">
+                <div className="flex justify-between items-center rounded-lg bg-warm-50 px-3 py-2 text-xs">
+                  <span className="text-warm-700">Reste dû sur les échéances de {nomMois}</span>
+                  <b className="tabular-nums text-secondary-800">{fmtEur(f.echeancesDuMois)}</b>
                 </div>
               </div>
-            )
-          })}
+            </>
+          )}
         </Encadre>
       </div>
-
-      {/* ── À venir ── */}
-      <Encadre titre="À venir · 14 jours">
-        {d.agenda.length === 0 ? (
-          <Vide>Rien de prévu dans les 14 prochains jours.</Vide>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
-            {d.agenda.map((g, i) => {
-              const [, gm, gj] = g.date.split('-').map(Number)
-              const ton: Ton = g.nature === 'evaluation' ? 'info' : g.nature === 'fermeture' ? 'attente' : 'ok'
-              return (
-                <div key={`${g.date}-${i}`} className="flex items-center gap-2.5 rounded-xl bg-warm-50 p-2.5 min-w-0">
-                  <div className="w-11 shrink-0 text-center rounded-lg bg-white border border-[var(--card-border)] py-1">
-                    <p className="text-[17px] font-extrabold leading-none tabular-nums text-secondary-800">{String(gj).padStart(2, '0')}</p>
-                    <p className="text-[9px] font-bold uppercase text-warm-700">{MOIS_COURT[gm - 1]}</p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-secondary-800 truncate">{g.titre}</p>
-                    <Puce ton={ton}>{g.detail}</Puce>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </Encadre>
     </div>
   )
 }
@@ -397,7 +333,7 @@ function LigneSeance({ s }: { s: SeanceAffichee }) {
           {s.enseignant || 'Sans enseignant'}{s.titulaire ? `, remplace ${s.titulaire}` : ''}
         </p>
       </div>
-      <span className="hidden sm:inline w-20 shrink-0 text-right text-warm-700 tabular-nums">{pluriel(s.effectif, 'inscrit')}</span>
+      <span className="hidden 2xl:inline w-20 shrink-0 text-right text-warm-700 tabular-nums">{pluriel(s.effectif, 'inscrit')}</span>
       <div className="flex gap-1 shrink-0">
         {s.remplacement && <Puce ton="remplacement">Remplacement</Puce>}
         <Puce ton={st.ton}>{st.label}</Puce>

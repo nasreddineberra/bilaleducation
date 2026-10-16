@@ -8015,3 +8015,7 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Piege** : les classes construites par interpolation (`ton-${ton}`) etaient PURGEES de
   `@layer components`. Le bloc du tableau de bord vit hors couche ; il passe donc apres les utilitaires,
   d'ou `:where(.ligne-tdb)` (specificite nulle) pour laisser `px-2`, `items-start` l'emporter.
+- **Retouche utilisateur** : « Activité récente » et « À venir · 14 jours » retires (requetes du journal et
+  des evaluations a venir supprimees avec eux). Deux rangees de trois : Journee en cours · Remplissage des
+  classes · A traiter, puis Encaissements par mois · Absences 30 jours · Familles. En tiers de largeur,
+  la legende des encaissements passe sous le graphique et l'effectif d'une seance ne s'affiche qu'en 2xl.
