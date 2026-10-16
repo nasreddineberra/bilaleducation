@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { Users, Wallet, CheckCheck, CalendarDays, AlertTriangle } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
+import TruncatedText from '@/components/ui/TruncatedText'
 import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, Puce, Vide, type Ton } from './tdb'
 import { SERIES, INK, STATUS_COLOR, VizTooltip, VizLegend, fmtEur } from './viz'
 
@@ -170,9 +171,15 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
                 return (
                   <div key={c.name}>
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span className="font-semibold text-secondary-800 truncate">
-                        {c.name}
-                        {c.adulte && <span className="ml-1.5 align-middle"><Puce ton="remplacement">Adultes</Puce></span>}
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-semibold text-secondary-800 shrink-0">{c.name}</span>
+                        {c.adulte && <span className="shrink-0"><Puce ton="remplacement">Adultes</Puce></span>}
+                        {(c.professeur || c.seance) && (
+                          <TruncatedText
+                            text={[c.professeur || 'Sans titulaire', c.seance].filter(Boolean).join(' · ')}
+                            className="text-[11px] text-warm-700 min-w-0"
+                          />
+                        )}
                       </span>
                       <span className="text-warm-700 tabular-nums shrink-0">{c.enrolled} / {c.max}</span>
                     </div>

@@ -4,6 +4,7 @@ import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
+import { seanceDeClasse } from '@/components/dashboard/classInfo'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
   type SlotSource, type ExceptionSource, type StatutSeance,
@@ -74,7 +75,7 @@ export interface DonneesDirection {
     evaluationsSansNote: number
     fichesIncompletes: number | null
   }
-  classes: { name: string; enrolled: number; max: number; adulte: boolean }[]
+  classes: { name: string; enrolled: number; max: number; adulte: boolean; professeur: string; seance: string }[]
 }
 
 const cle = (d: Date) =>
@@ -118,7 +119,7 @@ export async function chargerDonneesDirection(
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', debutMois).lt('enrollment_date', finMois),
     supabase.from('parent_class_enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', debutMois).lt('enrollment_date', finMois),
     annee
-      ? supabase.from('classes').select('id, name, max_students, cotisation_types(is_adult)').eq('academic_year', annee.label).order('name')
+      ? supabase.from('classes').select('id, name, max_students, day_of_week, start_time, end_time, cotisation_types(is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
@@ -193,6 +194,12 @@ export async function chargerDonneesDirection(
     enrolled: effectif(c.id),
     max: c.max_students ?? 30,
     adulte: !!c.cotisation_types?.is_adult,
+    // Titulaire ACTIF aujourd'hui (jour de Paris), comme partout ailleurs.
+    professeur: nomEnseignantCivilite(((c.class_teachers ?? []) as any[]).find(ct =>
+      ct.is_main_teacher
+      && (!ct.effective_from || ct.effective_from <= aujourdhui)
+      && (!ct.effective_until || ct.effective_until >= aujourdhui))?.teachers),
+    seance: seanceDeClasse(c),
   }))
 
   // ── Seances ────────────────────────────────────────────────────────────────

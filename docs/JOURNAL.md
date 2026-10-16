@@ -8049,3 +8049,6 @@ marque ; les vraies ecoles gardent leur plaque.
   super_admin : 2 traces chacun, 53 traces restantes), VERT apres, en transaction annulee puis en reel —
   direction toujours tracee, admin et super_admin 0 trace, action effectuee dans les trois cas.
 - La tache « verifier que le journal attribue les actions de support au super_admin » est sans objet.
+- **Remplissage des classes** (demande utilisateur) : a cote du nom, le titulaire actif (Civilite NOM
+  Prenom) et la seance (« Samedi 09:00-12:00 »), tronques avec infobulle. La seance sort de
+  `classInfo.ts` (`seanceDeClasse`, reutilisee par `classInfoWithTeacher`) : un seul format.

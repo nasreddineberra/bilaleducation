@@ -35,11 +35,16 @@ export function classInfoWithTeacher(c: any, teacher: string): string {
   if (teacher) parts.push(teacher)
   if (c.cotisation_types?.label) parts.push(c.cotisation_types.label)
   if (c.level) parts.push(`Niveau ${c.level}`)
-  if (c.day_of_week && c.start_time) {
-    const day = DAY_STR[c.day_of_week] ?? c.day_of_week
-    parts.push(`${day} ${String(c.start_time).slice(0, 5)}${c.end_time ? `-${String(c.end_time).slice(0, 5)}` : ''}`)
-  }
+  const seance = seanceDeClasse(c)
+  if (seance) parts.push(seance)
   return parts.join(' · ')
+}
+
+/** « Samedi 09:00-12:00 » (jour et horaire de la classe), ou '' s'ils manquent. */
+export function seanceDeClasse(c: any): string {
+  if (!c?.day_of_week || !c?.start_time) return ''
+  const day = DAY_STR[c.day_of_week] ?? c.day_of_week
+  return `${day} ${String(c.start_time).slice(0, 5)}${c.end_time ? `-${String(c.end_time).slice(0, 5)}` : ''}`
 }
 
 export function classInfoOf(c: any): string {
