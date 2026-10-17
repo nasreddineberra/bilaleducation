@@ -26,3 +26,79 @@ export function moyenneSur20(notes: NoteSource[], baremeParEval: Map<string, num
   if (sur20.length === 0) return null
   return Math.round((sur20.reduce((s, v) => s + v, 0) / sur20.length) * 10) / 10
 }
+
+export interface EvalSaisie {
+  id: string
+  class_id: string
+  evaluation_date: string | null
+}
+
+export interface NoteSaisie {
+  evaluation_id: string
+  /** Cle de l'apprenant : `student_id`, ou `parent_id-tutor_number` pour un adulte. */
+  apprenant: string
+  score: number | string | null
+  is_absent: boolean | null
+}
+
+export interface AvancementSaisie {
+  /** Evaluations de l'ensemble (passees et a venir). */
+  evaluations: number
+  /** Notes attendues : un apprenant inscrit x une evaluation passee. */
+  attendues: number
+  /** Parmi elles, notes saisies (une note, ou « absent »). */
+  saisies: number
+  /** `null` sans note attendue : jamais un 100 % invente. */
+  taux: number | null
+  /** Evaluations passees ou il manque au moins une note, sans etre vides. */
+  incompletes: number
+  /** Evaluations passees sans aucune note saisie. */
+  passeesSansNote: number
+  aVenir: number
+}
+
+/**
+ * Avancement de la saisie des notes.
+ *
+ * Une note n'est ATTENDUE que pour une evaluation passee (date <= aujourd'hui ;
+ * sans date, elle est tenue pour passee) et pour un apprenant INSCRIT dans la
+ * classe a ce jour : la note d'un eleve parti ne compte ni en attendu ni en
+ * saisi. Un apprenant marque absent a l'evaluation compte comme saisi.
+ */
+export function avancementSaisie(
+  evals: EvalSaisie[],
+  notes: NoteSaisie[],
+  inscritsParClasse: Map<string, Set<string>>,
+  aujourdhui: string,
+): AvancementSaisie {
+  const saisiesParEval = new Map<string, Set<string>>()
+  for (const n of notes) {
+    if (n.score === null && !n.is_absent) continue
+    if (!saisiesParEval.has(n.evaluation_id)) saisiesParEval.set(n.evaluation_id, new Set())
+    saisiesParEval.get(n.evaluation_id)!.add(n.apprenant)
+  }
+
+  let attendues = 0, saisies = 0, incompletes = 0, passeesSansNote = 0, aVenir = 0
+  for (const e of evals) {
+    if (e.evaluation_date && e.evaluation_date > aujourdhui) { aVenir++; continue }
+    const inscrits = inscritsParClasse.get(e.class_id) ?? new Set<string>()
+    if (inscrits.size === 0) continue
+    const faites = saisiesParEval.get(e.id) ?? new Set<string>()
+    let n = 0
+    for (const a of inscrits) if (faites.has(a)) n++
+    attendues += inscrits.size
+    saisies += n
+    if (n === 0) passeesSansNote++
+    else if (n < inscrits.size) incompletes++
+  }
+
+  return {
+    evaluations: evals.length,
+    attendues,
+    saisies,
+    taux: attendues > 0 ? Math.round((saisies / attendues) * 100) : null,
+    incompletes,
+    passeesSansNote,
+    aVenir,
+  }
+}

@@ -6,7 +6,7 @@ import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
   seancesSousAbsence, type SlotSource, type ExceptionSource,
 } from './seances'
-import { moyenneSur20 } from './notes'
+import { moyenneSur20, avancementSaisie, type AvancementSaisie, type NoteSaisie } from './notes'
 import type { AnneeRef, SeanceAffichee } from './direction'
 
 /**
@@ -29,7 +29,8 @@ export interface SeancePedago extends SeanceAffichee {
 export interface DonneesPedagogie {
   aujourdhui: string
   fermeture: string | null
-  notes: { total: number; notees: number; passeesSansNote: number; aVenir: number } | null
+  /** Saisie des notes de la periode, toutes classes. */
+  saisie: AvancementSaisie | null
   bulletins: { archives: number; effectif: number; appreciations: number } | null
   assiduite: { taux: number; attendues: number; absences: number } | null
   absencesMois: number | null
@@ -39,11 +40,12 @@ export interface DonneesPedagogie {
   aTraiter: {
     seancesAValider: number
     evaluationsSansNote: number | null
+    evaluationsIncompletes: number | null
     absencesNonRemplacees: number
     classesSansCahier: number
     classesSansEvaluation: number | null
   }
-  classes: { id: string; name: string; adulte: boolean; professeur: string; notees: number; total: number; moyenne: number | null }[]
+  classes: { id: string; name: string; adulte: boolean; professeur: string; saisie: AvancementSaisie; moyenne: number | null }[]
   aSuivre: {
     absences: { id: string; nom: string; classe: string; nb: number }[]
     moyennes: { id: string; nom: string; classe: string; moyenne: number }[]
@@ -152,7 +154,7 @@ export async function chargerDonneesPedagogie(
       ? supabase.from('staff_time_entries').select('profile_id, entry_date, start_time, end_time').in('entry_type', codesAbsence).gte('entry_date', duValider).lte('entry_date', dans7j)
       : Promise.resolve({ data: [] }),
     evalIds.length ? supabase.from('grades').select('evaluation_id, student_id, score, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
-    evalIds.length ? supabase.from('adult_grades').select('evaluation_id, score, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
+    evalIds.length ? supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
   ])
 
   // ── Effectifs ──────────────────────────────────────────────────────────────
@@ -215,21 +217,24 @@ export async function chargerDonneesPedagogie(
   const tendance: number[] = []
   for (let d = il30j; d <= aujourdhui; d = jourSuivant(d)) tendance.push(parJour[d] ?? 0)
 
-  // ── Notes de la periode ────────────────────────────────────────────────────
+  // ── Notes de la periode : avancement de la saisie (`notes.ts`) ─────────────
   const notesEleves = ((notesRes as any).data ?? []) as any[]
-  const notes = [...notesEleves, ...(((notesAdRes as any).data ?? []) as any[])]
-  const notees = new Set(notes.map(n => n.evaluation_id))
+  const notesAdultes = ((notesAdRes as any).data ?? []) as any[]
+  const notes = [...notesEleves, ...notesAdultes]
   const bareme = new Map(evalsPeriode.map(e => [e.id as string, Number(e.max_score ?? 0)]))
   const evalClasse = new Map(evalsPeriode.map(e => [e.id as string, e.class_id as string]))
-  const passeesSansNote = evalsPeriode.filter(e => e.evaluation_date && e.evaluation_date <= aujourdhui && !notees.has(e.id)).length
-  const notesTuile = periodeId
-    ? {
-        total: evalsPeriode.length,
-        notees: evalsPeriode.filter(e => notees.has(e.id)).length,
-        passeesSansNote,
-        aVenir: evalsPeriode.filter(e => e.evaluation_date && e.evaluation_date > aujourdhui).length,
-      }
-    : null
+  const inscritsParClasse = new Map<string, Set<string>>()
+  const inscrire = (classe: string, cle: string) => {
+    if (!inscritsParClasse.has(classe)) inscritsParClasse.set(classe, new Set())
+    inscritsParClasse.get(classe)!.add(cle)
+  }
+  for (const r of inscriptions) inscrire(r.class_id, r.student_id)
+  for (const r of adultes) inscrire(r.class_id, `${r.parent_id}-${r.tutor_number}`)
+  const notesSaisie: NoteSaisie[] = [
+    ...notesEleves.map(n => ({ evaluation_id: n.evaluation_id, apprenant: n.student_id, score: n.score, is_absent: n.is_absent })),
+    ...notesAdultes.map(n => ({ evaluation_id: n.evaluation_id, apprenant: `${n.parent_id}-${n.tutor_number}`, score: n.score, is_absent: n.is_absent })),
+  ]
+  const saisie = periodeId ? avancementSaisie(evalsPeriode, notesSaisie, inscritsParClasse, aujourdhui) : null
 
   // ── Bulletins de la periode ────────────────────────────────────────────────
   const effectifTotal = inscriptions.length + adultes.length
@@ -255,8 +260,7 @@ export async function chargerDonneesPedagogie(
         ct.is_main_teacher
         && (!ct.effective_from || ct.effective_from <= aujourdhui)
         && (!ct.effective_until || ct.effective_until >= aujourdhui))?.teachers),
-      notees: evals.filter(e => notees.has(e.id)).length,
-      total: evals.length,
+      saisie: avancementSaisie(evals, notesSaisie, inscritsParClasse, aujourdhui),
       moyenne: moyenneSur20(notes.filter(n => evalClasse.get(n.evaluation_id) === c.id), bareme),
     }
   })
@@ -323,7 +327,7 @@ export async function chargerDonneesPedagogie(
   return {
     aujourdhui,
     fermeture: fermeAujourdhui ? (fermeAujourdhui.label ?? fermeAujourdhui.titre) : null,
-    notes: notesTuile,
+    saisie,
     bulletins,
     assiduite,
     absencesMois: absMois ? absMois.length : null,
@@ -332,7 +336,8 @@ export async function chargerDonneesPedagogie(
     seances,
     aTraiter: {
       seancesAValider: aValider.length,
-      evaluationsSansNote: periodeId ? passeesSansNote : null,
+      evaluationsSansNote: saisie ? saisie.passeesSansNote : null,
+      evaluationsIncompletes: saisie ? saisie.incompletes : null,
       absencesNonRemplacees: sousAbsence.filter(x => x.statut === 'a_remplacer').length,
       classesSansCahier,
       classesSansEvaluation: periodeId ? classesList.filter(c => !evalsPeriode.some(e => e.class_id === c.id)).length : null,

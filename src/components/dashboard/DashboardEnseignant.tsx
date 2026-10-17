@@ -46,6 +46,8 @@ export default function DashboardEnseignant({ donnees: d, ...headerProps }: Prop
   const petitEcran = usePetitEcran()
   const lien = (href: string, mobile = false) => (petitEcran && !mobile ? null : href)
   const p = d.prochaine
+  const s = d.saisie
+  const periode = headerProps.periodLabel ? expandPeriodLabel(headerProps.periodLabel) : 'période'
 
   const sousTitre = [
     new Date(`${d.aujourdhui}T12:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }),
@@ -111,8 +113,18 @@ export default function DashboardEnseignant({ donnees: d, ...headerProps }: Prop
  />
           <CarteCompteur icone={CheckCheck} ton="attente" label="Séances à valider · 30 jours" valeur={d.seancesAValider}
             lien={d.seancesAValider ? { href: lien('/dashboard/emploi-du-temps', true), label: 'Valider' } : undefined} />
-          <CarteCompteur icone={PenLine} ton="info" label="Évaluations sans note" valeur={d.notesASaisir}
-            lien={d.notesASaisir ? { href: lien('/dashboard/grades'), label: 'Saisir' } : undefined} />
+          <CarteCompteur icone={PenLine} ton="info" label={`Saisie des notes · ${periode}`}
+            valeur={s?.taux != null ? (
+              <>
+                {s.taux} %
+                {s.incompletes + s.passeesSansNote > 0 && (
+                  <span className="ml-1.5 text-[11px] font-semibold text-warm-700">
+                    {pluriel(s.incompletes + s.passeesSansNote, 'évaluation')} à compléter
+                  </span>
+                )}
+              </>
+            ) : '-'}
+            lien={s && s.incompletes + s.passeesSansNote > 0 ? { href: lien('/dashboard/grades'), label: 'Saisir' } : undefined} />
         </div>
       </div>
 
@@ -171,9 +183,10 @@ export default function DashboardEnseignant({ donnees: d, ...headerProps }: Prop
                       <Puce ton={c.titulaire ? 'ok' : 'info'}>{c.titulaire ? 'Titulaire' : 'Remplaçant'}</Puce>
                     </div>
                   </div>
-                  <dl className="grid grid-cols-3 gap-1.5 mt-2.5">
+                  <dl className="grid grid-cols-4 gap-1.5 mt-2.5">
                     <div><dd className="text-base font-extrabold tabular-nums text-secondary-800">{c.effectif}</dd><dt className="text-[10px] text-warm-700">inscrits</dt></div>
                     <div><dd className="text-base font-extrabold tabular-nums text-secondary-800">{c.assiduite === null ? '-' : `${c.assiduite.toLocaleString('fr-FR')} %`}</dd><dt className="text-[10px] text-warm-700">assiduité du mois</dt></div>
+                    <div><dd className="text-base font-extrabold tabular-nums text-secondary-800">{c.saisie === null ? '-' : `${c.saisie} %`}</dd><dt className="text-[10px] text-warm-700">notes saisies</dt></div>
                     <div><dd className="text-base font-extrabold tabular-nums text-secondary-800">{c.moyenne === null ? '-' : c.moyenne.toLocaleString('fr-FR')}</dd><dt className="text-[10px] text-warm-700">moyenne /20</dt></div>
                   </dl>
                 </div>

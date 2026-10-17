@@ -52,7 +52,7 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
   const nbRemplacements = tenues.filter(s => s.remplacement).length
   const nbClasses = new Set(tenues.map(s => s.classe)).size
 
-  const n = d.notes
+  const n = d.saisie
   const b = d.bulletins
 
   return (
@@ -73,13 +73,13 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
       {/* ── 4 tuiles ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
         <Tuile
-          ton="marque" titre={`Notes · ${periode}`} icone={PenLine}
-          valeur={n ? n.notees : '-'}
-          unite={n ? `/ ${pluriel(n.total, 'évaluation')} notée${n.notees > 1 ? 's' : ''}` : undefined}
+          ton="marque" titre={`Saisie des notes · ${periode}`} icone={PenLine}
+          valeur={n?.taux != null ? `${n.taux} %` : '-'}
+          unite={n ? `${pluriel(n.evaluations, 'évaluation')} · ${n.incompletes} incomplète${n.incompletes > 1 ? 's' : ''}` : undefined}
           pied={n ? `${n.passeesSansNote} passée${n.passeesSansNote > 1 ? 's' : ''} sans note · ${n.aVenir} à venir` : 'Aucune période en cours'}
           lien={{ href: lien('/dashboard/grades'), label: 'Saisie' }}
         >
-          {n && n.total > 0 ? <JaugeTuile pct={(n.notees / n.total) * 100} /> : null}
+          {n?.taux != null ? <JaugeTuile pct={n.taux} /> : null}
         </Tuile>
 
         <Tuile
@@ -151,7 +151,7 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1 space-y-2.5">
               {d.classes.map(c => {
-                const pct = c.total > 0 ? Math.round((c.notees / c.total) * 100) : 0
+                const pct = c.saisie.taux ?? 0
                 return (
                   <div key={c.id}>
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
@@ -161,12 +161,12 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
                         <TruncatedText text={c.professeur || 'Sans titulaire'} className="text-[11px] text-warm-700 min-w-0" />
                       </span>
                       <span className="shrink-0 tabular-nums text-warm-700">
-                        {c.notees}/{c.total}
+                        {c.saisie.taux === null ? 'aucune note due' : `${c.saisie.saisies}/${c.saisie.attendues} notes`}
                         <b className="ml-2 text-secondary-800">{c.moyenne === null ? '-' : c.moyenne.toLocaleString('fr-FR')}</b>
                       </span>
                     </div>
                     <div className="piste-tdb">
-                      <div className={clsx('h-full rounded-full', c.total === 0 ? '' : pct >= 60 ? 'bg-primary-500' : 'bg-amber-500')}
+                      <div className={clsx('h-full rounded-full', c.saisie.taux === null ? '' : pct === 100 ? 'bg-primary-500' : 'bg-amber-500')}
                         style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -180,6 +180,7 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
             <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Séances à valider · 30 jours" n={d.aTraiter.seancesAValider} ton="attente" />
             <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations passées sans note" n={d.aTraiter.evaluationsSansNote} ton="info" />
+            <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations aux notes incomplètes" n={d.aTraiter.evaluationsIncompletes} ton="attente" />
             <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Absences d’enseignant non remplacées · 7 jours" n={d.aTraiter.absencesNonRemplacees} ton="danger" />
             <LigneATraiter href={lien('/dashboard/cahier-texte', true)} label="Classes sans séance au cahier de texte · 14 jours" n={d.aTraiter.classesSansCahier} ton="orange" />
             <LigneATraiter href={lien('/dashboard/evaluations')} label="Classes sans évaluation sur la période" n={d.aTraiter.classesSansEvaluation} ton="info" />

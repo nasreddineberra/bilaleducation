@@ -5,7 +5,7 @@ import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
   type SlotSource, type ExceptionSource, type StatutSeance, type Seance,
 } from './seances'
-import { moyenneSur20 } from './notes'
+import { moyenneSur20, avancementSaisie, type AvancementSaisie, type NoteSaisie } from './notes'
 import type { AnneeRef } from './direction'
 
 /**
@@ -48,10 +48,11 @@ export interface DonneesEnseignant {
   }) | null
   eleves: number
   seancesAValider: number
-  notesASaisir: number
+  /** Saisie des notes de la periode sur mes classes (`notes.ts`). */
+  saisie: AvancementSaisie | null
   seancesDuJour: number
   semaine: { date: string; aujourdhui: boolean; ferme: string | null; seances: SeanceEnseignant[] }[]
-  classes: { id: string; name: string; titulaire: boolean; adulte: boolean; effectif: number; assiduite: number | null; moyenne: number | null }[]
+  classes: { id: string; name: string; titulaire: boolean; adulte: boolean; effectif: number; assiduite: number | null; saisie: number | null; moyenne: number | null }[]
   devoirs: { id: string; titre: string; classe: string; date: string; jours: number }[]
   aSuivre: { id: string; nom: string; classe: string; motif: string; nb: number | null }[]
   heures: { realiseesMin: number; prevuesMin: number; parType: { label: string; min: number }[] }
@@ -77,7 +78,7 @@ const minutes = (hhmm: string) => {
 }
 
 const VIDE = (aujourdhui: string, sansFiche: boolean): DonneesEnseignant => ({
-  aujourdhui, sansFiche, prochaine: null, eleves: 0, seancesAValider: 0, notesASaisir: 0, seancesDuJour: 0,
+  aujourdhui, sansFiche, prochaine: null, eleves: 0, seancesAValider: 0, saisie: null, seancesDuJour: 0,
   semaine: [], classes: [], devoirs: [], aSuivre: [], heures: { realiseesMin: 0, prevuesMin: 0, parType: [] },
 })
 
@@ -163,7 +164,7 @@ export async function chargerDonneesEnseignant(
       ? supabase.from('enrollments').select('student_id, class_id, enrollment_date, students:student_id(first_name, last_name)').eq('status', 'active').in('class_id', classIds)
       : Promise.resolve({ data: [] }),
     surMesClasses
-      ? supabase.from('parent_class_enrollments').select('class_id').eq('status', 'active').in('class_id', classIds)
+      ? supabase.from('parent_class_enrollments').select('class_id, parent_id, tutor_number').eq('status', 'active').in('class_id', classIds)
       : Promise.resolve({ data: [] }),
     surMesClasses
       ? supabase.from('absences').select('student_id, class_id, absence_date, period_id, students:student_id(first_name, last_name)')
@@ -186,8 +187,8 @@ export async function chargerDonneesEnseignant(
   const evalIds = evals.map(e => e.id)
   const [notesRes, notesAdRes] = evalIds.length
     ? await Promise.all([
-        supabase.from('grades').select('evaluation_id, score, is_absent').in('evaluation_id', evalIds),
-        supabase.from('adult_grades').select('evaluation_id, score, is_absent').in('evaluation_id', evalIds),
+        supabase.from('grades').select('evaluation_id, student_id, score, is_absent').in('evaluation_id', evalIds),
+        supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, is_absent').in('evaluation_id', evalIds),
       ])
     : [{ data: [] }, { data: [] }]
   const notes = [...((notesRes.data ?? []) as any[]), ...((notesAdRes.data ?? []) as any[])]
@@ -264,6 +265,21 @@ export async function chargerDonneesEnseignant(
   const absences = (absRes.data ?? []) as any[]
   const absMois = absences.filter(a => a.absence_date >= debutMois)
   const evalParId = new Map(evals.map(e => [e.id, e]))
+  // ── Saisie des notes : une note attendue par apprenant inscrit et evaluation passee ──
+  const inscritsParClasse = new Map<string, Set<string>>()
+  const inscrire = (classe: string, cle: string) => {
+    if (!inscritsParClasse.has(classe)) inscritsParClasse.set(classe, new Set())
+    inscritsParClasse.get(classe)!.add(cle)
+  }
+  for (const r of inscriptions) inscrire(r.class_id, r.student_id)
+  for (const r of ((adultesRes.data ?? []) as any[])) inscrire(r.class_id, `${r.parent_id}-${r.tutor_number}`)
+  const notesSaisie: NoteSaisie[] = notes.map(n => ({
+    evaluation_id: n.evaluation_id,
+    apprenant: n.student_id ?? `${n.parent_id}-${n.tutor_number}`,
+    score: n.score,
+    is_absent: n.is_absent,
+  }))
+  const saisie = periodeId ? avancementSaisie(evals, notesSaisie, inscritsParClasse, aujourdhui) : null
   const bareme = new Map(evals.map(e => [e.id as string, Number(e.max_score ?? 0)]))
   const classes = classIds.map(id => {
     const c = mesClasses.get(id)!
@@ -273,13 +289,12 @@ export async function chargerDonneesEnseignant(
     return {
       id, name: c.name, titulaire: c.titulaire, adulte: c.adulte, effectif: effectif[id] ?? 0,
       assiduite: t ? t.taux : null,
+      saisie: periodeId ? avancementSaisie(evals.filter(e => e.class_id === id), notesSaisie, inscritsParClasse, aujourdhui).taux : null,
       moyenne: moyenneSur20(notes.filter(n => evalParId.get(n.evaluation_id)?.class_id === id), bareme),
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 
   // ── Notes a saisir : evaluations passees de la periode sans aucune note ────
-  const notees = new Set(notes.map(n => n.evaluation_id))
-  const notesASaisir = evals.filter(e => e.evaluation_date && e.evaluation_date <= aujourdhui && !notees.has(e.id)).length
 
   // ── Devoirs a venir ───────────────────────────────────────────────────────
   const devoirs = ((devoirsRes.data ?? []) as any[]).map(h => ({
@@ -327,7 +342,7 @@ export async function chargerDonneesEnseignant(
     prochaine,
     eleves: classes.reduce((s, c) => s + c.effectif, 0),
     seancesAValider: aValider.length,
-    notesASaisir,
+    saisie,
     seancesDuJour: miennes(aujourdhui).filter(s => !s.annulee).length,
     semaine,
     classes,

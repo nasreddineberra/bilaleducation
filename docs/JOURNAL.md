@@ -8117,3 +8117,19 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Sources uniques** : moyenne /20 extraite dans `lib/dashboard/notes.ts` (testee), partagee avec
   l'Enseignant ; ligne de seance (`LigneSeance`, `STATUT_SEANCE`) deplacee dans `tdb.tsx`, partagee avec la
   Direction.
+
+#### 17 octobre 2026 — Tableau de bord : avancement de la saisie des notes
+
+- **Signale par l'utilisateur** : la tuile « Notes · Trimestre 1 » (12 / 12 evaluations notees) ne se lisait
+  pas. Une evaluation y comptait comme notee des QU'UNE note etait saisie : une classe de 20 eleves avec 3
+  notes affichait le meme 12 / 12.
+- **Nouveau calcul** `avancementSaisie` (`lib/dashboard/notes.ts`, teste) : une note est ATTENDUE par
+  apprenant inscrit (eleve ou adulte) et par evaluation PASSEE ; un absent a l'evaluation compte comme
+  saisi ; la note d'un apprenant parti ne compte pas. Rend le taux (notes saisies / attendues), les
+  evaluations incompletes, passees sans note, a venir. `null` sans note attendue, jamais un 100 % invente.
+- **Responsable pedagogique** : tuile « Saisie des notes · periode » (taux, evaluations, incompletes),
+  avancement par classe en notes saisies / attendues (barre pleine seulement a 100 %), ligne A traiter
+  « Evaluations aux notes incompletes ».
+- **Enseignant** (demande utilisateur, une ou plusieurs classes) : le compteur « Evaluations sans note »
+  devient « Saisie des notes · periode » (taux sur ses classes, evaluations a completer) ; « Mes classes »
+  gagne la colonne « notes saisies ».
