@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
+  seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant, seancesSousAbsence,
   type SlotSource, type ExceptionSource,
 } from './seances.ts'
 
@@ -94,4 +94,20 @@ test('tauxAssiduite : un jour de classe par classe, absences dedoublonnees', () 
 test('tauxAssiduite : null sans cours, seance pas commencee ignoree', () => {
   assert.equal(tauxAssiduite([slot({})], [], { c1: 10 }, [], SAMEDI, SAMEDI, '08:00', () => false), null)
   assert.equal(tauxAssiduite([slot({})], [], {}, [], SAMEDI, SAMEDI, '12:00', () => false), null)
+})
+
+test('seancesSousAbsence : a remplacer, remplacee, annulee et jour ferme exclus', () => {
+  const slots = [
+    slot({ id: 'a', teacher_id: 't1' }),
+    slot({ id: 'b', class_id: 'c2', teacher_id: 't2' }),
+    slot({ id: 'c', class_id: 'c3', teacher_id: 't1' }),
+  ]
+  const ex: ExceptionSource[] = [
+    { schedule_slot_id: 'b', exception_date: SAMEDI, exception_type: 'replacement', override_start_time: null, override_end_time: null, override_teacher_id: 't3' },
+    { schedule_slot_id: 'c', exception_date: SAMEDI, exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null },
+  ]
+  const absents = new Set(['t1', 't2'])
+  const r = seancesSousAbsence(slots, ex, SAMEDI, SAMEDI, () => false, t => absents.has(t ?? ''))
+  assert.deepEqual(r.map(x => [x.seance.slotId, x.statut, x.absentId]), [['a', 'a_remplacer', 't1'], ['b', 'remplacee', 't2']])
+  assert.equal(seancesSousAbsence(slots, ex, SAMEDI, SAMEDI, () => true, t => absents.has(t ?? '')).length, 0)
 })

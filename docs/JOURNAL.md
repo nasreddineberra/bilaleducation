@@ -8097,3 +8097,23 @@ marque ; les vraies ecoles gardent leur plaque.
   `lib/financements/cout-heures.ts`, partage avec le tableau de bord (meme formule : encaisse + autres
   revenus - depenses - cout des heures). Histogramme et repartition des familles partages entre Direction
   et Comptable (`components/dashboard/finances-tdb.tsx`), couleur liee au moyen de paiement.
+
+#### 17 octobre 2026 — Tableau de bord : lot Responsable pedagogique
+
+- **Comptable et correction Direction verifies a l'ecran** par l'utilisateur. Plus de serveur local : les
+  essais se font sur le site deploye.
+- **Responsable pedagogique** (`lib/dashboard/pedagogie.ts`, client de session ; la RLS lui ouvre notes,
+  absences, bulletins, cahier de texte, EDT et temps de presence, verifie dans `pg_policies`) : tuiles Notes
+  de la periode (evaluations notees / total), Bulletins de la periode (archives / effectif, part des
+  appreciations redigees), Assiduite du mois, Aujourd'hui ; Journee en cours avec l'etat du cahier de texte
+  de chaque seance ; Avancement par classe (titulaire, evaluations notees, moyenne /20) ; A traiter ;
+  Eleves a suivre (3 absences et plus, moyenne sous 8) ; Evaluations des 14 jours ; Equipe sur 7 jours.
+- **Ecart a la maquette, pour tenir sans barre de defilement** : deux rangees de trois encadres au lieu de
+  trois rangees ; « Cahier de texte · dernieres seances » retire (l'etat du cahier est porte par la journee
+  et par A traiter).
+- **Absences d'enseignant** : `seancesSousAbsence` (`seances.ts`, teste) croise le temps de presence et
+  l'EDT : « a remplacer » si l'enseignant qui doit assurer la seance est absent, « remplacement assure » si
+  le titulaire absent a un remplacant designe (exception de seance). Jours fermes et seances annulees exclus.
+- **Sources uniques** : moyenne /20 extraite dans `lib/dashboard/notes.ts` (testee), partagee avec
+  l'Enseignant ; ligne de seance (`LigneSeance`, `STATUT_SEANCE`) deplacee dans `tdb.tsx`, partagee avec la
+  Direction.

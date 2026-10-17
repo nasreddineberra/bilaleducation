@@ -4,6 +4,7 @@ import { getCachedProfile, getCurrentYear } from '@/lib/cache/dashboard'
 import { chargerDonneesDirection } from '@/lib/dashboard/direction'
 import { chargerDonneesEnseignant } from '@/lib/dashboard/enseignant'
 import { chargerDonneesComptable } from '@/lib/dashboard/comptable'
+import { chargerDonneesPedagogie } from '@/lib/dashboard/pedagogie'
 import { jourParis } from '@/lib/tenant/abonnement'
 import { heureParis } from '@/lib/dates'
 import { getPeriodHint } from '@/lib/school-year/current-period-hint'
@@ -170,56 +171,12 @@ export default async function DashboardPage() {
   //  RESPONSABLE PEDAGOGIQUE
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'responsable_pedagogique') {
-    const yearPeriodIds = (periodRows ?? []).map((p: any) => p.id)
-    const currentPeriodId = currentPeriod?.id ?? null
-
-    const [
-      { count: classesCount },
-      { count: evalsCount },
-      { count: bulletinsCount },
-      { data: recentEvals },
-      { data: periodEvals },
-    ] = await Promise.all([
-      // Classes de l'ANNEE EN COURS : les deux cartes voisines (evaluations,
-      // bulletins) etaient bornees a l'annee, celle-ci comptait toutes les
-      // annees — a la rentree suivante elle aurait double.
-      currentYear
-        ? supabase.from('classes').select('id', { count: 'exact', head: true }).eq('academic_year', currentYear.label)
-        : Promise.resolve({ count: 0 }),
-      yearPeriodIds.length > 0
-        ? supabase.from('evaluations').select('id', { count: 'exact', head: true }).in('period_id', yearPeriodIds)
-        : Promise.resolve({ count: 0 }),
-      yearPeriodIds.length > 0
-        ? supabase.from('bulletin_archives').select('id', { count: 'exact', head: true }).in('period_id', yearPeriodIds)
-        : Promise.resolve({ count: 0 }),
-      supabase.from('evaluations').select('id, title, evaluation_date, classes:class_id(name)').order('evaluation_date', { ascending: false }).limit(5),
-      currentPeriodId
-        ? supabase.from('evaluations').select('id, title, classes:class_id(name)').eq('period_id', currentPeriodId)
-        : Promise.resolve({ data: [] }),
-    ])
-
-    // « A finaliser » : evaluations de la periode en cours SANS aucune note.
-    const pEvals = (((periodEvals as any).data ?? []) as any[])
-    let evalsWithoutGrades: any[] = []
-    if (pEvals.length > 0) {
-      const ids = pEvals.map(e => e.id)
-      const { data: gradeRows } = await supabase.from('grades').select('evaluation_id').in('evaluation_id', ids)
-      const graded = new Set((gradeRows ?? []).map((g: any) => g.evaluation_id))
-      evalsWithoutGrades = pEvals.filter(e => !graded.has(e.id))
-    }
-
-    return (
-      <DashboardPedago
-        {...common}
-        stats={{
-          classesCount: classesCount ?? 0,
-          evalsCount: evalsCount ?? 0,
-          bulletinsCount: bulletinsCount ?? 0,
-          recentEvals: (recentEvals ?? []) as any[],
-          evalsWithoutGrades: evalsWithoutGrades as any[],
-        }}
-      />
+    // Client de SESSION (RLS : ecole + role). Voir `lib/dashboard/pedagogie.ts`.
+    const instant = new Date()
+    const donnees = await chargerDonneesPedagogie(
+      supabase, currentYear, currentPeriod?.id ?? null, jourParis(instant), heureParis(instant),
     )
+    return <DashboardPedago {...common} donnees={donnees} />
   }
 
   // ══════════════════════════════════════════════════════════════════════

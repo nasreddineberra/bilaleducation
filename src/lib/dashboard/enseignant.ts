@@ -5,6 +5,7 @@ import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
   type SlotSource, type ExceptionSource, type StatutSeance, type Seance,
 } from './seances'
+import { moyenneSur20 } from './notes'
 import type { AnneeRef } from './direction'
 
 /**
@@ -263,22 +264,16 @@ export async function chargerDonneesEnseignant(
   const absences = (absRes.data ?? []) as any[]
   const absMois = absences.filter(a => a.absence_date >= debutMois)
   const evalParId = new Map(evals.map(e => [e.id, e]))
+  const bareme = new Map(evals.map(e => [e.id as string, Number(e.max_score ?? 0)]))
   const classes = classIds.map(id => {
     const c = mesClasses.get(id)!
     const t = c.adulte ? null : tauxAssiduite(
       slots.filter(s => s.class_id === id), exceptions, { [id]: effectif[id] ?? 0 },
       absMois.filter(a => a.class_id === id), debutMois, aujourdhui, maintenant, estFerme)
-    const sur20 = notes
-      .filter(n => evalParId.get(n.evaluation_id)?.class_id === id && !n.is_absent && n.score !== null)
-      .map(n => {
-        const max = Number(evalParId.get(n.evaluation_id)?.max_score ?? 0)
-        return max > 0 ? (Number(n.score) / max) * 20 : null
-      })
-      .filter((v): v is number => v !== null)
     return {
       id, name: c.name, titulaire: c.titulaire, adulte: c.adulte, effectif: effectif[id] ?? 0,
       assiduite: t ? t.taux : null,
-      moyenne: sur20.length ? Math.round((sur20.reduce((s, v) => s + v, 0) / sur20.length) * 10) / 10 : null,
+      moyenne: moyenneSur20(notes.filter(n => evalParId.get(n.evaluation_id)?.class_id === id), bareme),
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 

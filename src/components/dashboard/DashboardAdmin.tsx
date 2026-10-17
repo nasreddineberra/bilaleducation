@@ -4,8 +4,7 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import type { Raccourci } from '@/lib/mobile'
-import type { DonneesDirection, SeanceAffichee } from '@/lib/dashboard/direction'
-import type { StatutSeance } from '@/lib/dashboard/seances'
+import type { DonneesDirection } from '@/lib/dashboard/direction'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import {
   ResponsiveContainer, Tooltip as RTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -13,7 +12,7 @@ import {
 import { Users, Wallet, CheckCheck, CalendarDays, AlertTriangle } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import TruncatedText from '@/components/ui/TruncatedText'
-import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, Puce, Vide, type Ton } from './tdb'
+import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, Puce, Vide } from './tdb'
 import { SERIES, INK, VizTooltip, VizLegend, fmtEur } from './viz'
 import { HistoEncaissements, RepartitionFamilles } from './finances-tdb'
 
@@ -39,14 +38,6 @@ const RACCOURCIS: Raccourci[] = [
   { href: '/dashboard/grades', label: 'Saisie des notes' },
   { href: '/dashboard/absences', label: "Feuille d'appel", mobile: true },
 ]
-
-const STATUT: Record<StatutSeance, { label: string; ton: Ton; barre: string }> = {
-  validee:   { label: 'Validée',   ton: 'ok',      barre: 'bg-primary-500' },
-  a_valider: { label: 'À valider', ton: 'attente', barre: 'bg-amber-500' },
-  en_cours:  { label: 'En cours',  ton: 'info',    barre: 'bg-secondary-500' },
-  a_venir:   { label: 'À venir',   ton: 'neutre',  barre: 'bg-warm-300' },
-  annulee:   { label: 'Annulée',   ton: 'danger',  barre: 'bg-red-500' },
-}
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
@@ -282,29 +273,6 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
             </>
           )}
         </Encadre>
-      </div>
-    </div>
-  )
-}
-
-function LigneSeance({ s }: { s: SeanceAffichee }) {
-  const st = STATUT[s.statut]
-  return (
-    <div className="ligne-tdb">
-      <span className="w-[86px] shrink-0 tabular-nums font-semibold text-warm-700">{s.debut}-{s.fin}</span>
-      <span className={clsx('w-1 h-7 rounded-full shrink-0', s.remplacement ? 'bg-violet-500' : st.barre)} aria-hidden="true" />
-      <div className="flex-1 min-w-0">
-        <p className={clsx('font-semibold text-secondary-800 truncate', s.statut === 'annulee' && 'line-through')}>
-          {s.classe}{s.cours ? ` · ${s.cours}` : ''}
-        </p>
-        <p className="text-[11px] text-warm-700 truncate">
-          {s.enseignant || 'Sans enseignant'}{s.titulaire ? `, remplace ${s.titulaire}` : ''}
-        </p>
-      </div>
-      <span className="hidden 2xl:inline w-20 shrink-0 text-right text-warm-700 tabular-nums">{pluriel(s.effectif, 'inscrit')}</span>
-      <div className="flex gap-1 shrink-0">
-        {s.remplacement && <Puce ton="remplacement">Remplacement</Puce>}
-        <Puce ton={st.ton}>{st.label}</Puce>
       </div>
     </div>
   )

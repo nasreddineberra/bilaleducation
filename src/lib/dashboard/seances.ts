@@ -216,3 +216,35 @@ export function tauxAssiduite(
   const nb = Math.min(vues.size, attendues)
   return { taux: Math.round((1 - nb / attendues) * 1000) / 10, attendues, absences: nb }
 }
+
+/**
+ * Seances touchees par l'absence d'un enseignant entre `du` et `au` inclus.
+ *
+ * - `a_remplacer` : l'enseignant qui doit ASSURER la seance (le titulaire, ou le
+ *   remplacant deja designe) est marque absent ;
+ * - `remplacee` : le titulaire est absent et un autre enseignant, present, est
+ *   designe sur la seance.
+ * Les jours fermes et les seances annulees ne sont pas des absences a traiter.
+ */
+export function seancesSousAbsence(
+  slots: SlotSource[],
+  exceptions: ExceptionSource[],
+  du: string,
+  au: string,
+  estFerme: (date: string) => boolean,
+  estAbsent: (teacherId: string | null, date: string, debut: string, fin: string) => boolean,
+): { seance: Seance; statut: 'a_remplacer' | 'remplacee'; absentId: string }[] {
+  const resultat: { seance: Seance; statut: 'a_remplacer' | 'remplacee'; absentId: string }[] = []
+  for (let date = du; date <= au; date = jourSuivant(date)) {
+    if (estFerme(date)) continue
+    for (const s of seancesDuJour(slots, exceptions, date)) {
+      if (s.annulee) continue
+      if (s.teacherId && estAbsent(s.teacherId, date, s.debut, s.fin)) {
+        resultat.push({ seance: s, statut: 'a_remplacer', absentId: s.teacherId })
+      } else if (s.remplacement && s.titulaireId && estAbsent(s.titulaireId, date, s.debut, s.fin)) {
+        resultat.push({ seance: s, statut: 'remplacee', absentId: s.titulaireId })
+      }
+    }
+  }
+  return resultat
+}

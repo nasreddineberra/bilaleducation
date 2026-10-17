@@ -3,6 +3,8 @@ import { clsx } from 'clsx'
 import type { LucideIcon } from 'lucide-react'
 import { ChevronRight } from 'lucide-react'
 import { Cliquable } from '@/components/ui/Cliquable'
+import type { SeanceAffichee } from '@/lib/dashboard/direction'
+import type { StatutSeance } from '@/lib/dashboard/seances'
 
 /**
  * Briques du tableau de bord (refonte du 16/10). Les couleurs vivent dans les
@@ -138,4 +140,37 @@ export function Puce({ ton, children }: { ton: Ton; children: React.ReactNode })
 
 export function Vide({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-warm-700 italic py-6 text-center">{children}</p>
+}
+
+export const STATUT_SEANCE: Record<StatutSeance, { label: string; ton: Ton; barre: string }> = {
+  validee:   { label: 'Validée',   ton: 'ok',      barre: 'bg-primary-500' },
+  a_valider: { label: 'À valider', ton: 'attente', barre: 'bg-amber-500' },
+  en_cours:  { label: 'En cours',  ton: 'info',    barre: 'bg-secondary-500' },
+  a_venir:   { label: 'À venir',   ton: 'neutre',  barre: 'bg-warm-300' },
+  annulee:   { label: 'Annulée',   ton: 'danger',  barre: 'bg-red-500' },
+}
+
+/** Ligne d'une seance de la journee (Direction, Responsable pedagogique).
+ *  `complement` : precision ajoutee sous la classe (ex. etat du cahier de texte). */
+export function LigneSeance({ s, complement }: { s: SeanceAffichee; complement?: string | null }) {
+  const st = STATUT_SEANCE[s.statut]
+  return (
+    <div className="ligne-tdb">
+      <span className="w-[86px] shrink-0 tabular-nums font-semibold text-warm-700">{s.debut}-{s.fin}</span>
+      <span className={clsx('w-1 h-7 rounded-full shrink-0', s.remplacement ? 'bg-violet-500' : st.barre)} aria-hidden="true" />
+      <div className="flex-1 min-w-0">
+        <p className={clsx('font-semibold text-secondary-800 truncate', s.statut === 'annulee' && 'line-through')}>
+          {s.classe}{s.cours ? ` · ${s.cours}` : ''}
+        </p>
+        <p className="text-[11px] text-warm-700 truncate">
+          {s.enseignant || 'Sans enseignant'}{s.titulaire ? `, remplace ${s.titulaire}` : ''}{complement ? ` · ${complement}` : ''}
+        </p>
+      </div>
+      <span className="hidden 2xl:inline w-20 shrink-0 text-right text-warm-700 tabular-nums">{s.effectif} inscrit{s.effectif > 1 ? 's' : ''}</span>
+      <div className="flex gap-1 shrink-0">
+        {s.remplacement && <Puce ton="remplacement">Remplacement</Puce>}
+        <Puce ton={st.ton}>{st.label}</Puce>
+      </div>
+    </div>
+  )
 }

@@ -347,8 +347,8 @@ financements, retention…), ecole de demonstration.
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
    l'ordre des Gabarits.
-4. **Tableau de bord** (refonte du 16/10) : Direction, Enseignant et Comptable faits ; reste
-   Resp. pedagogique, Secretaire (maquettes sur le canevas). Chaque ecran tient sur une page, sans
+4. **Tableau de bord** (refonte du 16/10) : Direction, Enseignant, Comptable et Resp. pedagogique
+   faits ; reste Secretaire (maquette sur le canevas). Chaque ecran tient sur une page, sans
    barre de defilement.
 5. **Jour J** : effacer les donnees de test, creer l'etablissement reel (admin + direction).
    `clean-all-data.sql` NE DOIT PAS servir tel quel (vide le registre des migrations et les tables
