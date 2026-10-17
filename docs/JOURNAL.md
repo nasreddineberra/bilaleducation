@@ -8133,3 +8133,7 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Enseignant** (demande utilisateur, une ou plusieurs classes) : le compteur « Evaluations sans note »
   devient « Saisie des notes · periode » (taux sur ses classes, evaluations a completer) ; « Mes classes »
   gagne la colonne « notes saisies ».
+- **Correctif (signale par l'utilisateur)** : les evaluations DIAGNOSTIC (appreciation dans `comment`, sans
+  note) etaient comptees comme non saisies. `avancementSaisie` applique desormais la regle de l'ecran
+  Saisie des notes : est saisi une note, une appreciation non vide ou « absent ». Test ajoute. La moyenne
+  /20 n'est pas touchee (une evaluation diagnostic n'a pas de bareme).

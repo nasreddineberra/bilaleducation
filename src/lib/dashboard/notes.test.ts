@@ -53,3 +53,18 @@ test('avancementSaisie : taux null sans note attendue', () => {
   assert.equal(r.taux, null)
   assert.equal(r.aVenir, 1)
 })
+
+test('avancementSaisie : une appreciation (diagnostic) compte comme saisie', () => {
+  const inscrits = new Map([['c1', new Set(['a', 'b', 'c'])]])
+  const evals = [{ id: 'd1', class_id: 'c1', evaluation_date: '2026-10-10' }]
+  const notes = [
+    { evaluation_id: 'd1', apprenant: 'a', score: null, comment: 'Acquis', is_absent: false },
+    { evaluation_id: 'd1', apprenant: 'b', score: null, comment: '  ', is_absent: false },
+    { evaluation_id: 'd1', apprenant: 'c', score: null, comment: 'En cours', is_absent: false },
+  ]
+  const r = avancementSaisie(evals, notes, inscrits, '2026-10-17')
+  assert.equal(r.saisies, 2)
+  assert.equal(r.attendues, 3)
+  assert.equal(r.incompletes, 1)
+  assert.equal(r.passeesSansNote, 0)
+})

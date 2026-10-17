@@ -153,8 +153,8 @@ export async function chargerDonneesPedagogie(
     codesAbsence.length
       ? supabase.from('staff_time_entries').select('profile_id, entry_date, start_time, end_time').in('entry_type', codesAbsence).gte('entry_date', duValider).lte('entry_date', dans7j)
       : Promise.resolve({ data: [] }),
-    evalIds.length ? supabase.from('grades').select('evaluation_id, student_id, score, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
-    evalIds.length ? supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
+    evalIds.length ? supabase.from('grades').select('evaluation_id, student_id, score, comment, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
+    evalIds.length ? supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, comment, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
   ])
 
   // ── Effectifs ──────────────────────────────────────────────────────────────
@@ -231,8 +231,8 @@ export async function chargerDonneesPedagogie(
   for (const r of inscriptions) inscrire(r.class_id, r.student_id)
   for (const r of adultes) inscrire(r.class_id, `${r.parent_id}-${r.tutor_number}`)
   const notesSaisie: NoteSaisie[] = [
-    ...notesEleves.map(n => ({ evaluation_id: n.evaluation_id, apprenant: n.student_id, score: n.score, is_absent: n.is_absent })),
-    ...notesAdultes.map(n => ({ evaluation_id: n.evaluation_id, apprenant: `${n.parent_id}-${n.tutor_number}`, score: n.score, is_absent: n.is_absent })),
+    ...notesEleves.map(n => ({ evaluation_id: n.evaluation_id, apprenant: n.student_id, score: n.score, comment: n.comment, is_absent: n.is_absent })),
+    ...notesAdultes.map(n => ({ evaluation_id: n.evaluation_id, apprenant: `${n.parent_id}-${n.tutor_number}`, score: n.score, comment: n.comment, is_absent: n.is_absent })),
   ]
   const saisie = periodeId ? avancementSaisie(evalsPeriode, notesSaisie, inscritsParClasse, aujourdhui) : null
 

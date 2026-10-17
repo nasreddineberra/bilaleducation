@@ -187,8 +187,8 @@ export async function chargerDonneesEnseignant(
   const evalIds = evals.map(e => e.id)
   const [notesRes, notesAdRes] = evalIds.length
     ? await Promise.all([
-        supabase.from('grades').select('evaluation_id, student_id, score, is_absent').in('evaluation_id', evalIds),
-        supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, is_absent').in('evaluation_id', evalIds),
+        supabase.from('grades').select('evaluation_id, student_id, score, comment, is_absent').in('evaluation_id', evalIds),
+        supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, comment, is_absent').in('evaluation_id', evalIds),
       ])
     : [{ data: [] }, { data: [] }]
   const notes = [...((notesRes.data ?? []) as any[]), ...((notesAdRes.data ?? []) as any[])]
@@ -277,6 +277,7 @@ export async function chargerDonneesEnseignant(
     evaluation_id: n.evaluation_id,
     apprenant: n.student_id ?? `${n.parent_id}-${n.tutor_number}`,
     score: n.score,
+    comment: n.comment,
     is_absent: n.is_absent,
   }))
   const saisie = periodeId ? avancementSaisie(evals, notesSaisie, inscritsParClasse, aujourdhui) : null

@@ -38,6 +38,8 @@ export interface NoteSaisie {
   /** Cle de l'apprenant : `student_id`, ou `parent_id-tutor_number` pour un adulte. */
   apprenant: string
   score: number | string | null
+  /** Appreciation (evaluation diagnostic) ou commentaire. */
+  comment?: string | null
   is_absent: boolean | null
 }
 
@@ -46,7 +48,7 @@ export interface AvancementSaisie {
   evaluations: number
   /** Notes attendues : un apprenant inscrit x une evaluation passee. */
   attendues: number
-  /** Parmi elles, notes saisies (une note, ou « absent »). */
+  /** Parmi elles, saisies : une note, une appreciation, ou « absent ». */
   saisies: number
   /** `null` sans note attendue : jamais un 100 % invente. */
   taux: number | null
@@ -63,7 +65,9 @@ export interface AvancementSaisie {
  * Une note n'est ATTENDUE que pour une evaluation passee (date <= aujourd'hui ;
  * sans date, elle est tenue pour passee) et pour un apprenant INSCRIT dans la
  * classe a ce jour : la note d'un eleve parti ne compte ni en attendu ni en
- * saisi. Un apprenant marque absent a l'evaluation compte comme saisi.
+ * saisi. Est SAISI ce que l'ecran Saisie des notes tient pour saisi : une note
+ * chiffree, une appreciation (evaluation diagnostic : `comment`, sans note) ou
+ * « absent ».
  */
 export function avancementSaisie(
   evals: EvalSaisie[],
@@ -73,7 +77,8 @@ export function avancementSaisie(
 ): AvancementSaisie {
   const saisiesParEval = new Map<string, Set<string>>()
   for (const n of notes) {
-    if (n.score === null && !n.is_absent) continue
+    const appreciation = typeof n.comment === 'string' && n.comment.trim() !== ''
+    if (n.score === null && !n.is_absent && !appreciation) continue
     if (!saisiesParEval.has(n.evaluation_id)) saisiesParEval.set(n.evaluation_id, new Set())
     saisiesParEval.get(n.evaluation_id)!.add(n.apprenant)
   }
