@@ -5,6 +5,7 @@ import { chargerDonneesDirection } from '@/lib/dashboard/direction'
 import { chargerDonneesEnseignant } from '@/lib/dashboard/enseignant'
 import { chargerDonneesComptable } from '@/lib/dashboard/comptable'
 import { chargerDonneesPedagogie } from '@/lib/dashboard/pedagogie'
+import { chargerDonneesSecretaire } from '@/lib/dashboard/secretaire'
 import { jourParis } from '@/lib/tenant/abonnement'
 import { heureParis } from '@/lib/dates'
 import { getPeriodHint } from '@/lib/school-year/current-period-hint'
@@ -196,43 +197,12 @@ export default async function DashboardPage() {
   //  SECRETAIRE
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'secretaire') {
-    // Bornes du mois en composantes LOCALES : `toISOString()` bascule en UTC et
-    // decale la borne d'un jour sur un fuseau negatif. Borne HAUTE ajoutee, sans
-    // quoi une inscription datee dans le futur comptait pour « ce mois ».
-    const now = new Date()
-    const thisMonth = todayKeyOf(new Date(now.getFullYear(), now.getMonth(), 1))
-    const nextMonth = todayKeyOf(new Date(now.getFullYear(), now.getMonth() + 1, 1))
-
-    const [
-      { count: studentsActive },
-      { count: parentsCount },
-      { count: teachersCount },
-      { count: enrollmentsThisMonth },
-      { count: adultEnrollmentsThisMonth },
-      { data: recentStudents },
-    ] = await Promise.all([
-      supabase.from('students').select('id', { count: 'exact', head: true }).eq('is_active', true),
-      supabase.from('parents').select('id', { count: 'exact', head: true }),
-      supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('is_active', true),
-      // Les DEUX tables d'inscription : une inscription d'adulte est une
-      // inscription, et ne comptait pas jusqu'ici.
-      supabase.from('enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', thisMonth).lt('enrollment_date', nextMonth),
-      supabase.from('parent_class_enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', thisMonth).lt('enrollment_date', nextMonth),
-      supabase.from('students').select('id, first_name, last_name, student_number, created_at').eq('is_active', true).order('created_at', { ascending: false }).limit(6),
-    ])
-
-    return (
-      <DashboardSecretaire
-        {...common}
-        stats={{
-          studentsActive: studentsActive ?? 0,
-          parentsCount: parentsCount ?? 0,
-          teachersCount: teachersCount ?? 0,
-          enrollmentsThisMonth: (enrollmentsThisMonth ?? 0) + (adultEnrollmentsThisMonth ?? 0),
-          recentStudents: (recentStudents ?? []) as any[],
-        }}
-      />
+    // Client de SESSION (RLS : ecole + role). Voir `lib/dashboard/secretaire.ts`.
+    const instant = new Date()
+    const donnees = await chargerDonneesSecretaire(
+      supabase, currentYear, currentPeriod?.id ?? null, jourParis(instant), heureParis(instant),
     )
+    return <DashboardSecretaire {...common} donnees={donnees} />
   }
 
   // ══════════════════════════════════════════════════════════════════════

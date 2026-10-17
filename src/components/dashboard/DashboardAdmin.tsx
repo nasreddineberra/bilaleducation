@@ -11,8 +11,7 @@ import {
 } from 'recharts'
 import { Users, Wallet, CheckCheck, CalendarDays, AlertTriangle } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
-import TruncatedText from '@/components/ui/TruncatedText'
-import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, Puce, Vide } from './tdb'
+import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, RemplissageClasses, Vide } from './tdb'
 import { SERIES, INK, VizTooltip, VizLegend, fmtEur } from './viz'
 import { HistoEncaissements, RepartitionFamilles } from './finances-tdb'
 
@@ -153,36 +152,7 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
         </Encadre>
 
         <Encadre titre="Remplissage des classes" lien={{ href: lien('/dashboard/classes'), label: 'Classes' }}>
-          {d.classes.length === 0 ? (
-            <Vide>Aucune classe.</Vide>
-          ) : (
-            <div className="space-y-2.5 max-h-[260px] overflow-y-auto list-scroll pr-1">
-              {d.classes.map(c => {
-                const pct = c.max > 0 ? Math.round((c.enrolled / c.max) * 100) : 0
-                return (
-                  <div key={c.name}>
-                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-semibold text-secondary-800 shrink-0">{c.name}</span>
-                        {c.adulte && <span className="shrink-0"><Puce ton="remplacement">Adultes</Puce></span>}
-                        {(c.professeur || c.seance) && (
-                          <TruncatedText
-                            text={[c.professeur || 'Sans titulaire', c.seance].filter(Boolean).join(' · ')}
-                            className="text-[11px] text-warm-700 min-w-0"
-                          />
-                        )}
-                      </span>
-                      <span className="text-warm-700 tabular-nums shrink-0">{c.enrolled} / {c.max}</span>
-                    </div>
-                    <div className="piste-tdb">
-                      <div className={clsx('h-full rounded-full', pct >= 100 ? 'bg-red-500' : pct >= 85 ? 'bg-orange-500' : 'bg-primary-500')}
-                        style={{ width: `${Math.min(pct, 100)}%` }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <RemplissageClasses classes={d.classes} />
         </Encadre>
 
         <Encadre titre="À traiter">

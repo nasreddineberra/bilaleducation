@@ -8137,3 +8137,20 @@ marque ; les vraies ecoles gardent leur plaque.
   note) etaient comptees comme non saisies. `avancementSaisie` applique desormais la regle de l'ecran
   Saisie des notes : est saisi une note, une appreciation non vide ou « absent ». Test ajoute. La moyenne
   /20 n'est pas touchee (une evaluation diagnostic n'a pas de bareme).
+
+#### 17 octobre 2026 — Tableau de bord : lot Secretaire (dernier role)
+
+- **Il n'existe pas d'« appel fait » en base** : la feuille d'appel n'ecrit que des absences ; un appel ou
+  tout le monde est present n'ecrit rien, et l'etat « valide » ne vit que dans le navigateur. La tuile et
+  l'encadre « Appels du jour » de la maquette sont remplaces (decision utilisateur) par « Absents
+  aujourd'hui » et par la journee en cours avec les absents SAISIS par seance.
+- **Secretaire** (`lib/dashboard/secretaire.ts`, client de session ; droits verifies dans `pg_policies`) :
+  tuiles Apprenants (eleves, adultes, foyers, inscrits du mois), Sans classe (eleves actifs sans
+  inscription active dans une classe de l'annee), Absences 30 jours sans justificatif, Absents
+  aujourd'hui ; journee en cours ; A traiter (sans classe, absences sans justificatif, fiches
+  incompletes, enseignants actifs sans compte de connexion) ; derniers inscrits (eleves et adultes) ;
+  remplissage des classes ; absents du jour (justifie, retard, nombre d'absences de la periode).
+- **Remplissage des classes** sorti de la Direction vers `tdb.tsx` (`RemplissageClasses`), partage.
+- **Faille signalee, non traitee** : `document_type_configs` n'a que des policies d'ECOLE, sans role ;
+  tout compte de l'ecole peut modifier ou supprimer les documents requis. Migration a faire (ecriture
+  reservee a admin / direction).
