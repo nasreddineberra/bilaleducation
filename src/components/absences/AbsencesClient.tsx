@@ -170,6 +170,14 @@ export default function AbsencesClient({
   const canSeeAllClasses = GLOBAL_VIEW_ROLES.includes(role) && classes.length > 1
   const [selectedClassId,  setSelectedClassId]  = useState<string | null>(classes.length === 1 ? classes[0].id : null)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>((periods.find(p => p.is_current) ?? periods[0])?.id ?? null)
+
+  // Classe imposee par l'URL (?class=), ex. « Faire l'appel » du tableau de bord
+  // enseignant : un professeur a plusieurs classes ne doit pas avoir a la rechoisir.
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('class')
+    if (c && classes.some(cl => cl.id === c)) setSelectedClassId(c)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [absences,         setAbsences]         = useState<Absence[]>(initialAbsences)
   const [expandedStudent,  setExpandedStudent]  = useState<string | null>(null)
   const [showSaisie,       setShowSaisie]       = useState(false)

@@ -99,8 +99,8 @@ export default function DashboardEnseignant({ donnees: d, ...headerProps }: Prop
                 )}
               </div>
               <div className="flex flex-wrap gap-2.5">
-                <Link href="/dashboard/absences" className="bouton-tuile">Faire l’appel</Link>
-                <Link href="/dashboard/cahier-texte" className="bouton-tuile bouton-tuile-contour">Cahier de texte</Link>
+                <Link href={`/dashboard/absences${p.adulte ? '/adultes' : ''}?class=${p.classId}`} className="bouton-tuile">Faire l’appel</Link>
+                <Link href={`/dashboard/cahier-texte?class=${p.classId}`} className="bouton-tuile bouton-tuile-contour">Cahier de texte</Link>
               </div>
             </div>
           )}

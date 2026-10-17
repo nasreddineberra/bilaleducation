@@ -23,6 +23,7 @@ import type { AnneeRef } from './direction'
 
 export interface SeanceEnseignant {
   id: string
+  classId: string
   date: string
   debut: string
   fin: string
@@ -38,6 +39,7 @@ export interface DonneesEnseignant {
   sansFiche: boolean
   prochaine: (SeanceEnseignant & {
     salle: string | null
+    adulte: boolean
     effectif: number
     devoir: string | null
     absentsDerniereFois: number | null
@@ -109,7 +111,7 @@ export async function chargerDonneesEnseignant(
       .select('class_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, academic_year, cotisation_types(is_adult))')
       .eq('teacher_id', moi).eq('classes.academic_year', annee.label),
     supabase.from('schedule_slots')
-      .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), rooms(name), classes(name)')
+      .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
       .eq('school_year_id', annee.id).eq('is_active', true),
     supabase.from('presence_types').select('code, label, is_absence').eq('school_year_id', annee.id),
     // `profile_id` explicite en plus de la RLS : un enseignant qui cumulerait
@@ -205,6 +207,7 @@ export async function chargerDonneesEnseignant(
 
   const versAffichage = (s: Seance): SeanceEnseignant => ({
     id: `${s.slotId}|${s.date}`,
+    classId: s.classId,
     date: s.date,
     debut: s.debut,
     fin: s.fin,
@@ -234,6 +237,7 @@ export async function chargerDonneesEnseignant(
     prochaine = {
       ...versAffichage(s),
       salle: info?.rooms?.name ?? null,
+      adulte: !!(info?.classes?.cotisation_types?.is_adult ?? mesClasses.get(s.classId)?.adulte),
       effectif: effectif[s.classId] ?? 0,
       devoir: devoir?.title ?? null,
       absentsDerniereFois: derniere ? datesAbs.filter(x => x === derniere).length : null,
