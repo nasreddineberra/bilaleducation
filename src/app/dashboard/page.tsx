@@ -3,9 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import { getCachedProfile, getCurrentYear } from '@/lib/cache/dashboard'
 import { chargerDonneesDirection } from '@/lib/dashboard/direction'
 import { chargerDonneesEnseignant } from '@/lib/dashboard/enseignant'
+import { chargerDonneesComptable } from '@/lib/dashboard/comptable'
 import { jourParis } from '@/lib/tenant/abonnement'
 import { heureParis } from '@/lib/dates'
-import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { getPeriodHint } from '@/lib/school-year/current-period-hint'
 import { effectiveRole } from '@/lib/auth/effective-role'
 import DashboardAdmin from '@/components/dashboard/DashboardAdmin'
@@ -161,41 +161,9 @@ export default async function DashboardPage() {
   //  COMPTABLE
   // ══════════════════════════════════════════════════════════════════════
   if (role === 'comptable') {
-    // Bornes deja portees par `getCurrentYear` : plus de requete de rappel.
-    const yearFull = currentYear
-
-    const [financials, { data: recentPayments }] = await Promise.all([
-      yearFull ? getFamilyFinancials(supabase, yearFull) : Promise.resolve(null),
-      supabase.from('fee_installments').select('id, amount_paid, paid_date, payment_method, family_fees:family_fee_id(parents:parent_id(tutor1_last_name, tutor1_first_name))').eq('status', 'paid').order('paid_date', { ascending: false }).limit(6),
-    ])
-
-    const kpi = financials?.kpi ?? { billed: 0, collected: 0, outstanding: 0, overpaid: 0, counts: { pending: 0, partial: 0, paid: 0, overpaid: 0 }, rate: 0 }
-    const topDebtors = (financials?.rows ?? [])
-      .filter(r => r.remaining > 0)
-      .sort((a, b) => b.remaining - a.remaining)
-      .slice(0, 8)
-
-    return (
-      <DashboardComptable
-        {...common}
-        stats={{
-          billed: kpi.billed,
-          collected: kpi.collected,
-          outstanding: kpi.outstanding,
-          overpaidCount: kpi.counts.overpaid,
-          overpaidAmount: kpi.overpaid,
-          // Familles n'ayant fait AUCUN paiement — meme definition que la ligne
-          // « A traiter » du tableau de bord admin.
-          pendingFamilies: kpi.counts.pending,
-          rate: kpi.rate,
-          totalFamilies: (financials?.rows ?? []).length,
-          monthly: financials?.monthly ?? [],
-          byMethod: financials?.byMethod ?? {},
-          topDebtors,
-          recentPayments: (recentPayments ?? []) as any[],
-        }}
-      />
-    )
+    // Client de SESSION (RLS : ecole + role). Voir `lib/dashboard/comptable.ts`.
+    const donnees = await chargerDonneesComptable(supabase, currentYear, jourParis(new Date()))
+    return <DashboardComptable {...common} donnees={donnees} />
   }
 
   // ══════════════════════════════════════════════════════════════════════

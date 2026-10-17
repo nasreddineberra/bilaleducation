@@ -801,7 +801,7 @@
 }
 :root[data-theme="dark"] .seance-tdb { border-left-color: var(--brand-accent); }
 
-/* Barres de l'histogramme mensuel : piste = attendu, remplissage = encaisse. */
+/* Barres de l'histogramme mensuel : piste vide = mois sans encaissement. */
 .histo-barre {
   display: flex;
   flex-direction: column;

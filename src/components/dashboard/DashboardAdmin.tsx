@@ -14,7 +14,8 @@ import { Users, Wallet, CheckCheck, CalendarDays, AlertTriangle } from 'lucide-r
 import DashboardHeader from './DashboardHeader'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, Puce, Vide, type Ton } from './tdb'
-import { SERIES, INK, STATUS_COLOR, VizTooltip, VizLegend, fmtEur } from './viz'
+import { SERIES, INK, VizTooltip, VizLegend, fmtEur } from './viz'
+import { HistoEncaissements, RepartitionFamilles } from './finances-tdb'
 
 interface Props {
   firstName: string
@@ -67,7 +68,6 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
   const nbClasses = new Set(tenues.map(s => s.classe)).size
 
   const f = d.finances
-  const maxMensuel = Math.max(1, ...(f?.mensuel ?? []).map(m => Math.max(m.attendu, m.encaisse)))
 
   const trendHasData = d.tendance.some(t => t.justified > 0 || t.unjustified > 0)
 
@@ -228,30 +228,7 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
           titre="Encaissements par mois"
           lien={{ href: lien('/dashboard/financements/vue-globale'), label: 'Statistiques' }}
         >
-          {!f || f.mensuel.length === 0 ? (
-            <Vide>Aucune facturation.</Vide>
-          ) : (
-            <>
-            <div className="flex items-end gap-1 h-[172px]" role="img"
-              aria-label={`Encaissements par mois : ${f.mensuel.map(m => `${m.label} ${fmtEur(m.encaisse)}`).join(', ')}`}>
-              {f.mensuel.map(m => {
-                const haut = Math.max(m.attendu, m.encaisse)
-                return (
-                  <div key={m.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1.5">
-                    <span className="text-[9px] text-warm-700 tabular-nums whitespace-nowrap">
-                      {m.encaisse > 0 ? `${(m.encaisse / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}k` : ''}
-                    </span>
-                    <div className="histo-barre" style={{ height: `${Math.max(4, (haut / maxMensuel) * 128)}px` }}>
-                      <div className="histo-plein" style={{ height: haut > 0 ? `${(m.encaisse / haut) * 100}%` : 0 }} />
-                    </div>
-                    <span className="text-[10px] font-semibold text-warm-700">{m.label}</span>
-                  </div>
-                )
-              })}
-            </div>
-            <VizLegend items={[{ label: 'Encaissé', color: SERIES.primary }, { label: 'Échéances prévues', color: 'var(--jauge-fond)' }]} />
-            </>
-          )}
+          {!f ? <Vide>Aucune facturation.</Vide> : <HistoEncaissements mensuel={f.mensuel} />}
         </Encadre>
 
         <Encadre titre="Absences · 30 jours" lien={{ href: lien('/dashboard/absences', true), label: 'Appel' }}>
@@ -295,27 +272,11 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
             <Vide>Aucun dossier.</Vide>
           ) : (
             <>
-              <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mb-3 mt-1" role="presentation">
-                {([['paid', f.counts.paid], ['partial', f.counts.partial], ['pending', f.counts.pending], ['overpaid', f.counts.overpaid]] as const)
-                  .filter(([, n]) => n > 0)
-                  .map(([k, n]) => <div key={k} style={{ flex: n, background: STATUS_COLOR[k] }} />)}
-              </div>
-              {([
-                ['paid', 'Soldées', f.counts.paid],
-                ['partial', 'Paiement partiel', f.counts.partial],
-                ['pending', 'Aucun versement', f.counts.pending],
-                ['overpaid', 'Trop perçu', f.counts.overpaid],
-              ] as const).filter(([k, , n]) => k !== 'overpaid' || n > 0).map(([k, label, n]) => (
-                <div key={k} className="ligne-tdb text-secondary-800">
-                  <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: STATUS_COLOR[k] }} aria-hidden="true" />
-                  <span className="flex-1">{label}</span>
-                  <b className="tabular-nums">{n}</b>
-                </div>
-              ))}
+              <RepartitionFamilles counts={f.counts} />
               <div className="mt-auto pt-3">
                 <div className="flex justify-between items-center rounded-lg bg-warm-50 px-3 py-2 text-xs">
-                  <span className="text-warm-700">Reste dû sur les échéances de {nomMois}</span>
-                  <b className="tabular-nums text-secondary-800">{fmtEur(f.echeancesDuMois)}</b>
+                  <span className="text-warm-700">Reste à percevoir</span>
+                  <b className="tabular-nums text-secondary-800">{fmtEur(f.outstanding)}</b>
                 </div>
               </div>
             </>

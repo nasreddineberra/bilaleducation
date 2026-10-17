@@ -8074,3 +8074,26 @@ marque ; les vraies ecoles gardent leur plaque.
   refusee. Le compte est revenu a son etat d'origine (plus la cle `demo_compte`).
 - **Effet de bord du 16/10 corrige** : la confirmation « Desactiver ce compte » de la console annoncait
   une trace au journal de l'ecole, qui n'existe plus pour l'editeur.
+
+#### 17 octobre 2026 — Tableau de bord : lot Comptable, correction Direction
+
+- **Enseignant verifie a l'ecran** par l'utilisateur. Correctif : « Faire l'appel » et « Cahier de texte »
+  de la carte Prochaine seance ouvrent la classe de la seance (`?class=`), la feuille d'appel lit ce
+  parametre, un cours adultes mene a `/dashboard/absences/adultes`.
+- **Maquettes** Comptable, Responsable pedagogique, Secretaire ajoutees au canevas « Tableau de bord
+  BILAL EDUCATION ». Exigence utilisateur pour ces trois ecrans : **tenir sur une page sans barre de
+  defilement** (encadres a hauteur fixe, listes qui defilent dans leur encadre).
+- **Il n'existe pas d'echeancier previsionnel** : une « echeance » (`fee_installments`) est un paiement
+  enregistre, `due_date` = date du paiement, du = paye. Les blocs « echeances a venir / en retard » de la
+  maquette sont donc impossibles. **Direction corrigee** : la serie « Echeances prevues » recopiait
+  l'encaisse et « Reste du sur les echeances du mois » valait toujours 0 € ; remplaces par l'encaisse seul
+  et le reste a percevoir.
+- **Comptable** (`lib/dashboard/comptable.ts`, client de session) : tuiles Encaisse annee (taux), Reste a
+  percevoir (partiels, sans versement), Encaisse du mois (paiements, ecart au mois precedent), Situation
+  financiere de l'annee ; encaissements par mois ; familles par statut (trop percu a rembourser) ;
+  familles debitrices (lien vers la fiche Reglements) ; derniers paiements ; moyens de paiement et facture
+  par cotisation.
+- **Une seule situation financiere** : le cout des heures sort de `financements/page.tsx` vers
+  `lib/financements/cout-heures.ts`, partage avec le tableau de bord (meme formule : encaisse + autres
+  revenus - depenses - cout des heures). Histogramme et repartition des familles partages entre Direction
+  et Comptable (`components/dashboard/finances-tdb.tsx`), couleur liee au moyen de paiement.

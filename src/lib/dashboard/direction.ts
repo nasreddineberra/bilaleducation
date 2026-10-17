@@ -59,8 +59,7 @@ export interface DonneesDirection {
     rate: number
     counts: Record<FeeStatus, number>
     familles: number
-    echeancesDuMois: number
-    mensuel: { key: string; label: string; encaisse: number; attendu: number }[]
+    mensuel: { key: string; label: string; encaisse: number }[]
   } | null
   assiduite: { taux: number; attendues: number; absences: number } | null
   absencesMois: number | null
@@ -110,7 +109,7 @@ export async function chargerDonneesDirection(
     nouveauxEleves, nouveauxAdultes,
     classesRes, slotsRes, teachersRes, typesAbsRes,
     absMoisRes, absTendanceRes, absNonJustAnRes, absPeriodeRes,
-    evalsPeriodeRes, docConfigsRes, echeancesRes,
+    evalsPeriodeRes, docConfigsRes,
   ] = await Promise.all([
     annee ? supabase.from('school_years').select('vacations, jours_feries').eq('id', annee.id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from('etablissements').select('max_students').maybeSingle(),
@@ -140,9 +139,6 @@ export async function chargerDonneesDirection(
       ? supabase.from('evaluations').select('id, class_id').eq('period_id', periodeId).lte('evaluation_date', aujourdhui)
       : Promise.resolve({ data: [] }),
     supabase.from('document_type_configs').select('doc_key').eq('is_required', true),
-    annee
-      ? supabase.from('fee_installments').select('due_date, amount_due, amount_paid, family_fee_id, family_fees!inner(school_year_id)').eq('family_fees.school_year_id', annee.id)
-      : Promise.resolve({ data: [] }),
   ])
 
   const vacations = ((anneeComplete as any).data?.vacations ?? []) as VacationPeriod[]
@@ -287,26 +283,16 @@ export async function chargerDonneesDirection(
   }
 
   // ── Finances ───────────────────────────────────────────────────────────────
-  const echeances = ((echeancesRes as any).data ?? []) as any[]
-  const reste = (e: any) => Math.max(0, Number(e.amount_due ?? 0) - Number(e.amount_paid ?? 0))
-  const attenduParMois: Record<string, number> = {}
-  for (const e of echeances) {
-    if (!e.due_date) continue
-    const k = String(e.due_date).slice(0, 7)
-    attenduParMois[k] = (attenduParMois[k] ?? 0) + Number(e.amount_due ?? 0)
-  }
+  // Pas d'echeancier previsionnel : une « echeance » est un paiement enregistre
+  // (du = paye). Une serie « attendu » recopiait donc l'encaisse.
   const finances = financials
     ? {
         ...financials.kpi,
         familles: financials.rows.length,
-        echeancesDuMois: echeances
-          .filter(e => e.due_date && e.due_date >= debutMois && e.due_date < finMois)
-          .reduce((s, e) => s + reste(e), 0),
         mensuel: financials.monthly.map(m => ({
           key: m.key,
           label: m.label.split(' ')[0],
           encaisse: m.amount,
-          attendu: attenduParMois[m.key] ?? 0,
         })),
       }
     : null

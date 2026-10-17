@@ -1,29 +1,14 @@
 'use client'
 
-import { usePetitEcran } from '@/hooks/usePetitEcran'
-import { Cliquable } from '@/components/ui/Cliquable'
-
 import Link from 'next/link'
-import { useMemo } from 'react'
-import {
-  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine,
-} from 'recharts'
-import { DollarSign, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
+import { usePetitEcran } from '@/hooks/usePetitEcran'
+import type { Raccourci } from '@/lib/mobile'
+import type { DonneesComptable } from '@/lib/dashboard/comptable'
+import { Wallet, Hourglass, Banknote, Scale } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
-import StatCard from './StatCard'
-import Tooltip from '@/components/ui/Tooltip'
-import { SERIES, CATEGORICAL, INK, METHOD_LABELS, VizTooltip, VizCard, VizLegend, fmtEur, fmtAxis } from './viz'
-import type { FeeStatus } from '@/types/database'
-
-interface DebtorRow {
-  parentId: string
-  parentLabel: string
-  totalDue: number
-  totalPaid: number
-  remaining: number
-  status: FeeStatus
-}
+import { Tuile, JaugeTuile, Sparkline, Encadre, Puce, Vide } from './tdb'
+import { METHOD_LABELS, fmtEur } from './viz'
+import { HistoEncaissements, RepartitionFamilles, COULEUR_MOYEN } from './finances-tdb'
 
 interface Props {
   firstName: string
@@ -34,183 +19,221 @@ interface Props {
   periodLabel: string
   unreadNotifs: number
   recentNotifs: any[]
-  stats: {
-    billed: number
-    collected: number
-    outstanding: number
-    overpaidCount: number
-    overpaidAmount: number
-    pendingFamilies: number
-    rate: number
-    totalFamilies: number
-    monthly: { key: string; label: string; amount: number; cumul: number }[]
-    byMethod: Record<string, number>
-    topDebtors: DebtorRow[]
-    recentPayments: { id: string; amount_paid: number; paid_date: string | null; payment_method: string | null; family_fees: { parents: { tutor1_last_name: string; tutor1_first_name: string } | null } | null }[]
-  }
+  donnees: DonneesComptable
 }
 
-export default function DashboardComptable({ stats, ...headerProps }: Props) {
-  const petitEcran = usePetitEcran()
+// Aucun ecran de Financements n'est propose sur telephone : pas de `mobile`.
+const RACCOURCIS: Raccourci[] = [
+  { href: '/dashboard/financements/reglements', label: 'Règlements' },
+  { href: '/dashboard/financements/vue-globale', label: 'Statistiques' },
+  { href: '/dashboard/financements', label: 'Situation financière' },
+  { href: '/dashboard/cotisations', label: 'Cotisations' },
+]
 
-  const methodData = useMemo(() => {
-    const all = Object.entries(stats.byMethod)
-      .map(([k, v]) => ({ name: METHOD_LABELS[k] ?? k, value: v }))
-      .sort((a, b) => b.value - a.value)
-    if (all.length <= CATEGORICAL.length) return all.map((d, i) => ({ ...d, fill: CATEGORICAL[i] }))
-    const head = all.slice(0, CATEGORICAL.length - 1)
-    const rest = all.slice(CATEGORICAL.length - 1).reduce((s, d) => s + d.value, 0)
-    return [...head, { name: 'Autres', value: rest }].map((d, i) => ({ ...d, fill: CATEGORICAL[i] }))
-  }, [stats.byMethod])
-  const methodTotal = methodData.reduce((s, d) => s + d.value, 0)
-  const topMax = stats.topDebtors[0]?.remaining ?? 0
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+
+const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
+const signe = (n: number) => `${n > 0 ? '+' : ''}${fmtEur(n)}`
+const dateCourte = (d: string | null) =>
+  d ? new Date(`${d.slice(0, 10)}T12:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
+
+export default function DashboardComptable({ donnees: d, ...headerProps }: Props) {
+  const petitEcran = usePetitEcran()
+  const lien = (href: string) => (petitEcran ? null : href)
+  const reglements = (parentId?: string | null) =>
+    lien(parentId ? `/dashboard/financements/reglements?parent=${parentId}` : '/dashboard/financements/reglements')
+
+  const [, mm] = d.aujourdhui.split('-').map(Number)
+  const nomMois = MOIS[mm - 1]
+  const moisPrecedent = MOIS[(mm + 10) % 12]
+
+  const f = d.finances
+  const s = d.situation
+  const ecartMois = d.mois.encaisse - d.mois.precedent
+  // Allure des encaissements jusqu'au mois en cours (les mois a venir sont vides).
+  const allure = (f?.mensuel ?? []).filter(m => m.key <= d.aujourdhui.slice(0, 7)).map(m => m.encaisse)
+  const totalMoyens = (f?.moyens ?? []).reduce((t, m) => t + m.montant, 0)
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <DashboardHeader {...headerProps} />
+      <DashboardHeader
+        {...headerProps}
+        masquerNotifs
+        sousTitre={[
+          new Date(`${d.aujourdhui}T12:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }),
+          headerProps.yearLabel ? `année ${headerProps.yearLabel}` : null,
+          f ? pluriel(f.familles, 'famille') : null,
+        ].filter(Boolean).join(' · ')}
+        actions={petitEcran ? undefined : RACCOURCIS.map(r => (
+          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
+        ))}
+      />
 
-      {/* KPIs financiers */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard title="Facturé" value={fmtEur(stats.billed)} subtitle={`${stats.totalFamilies} dossiers`} icon={Wallet} tone="ardoise" />
-        <StatCard title="Encaissé" value={fmtEur(stats.collected)} subtitle={`${stats.rate}% du facturé`} icon={TrendingUp} tone="primary" />
-        {/* Le montant restant ne dit pas OU agir : une famille qui n'a jamais
-            rien verse ne se traite pas comme une famille a jour de ses
-            echeances. Meme definition que « A traiter » cote admin. */}
-        <StatCard
-          title="Reste à encaisser"
-          value={fmtEur(stats.outstanding)}
-          subtitle={stats.pendingFamilies > 0
-            ? `${stats.pendingFamilies} famille${stats.pendingFamilies > 1 ? 's' : ''} sans aucun paiement`
-            : 'toutes les familles ont payé'}
-          icon={TrendingDown}
-          tone="orange"
-        />
-        <StatCard title="Trop perçu" value={stats.overpaidCount} subtitle={stats.overpaidCount > 0 ? fmtEur(stats.overpaidAmount) : 'aucun'} icon={DollarSign} tone="red" />
-      </div>
+      {/* ── 4 tuiles ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+        <Tuile
+          ton="marque" titre="Encaissé · année" icone={Wallet}
+          valeur={f ? fmtEur(f.collected) : '-'}
+          pied={f ? `${f.rate} % de ${fmtEur(f.billed)} facturés` : 'Aucune année en cours'}
+          lien={{ href: lien('/dashboard/financements/vue-globale'), label: 'Statistiques' }}
+        >
+          {f ? <JaugeTuile pct={f.rate} /> : null}
+        </Tuile>
 
-      {/* Jauge de recouvrement + Courbe de collecte */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="card p-3">
-          <div className="flex items-baseline justify-between mb-2">
-            <h3 className="stat-label">Taux de recouvrement</h3>
-            {!petitEcran && <Link href="/dashboard/financements/vue-globale" className="text-xs text-primary-600 hover:text-primary-700">Statistiques complètes</Link>}
-          </div>
-          <div className="flex items-end gap-3">
-            <p className="text-4xl font-bold text-secondary-800 tabular-nums leading-none">{stats.rate}%</p>
-            <p className="text-xs text-warm-700 pb-1">du total facturé</p>
-          </div>
-          <div className="h-3 bg-warm-100 rounded-full overflow-hidden mt-3">
-            <div className="h-full rounded-full transition-all" style={{ width: `${stats.rate}%`, background: SERIES.primary }} />
-          </div>
-          <div className="flex items-center justify-between mt-2 text-[11px] text-warm-700">
-            <span className="tabular-nums"><span className="text-primary-600 font-semibold">{fmtEur(stats.collected)}</span> encaissé</span>
-            <span className="tabular-nums"><span className="text-orange-700 font-semibold">{fmtEur(stats.outstanding)}</span> restant</span>
-          </div>
-        </section>
-
-        <VizCard title="Rythme de collecte" hint="cumul encaissé vs facturé" height={172}>
-          {stats.monthly.length === 0 ? (
-            <p className="text-xs text-warm-700 italic grid place-items-center h-full">Aucun encaissement.</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.monthly} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
-                <CartesianGrid vertical={false} stroke={INK.grid} />
-                <XAxis dataKey="label" tick={{ fill: INK.muted, fontSize: 10 }} axisLine={{ stroke: INK.axis }} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tickFormatter={fmtAxis} tick={{ fill: INK.muted, fontSize: 10 }} axisLine={false} tickLine={false} width={52} />
-                <RTooltip content={<VizTooltip />} cursor={{ stroke: INK.axis }} />
-                <ReferenceLine y={stats.billed} stroke={INK.muted} strokeDasharray="4 4"
-                  label={{ value: 'Facturé', position: 'insideTopLeft', fill: INK.muted, fontSize: 10 }} />
-                <Line type="monotone" dataKey="cumul" name="Cumul encaissé" stroke={SERIES.primary}
-                  strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </VizCard>
-      </div>
-
-      {/* Moyens de paiement (donut) + Top debiteurs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <section className="card p-3">
-          <h3 className="stat-label mb-2">Moyens de paiement</h3>
-          {methodTotal === 0 ? (
-            <p className="text-xs text-warm-700 italic py-8 text-center">Aucun encaissement.</p>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              {/* Meme motif que la carte Recouvrement de l admin : un donut a
-                  largeur FIXE a cote d un contenu, ce qui comprime ce dernier
-                  sous 640 px. On empile, la legende prend alors toute la largeur. */}
-              <div style={{ width: 132, height: 132 }} className="shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={methodData} dataKey="value" nameKey="name" innerRadius="52%" outerRadius="82%"
-                      paddingAngle={2} stroke="#ffffff" strokeWidth={2} isAnimationActive={false}>
-                      {methodData.map(d => <Cell key={d.name} fill={d.fill} />)}
-                    </Pie>
-                    <RTooltip content={<VizTooltip total={methodTotal} />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="min-w-0 w-full sm:flex-1">
-                <VizLegend items={methodData.map(d => ({ label: d.name, color: d.fill, value: fmtEur(d.value) }))} />
-              </div>
+        <Tuile
+          ton="ambre" titre="Reste à percevoir" icone={Hourglass}
+          valeur={f ? fmtEur(f.outstanding) : '-'}
+          pied={f ? `${f.counts.partial} partiel${f.counts.partial > 1 ? 's' : ''} · ${f.counts.pending} sans versement` : 'Aucune année en cours'}
+          lien={{ href: reglements(), label: 'Règlements' }}
+        >
+          {f && f.counts.partial + f.counts.pending > 0 && (
+            <div className="flex gap-1" role="presentation">
+              <div className="h-1.5 rounded-full" style={{ flex: f.counts.partial, background: 'var(--tuile-jauge)' }} />
+              <div className="h-1.5 rounded-full" style={{ flex: f.counts.pending, background: 'var(--tuile-piste)' }} />
             </div>
           )}
-        </section>
+        </Tuile>
 
-        <section className="card p-3 flex flex-col">
-          <div className="flex items-baseline gap-2 mb-2">
-            <h3 className="stat-label">Top familles débitrices</h3>
-            <p className="text-[10px] text-warm-700">cliquer pour ouvrir le dossier</p>
-          </div>
-          {stats.topDebtors.length === 0 ? (
-            <p className="text-xs text-warm-700 italic py-6 text-center">Aucun impayé.</p>
-          ) : (
-            <ul className="space-y-0.5">
-              {stats.topDebtors.map(r => (
-                <li key={r.parentId}>
-                  <Cliquable
-                    href={petitEcran ? null : `/dashboard/financements/reglements?parent=${r.parentId}`}
-                    className="w-full flex items-center gap-2 px-1 py-0.5 rounded"
-                    classNameLien="hover:bg-warm-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
-                    <Tooltip content={r.parentLabel} maxWidth="max-w-none" className="min-w-0 flex-1">
-                      <span className="block text-[11px] text-secondary-800 text-left truncate whitespace-nowrap">{r.parentLabel}</span>
-                    </Tooltip>
-                    <span className="w-20 h-2 rounded-full bg-warm-100 overflow-hidden shrink-0" aria-hidden="true">
-                      <span className="block h-full rounded-full" style={{ width: `${topMax > 0 ? (r.remaining / topMax) * 100 : 0}%`, background: SERIES.orange }} />
-                    </span>
-                    <span className="w-20 text-[11px] font-semibold text-orange-700 tabular-nums text-right shrink-0">{fmtEur(r.remaining)}</span>
-                  </Cliquable>
-                </li>
-              ))}
-            </ul>
+        <Tuile
+          ton="ardoise" titre={`Encaissé · ${nomMois}`} icone={Banknote}
+          valeur={fmtEur(d.mois.encaisse)}
+          unite={d.mois.paiements === null ? undefined : pluriel(d.mois.paiements, 'paiement')}
+          pied={`${signe(ecartMois)} par rapport à ${moisPrecedent}`}
+          lien={{ href: reglements(), label: 'Règlements' }}
+        >
+          <Sparkline valeurs={allure} label="Allure des encaissements depuis la rentrée" />
+        </Tuile>
+
+        <Tuile
+          ton="encre" titre="Situation financière · année" icone={Scale}
+          valeur={s ? signe(s.solde) : '-'}
+          pied={s ? `Recettes ${fmtEur(s.recettes)} · charges ${fmtEur(s.charges)}` : 'Calcul indisponible'}
+          lien={{ href: lien('/dashboard/financements'), label: 'Situation' }}
+        >
+          {s && s.recettes + s.charges > 0 && (
+            <div className="flex gap-1" role="presentation">
+              <div className="h-1.5 rounded-full" style={{ flex: s.recettes, background: 'var(--tuile-jauge)' }} />
+              <div className="h-1.5 rounded-full" style={{ flex: s.charges, background: 'var(--tuile-ambre)' }} />
+            </div>
           )}
-        </section>
+        </Tuile>
       </div>
 
-      {/* Derniers paiements */}
-      <section className="card p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <h3 className="stat-label">Derniers paiements</h3>
-          {!petitEcran && <Link href="/dashboard/financements/reglements" className="text-xs text-primary-600 hover:text-primary-700">Voir tout</Link>}
-        </div>
-        {stats.recentPayments.length === 0 ? (
-          <p className="text-xs text-warm-700 italic py-4 text-center">Aucun paiement récent.</p>
-        ) : (
-          <div className="space-y-1">
-            {stats.recentPayments.map(p => (
-              <div key={p.id} className="flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
-                <span className="font-medium text-warm-700 truncate">
-                  {p.family_fees?.parents?.tutor1_last_name} {p.family_fees?.parents?.tutor1_first_name}
-                </span>
-                <span className="ml-auto font-bold text-primary-600 flex-shrink-0 tabular-nums">{fmtEur(Number(p.amount_paid))}</span>
-                <span className="text-warm-700 flex-shrink-0">{METHOD_LABELS[p.payment_method ?? ''] ?? p.payment_method}</span>
-                {p.paid_date && <span className="text-warm-700 flex-shrink-0 tabular-nums">{new Date(p.paid_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>}
+      {/* ── Encaissements · Familles ── hauteur fixe : la page tient sans defilement */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        <Encadre titre="Encaissements par mois" className="lg:col-span-2 lg:h-[236px]"
+          lien={{ href: lien('/dashboard/financements/vue-globale'), label: 'Statistiques' }}>
+          {!f ? <Vide>Aucune facturation.</Vide> : <HistoEncaissements mensuel={f.mensuel} hauteur={172} />}
+        </Encadre>
+
+        <Encadre titre={f ? `Familles · ${pluriel(f.familles, 'dossier')}` : 'Familles'} className="lg:h-[236px]"
+          lien={{ href: reglements(), label: 'Règlements' }}>
+          {!f || f.familles === 0 ? (
+            <Vide>Aucun dossier.</Vide>
+          ) : (
+            <>
+              <RepartitionFamilles counts={f.counts} />
+              {f.overpaid > 0 && (
+                <div className="mt-auto pt-2">
+                  <div className="flex justify-between items-center rounded-lg bg-warm-50 px-3 py-1.5 text-xs">
+                    <span className="text-warm-700">Trop perçu à rembourser</span>
+                    <b className="tabular-nums text-secondary-800">{fmtEur(f.overpaid)}</b>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Encadre>
+      </div>
+
+      {/* ── Débiteurs · Derniers paiements · Moyens ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
+        <Encadre titre="Familles débitrices" className="lg:h-[264px]" lien={{ href: reglements(), label: 'Relancer' }}>
+          {!f || f.debiteurs.length === 0 ? (
+            <Vide>Aucun reste à percevoir.</Vide>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
+              {f.debiteurs.map(r => (
+                <LigneFamille key={r.parentId} href={reglements(r.parentId)} famille={r.famille}
+                  detail={r.verse > 0 ? `${fmtEur(r.verse)} versés` : 'aucun versement'}
+                  montant={fmtEur(r.reste)} />
+              ))}
+            </div>
+          )}
+        </Encadre>
+
+        <Encadre titre="Derniers paiements" className="lg:h-[264px]" lien={{ href: reglements(), label: 'Règlements' }}>
+          {d.paiements.length === 0 ? (
+            <Vide>Aucun paiement enregistré.</Vide>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
+              {d.paiements.map(p => (
+                <LigneFamille key={p.id} href={reglements(p.parentId)} famille={p.famille || 'Famille'}
+                  detail={[dateCourte(p.date), p.mode ? (METHOD_LABELS[p.mode] ?? p.mode) : null].filter(Boolean).join(' · ')}
+                  montant={fmtEur(p.montant)} />
+              ))}
+            </div>
+          )}
+        </Encadre>
+
+        <Encadre titre="Moyens de paiement" className="lg:h-[264px]" aside={<span className="text-[11px] text-warm-700 ml-auto">année</span>}>
+          {!f || totalMoyens === 0 ? (
+            <Vide>Aucun encaissement.</Vide>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
+              <div className="space-y-2.5">
+                {f.moyens.map(m => {
+                  const pct = Math.round((m.montant / totalMoyens) * 100)
+                  return (
+                    <div key={m.key}>
+                      <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                        <span className="font-semibold text-secondary-800">{METHOD_LABELS[m.key] ?? m.key}</span>
+                        <span className="text-warm-700 tabular-nums">{fmtEur(m.montant)} · {pct} %</span>
+                      </div>
+                      <div className="piste-tdb">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: COULEUR_MOYEN[m.key] ?? 'var(--ink-muted)' }} />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            ))}
-          </div>
+              {f.cotisations.length > 0 && (
+                <>
+                  <p className="stat-label mt-4 mb-1">Facturé par cotisation</p>
+                  {f.cotisations.map(c => (
+                    <div key={c.label} className="ligne-tdb text-secondary-800">
+                      <span className="flex-1 min-w-0 truncate">{c.label}</span>
+                      {c.isAdult && <Puce ton="remplacement">Adultes</Puce>}
+                      <b className="tabular-nums">{fmtEur(c.billed)}</b>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </Encadre>
+      </div>
+    </div>
+  )
+}
+
+function LigneFamille({ href, famille, detail, montant }: {
+  href: string | null
+  famille: string
+  detail: string
+  montant: string
+}) {
+  return (
+    <div className="ligne-tdb">
+      <div className="flex-1 min-w-0">
+        {href ? (
+          <Link href={href} className="block font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]">{famille}</Link>
+        ) : (
+          <p className="font-semibold text-secondary-800 truncate">{famille}</p>
         )}
-      </section>
+        <p className="text-[11px] text-warm-700 truncate">{detail}</p>
+      </div>
+      <b className="tabular-nums text-secondary-800 shrink-0">{montant}</b>
     </div>
   )
 }
