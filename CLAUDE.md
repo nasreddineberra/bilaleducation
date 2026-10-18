@@ -353,9 +353,8 @@ financements, retention…), ecole de demonstration.
    editeur, laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-6. **Signale, non traite** : buckets `student-documents`, `teacher-documents`,
-   `absence-justificatifs`, `warning-attachments` cloisonnes par ecole mais SANS role (notes medicales
-   lisibles par tout compte de l'ecole, parent compris a l'ouverture) ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
+6. **Signale, non traite** : URL signees a 1 h (au lieu de 60 s) pour les pieces jointes des
+   Communications et des Notifications ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
    `family_fees.subtotal` jamais rafraichi ; `import_foyer` ne compte que les eleves au pre-controle ;
    abonnement expire coupe les pages mais pas l'API REST ; sortie des 503 `any` ; `.card-flush`
    inutilisee (adopter ou supprimer).

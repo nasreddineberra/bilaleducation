@@ -73,7 +73,7 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
   const getSignedUrl = useCallback(async (filePath: string) => {
     const { data, error } = await supabase.storage
       .from('student-documents')
-      .createSignedUrl(filePath, 3600) // 1h
+      .createSignedUrl(filePath, 60)
     if (error || !data?.signedUrl) return null
     return data.signedUrl
   }, [supabase])

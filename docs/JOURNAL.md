@@ -8209,3 +8209,25 @@ marque ; les vraies ecoles gardent leur plaque.
   `warning-attachments` sont cloisonnes par ecole mais sans role ; les notes medicales y sont lisibles
   par tout compte de l'ecole. A aligner sur la matrice des tables correspondantes.
 
+#### 18 octobre 2026 — Storage : documents et justificatifs aux droits des tables
+
+- **Faille** : `student-documents`, `warning-attachments`, `teacher-documents`, `absence-justificatifs`
+  n'etaient cloisonnes que par ecole. Controle 15 rouge (8 KO) : comptable et parent lisaient les
+  documents des eleves (notes medicales), les pieces des avertissements, les documents des enseignants et
+  tous les justificatifs ; l'enseignant deposait partout ; personne ne pouvait REMPLACER un fichier (pas de
+  policy UPDATE : l'`upsert` d'un justificatif ne pouvait pas ecraser l'ancien).
+- **Regle (decision utilisateur)** : chaque bucket reprend les droits de la table qui reference ses
+  fichiers, qui voit la ligne voit le fichier. Documents d'eleve et pieces d'avertissement : lecture
+  admin, direction, resp. pedago, secretaire + enseignant pour ses eleves (`teaches_student` sur l'eleve du
+  chemin, converti en uuid seulement s'il en a la forme) ; ecriture sans l'enseignant. Documents
+  d'enseignant : admin, direction, secretaire. Justificatifs : les 4 roles de gestion + l'enseignant si
+  l'absence du chemin lui est visible (RLS de `absences` / `adult_absences`, bornee a ses classes).
+- **Table `student_warning_attachments`** : meme trou (ecole sans role). Lecture = avertissement visible
+  sous la RLS de `student_warnings` ; ecriture = les 4 roles de gestion.
+- **Migration** `secure-storage-documents-roles.sql` ; **controle 15** (`15-documents-roles.sql`, objets
+  Storage poses en lignes seulement, transaction annulee ; pas de DELETE, interdit en SQL par
+  `storage.protect_delete`, les policies DELETE portent la condition des UPDATE) : 0 KO apres migration,
+  controle 14 toujours a 0 KO.
+- **URL signees a 60 s** (convention) au lieu de 1 h : documents d'eleve, documents d'enseignant, pieces
+  d'avertissement. Restent a 1 h, signalees : pieces jointes des Communications et des Notifications.
+

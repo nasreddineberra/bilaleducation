@@ -70,7 +70,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
 
   // ── Signed URL (bucket privé) ──
   const getSignedUrl = useCallback(async (filePath: string) => {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(filePath, 3600)
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(filePath, 60)
     if (error || !data?.signedUrl) return null
     return data.signedUrl
   }, [supabase])
