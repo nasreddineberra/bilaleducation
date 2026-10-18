@@ -182,6 +182,8 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
   Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp` (secret).
 - **Journal d'activite** : trigger `fn_audit_log()` (lit `auth.uid()`) + `logAudit` (colonne
   `description`). Tables ecrites avec le **client SESSION** ; client admin reserve aux comptes `auth`.
+  Une ligne porte l'ecole et le `user_id` de l'appelant (policy) ; nom et email reecrits depuis
+  `profiles` (`fn_audit_logs_auteur`).
   **Les comptes `admin` et l'editeur (`super_admin`) ne sont JAMAIS traces** (16/10) : declencheur
   `BEFORE INSERT` sur `audit_logs` (`fn_audit_logs_sans_editeur`), controle 10.
 - **Adultes** : classe adulte = `cotisation_types.is_adult`. Participants =
@@ -357,8 +359,7 @@ financements, retention…), ecole de demonstration.
    editeur, laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-6. **Signale, non traite** : nom et email des lignes du journal d'activite declaratifs (ecole et
-   auteur verifies depuis le 18/10) ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
+6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
    `family_fees.subtotal` jamais rafraichi ; `import_foyer` ne compte que les eleves au pre-controle ;
    sortie des 503 `any` ; `.card-flush`
    inutilisee (adopter ou supprimer).

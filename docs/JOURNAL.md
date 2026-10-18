@@ -8286,3 +8286,15 @@ marque ; les vraies ecoles gardent leur plaque.
   l'instant ; le cache ne retardait plus que la redirection et le deblocage d'une ecole prolongee.
 - Controle 17 : 4 KO avant, 0 KO apres ; controles 10 et 16 inchanges avec la migration.
 
+#### 18 octobre 2026 — Journal d'activite : auteur lu en base
+
+- **Limite restante** apres le lot 2 : `user_name` et `user_email` d'une ligne du journal etaient des textes
+  envoyes par le navigateur. Un compte de l'ecole pouvait, par l'API, ecrire a son vrai `user_id` une ligne
+  affichant le nom d'un autre. Controle 18 rouge (les deux faux noms conserves).
+- **Option 1 retenue** (utilisateur) : declencheur `BEFORE INSERT` `fn_audit_logs_auteur` qui reecrit nom
+  et email depuis la fiche `profiles` du `user_id`, au format deja produit par `fn_audit_log` et `logAudit`
+  (« NOM Prenom », email du profil). Sans `user_id` ou sans profil, la ligne est laissee telle quelle.
+  Aucun changement de code. Option 2 ecartee (toutes les traces manuelles par une fonction serveur) :
+  `description` reste libre.
+- Controle 18 : 0 KO avec la migration ; controles 10 et 17 inchanges.
+
