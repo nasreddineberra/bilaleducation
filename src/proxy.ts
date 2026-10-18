@@ -272,7 +272,9 @@ export async function proxy(request: NextRequest) {
             'apikey':        process.env.SUPABASE_SERVICE_ROLE_KEY!,
             'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
           },
-          next: { revalidate: 3600 }, // Cache 1 heure (données quasi-statiques)
+          // 60 s : la base coupe a l'instant (current_etablissement_id) ; ce cache ne
+          // retarde plus que la redirection des pages et le deblocage d'une ecole prolongee.
+          next: { revalidate: 60 },
         }
       )
 

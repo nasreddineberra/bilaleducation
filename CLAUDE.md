@@ -177,7 +177,8 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
   SECURITY DEFINER en `coalesce(get_user_role(), '')`. `FOR ALL` = les 4 commandes. Policies
   permissives s'ADDITIONNENT. Recursion entre policies -> fonction SECURITY DEFINER.
 - **Tables sensibles « serveur uniquement »** (RLS sans policy + REVOKE) : `etablissement_smtp`,
-  `etablissement_notes`, `etablissement_facturation`, `releves_facturation`, `support_interventions`.
+  `etablissement_notes`, `etablissement_facturation`, `releves_facturation`, `support_interventions`,
+  `migrations_appliquees`.
   Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp` (secret).
 - **Journal d'activite** : trigger `fn_audit_log()` (lit `auth.uid()`) + `logAudit` (colonne
   `description`). Tables ecrites avec le **client SESSION** ; client admin reserve aux comptes `auth`.
@@ -356,10 +357,8 @@ financements, retention…), ecole de demonstration.
    editeur, laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-6. **Signale, non traite** : LOT 2 securite (`audit_logs_insert` en `WITH CHECK (true)` = faux
-   journal dans n'importe quelle ecole ; `migrations_appliquees` ecrit par l'admin de toute ecole ; cache
-   1 h de l'abonnement dans le middleware ; `notifications_select_staff` ouvert a tout compte de l'ecole,
-   parent compris) ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
+6. **Signale, non traite** : nom et email des lignes du journal d'activite declaratifs (ecole et
+   auteur verifies depuis le 18/10) ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
    `family_fees.subtotal` jamais rafraichi ; `import_foyer` ne compte que les eleves au pre-controle ;
    sortie des 503 `any` ; `.card-flush`
    inutilisee (adopter ou supprimer).

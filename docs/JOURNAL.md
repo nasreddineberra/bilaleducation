@@ -8268,3 +8268,21 @@ marque ; les vraies ecoles gardent leur plaque.
   l'admin de toute ecole ; cache 1 h de l'abonnement dans le middleware ; `notifications_select_staff`
   ouvert a tout compte de l'ecole, parent compris (garde a droits egaux ici).
 
+#### 18 octobre 2026 — Securite, lot 2 : journal, registre, notifications, cache
+
+- **Journal d'activite** : `audit_logs_insert` etait en `WITH CHECK (true)`. Controle 17 rouge : tout
+  compte ecrivait dans le journal d'une AUTRE ecole et au nom d'un AUTRE compte (un admin, dont les
+  propres lignes sont ecartees, pouvait meme en ecrire une au nom de la direction). Desormais : ecole de
+  l'appelant ET `user_id = auth.uid()`. `logAudit` et les traces de connexion ecrivent deja ces valeurs ;
+  `fn_audit_log` (SECURITY DEFINER) n'est pas soumis a la RLS. Nom et email restent declaratifs.
+  Piege du controle : une ligne d'admin est ecartee par `fn_audit_logs_sans_editeur` AVANT la policy,
+  sans erreur ; on mesure donc les lignes reellement ecrites, pas l'absence d'erreur.
+- **Registre des migrations** (`migrations_appliquees`, commun a toutes les ecoles) : lu par admin /
+  direction et ecrit par l'admin de n'importe quelle ecole. Aucun ecran ne le lit : table « serveur
+  uniquement » (policies retirees, REVOKE anon / authenticated). psql et `enregistrer_migration` intacts.
+- **Notifications des familles** : lisibles par tout compte de l'ecole ; reservees a admin / direction
+  (seul usage staff : comptage avant suppression d'un foyer). Le parent garde les siennes.
+- **Middleware** : cache de l'etat de l'abonnement 1 h -> 60 s (`src/proxy.ts`). La base coupe deja a
+  l'instant ; le cache ne retardait plus que la redirection et le deblocage d'une ecole prolongee.
+- Controle 17 : 4 KO avant, 0 KO apres ; controles 10 et 16 inchanges avec la migration.
+
