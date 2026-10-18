@@ -8170,3 +8170,19 @@ marque ; les vraies ecoles gardent leur plaque.
 - Migration jouee par l'utilisateur avant le push du code, sans risque ici : le seul ecran qui ecrit
   (Parametres > Etablissement) est deja reserve a admin / direction, qui gardent leurs droits. Controle 12
   vert en production, depot et registre concordent.
+
+#### 18 octobre 2026 — Ordre des gabarits : cloisonnement par ecole et par classe
+
+- **Plus grave que signale** : l'unique policy de `evaluation_order_config` (FOR ALL) ne portait que le
+  role. Le controle 13 (`supabase/controles/13-ordre-gabarits-cloisonnement.sql`), joue sur la policy
+  d'origine, sort 7 KO : admin, direction, resp. pedagogique et enseignant d'UNE ecole lisaient et
+  reecrivaient l'ordre des gabarits de TOUTES les ecoles ; l'enseignant, de toutes les classes.
+- **Secretaire oubliee** : elle a acces aux Gabarits et ecrit `evaluations`, mais etait absente de la
+  policy. L'enregistrement d'un gabarit echouait a l'etape de l'ordre (`verifierEcriture`), et l'ordre
+  defini etait ignore dans sa Saisie des notes et ses bulletins.
+- **Migration** `fix-evaluation-order-config-rls.sql` : la table n'a pas d'`etablissement_id`, l'ecole est
+  celle de la classe (`EXISTS` sur `classes`). Regle alignee sur `evaluations` : admin, direction, resp.
+  pedagogique, secretaire sur les classes de l'ecole ; enseignant sur ses classes (`teaches_class`).
+  Controle 13 vert en transaction annulee (0 KO). Table vide en production : aucune donnee a reprendre.
+- Aucun changement de code : les ecrans lisent et ecrivent deja par classe.
+
