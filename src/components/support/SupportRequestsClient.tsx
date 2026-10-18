@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { LifeBuoy } from 'lucide-react'
 import { FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import SupportRequestModal from './SupportRequestModal'
 import SupportRequestDetailModal from './SupportRequestDetailModal'
 import { SUPPORT_CATEGORIES, categoryLabel, impactLabel } from '@/lib/support/categories'
@@ -127,27 +128,16 @@ export default function SupportRequestsClient({
           placeholder="Rechercher par objet…"
           ariaLabel="Rechercher une demande par objet"
         />
-        <div className="flex flex-wrap items-center gap-1.5">
-          {FILTERS.map(cat => {
-            const active = filterCat === cat
-            return (
-              <button
-                key={cat}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setFilterCat(cat)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                  active
-                    ? 'border-primary-300 bg-primary-50 text-primary-700'
-                    : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50'
-                )}
-              >
-                {cat === '' ? 'Toutes les demandes' : categoryLabel(cat)}
-              </button>
-            )
-          })}
-        </div>
+        <FiltreSwitch
+          ariaLabel="Filtrer les demandes par nature"
+          actif={filterCat}
+          onChange={setFilterCat}
+          options={FILTERS.map(cat => ({
+            valeur:  cat,
+            nombre:  cat === '' ? demandes.length : demandes.filter(d => d.category === cat).length,
+            libelle: cat === '' ? 'toutes les demandes' : categoryLabel(cat),
+          }))}
+        />
 
         {/* Statut d'envoi : rare, mais c'est l'anomalie qu'on vient chercher.
             Même place que le sous-filtre classe de l'historique des messages. */}

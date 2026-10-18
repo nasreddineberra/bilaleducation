@@ -8325,3 +8325,18 @@ marque ; les vraies ecoles gardent leur plaque.
   `[--encadre-pad:1rem]` sur les cartes p-4). Le compteur « au total » reste une carte (pas un filtre).
 - Classes verifiees dans le CSS compile (`next build`), variantes sombres comprises.
 
+#### 18 octobre 2026 — Filtres de liste : cartes et pilules -> switch
+
+- **Regle utilisateur** (toutes les pages) : une carte qui sert aussi de filtre devient le switch segmente
+  `FiltreSwitch`, comme sur Apprenants ; les rangees de boutons-pilules de filtre aussi (un seul motif).
+  Une carte purement informative reste une carte.
+- **Classes** : la carte « N au total » (simple compteur) devient un vrai filtre « au total · enfants ·
+  adultes » (type lu sur la cotisation, `is_adult` ; compteur adultes en violet, couleur de categorie),
+  memorise avec la recherche (`useFiltresMemorises`).
+- **Financements > Reglements** : les cartes de statut du bandeau ET la rangee de pilules qui les doublait
+  au-dessus de la liste des familles deviennent UN switch (toutes · en attente · partiels · soldes ·
+  trop percu avec son montant, s'il en existe). Les montants (facture, encaisse, reste) restent en cartes.
+  La liste des familles, dimensionnee par les pilules (`w-fit`), passe en largeur fixe `w-80`.
+- **Messages envoyes** et **Support** : pilules de ciblage / de nature -> switch, avec le nombre de messages
+  ou de demandes par segment.
+

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Mail, Users, UserCheck, Globe } from 'lucide-react'
 import { FloatSelect, SearchField } from '@/components/ui/FloatFields'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,27 +155,16 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
           placeholder="Rechercher par objet…"
           ariaLabel="Rechercher un message par objet"
         />
-        <div className="flex flex-wrap items-center gap-1.5">
-          {filtres.map(type => {
-            const active = filterType === type
-            return (
-              <button
-                key={type}
-                type="button"
-                aria-pressed={active}
-                onClick={() => selectFilter(type)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                  active
-                    ? 'border-primary-300 bg-primary-50 text-primary-700'
-                    : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50'
-                )}
-              >
-                {type === '' ? 'Tous les messages' : typeLabel(type)}
-              </button>
-            )
-          })}
-        </div>
+        <FiltreSwitch
+          ariaLabel="Filtrer les messages par ciblage"
+          actif={filterType}
+          onChange={selectFilter}
+          options={filtres.map(type => ({
+            valeur:  type,
+            nombre:  type === '' ? messages.length : messages.filter(m => m.announcement_type === type).length,
+            libelle: type === '' ? 'tous les messages' : typeLabel(type),
+          }))}
+        />
 
         {/* Sous-filtre : quelle classe, quand « Parents d'une classe » est actif.
             Meme FloatSelect que « Affectations apprenants », en mini hauteur. */}

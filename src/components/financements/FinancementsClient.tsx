@@ -11,6 +11,7 @@ import { useToast } from '@/lib/toast-context'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
 import PaymentModal from './PaymentModal'
 import Tooltip from '@/components/ui/Tooltip'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
@@ -724,8 +725,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   return (
     <div className="h-full flex flex-col gap-3">
 
-      {/* ── Bandeau trésorerie + filtres de statut (cliquables) ── */}
-      <div className={clsx('grid grid-cols-2 gap-2', kpi.counts.overpaid > 0 ? 'lg:grid-cols-7' : 'lg:grid-cols-6')}>
+      {/* ── Bandeau trésorerie (montants) + filtre de statut (switch) ──
+          Le switch est l'UNIQUE filtre de statut : la rangee de pilules qui le
+          doublait au-dessus de la liste des familles a ete retiree (18/10).
+          « Trop perçu » n'apparait que s'il en existe. */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="card px-3 py-2">
           <p className="stat-label">Facturé</p>
           <p className="text-lg font-bold text-secondary-800 tabular-nums">{fmtEur(kpi.billed)}</p>
@@ -738,53 +742,29 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           <p className="stat-label">Reste à encaisser</p>
           <p className="text-lg font-bold text-orange-700 tabular-nums">{fmtEur(kpi.outstanding)}</p>
         </div>
-        {(([['pending', 'En attente'], ['partial', 'Partiel'], ['paid', 'Soldé']]) as [FeeStatus, string][]).map(([st, label]) => {
-          const active = statusFilter === st
-          return (
-            <button
-              key={st}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setStatusFilter(active ? null : st)}
-              className={clsx(
-                'card px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                active ? 'ring-2 ring-primary-400' : 'hover:bg-warm-50',
-              )}
-            >
-              <p className="stat-label flex items-center gap-1">
-                <span className={clsx('w-2 h-2 rounded-full', STATUS_DOT[st])} aria-hidden="true" /> {label}
-              </p>
-              <p className="text-lg font-bold text-secondary-800 tabular-nums">{kpi.counts[st]}</p>
-            </button>
-          )
-        })}
-        {kpi.counts.overpaid > 0 && (
-          <button
-            type="button"
-            aria-pressed={statusFilter === 'overpaid'}
-            onClick={() => setStatusFilter(statusFilter === 'overpaid' ? null : 'overpaid')}
-            className={clsx(
-              'card px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400',
-              statusFilter === 'overpaid' ? 'ring-2 ring-red-400' : 'hover:bg-warm-50',
-            )}
-          >
-            <p className="stat-label flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" /> Trop perçu
-            </p>
-            <p className="text-lg font-bold text-red-600 tabular-nums flex items-baseline justify-between gap-2">
-              <span>{kpi.counts.overpaid}</span>
-              <span>{fmtEur(kpi.overpaid)}</span>
-            </p>
-          </button>
-        )}
+        <FiltreSwitch
+          ariaLabel="Filtrer les familles par statut"
+          actif={statusFilter ?? ''}
+          onChange={v => setStatusFilter((v || null) as FeeStatus | null)}
+          options={[
+            { valeur: '',        nombre: familyStats.length,  libelle: 'toutes' },
+            { valeur: 'pending', nombre: kpi.counts.pending, libelle: 'en attente' },
+            { valeur: 'partial', nombre: kpi.counts.partial, libelle: kpi.counts.partial > 1 ? 'partiels' : 'partiel', couleur: 'text-orange-600' },
+            { valeur: 'paid',    nombre: kpi.counts.paid,    libelle: kpi.counts.paid > 1 ? 'soldés' : 'soldé', couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
+            ...(kpi.counts.overpaid > 0
+              ? [{ valeur: 'overpaid', nombre: kpi.counts.overpaid, libelle: `trop perçu · ${fmtEur(kpi.overpaid)}`, couleur: 'text-red-600' }]
+              : []),
+          ]}
+        />
       </div>
 
       {/* ── Plan de travail : liste des familles + détail ── */}
       <div className="flex-1 min-h-0 flex gap-4">
 
-        {/* Liste des familles — largeur = celle de la ligne de filtres (w-fit) */}
-        <aside className="w-fit shrink-0 card p-0 flex flex-col overflow-hidden">
-          <div className="p-2 border-b border-warm-100 space-y-2">
+        {/* Liste des familles — largeur fixe (elle suivait la rangee de pilules de
+            statut, remplacee par le switch du bandeau). */}
+        <aside className="w-80 shrink-0 card p-0 flex flex-col overflow-hidden">
+          <div className="p-2 border-b border-warm-100">
             <SearchField
               value={parentSearch}
               onChange={setParentSearch}
@@ -792,34 +772,6 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               ariaLabel="Rechercher une famille"
               className="w-full"
             />
-            {/* Filtre de statut (synchronise avec les compteurs du bandeau).
-                Le filtre « Trop perçu » (rouge) n'apparait que s'il en existe. */}
-            <div className="flex flex-nowrap gap-1" role="group" aria-label="Filtrer par statut">
-              {(([
-                [null, 'Tous'], ['pending', 'En attente'], ['partial', 'Partiels'], ['paid', 'Soldés'],
-                ...(kpi.counts.overpaid > 0 ? [['overpaid', 'Trop perçu']] : []),
-              ]) as [FeeStatus | null, string][]).map(([st, label]) => {
-                const active = statusFilter === st
-                const isOver = st === 'overpaid'
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setStatusFilter(st)}
-                    className={clsx(
-                      'px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2',
-                      isOver ? 'focus-visible:ring-red-400' : 'focus-visible:ring-primary-400',
-                      isOver
-                        ? (active ? 'border-red-300 bg-red-100 text-red-700' : 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100')
-                        : (active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50'),
-                    )}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
           </div>
           <ul className="flex-1 overflow-y-auto list-scroll divide-y divide-warm-50" aria-label="Familles">
             {worklist.length === 0 ? (

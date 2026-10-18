@@ -9,7 +9,7 @@ import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { clsx } from 'clsx'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
-import ListStatCard from '@/components/ui/ListStatCard'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 
@@ -57,13 +57,16 @@ function fmtD(d: string | null): string {
 
 export default function ClassesClient({ classes }: ClassesClientProps) {
   const router = useRouter()
-  // Recherche MEMORISEE : on ouvre une fiche classe, on revient, et la
-  // recherche est retrouvee. Filtrage cote CLIENT, donc rien dans l'URL — voir
-  // `useFiltresMemorises`. (La carte statistique de cet ecran n'est pas
-  // cliquable : il n'y a pas d'autre filtre a retenir.)
-  const [etatListe, setEtatListe] = useFiltresMemorises('classes-filtres', { search: '' })
+  // Recherche et type (enfants / adultes) MEMORISES : on ouvre une fiche classe,
+  // on revient, et la liste est retrouvee. Filtrage cote CLIENT, donc rien dans
+  // l'URL — voir `useFiltresMemorises`. Le type vient de la cotisation
+  // (`is_adult`) ; une classe sans cotisation n'est d'aucun des deux.
+  const [etatListe, setEtatListe] = useFiltresMemorises('classes-filtres', { search: '', type: '' })
   const search    = etatListe.search
   const setSearch = (v: string) => setEtatListe({ search: v })
+  const type      = etatListe.type
+  const nbEnfants = classes.filter(c => c.cotisation_types && !c.cotisation_types.is_adult).length
+  const nbAdultes = classes.filter(c => c.cotisation_types?.is_adult).length
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Double confirmation state
@@ -73,12 +76,13 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
   const [deleteNameInput, setDeleteNameInput] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const filtered = search.trim() === ''
-    ? classes
-    : classes.filter(c => {
-        const q = search.toLowerCase()
-        return c.name.toLowerCase().includes(q) || c.level?.toLowerCase().includes(q)
-      })
+  const filtered = classes.filter(c => {
+    if (type === 'enfants' && !(c.cotisation_types && !c.cotisation_types.is_adult)) return false
+    if (type === 'adultes' && !c.cotisation_types?.is_adult) return false
+    if (search.trim() === '') return true
+    const q = search.toLowerCase()
+    return c.name.toLowerCase().includes(q) || c.level?.toLowerCase().includes(q)
+  })
 
   // Step 1: load dependencies and show first modal
   const startDelete = async (cls: ClassRow) => {
@@ -156,7 +160,16 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
 
       {/* Barre supérieure */}
       <div className="flex items-center gap-3 flex-wrap">
-        <ListStatCard value={classes.length} label="au total" />
+        <FiltreSwitch
+          ariaLabel="Filtrer les classes"
+          actif={type}
+          onChange={v => setEtatListe({ type: v })}
+          options={[
+            { valeur: '',        nombre: classes.length, libelle: 'au total' },
+            { valeur: 'enfants', nombre: nbEnfants,      libelle: 'enfants' },
+            { valeur: 'adultes', nombre: nbAdultes,      libelle: 'adultes', couleur: 'text-violet-700 dark:text-violet-300' },
+          ]}
+        />
         <div className="flex-1" />
         <SearchField value={search} onChange={setSearch} placeholder="Nom, niveau..." ariaLabel="Rechercher une classe" />
         <FloatButton type="button" variant="submit" onClick={() => router.push('/dashboard/classes/new')}>
@@ -184,10 +197,10 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           <BookOpen size={40} className="text-warm-700" />
           <div>
             <p className="text-base font-semibold text-secondary-700">
-              {search ? 'Aucune classe trouvée' : 'Aucune classe configurée'}
+              {search || type ? 'Aucune classe trouvée' : 'Aucune classe configurée'}
             </p>
             <p className="text-sm text-warm-700 mt-1">
-              {search ? 'Modifiez votre recherche.' : 'Créez votre première classe pour commencer.'}
+              {search || type ? 'Modifiez votre recherche ou le filtre.' : 'Créez votre première classe pour commencer.'}
             </p>
           </div>
         </div>
