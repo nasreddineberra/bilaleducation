@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { clsx } from 'clsx'
 import { Paperclip } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
+import { ouvrirPieceJointe } from '@/lib/communications/piece-jointe'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,8 +25,8 @@ type Attachment = {
   id: string
   file_name: string
   file_size: number | null
-  /** URL signee generee a la consultation (bucket prive). Null si illisible. */
-  url: string | null
+  /** Chemin dans le bucket prive ; l'URL est signee au clic. */
+  file_path: string | null
 }
 
 interface Props {
@@ -50,6 +52,8 @@ function formatDate(d: string | null): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function NotificationDetailClient({ message, attachments, yearLabel }: Props) {
+  // Pieces jointes dont la signature a echoue : grisees.
+  const [indisponibles, setIndisponibles] = useState<Set<string>>(new Set())
   // « Parents {annee} » si une annee est en cours, sinon repli (aligne sur l'historique).
   const typeLabel = message.announcement_type === 'all_active'
     ? (yearLabel ? `Parents ${yearLabel}` : TYPE_LABELS.all_active)
@@ -90,23 +94,29 @@ export default function NotificationDetailClient({ message, attachments, yearLab
         <div className="card p-4 space-y-2">
           <h3 className="stat-label">Pièces jointes</h3>
           <div className="space-y-1">
-            {attachments.map(a => (
-              <a
-                key={a.id}
-                href={a.url ?? undefined}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-disabled={!a.url}
-                className={clsx(
-                  'flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs transition-colors',
-                  a.url ? 'hover:bg-warm-100' : 'opacity-50 pointer-events-none',
-                )}
-              >
-                <Paperclip size={12} className="text-warm-700" />
-                <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>
-                {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
-              </a>
-            ))}
+            {attachments.map(a => {
+              const lisible = !!a.file_path && !indisponibles.has(a.id)
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  disabled={!lisible}
+                  onClick={async () => {
+                    if (!(await ouvrirPieceJointe(a.file_path!))) {
+                      setIndisponibles(prev => new Set(prev).add(a.id))
+                    }
+                  }}
+                  className={clsx(
+                    'w-full text-left flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs transition-colors',
+                    lisible ? 'hover:bg-warm-100' : 'opacity-50 pointer-events-none',
+                  )}
+                >
+                  <Paperclip size={12} className="text-warm-700" aria-hidden="true" />
+                  <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>
+                  {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

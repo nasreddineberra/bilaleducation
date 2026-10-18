@@ -48,21 +48,16 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
     .select('id, email, email_status, is_read, profile_id, profiles:profile_id(first_name, last_name, role)')
     .eq('announcement_id', id)
 
-  // Pieces jointes. Le bucket est prive : on signe a la consultation plutot que
-  // de stocker une URL publique (meme regle que les justificatifs d'absence).
+  // Pieces jointes. Le bucket est prive : l'URL est signee au clic, pour 60 s
+  // (`ouvrirPieceJointe`), jamais au rendu de la page.
   const { data: attachments } = await supabase
     .from('announcement_attachments')
     .select('id, file_path, file_name, file_size')
     .eq('announcement_id', id)
 
-  const signedAttachments = await Promise.all(
-    ((attachments ?? []) as any[]).map(async a => {
-      const { data: signed } = await supabase.storage
-        .from('communication-attachments')
-        .createSignedUrl(a.file_path, 3600)
-      return { id: a.id, file_name: a.file_name, file_size: a.file_size, url: signed?.signedUrl ?? null }
-    })
-  )
+  const piecesJointes = ((attachments ?? []) as any[]).map(a => ({
+    id: a.id, file_name: a.file_name, file_size: a.file_size, file_path: a.file_path ?? null,
+  }))
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -82,7 +77,7 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
         classTeacher={classTeacher}
         parentRecipients={(parentRecipients ?? []) as any[]}
         staffRecipients={(staffRecipients ?? []) as any[]}
-        attachments={signedAttachments}
+        attachments={piecesJointes}
       />
     </div>
   )

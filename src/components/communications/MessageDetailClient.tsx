@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { Paperclip, Mail, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
 import { sanitize } from '@/lib/security/sanitize'
+import { ouvrirPieceJointe } from '@/lib/communications/piece-jointe'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,8 +34,8 @@ type StaffRecipient = {
 
 type Attachment = {
   id: string; file_name: string; file_size: number | null
-  /** URL signee generee a la consultation (bucket prive). Null si illisible. */
-  url: string | null
+  /** Chemin dans le bucket prive ; l'URL est signee au clic. */
+  file_path: string | null
 }
 
 interface Props {
@@ -74,6 +75,8 @@ function formatDate(d: string | null): string {
 
 export default function MessageDetailClient({ message, classTeacher, parentRecipients, staffRecipients, attachments }: Props) {
   const [search, setSearch] = useState('')
+  // Pieces jointes dont la signature a echoue : affichees « indisponible ».
+  const [indisponibles, setIndisponibles] = useState<Set<string>>(new Set())
 
   const allRecipients = useMemo(() => [
     ...parentRecipients.map(r => ({
@@ -173,18 +176,21 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
         {attachments.length > 0 && (
           <div className="pt-2 border-t border-warm-100 space-y-1">
             {attachments.map(a => (
-              a.url ? (
-                <a
+              a.file_path && !indisponibles.has(a.id) ? (
+                <button
                   key={a.id}
-                  href={a.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  type="button"
+                  onClick={async () => {
+                    if (!(await ouvrirPieceJointe(a.file_path!))) {
+                      setIndisponibles(prev => new Set(prev).add(a.id))
+                    }
+                  }}
                   className="inline-flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs hover:bg-warm-100 transition-colors mr-2"
                 >
                   <Paperclip size={12} className="text-warm-700" aria-hidden="true" />
                   <span className="text-primary-700 font-medium">{a.file_name}</span>
                   {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
-                </a>
+                </button>
               ) : (
                 <span key={a.id} className="inline-flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs mr-2">
                   <Paperclip size={12} className="text-warm-700" aria-hidden="true" />

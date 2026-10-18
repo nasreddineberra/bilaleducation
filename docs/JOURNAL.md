@@ -8231,3 +8231,15 @@ marque ; les vraies ecoles gardent leur plaque.
 - **URL signees a 60 s** (convention) au lieu de 1 h : documents d'eleve, documents d'enseignant, pieces
   d'avertissement. Restent a 1 h, signalees : pieces jointes des Communications et des Notifications.
 
+#### 18 octobre 2026 — Pieces jointes des messages : URL signee au clic
+
+- **Avant** : Communications et Notifications (fiche d'un message) signaient les pieces jointes AU RENDU
+  de la page serveur, pour 1 h, et posaient l'URL dans le lien. Une URL signee ne demande aucune
+  connexion : pendant une heure, le lien copie, transfere ou reste dans l'historique ouvrait le fichier.
+- **Apres** : `ouvrirPieceJointe` (`lib/communications/piece-jointe.ts`, source unique des deux ecrans)
+  signe AU CLIC pour 60 s ; onglet ouvert avant l'await (popup), puis redirige. La page ne transmet plus
+  que le chemin. Echec de signature : la piece passe « indisponible » (grisee dans Notifications).
+  Droits inchanges (`comm_pj_select`, verifie a la signature), aucune migration.
+- Toutes les URL signees de `src/` sont a 60 s, sauf l'export ZIP du depart d'une ecole (console editeur,
+  10 min, gros fichier telecharge par l'editeur seul).
+

@@ -37,21 +37,16 @@ export default async function NotificationDetailPage({
     .eq('is_current', true)
     .maybeSingle()
 
-  // Pieces jointes. Le bucket est prive : on signe a la consultation plutot que
-  // de stocker une URL publique (meme regle que Communications / justificatifs).
+  // Pieces jointes. Le bucket est prive : l'URL est signee au clic, pour 60 s
+  // (`ouvrirPieceJointe`), jamais au rendu de la page.
   const { data: attachments } = await supabase
     .from('announcement_attachments')
     .select('id, file_path, file_name, file_size')
     .eq('announcement_id', id)
 
-  const signedAttachments = await Promise.all(
-    ((attachments ?? []) as any[]).map(async a => {
-      const { data: signed } = await supabase.storage
-        .from('communication-attachments')
-        .createSignedUrl(a.file_path, 3600)
-      return { id: a.id, file_name: a.file_name, file_size: a.file_size, url: signed?.signedUrl ?? null }
-    })
-  )
+  const piecesJointes = ((attachments ?? []) as any[]).map(a => ({
+    id: a.id, file_name: a.file_name, file_size: a.file_size, file_path: a.file_path ?? null,
+  }))
 
   // Marquer comme lu si rid fourni. `.select('id')` dit si une ligne a
   // reellement basculé : c'est ce qui déclenche (une seule fois) le recalcul
@@ -85,7 +80,7 @@ export default async function NotificationDetailPage({
 
       <NotificationDetailClient
         message={message as any}
-        attachments={signedAttachments}
+        attachments={piecesJointes}
         yearLabel={currentYear?.label ?? null}
       />
     </div>
