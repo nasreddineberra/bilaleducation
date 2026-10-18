@@ -255,7 +255,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
           aria-label="Ouvrir la navigation"
           aria-expanded={ouvertMobile}
           aria-controls="navigation-laterale"
-          className="lg:hidden mr-3 flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg text-warm-700 dark:text-[#8b9aa0] hover:bg-warm-100 dark:hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          className="lg:hidden mr-3 flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg text-warm-700 dark:text-[#8b9aa0] hover:bg-warm-100 dark:hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
         >
           <Menu size={20} />
         </button>
@@ -322,7 +322,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
               aria-label="Thème clair"
               aria-pressed={theme === 'light'}
               className={clsx(
-                'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]',
                 theme === 'light'
                   ? 'bg-[var(--brand-accent)] text-[var(--brand-surface-2)]'
                   : 'text-[var(--brand-icon)] hover:text-white',
@@ -338,7 +338,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
               aria-label="Thème sombre"
               aria-pressed={theme === 'dark'}
               className={clsx(
-                'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                'flex items-center justify-center w-7 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]',
                 theme === 'dark'
                   ? 'bg-[var(--brand-accent)] text-[var(--brand-surface-2)]'
                   : 'text-[var(--brand-icon)] hover:text-white',
@@ -374,7 +374,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
           <Tooltip content="Déconnexion" position="bottom">
           <button
             onClick={handleLogout}
-            className="relative p-2 text-[var(--brand-text)] hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="relative p-2 text-[var(--brand-text)] hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]"
             aria-label="Déconnexion"
           >
             <Power className="w-5 h-5" />
@@ -388,7 +388,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
           <Link
             href="/dashboard/mon-compte"
             aria-label="Mon compte"
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]"
           >
             <div className="hidden md:block text-right">
               <p className="text-sm font-semibold text-white leading-tight">

@@ -656,8 +656,8 @@ export default function ClassForm({
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_1.5fr] gap-2">
 
         {/* ── Colonne gauche — Informations générales ── */}
-        <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Informations générales</h2>
+        <div className="card p-4 [--encadre-pad:1rem] space-y-3">
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Informations générales</h2>
 
           <FloatInput
             label="Nom de la classe"
@@ -736,8 +736,8 @@ export default function ClassForm({
         </div>
 
         {/* ── Colonne droite — Enseignant ── */}
-        <div className="card p-4 space-y-4 flex flex-col">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+        <div className="card p-4 [--encadre-pad:1rem] space-y-4 flex flex-col">
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
             Enseignant
           </h2>
 
@@ -766,7 +766,7 @@ export default function ClassForm({
                         </button>
                       )}
                       <button type="button" onClick={openTitulairePanel}
-                        className="text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+                        className="text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                         {activeTit ? 'Changer' : 'Affecter un titulaire'}
                       </button>
                     </span>
@@ -816,7 +816,7 @@ export default function ClassForm({
                             <span>{a.effective_from ? fmtDate(a.effective_from) : 'Début'} · {a.effective_until ? fmtDate(a.effective_until) : ''}</span>
                             <Tooltip content="Corriger les dates">
                               <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                                 <Pencil size={11} />
                               </button>
                             </Tooltip>
@@ -852,7 +852,7 @@ export default function ClassForm({
                         {started && (
                           <Tooltip content="Terminer le remplacement">
                             <button type="button" onClick={() => openEndSub(realIdx)} aria-label={`Terminer le remplacement de ${currentSub.teacher_name}`}
-                              className="text-xs font-medium text-primary-600 hover:text-primary-800 px-2 py-0.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+                              className="text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] px-2 py-0.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                               Terminer
                             </button>
                           </Tooltip>
@@ -888,7 +888,7 @@ export default function ClassForm({
                     <span className="text-xs text-warm-700">Aucun remplacement en cours.</span>
                     {hasActiveMain && (
                       <button type="button" onClick={openAddSub}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50">
+                        className="text-sm font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                         Déclarer un remplacement
                       </button>
                     )}
@@ -917,7 +917,7 @@ export default function ClassForm({
                                 <div className="flex items-center gap-1 justify-end">
                                   <Tooltip content="Corriger les dates">
                                     <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
+                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                                       <Pencil size={11} />
                                     </button>
                                   </Tooltip>
@@ -943,12 +943,12 @@ export default function ClassForm({
       </div>
 
       {/* ── Planning EDT ── */}
-      <div className="card p-4 space-y-3">
-        <div className="flex items-center justify-between">
+      <div className="card p-4 [--encadre-pad:1rem] space-y-3">
+        <div className="encadre-titre justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Planning EDT</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest">Planning EDT</h2>
             {slots.length > 0 && (
-              <span className="text-[10px] font-semibold bg-primary-100 text-primary-700 border border-primary-200 px-1.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-semibold bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] border border-[var(--brand-line)] px-1.5 py-0.5 rounded-full">
                 {slots.length} créneau{slots.length > 1 ? 'x' : ''}
               </span>
             )}
@@ -982,10 +982,10 @@ export default function ClassForm({
                   const today = new Date().toISOString().split('T')[0]
                   const isActive = !slot.effective_until || slot.effective_until >= today
                   return (
-                    <tr key={idx} className={clsx('transition-colors', isActive ? 'bg-primary-50/30 hover:bg-primary-50/50' : 'hover:bg-warm-50/50')}>
+                    <tr key={idx} className={clsx('transition-colors', isActive ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint)]' : 'hover:bg-warm-50/50')}>
                       <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
                         {slot.day_of_week}
-                        {isActive && <span className="ml-1.5 text-[9px] text-primary-500 font-semibold uppercase">actif</span>}
+                        {isActive && <span className="ml-1.5 text-[9px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-semibold uppercase">actif</span>}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 whitespace-nowrap font-mono text-xs">
                         {slot.start_time.slice(0, 5)} · {slot.end_time.slice(0, 5)}
@@ -1002,7 +1002,7 @@ export default function ClassForm({
                             <button
                               type="button" onClick={() => handleEditSlot(idx)}
                               aria-label={`Modifier le créneau ${slot.day_of_week} ${slot.start_time.slice(0, 5)}`}
-                              className="p-1 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                              className="p-1 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                             >
                               <Pencil size={12} />
                             </button>
@@ -1100,7 +1100,7 @@ export default function ClassForm({
                 min={todayISO()}
                 max={currentSchoolYear?.end_date ?? undefined}
                 onChange={e => setPendingAssignAction(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
-                className="mt-1 w-full text-sm border border-warm-200 rounded-lg px-3 py-2 bg-white text-secondary-800 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="mt-1 w-full text-sm border border-warm-200 rounded-lg px-3 py-2 bg-white text-secondary-800 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
               />
             </div>
           </div>
@@ -1121,7 +1121,7 @@ export default function ClassForm({
               disabled={!pendingAssignAction.effectiveDate}
               className={clsx(
                 'text-sm text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50',
-                pendingAssignAction.type === 'delete' ? 'bg-red-500 hover:bg-red-600' : 'bg-primary-500 hover:bg-primary-600'
+                pendingAssignAction.type === 'delete' ? 'bg-red-500 hover:bg-red-600' : 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)]'
               )}
             >
               Confirmer
@@ -1256,7 +1256,7 @@ function SlotFormModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
           <div className="flex items-center gap-2">
-            <CalendarDays size={15} className="text-primary-500" />
+            <CalendarDays size={15} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" />
             <h3 id="slot-modal-title" className="text-sm font-bold text-secondary-800">
               {initial ? 'Modifier le créneau' : 'Nouveau créneau'}
             </h3>
@@ -1264,7 +1264,7 @@ function SlotFormModal({
           <button
             type="button" onClick={onCancel}
             aria-label="Fermer"
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
             <X size={16} />
           </button>
@@ -1329,7 +1329,7 @@ function SlotFormModal({
                 <button
                   type="button"
                   onClick={() => setEffectiveFrom((currentSchoolYear.start_date ?? '').slice(0, 10))}
-                  className="text-[10px] text-primary-600 hover:text-primary-800 hover:underline transition-colors"
+                  className="text-[10px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline transition-colors"
                 >
                   Rentrée ({fmtDate((currentSchoolYear.start_date ?? '').slice(0, 10))})
                 </button>
@@ -1348,7 +1348,7 @@ function SlotFormModal({
                 <button
                   type="button"
                   onClick={() => setEffectiveUntil((currentSchoolYear.end_date ?? '').slice(0, 10))}
-                  className="text-[10px] text-primary-600 hover:text-primary-800 hover:underline transition-colors"
+                  className="text-[10px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline transition-colors"
                 >
                   Fin d'année ({fmtDate((currentSchoolYear.end_date ?? '').slice(0, 10))})
                 </button>

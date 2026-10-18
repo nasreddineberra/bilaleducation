@@ -59,7 +59,7 @@ export function FloatInput({ label, required, error, locked, compact, bordure = 
               : 'bg-warm-100 text-warm-400 cursor-default border-warm-200 focus:ring-0 focus:border-warm-200 opacity-75'
             : error
               ? 'bg-white text-gray-800 border-red-400 focus:border-red-400 focus:ring-red-400/20'
-              : 'bg-white text-gray-800 border-warm-300 focus:border-primary-400 focus:ring-primary-400/20',
+              : 'bg-white text-gray-800 border-warm-300 focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] focus:ring-[var(--brand-focus)]',
           className ?? '',
         ].join(' ')}
       />
@@ -76,7 +76,7 @@ export function FloatInput({ label, required, error, locked, compact, bordure = 
           ? 'text-warm-700'
           : error
             ? 'text-red-500 peer-focus:text-red-500'
-            : 'text-warm-700 peer-focus:text-primary-600 peer-[&:not(:placeholder-shown)]:text-warm-700',
+            : 'text-warm-700 peer-focus:text-[var(--brand-surface)] dark:peer-focus:text-[var(--brand-accent)] peer-[&:not(:placeholder-shown)]:text-warm-700',
       ].join(' ')}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -111,7 +111,7 @@ export function FloatSelect({ label, required, error, children, className, wrapp
           'focus:outline-none focus:ring-2',
           error
             ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
-            : 'border-warm-300 focus:border-primary-400 focus:ring-primary-400/20',
+            : 'border-warm-300 focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] focus:ring-[var(--brand-focus)]',
           className ?? '',
         ].join(' ')}
       >
@@ -140,7 +140,7 @@ export function FloatSelect({ label, required, error, children, className, wrapp
           ? 'text-red-500'
           : hasValue
             ? 'text-warm-700'
-            : 'text-warm-700 peer-focus:text-primary-600',
+            : 'text-warm-700 peer-focus:text-[var(--brand-surface)] dark:peer-focus:text-[var(--brand-accent)]',
       ].join(' ')}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -180,7 +180,7 @@ export function FloatTextarea({ label, required, error, bordure = true, classNam
           'focus:outline-none focus:ring-2',
           error
             ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
-            : 'border-warm-300 focus:border-primary-400 focus:ring-primary-400/20',
+            : 'border-warm-300 focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] focus:ring-[var(--brand-focus)]',
           className ?? '',
         ].join(' ')}
       />
@@ -195,7 +195,7 @@ export function FloatTextarea({ label, required, error, bordure = true, classNam
         error
           ? 'text-red-500'
           : labelUp
-            ? focused ? 'text-primary-600' : 'text-warm-700'
+            ? focused ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-700'
             : 'text-warm-700',
       ].join(' ')}>
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
@@ -232,7 +232,7 @@ export function SwitchOuiNon({ label, checked, onChange, danger, disabled, seul 
         onClick={() => onChange(valeur)}
         className={[
           seul ? 'px-2 py-0.5 text-[11px] leading-none' : 'px-3 py-1',
-          'transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300 disabled:cursor-default',
+          'transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)] disabled:cursor-default',
           i > 0 ? 'border-l border-warm-200' : '',
           actif
             ? valeur && danger
@@ -393,7 +393,7 @@ export function FloatCheckbox({
   return (
     <label className={[
       'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all duration-200 select-none',
-      checked ? 'bg-primary-50 border-primary-300 shadow-sm' : 'border-warm-200 hover:border-warm-300 hover:bg-warm-50',
+      checked ? 'bg-[var(--brand-tint)] border-[var(--brand-line)] shadow-sm' : 'border-warm-200 hover:border-warm-300 hover:bg-warm-50',
     ].join(' ')}>
       <span className={[
         'flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
@@ -425,7 +425,7 @@ export function FloatRadioCard({ name, value, checked, onChange, children }: Flo
   return (
     <label className={[
       'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-all duration-200 select-none',
-      checked ? 'bg-primary-50 border-primary-300 shadow-sm' : 'border-warm-200 hover:border-warm-300 hover:bg-warm-50',
+      checked ? 'bg-[var(--brand-tint)] border-[var(--brand-line)] shadow-sm' : 'border-warm-200 hover:border-warm-300 hover:bg-warm-50',
     ].join(' ')}>
       {/* Cercle radio custom */}
       <span className={[
@@ -586,15 +586,15 @@ const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
   // Clair : surface teal profond + texte blanc (accord avec la sidebar).
   // Sombre : la surface (#18242a) serait invisible sur une carte (#161f24) →
   // on passe à l'ACCENT turquoise avec un texte très foncé.
-  submit:    'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-primary-400 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 dark:shadow-none',
+  submit:    'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-[var(--brand-focus)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 dark:shadow-none',
   secondary: 'bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 focus:ring-secondary-300 dark:bg-[var(--surface-sunken)] dark:text-[var(--ink)] dark:border-[var(--line-strong)] dark:hover:bg-[var(--line-strong)]',
   // « Modifier » = CONTOUR de marque (l'ambre est abandonné) : Valider est plein,
   // Modifier est en contour → hiérarchie lisible sans introduire de teinte
   // supplémentaire. Bordure et texte suivent le thème (teal clair / accent sombre).
-  edit:      'bg-transparent text-[var(--brand-surface)] border border-[var(--brand-surface)] hover:bg-[var(--brand-surface)] hover:text-white focus:ring-primary-400 dark:text-[var(--brand-accent)] dark:border-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)] dark:hover:text-[var(--brand-surface-2)]',
+  edit:      'bg-transparent text-[var(--brand-surface)] border border-[var(--brand-surface)] hover:bg-[var(--brand-surface)] hover:text-white focus:ring-[var(--brand-focus)] dark:text-[var(--brand-accent)] dark:border-[var(--brand-accent)] dark:hover:bg-[var(--brand-accent)] dark:hover:text-[var(--brand-surface-2)]',
   danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-400 shadow-[0_2px_6px_rgba(220,38,38,0.25)] hover:shadow-[0_4px_12px_rgba(220,38,38,0.35)]',
-  primary:   'bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-400 shadow-[0_2px_6px_rgba(24,170,153,0.30)] hover:shadow-[0_4px_12px_rgba(24,170,153,0.40)]',
-  brand:     'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-primary-400 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]',
+  primary:   'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] focus:ring-[var(--brand-focus)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]',
+  brand:     'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-[var(--brand-focus)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]',
 }
 
 /**

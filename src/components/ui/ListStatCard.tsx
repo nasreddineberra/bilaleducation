@@ -12,9 +12,9 @@ import type { ReactNode } from 'react'
 interface ListStatCardProps {
   value:        ReactNode
   label:        ReactNode
-  valueColor?:  string   // ex. 'text-secondary-800', 'text-primary-600', 'text-red-500'
+  valueColor?:  string   // ex. 'text-secondary-800', 'text-[var(--brand-surface)]', 'text-red-500'
   active?:      boolean
-  activeRing?:  string   // ex. 'ring-[#2e4550]', 'ring-primary-600'
+  activeRing?:  string   // ex. 'ring-[#2e4550]', 'ring-[var(--brand-surface)]'
   onClick?:     () => void
   className?:   string   // classes additionnelles sur la carte (ex. fond rouge)
 }

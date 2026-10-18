@@ -69,7 +69,7 @@ export default function PasswordChecklist({
               // Turquoise et non vert : règle du 2 août, les verts d'ÉTAT
               // passent à `primary`. L'app mélangeait green et emerald pour
               // cette même idée ; seule la fiche utilisateur avait été reprise.
-              ok ? 'text-primary-600' : 'text-warm-700',
+              ok ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-700',
             )}
           >
             {ok

@@ -154,7 +154,7 @@ export default function SingleTabGuard({ children }: { children: React.ReactNode
         <button
           type="button"
           onClick={fermerOnglet}
-          className="w-full py-3 px-4 rounded-xl bg-primary-500 text-white text-base font-semibold hover:bg-primary-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="w-full py-3 px-4 rounded-xl bg-[var(--brand-surface)] text-white text-base font-semibold hover:bg-[var(--brand-surface-2)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
           Fermer cet onglet
         </button>

@@ -102,6 +102,15 @@
     --brand-icon:       #8fc9be;   /* icônes des items */
     --brand-muted:      #6fb0a5;   /* textes secondaires (année, chevrons, pied) */
 
+    /* ── Vert de marque DANS LE CONTENU (remplace le turquoise `primary`, 18/10) ──
+       Tailwind 3 n'emet pas d'opacite sur une couleur en variable
+       (`ring-[var(--x)]/50` = aucune classe) : les nuances sont donc des jetons,
+       melanges du vert de marque (de l'accent en theme sombre) avec du transparent,
+       pour se poser sur n'importe quelle surface. */
+    --brand-tint:  color-mix(in srgb, var(--brand-surface) 8%, transparent);   /* fonds doux, badges, selection */
+    --brand-line:  color-mix(in srgb, var(--brand-surface) 30%, transparent);  /* bordures */
+    --brand-focus: color-mix(in srgb, var(--brand-surface) 50%, transparent);  /* halos de focus */
+
     /* ── Tokens de CONTENU (pages, cartes, tableaux) ── */
     --surface-page:   #faf8f6;   /* fond de page (warm-50) */
     --surface-card:   #ffffff;   /* cartes, champs */
@@ -184,6 +193,10 @@
     --brand-text:       #c8d4d9;
     --brand-icon:       #8497a0;
     --brand-muted:      #7a8e98;
+    /* En sombre, la surface de marque est ardoise : les nuances partent de l'accent. */
+    --brand-tint:  color-mix(in srgb, var(--brand-accent) 12%, transparent);
+    --brand-line:  color-mix(in srgb, var(--brand-accent) 35%, transparent);
+    --brand-focus: color-mix(in srgb, var(--brand-accent) 55%, transparent);
 
     /* Contenu — famille ARDOISE, cohérente avec la sidebar du thème sombre */
     --surface-page:   #0e1418;

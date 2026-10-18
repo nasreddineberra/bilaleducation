@@ -63,7 +63,7 @@ function Btn({ active, onClick, children, title }: { active?: boolean; onClick: 
       aria-label={title}
       className={clsx(
         'p-1.5 rounded transition-colors',
-        active ? 'bg-primary-100 text-primary-700' : 'text-warm-700 hover:bg-warm-100'
+        active ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-700 hover:bg-warm-100'
       )}
     >
       {children}
@@ -223,7 +223,7 @@ export default function RichTextEditor({ content, onChange }: Props) {
                     // `.focus()` de la chaine rend la main au texte : on
                     // continue a ecrire sans reprendre la souris.
                     onClick={() => { editor.chain().focus().setColor(hex).run(); setColorOpen(false) }}
-                    className="block w-5 h-5 rounded-full border border-warm-200 hover:scale-110 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    className="block w-5 h-5 rounded-full border border-warm-200 hover:scale-110 transition-transform outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     style={{ backgroundColor: hex }}
                   />
                 </Tooltip>

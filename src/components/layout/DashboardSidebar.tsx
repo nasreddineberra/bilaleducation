@@ -780,7 +780,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         <Link
           href="/dashboard"
           className={clsx(
-            'flex min-w-0 rounded-lg outline-none transition-opacity hover:opacity-90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
+            'flex min-w-0 rounded-lg outline-none transition-opacity hover:opacity-90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]',
             collapsed ? 'justify-center' : 'items-start gap-3 flex-1'
           )}
         >
@@ -832,7 +832,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           <button
             onClick={handleToggle}
             aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
-            className="rounded-lg flex items-center justify-center w-5 min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70"
+            className="rounded-lg flex items-center justify-center w-5 min-h-[32px] text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]"
           >
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
           </button>
@@ -843,7 +843,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         <button
           onClick={() => setOuvertMobile(false)}
           aria-label="Fermer la navigation"
-          className="lg:hidden rounded-lg flex items-center justify-center w-8 h-8 flex-shrink-0 text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70"
+          className="lg:hidden rounded-lg flex items-center justify-center w-8 h-8 flex-shrink-0 text-[var(--brand-muted)] hover:text-white hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]"
         >
           <X size={20} />
         </button>
@@ -872,7 +872,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                         aria-label={d.label}
                         aria-current={isActive ? 'page' : undefined}
                         className={clsx(
-                          'w-9 h-9 rounded-[9px] flex items-center justify-center transition-colors duration-200 motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400/70',
+                          'w-9 h-9 rounded-[9px] flex items-center justify-center transition-colors duration-200 motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]',
                           isActive
                             ? 'bg-white/12 ring-1 ring-[var(--brand-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                             : 'hover:bg-white/[0.08]',

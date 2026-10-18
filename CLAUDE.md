@@ -222,7 +222,7 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 ### Couleurs (tailwind.config.ts)
 | Palette | Base | Role |
 |---|---|---|
-| `primary` (turquoise) | `#18aa99` (500) | etats positifs (actif, solde, valide, present), focus, liens |
+| `primary` (turquoise) | `#18aa99` (500) | EN COURS DE RETRAIT (18/10) : remplace page par page par le vert de marque |
 | `secondary` (ardoise) | `#507583` (500) | textes forts (`secondary-800` = encre `#1f2e35`) |
 | `amber` (orange dore) | `#ffa200` (500) | avertissements (ambre `-700` en texte) |
 | `warm` (beige) | `#b6a798` (500) | neutres, fonds, bordures |
@@ -236,7 +236,8 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Jetons de theme** (`globals.css`, `:root` + `[data-theme="dark"]`) : `--surface-page`,
   `--surface-card`, `--surface-sunken`, `--ink`, `--ink-muted`, `--line`, `--line-strong`,
   `--card-border`, `--card-shadow`, `--brand-surface` (`#0c5b51`) / `--brand-surface-2` /
-  `--brand-accent` / `--brand-text|label|icon|muted`, `--logo-shadow`, `--silhouette-ink`,
+  `--brand-accent` / `--brand-text|label|icon|muted`, **`--brand-tint` / `--brand-line` / `--brand-focus`**
+  (fonds doux 8 %, bordures 30 %, halos 50 % ; accent en sombre), `--logo-shadow`, `--silhouette-ink`,
   `--scroll-thumb`, `--edt-absent-hachure`. **Une ombre ou couleur nouvelle = un jeton, jamais une
   valeur en dur dans une regle.**
 - **Theme clair / sombre** : choix par utilisateur (`profiles.theme`), `data-theme` sur `<html>`.
@@ -347,9 +348,12 @@ financements, retention…), ecole de demonstration.
 
 ### Reste a faire
 1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
-   (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Reste : passe
-   PAGE PAR PAGE** pour remplacer le turquoise (`primary`) par le vert de marque et ajuster chaque ecran
-   (decision utilisateur : pas de remplacement global de la palette).
+   (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Passe PAGE PAR
+   PAGE en cours (18/10)** : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Regle : texte
+   `text-[var(--brand-surface)] dark:text-[var(--brand-accent)]` ; plein `bg-[var(--brand-surface)]
+   dark:bg-[var(--brand-accent)]` (+ `dark:text-[var(--brand-surface-2)]` sur texte blanc) ; fond doux
+   `--brand-tint` ; bordure `--brand-line` ; halo `--brand-focus` ; sur sidebar / header, halo
+   `--brand-accent`. Fait : socle partage (ui, layout), Classes. Ordre : celui de la sidebar.
 2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et

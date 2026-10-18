@@ -8308,3 +8308,20 @@ marque ; les vraies ecoles gardent leur plaque.
   (« au nom de la direction » -> « consignee dans l'historique de la console »), un commentaire de la page de
   connexion de la console, et CLAUDE.md (expiration 4 h -> 1 h).
 
+#### 18 octobre 2026 — Refonte : turquoise -> vert de marque, socle et page Classes
+
+- **Decisions utilisateur** : trois jetons derives du vert de marque (`--brand-tint` 8 %, `--brand-line`
+  30 %, `--brand-focus` 50 % ; en sombre, melanges de l'accent a 12 / 35 / 55 %) ; les ETATS (actif, solde,
+  present, valide) passent aussi au vert de marque, le turquoise disparait. Ordre : socle partage, puis une
+  page a la fois dans l'ordre de la sidebar, verifiee a l'ecran avant la suivante.
+- **Pourquoi des jetons** : Tailwind 3 n'emet aucune classe pour une opacite sur une couleur en variable
+  (`ring-[var(--x)]/50`). Les melanges avec du transparent se posent sur n'importe quelle surface.
+- **Socle** (`ui/`, `layout/`) : champs (focus, libelle flottant), cases et switches, telephone, OTP, mot de
+  passe, editeur riche, modale, variante `primary` de `FloatButton`, garde d'onglet unique. Sur la sidebar
+  et la zone de marque du header (fond vert), le halo de focus est l'accent clair : le vert y serait
+  invisible.
+- **Classes** : liste (lien, action de ligne) et fiche (liens, remplacements, ligne active, pastille de
+  creneaux, bouton de confirmation) ; intitules des trois encadres de la fiche en degrade (`.encadre-titre`,
+  `[--encadre-pad:1rem]` sur les cartes p-4). Le compteur « au total » reste une carte (pas un filtre).
+- Classes verifiees dans le CSS compile (`next build`), variantes sombres comprises.
+

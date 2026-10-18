@@ -224,7 +224,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                       <Link
                         href={`/dashboard/classes/${cls.id}`}
                         onClick={e => e.stopPropagation()}
-                        className="list-name font-semibold text-secondary-800 hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                        className="list-name font-semibold text-secondary-800 hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                       >
                         {cls.name}
                       </Link>
@@ -288,7 +288,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           <button
                             onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
                             aria-label={`Modifier ${cls.name}`}
-                            className="p-1.5 text-warm-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1.5 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                           >
                             <Pencil size={14} />
                           </button>

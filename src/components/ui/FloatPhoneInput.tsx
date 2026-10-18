@@ -66,7 +66,7 @@ export function FloatPhoneInput({
       <div className={[
         'flex rounded-lg border transition-all duration-200',
         focused
-          ? 'border-primary-400 ring-2 ring-primary-400/20'
+          ? 'border-[var(--brand-surface)] dark:border-[var(--brand-accent)] ring-2 ring-[var(--brand-focus)]'
           : error
             ? 'border-red-400'
             : 'border-warm-300',
@@ -96,7 +96,7 @@ export function FloatPhoneInput({
                   className={[
                     'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors',
                     c.code === codeValue
-                      ? 'bg-primary-50 text-primary-700'
+                      ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
                       : 'hover:bg-warm-50 text-secondary-700',
                   ].join(' ')}
                 >
@@ -129,7 +129,7 @@ export function FloatPhoneInput({
       <label className={[
         'absolute pointer-events-none select-none',
         BORDURE_LABEL, BORDURE_HAUT,
-        error ? 'text-red-500' : focused ? 'text-primary-600' : 'text-warm-700',
+        error ? 'text-red-500' : focused ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-700',
       ].join(' ')}>
         {label}
       </label>

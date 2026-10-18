@@ -57,7 +57,7 @@ export default function FormModal({
             type="button"
             onClick={onClose}
             aria-label="Fermer"
-            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
             <X size={16} />
           </button>

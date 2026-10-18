@@ -97,12 +97,12 @@ export default function OtpInput({
           className={clsx(
             'w-11 h-14 sm:w-12 rounded-xl border-2 text-center text-2xl font-bold tabular-nums',
             'text-secondary-800 dark:text-[#e7eef0] outline-none transition-colors',
-            'focus:ring-2 focus:ring-primary-500/30 disabled:opacity-60 disabled:cursor-not-allowed',
+            'focus:ring-2 focus:ring-[var(--brand-focus)] disabled:opacity-60 disabled:cursor-not-allowed',
             error
               ? 'border-red-400 focus:border-red-500'
               : d
-                ? 'border-primary-400 bg-primary-50/40 dark:bg-primary-500/15 focus:border-primary-500'
-                : 'border-warm-200 bg-white dark:border-[#2c3a42] dark:bg-[#1a252b] focus:border-primary-500',
+                ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)]'
+                : 'border-warm-200 bg-white dark:border-[#2c3a42] dark:bg-[#1a252b] focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)]',
           )}
         />
       ))}
