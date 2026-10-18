@@ -8186,3 +8186,26 @@ marque ; les vraies ecoles gardent leur plaque.
   Controle 13 vert en transaction annulee (0 KO). Table vide en production : aucune donnee a reprendre.
 - Aucun changement de code : les ecrans lisent et ecrivent deja par classe.
 
+#### 18 octobre 2026 — Storage : anciennes policies ouvertes supprimees
+
+- **Trouve en preparant l'abonnement expire** : des policies d'origine restaient a cote des policies
+  strictes, et les policies s'additionnent. Bulletins : « Bulletins publics en lecture » = lecture par
+  TOUT LE MONDE, anonyme compris, toutes ecoles (`secure-bulletins-bucket.sql` du 25/07 avait pose
+  `bulletins_pdf_*` sans retirer les anciennes) ; depot / remplacement / suppression sans role.
+  Justificatifs de depenses : `expenses_read` (lecture publique), depot et suppression par tout compte
+  connecte. Logos : depot, remplacement, suppression par tout compte connecte de n'importe quelle ecole.
+  Photos d'eleves : bucket public, ouvert a tout compte connecte, utilise par aucun code.
+- **Aucune fuite** : `bulletins`, `documents-expenses` et `student-photos` etaient vides (verifie en base,
+  et lecture anonyme mesuree a 0).
+- **Migration** `secure-storage-anciennes-policies.sql` : 14 anciennes policies retirees ; logos ecrits
+  par admin / direction dans le dossier de leur ecole (lecture publique gardee) ; `rooms` et `materials`
+  reecrites sur `get_user_role()` / `current_etablissement_id()` (memes droits, l'editeur en intervention
+  y redevient admin). Aucun changement de code.
+- **Controle 14** (`supabase/controles/14-storage-cloisonnement.sql`, lecture de `pg_policies`, aucune
+  ecriture dans `storage.objects`) : KO pour toute policy Storage sans l'ecole (hors lecture publique des
+  logos), toute policy `bulletins` sans role, tout `profiles.role` dans rooms / materials. 19 KO avant,
+  0 KO en transaction annulee.
+- **Signale, non traite** : `student-documents`, `teacher-documents`, `absence-justificatifs`,
+  `warning-attachments` sont cloisonnes par ecole mais sans role ; les notes medicales y sont lisibles
+  par tout compte de l'ecole. A aligner sur la matrice des tables correspondantes.
+
