@@ -425,7 +425,8 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
             {/* Depuis le 16/10, l'editeur n'est plus trace au journal de l'ecole :
                 l'action va a l'historique de la console (`actions_editeur`). */}
             <p className="text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 leading-snug">
-              Vous intervenez <span className="font-semibold">au nom de la direction de {etablissementNom}</span>.
+              Action consignée dans l&apos;<span className="font-semibold">historique de la console</span>,
+              pas dans le journal d&apos;activité de {etablissementNom}.
             </p>
           </div>
         </ConfirmModal>

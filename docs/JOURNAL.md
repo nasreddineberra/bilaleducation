@@ -8298,3 +8298,13 @@ marque ; les vraies ecoles gardent leur plaque.
   `description` reste libre.
 - Controle 18 : 0 KO avec la migration ; controles 10 et 17 inchanges.
 
+#### 18 octobre 2026 — Console : textes d'intervention remis a jour
+
+- **Signale par l'utilisateur** : la modale « Intervenir sur … ? » annoncait une action « au nom de la
+  direction » et une inscription au journal d'activite de l'ecole. Faux depuis le 16/10 : l'editeur agit en
+  `admin` (`get_user_role()`) et n'est jamais trace au journal d'une ecole ; ses interventions vont a
+  `support_interventions`. Seule la duree (1 h, `INTERVENTION_MAX_HEURES`) etait juste.
+- Corriges : la modale d'intervention, la modale d'activation / desactivation d'un compte de la fiche ecole
+  (« au nom de la direction » -> « consignee dans l'historique de la console »), un commentaire de la page de
+  connexion de la console, et CLAUDE.md (expiration 4 h -> 1 h).
+

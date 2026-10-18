@@ -187,11 +187,10 @@ export default function SuperAdminLoginPage() {
           </div>
         </div>
 
-        {/* N'affirmer que ce qui est vrai : les actions prises dans une école
-            sont tracées à son journal, mais la connexion à cette console ne
-            l'est nulle part — le journal est propre à un établissement, et
-            celle-ci n'en concerne aucun. Un journal côté éditeur reste à
-            construire (bloc 3). */}
+        {/* N'affirmer que ce qui est vrai : l'éditeur n'est JAMAIS tracé au
+            journal d'une école (décision du 16/10, `fn_audit_logs_sans_editeur`) ;
+            ses interventions et ses actions vont aux historiques de la console
+            (`support_interventions`, `actions_editeur`). */}
         <p className="mt-6 text-center text-xs text-white/25">
           Double authentification requise
           <span className="mx-1.5" aria-hidden="true">·</span>

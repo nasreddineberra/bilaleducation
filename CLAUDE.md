@@ -89,7 +89,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Secretaire** : eleves, parents, enseignants (sans suppression), classes, gabarits, notes,
   bulletins, affectations, feuille d'appel.
 - **`super_admin`** (editeur) : console `/superadmin`, `etablissement_id` NULL. **Acces support** :
-  il se RATTACHE a une ecole (« Intervenir », expiration 4 h) et `get_user_role()` repond alors
+  il se RATTACHE a une ecole (« Intervenir », expiration 1 h) et `get_user_role()` repond alors
   `admin`. Rattachement exclusif, trace, theme non modifiable pendant l'intervention.
   `effectiveRole()` cote app ; `requireEditor()` (colonne brute) pour les actions de la console.
 - **2FA (TOTP)** obligatoire pour tout le staff (`app_metadata.role` dans le jeton), et pour la console.

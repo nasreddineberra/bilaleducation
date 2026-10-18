@@ -74,9 +74,10 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
       {erreur && <p role="alert" className="text-xs text-red-600 mt-1">{erreur}</p>}
 
       {/* Entrer chez un client n'est jamais anodin : on le confirme, et on dit
-          ce que cela implique. La trace annoncée existe réellement —
-          `enterSchool` écrit « Ouverture d'une intervention » dans le journal de
-          cette école, sous le nom de l'éditeur. */}
+          ce que cela implique. L'éditeur agit en `admin` (`get_user_role()`) et
+          n'est JAMAIS tracé dans le journal de l'école (`fn_audit_logs_sans_editeur`,
+          décision du 16/10) : la trace est l'historique `support_interventions`
+          de la console. */}
       {aConfirmer && (
         <ConfirmModal
           title={`Intervenir sur ${nom} ?`}
@@ -86,14 +87,15 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
         >
           <div className="space-y-3 text-sm text-secondary-700">
             <p>
-              Vous allez agir <span className="font-semibold">au nom de la direction
-              de {nom}</span>, avec les mêmes droits qu&apos;elle : ses élèves, ses
-              familles, ses paiements.
+              Vous allez agir dans <span className="font-semibold">{nom}</span> avec
+              les <span className="font-semibold">droits d&apos;administrateur</span> :
+              ses élèves, ses familles, ses paiements.
             </p>
             <p className="text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg px-3 py-2 leading-snug">
-              L&apos;ouverture et chacune de vos actions seront inscrites au
-              <span className="font-semibold"> journal d&apos;activité de l&apos;établissement</span>,
-              à votre nom. L&apos;intervention se referme d&apos;elle-même au bout
+              L&apos;intervention est consignée dans
+              l&apos;<span className="font-semibold">historique des interventions de la console</span>,
+              pas dans le journal d&apos;activité de l&apos;établissement. Elle se referme
+              d&apos;elle-même au bout
               d&apos;{INTERVENTION_MAX_HEURES === 1 ? 'une heure' : `${INTERVENTION_MAX_HEURES} heures`}.
             </p>
           </div>
