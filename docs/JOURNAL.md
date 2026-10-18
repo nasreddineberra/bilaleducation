@@ -8243,3 +8243,28 @@ marque ; les vraies ecoles gardent leur plaque.
 - Toutes les URL signees de `src/` sont a 60 s, sauf l'export ZIP du depart d'une ecole (console editeur,
   10 min, gros fichier telecharge par l'editeur seul).
 
+#### 18 octobre 2026 — Abonnement expire : la base coupe aussi
+
+- **Avant** : le middleware redirigeait les pages d'une ecole expiree ou inactive, mais son jeton gardait
+  la lecture et l'ecriture de toutes ses donnees par l'API REST.
+- **Levier unique** : `current_etablissement_id()` rend NULL quand l'ecole de l'appelant est inactive ou
+  expiree, avec la regle de `lib/tenant/abonnement.ts` en SQL (jours de Paris compares, jour d'echeance
+  inclus). 146 policies, Storage compris, et les RPC qui la lisent sont coupees d'un coup. Decisions
+  utilisateur : coupure TOTALE, lecture comprise (l'export ZIP de la console reste) ; l'editeur en
+  intervention garde l'acces. Le profil propre (`id = auth.uid()`) reste lisible ; le middleware lit l'ecole
+  en service-role et `/abonnement-expire` ne lit rien : connexion et redirection intactes. Aucun surcout
+  mesurable au volume actuel (1 a 11 ms avant comme apres).
+- **Hors levier, reecrit a droits egaux** : cahier de texte (`homework`, `class_journal`,
+  `homework_status`, `adult_homework_status`) et `notifications`, sur `profiles` ou sans ecole (regles
+  enseignant et parent). Effet de bord voulu : l'editeur en intervention ne voyait pas le cahier de texte
+  (policies sur `profiles.role = 'admin'`), il le voit. `etablissements_update` sur `get_user_role()`.
+- **Deux RPC sans ecole, corrigees** : `set_teacher_profile_active` (une direction desactivait le compte
+  d'un enseignant d'une AUTRE ecole) et `get_verified_totp_user_ids` (comptes 2FA de toutes les ecoles).
+- **Controle 16** (`16-abonnement-expire.sql`) : ecoles echue hier, echue aujourd'hui, sans echeance,
+  inactive. 9 KO avant (dont les deux RPC, prouvees apres correction d'un faux vert du controle : l'id de
+  l'enseignant etait lu sous la RLS de l'appelant), 0 KO apres. Controles 01 a 15 rejoues avec la
+  migration : resultats identiques.
+- **Signale (lot 2)** : `audit_logs_insert` en `WITH CHECK (true)` ; `migrations_appliquees` ecrit par
+  l'admin de toute ecole ; cache 1 h de l'abonnement dans le middleware ; `notifications_select_staff`
+  ouvert a tout compte de l'ecole, parent compris (garde a droits egaux ici).
+

@@ -162,6 +162,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   7 comptes `@demonstration.invalid`, bouton « Reinitialiser » (contenu date depuis le jour).
 
 **Abonnement** : echeance = jour inclus (coupure le lendemain 0 h Paris, `lib/tenant/abonnement.ts`).
+La base coupe aussi (18/10) : `current_etablissement_id()` rend NULL pour une ecole inactive ou
+expiree (meme regle en SQL), sauf pour l'editeur en intervention. Toute policy doit donc porter l'ecole
+via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 **Limite d'inscrits** = base facturable (eleves actifs + adultes inscrits), controlee en base.
 
 ## 5. Conventions et architecture
@@ -353,9 +356,12 @@ financements, retention…), ecole de demonstration.
    editeur, laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-6. **Signale, non traite** : avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
+6. **Signale, non traite** : LOT 2 securite (`audit_logs_insert` en `WITH CHECK (true)` = faux
+   journal dans n'importe quelle ecole ; `migrations_appliquees` ecrit par l'admin de toute ecole ; cache
+   1 h de l'abonnement dans le middleware ; `notifications_select_staff` ouvert a tout compte de l'ecole,
+   parent compris) ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
    `family_fees.subtotal` jamais rafraichi ; `import_foyer` ne compte que les eleves au pre-controle ;
-   abonnement expire coupe les pages mais pas l'API REST ; sortie des 503 `any` ; `.card-flush`
+   sortie des 503 `any` ; `.card-flush`
    inutilisee (adopter ou supprimer).
 7. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur, accords « (s) »
    des toasts d'envoi.
