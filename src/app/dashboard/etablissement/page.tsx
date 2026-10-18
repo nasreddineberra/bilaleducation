@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { effectiveRole } from '@/lib/auth/effective-role'
 import EtablissementForm from '@/components/etablissement/EtablissementForm'
 import DocumentTypesConfig from '@/components/etablissement/DocumentTypesConfig'
 import MessagerieConfig from '@/components/etablissement/MessagerieConfig'
@@ -7,6 +9,18 @@ import type { Etablissement } from '@/types/database'
 
 export default async function EtablissementPage() {
   const supabase = await createClient()
+
+  // Reserve admin/direction : la sidebar masque l'entree, l'URL directe aussi.
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, etablissement_id')
+    .eq('id', user.id)
+    .single()
+  if (!['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
+    redirect('/dashboard')
+  }
 
   // RLS filtre automatiquement par etablissement_id du profil connecté
   const [{ data }, { data: docTypes }] = await Promise.all([

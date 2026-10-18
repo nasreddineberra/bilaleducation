@@ -8154,3 +8154,19 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Faille signalee, non traitee** : `document_type_configs` n'a que des policies d'ECOLE, sans role ;
   tout compte de l'ecole peut modifier ou supprimer les documents requis. Migration a faire (ecriture
   reservee a admin / direction).
+
+#### 18 octobre 2026 — Documents requis : ecriture reservee a admin / direction
+
+- **Tableau de bord Secretaire verifie a l'ecran** par l'utilisateur : la refonte des 5 roles est terminee.
+- **Faille prouvee avant correction** : le controle 12 (`supabase/controles/12-documents-requis-roles.sql`),
+  joue sur les policies d'origine, sort 5 KO. Secretaire, comptable, resp. pedagogique, enseignant et
+  parent creaient, modifiaient et supprimaient les documents requis (les policies ne portaient que l'ecole).
+- **Migration** `restrict-document-type-configs.sql` : lecture inchangee (l'ecole, `current_etablissement_id()`
+  au lieu de la sous-requete `profiles`) ; creation, modification, suppression = l'ecole ET admin /
+  direction (l'editeur en intervention passe par `get_user_role()` = `admin`). Controle 12 vert en
+  transaction annulee (0 KO, l'autre ecole ne lit ni n'ecrit rien).
+- **Page Parametres > Etablissement** : elle n'avait aucune garde serveur (seule la sidebar la masquait) ;
+  redirection vers `/dashboard` hors admin / direction, comme le Journal d'activite.
+- Migration jouee par l'utilisateur avant le push du code, sans risque ici : le seul ecran qui ecrit
+  (Parametres > Etablissement) est deja reserve a admin / direction, qui gardent leurs droits. Controle 12
+  vert en production, depot et registre concordent.
