@@ -8426,3 +8426,14 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Controle 19** (`19-retrait-notes-vides.sql`) : eleve note vide / note / appreciation / absent, adulte
   note vide / note ; 2 KO avant (les deux « note vide » refusees), 0 KO apres.
 
+#### 20 octobre 2026 — Affectations (apprenants et adultes) aux couleurs de la charte
+
+- **Avatars** du vivier et de la classe : CARRES, fond neutre, sans liseré de genre bleu / rose (charte du
+  15/10, comme la liste Apprenants). Adultes : pastille « M / F » bleue / rose retiree.
+- **Panneau de gauche** : bandeau « Eleves disponibles » / « Participants disponibles » ; la case a cocher
+  « Non affectes » (turquoise) et le compteur du titre deviennent le switch « actifs · non affectes »
+  (« inscrits · non affectes » pour les adultes), regle des cartes-filtres.
+- **Panneau de droite** : bandeau au nom de la classe, pastille « Complet » de la charte, rechargement.
+- **Vert de marque** : pastille « N / max eleves » (rouge si pleine), survol des cartes, icones « i »,
+  page active de la pagination. Fleches de pagination avec nom accessible et halo de focus.
+

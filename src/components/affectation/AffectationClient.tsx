@@ -9,6 +9,8 @@ import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce } from '@/components/dashboard/tdb'
 import { saveStudentEnrollments, verifierRetraitEleve } from '@/app/dashboard/affectation/actions'
 
 const POOL_PAGE_SIZE = 20
@@ -81,22 +83,16 @@ function GenderText({ gender }: { gender: string | null }) {
   return null
 }
 
-function StudentAvatar({ lastName, firstName, gender, size = 'sm' }: {
-  lastName: string; firstName: string; gender: string | null; size?: 'sm' | 'md'
+function StudentAvatar({ lastName, firstName, size = 'sm' }: {
+  lastName: string; firstName: string; size?: 'sm' | 'md'
 }) {
   const initiales = (lastName[0] ?? '').toUpperCase() + (firstName[0] ?? '').toUpperCase()
-  // Même traitement que la liste Apprenants : fond neutre (gris beige), rond,
-  // le genre indiqué par un LISERÉ pâle — et non par un aplat coloré.
-  // Vivier calibré pour ~20 lignes SANS scroll (py-0.5) : on reste à 20px et
-  // sans marge verticale, sinon une barre de défilement apparaît.
+  // Charte du 15/10 (liste Apprenants) : avatar CARRE, fond neutre, SANS liseré
+  // de genre. Vivier calibré pour ~20 lignes SANS scroll (py-0.5) : on reste à
+  // 20px et sans marge verticale, sinon une barre de défilement apparaît.
   const dim = size === 'sm' ? 'w-5 h-5 text-[8px]' : 'w-6 h-6 text-[9px]'
-  const ring = gender === 'male'
-    ? 'ring-2 ring-blue-500'
-    : gender === 'female'
-      ? 'ring-2 ring-pink-500'
-      : 'ring-1 ring-warm-200'
   return (
-    <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 select-none rounded-full bg-warm-100 text-warm-700 ${dim} ${ring}`}>
+    <span className={`inline-flex items-center justify-center font-bold flex-shrink-0 select-none rounded-md bg-warm-100 text-warm-700 ${dim}`}>
       {initiales}
     </span>
   )
@@ -167,14 +163,14 @@ function StudentCard({
         ? `${student.last_name} ${student.first_name} (non disponible)`
         : `Affecter ${student.last_name} ${student.first_name} à la classe`}
       className={clsx(
-        'w-full flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs transition-colors select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+        'w-full flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs transition-colors select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]',
         disabled
           ? 'bg-warm-50 border-warm-100 text-warm-700 cursor-not-allowed'
-          : 'bg-white border-warm-200 text-secondary-800 cursor-pointer hover:border-primary-300 hover:bg-primary-50/30',
+          : 'bg-white border-warm-200 text-secondary-800 cursor-pointer hover:border-[var(--brand-line)] hover:bg-[var(--brand-tint)]',
       )}
     >
       {/* Avatar + Nom + icône info */}
-      <StudentAvatar lastName={student.last_name} firstName={student.first_name} gender={student.gender} size="sm" />
+      <StudentAvatar lastName={student.last_name} firstName={student.first_name} size="sm" />
       <span className="flex items-center gap-1 flex-1 min-w-0">
         <span className="truncate font-medium">
           {student.last_name} {student.first_name}
@@ -184,7 +180,7 @@ function StudentCard({
           onPointerEnter={e => { if (e.pointerType !== 'touch') onInfoEnter?.(student, e) }}
           onPointerLeave={onInfoLeave}
         >
-          <Info size={11} className="text-warm-700 hover:text-primary-400 transition-colors" />
+          <Info size={11} className="text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] transition-colors" />
         </span>
       </span>
 
@@ -249,7 +245,7 @@ function DropZone({
               className="flex items-center gap-1.5 px-2 py-0.5 bg-white rounded-md border border-warm-100 text-xs"
             >
               {/* Avatar + Nom + icône info */}
-              <StudentAvatar lastName={s.last_name} firstName={s.first_name} gender={s.gender} size="sm" />
+              <StudentAvatar lastName={s.last_name} firstName={s.first_name} size="sm" />
               <span className="flex items-center gap-1 flex-1 min-w-0">
                 <span className="truncate font-medium text-secondary-800">
                   {s.last_name} {s.first_name}
@@ -259,7 +255,7 @@ function DropZone({
                   onPointerEnter={e => { if (e.pointerType !== 'touch') onInfoEnter?.(s, e) }}
                   onPointerLeave={onInfoLeave}
                 >
-                  <Info size={11} className="text-warm-700 hover:text-primary-400 transition-colors" />
+                  <Info size={11} className="text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] transition-colors" />
                 </span>
               </span>
 
@@ -476,7 +472,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
         {selectedClass && (
           <span className={clsx(
             'text-sm font-semibold px-3 py-1 rounded-full',
-            isFull ? 'bg-red-100 text-red-600' : 'bg-primary-50 text-primary-700'
+            isFull ? 'bg-red-100 text-red-700' : 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
           )}>
             {roster.length} / {selectedClass.max_students} élèves
           </span>
@@ -495,25 +491,21 @@ export default function AffectationClient({ classes, students, enrollments, curr
 
             {/* ── Panel gauche : élèves disponibles ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <h3 className="text-xs font-bold text-warm-700 uppercase tracking-wide">
-                  Élèves ({students.length} actifs · {unassignedCount} non affecté{unassignedCount > 1 ? 's' : ''})
-                </h3>
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-1.5 text-[11px] text-warm-700 cursor-pointer select-none whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={onlyUnassigned}
-                      onChange={e => { setOnlyUnassigned(e.target.checked); setPoolPage(1) }}
-                      className="accent-primary-500 w-3.5 h-3.5"
-                    />
-                    Non affectés
-                  </label>
-                  <SearchField
-                    value={search}
-                    onChange={v => { setSearch(v); setPoolPage(1) }}
-                  />
-                </div>
+              <h2 className="encadre-titre flex-shrink-0 text-xs font-bold uppercase tracking-widest">Élèves disponibles</h2>
+              <div className="flex-shrink-0 flex items-center justify-between gap-2 flex-wrap">
+                <FiltreSwitch
+                  ariaLabel="Filtrer les élèves disponibles"
+                  actif={onlyUnassigned ? 'non_affectes' : ''}
+                  onChange={v => { setOnlyUnassigned(v === 'non_affectes'); setPoolPage(1) }}
+                  options={[
+                    { valeur: '',             nombre: students.length, libelle: students.length > 1 ? 'actifs' : 'actif' },
+                    { valeur: 'non_affectes', nombre: unassignedCount, libelle: unassignedCount > 1 ? 'non affectés' : 'non affecté', couleur: 'text-orange-600' },
+                  ]}
+                />
+                <SearchField
+                  value={search}
+                  onChange={v => { setSearch(v); setPoolPage(1) }}
+                />
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
@@ -572,7 +564,8 @@ export default function AffectationClient({ classes, students, enrollments, curr
                     <button
                       onClick={() => setPoolPage(p => Math.max(1, p - 1))}
                       disabled={poolCurPage === 1}
-                      className="p-1 rounded text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Page précédente"
+                      className="p-1 rounded text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       <ChevronLeft size={13} />
                     </button>
@@ -593,7 +586,7 @@ export default function AffectationClient({ classes, students, enrollments, curr
                             className={clsx(
                               'w-6 h-6 rounded text-[11px] font-medium transition-colors',
                               p === poolCurPage
-                                ? 'bg-primary-600 text-white'
+                                ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
                                 : 'text-warm-700 hover:bg-warm-100 hover:text-secondary-700'
                             )}
                           >
@@ -604,7 +597,8 @@ export default function AffectationClient({ classes, students, enrollments, curr
                     <button
                       onClick={() => setPoolPage(p => Math.min(poolTotalPages, p + 1))}
                       disabled={poolCurPage === poolTotalPages}
-                      className="p-1 rounded text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Page suivante"
+                      className="p-1 rounded text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       <ChevronRight size={13} />
                     </button>
@@ -616,22 +610,16 @@ export default function AffectationClient({ classes, students, enrollments, curr
             {/* ── Panel droit : élèves dans la classe ── */}
             <div className="card p-3 flex flex-col gap-3 min-h-0">
               <div className="flex-shrink-0 space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base font-bold text-secondary-800 truncate">
-                    {selectedClass?.name}
-                  </h3>
+                <div className="encadre-titre justify-between gap-2">
+                  <h2 className="text-xs font-bold uppercase tracking-widest truncate">{selectedClass?.name}</h2>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {isFull && (
-                      <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-                        Complet
-                      </span>
-                    )}
+                    {isFull && <Puce ton="danger">Complet</Puce>}
                     <Tooltip content="Recharger depuis la base">
                       <button
                         type="button"
                         onClick={reloadClass}
                         aria-label="Recharger la classe depuis la base"
-                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                       >
                         <RotateCcw size={15} />
                       </button>
