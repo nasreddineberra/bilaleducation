@@ -8404,3 +8404,11 @@ marque ; les vraies ecoles gardent leur plaque.
   sous-ligne est gardee, le bouton devient un lien texte « Voir les enfants (N) » / « Voir l'enfant ». Le
   nombre d'enfants par foyer est calcule par la page (`enfantsParFoyer`, remplace le `Set`).
 
+#### 20 octobre 2026 — Fiche parent, onglet Scolarite adulte
+
+- Meme modele que la Scolarite et l'Historique de l'apprenant : bandeau `.encadre-titre` par annee (statut
+  Actif vert de marque / Retire rouge en pastille au lieu du vert / rouge Tailwind), ligne dessous avec le
+  tuteur (« NOM Prenom » + pastille neutre « Tuteur N », composant local `Tuteur`) et la classe,
+  « Affecte le » sans decalage d'un jour. Annees archivees : situation financiere en pastille, Percu en
+  encre, bulletins au vert de marque. Encadre « Aucune affectation a un cours adultes » a bandeau.
+

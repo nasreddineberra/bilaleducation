@@ -3,6 +3,7 @@
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import PeriodeCell from '@/components/scolarite/PeriodeCell'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 
 interface AdultRow {
   id: string
@@ -20,11 +21,12 @@ interface AdultRow {
   bulletin_refs: { period_label: string; archive_id: string; file_path: string }[]
 }
 
-const FIN_STATUS: Record<string, { label: string; color: string }> = {
-  pending:  { label: 'En attente', color: 'bg-warm-100 text-warm-700' },
-  partial:  { label: 'Partiel',    color: 'bg-orange-100 text-orange-700' },
-  paid:     { label: 'Soldé',      color: 'bg-primary-100 text-primary-700' },
-  overpaid: { label: 'Trop perçu', color: 'bg-red-100 text-red-700' },
+// Pastilles d'etat de la charte (`Puce`), comme l'Historique de l'apprenant.
+const FIN_STATUS: Record<string, { label: string; ton: Ton }> = {
+  pending:  { label: 'En attente', ton: 'neutre' },
+  partial:  { label: 'Partiel',    ton: 'orange' },
+  paid:     { label: 'Soldé',      ton: 'ok' },
+  overpaid: { label: 'Trop perçu', ton: 'danger' },
 }
 
 function fmtEur(n: number | null): string {
@@ -64,9 +66,19 @@ interface CurrentRow {
 }
 
 const STATUS_LABEL: Record<string, string> = { active: 'Actif', withdrawn: 'Retiré' }
-const STATUS_COLOR: Record<string, string> = {
-  active:    'bg-green-100 text-green-700',
-  withdrawn: 'bg-red-100 text-red-700',
+const STATUS_TON: Record<string, Ton> = { active: 'ok', withdrawn: 'danger' }
+
+// « AAAA-MM-JJ » -> « JJ/MM/AAAA » par decoupage (pas de `new Date`, lu en UTC).
+const dateFr = (d: string) => d.slice(0, 10).split('-').reverse().join('/')
+
+/** « NOM Prenom » + pastille « Tuteur N » : qui, dans le foyer. */
+function Tuteur({ nom, numero }: { nom: string; numero: number | null }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="font-semibold text-secondary-800">{nom}</span>
+      {numero && <Puce ton="neutre">Tuteur {numero}</Puce>}
+    </span>
+  )
 }
 
 interface TuteurNonAffecte { tutor_number: number; last_name: string; first_name: string }
@@ -109,15 +121,12 @@ export default function ParentAdultHistory({
           seul des deux peut être dans ce cas. Le message NOMME la personne,
           sans quoi on ne saurait pas de qui il parle. */}
       {nonAffectes.length > 0 && (
-        <section className="card p-4">
-          <h3 className="text-sm font-semibold text-secondary-800">Aucune affectation à un cours adultes</h3>
-          <ul className="mt-1 space-y-0.5">
+        <section className="card p-3 space-y-1">
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Aucune affectation à un cours adultes</h2>
+          <ul className="space-y-1">
             {nonAffectes.map(t => (
               <li key={t.tutor_number} className="text-xs text-warm-700">
-                <span className="font-semibold text-warm-800">{t.last_name} {t.first_name}</span>
-                <span className="text-[10px] font-bold uppercase bg-secondary-100 text-secondary-700 px-1.5 py-0.5 rounded ml-1.5">
-                  Tuteur {t.tutor_number}
-                </span>
+                <Tuteur nom={`${t.last_name} ${t.first_name}`} numero={t.tutor_number} />
                 {' · '}inscrit aux cours adultes, en attente d’affectation à une classe.
               </li>
             ))}
@@ -136,31 +145,24 @@ export default function ParentAdultHistory({
         ].filter(Boolean).join(' · ')
 
         return (
-          <section key={h.key} className="card p-4 space-y-2">
+          <section key={h.key} className="card p-3 space-y-2">
 
-            {/* En-tete : annee, statut, tuteur, classe, et le bilan d'assiduite */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base font-bold text-secondary-800">{h.year_label}</h3>
-                <span className={clsx(
-                  'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded',
-                  STATUS_COLOR[h.status] ?? 'bg-warm-100 text-warm-700',
-                )}>
-                  {STATUS_LABEL[h.status] ?? h.status}
-                </span>
-                <span className="text-sm font-semibold text-warm-800">{h.last_name} {h.first_name}</span>
-                <span className="text-[10px] font-bold uppercase bg-secondary-100 text-secondary-700 px-1.5 py-0.5 rounded">
-                  Tuteur {h.tutor_number}
-                </span>
-                <span className="text-xs text-warm-700">
-                  <span className="font-semibold text-warm-800">Classe : {h.class_name}</span>
+            {/* Bandeau : annee et statut */}
+            <div className="encadre-titre gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest">{h.year_label}</h2>
+              <Puce ton={STATUS_TON[h.status] ?? 'neutre'}>{STATUS_LABEL[h.status] ?? h.status}</Puce>
+            </div>
+
+            {/* Tuteur, classe et ses infos ; affectation a droite */}
+            <div className="flex items-center justify-between gap-3 flex-wrap text-xs text-warm-700">
+              <span className="inline-flex items-center gap-2 flex-wrap">
+                <Tuteur nom={`${h.last_name} ${h.first_name}`} numero={h.tutor_number} />
+                <span>
+                  <span className="font-semibold text-secondary-800">Classe : {h.class_name}</span>
                   {infosClasse && <> · {infosClasse}</>}
                 </span>
-              </div>
-
-              <span className="text-xs text-warm-700">
-                Affecté le {new Date(h.enrollment_date).toLocaleDateString('fr-FR')}
               </span>
+              <span>Affecté le {dateFr(h.enrollment_date)}</span>
             </div>
 
             {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
@@ -198,23 +200,17 @@ export default function ParentAdultHistory({
         // L'archive fige des LIBELLES, elle ne porte ni enseignant ni horaire.
         const infosClasse = [h.level ? `Niveau ${h.level}` : null, h.cotisation_label].filter(Boolean).join(' · ')
         return (
-          <section key={h.id} className="card p-4 space-y-2">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base font-bold text-secondary-800">{h.year_label}</h3>
-                <span className="text-sm font-semibold text-warm-800">{h.last_name} {h.first_name}</span>
-                {h.tutor_number && (
-                  <span className="text-[10px] font-bold uppercase bg-secondary-100 text-secondary-700 px-1.5 py-0.5 rounded">
-                    Tuteur {h.tutor_number}
-                  </span>
-                )}
-                {h.class_name && (
-                  <span className="text-xs text-warm-700">
-                    <span className="font-semibold text-warm-800">Classe : {h.class_name}</span>
-                    {infosClasse && <> · {infosClasse}</>}
-                  </span>
-                )}
-              </div>
+          <section key={h.id} className="card p-3 space-y-2">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">{h.year_label}</h2>
+
+            <div className="flex items-center gap-2 flex-wrap text-xs text-warm-700">
+              <Tuteur nom={`${h.last_name} ${h.first_name}`} numero={h.tutor_number ?? null} />
+              {h.class_name && (
+                <span>
+                  <span className="font-semibold text-secondary-800">Classe : {h.class_name}</span>
+                  {infosClasse && <> · {infosClasse}</>}
+                </span>
+              )}
             </div>
 
             <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -228,14 +224,14 @@ export default function ParentAdultHistory({
                 <dt className="stat-label">Situation financière</dt>
                 <dd>
                   {fin
-                    ? <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase', fin.color)}>{fin.label}</span>
+                    ? <Puce ton={fin.ton}>{fin.label}</Puce>
                     : <span className="text-sm text-warm-700">·</span>}
                 </dd>
               </div>
               <div>
                 <dt className="stat-label">Perçu / Dû</dt>
                 <dd className="text-sm text-warm-700 tabular-nums">
-                  <span className="text-primary-600 font-semibold">{fmtEur(h.total_paid)}</span> / {fmtEur(h.total_due)}
+                  <span className="text-secondary-800 font-semibold">{fmtEur(h.total_paid)}</span> / {fmtEur(h.total_due)}
                 </dd>
               </div>
             </dl>
@@ -249,7 +245,7 @@ export default function ParentAdultHistory({
                       key={b.archive_id}
                       type="button"
                       onClick={() => openBulletin(b.file_path)}
-                      className="inline-flex items-center gap-1 bg-warm-50 hover:bg-warm-100 rounded-lg px-2.5 py-1 text-xs text-primary-600 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                      className="inline-flex items-center gap-1 bg-[var(--brand-tint)] rounded-lg px-2.5 py-1 text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       {b.period_label}
                     </button>
