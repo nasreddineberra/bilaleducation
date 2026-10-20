@@ -41,6 +41,13 @@ function bloquants(d: DiagRetrait): string[] {
 
 const estBloque = (d: DiagRetrait) => bloquants(d).length > 0
 
+// Une NOTE REELLE : une note, une appreciation non vide ou « absent ». Meme regle
+// que l'avancement de la saisie (`lib/dashboard/notes.ts`) et que les
+// declencheurs `fn_block_*_unenroll` : une ligne vide (note effacee avant le
+// 20/10) ne bloque pas un retrait.
+const noteReelle = (r: { score: number | null; comment: string | null; is_absent: boolean | null }) =>
+  r.score != null || !!(r.comment ?? '').trim() || !!r.is_absent
+
 // Message de refus : un participant par segment, avec ce qui bloque.
 function messageRefus(diags: DiagRetrait[]): string {
   return `Impossible de retirer : ${diags.map(d => `${d.nom} (${bloquants(d).join(', ')})`).join(' ; ')}.`
@@ -74,9 +81,10 @@ async function diagnostiquerEleves(supabase: Client, classId: string, ids: strin
   const { data: evals } = await supabase.from('evaluations').select('id').eq('class_id', classId)
   const evalIds = (evals ?? []).map((e: any) => e.id)
   if (evalIds.length > 0) {
-    const { data } = await supabase.from('grades').select('student_id, evaluation_id').in('student_id', ids).in('evaluation_id', evalIds)
+    const { data } = await supabase.from('grades').select('student_id, evaluation_id, score, comment, is_absent').in('student_id', ids).in('evaluation_id', evalIds)
     const parEleve = new Map<string, Set<string>>()
     for (const r of (data ?? []) as any[]) {
+      if (!noteReelle(r)) continue
       get(r.student_id).notes++
       if (!parEleve.has(r.student_id)) parEleve.set(r.student_id, new Set())
       parEleve.get(r.student_id)!.add(r.evaluation_id)
@@ -125,11 +133,11 @@ async function diagnostiquerTuteurs(supabase: Client, classId: string, keys: str
   const { data: evals } = await supabase.from('evaluations').select('id').eq('class_id', classId)
   const evalIds = (evals ?? []).map((e: any) => e.id)
   if (evalIds.length > 0) {
-    const { data } = await supabase.from('adult_grades').select('parent_id, tutor_number, evaluation_id').in('parent_id', parentIds).in('evaluation_id', evalIds)
+    const { data } = await supabase.from('adult_grades').select('parent_id, tutor_number, evaluation_id, score, comment, is_absent').in('parent_id', parentIds).in('evaluation_id', evalIds)
     const parTuteur = new Map<string, Set<string>>()
     for (const r of (data ?? []) as any[]) {
       const k = cle(r)
-      if (!wanted.has(k)) continue
+      if (!wanted.has(k) || !noteReelle(r)) continue
       get(k).notes++
       if (!parTuteur.has(k)) parTuteur.set(k, new Set())
       parTuteur.get(k)!.add(r.evaluation_id)

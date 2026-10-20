@@ -8412,3 +8412,17 @@ marque ; les vraies ecoles gardent leur plaque.
   « Affecte le » sans decalage d'un jour. Annees archivees : situation financiere en pastille, Percu en
   encre, bulletins au vert de marque. Encadre « Aucune affectation a un cours adultes » a bandeau.
 
+#### 20 octobre 2026 — Retrait d'une classe bloque par des notes effacees
+
+- **Signale par l'utilisateur** : CHEN Hao (demonstration) restait impossible a retirer du CE1 (« 3 notes
+  sur 3 evaluations ») apres effacement de ses notes.
+- **Cause** : la Saisie des notes enregistrait une note effacee en `upsert` ; la ligne restait, VIDE
+  (score, commentaire NULL, `is_absent` false). Le diagnostic de l'ecran (`affectation/actions.ts`) et les
+  declencheurs `fn_block_student_unenroll` / `fn_block_adult_unenroll` comptaient les LIGNES.
+- **Correctif** : (1) la Saisie des notes SUPPRIME une saisie ramenee a vide (eleves et adultes) au lieu de
+  l'enregistrer ; (2) diagnostic et declencheurs ne bloquent que sur une NOTE REELLE (note, appreciation non
+  vide ou absent), regle de `avancementSaisie` ; (3) migration `fix-retrait-notes-vides.sql` : fonctions
+  reecrites a l'identique hors ce critere, et nettoyage des lignes vides (3, toutes de CHEN Hao ; 0 adulte).
+- **Controle 19** (`19-retrait-notes-vides.sql`) : eleve note vide / note / appreciation / absent, adulte
+  note vide / note ; 2 KO avant (les deux « note vide » refusees), 0 KO apres.
+

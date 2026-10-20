@@ -337,9 +337,26 @@ export default function GradesClient({
     const supabase = createClient()
     const gradedMeta = { graded_at: new Date().toISOString(), ...(teacherId ? { graded_by: teacherId } : {}) }
 
+    // Une saisie ramenee a VIDE (ni note, ni appreciation, ni « absent ») SUPPRIME
+    // la ligne au lieu de l'enregistrer vide (20/10) : une ligne vide se lisait
+    // comme une note et bloquait le retrait de l'eleve de sa classe.
+    const estVide = (f: ReturnType<typeof scoreFields>) =>
+      f.score == null && !(f.comment ?? '').trim() && !f.is_absent
+    const videIds  = dirtyIds.filter(id => estVide(scoreFields(pending[id])))
+    const pleinIds = dirtyIds.filter(id => !videIds.includes(id))
+
     if (isAdultClass) {
       // Clé participant composite « parentId-tutorNumber » → colonnes adult_grades.
-      const upserts = dirtyIds.map(pid => {
+      const cle = (pid: string) => {
+        const sep = pid.lastIndexOf('-')
+        return { parent_id: pid.slice(0, sep), tutor_number: parseInt(pid.slice(sep + 1), 10) }
+      }
+      for (const pid of videIds) {
+        const { error: errDel } = await supabase.from('adult_grades').delete()
+          .eq('evaluation_id', selectedEvalId).eq('parent_id', cle(pid).parent_id).eq('tutor_number', cle(pid).tutor_number)
+        if (errDel) { setError(errDel.message); setSaving(false); return }
+      }
+      const upserts = pleinIds.map(pid => {
         const sep = pid.lastIndexOf('-')
         return {
           parent_id:        pid.slice(0, sep),
