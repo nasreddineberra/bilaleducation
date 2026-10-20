@@ -8511,3 +8511,14 @@ marque ; les vraies ecoles gardent leur plaque.
   « Supprimer ? Oui Non » en ligne ; actions Modifier / Supprimer toujours visibles (au survol seulement,
   introuvables sur tablette).
 
+#### 20 octobre 2026 — Archivage des bulletins refuse : PDF trop lourd
+
+- **Signale par l'utilisateur** : « The object exceeded the maximum allowed size » en archivant (CP, ecole de
+  demonstration). Le bucket `bulletins` est limite a 1 Mo par fichier.
+- **Cause mesuree** (PDF de test genere en Node avec les memes polices et le meme logo) : jsPDF insere une
+  image SANS compression par defaut, en pixels bruts. Le logo de demonstration (512 x 512, 75 Ko en PNG)
+  portait le bulletin a **1 119 Ko**. Le logo d'ECOLE BILAL, plus leger, passait sous la limite.
+- **Correctif** dans tous les PDF (bulletins, feuilles d'appel, attestation, temps de presence) :
+  `addImage(..., 'FAST')` et `new jsPDF({ ..., compress: true })`, compression sans perte. Mesure :
+  216 Ko avec l'image compressee, **165 Ko** avec le document compresse. Limite du bucket inchangee.
+

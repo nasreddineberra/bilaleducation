@@ -305,7 +305,7 @@ export default function AbsencesClient({
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
 
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 15
     const contentWidth = pageWidth - margin * 2
@@ -329,7 +329,7 @@ export default function AbsencesClient({
             reader.onloadend = () => resolve(reader.result as string)
             reader.readAsDataURL(blob)
           })
-          doc.addImage(base64, 'PNG', margin, y, 20, 20)
+          doc.addImage(base64, 'PNG', margin, y, 20, 20, undefined, 'FAST')
         }
       } catch { /* ignore */ }
     }
@@ -1225,7 +1225,7 @@ function SaisieModal({
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
 
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 15
     const contentWidth = pageWidth - margin * 2
@@ -1252,7 +1252,7 @@ function SaisieModal({
             reader.onloadend = () => resolve(reader.result as string)
             reader.readAsDataURL(blob)
           })
-          doc.addImage(base64, 'PNG', margin, y, 20, 20)
+          doc.addImage(base64, 'PNG', margin, y, 20, 20, undefined, 'FAST')
         }
       } catch { /* ignore */ }
     }

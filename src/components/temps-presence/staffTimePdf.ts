@@ -74,7 +74,7 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 export async function generateStaffTimePDF(input: StaffTimePdfInput, onglet: Window | null): Promise<void> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // patch prototype (coherent avec bulletinPdf)
-  const doc: JsPDFType = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const doc: JsPDFType = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
 
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 14
@@ -84,7 +84,7 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput, onglet: Win
   let logoBase64: string | null = null
   if (input.etablissementLogo) logoBase64 = await loadImageAsBase64(input.etablissementLogo)
   if (logoBase64) {
-    try { doc.addImage(logoBase64, 'PNG', margin, y, 18, 18) } catch { /* logo optionnel */ }
+    try { doc.addImage(logoBase64, 'PNG', margin, y, 18, 18, undefined, 'FAST') } catch { /* logo optionnel */ }
   }
   const logoOffset = logoBase64 ? 23 : 0
 

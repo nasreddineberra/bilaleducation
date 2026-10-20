@@ -123,7 +123,10 @@ async function renderBulletin(doc: JsPDFType, data: BulletinData, startY: number
 
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, 'PNG', margin, y, 20, 20)
+      // 'FAST' (et `compress: true` sur le document) : sans compression, jsPDF
+      // stocke le logo en PIXELS BRUTS. Un logo 512 x 512 portait le bulletin a
+      // 1,1 Mo, au-dela de la limite du bucket (1 Mo) : l'archivage echouait.
+      doc.addImage(logoBase64, 'PNG', margin, y, 20, 20, undefined, 'FAST')
     } catch {
       // Ignore logo errors
     }
@@ -540,7 +543,7 @@ const fileChunk = (s: string) =>
 export async function generateBulletinPDF(data: BulletinData, onglet: Window | null): Promise<void> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // Patches jsPDF prototype
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
   await renderBulletin(doc, data)
   // NOM_Prenom_Annee_Periode
   afficherPdf(doc, [
@@ -556,7 +559,7 @@ export async function generateBulletinPDF(data: BulletinData, onglet: Window | n
 export async function generateBulletinBlob(data: BulletinData): Promise<Blob> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // Patches jsPDF prototype
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
   await renderBulletin(doc, data)
   return doc.output('blob')
 }
@@ -567,7 +570,7 @@ export async function generateAllBulletinsPDF(allData: BulletinData[], className
   if (allData.length === 0) return
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // Patches jsPDF prototype
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
 
   for (let i = 0; i < allData.length; i++) {
     if (i > 0) doc.addPage()

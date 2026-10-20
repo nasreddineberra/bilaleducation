@@ -60,7 +60,7 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 export async function generateAttestationPdfBase64(input: AttestationPdfInput): Promise<string> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable')
-  const doc: JsPDFType = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const doc: JsPDFType = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
 
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 15
@@ -70,7 +70,7 @@ export async function generateAttestationPdfBase64(input: AttestationPdfInput): 
   let logoBase64: string | null = null
   if (input.etablissementLogo) logoBase64 = await loadImageAsBase64(input.etablissementLogo)
   if (logoBase64) {
-    try { doc.addImage(logoBase64, 'PNG', margin, y, 20, 20) } catch { /* logo optionnel */ }
+    try { doc.addImage(logoBase64, 'PNG', margin, y, 20, 20, undefined, 'FAST') } catch { /* logo optionnel */ }
   }
   const logoOffset = logoBase64 ? 25 : 0
 
