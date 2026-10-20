@@ -2,10 +2,11 @@
 
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, Check, X } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import { COLONNES } from '@/lib/import/colonnes'
 import { lireFichierXlsx, type LigneBrute } from '@/lib/import/lire-fichier'
@@ -38,12 +39,14 @@ interface Props {
 // est reserve a ce qui demande une decision. Et le motif reste ecrit EN CLAIR
 // sur la ligne : une couleur seule ne dit pas quoi corriger, et elle est
 // invisible pour un daltonien.
-const STYLE_ACTION: Record<string, { fond: string; pastille: string; libelle: string }> = {
-  creer:         { fond: 'bg-primary-50', pastille: 'bg-primary-100 text-primary-800', libelle: 'Créer la famille' },
-  completer:     { fond: 'bg-primary-50', pastille: 'bg-primary-100 text-primary-800', libelle: 'Ajouter au foyer existant' },
-  mettre_a_jour: { fond: 'bg-amber-50',   pastille: 'bg-amber-100 text-amber-800',     libelle: 'Mettre à jour le foyer' },
-  rien:          { fond: 'bg-warm-50',    pastille: 'bg-warm-200 text-warm-800',       libelle: 'Déjà enregistré' },
-  bloque:        { fond: 'bg-red-50',     pastille: 'bg-red-100 text-red-800',         libelle: 'Bloqué' },
+// Pastilles de la charte (`Puce`, 20/10) ; le fond de ligne garde son code
+// couleur, au vert de marque au lieu du turquoise.
+const STYLE_ACTION: Record<string, { fond: string; ton: Ton; libelle: string }> = {
+  creer:         { fond: 'bg-[var(--brand-tint)]', ton: 'ok',      libelle: 'Créer la famille' },
+  completer:     { fond: 'bg-[var(--brand-tint)]', ton: 'ok',      libelle: 'Ajouter au foyer existant' },
+  mettre_a_jour: { fond: 'bg-amber-50',            ton: 'attente', libelle: 'Mettre à jour le foyer' },
+  rien:          { fond: 'bg-warm-50',             ton: 'neutre',  libelle: 'Déjà enregistré' },
+  bloque:        { fond: 'bg-red-50',              ton: 'danger',  libelle: 'Bloqué' },
 }
 
 /**
@@ -57,20 +60,14 @@ const STYLE_ACTION: Record<string, { fond: string; pastille: string; libelle: st
  * Le libelle reste ECRIT : la couleur seule ne dit rien a qui la distingue mal,
  * et « à créer » n'a pas de couleur evidente.
  */
-const STYLE_ENFANT: Record<string, { pastille: string; libelle: string }> = {
-  creer:  { pastille: 'bg-primary-100 text-primary-800', libelle: 'à créer' },
-  rien:   { pastille: 'bg-warm-200 text-warm-800',       libelle: 'déjà enregistré' },
-  bloque: { pastille: 'bg-red-100 text-red-800',         libelle: 'bloqué' },
+const STYLE_ENFANT: Record<string, { ton: Ton; libelle: string }> = {
+  creer:  { ton: 'ok',     libelle: 'à créer' },
+  rien:   { ton: 'neutre', libelle: 'déjà enregistré' },
+  bloque: { ton: 'danger', libelle: 'bloqué' },
 }
 
-/** Pastille de statut : meme forme pour le foyer et pour l'apprenant. */
-function Pastille({ style, children }: { style: string; children: React.ReactNode }) {
-  return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap ${style}`}>
-      {children}
-    </span>
-  )
-}
+/** Accord reel au lieu d'un « (s) » : « 1 foyer », « 3 foyers ». */
+const nb = (n: number, singulier: string, pluriel = singulier + 's') => `${n} ${n > 1 ? pluriel : singulier}`
 
 const STYLE_GRAVITE: Record<string, string> = {
   bloquant:      'text-red-700',
@@ -334,8 +331,8 @@ export default function ImportClient({ foyers, enfants }: Props) {
 
     const ok = resultats.filter(r => r.ok).length
     const ko = resultats.length - ok
-    if (ko === 0) toast.success(`${ok} foyer(s) enregistré(s).`)
-    else toast.warning(`${ok} foyer(s) enregistré(s), ${ko} en échec.`)
+    if (ko === 0) toast.success(`${nb(ok, 'foyer enregistré', 'foyers enregistrés')}.`)
+    else toast.warning(`${nb(ok, 'foyer enregistré', 'foyers enregistrés')}, ${ko} en échec.`)
 
     router.refresh()
   }
@@ -373,9 +370,9 @@ export default function ImportClient({ foyers, enfants }: Props) {
     <div className="flex h-full flex-col gap-3 animate-fade-in">
 
       {/* ── Dépôt du fichier ── */}
-      <div className="card p-2.5 space-y-2">
+      <div className="card p-2.5 [--encadre-pad:0.625rem] space-y-2">
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Fichier à importer</h2>
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="stat-label">Fichier à importer</h2>
           {nomFichier && (
             <span className="text-xs text-warm-700">
               Chargé : <span className="font-medium text-secondary-800">{nomFichier}</span>
@@ -383,9 +380,9 @@ export default function ImportClient({ foyers, enfants }: Props) {
           )}
           {lignes && (
             <span className="text-xs text-warm-700">
-              <span className="font-bold text-secondary-800">{resultat.length}</span> foyer(s) ·{' '}
+              <span className="font-bold text-secondary-800">{resultat.length}</span> {resultat.length > 1 ? 'foyers' : 'foyer'} ·{' '}
               <span className="font-bold text-secondary-800">{aFaire.length}</span> à enregistrer ·{' '}
-              <span className="font-bold text-secondary-800">{cochesValides.size}</span> coché(s)
+              <span className="font-bold text-secondary-800">{cochesValides.size}</span> {cochesValides.size > 1 ? 'cochés' : 'coché'}
             </span>
           )}
           <div className="flex-1" />
@@ -447,17 +444,15 @@ export default function ImportClient({ foyers, enfants }: Props) {
       {/* ── Compte rendu du dernier enregistrement ── */}
       {compteRendu && (
         <div className="card p-3 space-y-1.5">
-          <h2 className="stat-label">Dernier enregistrement</h2>
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Dernier enregistrement</h2>
           {compteRendu.map(r => (
             <p key={r.cle} className="text-xs flex items-start gap-1.5">
-              {r.ok
-                ? <Check size={13} className="text-primary-600 flex-shrink-0 mt-0.5" />
-                : <X size={13} className="text-red-600 flex-shrink-0 mt-0.5" />}
+              {r.ok ? <Puce ton="ok">Enregistré</Puce> : <Puce ton="danger">Échec</Puce>}
               <span className={r.ok ? 'text-warm-700' : 'text-red-700'}>
                 <span className="font-medium text-secondary-800">{r.libelle}</span>
                 {r.ok
                   ? ` · ${r.foyerCree ? 'foyer créé' : 'foyer mis à jour'}`
-                    + (r.enfantsCrees ? ` · ${r.enfantsCrees} apprenant(s) : ${r.numeros?.join(', ')}` : '')
+                    + (r.enfantsCrees ? ` · ${nb(r.enfantsCrees, 'apprenant')} : ${r.numeros?.join(', ')}` : '')
                   : ` · ${r.message}`}
               </span>
             </p>
@@ -471,8 +466,8 @@ export default function ImportClient({ foyers, enfants }: Props) {
           <div className="card p-0 overflow-hidden flex-1 min-h-[14rem]">
             <div className="h-full overflow-y-auto list-scroll">
               <table className="w-full text-left text-xs" aria-label="Familles du fichier">
-                <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
-                  <tr className="border-b border-warm-100">
+                <thead className="sticky top-0 z-10">
+                  <tr className="liste-entete border-b border-[var(--card-border)]">
                     <th scope="col" className="list-th w-10">
                       {/* Case d'en-tete a TROIS etats — cochee, partielle, vide —
                           plutot que deux liens de texte en pied de tableau. Elle
@@ -496,7 +491,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
                             cochesValides.size === aFaire.length ? new Set() : new Set(aFaire.map(f => f.cle)),
                           )}
                           aria-label={cochesValides.size === aFaire.length ? 'Tout décocher' : 'Cocher tous les foyers enregistrables'}
-                          className="accent-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="accent-[var(--brand-surface)] dark:accent-[var(--brand-accent)] disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                       </Tooltip>
                     </th>
@@ -528,7 +523,7 @@ export default function ImportClient({ foyers, enfants }: Props) {
       {confirmer && (
         <ConfirmModal
           title="Enregistrer les familles cochées ?"
-          message={`${cochesValides.size} foyer(s) et ${totalEnfants} apprenant(s) vont être écrits. Les foyers enregistrés disparaîtront du tableau.`}
+          message={`${nb(cochesValides.size, 'foyer')} et ${nb(totalEnfants, 'apprenant')} vont être écrits. Les foyers enregistrés disparaîtront du tableau.`}
           confirmLabel="Enregistrer"
           confirmColor="amber"
           onConfirm={enregistrer}
@@ -566,7 +561,7 @@ function LigneFoyer({
           disabled={!foyer.enregistrable}
           onChange={onBasculer}
           aria-label={`Enregistrer le foyer ${nom}`}
-          className="accent-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="accent-[var(--brand-surface)] dark:accent-[var(--brand-accent)] disabled:opacity-40 disabled:cursor-not-allowed"
         />
       </td>
 
@@ -581,14 +576,14 @@ function LigneFoyer({
           type="button"
           onClick={onDeplier}
           aria-expanded={deplie}
-          className="text-[11px] text-primary-700 hover:text-primary-800 underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+          className="text-[11px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] underline underline-offset-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
         >
           {deplie ? 'Masquer les coordonnées' : 'Voir et corriger les coordonnées'}
         </button>
       </td>
 
       <td className="list-td align-top pt-2">
-        <Pastille style={style.pastille}>{style.libelle}</Pastille>
+        <Puce ton={style.ton}>{style.libelle}</Puce>
       </td>
 
       <td className="list-td align-top pt-1.5 space-y-2">
@@ -625,9 +620,7 @@ function LigneFoyer({
               <span className="text-[10px] font-bold uppercase tracking-wide text-warm-700">
                 Apprenant · ligne {e.ligne}
               </span>
-              <Pastille style={STYLE_ENFANT[e.action].pastille}>
-                {STYLE_ENFANT[e.action].libelle}
-              </Pastille>
+              <Puce ton={STYLE_ENFANT[e.action].ton}>{STYLE_ENFANT[e.action].libelle}</Puce>
             </div>
 
             {/* QUATRE colonnes fixes : les champs d'un apprenant se lisent d'une
@@ -766,8 +759,8 @@ function Champ({
           lecture
             ? 'border-warm-200 bg-warm-100 text-warm-700 cursor-not-allowed'
             : erreur
-              ? 'border-red-400 bg-[var(--surface-card)] text-secondary-800 focus:border-red-500 focus:ring-1 focus:ring-primary-500/40'
-              : 'border-warm-200 bg-[var(--surface-card)] text-secondary-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500/40'
+              ? 'border-red-400 bg-[var(--surface-card)] text-secondary-800 focus:border-red-500 focus:ring-1 focus:ring-[var(--brand-focus)]'
+              : 'border-warm-200 bg-[var(--surface-card)] text-secondary-800 focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] focus:ring-1 focus:ring-[var(--brand-focus)]'
         }`}
       />
       {erreur && <span className="text-[10px] text-red-700 leading-tight">{erreur}</span>}

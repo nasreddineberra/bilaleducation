@@ -8491,3 +8491,12 @@ marque ; les vraies ecoles gardent leur plaque.
   efface un commentaire en vidant le champ) ; etat vide sans icone ; commentaire d'un retard en ambre 700
   (contraste).
 
+#### 20 octobre 2026 — Importation de familles aux couleurs de la charte
+
+- Pastilles d'action et d'apprenant passees aux pastilles de la charte (`Puce` : creer / completer vert de
+  marque, mettre a jour ambre, deja enregistre neutre, bloque rouge) ; fond des lignes au vert de marque au
+  lieu du turquoise ; cases a cocher, lien « Voir et corriger les coordonnees » et focus des champs au vert
+  de marque ; encadres « Fichier a importer » et « Dernier enregistrement » a bandeau ; compte rendu en
+  pastilles « Enregistre / Echec » au lieu des icones ; en-tete teinte des listes.
+- **Accords reels** au lieu des « (s) » (page, modale de confirmation, toasts) : helper local `nb()`.
+
