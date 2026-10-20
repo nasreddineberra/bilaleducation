@@ -6,6 +6,7 @@ import { clsx } from 'clsx'
 import Image from 'next/image'
 import { ChevronRight, ChevronDown, AlertTriangle, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { ouvrirOngletPdf, afficherPdf, fermerOngletPdf, ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
@@ -298,6 +299,9 @@ export default function AbsencesClient({
     const cls = classes.find(c => c.id === selectedClassId)
     if (!cls) return
 
+    // Onglet ouvert AU CLIC, avant tout await (sinon bloque comme popup).
+    const onglet = ouvrirOngletPdf()
+    try {
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
 
@@ -469,7 +473,11 @@ export default function AbsencesClient({
       .filter(Boolean)
       .map(p => p!.replace(/\s+/g, '_'))
       .join('_')
-    doc.save(`${nom}.pdf`)
+    afficherPdf(doc, `${nom}.pdf`, onglet)
+    } catch (e) {
+      fermerOngletPdf(onglet)
+      throw e
+    }
   }
 
   // Callback après saisie (ajouts, mises à jour, suppressions)
@@ -826,11 +834,13 @@ function StudentRow({
   const [confirmRemoveJustId, setConfirmRemoveJustId] = useState<string | null>(null)
 
   // Ouvre le justificatif : URL signee (bucket prive) ; valeur héritée en URL complete → directe.
-  const openJustificatif = async (stored: string) => {
+  // Onglet ouvert AU CLIC, avant l'URL signee (sinon bloque comme popup).
+  const openJustificatif = (stored: string) => {
     if (stored.startsWith('http')) { window.open(stored, '_blank', 'noopener'); return }
-    const supabase = createClient()
-    const { data } = await supabase.storage.from('absence-justificatifs').createSignedUrl(stored, 60)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
+    void ouvrirDansOnglet(async () => {
+      const { data } = await createClient().storage.from('absence-justificatifs').createSignedUrl(stored, 60)
+      return data?.signedUrl ?? null
+    })
   }
 
   return (
@@ -1209,6 +1219,9 @@ function SaisieModal({
   }
 
   const handlePrintSaisie = async () => {
+    // Onglet ouvert AU CLIC, avant tout await (sinon bloque comme popup).
+    const onglet = ouvrirOngletPdf()
+    try {
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
 
@@ -1375,7 +1388,11 @@ function SaisieModal({
       )
     }
 
-    doc.save(`Feuille_appel_${classInfo.name.replace(/\s+/g, '_')}_${date}.pdf`)
+    afficherPdf(doc, `Feuille_appel_${classInfo.name.replace(/\s+/g, '_')}_${date}.pdf`, onglet)
+    } catch (e) {
+      fermerOngletPdf(onglet)
+      throw e
+    }
   }
 
   // Portee dans <body> (charte) : la page porte `animate-fade-in`, dont la

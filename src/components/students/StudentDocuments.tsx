@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
-import { Trash2, Download, Eye, X } from 'lucide-react'
+import { Trash2, Eye } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { Puce } from '@/components/dashboard/tdb'
+import { ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,8 +73,6 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [loadingPreview, setLoadingPreview] = useState(false)
 
   // ─── Signed URL (bucket privé) ──────────────────────────────────────────────
 
@@ -85,24 +83,6 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
     if (error || !data?.signedUrl) return null
     return data.signedUrl
   }, [supabase])
-
-  const handlePreview = useCallback(async (filePath: string) => {
-    setLoadingPreview(true)
-    const url = await getSignedUrl(filePath)
-    if (url) setPreviewUrl(url)
-    setLoadingPreview(false)
-  }, [getSignedUrl])
-
-  const handleDownload = useCallback(async (filePath: string, fileName: string) => {
-    const url = await getSignedUrl(filePath)
-    if (url) {
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      a.target = '_blank'
-      a.click()
-    }
-  }, [getSignedUrl])
 
   // Maps
   const docsByCategory = useMemo(() => {
@@ -313,25 +293,16 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
 
                       {doc && (
                         <div className="flex items-center gap-0.5 shrink-0">
-                          <Tooltip content="Aperçu">
+                          {/* Une seule action : le document s'affiche dans un nouvel
+                              onglet (20/10) ; on l'enregistre depuis la visionneuse. */}
+                          <Tooltip content="Ouvrir dans un nouvel onglet">
                             <button
                               type="button"
-                              onClick={() => handlePreview(doc.file_url)}
-                              disabled={loadingPreview}
-                              aria-label={`Aperçu · ${t.label}`}
+                              onClick={() => { void ouvrirDansOnglet(() => getSignedUrl(doc.file_url)) }}
+                              aria-label={`Ouvrir · ${t.label}`}
                               className={clsx(actionIcone, 'hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] focus-visible:ring-[var(--brand-focus)]')}
                             >
                               <Eye size={14} />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Télécharger">
-                            <button
-                              type="button"
-                              onClick={() => handleDownload(doc.file_url, doc.file_name)}
-                              aria-label={`Télécharger · ${t.label}`}
-                              className={clsx(actionIcone, 'hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] focus-visible:ring-[var(--brand-focus)]')}
-                            >
-                              <Download size={14} />
                             </button>
                           </Tooltip>
                           {!lectureSeule && (
@@ -415,55 +386,6 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
         </ConfirmModal>
       )}
 
-      {/* ── Apercu (consultation : Echap et croix ferment) ── */}
-      {previewUrl && (
-        <ApercuDocument url={previewUrl} onClose={() => setPreviewUrl(null)} />
-      )}
     </div>
-  )
-}
-
-function ApercuDocument({ url, onClose }: { url: string; onClose: () => void }) {
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', h)
-    return () => document.removeEventListener('keydown', h)
-  }, [onClose])
-
-  if (typeof document === 'undefined') return null
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/30 backdrop-blur-sm p-4 pt-8">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Aperçu du document"
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col animate-fade-in"
-        style={{ maxHeight: 'calc(100vh - 4rem)' }}
-      >
-        <div className="px-4 py-2.5 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
-          <h3 className="text-sm font-bold text-secondary-800">Aperçu du document</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer l'aperçu"
-            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[400px]">
-          {url.match(/\.pdf|\/pdf/i) ? (
-            <iframe src={url} title="Aperçu du document" className="w-full h-full min-h-[500px] rounded" />
-          ) : (
-            // URL SIGNEE valable 60 s, hote du bucket, dimensions inconnues :
-            // `next/image` exigerait de declarer l'hote et optimiserait une
-            // image qui n'existe plus a la requete suivante.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="Document" className="max-w-full max-h-full object-contain rounded" />
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body,
   )
 }

@@ -12,6 +12,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { jourParis } from '@/lib/tenant/abonnement'
+import { ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -285,11 +286,12 @@ export default function StudentDiscipline({
 
   // ─── Ouvrir une pièce jointe (signed URL) ──────────────────────────────────
 
-  const openAttachment = useCallback(async (filePath: string) => {
-    const { data } = await supabase.storage
-      .from('warning-attachments')
-      .createSignedUrl(filePath, 60)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  // Onglet ouvert AU CLIC, avant l'URL signee (sinon bloque comme popup).
+  const openAttachment = useCallback((filePath: string) => {
+    void ouvrirDansOnglet(async () => {
+      const { data } = await supabase.storage.from('warning-attachments').createSignedUrl(filePath, 60)
+      return data?.signedUrl ?? null
+    })
   }, [supabase])
 
   // ─── Tri absences par date décroissante ─────────────────────────────────────

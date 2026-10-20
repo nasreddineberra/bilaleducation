@@ -8471,3 +8471,19 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Modale de justification** : reconstruite sur `FormModal` (portail, en-tete et croix standard), type en
   pastille, bouton « Importer un justificatif » en taille mini.
 
+#### 20 octobre 2026 — PDF et fichiers : affichage dans un nouvel onglet
+
+- **Regle utilisateur** : tout bouton, icone ou lien qui pointe vers un PDF l'AFFICHE dans un nouvel onglet,
+  sans demander de l'enregistrer.
+- **PDF generes** (feuille d'appel vierge, feuille d'une seance, bulletin, tous les bulletins, recap du Temps
+  de presence) : `doc.save()` remplace par `lib/pdf/ouvrir.ts`. L'onglet est ouvert AU CLIC
+  (`ouvrirOngletPdf`, avant tout `await` : la generation est asynchrone et un `window.open` tardif est
+  bloque comme popup), rempli par `afficherPdf` (URL `blob:`, titre = nom du document), referme si la
+  generation echoue ; repli sur l'enregistrement si l'ouverture est refusee. « Telecharger le bulletin /
+  tous les bulletins » -> « Voir … », icone oeil.
+- **Fichiers deposes** : documents de l'apprenant, une seule action « Ouvrir » (apercu en fenetre et
+  telechargement retires) ; documents de l'enseignant, bouton « Telecharger » retire. Defaut trouve en
+  chemin : l'apercu des documents enseignant, les pieces jointes d'avertissement et les justificatifs
+  ouvraient l'onglet APRES l'URL signee (popup bloquable) ; `ouvrirDansOnglet` l'ouvre au clic.
+- Exceptions voulues : modele d'import `.xlsx` et export ZIP du depart d'une ecole (telechargements).
+

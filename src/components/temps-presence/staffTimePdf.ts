@@ -1,6 +1,7 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
 import { FUSEAU } from '@/lib/dates'
 import autoTable from 'jspdf-autotable'
+import { afficherPdf } from '@/lib/pdf/ouvrir'
 
 // ─── Couleurs (alignees sur bulletinPdf) ─────────────────────────────────────
 const COLORS = {
@@ -69,7 +70,8 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 }
 
 // ─── Generation du recapitulatif PDF ──────────────────────────────────────────
-export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<void> {
+/** `onglet` : ouvert au clic par `ouvrirOngletPdf()` (le PDF s'y affiche). */
+export async function generateStaffTimePDF(input: StaffTimePdfInput, onglet: Window | null): Promise<void> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // patch prototype (coherent avec bulletinPdf)
   const doc: JsPDFType = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -196,5 +198,5 @@ export async function generateStaffTimePDF(input: StaffTimePdfInput): Promise<vo
   doc.text(`Généré le ${generated}`, margin, doc.internal.pageSize.getHeight() - 8)
 
   const safeLabel = input.periodLabel.replace(/\s/g, '_')
-  doc.save(`Temps_de_presence_${safeLabel}.pdf`)
+  afficherPdf(doc, `Temps_de_presence_${safeLabel}.pdf`, onglet)
 }

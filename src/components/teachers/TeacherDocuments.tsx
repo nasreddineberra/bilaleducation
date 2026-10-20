@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
-import { Eye, Download, Trash2, FileText, Paperclip } from 'lucide-react'
+import { Eye, Trash2, FileText, Paperclip } from 'lucide-react'
+import { ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { TeacherDocument } from '@/types/database'
@@ -75,17 +76,10 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
     return data.signedUrl
   }, [supabase])
 
-  const handlePreview = useCallback(async (filePath: string) => {
-    const url = await getSignedUrl(filePath)
-    if (url) window.open(url, '_blank', 'noopener,noreferrer')
-  }, [getSignedUrl])
-
-  const handleDownload = useCallback(async (filePath: string, fileName: string) => {
-    const url = await getSignedUrl(filePath)
-    if (!url) return
-    const a = document.createElement('a')
-    a.href = url; a.download = fileName; a.target = '_blank'
-    a.click()
+  // Onglet ouvert AU CLIC (avant l'URL signee) : sinon bloque comme popup.
+  // Plus de bouton « Telecharger » (20/10) : on enregistre depuis la visionneuse.
+  const handlePreview = useCallback((filePath: string) => {
+    void ouvrirDansOnglet(() => getSignedUrl(filePath))
   }, [getSignedUrl])
 
   // ── Upload ──
@@ -267,22 +261,13 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                     </td>
                     <td className="list-td">
                       <div className="flex items-center justify-end gap-1">
-                        <Tooltip content="Aperçu">
+                        <Tooltip content="Ouvrir dans un nouvel onglet">
                           <button
                             onClick={() => handlePreview(doc.file_url)}
-                            aria-label="Aperçu du document"
+                            aria-label="Ouvrir le document"
                             className="p-1 text-warm-700 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
                           >
                             <Eye size={14} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Télécharger">
-                          <button
-                            onClick={() => handleDownload(doc.file_url, doc.file_name)}
-                            aria-label="Télécharger le document"
-                            className="p-1 text-warm-700 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
-                          >
-                            <Download size={14} />
                           </button>
                         </Tooltip>
                         {confirmDelete === doc.id ? (

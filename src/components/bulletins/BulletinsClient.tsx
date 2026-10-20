@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react'
 import { grouperParGabarit } from '@/lib/evaluations/ordre'
 import {
-  Download, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare,
+  Eye, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
@@ -13,6 +13,7 @@ import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -429,25 +430,33 @@ export default function BulletinsClient({
     }
   }, [currentEvals, selectedPeriod, selectedClass, selectedClassId, selectedPeriodId, orderConfigs, coursById, ues, modules, evalTypeConfigs, gradeMap, classStudents, periodAbsences, etablissement, yearLabel, appreciationMap])
 
-  // Télécharger un bulletin individuel
+  // Voir un bulletin individuel (nouvel onglet, ouvert AU CLIC)
   const handleDownloadOne = useCallback(async (student: StudentRow) => {
     setGenerating(student.student_id)
+    const onglet = ouvrirOngletPdf()
     try {
       const { generateBulletinPDF } = await import('./bulletinPdf')
       const data = computeBulletinData(student)
-      await generateBulletinPDF(data)
+      await generateBulletinPDF(data, onglet)
+    } catch (e) {
+      fermerOngletPdf(onglet)
+      throw e
     } finally {
       setGenerating(null)
     }
   }, [computeBulletinData])
 
-  // Télécharger tous les bulletins
+  // Voir tous les bulletins (nouvel onglet, ouvert AU CLIC)
   const handleDownloadAll = useCallback(async () => {
     setGenerating('all')
+    const onglet = ouvrirOngletPdf()
     try {
       const { generateAllBulletinsPDF } = await import('./bulletinPdf')
       const allData = classStudents.map(s => computeBulletinData(s))
-      await generateAllBulletinsPDF(allData, selectedClass?.name ?? 'classe')
+      await generateAllBulletinsPDF(allData, selectedClass?.name ?? 'classe', onglet)
+    } catch (e) {
+      fermerOngletPdf(onglet)
+      throw e
     } finally {
       setGenerating(null)
     }
@@ -718,7 +727,7 @@ export default function BulletinsClient({
                   disabled={generating !== null || !allComplete || isArchived}
                   loading={generating === 'all'}
                 >
-                  Télécharger tous les bulletins
+                  Voir tous les bulletins
                 </FloatButton>
               )
               return hint ? <Tooltip content={hint}>{btn}</Tooltip> : btn
@@ -929,17 +938,17 @@ export default function BulletinsClient({
                           <span className="text-xs text-warm-700">-</span>
                         )
                       ) : (
-                        <Tooltip content={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : 'Télécharger le PDF'}>
+                        <Tooltip content={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : 'Voir le bulletin (nouvel onglet)'}>
                           <button
                             onClick={() => handleDownloadOne(s)}
                             disabled={generating !== null || !isComplete}
-                            aria-label={`Télécharger le bulletin de ${s.last_name} ${s.first_name}`}
+                            aria-label={`Voir le bulletin de ${s.last_name} ${s.first_name}`}
                             className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {generating === s.student_id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
-                              <Download className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5" aria-hidden="true" />
                             )}
                           </button>
                         </Tooltip>

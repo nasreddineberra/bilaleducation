@@ -193,6 +193,9 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Fichiers** : buckets prives + URL signee (60 s), chemins `{etablissement_id}/...`, plafonds de
   taille et types MIME. Jamais `getPublicUrl` sauf logos. Supprimer **la ligne d'abord, le fichier
   ensuite**. Le SQL ne touche jamais `storage.objects`.
+- **PDF et fichiers s'AFFICHENT dans un nouvel onglet** (20/10), jamais d'enregistrement force :
+  `lib/pdf/ouvrir.ts` (`ouvrirOngletPdf` AU CLIC avant tout `await`, `afficherPdf` pour un jsPDF,
+  `ouvrirDansOnglet` pour une URL signee). Jamais `doc.save()` ni `a.download` (sauf `.xlsx` / ZIP).
 - **Emails** : SMTP par ecole (`etablissement_smtp`), `From` = adresse du compte SMTP (SPF/DKIM),
   nom de l'ecole en nom d'affichage, `Reply-To` = contact de l'ecole (auteur pour l'equipe).
   Coque unique `src/lib/email/shell.mjs` (marque EDITEUR pour auth/securite/support, marque ECOLE
@@ -210,7 +213,7 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Sources uniques** (ne jamais recopier) : `lib/financements/compute.ts`, `lib/auth/role-labels`,
   `lib/teachers/nom`, `lib/school-year/jours-fermes.ts`, `lib/parents/situation-familiale.ts`,
   `lib/temps-presence/*`, `lib/evaluations/ordre.ts`, `lib/closure/ordre.ts`, `lib/mobile.ts`,
-  `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`, `lib/tenant/*`.
+  `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`, `lib/tenant/*`, `lib/pdf/ouvrir.ts`.
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;

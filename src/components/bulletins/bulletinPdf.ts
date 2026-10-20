@@ -1,6 +1,7 @@
 import type { jsPDF as JsPDFType } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { BulletinData } from './BulletinsClient'
+import { afficherPdf } from '@/lib/pdf/ouvrir'
 
 // ─── Couleurs ─────────────────────────────────────────────────────────────────
 
@@ -535,18 +536,19 @@ const fileChunk = (s: string) =>
 
 // ─── Export : bulletin individuel ────────────────────────────────────────────
 
-export async function generateBulletinPDF(data: BulletinData): Promise<void> {
+/** `onglet` : ouvert au clic par `ouvrirOngletPdf()` (le PDF s'y affiche). */
+export async function generateBulletinPDF(data: BulletinData, onglet: Window | null): Promise<void> {
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // Patches jsPDF prototype
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   await renderBulletin(doc, data)
   // NOM_Prenom_Annee_Periode
-  doc.save([
+  afficherPdf(doc, [
     fileChunk(data.student.last_name),
     fileChunk(data.student.first_name),
     fileChunk(data.yearLabel),
     fileChunk(data.periodLabel),
-  ].filter(Boolean).join('_') + '.pdf')
+  ].filter(Boolean).join('_') + '.pdf', onglet)
 }
 
 // ─── Export : bulletin individuel en Blob (pour archivage) ───────────────────
@@ -561,7 +563,7 @@ export async function generateBulletinBlob(data: BulletinData): Promise<Blob> {
 
 // ─── Export : tous les bulletins dans un seul PDF ────────────────────────────
 
-export async function generateAllBulletinsPDF(allData: BulletinData[], className: string): Promise<void> {
+export async function generateAllBulletinsPDF(allData: BulletinData[], className: string, onglet: Window | null): Promise<void> {
   if (allData.length === 0) return
   const { default: jsPDF } = await import('jspdf')
   await import('jspdf-autotable') // Patches jsPDF prototype
@@ -573,9 +575,9 @@ export async function generateAllBulletinsPDF(allData: BulletinData[], className
   }
 
   // Annee_Periode_Classe
-  doc.save([
+  afficherPdf(doc, [
     fileChunk(allData[0].yearLabel),
     fileChunk(allData[0].periodLabel),
     fileChunk(className),
-  ].filter(Boolean).join('_') + '.pdf')
+  ].filter(Boolean).join('_') + '.pdf', onglet)
 }

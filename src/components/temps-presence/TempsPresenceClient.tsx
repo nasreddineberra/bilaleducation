@@ -17,6 +17,7 @@ import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { FloatSelect } from '@/components/ui/FloatFields'
 import { generateStaffTimePDF } from './staffTimePdf'
+import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -462,6 +463,8 @@ export default function TempsPresenceClient({
   const [exporting, setExporting] = useState(false)
   const handleExportPdf = async (scope: 'month' | 'year') => {
     setExporting(true)
+    // Onglet ouvert AU CLIC, avant tout await (sinon bloque comme popup).
+    const onglet = ouvrirOngletPdf()
     try {
       const recap = scope === 'month' ? monthlyRecap : annualRecap
       const periodLabel = scope === 'month'
@@ -475,7 +478,10 @@ export default function TempsPresenceClient({
         rows: recap.rows.map(r => ({ name: r.name, typeMinutes: r.typeMinutes, workedMinutes: r.workedMinutes, absenceMinutes: r.absenceMinutes, cost: r.cost })),
         totals: recap.totals,
         showCosts: canSeeCosts,
-      })
+      }, onglet)
+    } catch (e) {
+      fermerOngletPdf(onglet)
+      throw e
     } finally {
       setExporting(false)
     }
