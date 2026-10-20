@@ -8372,4 +8372,18 @@ marque ; les vraies ecoles gardent leur plaque.
   prevention ardoise au lieu du bleu, conservatoire orange, sanction rouge), pieces jointes au vert de marque.
 - **Bug de date corrige** : `new Date('AAAA-MM-JJ')` (UTC) a l'affichage et `toISOString()` pour la date
   par defaut pouvaient decaler d'un jour ; decoupage de la chaine et `jourParis`.
+- **Onglets Scolarite, Documents et Historique** (demande utilisateur, meme passe) :
+  - **Scolarite** : bandeau `.encadre-titre` par inscription (annee + pastille de statut : actif vert de
+    marque, termine ardoise, retire rouge, au lieu du vert / bleu / rouge Tailwind) ; « avertissements » en
+    toutes lettres ; « Affecte le » sans decalage d'un jour. `PeriodeCell` (partage avec la scolarite adulte
+    de la fiche parent) : en-tete teinte au vert de marque, moyenne >= 14 et bouton du bulletin au vert de
+    marque.
+  - **Documents** : quatre encadres a bandeau, « Ajouter » mini ; completude au vert de marque une fois
+    complete ; pastilles Requis / expiration (vert de marque, Bientot ambre, Expire rouge) ; ajout en modale
+    (type demarrant vide, bouton « Choisir un fichier » au lieu du champ fichier natif turquoise) ;
+    suppression par `ConfirmModal` ; actions Apercu / Telecharger / Supprimer TOUJOURS visibles (au survol
+    seulement, introuvables au clavier et sur tablette) ; apercu portalise, Echap et croix standard ; emojis
+    de categories (inutilises) retires ; dates d'expiration sans decalage.
+  - **Historique** : bandeau par annee (classe a droite), situation financiere en pastille de la charte,
+    « justifiees / non justifiees » en toutes lettres, liens des bulletins au vert de marque.
 

@@ -1,8 +1,8 @@
 'use client'
 
-import { clsx } from 'clsx'
 import { FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 
 interface HistoryRow {
   id: string
@@ -19,11 +19,12 @@ interface HistoryRow {
   bulletin_refs: { period_label: string; archive_id: string; file_path: string }[]
 }
 
-const FIN_STATUS: Record<string, { label: string; color: string }> = {
-  pending:  { label: 'En attente', color: 'bg-warm-100 text-warm-700' },
-  partial:  { label: 'Partiel',    color: 'bg-orange-100 text-orange-700' },
-  paid:     { label: 'Soldé',      color: 'bg-primary-100 text-primary-700' },
-  overpaid: { label: 'Trop perçu', color: 'bg-red-100 text-red-700' },
+// Pastilles d'etat de la charte (`Puce`).
+const FIN_STATUS: Record<string, { label: string; ton: Ton }> = {
+  pending:  { label: 'En attente', ton: 'neutre' },
+  partial:  { label: 'Partiel',    ton: 'orange' },
+  paid:     { label: 'Soldé',      ton: 'ok' },
+  overpaid: { label: 'Trop perçu', ton: 'danger' },
 }
 
 function fmtEur(n: number | null): string {
@@ -58,11 +59,11 @@ export default function StudentHistory({ history }: { history: HistoryRow[] }) {
         const fin = h.financial_status ? FIN_STATUS[h.financial_status] ?? FIN_STATUS.pending : null
         const classLine = [h.class_name, h.level ? `Niveau ${h.level}` : null, h.cotisation_label].filter(Boolean).join(' · ')
         return (
-          <section key={h.id} className="card p-4 space-y-2">
-            {/* En-tête année */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h3 className="text-base font-bold text-secondary-800">{h.year_label}</h3>
-              {classLine && <span className="text-xs text-warm-700">{classLine || 'Non affecté'}</span>}
+          <section key={h.id} className="card p-3 space-y-2">
+            {/* Bandeau : annee, classe a droite */}
+            <div className="encadre-titre justify-between gap-3">
+              <h2 className="text-xs font-bold uppercase tracking-widest">{h.year_label}</h2>
+              <span className="text-xs font-medium normal-case tracking-normal text-warm-700">{classLine || 'Non affecté'}</span>
             </div>
 
             {/* Chiffres */}
@@ -76,22 +77,22 @@ export default function StudentHistory({ history }: { history: HistoryRow[] }) {
               <div>
                 <dt className="stat-label">Absences</dt>
                 <dd className="text-sm text-warm-700 tabular-nums">
-                  <span className="text-primary-700 font-semibold">{h.absences_justified}</span> just. ·{' '}
-                  <span className="text-red-600 font-semibold">{h.absences_unjustified}</span> non just.
+                  <span className="text-secondary-800 font-semibold">{h.absences_justified}</span> justifiée{h.absences_justified > 1 ? 's' : ''} ·{' '}
+                  <span className="text-red-600 font-semibold">{h.absences_unjustified}</span> non justifiée{h.absences_unjustified > 1 ? 's' : ''}
                 </dd>
               </div>
               <div>
                 <dt className="stat-label">Situation financière</dt>
                 <dd>
                   {fin
-                    ? <span className={clsx('inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase', fin.color)}>{fin.label}</span>
+                    ? <Puce ton={fin.ton}>{fin.label}</Puce>
                     : <span className="text-sm text-warm-700">·</span>}
                 </dd>
               </div>
               <div>
                 <dt className="stat-label">Perçu / Dû</dt>
                 <dd className="text-sm text-warm-700 tabular-nums">
-                  <span className="text-primary-600 font-semibold">{fmtEur(h.total_paid)}</span> / {fmtEur(h.total_due)}
+                  <span className="text-secondary-800 font-semibold">{fmtEur(h.total_paid)}</span> / {fmtEur(h.total_due)}
                 </dd>
               </div>
             </dl>
@@ -106,9 +107,9 @@ export default function StudentHistory({ history }: { history: HistoryRow[] }) {
                       key={b.archive_id}
                       type="button"
                       onClick={() => openBulletin(b.file_path)}
-                      className="inline-flex items-center gap-1 bg-warm-50 hover:bg-warm-100 rounded-lg px-2.5 py-1 text-xs text-primary-600 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                      className="inline-flex items-center gap-1 bg-[var(--brand-tint)] rounded-lg px-2.5 py-1 text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
-                      <FileText size={12} /> {b.period_label}
+                      <FileText size={12} aria-hidden="true" /> {b.period_label}
                     </button>
                   ))}
                 </div>

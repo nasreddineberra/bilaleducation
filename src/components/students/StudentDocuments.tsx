@@ -1,13 +1,17 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
-import { Trash2, Download, Eye, X, FileText, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Trash2, Download, Eye, X } from 'lucide-react'
 import type { DocumentCategory } from '@/types/database'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import FormModal from '@/components/ui/FormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { Puce } from '@/components/dashboard/tdb'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,12 +48,16 @@ interface Props {
 
 // ─── Catégories ───────────────────────────────────────────────────────────────
 
-const CATEGORIES: { key: DocumentCategory; label: string; icon: string }[] = [
-  { key: 'identite',  label: "Documents d'identité",      icon: '🪪' },
-  { key: 'medical',   label: 'Documents médicaux',        icon: '🏥' },
-  { key: 'assurance', label: 'Attestations & assurances', icon: '📋' },
-  { key: 'autres',    label: 'Autres documents',          icon: '📁' },
+const CATEGORIES: { key: DocumentCategory; label: string }[] = [
+  { key: 'identite',  label: "Documents d'identité" },
+  { key: 'medical',   label: 'Documents médicaux' },
+  { key: 'assurance', label: 'Attestations & assurances' },
+  { key: 'autres',    label: 'Autres documents' },
 ]
+
+// « AAAA-MM-JJ » -> « JJ/MM/AAAA » par decoupage : `new Date('AAAA-MM-JJ')` est
+// lu en UTC et pouvait afficher la veille.
+const dateFr = (d: string) => d.slice(0, 10).split('-').reverse().join('/')
 
 // ─── Composant principal ────────────────────────────────────────────────────
 
@@ -209,20 +217,30 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
   }, [documents, supabase])
 
   // ─── Rendu ─────────────────────────────────────────────────────────────────
+  // Charte du 15/10 : encadres a bandeau `.encadre-titre`, pastilles d'etat
+  // (`Puce`), ajout en modale, suppression par confirmation, actions TOUJOURS
+  // visibles (au survol seulement, elles etaient introuvables au clavier et sur
+  // tablette).
+
+  const complet = completionStats.total > 0 && completionStats.done === completionStats.total
+  const typesAjout = uploadingCat
+    ? docTypes.filter(d => d.category === uploadingCat).sort((a, b) => a.order_index - b.order_index)
+    : []
+  const docAConfirmer = confirmDelete ? documents.find(d => d.id === confirmDelete) ?? null : null
+  const libelleType = (key: string) => docTypes.find(t => t.doc_key === key)?.label ?? key
+  const actionIcone = 'p-1 text-warm-700 rounded-lg transition-colors outline-none focus-visible:ring-2'
 
   return (
     <div className="space-y-3">
 
-      {/* Barre de complétude */}
+      {/* Completude du dossier */}
       {completionStats.total > 0 && (
         <div className="card p-3">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-warm-700">
-              Complétude du dossier
-            </span>
+            <span className="stat-label">Complétude du dossier</span>
             <span className={clsx(
-              'text-[11px] font-bold',
-              completionStats.done === completionStats.total ? 'text-green-600' : 'text-amber-600'
+              'text-[11px] font-bold tabular-nums',
+              complet ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-amber-700',
             )}>
               {completionStats.done} / {completionStats.total} documents requis
             </span>
@@ -231,229 +249,221 @@ export default function StudentDocuments({ studentId, etablissementId, docTypes,
             <div
               className={clsx(
                 'h-full rounded-full transition-all duration-500',
-                completionStats.done === completionStats.total ? 'bg-green-500' : 'bg-amber-500'
+                complet ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]' : 'bg-amber-500',
               )}
-              style={{ width: `${completionStats.total > 0 ? (completionStats.done / completionStats.total) * 100 : 0}%` }}
+              style={{ width: `${(completionStats.done / completionStats.total) * 100}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Catégories — 2 par ligne */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Categories : 2 par ligne */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
       {CATEGORIES.map(cat => {
         const types = docTypes.filter(d => d.category === cat.key).sort((a, b) => a.order_index - b.order_index)
         const docs = docsByCategory.get(cat.key) ?? []
-  
+
         return (
-          <div key={cat.key} className="card">
-            <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
-              <h3 className="text-[11px] font-semibold text-warm-700 uppercase tracking-wide">{cat.label}</h3>
-              {!lectureSeule && (
-              <FloatButton
-                variant="submit"
-                onClick={() => {
-                  setUploadingCat(cat.key)
-                  setFormDocType(types[0]?.doc_key ?? '')
-                  setFormExpires('')
-                  setFormFile(null)
-                  setError(null)
-                }}
-                className="text-xs"
-                disabled={uploadingCat === cat.key || types.length === 0}
-              >
-                Ajouter
-              </FloatButton>
+          <section key={cat.key} className="card p-3 space-y-1" aria-labelledby={`docs-${cat.key}`}>
+            <div className="encadre-titre justify-between gap-2">
+              <h2 id={`docs-${cat.key}`} className="text-xs font-bold uppercase tracking-widest">{cat.label}</h2>
+              {!lectureSeule && types.length > 0 && (
+                <FloatButton
+                  variant="submit"
+                  size="mini"
+                  onClick={() => {
+                    setUploadingCat(cat.key)
+                    setFormDocType('')
+                    setFormExpires('')
+                    setFormFile(null)
+                    setError(null)
+                  }}
+                >
+                  Ajouter
+                </FloatButton>
               )}
             </div>
 
-            {types.length === 0 && (
-              <p className="px-3 py-2 text-[11px] text-warm-700 italic">
-                Aucun document attendu.
-              </p>
-            )}
+            {types.length === 0 ? (
+              <p className="py-2 text-center text-[11px] text-warm-700 italic">Aucun document attendu.</p>
+            ) : (
+              <ul className="-mx-3 divide-y divide-warm-50">
+                {types.map(t => {
+                  const doc = docs.find(d => d.doc_type_key === t.doc_key)
+                  const expStatus = doc ? expirationStatus(doc.expires_at) : null
 
-            {/* Formulaire d'upload */}
-            {uploadingCat === cat.key && (
-              <div className="px-3 py-2 border-b border-warm-200 bg-warm-50/50 space-y-2">
-                <div className="space-y-2">
-                  <div>
-                    <FloatSelect
-                      label="Type"
-                      className="text-xs"
-                      value={formDocType}
-                      onChange={e => setFormDocType(e.target.value)}
-                    >
-                      {types.map(t => (
-                        <option key={t.doc_key} value={t.doc_key}>{t.label}</option>
-                      ))}
-                    </FloatSelect>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <FloatInput
-                        label="Expiration"
-                        type="date"
-                        className="text-xs"
-                        value={formExpires}
-                        onChange={e => setFormExpires(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-medium text-warm-700 mb-0.5">Fichier</label>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,.pdf"
-                        className="text-xs text-warm-700 file:mr-1 file:py-0.5 file:px-1.5 file:rounded file:border-0 file:text-[10px] file:bg-primary/10 file:text-primary w-full"
-                        onChange={e => setFormFile(e.target.files?.[0] ?? null)}
-                      />
-                    </div>
-                  </div>
-                </div>
-                {error && <p className="text-[11px] text-red-600">{error}</p>}
-                <div className="flex gap-2">
-                  <FloatButton variant="submit" onClick={handleUpload} disabled={saving} loading={saving} className="text-xs">
-                    Enregistrer
-                  </FloatButton>
-                  <FloatButton variant="secondary" onClick={resetForm} disabled={saving} className="text-xs">Annuler</FloatButton>
-                </div>
-              </div>
-            )}
-
-            {/* Liste des documents fournis + manquants */}
-            <div className="divide-y divide-warm-50">
-              {types.map(t => {
-                const doc = docs.find(d => d.doc_type_key === t.doc_key)
-                const expStatus = doc ? expirationStatus(doc.expires_at) : null
-
-                return (
-                  <div key={t.doc_key} className="px-3 py-1.5 flex items-center gap-2 group">
-                    {/* Indicateur statut */}
-                    {doc ? (
-                      <CheckCircle2 size={12} className={clsx(
-                        expStatus === 'expired' ? 'text-red-500' :
-                        expStatus === 'soon' ? 'text-amber-500' :
-                        'text-green-500'
-                      )} />
-                    ) : (
-                      t.is_required
-                        ? <AlertCircle size={12} className="text-red-400" />
-                        : <FileText size={12} className="text-warm-700" />
-                    )}
-
-                    {/* Nom du type */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-warm-700">
-                          {t.label}
-                        </span>
-                        {t.is_required && !doc && (
-                          <span className="text-[9px] font-medium px-1 py-0.5 rounded-full bg-red-100 text-red-600">Requis</span>
+                  return (
+                    <li key={t.doc_key} className="px-3 py-1.5 flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={clsx('text-xs', doc ? 'font-medium text-secondary-800' : 'text-warm-700')}>{t.label}</span>
+                          {t.is_required && !doc && <Puce ton="danger">Requis</Puce>}
+                        </div>
+                        {doc && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] text-warm-700 truncate max-w-[160px]">{doc.file_name}</span>
+                            {doc.expires_at && (
+                              expStatus === 'expired' ? <Puce ton="danger">Expiré</Puce>
+                              : expStatus === 'soon' ? <Puce ton="attente">Bientôt · {dateFr(doc.expires_at)}</Puce>
+                              : <Puce ton="ok">{dateFr(doc.expires_at)}</Puce>
+                            )}
+                          </div>
                         )}
                       </div>
 
                       {doc && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-warm-700 truncate max-w-[120px]">{doc.file_name}</span>
-                          {doc.expires_at && (
-                            <span className={clsx(
-                              'text-[9px] font-medium px-1 py-0.5 rounded-full',
-                              expStatus === 'expired' ? 'bg-red-100 text-red-600' :
-                              expStatus === 'soon' ? 'bg-amber-100 text-amber-600' :
-                              'bg-green-100 text-green-600'
-                            )}>
-                              {expStatus === 'expired' ? 'Expiré' :
-                               expStatus === 'soon' ? 'Bientôt' :
-                               `${new Date(doc.expires_at).toLocaleDateString('fr-FR')}`}
-                            </span>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <Tooltip content="Aperçu">
+                            <button
+                              type="button"
+                              onClick={() => handlePreview(doc.file_url)}
+                              disabled={loadingPreview}
+                              aria-label={`Aperçu · ${t.label}`}
+                              className={clsx(actionIcone, 'hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] focus-visible:ring-[var(--brand-focus)]')}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          </Tooltip>
+                          <Tooltip content="Télécharger">
+                            <button
+                              type="button"
+                              onClick={() => handleDownload(doc.file_url, doc.file_name)}
+                              aria-label={`Télécharger · ${t.label}`}
+                              className={clsx(actionIcone, 'hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] focus-visible:ring-[var(--brand-focus)]')}
+                            >
+                              <Download size={14} />
+                            </button>
+                          </Tooltip>
+                          {!lectureSeule && (
+                            <Tooltip content="Supprimer">
+                              <button
+                                type="button"
+                                onClick={() => { setConfirmDelete(doc.id); setError(null) }}
+                                aria-label={`Supprimer · ${t.label}`}
+                                className={clsx(actionIcone, 'hover:text-red-600 focus-visible:ring-red-500/50')}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </Tooltip>
                           )}
                         </div>
                       )}
-                    </div>
-
-                    {/* Actions */}
-                    {doc && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Tooltip content="Aperçu">
-                          <button
-                            onClick={() => handlePreview(doc.file_url)}
-                            disabled={loadingPreview}
-                            aria-label="Aperçu du document"
-                            className="text-warm-700 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
-                          >
-                            <Eye size={12} />
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Télécharger">
-                          <button
-                            onClick={() => handleDownload(doc.file_url, doc.file_name)}
-                            aria-label="Télécharger le document"
-                            className="text-warm-700 hover:text-primary transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
-                          >
-                            <Download size={12} />
-                          </button>
-                        </Tooltip>
-                        {lectureSeule ? null : confirmDelete === doc.id ? (
-                          <div className="flex items-center gap-1 text-[11px]">
-                            <button onClick={() => handleDelete(doc.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
-                            <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
-                          </div>
-                        ) : (
-                          <Tooltip content="Supprimer">
-                            <button
-                              onClick={() => setConfirmDelete(doc.id)}
-                              aria-label="Supprimer le document"
-                              className="text-warm-700 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </Tooltip>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
         )
       })}
       </div>
 
-      {/* Modale aperçu */}
-      {previewUrl && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-start pt-8 p-4">
-          <div className="absolute inset-0 bg-black/60"  />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Aperçu du document"
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ maxHeight: 'calc(100vh - 4rem)' }}
-          >
-            <div className="px-4 py-2.5 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
-              <h3 className="text-xs font-bold text-secondary-800">Aperçu du document</h3>
-              <button
-                onClick={() => setPreviewUrl(null)}
-                className="p-1.5 text-warm-700 hover:text-white hover:bg-red-500 rounded-lg transition-colors"
-              >
-                <X size={18} />
-              </button>
+      {error && !uploadingCat && !docAConfirmer && (
+        <p role="alert" className="text-xs text-red-600">{error}</p>
+      )}
+
+      {/* ── Modale d'ajout (fermeture X / Annuler seulement) ── */}
+      {uploadingCat && (
+        <FormModal
+          title={`Ajouter · ${CATEGORIES.find(c => c.key === uploadingCat)?.label ?? ''}`}
+          onClose={resetForm}
+          footer={
+            <>
+              <FloatButton variant="secondary" onClick={resetForm} disabled={saving}>Annuler</FloatButton>
+              <FloatButton variant="submit" onClick={handleUpload} disabled={saving} loading={saving}>Enregistrer</FloatButton>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <FloatSelect label="Type de document" required value={formDocType} onChange={e => setFormDocType(e.target.value)}>
+              <option value="" disabled hidden />
+              {typesAjout.map(t => (
+                <option key={t.doc_key} value={t.doc_key}>{t.label}</option>
+              ))}
+            </FloatSelect>
+            <FloatInput label="Expiration" type="date" value={formExpires} onChange={e => setFormExpires(e.target.value)} />
+            <div className="flex flex-wrap items-center gap-2">
+              <FloatButton type="button" variant="secondary" size="mini" onClick={() => fileInputRef.current?.click()}>
+                Choisir un fichier
+              </FloatButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={e => setFormFile(e.target.files?.[0] ?? null)}
+              />
+              <span className="text-xs text-warm-700 truncate max-w-[240px]">{formFile ? formFile.name : 'Aucun fichier (500 Ko maximum)'}</span>
             </div>
-            <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[400px]">
-              {previewUrl.match(/\.pdf|\/pdf/i) ? (
-                <iframe src={previewUrl} className="w-full h-full min-h-[500px] rounded" />
-              ) : (
-                // URL SIGNEE valable 60 s, hote du bucket, dimensions inconnues :
-                // `next/image` exigerait de declarer l'hote et optimiserait une
-                // image qui n'existe plus a la requete suivante.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewUrl} alt="Document" className="max-w-full max-h-full object-contain rounded" />
-              )}
-            </div>
+            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
           </div>
-        </div>
+        </FormModal>
+      )}
+
+      {/* ── Confirmation de suppression ── */}
+      {docAConfirmer && (
+        <ConfirmModal
+          title="Supprimer le document ?"
+          confirmLabel="Supprimer"
+          variant="danger"
+          onConfirm={() => handleDelete(docAConfirmer.id)}
+          onCancel={() => setConfirmDelete(null)}
+        >
+          <p className="text-sm text-secondary-700">
+            {libelleType(docAConfirmer.doc_type_key)} · {docAConfirmer.file_name}
+          </p>
+        </ConfirmModal>
+      )}
+
+      {/* ── Apercu (consultation : Echap et croix ferment) ── */}
+      {previewUrl && (
+        <ApercuDocument url={previewUrl} onClose={() => setPreviewUrl(null)} />
       )}
     </div>
+  )
+}
+
+function ApercuDocument({ url, onClose }: { url: string; onClose: () => void }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/30 backdrop-blur-sm p-4 pt-8">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Aperçu du document"
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col animate-fade-in"
+        style={{ maxHeight: 'calc(100vh - 4rem)' }}
+      >
+        <div className="px-4 py-2.5 border-b border-warm-100 flex items-center justify-between flex-shrink-0">
+          <h3 className="text-sm font-bold text-secondary-800">Aperçu du document</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer l'aperçu"
+            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[400px]">
+          {url.match(/\.pdf|\/pdf/i) ? (
+            <iframe src={url} title="Aperçu du document" className="w-full h-full min-h-[500px] rounded" />
+          ) : (
+            // URL SIGNEE valable 60 s, hote du bucket, dimensions inconnues :
+            // `next/image` exigerait de declarer l'hote et optimiserait une
+            // image qui n'existe plus a la requete suivante.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="Document" className="max-w-full max-h-full object-contain rounded" />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }

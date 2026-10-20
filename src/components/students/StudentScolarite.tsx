@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { clsx } from 'clsx'
 import PeriodeCell from '@/components/scolarite/PeriodeCell'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 
 /**
  * SCOLARITÉ — un HISTORIQUE, année après année.
@@ -89,11 +90,15 @@ const STATUS_LABEL: Record<string, string> = {
   withdrawn: 'Retiré',
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  completed: 'bg-blue-100 text-blue-700',
-  withdrawn: 'bg-red-100 text-red-700',
+// Pastilles d'etat de la charte : actif au vert de marque, termine ardoise, retire rouge.
+const STATUS_TON: Record<string, Ton> = {
+  active: 'ok',
+  completed: 'info',
+  withdrawn: 'danger',
 }
+
+// « AAAA-MM-JJ » -> « JJ/MM/AAAA » par decoupage (pas de `new Date`, lu en UTC).
+const dateFr = (d: string) => d.slice(0, 10).split('-').reverse().join('/')
 
 // Le jour de classe est stocké en anglais (« monday ») : il se traduit à l'affichage.
 const DAYS_FR: Record<string, string> = {
@@ -207,30 +212,28 @@ export default function StudentScolarite({
           const avert = warningsByYear.get(year) ?? 0
 
           return (
-            <section key={enrollment.id} className="card p-4 space-y-2">
+            <section key={enrollment.id} className="card p-3 space-y-2">
 
-              {/* En-tete : annee, statut, classe et ses infos, bilan a droite */}
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base font-bold text-secondary-800">{year}</h3>
-                  <span className={clsx(
-                    'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded',
-                    STATUS_COLOR[enrollment.status] ?? 'bg-warm-100 text-warm-700',
-                  )}>
-                    {STATUS_LABEL[enrollment.status] ?? enrollment.status}
-                  </span>
-                  <span className="text-xs text-warm-700">
-                    <span className="font-semibold text-warm-800">Classe : {cls.name}</span>
-                    {infosClasse && <> · {infosClasse}</>}
-                  </span>
-                </div>
+              {/* Bandeau : annee et statut */}
+              <div className="encadre-titre gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-widest">{year}</h2>
+                <Puce ton={STATUS_TON[enrollment.status] ?? 'neutre'}>
+                  {STATUS_LABEL[enrollment.status] ?? enrollment.status}
+                </Puce>
+              </div>
 
-                <span className="text-xs text-warm-700">
-                  {avert > 0 && <>{avert} avert. · </>}
+              {/* Classe et ses infos ; affectation et avertissements a droite */}
+              <div className="flex items-center justify-between gap-3 flex-wrap text-xs text-warm-700">
+                <span>
+                  <span className="font-semibold text-secondary-800">Classe : {cls.name}</span>
+                  {infosClasse && <> · {infosClasse}</>}
+                </span>
+                <span>
+                  {avert > 0 && <>{avert} avertissement{avert > 1 ? 's' : ''} · </>}
                   {/* `enrollments.enrollment_date` date l'AFFECTATION a la classe.
                       Dans cette application « inscrit » veut dire ACTIF : appeler
                       cette date « Inscrit le » melangeait les deux notions. */}
-                  Affecté le {new Date(enrollment.enrollment_date).toLocaleDateString('fr-FR')}
+                  Affecté le {dateFr(enrollment.enrollment_date)}
                 </span>
               </div>
 

@@ -60,7 +60,7 @@ export default function PeriodeCell({
     <div className="rounded-xl border border-warm-200 overflow-hidden">
 
       {/* Intitulés — même taille que la ligne d'infos de classe, en majuscules. */}
-      <div className="grid grid-cols-4 divide-x divide-warm-200 bg-warm-50 text-xs font-semibold uppercase tracking-wide text-warm-700 text-center">
+      <div className="grid grid-cols-4 divide-x divide-warm-200 bg-[var(--brand-tint)] text-xs font-semibold uppercase tracking-wide text-[var(--brand-surface)] dark:text-[var(--brand-accent)] text-center">
         <span className="px-2 py-1">{intitule}</span>
         <span className="px-2 py-1">Moyenne</span>
         <span className="px-2 py-1">Bulletin</span>
@@ -74,7 +74,7 @@ export default function PeriodeCell({
           <span className={clsx(
             'px-2 py-1 font-bold tabular-nums',
             moyenne == null ? 'text-warm-700'
-              : moyenne >= 14 ? 'text-primary-700'
+              : moyenne >= 14 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
               : moyenne >= 10 ? 'text-amber-700'
               : 'text-red-600',
           )}>
@@ -88,7 +88,7 @@ export default function PeriodeCell({
                   type="button"
                   onClick={() => ouvrirBulletin(filePath)}
                   aria-label={`Ouvrir le bulletin du ${complet.toLowerCase()}`}
-                  className="inline-flex items-center justify-center h-6 w-6 rounded-lg text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                  className="inline-flex items-center justify-center h-6 w-6 rounded-lg text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                 >
                   <FileDown size={15} aria-hidden="true" />
                 </button>
