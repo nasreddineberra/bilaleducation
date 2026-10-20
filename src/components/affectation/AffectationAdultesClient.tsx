@@ -7,14 +7,14 @@ import { X, Users, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { useTailleDePage } from '@/hooks/useTailleDePage'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import { saveParentEnrollments } from '@/app/dashboard/affectation/actions'
 
-// Taille de page du vivier : MESUREE (`useTailleDePage`), 20 en attendant la mesure.
-const POOL_PAGE_DEFAUT = 20
+// 20 lignes par page (choix utilisateur) : la mise en page est resserree pour
+// qu'elles tiennent sans barre de defilement (gap-2, pas de marge sous les bandeaux).
+const POOL_PAGE_SIZE = 20
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,7 +103,6 @@ function TutorCard({
   return (
     <button
       type="button"
-      data-ligne
       disabled={disabled}
       onClick={() => onAdd(tutor.id)}
       aria-label={disabled
@@ -273,7 +272,6 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     return true
   })
 
-  const [refVivier, POOL_PAGE_SIZE] = useTailleDePage(POOL_PAGE_DEFAUT, { cle: `${selectedClassId}:${poolTutors.length > 0}` })
   const poolTotalPages = Math.ceil(poolTutors.length / POOL_PAGE_SIZE)
   const poolCurPage    = Math.min(poolPage, poolTotalPages || 1)
   const pagedTutors    = poolTutors.slice((poolCurPage - 1) * POOL_PAGE_SIZE, poolCurPage * POOL_PAGE_SIZE)
@@ -336,8 +334,8 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
           <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
 
             {/* ── Panel gauche : participants disponibles ── */}
-            <div className="card p-3 flex flex-col gap-3 min-h-0">
-              <h2 className="encadre-titre flex-shrink-0 text-xs font-bold uppercase tracking-widest">Participants disponibles</h2>
+            <div className="card p-3 flex flex-col gap-2 min-h-0">
+              <h2 className="encadre-titre mb-0 flex-shrink-0 text-xs font-bold uppercase tracking-widest">Participants disponibles</h2>
               <div className="flex-shrink-0 flex items-center justify-between gap-2 flex-wrap">
                 <FiltreSwitch
                   ariaLabel="Filtrer les participants disponibles"
@@ -351,7 +349,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                 <SearchField value={search} onChange={v => { setSearch(v); setPoolPage(1) }} />
               </div>
 
-              <div ref={refVivier} className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
                 {poolTutors.length === 0 && q && (
                   <p className="text-xs text-warm-700 text-center py-6">Aucun résultat</p>
                 )}
@@ -428,9 +426,9 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
             </div>
 
             {/* ── Panel droit : participants dans le cours ── */}
-            <div className="card p-3 flex flex-col gap-3 min-h-0">
+            <div className="card p-3 flex flex-col gap-2 min-h-0">
               <div className="flex-shrink-0 space-y-1">
-                <div className="encadre-titre justify-between gap-2">
+                <div className="encadre-titre mb-0 justify-between gap-2">
                   <h2 className="text-xs font-bold uppercase tracking-widest truncate">{selectedClass?.name}</h2>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {isFull && <Puce ton="danger">Complet</Puce>}

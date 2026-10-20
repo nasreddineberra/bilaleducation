@@ -8442,4 +8442,9 @@ marque ; les vraies ecoles gardent leur plaque.
   independante du contenu) et une ligne (`data-ligne`), deduit le nombre de lignes qui tiennent, recalcule
   au redimensionnement (ResizeObserver) ; relance a l'apparition des lignes et au choix de la classe.
   Applique aux vivier apprenants et adultes.
+- **Corrige le meme jour (utilisateur)** : la taille mesuree donnait 19 lignes a son ecran, alors que 20 etait
+  convenu. Retour a 20 lignes FIXES (hook `useTailleDePage` retire et supprime) ; la hauteur perdue est rendue
+  dans les deux panneaux : `gap-3` -> `gap-2`, et plus de marge en double sous le bandeau (`mb-0` sur
+  `.encadre-titre`, l'espacement du panneau suffit). Limite assumee : sur un ecran plus petit ou zoome, la
+  barre de defilement peut revenir, comme avant la refonte.
 
