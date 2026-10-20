@@ -8500,3 +8500,14 @@ marque ; les vraies ecoles gardent leur plaque.
   pastilles « Enregistre / Echec » au lieu des icones ; en-tete teinte des listes.
 - **Accords reels** au lieu des « (s) » (page, modale de confirmation, toasts) : helper local `nb()`.
 
+#### 20 octobre 2026 — Gabarits des evaluations aux couleurs de la charte
+
+- **Bandeau « Bulletins archives »** : bleu hors charte -> ardoise (`ton-info`), dans les Gabarits ET la Saisie
+  des notes (meme situation, meme bandeau).
+- Pastilles de type de la charte (`Puce` : notee vert de marque, diagnostique ardoise au lieu du bleu,
+  etoilee ambre) ; survols, coche « deja evalue » et boutons au vert de marque ; panneaux « Referentiel des
+  cours » et « Evaluations · classe · periode » a bandeau (« Enregistrer le gabarit » en mini dans le
+  bandeau) ; periodes en switch segmente ; suppression par `ConfirmModal` (cours + date) au lieu de
+  « Supprimer ? Oui Non » en ligne ; actions Modifier / Supprimer toujours visibles (au survol seulement,
+  introuvables sur tablette).
+

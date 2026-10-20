@@ -5,12 +5,13 @@ import {
   Plus, Check, Pencil, Trash2,
   ChevronUp, ChevronRight, ChevronDown, BookOpen, Lock,
 } from 'lucide-react'
-import { clsx } from 'clsx'
 import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture, verifierEcriture } from '@/lib/supabase/ecriture'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { FloatInput, FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import type {
   UniteEnseignement, CoursModule, Cours,
@@ -95,10 +96,11 @@ function evalOptionLabel(c: EvalTypeConfig): string {
   return 'Étoilée ★'
 }
 
-const EVAL_BADGE: Record<string, { label: string; cls: string }> = {
-  diagnostic: { label: 'Diagnostique', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  scored:     { label: 'Notée',        cls: 'bg-primary-50 text-primary-700 border-primary-200' },
-  stars:      { label: 'Étoilée ★',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+// Pastilles de la charte (`Puce`, 20/10) : le bleu « diagnostique » etait hors charte.
+const EVAL_BADGE: Record<string, { label: string; ton: Ton }> = {
+  diagnostic: { label: 'Diagnostique', ton: 'info' },
+  scored:     { label: 'Notée',        ton: 'ok' },
+  stars:      { label: 'Étoilée ★',   ton: 'attente' },
 }
 
 // ─── Sous-composant : ligne cours dans le référentiel gauche ──────────────────
@@ -109,7 +111,7 @@ function CoursRefRow({
   c: Cours; isMarked: boolean; disabled: boolean; onAdd: () => void
 }) {
   return (
-    <div className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-primary-50 transition-colors">
+    <div className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-[var(--brand-tint)] transition-colors">
       <span className="w-1 h-1 rounded-full bg-warm-300 flex-shrink-0" />
       {c.code && (
         <span className="text-[10px] font-mono text-warm-700 bg-warm-100 px-1 rounded flex-shrink-0">{c.code}</span>
@@ -118,14 +120,14 @@ function CoursRefRow({
         <span className="block w-full text-xs text-secondary-700 truncate text-left">{refLabel(c)}</span>
       </Tooltip>
       {isMarked ? (
-        <Check size={12} className="text-primary-500 flex-shrink-0" />
+        <Check size={12} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
       ) : (
         <Tooltip content="Ajouter une évaluation">
           <button
             onClick={onAdd}
             disabled={disabled}
             aria-label={`Ajouter une évaluation : ${c.nom_fr}`}
-            className="p-0.5 text-warm-700 hover:text-primary-600 rounded transition-colors disabled:opacity-30"
+            className="p-0.5 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded transition-colors disabled:opacity-30"
           >
             <Plus size={13} />
           </button>
@@ -634,23 +636,12 @@ export default function EvaluationsClient({
 
         {/* Onglets périodes */}
         {periods.length > 0 && (
-          <div className="flex items-center gap-1">
-            {periods.map(p => (
-              <button
-                key={p.id}
-                onClick={() => navigate({ type: 'period', value: p.id })}
-                aria-pressed={selectedPeriodId === p.id}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
-                  selectedPeriodId === p.id
-                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90'
-                    : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
-                )}
-              >
-                {formatPeriodLabel(p.label)}
-              </button>
-            ))}
-          </div>
+          <FiltreSwitch
+            ariaLabel="Période"
+            actif={selectedPeriodId ?? ''}
+            onChange={v => navigate({ type: 'period', value: v })}
+            options={periods.map(p => ({ valeur: p.id, libelle: formatPeriodLabel(p.label) }))}
+          />
         )}
 
         {/* Alerte pas d'année scolaire */}
@@ -691,7 +682,7 @@ export default function EvaluationsClient({
       {/* Verrou d'archivage — même bandeau, mêmes mots que la saisie des notes :
           c'est la même situation, elle ne doit pas se dire de deux façons. */}
       {isArchived && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex-shrink-0">
+        <div className="ton-info flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium flex-shrink-0">
           <Lock size={13} className="flex-shrink-0" />
           Bulletins archivés pour cette période. Modification du gabarit impossible.
         </div>
@@ -702,9 +693,9 @@ export default function EvaluationsClient({
         {/* ── Gauche : Référentiel ── */}
         <div className="w-[27rem] flex-shrink-0 flex flex-col min-h-0">
           <div className="card p-3 flex flex-col gap-2 h-full min-h-0">
-            <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-shrink-0">
+            <h2 className="encadre-titre mb-0 flex-shrink-0 text-xs font-bold uppercase tracking-widest">
               Référentiel des cours
-            </p>
+            </h2>
 
             {/* Recherche */}
             <div className="flex-shrink-0">
@@ -807,21 +798,22 @@ export default function EvaluationsClient({
           <div className="card p-3 flex flex-col h-full min-h-0">
 
             {/* En-tête droite */}
-            <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-              <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-1">
+            <div className="encadre-titre flex-shrink-0 justify-between gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest truncate">
                 Évaluations
                 {selectedClassId && selectedPeriodId && (() => {
                   const cls = classes.find(c => c.id === selectedClassId)
                   const per = periods.find(p => p.id === selectedPeriodId)
-                  return <span className="normal-case font-normal ml-1 text-warm-700">· {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
+                  return <span className="normal-case tracking-normal font-medium ml-1 text-warm-700">· {cls?.name} · {per ? formatPeriodLabel(per.label) : ''}</span>
                 })()}
-              </p>
+              </h2>
               {/* AFFICHE seulement si l'ordre a change — et non grise en
                   permanence : un bouton present en toutes circonstances laissait
                   croire qu'il restait quelque chose a enregistrer. */}
               {orderDirty && (
                 <FloatButton
                   variant="submit"
+                  size="mini"
                   type="button"
                   onClick={handleSaveOrder}
                   loading={savingOrder}
@@ -884,7 +876,6 @@ export default function EvaluationsClient({
                     const coursItem  = coursById.get(ev.cours_id ?? '')
                     const badge      = EVAL_BADGE[ev.eval_kind ?? ''] ?? EVAL_BADGE.diagnostic
                     const isEditing  = editing === ev.id
-                    const isDeleting = confirmDelete === ev.id
 
                     if (isEditing) {
                       return (
@@ -923,7 +914,7 @@ export default function EvaluationsClient({
                            referentiel) : meme interligne, meme survol, meme
                            pastille. Les deux colonnes montrent la meme
                            hierarchie, elles doivent se lire pareil. */
-                        className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-primary-50 transition-colors"
+                        className="flex items-center gap-1.5 py-0.5 px-1 rounded group hover:bg-[var(--brand-tint)] transition-colors"
                       >
                         <span className="w-1 h-1 rounded-full bg-warm-300 flex-shrink-0" />
                         <div className="flex items-center flex-shrink-0">
@@ -967,15 +958,10 @@ export default function EvaluationsClient({
                             {coursItem ? refLabel(coursItem) : 'Cours introuvable'}
                           </span>
                         </Tooltip>
-                        <span className={clsx(
-                          'text-[10px] font-semibold border px-1.5 py-px rounded-full whitespace-nowrap flex-shrink-0',
-                          badge.cls
-                        )}>
+                        <Puce ton={badge.ton}>
                           {badge.label}
-                          {ev.eval_kind === 'scored' && ev.max_score != null && (
-                            <span> /{ev.max_score}</span>
-                          )}
-                        </span>
+                          {ev.eval_kind === 'scored' && ev.max_score != null && <> /{ev.max_score}</>}
+                        </Puce>
                         {/* Le coefficient ne vaut que pour une évaluation NOTÉE :
                             une diagnostique ne se pondère pas. */}
                         {ev.eval_kind === 'scored' && (
@@ -988,33 +974,16 @@ export default function EvaluationsClient({
                             {new Date(ev.evaluation_date + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </span>
                         )}
-                        {isDeleting ? (
-                          <div role="group" aria-label="Confirmer la suppression de l'évaluation" className="flex items-center gap-1 flex-shrink-0">
-                            <span className="text-xs text-warm-700">Supprimer ?</span>
-                            <button
-                              onClick={() => handleDelete(ev.id)}
-                              disabled={submitting}
-                              aria-label="Confirmer la suppression"
-                              className="text-xs font-medium px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                            >
-                              Oui
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(null)}
-                              autoFocus
-                              aria-label="Annuler la suppression"
-                              className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-700 rounded hover:bg-warm-200 transition-colors"
-                            >
-                              Non
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
+                        {/* Actions TOUJOURS visibles (au survol seulement, elles
+                            etaient introuvables sur tablette) ; suppression
+                            confirmee en modale (charte). */}
+                        {(
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
                             <Tooltip content="Modifier">
                               <button
                                 onClick={() => openEdit(ev)}
                 aria-label="Modifier l'évaluation"
-                                className="p-1 text-warm-700 hover:text-primary-600 rounded transition-colors"
+                                className="p-1 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded transition-colors"
                               >
                                 <Pencil size={12} />
                               </button>
@@ -1160,6 +1129,26 @@ export default function EvaluationsClient({
           </div>
         </div>
       </div>
+
+      {confirmDelete && (() => {
+        const ev = currentEvals.find(e => e.id === confirmDelete)
+        const c = ev ? coursById.get(ev.cours_id ?? '') : undefined
+        return (
+          <ConfirmModal
+            title="Supprimer l'évaluation ?"
+            confirmLabel="Supprimer"
+            variant="danger"
+            confirmDisabled={submitting}
+            onConfirm={() => handleDelete(confirmDelete)}
+            onCancel={() => setConfirmDelete(null)}
+          >
+            <p className="text-sm text-secondary-700">
+              {c ? refLabel(c) : 'Évaluation'}
+              {ev?.evaluation_date && ` · ${ev.evaluation_date.slice(0, 10).split('-').reverse().join('/')}`}
+            </p>
+          </ConfirmModal>
+        )
+      })()}
 
       {pendingNav && (
         <ConfirmModal

@@ -523,7 +523,7 @@ export default function GradesClient({
 
       {/* ── Bandeau archivage ── */}
       {isArchived && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex-shrink-0">
+        <div className="ton-info flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium flex-shrink-0">
           <Lock size={13} className="flex-shrink-0" />
           Bulletins archivés pour cette période. Modification des notes impossible.
         </div>
