@@ -880,7 +880,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           <div className="space-y-4">
 
             {/* Récapitulatif famille */}
-            <div className="card overflow-hidden">
+            <div className="card p-0 overflow-hidden">
               <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
                 <h3 className="section-title">Récapitulatif famille</h3>
               </div>
@@ -972,7 +972,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             </div>
 
             {/* Communication comptable — historique des envois (relance / attestation) */}
-            <div className="card overflow-hidden">
+            <div className="card p-0 overflow-hidden">
               <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
                 <h3 className="section-title">Communication comptable</h3>
               </div>
@@ -1019,7 +1019,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
             {/* Historique des paiements (années précédentes) : vif si dispo, sinon archive */}
             {(familyHistory[selectedParentId]?.length ?? 0) > 0 && (
-              <div className="card overflow-hidden">
+              <div className="card p-0 overflow-hidden">
                 <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 flex items-center">
                   <h3 className="section-title">Historique des paiements</h3>
                 </div>
@@ -1056,7 +1056,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
           {/* ── Colonne droite : Paiements ── */}
           <div className="space-y-3">
-          <div className="card overflow-hidden">
+          <div className="card p-0 overflow-hidden">
             <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 relative flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="section-title">Paiements</h3>
@@ -1174,8 +1174,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </div>
             )}
 
-          {/* Réductions & Avoirs — meme carte que Paiements (section separee) */}
-            <div className="px-4 h-9 mt-2 bg-warm-50/60 border-y border-warm-100 relative flex items-center justify-between">
+          </div>
+
+          {/* Réductions & Avoirs — encadre propre (fusionne avec Paiements du 16/07
+              au 20/10 ; separe a nouveau a la demande de l'utilisateur). */}
+          <div className="card p-0 overflow-hidden">
+            <div className="px-4 h-9 bg-warm-50/60 border-b border-warm-100 relative flex items-center justify-between">
               <h3 className="section-title">Réductions & Avoirs</h3>
               {adjustmentsTotal !== 0 && (
                 <span className="absolute left-1/2 -translate-x-1/2 text-xs font-semibold text-secondary-700 tabular-nums">

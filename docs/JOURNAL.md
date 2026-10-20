@@ -8350,4 +8350,9 @@ marque ; les vraies ecoles gardent leur plaque.
   prend sa largeur (`w-fit`), la liste remplit la hauteur.
 - **Signale par l'utilisateur** : dans le detail d'un foyer, la rangee des totaux (« Total du »…) collait aux
   encadres du dessus (aucune marge) ; `mt-3`, l'ecart des colonnes.
+- **Encadres du detail d'un foyer en `card p-0`** (Recapitulatif famille, Communication comptable,
+  historique, Paiements) : la classe `card` seule ajoutait 24 px de marge interieure, un cadre blanc autour
+  du bandeau de titre et du tableau (regle : tableau = `card p-0`).
+- **Reductions & Avoirs retrouve son propre encadre** (demande utilisateur), sous Paiements : il avait ete
+  fusionne dans la carte Paiements le 16/07 (`c315af0`, refonte en plan de travail).
 
