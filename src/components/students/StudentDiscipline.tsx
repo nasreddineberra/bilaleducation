@@ -1,13 +1,17 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
-import { AlertTriangle, Clock, Trash2, Paperclip, X, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trash2, Paperclip, X, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WarningSeverity } from '@/types/database'
 import { FloatSelect, FloatInput, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import FormModal from '@/components/ui/FormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
+import { jourParis } from '@/lib/tenant/abonnement'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,25 +66,26 @@ interface Props {
 
 // ─── Descriptions des types de gravité ──────────────────────────────────────
 
-const SEVERITY_CONFIG: Record<WarningSeverity, { label: string; color: string; description: string }> = {
+// Ton = pastille d'etat de la charte (`Puce`) : ambre, ardoise, orange, rouge.
+const SEVERITY_CONFIG: Record<WarningSeverity, { label: string; ton: Ton; description: string }> = {
   punition: {
     label: 'Punition',
-    color: 'bg-amber-100 text-amber-800',
+    ton: 'attente',
     description: 'Mesure prise en cas de manquement mineur aux obligations ou de comportement perturbateur.',
   },
   prevention: {
     label: 'Mesure de prévention',
-    color: 'bg-blue-100 text-blue-800',
+    ton: 'info',
     description: 'Mesure visant à éviter qu\'un acte dangereux se produise, prévue par le règlement intérieur (ex : confiscation d\'un objet dangereux ou interdit).',
   },
   conservatoire: {
     label: 'Mesure conservatoire',
-    color: 'bg-orange-100 text-orange-800',
+    ton: 'orange',
     description: 'Mesure garantissant l\'ordre dans l\'établissement en cas de procédure disciplinaire engagée. L\'accès à l\'établissement peut être interdit pendant 2 jours ouvrables minimum ou jusqu\'à la date du conseil de discipline. Non inscrite au dossier scolaire.',
   },
   sanction: {
     label: 'Sanction',
-    color: 'bg-red-100 text-red-800',
+    ton: 'danger',
     description: 'Mesure prise en cas de manquement grave ou répété aux obligations : atteintes aux personnes (violences verbales ou physiques) ou aux biens (dégradation, destruction de matériel). Individuelle uniquement, prévue par le règlement intérieur.',
   },
 }
@@ -94,6 +99,12 @@ const PERIOD_FULL_LABELS: Record<string, string> = {
 
 // Au niveau du module : ne depend que de la constante, donc pas une dependance de hook.
 const periodFullLabel = (label: string) => PERIOD_FULL_LABELS[label] ?? label
+
+// « AAAA-MM-JJ » -> « JJ/MM/AAAA » par simple decoupage : `new Date('AAAA-MM-JJ')`
+// est lu en UTC et pouvait afficher la veille selon le fuseau.
+const dateFr = (d: string) => d.slice(0, 10).split('-').reverse().join('/')
+
+type FiltreAbsences = '' | 'absence' | 'non_justifiee' | 'retard'
 
 export default function StudentDiscipline({
   studentId, etablissementId, absences: initialAbsences, warnings: initialWarnings, periods, enrollments, currentYearLabel,
@@ -137,7 +148,8 @@ export default function StudentDiscipline({
 
   // Form state
   const [formPeriod, setFormPeriod] = useState((currentYearPeriods.find(p => p.is_current) ?? currentYearPeriods[0])?.id ?? periods[0]?.id ?? '')
-  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10))
+  const [formDate, setFormDate] = useState(jourParis(new Date()))
+  const [filtreAbs, setFiltreAbs] = useState<FiltreAbsences>('')
   const [formSeverity, setFormSeverity] = useState<WarningSeverity | ''>('')
   const [formMotif, setFormMotif] = useState('')
   const [formFiles, setFormFiles] = useState<File[]>([])
@@ -162,7 +174,7 @@ export default function StudentDiscipline({
   const resetForm = useCallback(() => {
     setShowForm(false)
     setFormPeriod((currentYearPeriods.find(p => p.is_current) ?? currentYearPeriods[0])?.id ?? periods[0]?.id ?? '')
-    setFormDate(new Date().toISOString().slice(0, 10))
+    setFormDate(jourParis(new Date()))
     setFormSeverity('')
     setFormMotif('')
     setFormFiles([])
@@ -283,8 +295,14 @@ export default function StudentDiscipline({
   // ─── Tri absences par date décroissante ─────────────────────────────────────
 
   const sortedAbsences = useMemo(
-    () => [...filteredAbsences].sort((a, b) => b.absence_date.localeCompare(a.absence_date)),
-    [filteredAbsences]
+    () => [...filteredAbsences]
+      .filter(a =>
+        filtreAbs === '' ? true
+        : filtreAbs === 'absence' ? a.absence_type === 'absence'
+        : filtreAbs === 'retard' ? a.absence_type === 'retard'
+        : a.absence_type === 'absence' && !a.is_justified)
+      .sort((a, b) => b.absence_date.localeCompare(a.absence_date)),
+    [filteredAbsences, filtreAbs]
   )
 
   const sortedWarnings = useMemo(
@@ -293,328 +311,246 @@ export default function StudentDiscipline({
   )
 
   // ─── Rendu ─────────────────────────────────────────────────────────────────
+  // Charte du 15/10 : encadres `card` + bandeau `.encadre-titre`, pastilles d'etat
+  // (`Puce`), compteurs d'absences = switch de filtre, saisie en modale. L'annee
+  // n'est pas rappelee : la fiche ne montre que l'annee en cours.
+
+  const warningAConfirmer = confirmDelete ? warnings.find(w => w.id === confirmDelete) ?? null : null
+  const nbPj = (n: number) => `${n} pièce${n > 1 ? 's' : ''} jointe${n > 1 ? 's' : ''}`
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 xl:grid-cols-[3fr_2fr] gap-3 items-start">
 
-      {/* En-tête année */}
-      {currentYearLabel && (
-        <p className="text-xs font-semibold text-warm-700">Année scolaire {currentYearLabel}</p>
-      )}
+      {/* ── Absences et retards ── */}
+      <section className="card p-3 space-y-2" aria-labelledby="disc-absences">
+        <h2 id="disc-absences" className="encadre-titre text-xs font-bold uppercase tracking-widest">
+          Absences et retards
+        </h2>
 
-      {/* Compteurs globaux */}
-      <div className="grid grid-cols-4 gap-2">
-        <CounterCard label="Absences" value={counts.abs} color="text-red-600" bg="bg-red-50" />
-        <CounterCard label="Non justifiées" value={counts.unjustified} color="text-orange-600" bg="bg-orange-50" />
-        <CounterCard label="Retards" value={counts.retards} color="text-amber-600" bg="bg-amber-50" />
-        <CounterCard label="Avertissements" value={counts.warnings} color="text-purple-600" bg="bg-purple-50" />
-      </div>
-
-      {/* Section Absences & Retards */}
-      <div className="card">
-        <div className="px-3 py-1.5 border-b border-warm-200 flex items-center gap-2">
-          <AlertTriangle size={13} className="text-warm-700" />
-          <h3 className="text-xs font-semibold text-warm-700">Absences et retards</h3>
-          <span className="text-[11px] text-warm-700 ml-auto">{sortedAbsences.length} enreg.</span>
-        </div>
+        <FiltreSwitch
+          ariaLabel="Filtrer les absences et retards"
+          actif={filtreAbs}
+          onChange={v => setFiltreAbs(v as FiltreAbsences)}
+          options={[
+            { valeur: '',              nombre: filteredAbsences.length, libelle: 'au total' },
+            { valeur: 'absence',       nombre: counts.abs,              libelle: counts.abs > 1 ? 'absences' : 'absence', couleur: 'text-red-600' },
+            { valeur: 'non_justifiee', nombre: counts.unjustified,      libelle: counts.unjustified > 1 ? 'non justifiées' : 'non justifiée', couleur: 'text-orange-600' },
+            { valeur: 'retard',        nombre: counts.retards,          libelle: counts.retards > 1 ? 'retards' : 'retard', couleur: 'text-amber-700' },
+          ]}
+        />
 
         {sortedAbsences.length === 0 ? (
-          <p className="px-3 py-2 text-xs text-warm-700 italic">Aucune absence ni retard enregistré.</p>
+          <p className="py-4 text-center text-xs text-warm-700 italic">
+            {filtreAbs ? 'Aucune ligne pour ce filtre.' : 'Aucune absence ni retard enregistré.'}
+          </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="-mx-3 overflow-x-auto">
+            <table className="w-full text-xs" aria-label="Absences et retards">
               <thead>
-                <tr className="border-b border-warm-100 text-warm-700">
-                  <th className="text-left px-3 py-1 font-medium">Date</th>
-                  <th className="text-left px-3 py-1 font-medium">Période</th>
-                  <th className="text-left px-3 py-1 font-medium">Type</th>
-                  <th className="text-center px-3 py-1 font-medium">Justifié</th>
-                  <th className="text-left px-3 py-1 font-medium">Commentaire</th>
+                <tr className="border-b border-warm-100">
+                  <th className="text-left list-th">Date</th>
+                  <th className="text-left list-th">Période</th>
+                  <th className="text-left list-th">Type</th>
+                  <th className="text-left list-th">Justifié</th>
+                  <th className="text-left list-th">Commentaire</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-warm-50">
                 {sortedAbsences.map(a => (
-                  <tr key={a.id} className="border-b border-warm-50 hover:bg-warm-50/50">
-                    <td className="px-3 py-1 whitespace-nowrap">
-                      {new Date(a.absence_date).toLocaleDateString('fr-FR')}
+                  <tr key={a.id}>
+                    <td className="list-td whitespace-nowrap tabular-nums text-secondary-800">{dateFr(a.absence_date)}</td>
+                    <td className="list-td whitespace-nowrap text-warm-700">{periodMap.get(a.period_id) ?? '·'}</td>
+                    <td className="list-td">
+                      {a.absence_type === 'absence'
+                        ? <Puce ton="danger">Absence</Puce>
+                        : <Puce ton="attente">Retard</Puce>}
                     </td>
-                    <td className="px-3 py-1 whitespace-nowrap text-warm-700">
-                      {periodMap.get(a.period_id) ?? '·'}
+                    <td className="list-td">
+                      {a.is_justified ? <Puce ton="ok">Oui</Puce> : <Puce ton="danger">Non</Puce>}
                     </td>
-                    <td className="px-3 py-1">
-                      <span className={clsx(
-                        'inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full',
-                        a.absence_type === 'absence' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                      )}>
-                        {a.absence_type === 'absence' ? (
-                          <><AlertTriangle size={10} /> Absence</>
-                        ) : (
-                          <><Clock size={10} /> Retard</>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-3 py-1 text-center">
-                      {a.is_justified ? (
-                        <span className="text-[11px] text-green-600 font-medium">Oui</span>
-                      ) : (
-                        <span className="text-[11px] text-red-500">Non</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1 text-warm-700 max-w-[200px] truncate">
-                      {a.comment || '·'}
-                    </td>
+                    <td className="list-td text-warm-700 max-w-[220px] truncate">{a.comment || '·'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Section Avertissements */}
-      <div className="card">
-        <div className="px-3 py-1.5 border-b border-warm-200 flex items-center gap-2">
-          <ShieldIcon className="text-warm-700" />
-          <h3 className="text-xs font-semibold text-warm-700">Avertissements</h3>
-          <span className="text-[11px] text-warm-700">{sortedWarnings.length} enreg.</span>
+      {/* ── Avertissements ── */}
+      <section className="card p-3 space-y-2" aria-labelledby="disc-avertissements">
+        <div className="encadre-titre justify-between gap-2">
+          <h2 id="disc-avertissements" className="text-xs font-bold uppercase tracking-widest">
+            Avertissements
+            <span className="ml-1.5 font-semibold normal-case tracking-normal text-warm-700">({counts.warnings})</span>
+          </h2>
           {!lectureSeule && (
-            <FloatButton
-              variant="submit"
-              onClick={() => { setShowForm(true); setError(null) }}
-              className="ml-auto text-xs"
-              disabled={showForm}
-            >
+            <FloatButton variant="submit" size="mini" onClick={() => { setShowForm(true); setError(null) }}>
               Ajouter
             </FloatButton>
           )}
         </div>
 
-        {/* Formulaire d'ajout */}
-        {showForm && (
-          <div className="p-3 border-b border-warm-200 bg-warm-50/50 space-y-2">
+        {error && !showForm && !warningAConfirmer && (
+          <p role="alert" className="text-xs text-red-600">{error}</p>
+        )}
+
+        {sortedWarnings.length === 0 ? (
+          <p className="py-4 text-center text-xs text-warm-700 italic">Aucun avertissement enregistré.</p>
+        ) : (
+          <ul className="-mx-3 divide-y divide-warm-50" aria-label="Avertissements">
+            {sortedWarnings.map(w => (
+              <li key={w.id} className="px-3 py-2 flex items-start gap-2">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap text-xs">
+                    <span className="font-semibold tabular-nums text-secondary-800">{dateFr(w.warning_date)}</span>
+                    <span className="text-warm-700">{periodMap.get(w.period_id) ?? '·'}</span>
+                    <Puce ton={SEVERITY_CONFIG[w.severity]?.ton ?? 'neutre'}>
+                      {SEVERITY_CONFIG[w.severity]?.label ?? w.severity}
+                    </Puce>
+                  </div>
+                  <p className="text-xs text-secondary-700 whitespace-pre-line">{w.motif}</p>
+                  {w.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {w.attachments.map(att => (
+                        <button
+                          key={att.id}
+                          type="button"
+                          onClick={() => openAttachment(att.file_url)}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+                        >
+                          <Paperclip size={11} aria-hidden="true" />
+                          {att.file_name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {!lectureSeule && (
+                  <Tooltip content="Supprimer">
+                    <button
+                      type="button"
+                      onClick={() => { setConfirmDelete(w.id); setError(null) }}
+                      aria-label="Supprimer l'avertissement"
+                      className="p-1 text-warm-700 hover:text-red-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </Tooltip>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ── Modale d'ajout d'un avertissement (fermeture X / Annuler seulement) ── */}
+      {showForm && (
+        <FormModal
+          title="Nouvel avertissement"
+          onClose={resetForm}
+          maxWidth="max-w-lg"
+          footer={
+            <>
+              <FloatButton variant="secondary" onClick={resetForm} disabled={saving}>Annuler</FloatButton>
+              <FloatButton variant="submit" onClick={handleSave} disabled={saving} loading={saving}>Enregistrer</FloatButton>
+            </>
+          }
+        >
+          <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {/* Période */}
-              <div>
-                <FloatSelect
-                  label="Période"
-                  className="text-xs"
-                  value={formPeriod}
-                  onChange={e => setFormPeriod(e.target.value)}
-                >
-                  {currentYearPeriods.map(p => (
-                    <option key={p.id} value={p.id}>{periodFullLabel(p.label)}</option>
-                  ))}
-                </FloatSelect>
-              </div>
-
-              {/* Date */}
-              <div>
-                <FloatInput
-                  label="Date"
-                  type="date"
-                  className="text-xs"
-                  value={formDate}
-                  onChange={e => setFormDate(e.target.value)}
-                />
-              </div>
-
-              {/* Type */}
-              <div>
-                <FloatSelect
-                  label="Type"
-                  className="text-xs"
-                  value={formSeverity}
-                  onChange={e => setFormSeverity(e.target.value as WarningSeverity)}
-                >
-                  <option value=""></option>
-                  {(Object.keys(SEVERITY_CONFIG) as WarningSeverity[]).map(key => (
-                    <option key={key} value={key}>{SEVERITY_CONFIG[key].label}</option>
-                  ))}
-                </FloatSelect>
-              </div>
+              <FloatSelect label="Période" required value={formPeriod} onChange={e => setFormPeriod(e.target.value)}>
+                {currentYearPeriods.map(p => (
+                  <option key={p.id} value={p.id}>{periodFullLabel(p.label)}</option>
+                ))}
+              </FloatSelect>
+              <FloatInput label="Date" type="date" required value={formDate} onChange={e => setFormDate(e.target.value)} />
+              <FloatSelect label="Type" required value={formSeverity} onChange={e => setFormSeverity(e.target.value as WarningSeverity)}>
+                <option value="" disabled hidden />
+                {(Object.keys(SEVERITY_CONFIG) as WarningSeverity[]).map(key => (
+                  <option key={key} value={key}>{SEVERITY_CONFIG[key].label}</option>
+                ))}
+              </FloatSelect>
             </div>
 
-            {/* Aide contextuelle sur les types */}
             <div>
               <button
                 type="button"
                 onClick={() => setExpandedHelp(h => !h)}
-                className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+                aria-expanded={expandedHelp}
+                className="flex items-center gap-1 text-[11px] font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
               >
-                <HelpCircle size={12} />
                 Aide au choix du type
-                {expandedHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                {expandedHelp ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
               </button>
               {expandedHelp && (
-                <div className="mt-1.5 space-y-1.5 text-[11px] text-warm-700 bg-white rounded border border-warm-200 p-2">
+                <div className="mt-1.5 space-y-1.5 text-[11px] text-warm-700 rounded-lg border border-warm-200 p-2">
                   {(Object.keys(SEVERITY_CONFIG) as WarningSeverity[]).map(key => (
-                    <div key={key}>
-                      <span className={clsx('font-semibold inline-block px-1 py-0.5 rounded text-[10px] mr-1', SEVERITY_CONFIG[key].color)}>
-                        {SEVERITY_CONFIG[key].label}
-                      </span>
-                      <span>{SEVERITY_CONFIG[key].description}</span>
-                    </div>
+                    <p key={key}>
+                      <span className="mr-1"><Puce ton={SEVERITY_CONFIG[key].ton}>{SEVERITY_CONFIG[key].label}</Puce></span>
+                      {SEVERITY_CONFIG[key].description}
+                    </p>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Motif */}
-            <div>
-              <FloatTextarea
-                label="Motif"
-                className="text-xs"
-                rows={2}
-                placeholder="Décrire le motif de l'avertissement..."
-                value={formMotif}
-                onChange={e => setFormMotif(e.target.value)}
+            <FloatTextarea
+              label="Motif"
+              required
+              rows={3}
+              value={formMotif}
+              onChange={e => setFormMotif(e.target.value)}
+            />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <FloatButton type="button" variant="secondary" size="mini" onClick={() => fileInputRef.current?.click()}>
+                Joindre un fichier
+              </FloatButton>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={handleFileChange}
               />
+              {formFiles.map((f, i) => (
+                <span key={i} className="inline-flex items-center gap-1 text-xs bg-warm-100 text-warm-700 px-2 py-1 rounded">
+                  {f.name}
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    aria-label={`Retirer ${f.name}`}
+                    className="text-warm-700 hover:text-red-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
             </div>
 
-            {/* Pièces jointes */}
-            <div>
-              <label className="block text-[11px] font-medium text-warm-700 mb-0.5">Pièces jointes</label>
-              <div className="flex flex-wrap items-center gap-2">
-                <FloatButton
-                  type="button"
-                  variant="secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-xs flex items-center gap-1"
-                >
-                  <Paperclip size={12} />
-                  Ajouter un fichier
-                </FloatButton>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                {formFiles.map((f, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 text-xs bg-warm-100 text-warm-700 px-2 py-1 rounded">
-                    {f.name}
-                    <button type="button" onClick={() => removeFile(i)} className="text-warm-700 hover:text-red-500">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {error && (
-              <p className="text-xs text-red-600">{error}</p>
-            )}
-
-            <div className="flex gap-2">
-              <FloatButton
-                variant="submit"
-                onClick={handleSave}
-                disabled={saving}
-                loading={saving}
-                className="text-xs"
-              >
-                Enregistrer
-              </FloatButton>
-              <FloatButton
-                variant="secondary"
-                onClick={resetForm}
-                disabled={saving}
-                className="text-xs"
-              >
-                Annuler
-              </FloatButton>
-            </div>
+            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
           </div>
-        )}
+        </FormModal>
+      )}
 
-        {/* Liste des avertissements */}
-        {sortedWarnings.length === 0 && !showForm ? (
-          <p className="px-3 py-2 text-xs text-warm-700 italic">Aucun avertissement enregistré.</p>
-        ) : (
-          <div className="divide-y divide-warm-100">
-            {sortedWarnings.map(w => (
-              <div key={w.id} className="px-3 py-2 hover:bg-warm-50/50">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-medium text-warm-700 whitespace-nowrap">
-                        {new Date(w.warning_date).toLocaleDateString('fr-FR')}
-                      </span>
-                      <span className="text-[11px] text-warm-700">
-                        {periodMap.get(w.period_id) ?? '·'}
-                      </span>
-                      <span className={clsx(
-                        'text-[10px] font-medium px-1.5 py-0.5 rounded-full',
-                        SEVERITY_CONFIG[w.severity]?.color ?? 'bg-warm-100 text-warm-700'
-                      )}>
-                        {SEVERITY_CONFIG[w.severity]?.label ?? w.severity}
-                      </span>
-                    </div>
-                    <p className="text-xs text-warm-700 mt-0.5 whitespace-pre-line">{w.motif}</p>
-                    {w.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {w.attachments.map(att => (
-                          <button
-                            key={att.id}
-                            onClick={() => openAttachment(att.file_url)}
-                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-                          >
-                            <Paperclip size={10} />
-                            {att.file_name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Suppression */}
-                  <div className="flex-shrink-0">
-                    {lectureSeule ? null : confirmDelete === w.id ? (
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-red-600">Supprimer ?</span>
-                        <button onClick={() => handleDelete(w.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
-                      </div>
-                    ) : (
-                      <Tooltip content="Supprimer">
-                        <button
-                          onClick={() => setConfirmDelete(w.id)}
-                          aria-label="Supprimer l'avertissement"
-                          className="text-warm-700 hover:text-red-500 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </Tooltip>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* ── Confirmation de suppression ── */}
+      {warningAConfirmer && (
+        <ConfirmModal
+          title="Supprimer l'avertissement ?"
+          confirmLabel="Supprimer"
+          variant="danger"
+          onConfirm={() => handleDelete(warningAConfirmer.id)}
+          onCancel={() => setConfirmDelete(null)}
+        >
+          <p className="text-sm text-secondary-700">
+            {SEVERITY_CONFIG[warningAConfirmer.severity]?.label ?? warningAConfirmer.severity} du {dateFr(warningAConfirmer.warning_date)}
+            {warningAConfirmer.attachments.length > 0 && `, avec ${nbPj(warningAConfirmer.attachments.length)}`}.
+          </p>
+        </ConfirmModal>
+      )}
     </div>
   )
 }
 
-// ─── Sous-composants ──────────────────────────────────────────────────────────
-
-function CounterCard({ label, value, color, bg }: { label: string; value: number; color: string; bg: string }) {
-  return (
-    <div className={clsx('rounded-lg p-2 text-center', bg)}>
-      <div className={clsx('text-lg font-bold', color)}>{value}</div>
-      <div className="text-[11px] text-warm-700">{label}</div>
-    </div>
-  )
-}
-
-function ShieldIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  )
-}

@@ -8356,3 +8356,20 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Reductions & Avoirs retrouve son propre encadre** (demande utilisateur), sous Paiements : il avait ete
   fusionne dans la carte Paiements le 16/07 (`c315af0`, refonte en plan de travail).
 
+#### 20 octobre 2026 — Fiche apprenant, onglet Discipline refait
+
+- **Demande utilisateur** : onglet « pas tres esthetique et non conforme a la charte », sans rappel
+  « Annee scolaire … » (la fiche ne montre que l'annee en cours).
+- **Avant** : quatre paves pastel (`bg-*-50`, violet pour un etat), cartes `card` seules (cadre blanc de
+  24 px) avec bandeau gris et icone, vert Tailwind / bleu / turquoise hors charte, formulaire d'ajout deplie
+  dans la carte, suppression « Supprimer ? Oui Non » en ligne, icone sur « Ajouter un fichier »,
+  « 2 enreg. ».
+- **Apres** : deux encadres cote a cote (`xl`), bandeau `.encadre-titre`. Absences et retards : les
+  compteurs deviennent le switch de filtre (au total · absences · non justifiees · retards), tableau aux
+  classes de liste, pastilles d'etat de la charte (`Puce` du tableau de bord : absence rouge, retard ambre,
+  justifie oui vert de marque / non rouge). Avertissements : nombre dans le titre, « Ajouter » ouvre une
+  modale de saisie (`FormModal`), suppression par `ConfirmModal`, gravites en pastilles (punition ambre,
+  prevention ardoise au lieu du bleu, conservatoire orange, sanction rouge), pieces jointes au vert de marque.
+- **Bug de date corrige** : `new Date('AAAA-MM-JJ')` (UTC) a l'affichage et `toISOString()` pour la date
+  par defaut pouvaient decaler d'un jour ; decoupage de la chaine et `jourParis`.
+
