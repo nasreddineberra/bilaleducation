@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { X, RotateCcw, ToggleRight, ToggleLeft } from 'lucide-react'
+import { X, RotateCcw } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -141,17 +141,17 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
           <div className="flex items-center gap-2 px-5 py-2.5 border-b border-warm-100">
             <SearchField value={search} onChange={setSearch} placeholder="Rechercher…" ariaLabel="Rechercher un tuteur" className="w-44" />
             <div className="flex-1 flex items-center justify-center gap-2">
-              <Tooltip content="Tout inscrire (sauf verrouillés)">
-                <button type="button" onClick={() => setAll(true)} aria-label="Tout inscrire aux cours adultes"
-                  className="p-1 rounded-lg text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-surface)]">
-                  <ToggleRight size={26} />
-                </button>
+              {/* Boutons texte (demande utilisateur du 20/10) : l'exception
+                  reste dans l'infobulle. */}
+              <Tooltip content="Sauf les tuteurs verrouillés">
+                <FloatButton type="button" variant="secondary" size="mini" onClick={() => setAll(true)}>
+                  Tout inscrire
+                </FloatButton>
               </Tooltip>
-              <Tooltip content="Tout désinscrire (sauf verrouillés)">
-                <button type="button" onClick={() => setAll(false)} aria-label="Tout désinscrire des cours adultes"
-                  className="p-1 rounded-lg text-warm-700 hover:text-amber-600 hover:bg-amber-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500/50">
-                  <ToggleLeft size={26} />
-                </button>
+              <Tooltip content="Sauf les tuteurs verrouillés">
+                <FloatButton type="button" variant="secondary" size="mini" onClick={() => setAll(false)}>
+                  Tout désinscrire
+                </FloatButton>
               </Tooltip>
               <Tooltip content="Recharger depuis la base">
                 <button type="button" onClick={load} aria-label="Recharger depuis la base"

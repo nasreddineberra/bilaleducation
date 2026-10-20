@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { X, RotateCcw, ToggleRight, ToggleLeft } from 'lucide-react'
+import { X, RotateCcw } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -23,8 +23,8 @@ function Toggle({ active, disabled, onChange, label }: {
       disabled={disabled}
       onClick={onChange}
       className={clsx(
-        'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-        active ? 'bg-primary-500' : 'bg-warm-300',
+        'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
+        active ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]' : 'bg-warm-300',
         disabled && 'opacity-50 cursor-not-allowed',
       )}
     >
@@ -109,7 +109,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
           <button
             onClick={() => !saving && onClose()}
             aria-label="Fermer"
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
             <X size={16} />
           </button>
@@ -120,33 +120,29 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
           <div className="flex items-center gap-2 px-5 py-2.5 border-b border-warm-100">
             <SearchField value={search} onChange={setSearch} placeholder="Rechercher…" ariaLabel="Rechercher un apprenant" className="w-44" />
             <div className="flex-1 flex items-center justify-center gap-2">
-              <Tooltip content="Tout actif (sauf affectés)">
-                <button
-                  type="button" onClick={() => setAll(true)} aria-label="Rendre tout actif (sauf apprenants affectés)"
-                  className="p-1 rounded-lg text-warm-700 hover:text-primary-600 hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
-                >
-                  <ToggleRight size={26} />
-                </button>
+              {/* Boutons texte (demande utilisateur du 20/10) : l'exception
+                  reste dans l'infobulle. */}
+              <Tooltip content="Sauf les apprenants affectés à une classe">
+                <FloatButton type="button" variant="secondary" size="mini" onClick={() => setAll(true)}>
+                  Tout actif
+                </FloatButton>
               </Tooltip>
-              <Tooltip content="Tout inactif (sauf affectés)">
-                <button
-                  type="button" onClick={() => setAll(false)} aria-label="Rendre tout inactif (sauf apprenants affectés)"
-                  className="p-1 rounded-lg text-warm-700 hover:text-amber-600 hover:bg-amber-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500/50"
-                >
-                  <ToggleLeft size={26} />
-                </button>
+              <Tooltip content="Sauf les apprenants affectés à une classe">
+                <FloatButton type="button" variant="secondary" size="mini" onClick={() => setAll(false)}>
+                  Tout inactif
+                </FloatButton>
               </Tooltip>
               <Tooltip content="Recharger depuis la base">
                 <button
                   type="button" onClick={load} aria-label="Recharger les statuts depuis la base"
-                  className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                  className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                 >
                   <RotateCcw size={18} />
                 </button>
               </Tooltip>
             </div>
             <span className="text-xs text-warm-700 whitespace-nowrap">
-              <strong className="text-primary-600">{activeCount}</strong> actif{activeCount > 1 ? 's' : ''} / {rows.length}
+              <strong className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{activeCount}</strong> actif{activeCount > 1 ? 's' : ''} / {rows.length}
             </span>
           </div>
         )}
@@ -178,10 +174,10 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
                         {r.className ? (
                           r.classTooltip ? (
                             <Tooltip content={<span className="whitespace-nowrap">{r.classTooltip}</span>} maxWidth="max-w-none">
-                              <span className="text-[11px] font-medium bg-primary-50 text-primary-700 border border-primary-200 px-1.5 py-0.5 rounded-full cursor-default">{r.className}</span>
+                              <span className="text-[11px] font-medium bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] border border-[var(--brand-line)] px-1.5 py-0.5 rounded-full cursor-default">{r.className}</span>
                             </Tooltip>
                           ) : (
-                            <span className="text-[11px] font-medium bg-primary-50 text-primary-700 border border-primary-200 px-1.5 py-0.5 rounded-full">{r.className}</span>
+                            <span className="text-[11px] font-medium bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] border border-[var(--brand-line)] px-1.5 py-0.5 rounded-full">{r.className}</span>
                           )
                         ) : (
                           <span className="text-warm-700 italic">Non affecté</span>
@@ -189,7 +185,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
                       </td>
                       <td className="list-td">
                         <div className="flex items-center justify-end gap-2">
-                          <span className={clsx('text-[11px] font-medium w-12 text-right', active ? 'text-primary-600' : 'text-warm-400')}>
+                          <span className={clsx('text-[11px] font-medium w-12 text-right', active ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-400')}>
                             {active ? 'Actif' : 'Inactif'}
                           </span>
                           <Toggle

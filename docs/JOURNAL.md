@@ -8386,4 +8386,8 @@ marque ; les vraies ecoles gardent leur plaque.
     de categories (inutilises) retires ; dates d'expiration sans decalage.
   - **Historique** : bandeau par annee (classe a droite), situation financiere en pastille de la charte,
     « justifiees / non justifiees » en toutes lettres, liens des bulletins au vert de marque.
+- **Modales de synchronisation** (Statuts des apprenants, Cours adultes des parents) : les icones
+  ToggleRight / ToggleLeft de « tout actif / tout inactif » (« tout inscrire / tout desinscrire ») deviennent
+  deux boutons texte `secondary` mini (choix utilisateur) ; l'exception (affectes, verrouilles) reste en
+  infobulle. Modale des apprenants passee au vert de marque (interrupteurs, compteur, pastilles de classe).
 
