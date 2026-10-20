@@ -7,12 +7,14 @@ import { X, Users, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { useTailleDePage } from '@/hooks/useTailleDePage'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
 import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
 import { saveParentEnrollments } from '@/app/dashboard/affectation/actions'
 
-const POOL_PAGE_SIZE = 20
+// Taille de page du vivier : MESUREE (`useTailleDePage`), 20 en attendant la mesure.
+const POOL_PAGE_DEFAUT = 20
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +103,7 @@ function TutorCard({
   return (
     <button
       type="button"
+      data-ligne
       disabled={disabled}
       onClick={() => onAdd(tutor.id)}
       aria-label={disabled
@@ -270,6 +273,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
     return true
   })
 
+  const [refVivier, POOL_PAGE_SIZE] = useTailleDePage(POOL_PAGE_DEFAUT, { cle: `${selectedClassId}:${poolTutors.length > 0}` })
   const poolTotalPages = Math.ceil(poolTutors.length / POOL_PAGE_SIZE)
   const poolCurPage    = Math.min(poolPage, poolTotalPages || 1)
   const pagedTutors    = poolTutors.slice((poolCurPage - 1) * POOL_PAGE_SIZE, poolCurPage * POOL_PAGE_SIZE)
@@ -347,7 +351,7 @@ export default function AffectationAdultesClient({ classes, parents, enrollments
                 <SearchField value={search} onChange={v => { setSearch(v); setPoolPage(1) }} />
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
+              <div ref={refVivier} className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
                 {poolTutors.length === 0 && q && (
                   <p className="text-xs text-warm-700 text-center py-6">Aucun résultat</p>
                 )}

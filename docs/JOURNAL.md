@@ -8436,4 +8436,10 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Panneau de droite** : bandeau au nom de la classe, pastille « Complet » de la charte, rechargement.
 - **Vert de marque** : pastille « N / max eleves » (rouge si pleine), survol des cartes, icones « i »,
   page active de la pagination. Fleches de pagination avec nom accessible et halo de focus.
+- **Signale par l'utilisateur** : une barre de defilement reapparaissait dans le vivier malgre la
+  pagination (le bandeau et le switch ont pris de la hauteur ; 20 lignes etaient calibrees a la main pour
+  un ecran). Nouveau hook `src/hooks/useTailleDePage.ts` : mesure la zone de liste (`flex-1 min-h-0`,
+  independante du contenu) et une ligne (`data-ligne`), deduit le nombre de lignes qui tiennent, recalcule
+  au redimensionnement (ResizeObserver) ; relance a l'apparition des lignes et au choix de la classe.
+  Applique aux vivier apprenants et adultes.
 
