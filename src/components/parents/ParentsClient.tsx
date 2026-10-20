@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { SearchField } from '@/components/ui/FloatFields'
+import { SearchField, FloatButton } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import ParentsTable from './ParentsTable'
 import ParentsAdultSyncModal from './ParentsAdultSyncModal'
@@ -26,7 +25,7 @@ interface ParentsClientProps {
   /** Tuteurs inscrits aux cours adultes SANS classe de l'annee en cours. */
   totalUnassigned: number
   totalAdultCourses:   number
-  parentsWithChildren: Set<string>
+  enfantsParFoyer: Record<string, number>
   parentsWithPAI:      Set<string>
 }
 
@@ -95,7 +94,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
 export default function ParentsClient({
   parents, filteredCount, page, q, filter,
   totalAll, totalAdultCourses, totalUnassigned,
-  parentsWithChildren, parentsWithPAI, canDelete = false,
+  enfantsParFoyer, parentsWithPAI, canDelete = false,
 }: ParentsClientProps) {
   const router      = useRouter()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -155,24 +154,20 @@ export default function ParentsClient({
         />
 
         {/* Cours adultes en lot */}
-        <button
-          type="button"
-          onClick={() => setShowAdult(true)}
-          className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 transition-all duration-200 whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-secondary-300"
-        >
+        <FloatButton type="button" variant="secondary" onClick={() => setShowAdult(true)}>
           Cours adultes en lot
-        </button>
+        </FloatButton>
 
         {/* Ajouter */}
-        <Link href="/dashboard/parents/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] transition-all duration-200 whitespace-nowrap">
+        <FloatButton variant="submit" href="/dashboard/parents/new">
           Ajouter
-        </Link>
+        </FloatButton>
       </div>
 
       {showAdult && <ParentsAdultSyncModal onClose={() => setShowAdult(false)} />}
 
       {/* Tableau */}
-      <ParentsTable parents={parents} parentsWithChildren={parentsWithChildren} parentsWithPAI={parentsWithPAI} canDelete={canDelete} />
+      <ParentsTable parents={parents} enfantsParFoyer={enfantsParFoyer} parentsWithPAI={parentsWithPAI} canDelete={canDelete} />
 
       {/* Pied de page : résumé + pagination */}
       <div className="flex items-center justify-between px-1">

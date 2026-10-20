@@ -198,7 +198,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       href={hrefFiche(student.id)}
                       onClick={(e) => e.stopPropagation()}
                       className={clsx(
-                        'list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                        'list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]',
                         student.is_active ? 'text-secondary-800' : 'text-warm-400'
                       )}
                     >
@@ -214,12 +214,12 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                     )}
                     {student.exit_authorization && (
                       <Tooltip content="Autorisation de sortie accordée">
-                        <LogOut size={13} className="text-primary-600 flex-shrink-0" />
+                        <LogOut size={13} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
                       </Tooltip>
                     )}
                     {student.media_authorization && (
                       <Tooltip content="Autorisation média accordée">
-                        <Camera size={13} className="text-primary-600 flex-shrink-0" />
+                        <Camera size={13} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
                       </Tooltip>
                     )}
                     {!student.parent_id && (
@@ -287,7 +287,7 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                       <button
                         onClick={() => router.push(hrefFiche(student.id))}
                         aria-label="Modifier l'élève"
-                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                       >
                         <Pencil size={14} />
                       </button>

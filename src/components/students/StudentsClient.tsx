@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
-import { SearchField } from '@/components/ui/FloatFields'
+import { SearchField, FloatButton } from '@/components/ui/FloatFields'
 import ListStatCard from '@/components/ui/ListStatCard'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import StudentsTable from './StudentsTable'
@@ -176,27 +175,23 @@ export default function StudentsClient({
         />
 
         {/* Mise à jour des statuts selon les inscriptions */}
-        <button
-          type="button"
-          onClick={() => setShowSync(true)}
-          className="inline-flex items-center px-4 py-2 rounded-lg font-semibold text-sm tracking-wide border border-warm-200 text-secondary-700 bg-white hover:bg-warm-50 transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-        >
+        <FloatButton type="button" variant="secondary" onClick={() => setShowSync(true)}>
           Mettre à jour les statuts
-        </button>
+        </FloatButton>
 
         {/* Ajouter */}
         {limitReached ? (
           <Tooltip content={`Limite de l'abonnement atteinte : ${maxStudents} inscrits au maximum`}>
-          <span
-            className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] opacity-40 cursor-not-allowed whitespace-nowrap"
-          >
-            Limite atteinte
+          <span>
+            <FloatButton type="button" variant="submit" disabled>
+              Limite atteinte
+            </FloatButton>
           </span>
           </Tooltip>
         ) : (
-          <Link href="/dashboard/students/new" className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] transition-all duration-200 whitespace-nowrap">
+          <FloatButton variant="submit" href="/dashboard/students/new">
             Ajouter
-          </Link>
+          </FloatButton>
         )}
       </div>
 

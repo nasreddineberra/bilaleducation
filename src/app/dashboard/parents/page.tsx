@@ -99,9 +99,12 @@ export default async function ParentsPage({
         .in('parent_id', currentParentIds)
     : { data: [] }
 
-  const parentsWithChildren = new Set(
-    (studentLinks ?? []).map(s => s.parent_id as string)
-  )
+  // Nombre d'enfants par foyer : libelle « Voir les enfants (N) » de la liste.
+  const enfantsParFoyer: Record<string, number> = {}
+  for (const s of studentLinks ?? []) {
+    const id = s.parent_id as string
+    enfantsParFoyer[id] = (enfantsParFoyer[id] ?? 0) + 1
+  }
   const parentsWithPAI = new Set(
     (studentLinks ?? []).filter(s => s.has_pai).map(s => s.parent_id as string)
   )
@@ -116,7 +119,7 @@ export default async function ParentsPage({
       totalAll={totalAll ?? 0}
       totalAdultCourses={(totalAdultCourses1 ?? 0) + (totalAdultCourses2 ?? 0)}
       totalUnassigned={unassignedKeys.length}
-      parentsWithChildren={parentsWithChildren}
+      enfantsParFoyer={enfantsParFoyer}
       parentsWithPAI={parentsWithPAI}
       canDelete={canDelete}
     />

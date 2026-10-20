@@ -3,7 +3,7 @@
 import { Fragment, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronDown, ChevronRight, Pencil, Trash2, Users, LogOut, Camera, GraduationCap } from 'lucide-react'
+import { Pencil, Trash2, LogOut, Camera, GraduationCap } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
@@ -18,7 +18,7 @@ import type { Parent, Student } from '@/types/database'
 
 interface ParentsTableProps {
   parents: Parent[]
-  parentsWithChildren: Set<string>
+  enfantsParFoyer: Record<string, number>
   parentsWithPAI: Set<string>
   /** Suppression reservee a admin/direction depuis le 29/09 : la decision exige
    *  de compter les cotisations du foyer, et `family_fees` est passee aux seuls
@@ -42,7 +42,7 @@ const RELATION_LABEL: Record<string, string> = {
 }
 
 
-export default function ParentsTable({ parents, parentsWithChildren, canDelete = false }: ParentsTableProps) {
+export default function ParentsTable({ parents, enfantsParFoyer, canDelete = false }: ParentsTableProps) {
   const router = useRouter()
   const toast = useToast()
   // L'etat de CETTE liste (filtre, recherche, page) voyage jusqu'a la fiche pour
@@ -204,7 +204,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                 {/* Ligne principale */}
                 <tr
                   onClick={() => router.push(hrefFoyer(parent.id))}
-                  className="hover:bg-warm-50 transition-colors cursor-pointer"
+                  className="hover:bg-warm-100 transition-colors cursor-pointer"
                 >
 
                   {/* Tuteur 1 */}
@@ -213,7 +213,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                       <Link
                         href={hrefFoyer(parent.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="list-name text-secondary-800 rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        className="list-name text-secondary-800 rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                       >
                         {parent.tutor1_last_name} {parent.tutor1_first_name}
                       </Link>
@@ -223,7 +223,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                         </span>
                       )}
                       {parent.tutor1_adult_courses && (
-                        <Tooltip content="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-700 flex-shrink-0" /></Tooltip>
+                        <Tooltip content="Inscrit aux cours adultes"><GraduationCap size={13} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" /></Tooltip>
                       )}
                     </div>
                   </td>
@@ -241,7 +241,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                           </span>
                         )}
                         {parent.tutor2_adult_courses && (
-                          <Tooltip content="Inscrit aux cours adultes"><GraduationCap size={13} className="text-primary-700 flex-shrink-0" /></Tooltip>
+                          <Tooltip content="Inscrit aux cours adultes"><GraduationCap size={13} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" /></Tooltip>
                         )}
                       </div>
                     ) : (
@@ -261,25 +261,22 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                   {/* Actions */}
                   <td className="list-td" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        {parentsWithChildren.has(parent.id) && (
+                        {(enfantsParFoyer[parent.id] ?? 0) > 0 && (
+                          // Lien texte, sans icone (demande utilisateur du 20/10).
                           <button
+                            type="button"
                             onClick={() => handleToggleChildren(parent.id)}
                             aria-expanded={expandedId === parent.id}
-                            className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 px-2.5 py-1.5 rounded-lg hover:bg-primary-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="px-2 py-1 text-xs font-medium whitespace-nowrap text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                           >
-                            <Users size={13} />
-                            Enfants
-                            {expandedId === parent.id
-                              ? <ChevronDown size={12} />
-                              : <ChevronRight size={12} />
-                            }
+                            {enfantsParFoyer[parent.id] > 1 ? `Voir les enfants (${enfantsParFoyer[parent.id]})` : "Voir l'enfant"}
                           </button>
                         )}
                         <Tooltip content="Modifier">
                           <button
                             onClick={() => router.push(hrefFoyer(parent.id))}
                             aria-label="Modifier la fiche"
-                            className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                           >
                             <Pencil size={14} />
                           </button>
@@ -343,15 +340,15 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                                           ? `${student.last_name} ${student.first_name} · actif, cliquer pour rendre inactif`
                                           : `${student.last_name} ${student.first_name} · inactif, cliquer pour rendre actif`
                                     }
-                                    className="flex-shrink-0 p-1.5 -m-1.5 rounded-full cursor-pointer disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 group/dot"
+                                    className="flex-shrink-0 p-1.5 -m-1.5 rounded-full cursor-pointer disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] group/dot"
                                   >
                                     <span className={clsx(
                                       'block w-2.5 h-2.5 rounded-full transition-all ring-2 ring-offset-1',
                                       isEnrolled
-                                        ? 'bg-primary-400 ring-primary-200'
+                                        ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] ring-[var(--brand-line)]'
                                         : student.is_active
-                                          ? 'bg-primary-500 ring-primary-200 group-hover/dot:bg-red-400 group-hover/dot:ring-red-200 group-hover/dot:scale-110'
-                                          : 'bg-warm-300 ring-warm-200 group-hover/dot:bg-primary-400 group-hover/dot:ring-primary-200 group-hover/dot:scale-110'
+                                          ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] ring-[var(--brand-line)] group-hover/dot:bg-red-400 dark:group-hover/dot:bg-red-400 group-hover/dot:ring-red-200 group-hover/dot:scale-110'
+                                          : 'bg-warm-300 ring-warm-200 group-hover/dot:bg-[var(--brand-surface)] dark:group-hover/dot:bg-[var(--brand-accent)] group-hover/dot:ring-[var(--brand-line)] group-hover/dot:scale-110'
                                     )} />
                                   </button>
                                 </Tooltip>
@@ -359,7 +356,7 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                                 <button
                                   onClick={() => router.push(hrefApprenant(student.id))}
                                   aria-label={`Ouvrir la fiche de ${student.last_name} ${student.first_name}`}
-                                  className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                                  className="flex items-center gap-2 hover:opacity-80 transition-opacity rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                                 >
                                   <span className="font-mono text-xs text-warm-700">{student.student_number}</span>
                                   <span className={clsx('font-medium', student.is_active ? 'text-secondary-700' : 'text-warm-400')}>
@@ -374,12 +371,12 @@ export default function ParentsTable({ parents, parentsWithChildren, canDelete =
                                 )}
                                 {student.exit_authorization && (
                                   <Tooltip content="Autorisation de sortie accordée">
-                                    <LogOut size={12} className="text-primary-600 flex-shrink-0" />
+                                    <LogOut size={12} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
                                   </Tooltip>
                                 )}
                                 {student.media_authorization && (
                                   <Tooltip content="Autorisation média accordée">
-                                    <Camera size={12} className="text-primary-600 flex-shrink-0" />
+                                    <Camera size={12} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
                                   </Tooltip>
                                 )}
                               </div>

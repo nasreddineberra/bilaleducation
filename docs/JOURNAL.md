@@ -8391,3 +8391,16 @@ marque ; les vraies ecoles gardent leur plaque.
   deux boutons texte `secondary` mini (choix utilisateur) ; l'exception (affectes, verrouilles) reste en
   infobulle. Modale des apprenants passee au vert de marque (interrupteurs, compteur, pastilles de classe).
 
+#### 20 octobre 2026 — Listes Apprenants et Parents harmonisees
+
+- **Signale par l'utilisateur** : les deux listes differaient hors des colonnes affichees.
+- **Barres** : les boutons « Mettre a jour les statuts » / « Cours adultes en lot » et « Ajouter » etaient
+  codes a la main, differemment (marges, bordure, ombre, halo) ; ils passent par `FloatButton`
+  (`secondary`, `submit` avec `href`), « Limite atteinte » en `submit` desactive.
+- **Lignes** : survol `warm-100` des deux cotes (les parents etaient en `warm-50`) ; icones d'attributs,
+  halos et pastilles de statut au vert de marque. Pas d'avatar cote parents (choix utilisateur) ; la barre
+  des actifs reste propre aux apprenants (un foyer n'a pas de statut).
+- **Parents, bouton « Enfants »** (texte + deux icones, contraire a la charte) : option A retenue, la
+  sous-ligne est gardee, le bouton devient un lien texte « Voir les enfants (N) » / « Voir l'enfant ». Le
+  nombre d'enfants par foyer est calcule par la page (`enfantsParFoyer`, remplace le `Set`).
+
