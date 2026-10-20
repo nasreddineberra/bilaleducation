@@ -13,7 +13,8 @@ import type { ReactNode } from 'react'
  */
 export interface OptionFiltre {
   valeur:   string
-  nombre:   ReactNode
+  /** Compteur du segment ; absent = segment de simple choix (ex. periode). */
+  nombre?:  ReactNode
   libelle:  string
   /** Couleur du chiffre hors selection (ex. 'text-orange-600'). */
   couleur?: string
@@ -43,7 +44,9 @@ export default function FiltreSwitch({ options, actif, onChange, ariaLabel }: {
                 : 'bg-white text-warm-700 hover:bg-warm-50',
             )}
           >
-            <span className={clsx('text-sm font-bold tabular-nums', !estActif && (o.couleur ?? 'text-secondary-800'))}>{o.nombre}</span>
+            {o.nombre !== undefined && (
+              <span className={clsx('text-sm font-bold tabular-nums', !estActif && (o.couleur ?? 'text-secondary-800'))}>{o.nombre}</span>
+            )}
             {o.libelle}
           </button>
         )

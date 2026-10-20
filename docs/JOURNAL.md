@@ -8456,3 +8456,18 @@ marque ; les vraies ecoles gardent leur plaque.
   l'apprenant ou « Mettre a jour les statuts ». Le lien vers la fiche apprenant est inchange.
   `handleToggleActive`, son etat et ses imports (toast, `erreurEcriture`) sont retires.
 
+#### 20 octobre 2026 — Feuille d'appel (apprenants et adultes) et ses modales
+
+- **Page** : encadre principal en `card p-0` (plus de cadre blanc de 24 px) ; les trois tableaux (par eleve,
+  toutes les classes, plus absents) prennent l'en-tete teinte des listes (`liste-entete`) ; ligne depliee,
+  liens Voir / Modifier / Justifier et focus au vert de marque ; pastilles de la charte (Absence rouge,
+  Retard ambre, Justifie vert de marque) ; icone d'alerte ambre partout (rouge dans une vue, ambre dans
+  l'autre) ; suppression d'une absence et retrait d'une justification par `ConfirmModal` au lieu de
+  « Confirmer ? Annuler » en ligne ; periodes en switch segmente (`FiltreSwitch`, dont le compteur devient
+  optionnel).
+- **Modale de saisie** : portalisee dans `<body>` (la page porte `animate-fade-in`), fond et croix des autres
+  modales ; « Present » au vert de marque (vignettes, badge, compteur) ; « Present » / « Tous presents »
+  accentues ; « + » retire de « Ajouter un commentaire » ; pastilles de la charte.
+- **Modale de justification** : reconstruite sur `FormModal` (portail, en-tete et croix standard), type en
+  pastille, bouton « Importer un justificatif » en taille mini.
+

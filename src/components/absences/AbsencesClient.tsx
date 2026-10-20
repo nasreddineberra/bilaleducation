@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
 import Image from 'next/image'
-import { ChevronRight, ChevronDown, FileCheck, AlertTriangle, X, Trash2, Check } from 'lucide-react'
+import { ChevronRight, ChevronDown, AlertTriangle, X, Trash2, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
@@ -12,6 +13,10 @@ import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import RaisonBloquee from '@/components/ui/RaisonBloquee'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import FormModal from '@/components/ui/FormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { Puce } from '@/components/dashboard/tdb'
 import { MaleAvatar, FemaleAvatar, DefaultAvatar } from './AvatarSilhouette'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
 import type { Period, Absence, AbsenceType } from '@/types/database'
@@ -542,23 +547,12 @@ export default function AbsencesClient({
         </FloatSelect>
 
         {periods.length > 0 && (
-          <div className="flex items-center gap-1">
-            {periods.map(p => (
-              <button
-                key={p.id}
-                onClick={() => { setSelectedPeriodId(p.id); setExpandedStudent(null) }}
-                aria-pressed={selectedPeriodId === p.id}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
-                  selectedPeriodId === p.id
-                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90'
-                    : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
-                )}
-              >
-                {PERIOD_LABELS[p.label] ?? p.label}
-              </button>
-            ))}
-          </div>
+          <FiltreSwitch
+            ariaLabel="Période"
+            actif={selectedPeriodId ?? ''}
+            onChange={v => { setSelectedPeriodId(v); setExpandedStudent(null) }}
+            options={periods.map(p => ({ valeur: p.id, libelle: PERIOD_LABELS[p.label] ?? p.label }))}
+          />
         )}
 
         {noSchoolYear && (
@@ -577,7 +571,7 @@ export default function AbsencesClient({
       </div>
 
       {/* ── Contenu principal ── */}
-      <div className="card flex-1 min-h-0 flex flex-col">
+      <div className="card p-0 overflow-hidden flex-1 min-h-0 flex flex-col">
 
         {noClassOrPeriod || noSchoolYear ? (
           <div className="flex-1 flex items-center justify-center">
@@ -630,8 +624,8 @@ export default function AbsencesClient({
                 <div className="p-3 space-y-3">
                   {/* ── Comparaison des classes ───────────────────────────── */}
                   <table aria-label="Absences et retards par classe sur la période" className="w-full text-xs">
-                    <thead className="bg-warm-50">
-                      <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
+                    <thead>
+                      <tr className="liste-entete border-b border-[var(--card-border)] text-[11px] uppercase tracking-wide">
                         <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">Classe</th>
                         <th scope="col" className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">{MOT_MAJ}s</th>
                         <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
@@ -659,7 +653,7 @@ export default function AbsencesClient({
                                 setExpandedStudent(null)
                               }
                             }}
-                            className="border-b border-warm-100 cursor-pointer hover:bg-warm-50 outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                            className="border-b border-warm-100 cursor-pointer hover:bg-warm-50 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                           >
                             <td className="py-1.5 px-2 pl-3">
                               <span className="font-semibold text-secondary-800">{cls.name}</span>
@@ -683,8 +677,8 @@ export default function AbsencesClient({
                       <p className="text-xs text-warm-700 italic py-3 text-center">Aucune absence sur la période.</p>
                     ) : (
                       <table aria-label={`${MOT_MAJ}s les plus absents sur la période`} className="w-full text-xs">
-                        <thead className="bg-warm-50">
-                          <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
+                        <thead>
+                          <tr className="liste-entete border-b border-[var(--card-border)] text-[11px] uppercase tracking-wide">
                             <th scope="col" className="text-left py-1 px-2 pl-3 font-semibold">{MOT_MAJ}</th>
                             <th scope="col" className="text-left py-1 px-2 font-semibold">Classe</th>
                             <th scope="col" className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
@@ -699,7 +693,7 @@ export default function AbsencesClient({
                                 {r.student.last_name} {r.student.first_name}
                                 {r.absNJ >= ALERT_THRESHOLD && (
                                   <Tooltip content={`${r.absNJ} absences non justifiées`}>
-                                    <AlertTriangle size={12} className="inline ml-1 text-red-500 align-[-1px]" aria-label="Seuil d'alerte atteint" />
+                                    <AlertTriangle size={12} className="inline ml-1 text-amber-600 align-[-1px]" aria-label="Seuil d'alerte atteint" />
                                   </Tooltip>
                                 )}
                               </td>
@@ -729,8 +723,8 @@ export default function AbsencesClient({
                 </div>
               ) : (
                 <table aria-label="Récapitulatif des absences et retards par élève" className="w-full text-xs">
-                  <thead className="sticky top-0 bg-warm-50 z-10">
-                    <tr className="text-[11px] text-warm-700 uppercase tracking-wide">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="liste-entete border-b border-[var(--card-border)] text-[11px] uppercase tracking-wide">
                       <th className="text-left py-1 px-2 pl-3 font-semibold">Élèves</th>
                       <th className="text-center py-1 px-2 font-semibold w-14 whitespace-nowrap">Abs</th>
                       <th className="text-center py-1 px-2 font-semibold w-16 whitespace-nowrap">Abs NJ</th>
@@ -849,8 +843,8 @@ function StudentRow({
         aria-label={`${student.last_name} ${student.first_name}, voir le détail des absences`}
         className={clsx(
           'cursor-pointer transition-colors border-b border-warm-50',
-          'focus:outline-none focus-visible:bg-primary-50',
-          isExpanded ? 'bg-primary-50' : 'hover:bg-warm-50'
+          'focus:outline-none focus-visible:bg-[var(--brand-tint)]',
+          isExpanded ? 'bg-[var(--brand-tint)]' : 'hover:bg-warm-50'
         )}
       >
         <td className="py-1 px-2 pl-3 font-medium text-secondary-700 flex items-center gap-1">
@@ -862,7 +856,7 @@ function StudentRow({
         <td className="text-center py-1 px-2">{counts.ret || '·'}</td>
         <td className="text-center py-1 px-2 font-semibold">{total || '·'}</td>
         <td className="text-center py-1 px-2">
-          {hasAlert && <AlertTriangle size={12} className="text-amber-500 mx-auto" />}
+          {hasAlert && <AlertTriangle size={12} className="text-amber-600 mx-auto" aria-label="Seuil d'alerte atteint" />}
         </td>
       </tr>
 
@@ -876,92 +870,53 @@ function StudentRow({
                 {absences.map(a => (
                   <div key={a.id} className="flex items-center gap-3 text-xs py-1 border-b border-warm-100 last:border-0">
                     <span className="font-mono text-warm-700 w-16 flex-shrink-0">{fmtDate(a.absence_date)}</span>
-                    <span className={clsx(
-                      'px-2 py-0.5 rounded-full text-[11px] font-semibold flex-shrink-0',
-                      a.absence_type === 'absence'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-amber-100 text-amber-700'
-                    )}>
-                      {a.absence_type === 'absence' ? 'Absence' : 'Retard'}
-                    </span>
+                    {a.absence_type === 'absence' ? <Puce ton="danger">Absence</Puce> : <Puce ton="attente">Retard</Puce>}
                     {a.comment && <span className="text-warm-700 truncate">{a.comment}</span>}
                     <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                       {a.is_justified ? (
                         <span className="flex items-center gap-1.5">
-                          <span className="flex items-center gap-1 text-primary-600">
-                            <FileCheck size={12} /> Justifié
-                            {a.justification_date && <span className="text-warm-700">({fmtDate(a.justification_date)})</span>}
+                          <span className="flex items-center gap-1">
+                            <Puce ton="ok">Justifié</Puce>
+                            {a.justification_date && <span className="text-warm-700">le {fmtDate(a.justification_date)}</span>}
                           </span>
                           {a.justification_document_url && (
                             <button
                               onClick={e => { e.stopPropagation(); openJustificatif(a.justification_document_url!) }}
-                              className="text-primary-500 hover:text-primary-700 font-semibold transition-colors"
+                              className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] font-semibold transition-colors"
                             >
                               Voir
                             </button>
                           )}
                           <button
                             onClick={e => { e.stopPropagation(); onJustify(a) }}
-                            className="text-primary-500 hover:text-primary-700 font-semibold transition-colors"
+                            className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] font-semibold transition-colors"
                           >
                             Modifier
                           </button>
-                          {confirmRemoveJustId === a.id ? (
-                            <span className="flex items-center gap-1">
-                              <button
-                                onClick={e => { e.stopPropagation(); onRemoveJustification(a.id); setConfirmRemoveJustId(null) }}
-                                className="text-red-600 font-semibold hover:text-red-800"
-                              >
-                                Confirmer ?
-                              </button>
-                              <button
-                                onClick={e => { e.stopPropagation(); setConfirmRemoveJustId(null) }}
-                                className="text-warm-700 hover:text-warm-700"
-                              >
-                                Annuler
-                              </button>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={e => { e.stopPropagation(); setConfirmRemoveJustId(a.id) }}
-                              className="text-warm-700 hover:text-red-500 font-semibold transition-colors"
-                            >
-                              Retirer
-                            </button>
-                          )}
+                          <button
+                            onClick={e => { e.stopPropagation(); setConfirmRemoveJustId(a.id) }}
+                            className="text-warm-700 hover:text-red-600 font-semibold transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                          >
+                            Retirer
+                          </button>
                         </span>
                       ) : (
                         <button
                           onClick={e => { e.stopPropagation(); onJustify(a) }}
-                          className="text-primary-600 hover:text-primary-800 font-semibold transition-colors"
+                          className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] font-semibold transition-colors"
                         >
                           Justifier
                         </button>
                       )}
-                      {confirmDeleteId === a.id ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={e => { e.stopPropagation(); onDelete(a.id); setConfirmDeleteId(null) }}
-                            className="text-red-600 font-semibold hover:text-red-800"
-                          >
-                            Confirmer ?
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); setConfirmDeleteId(null) }}
-                            className="text-warm-700 hover:text-warm-700"
-                          >
-                            Annuler
-                          </button>
-                        </div>
-                      ) : (
+                      <Tooltip content="Supprimer">
                         <button
                           onClick={e => { e.stopPropagation(); setConfirmDeleteId(a.id) }}
                           aria-label={`Supprimer ${a.absence_type === 'absence' ? "l'absence" : 'le retard'} du ${fmtDate(a.absence_date)}`}
-                          className="text-warm-700 hover:text-red-500 transition-colors"
+                          className="p-0.5 text-warm-700 hover:text-red-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={12} />
                         </button>
-                      )}
+                      </Tooltip>
                     </div>
                   </div>
                 ))}
@@ -970,6 +925,40 @@ function StudentRow({
           </td>
         </tr>
       )}
+
+      {/* Confirmations en modale (charte) : suppression, retrait d'une justification */}
+      {confirmDeleteId && (() => {
+        const a = absences.find(x => x.id === confirmDeleteId)
+        return (
+          <ConfirmModal
+            title={a?.absence_type === 'retard' ? 'Supprimer le retard ?' : "Supprimer l'absence ?"}
+            confirmLabel="Supprimer"
+            variant="danger"
+            onConfirm={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null) }}
+            onCancel={() => setConfirmDeleteId(null)}
+          >
+            <p className="text-sm text-secondary-700">
+              {student.last_name} {student.first_name}{a ? ` · ${fmtDate(a.absence_date)}` : ''}
+            </p>
+          </ConfirmModal>
+        )
+      })()}
+      {confirmRemoveJustId && (() => {
+        const a = absences.find(x => x.id === confirmRemoveJustId)
+        return (
+          <ConfirmModal
+            title="Retirer la justification ?"
+            confirmLabel="Retirer"
+            variant="danger"
+            onConfirm={() => { onRemoveJustification(confirmRemoveJustId); setConfirmRemoveJustId(null) }}
+            onCancel={() => setConfirmRemoveJustId(null)}
+          >
+            <p className="text-sm text-secondary-700">
+              {student.last_name} {student.first_name}{a ? ` · ${a.absence_type === 'retard' ? 'retard' : 'absence'} du ${fmtDate(a.absence_date)}` : ''}
+            </p>
+          </ConfirmModal>
+        )
+      })()}
     </>
   )
 }
@@ -1016,7 +1005,7 @@ function StudentPhoto({ student, size = 'md' }: { student: StudentRow; size?: 's
 const STATUS_CYCLE: ('present' | 'absence' | 'retard')[] = ['present', 'absence', 'retard']
 
 const STATUS_STYLE = {
-  present: { border: 'border-primary-400', bg: 'bg-primary-50/50', badge: 'bg-primary-500', label: 'Present' },
+  present: { border: 'border-[var(--brand-line)]', bg: 'bg-[var(--brand-tint)]', badge: 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]', label: 'Présent' },
   absence: { border: 'border-red-400',   bg: 'bg-red-50/50',   badge: 'bg-red-500',   label: 'Absent' },
   retard:  { border: 'border-amber-400', bg: 'bg-amber-50/50', badge: 'bg-amber-500', label: 'Retard' },
 }
@@ -1389,9 +1378,11 @@ function SaisieModal({
     doc.save(`Feuille_appel_${classInfo.name.replace(/\s+/g, '_')}_${date}.pdf`)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" />
+  // Portee dans <body> (charte) : la page porte `animate-fade-in`, dont la
+  // transformation capturait le `fixed` de la fenetre.
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
       <div
         role="dialog"
         aria-modal="true"
@@ -1424,7 +1415,7 @@ function SaisieModal({
             {/* Compteurs */}
             <div className="flex items-center gap-2 text-xs">
               <span className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-primary-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]" />
                 <span className="text-warm-700">{counts.present}</span>
               </span>
               <span className="flex items-center gap-1">
@@ -1436,7 +1427,7 @@ function SaisieModal({
                 <span className="text-warm-700">{counts.retard}</span>
               </span>
             </div>
-            <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
+            <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
               <X size={16} />
             </button>
           </div>
@@ -1460,7 +1451,7 @@ function SaisieModal({
                     aria-label={`${s.last_name} ${s.first_name} : ${style.label}. Cliquer pour changer le statut.`}
                     className={clsx(
                       'relative flex flex-col items-center rounded-lg border-2 p-1.5 transition-all hover:shadow-md cursor-pointer select-none',
-                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
                       style.border, style.bg
                     )}
                   >
@@ -1500,7 +1491,7 @@ function SaisieModal({
               {nonPresent.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-warm-700">
                   <Check size={24} />
-                  <p className="text-xs">Tous presents</p>
+                  <p className="text-xs">Tous présents</p>
                 </div>
               ) : (
                 <div className="divide-y divide-warm-100">
@@ -1515,12 +1506,7 @@ function SaisieModal({
                             {s.last_name} {s.first_name}
                           </p>
                         </div>
-                        <span className={clsx(
-                          'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
-                          status === 'absence' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                        )}>
-                          {status === 'absence' ? 'Absent' : 'Retard'}
-                        </span>
+                        {status === 'absence' ? <Puce ton="danger">Absent</Puce> : <Puce ton="attente">Retard</Puce>}
                       </div>
 
                       {/* Le couple « Retard ? | Present » a ete retire le 5 octobre
@@ -1540,7 +1526,7 @@ function SaisieModal({
                             onBlur={() => setEditingComment(null)}
                             onKeyDown={e => e.key === 'Enter' && setEditingComment(null)}
                             placeholder="Commentaire..."
-                            className="border border-warm-300 rounded-md text-[11px] py-0.5 px-1.5 w-full focus:outline-none focus:border-primary-400 bg-white"
+                            className="border border-warm-300 rounded-md text-[11px] py-0.5 px-1.5 w-full focus:outline-none focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] bg-white"
                           />
                           {comment && (
                             <button
@@ -1565,7 +1551,7 @@ function SaisieModal({
                                 : 'text-warm-700 italic'
                             )}
                           >
-                            {comment || '+ Ajouter un commentaire'}
+                            {comment || 'Ajouter un commentaire'}
                           </button>
                           {comment && (
                             <button
@@ -1636,7 +1622,8 @@ function SaisieModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -1716,80 +1703,49 @@ function JustificationModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="justif-title"
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
-      >
-
-        <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
-          <h3 id="justif-title" className="text-sm font-bold text-secondary-800">{absence.is_justified ? 'Modifier la justification' : 'Justifier'}</h3>
-          <button onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="px-4 py-3 space-y-3">
-          <p className="text-sm text-secondary-700">
-            <span className="font-semibold">{studentName}</span>
-            {' · '}
-            <span className={absence.absence_type === 'absence' ? 'text-red-600' : 'text-amber-600'}>
-              {absence.absence_type === 'absence' ? 'Absence' : 'Retard'}
-            </span>
-            {' du '}{fmtDate(absence.absence_date)}
-          </p>
-
-          <FloatInput
-            label="Date de justification"
-            type="date"
-            value={justDate}
-            onChange={e => setJustDate(e.target.value)}
-          />
-
-          <FloatInput
-            label="Commentaire"
-            type="text"
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            placeholder="Certificat médical, mot des parents…"
-          />
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">
-              Document justificatif
-            </label>
-            <div className="flex items-center gap-2">
-              <FloatButton
-                variant="secondary"
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="text-xs px-3 py-1.5"
-              >
-                {file ? 'Changer' : 'Importer'}
-              </FloatButton>
-              {file && <span className="text-xs text-warm-700 truncate">{file.name}</span>}
-            </div>
-            <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
-          </div>
-
-          {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
-        </div>
-
-        <div className="px-4 py-3 border-t border-warm-100 flex flex-wrap justify-end gap-2">
+    <FormModal
+      title={absence.is_justified ? 'Modifier la justification' : 'Justifier'}
+      onClose={onClose}
+      maxWidth="max-w-sm"
+      footer={
+        <>
           <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
-          <FloatButton
-            variant="submit"
-            type="button"
-            onClick={handleSubmit}
-            loading={isSubmitting}
-          >
-            Valider
+          <FloatButton variant="submit" type="button" onClick={handleSubmit} loading={isSubmitting}>Valider</FloatButton>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-secondary-700 flex items-center gap-1.5 flex-wrap">
+          <span className="font-semibold">{studentName}</span>
+          {absence.absence_type === 'absence' ? <Puce ton="danger">Absence</Puce> : <Puce ton="attente">Retard</Puce>}
+          <span>du {fmtDate(absence.absence_date)}</span>
+        </p>
+
+        <FloatInput
+          label="Date de justification"
+          type="date"
+          value={justDate}
+          onChange={e => setJustDate(e.target.value)}
+        />
+
+        <FloatInput
+          label="Commentaire"
+          type="text"
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          placeholder="Certificat médical, mot des parents…"
+        />
+
+        <div className="flex items-center gap-2">
+          <FloatButton variant="secondary" size="mini" type="button" onClick={() => fileRef.current?.click()}>
+            {file ? 'Changer le justificatif' : 'Importer un justificatif'}
           </FloatButton>
+          {file && <span className="text-xs text-warm-700 truncate">{file.name}</span>}
+          <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
         </div>
+
+        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       </div>
-    </div>
+    </FormModal>
   )
 }
