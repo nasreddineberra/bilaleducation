@@ -6,8 +6,6 @@ import Link from 'next/link'
 import { Pencil, Trash2, LogOut, Camera, GraduationCap } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { erreurEcriture } from '@/lib/supabase/ecriture'
-import { useToast } from '@/lib/toast-context'
 import { studentRepository } from '@/lib/database/students'
 import { deleteParent, getParentDeleteDeps } from '@/app/dashboard/parents/actions'
 import Tooltip from '@/components/ui/Tooltip'
@@ -44,7 +42,6 @@ const RELATION_LABEL: Record<string, string> = {
 
 export default function ParentsTable({ parents, enfantsParFoyer, canDelete = false }: ParentsTableProps) {
   const router = useRouter()
-  const toast = useToast()
   // L'etat de CETTE liste (filtre, recherche, page) voyage jusqu'a la fiche pour
   // que le retour le retrouve. Voir `lib/navigation/retour`.
   const sp = useSearchParams()
@@ -58,7 +55,6 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
   type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }
   const [childrenMap, setChildrenMap] = useState<Record<string, StudentWithEnrollment[]>>({})
   const [loadingChildrenId, setLoadingChildrenId] = useState<string | null>(null)
-  const [togglingStudentId, setTogglingStudentId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Parent | null>(null)
   const [deps,         setDeps]         = useState<DeleteDeps | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -139,28 +135,6 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
   // `is_active`. Le refus dit donc ce qu'il faut retirer d'abord.
   const hasBlocking = !!deps
     && (deps.enfants + deps.finance + deps.coursAdultes + deps.communications) > 0
-
-  const handleToggleActive = async (student: StudentWithEnrollment, parentId: string) => {
-    if (student.enrollment_class) return // inscrit dans une classe → pas de toggle
-    setTogglingStudentId(student.id)
-    try {
-      const supabase = createClient()
-      const newActive = !student.is_active
-      const echec = erreurEcriture(
-        await supabase.from('students').update({ is_active: newActive }).eq('id', student.id).select('id'),
-        'Ce statut',
-      )
-      if (echec) { toast.error(echec); return }
-      setChildrenMap(prev => ({
-        ...prev,
-        [parentId]: prev[parentId].map(s => s.id === student.id ? { ...s, is_active: newActive } : s),
-      }))
-    } catch (err) {
-      console.error('[ParentsTable] Erreur lors du toggle actif de l\'élève:', err)
-    } finally {
-      setTogglingStudentId(null)
-    }
-  }
 
   if (parents.length === 0) {
     return (
@@ -312,9 +286,11 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
                         <div className="flex flex-wrap gap-3">
                           {childrenMap[parent.id]?.map(student => {
                             const isEnrolled = !!student.enrollment_class
+                            // Indicateur SEUL (20/10, demande utilisateur) : le statut se change
+                            // depuis la fiche de l'apprenant ou « Mettre a jour les statuts ».
                             const statusTooltip = isEnrolled
                               ? `Classe : ${student.enrollment_class}${student.enrollment_teacher ? ' · ' + student.enrollment_teacher : ''}`
-                              : student.is_active ? 'Cliquer pour rendre inactif' : 'Cliquer pour rendre actif'
+                              : student.is_active ? 'Actif · non affecté' : 'Inactif'
 
                             return (
                               <div
@@ -328,29 +304,20 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
                                       : 'bg-warm-100/70 border-warm-200'
                                 )}
                               >
-                                {/* Pastille statut cliquable */}
+                                {/* Pastille de statut : indicateur, sans action */}
                                 <Tooltip content={statusTooltip}>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleToggleActive(student, parent.id) }}
-                                    disabled={isEnrolled || togglingStudentId === student.id}
-                                    aria-label={
-                                      isEnrolled
-                                        ? `${student.last_name} ${student.first_name} · inscrit en classe`
-                                        : student.is_active
-                                          ? `${student.last_name} ${student.first_name} · actif, cliquer pour rendre inactif`
-                                          : `${student.last_name} ${student.first_name} · inactif, cliquer pour rendre actif`
-                                    }
-                                    className="flex-shrink-0 p-1.5 -m-1.5 rounded-full cursor-pointer disabled:cursor-not-allowed outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] group/dot"
+                                  <span
+                                    role="img"
+                                    aria-label={`${student.last_name} ${student.first_name} · ${statusTooltip}`}
+                                    className="flex-shrink-0 p-1.5 -m-1.5 cursor-default"
                                   >
                                     <span className={clsx(
-                                      'block w-2.5 h-2.5 rounded-full transition-all ring-2 ring-offset-1',
-                                      isEnrolled
+                                      'block w-2.5 h-2.5 rounded-full ring-2 ring-offset-1',
+                                      student.is_active || isEnrolled
                                         ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] ring-[var(--brand-line)]'
-                                        : student.is_active
-                                          ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] ring-[var(--brand-line)] group-hover/dot:bg-red-400 dark:group-hover/dot:bg-red-400 group-hover/dot:ring-red-200 group-hover/dot:scale-110'
-                                          : 'bg-warm-300 ring-warm-200 group-hover/dot:bg-[var(--brand-surface)] dark:group-hover/dot:bg-[var(--brand-accent)] group-hover/dot:ring-[var(--brand-line)] group-hover/dot:scale-110'
+                                        : 'bg-warm-300 ring-warm-200',
                                     )} />
-                                  </button>
+                                  </span>
                                 </Tooltip>
 
                                 <button

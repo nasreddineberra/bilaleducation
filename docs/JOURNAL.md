@@ -8448,3 +8448,11 @@ marque ; les vraies ecoles gardent leur plaque.
   `.encadre-titre`, l'espacement du panneau suffit). Limite assumee : sur un ecran plus petit ou zoome, la
   barre de defilement peut revenir, comme avant la refonte.
 
+#### 20 octobre 2026 — Liste des parents : pastille de statut sans action
+
+- **Demande utilisateur** : dans la sous-ligne « Voir les enfants », la pastille ne rend plus un enfant actif
+  ou inactif au clic. Elle reste un INDICATEUR (vert de marque si actif ou affecte, gris si inactif ;
+  infobulle « Classe : … », « Actif · non affecte » ou « Inactif »). Le statut se change depuis la fiche de
+  l'apprenant ou « Mettre a jour les statuts ». Le lien vers la fiche apprenant est inchange.
+  `handleToggleActive`, son etat et ses imports (toast, `erreurEcriture`) sont retires.
+
