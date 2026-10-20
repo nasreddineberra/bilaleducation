@@ -167,7 +167,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           options={[
             { valeur: '',        nombre: classes.length, libelle: 'au total' },
             { valeur: 'enfants', nombre: nbEnfants,      libelle: 'enfants' },
-            { valeur: 'adultes', nombre: nbAdultes,      libelle: 'adultes', couleur: 'text-violet-700 dark:text-violet-300' },
+            { valeur: 'adultes', nombre: nbAdultes,      libelle: 'adultes' },
           ]}
         />
         <div className="flex-1" />

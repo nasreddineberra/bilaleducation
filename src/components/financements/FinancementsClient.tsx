@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { Trash2, Pencil, AlertTriangle, MessageSquareText, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -80,6 +81,8 @@ interface Props {
   communications: any[]
   /** Suppression du journal comptable : admin/direction seuls (policy fin_comm_delete). */
   canDeleteComms?: boolean
+  /** Emplacement des cartes de montants, a droite des onglets (`ReglementsShell`). */
+  emplacementMontants?: HTMLElement | null
   etablissement: { nom: string; logo_url: string | null; adresse: string | null; telephone: string | null; contact: string | null } | null
   /** Historique des paiements par foyer (années précédentes : vif si dispo, sinon archive). */
   familyHistory?: Record<string, { yearLabel: string; totalDue: number; totalPaid: number; remaining: number; status: string; installments: any[] }[]>
@@ -262,7 +265,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId, familyHistory = {}, canDeleteComms = false }: Props & { initialParentId?: string }) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId, familyHistory = {}, canDeleteComms = false, emplacementMontants = null }: Props & { initialParentId?: string }) {
   const supabase = createClient()
   const toast = useToast()
 
@@ -725,96 +728,100 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   return (
     <div className="h-full flex flex-col gap-3">
 
-      {/* ── Bandeau trésorerie (montants) + filtre de statut (switch) ──
-          Le switch est l'UNIQUE filtre de statut : la rangee de pilules qui le
-          doublait au-dessus de la liste des familles a ete retiree (18/10).
-          « Trop perçu » n'apparait que s'il en existe. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="card px-3 py-2">
-          <p className="stat-label">Facturé</p>
-          <p className="text-lg font-bold text-secondary-800 tabular-nums">{fmtEur(kpi.billed)}</p>
-        </div>
-        <div className="card px-3 py-2">
-          <p className="stat-label">Encaissé</p>
-          <p className="text-lg font-bold text-primary-600 tabular-nums">{fmtEur(kpi.collected)}</p>
-        </div>
-        <div className="card px-3 py-2">
-          <p className="stat-label">Reste à encaisser</p>
-          <p className="text-lg font-bold text-orange-700 tabular-nums">{fmtEur(kpi.outstanding)}</p>
-        </div>
-        <FiltreSwitch
-          ariaLabel="Filtrer les familles par statut"
-          actif={statusFilter ?? ''}
-          onChange={v => setStatusFilter((v || null) as FeeStatus | null)}
-          options={[
-            { valeur: '',        nombre: familyStats.length,  libelle: 'toutes' },
-            { valeur: 'pending', nombre: kpi.counts.pending, libelle: 'en attente' },
-            { valeur: 'partial', nombre: kpi.counts.partial, libelle: kpi.counts.partial > 1 ? 'partiels' : 'partiel', couleur: 'text-orange-600' },
-            { valeur: 'paid',    nombre: kpi.counts.paid,    libelle: kpi.counts.paid > 1 ? 'soldés' : 'soldé', couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
-            ...(kpi.counts.overpaid > 0
-              ? [{ valeur: 'overpaid', nombre: kpi.counts.overpaid, libelle: `trop perçu · ${fmtEur(kpi.overpaid)}`, couleur: 'text-red-600' }]
-              : []),
-          ]}
-        />
-      </div>
+      {/* ── Montants de l'annee : a DROITE des onglets (emplacement fourni par
+          `ReglementsShell`), sur une ligne pour tenir dans leur hauteur. ── */}
+      {emplacementMontants && createPortal(
+        <>
+          <div className="card px-3 py-1.5 flex items-baseline gap-2">
+            <span className="stat-label">Facturé</span>
+            <span className="text-sm font-bold text-secondary-800 tabular-nums">{fmtEur(kpi.billed)}</span>
+          </div>
+          <div className="card px-3 py-1.5 flex items-baseline gap-2">
+            <span className="stat-label">Encaissé</span>
+            <span className="text-sm font-bold text-[var(--brand-surface)] dark:text-[var(--brand-accent)] tabular-nums">{fmtEur(kpi.collected)}</span>
+          </div>
+          <div className="card px-3 py-1.5 flex items-baseline gap-2">
+            <span className="stat-label">Reste à encaisser</span>
+            <span className="text-sm font-bold text-orange-700 tabular-nums">{fmtEur(kpi.outstanding)}</span>
+          </div>
+        </>,
+        emplacementMontants,
+      )}
 
       {/* ── Plan de travail : liste des familles + détail ── */}
       <div className="flex-1 min-h-0 flex gap-4">
 
-        {/* Liste des familles — largeur fixe (elle suivait la rangee de pilules de
-            statut, remplacee par le switch du bandeau). */}
-        <aside className="w-80 shrink-0 card p-0 flex flex-col overflow-hidden">
-          <div className="p-2 border-b border-warm-100">
-            <SearchField
-              value={parentSearch}
-              onChange={setParentSearch}
-              placeholder="Rechercher une famille…"
-              ariaLabel="Rechercher une famille"
-              className="w-full"
-            />
-          </div>
-          <ul className="flex-1 overflow-y-auto list-scroll divide-y divide-warm-50" aria-label="Familles">
-            {worklist.length === 0 ? (
-              <li className="px-3 py-3 text-xs text-warm-700 italic">Aucune famille.</li>
-            ) : worklist.map(f => {
-              const p = f.parent
-              const name = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
-              const active = selectedParentId === p.id
-              const pct = f.totalDue > 0 ? Math.min(100, Math.round((f.netPercu / f.totalDue) * 100)) : (f.status === 'paid' ? 100 : 0)
-              return (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => { setSelectedParentId(p.id); setError(null); setSuccess(null); setAddingAdjustment(false) }}
-                    className={clsx(
-                      'w-full text-left px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400',
-                      active ? 'bg-primary-50' : 'hover:bg-warm-50',
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={clsx('w-2 h-2 rounded-full shrink-0', STATUS_DOT[f.status])} aria-hidden="true" />
-                      <span className={clsx('text-xs font-medium truncate flex-1', active ? 'text-primary-700' : 'text-secondary-700')}>{name}</span>
-                      {p.sansInscription && (
-                        <Tooltip content="Plus aucune inscription cette année">
-                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">Sans inscr.</span>
-                        </Tooltip>
+        {/* Colonne des foyers : le switch de statut (UNIQUE filtre de statut ;
+            « Trop perçu » seulement s'il en existe) puis la liste, qui prend sa
+            largeur. */}
+        <div className="w-fit shrink-0 flex flex-col gap-2 min-h-0">
+          <FiltreSwitch
+            ariaLabel="Filtrer les familles par statut"
+            actif={statusFilter ?? ''}
+            onChange={v => setStatusFilter((v || null) as FeeStatus | null)}
+            options={[
+              { valeur: '',        nombre: familyStats.length,  libelle: 'toutes' },
+              { valeur: 'pending', nombre: kpi.counts.pending, libelle: 'en attente' },
+              { valeur: 'partial', nombre: kpi.counts.partial, libelle: kpi.counts.partial > 1 ? 'partiels' : 'partiel', couleur: 'text-orange-600' },
+              { valeur: 'paid',    nombre: kpi.counts.paid,    libelle: kpi.counts.paid > 1 ? 'soldés' : 'soldé', couleur: 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' },
+              ...(kpi.counts.overpaid > 0
+                ? [{ valeur: 'overpaid', nombre: kpi.counts.overpaid, libelle: `trop perçu · ${fmtEur(kpi.overpaid)}`, couleur: 'text-red-600' }]
+                : []),
+            ]}
+          />
+          <aside className="flex-1 min-h-0 card p-0 flex flex-col overflow-hidden">
+            <div className="p-2 border-b border-warm-100">
+              <SearchField
+                value={parentSearch}
+                onChange={setParentSearch}
+                placeholder="Rechercher une famille…"
+                ariaLabel="Rechercher une famille"
+                className="w-full"
+              />
+            </div>
+            <ul className="flex-1 overflow-y-auto list-scroll divide-y divide-warm-50" aria-label="Familles">
+              {worklist.length === 0 ? (
+                <li className="px-3 py-3 text-xs text-warm-700 italic">Aucune famille.</li>
+              ) : worklist.map(f => {
+                const p = f.parent
+                const name = `${p.tutor1_last_name.toUpperCase()} ${p.tutor1_first_name}`
+                const active = selectedParentId === p.id
+                const pct = f.totalDue > 0 ? Math.min(100, Math.round((f.netPercu / f.totalDue) * 100)) : (f.status === 'paid' ? 100 : 0)
+                return (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => { setSelectedParentId(p.id); setError(null); setSuccess(null); setAddingAdjustment(false) }}
+                      className={clsx(
+                        'w-full text-left px-3 py-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400',
+                        active ? 'bg-primary-50' : 'hover:bg-warm-50',
                       )}
-                      <span className={clsx('text-xs tabular-nums whitespace-nowrap', f.status === 'overpaid' ? 'text-red-600 font-medium' : 'text-warm-700')}>
-                        {f.status === 'paid' ? 'Soldé'
-                          : f.status === 'overpaid' ? `+ ${fmtEur(Math.abs(f.remaining))}`
-                          : fmtEur(Math.max(0, f.remaining))}
-                      </span>
-                    </div>
-                    <div className="mt-1 h-1 rounded-full bg-warm-100 overflow-hidden">
-                      <div className={clsx('h-full rounded-full', STATUS_BAR[f.status])} style={{ width: `${pct}%` }} />
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </aside>
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={clsx('w-2 h-2 rounded-full shrink-0', STATUS_DOT[f.status])} aria-hidden="true" />
+                        <span className={clsx('text-xs font-medium truncate flex-1', active ? 'text-primary-700' : 'text-secondary-700')}>{name}</span>
+                        {p.sansInscription && (
+                          <Tooltip content="Plus aucune inscription cette année">
+                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap">Sans inscr.</span>
+                          </Tooltip>
+                        )}
+                        <span className={clsx('text-xs tabular-nums whitespace-nowrap', f.status === 'overpaid' ? 'text-red-600 font-medium' : 'text-warm-700')}>
+                          {f.status === 'paid' ? 'Soldé'
+                            : f.status === 'overpaid' ? `+ ${fmtEur(Math.abs(f.remaining))}`
+                            : fmtEur(Math.max(0, f.remaining))}
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1 rounded-full bg-warm-100 overflow-hidden">
+                        <div className={clsx('h-full rounded-full', STATUS_BAR[f.status])} style={{ width: `${pct}%` }} />
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </aside>
+        </div>
 
         {/* Détail de la famille sélectionnée : en-tete FIGE + contenu defilant.
             Le bandeau ne doit pas vivre dans la zone de defilement, sinon son
@@ -1235,7 +1242,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         </div>
 
         {/* Totaux en bas de page */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3 mt-3">
           <div className="card p-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-secondary-700">{'TOTAL D\u00DB'}</span>

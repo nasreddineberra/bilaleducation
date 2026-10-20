@@ -21,6 +21,10 @@ interface Props {
 
 export default function ReglementsShell({ pastDebts, ...fc }: Props) {
   const [tab, setTab] = useState<'current' | 'past'>('current')
+  // Emplacement a DROITE des onglets : `FinancementsClient`, qui calcule les
+  // montants de l'annee, y affiche ses cartes (portail). Vide sur l'onglet des
+  // impayes anterieurs.
+  const [emplacementMontants, setEmplacementMontants] = useState<HTMLDivElement | null>(null)
 
   const tabBtn = (key: 'current' | 'past', label: string) => (
     <button
@@ -36,14 +40,17 @@ export default function ReglementsShell({ pastDebts, ...fc }: Props) {
 
   return (
     <div className="h-full flex flex-col gap-3">
-      <Onglets ariaLabel="Règlements" actifIndex={tab === 'current' ? 0 : 1} className="flex-shrink-0">
-        {tabBtn('current', 'Année en cours')}
-        {tabBtn('past', `Impayés années précédentes${pastDebts.length ? ` (${pastDebts.length})` : ''}`)}
-      </Onglets>
+      <div className="flex items-end gap-3 flex-shrink-0">
+        <Onglets ariaLabel="Règlements" actifIndex={tab === 'current' ? 0 : 1} className="flex-1 min-w-0">
+          {tabBtn('current', 'Année en cours')}
+          {tabBtn('past', `Impayés années précédentes${pastDebts.length ? ` (${pastDebts.length})` : ''}`)}
+        </Onglets>
+        <div ref={setEmplacementMontants} className="flex items-center gap-2 pb-1 shrink-0" />
+      </div>
 
       <div className="flex-1 min-h-0">
         {tab === 'current'
-          ? <FinancementsClient {...fc} />
+          ? <FinancementsClient {...fc} emplacementMontants={emplacementMontants} />
           : <ImpayesAnterieurs debts={pastDebts} />}
       </div>
     </div>

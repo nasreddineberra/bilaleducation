@@ -8340,3 +8340,14 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Messages envoyes** et **Support** : pilules de ciblage / de nature -> switch, avec le nombre de messages
   ou de demandes par segment.
 
+#### 20 octobre 2026 — Retouches : switch des classes, montants des reglements
+
+- **Classes** : le segment « adultes » du switch perd sa couleur (demande utilisateur).
+- **Reglements** : les trois montants (facture, encaisse, reste a encaisser) passent a DROITE des
+  onglets, sur une ligne (libelle + montant) pour tenir dans leur hauteur. `ReglementsShell` fournit
+  l'emplacement, `FinancementsClient` (qui calcule les montants) y rend ses cartes par portail ; vide sur
+  l'onglet des impayes anterieurs. Le switch de statut passe au-dessus de la liste des foyers ; la colonne
+  prend sa largeur (`w-fit`), la liste remplit la hauteur.
+- **Signale par l'utilisateur** : dans le detail d'un foyer, la rangee des totaux (« Total du »…) collait aux
+  encadres du dessus (aucune marge) ; `mt-3`, l'ecart des colonnes.
+
