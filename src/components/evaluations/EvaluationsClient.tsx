@@ -103,6 +103,9 @@ const EVAL_BADGE: Record<string, { label: string; ton: Ton }> = {
   stars:      { label: 'Étoilée ★',   ton: 'attente' },
 }
 
+// Infobulle des actions grisees quand les bulletins de la periode sont archives.
+const VERROU_ARCHIVE = 'Bulletins archivés : modification impossible'
+
 // ─── Sous-composant : ligne cours dans le référentiel gauche ──────────────────
 
 function CoursRefRow({
@@ -919,22 +922,24 @@ export default function EvaluationsClient({
                         <span className="w-1 h-1 rounded-full bg-warm-300 flex-shrink-0" />
                         <div className="flex items-center flex-shrink-0">
                           {sibIdx > 0 && (
-                            <Tooltip content="Monter">
+                            <Tooltip content={isArchived ? VERROU_ARCHIVE : "Monter"}>
                               <button
                                 onClick={() => moveEval(ev.id, 'up', siblings)}
+                                disabled={isArchived}
                 aria-label="Monter l'évaluation"
-                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                className="p-0.5 text-secondary-400 enabled:hover:text-secondary-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                               >
                                 <ChevronUp size={13} />
                               </button>
                             </Tooltip>
                           )}
                           {sibIdx < siblings.length - 1 && (
-                            <Tooltip content="Descendre">
+                            <Tooltip content={isArchived ? VERROU_ARCHIVE : "Descendre"}>
                               <button
                                 onClick={() => moveEval(ev.id, 'down', siblings)}
+                                disabled={isArchived}
                 aria-label="Descendre l'évaluation"
-                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                className="p-0.5 text-secondary-400 enabled:hover:text-secondary-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                               >
                                 <ChevronDown size={13} />
                               </button>
@@ -979,20 +984,22 @@ export default function EvaluationsClient({
                             confirmee en modale (charte). */}
                         {(
                           <div className="flex items-center gap-0.5 flex-shrink-0">
-                            <Tooltip content="Modifier">
+                            <Tooltip content={isArchived ? VERROU_ARCHIVE : "Modifier"}>
                               <button
                                 onClick={() => openEdit(ev)}
+                                disabled={isArchived}
                 aria-label="Modifier l'évaluation"
-                                className="p-1 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded transition-colors"
+                                className="p-1 text-warm-700 enabled:hover:text-[var(--brand-surface)] dark:enabled:hover:text-[var(--brand-accent)] rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                               >
                                 <Pencil size={12} />
                               </button>
                             </Tooltip>
-                            <Tooltip content="Supprimer">
+                            <Tooltip content={isArchived ? VERROU_ARCHIVE : "Supprimer"}>
                               <button
                                 onClick={() => { setConfirmDelete(ev.id); setAdding(null); setEditing(null) }}
+                                disabled={isArchived}
                 aria-label="Supprimer l'évaluation"
-                                className="p-1 text-warm-700 hover:text-red-500 rounded transition-colors"
+                                className="p-1 text-warm-700 enabled:hover:text-red-600 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -1030,22 +1037,24 @@ export default function EvaluationsClient({
                       <div className="flex items-center gap-1 text-xs font-bold text-secondary-600 uppercase tracking-wide mb-1.5 px-1 border-b border-warm-100 pb-1">
                         <div className="flex items-center flex-shrink-0">
                           {ueIdx > 0 && (
-                            <Tooltip content="Monter l'UE">
+                            <Tooltip content={isArchived ? VERROU_ARCHIVE : "Monter l'UE"}>
                               <button
                                 onClick={() => moveUE(ue.id, 'up', rightUEs.map(u => u.id))}
+                                disabled={isArchived}
                 aria-label="Monter l'UE"
-                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                className="p-0.5 text-secondary-400 enabled:hover:text-secondary-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                               >
                                 <ChevronUp size={13} />
                               </button>
                             </Tooltip>
                           )}
                           {ueIdx < rightUEs.length - 1 && (
-                            <Tooltip content="Descendre l'UE">
+                            <Tooltip content={isArchived ? VERROU_ARCHIVE : "Descendre l'UE"}>
                               <button
                                 onClick={() => moveUE(ue.id, 'down', rightUEs.map(u => u.id))}
+                                disabled={isArchived}
                 aria-label="Descendre l'UE"
-                                className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                className="p-0.5 text-secondary-400 enabled:hover:text-secondary-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                               >
                                 <ChevronDown size={13} />
                               </button>
@@ -1086,22 +1095,24 @@ export default function EvaluationsClient({
                               <div className="flex items-center gap-1 text-[10px] font-semibold text-warm-700 uppercase tracking-wider pl-3 pr-2 pb-0.5 pt-1 border-l-2 border-warm-100">
                                 <div className="flex items-center flex-shrink-0">
                                   {modIds.indexOf(mod.id) > 0 && (
-                                    <Tooltip content="Monter le module">
+                                    <Tooltip content={isArchived ? VERROU_ARCHIVE : "Monter le module"}>
                                       <button
                                         onClick={() => moveModule(ue.id, mod.id, 'up', modIds)}
+                                        disabled={isArchived}
                                         aria-label="Monter le module"
-                                        className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                        className="p-0.5 text-secondary-400 enabled:hover:text-secondary-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                                       >
                                         <ChevronUp size={13} />
                                       </button>
                                     </Tooltip>
                                   )}
                                   {modIds.indexOf(mod.id) < modIds.length - 1 && (
-                                    <Tooltip content="Descendre le module">
+                                    <Tooltip content={isArchived ? VERROU_ARCHIVE : "Descendre le module"}>
                                       <button
                                         onClick={() => moveModule(ue.id, mod.id, 'down', modIds)}
+                                        disabled={isArchived}
                                         aria-label="Descendre le module"
-                                        className="p-0.5 text-secondary-400 hover:text-secondary-700 rounded transition-colors"
+                                        className="p-0.5 text-secondary-400 enabled:hover:text-secondary-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                                       >
                                         <ChevronDown size={13} />
                                       </button>

@@ -8521,4 +8521,8 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Correctif** dans tous les PDF (bulletins, feuilles d'appel, attestation, temps de presence) :
   `addImage(..., 'FAST')` et `new jsPDF({ ..., compress: true })`, compression sans perte. Mesure :
   216 Ko avec l'image compressee, **165 Ko** avec le document compresse. Limite du bucket inchangee.
+- **Gabarits, periode archivee** (demande utilisateur) : toutes les actions sont GRISEES des que les bulletins
+  sont archives (monter / descendre evaluation, module, UE ; modifier ; supprimer), infobulle « Bulletins
+  archives : modification impossible ». `disabled:pointer-events-none` pour que l'infobulle (ecoutee sur le
+  `span` parent) s'ouvre encore sur un bouton desactive. La base refusait deja (`fn_guard_periode_archivee`).
 
