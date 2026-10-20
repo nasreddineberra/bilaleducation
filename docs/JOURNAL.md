@@ -8486,4 +8486,8 @@ marque ; les vraies ecoles gardent leur plaque.
   chemin : l'apercu des documents enseignant, les pieces jointes d'avertissement et les justificatifs
   ouvraient l'onglet APRES l'URL signee (popup bloquable) ; `ouvrirDansOnglet` l'ouvre au clic.
 - Exceptions voulues : modele d'import `.xlsx` et export ZIP du depart d'une ecole (telechargements).
+- **Feuille d'appel, modale de saisie, encadre « Absences / Retards »** (demande utilisateur) : bandeau
+  `.encadre-titre` de la charte ; lignes resserrees (`py-1`) SANS vignette photo ni croix d'effacement (on
+  efface un commentaire en vidant le champ) ; etat vide sans icone ; commentaire d'un retard en ambre 700
+  (contraste).
 

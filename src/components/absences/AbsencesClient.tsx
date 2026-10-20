@@ -1498,31 +1498,24 @@ function SaisieModal({
 
           {/* Panneau droit : recapitulatif absents/retards */}
           <div className="w-full md:w-72 flex-shrink-0 max-h-52 md:max-h-none border-t md:border-t-0 md:border-l border-warm-100 flex flex-col bg-warm-50/30">
-            <div className="px-3 py-2 border-b border-warm-100 flex-shrink-0">
-              <h4 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
-                Absences / Retards ({nonPresent.length})
-              </h4>
-            </div>
+            {/* Bandeau de la charte (degrade), colle au bord du panneau. */}
+            <h4 className="encadre-titre m-0 rounded-none flex-shrink-0 border-b border-warm-100 text-xs font-bold uppercase tracking-widest">
+              Absences / Retards ({nonPresent.length})
+            </h4>
 
             <div className="flex-1 overflow-y-auto">
               {nonPresent.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-2 text-warm-700">
-                  <Check size={24} />
-                  <p className="text-xs">Tous présents</p>
-                </div>
+                <p className="flex items-center justify-center h-full text-xs text-warm-700 italic">Tous présents</p>
               ) : (
                 <div className="divide-y divide-warm-100">
                   {nonPresent.map(({ student: s, status, comment, idx }) => (
-                    <div key={s.student_id} className="px-3 py-2 space-y-1.5">
+                    // Lignes resserrees, sans vignette ni croix (20/10) : nom + statut,
+                    // puis le commentaire. Le vider dans le champ l'efface.
+                    <div key={s.student_id} className="px-3 py-1 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-[27px] rounded overflow-hidden flex-shrink-0">
-                          <StudentPhoto student={s} size="sm" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-secondary-800 truncate">
-                            {s.last_name} {s.first_name}
-                          </p>
-                        </div>
+                        <p className="flex-1 min-w-0 text-xs font-semibold text-secondary-800 truncate">
+                          {s.last_name} {s.first_name}
+                        </p>
                         {status === 'absence' ? <Puce ton="danger">Absent</Puce> : <Puce ton="attente">Retard</Puce>}
                       </div>
 
@@ -1534,53 +1527,30 @@ function SaisieModal({
                           lisibilite, d autant plus etroit sur telephone. */}
 
                       {editingComment === s.student_id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            autoFocus
-                            value={comment}
-                            onChange={e => setComment(idx, e.target.value)}
-                            onBlur={() => setEditingComment(null)}
-                            onKeyDown={e => e.key === 'Enter' && setEditingComment(null)}
-                            placeholder="Commentaire..."
-                            className="border border-warm-300 rounded-md text-[11px] py-0.5 px-1.5 w-full focus:outline-none focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] bg-white"
-                          />
-                          {comment && (
-                            <button
-                              type="button"
-                              onMouseDown={e => { e.preventDefault(); setComment(idx, ''); setEditingComment(null) }}
-                              aria-label="Effacer le commentaire"
-                              className="flex-shrink-0 text-warm-700 hover:text-red-500 transition-colors"
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
+                        <input
+                          type="text"
+                          autoFocus
+                          value={comment}
+                          onChange={e => setComment(idx, e.target.value)}
+                          onBlur={() => setEditingComment(null)}
+                          onKeyDown={e => e.key === 'Enter' && setEditingComment(null)}
+                          placeholder="Commentaire"
+                          aria-label={`Commentaire · ${s.last_name} ${s.first_name}`}
+                          className="border border-warm-300 rounded-md text-[11px] py-0.5 px-1.5 w-full focus:outline-none focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)] bg-white"
+                        />
                       ) : (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setEditingComment(s.student_id)}
-                            className={clsx(
-                              'text-[10px] truncate flex-1 text-left',
-                              comment
-                                ? status === 'absence' ? 'text-red-600 font-medium' : 'text-amber-600 font-medium'
-                                : 'text-warm-700 italic'
-                            )}
-                          >
-                            {comment || 'Ajouter un commentaire'}
-                          </button>
-                          {comment && (
-                            <button
-                              type="button"
-                              onClick={() => setComment(idx, '')}
-                              aria-label="Effacer le commentaire"
-                              className="flex-shrink-0 text-warm-700 hover:text-red-500 transition-colors"
-                            >
-                              <X size={11} />
-                            </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingComment(s.student_id)}
+                          className={clsx(
+                            'block w-full text-[10px] truncate text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
+                            comment
+                              ? status === 'absence' ? 'text-red-600 font-medium' : 'text-amber-700 font-medium'
+                              : 'text-warm-700 italic'
                           )}
-                        </div>
+                        >
+                          {comment || 'Ajouter un commentaire'}
+                        </button>
                       )}
                     </div>
                   ))}
