@@ -8627,3 +8627,10 @@ marque ; les vraies ecoles gardent leur plaque.
   (`items-start`). Carte en `items-baseline` : la date suit la ligne de base du titre. Journal et Devoirs.
 - Classe en `Puce` neutre (meme hauteur que la pastille de type) ; matiere masquee quand elle vaut
   « General » (forcee en V1), comme dans la modale de detail.
+
+#### 21 octobre 2026 — Refonte : Classes archivees
+
+- **Inspection puis go** (6 points). Liste en `.liste` (en-tete `liste-entete` collant, survol de la charte),
+  hauteur bornee (seule la liste defile) ; focus `--brand-focus` ; etats vides d'une phrase ; plages de dates
+  « du JJ/MM/AAAA au JJ/MM/AAAA » (plus de tiret entoure d'espaces) ; liste des eleves de la modale en
+  petite `.liste` (Nom, N°).

@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { History } from 'lucide-react'
 import { FloatButton, FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
@@ -35,7 +34,7 @@ const fmtDate = (d: string | null) => {
 }
 const plage = (du: string | null, au: string | null) => {
   const a = fmtDate(du), b = fmtDate(au)
-  if (a && b) return `${a} - ${b}`
+  if (a && b) return `du ${a} au ${b}`
   if (a) return `depuis le ${a}`
   if (b) return `jusqu'au ${b}`
   return null
@@ -76,16 +75,13 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
 
   if (annees.length === 0) {
     return (
-      <div className="card px-6 py-10 text-center">
-        <History size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
-        <p className="text-sm text-warm-700">Aucune année archivée pour le moment.</p>
-      </div>
+      <div className="card text-center text-sm text-warm-700 py-10">Aucune année archivée pour le moment.</div>
     )
   }
 
   return (
-    <div className="space-y-2">
-      <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
+    <div className="h-full flex flex-col gap-2">
+      <div className="card px-3 py-2 flex flex-wrap items-center gap-3 flex-shrink-0">
         <SearchField
           value={search}
           onChange={v => setEtat({ search: v })}
@@ -105,15 +101,13 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
       </div>
 
       {lignes.length === 0 ? (
-        <div className="card px-6 py-10 text-center">
-          <History size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
-          <p className="text-sm text-warm-700">Aucune classe ne correspond.</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Aucune classe ne correspond.</div>
       ) : (
-      <div className="card p-0 overflow-hidden">
+      <div className="card p-0 overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="liste list-scroll flex-1 min-h-0 overflow-y-auto">
         <table className="w-full text-left text-xs" aria-label={`Classes de l'année ${annee}`}>
-          <thead>
-            <tr className="border-b border-warm-100">
+          <thead className="sticky top-0 z-10">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th scope="col" className="list-th">Classe</th>
               <th scope="col" className="list-th">Niveau</th>
               <th scope="col" className="list-th">Cotisation</th>
@@ -128,13 +122,13 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
               <tr
                 key={c.id}
                 onClick={() => setOuverte(c)}
-                className="hover:bg-warm-100 transition-colors cursor-pointer"
+                className="cursor-pointer"
               >
                 <td className="list-td">
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); setOuverte(c) }}
-                    className="list-name text-left hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    className="list-name text-left hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                   >
                     {c.class_name}
                   </button>
@@ -172,6 +166,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
             ))}
           </tbody>
         </table>
+      </div>
       </div>
       )}
 
@@ -217,14 +212,24 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
             {ouverte.participants.length === 0 ? (
               <p className="text-xs text-warm-700">Aucun participant.</p>
             ) : (
-              <ul className="max-h-72 overflow-y-auto list-scroll divide-y divide-warm-50 border border-warm-100 rounded-lg">
-                {ouverte.participants.map((p, i) => (
-                  <li key={i} className="px-3 py-1.5 text-xs flex items-center justify-between gap-2">
-                    <span className="text-secondary-800"><span className="font-semibold">{p.nom.toUpperCase()}</span> {p.prenom}</span>
-                    {p.numero && <span className="text-warm-700 tabular-nums">{p.numero}</span>}
-                  </li>
-                ))}
-              </ul>
+              <div className="liste list-scroll max-h-72 overflow-y-auto">
+                <table className="w-full text-left text-xs" aria-label={ouverte.is_adult ? 'Participants' : 'Élèves'}>
+                  <thead className="sticky top-0 z-10">
+                    <tr className="liste-entete border-b border-[var(--card-border)]">
+                      <th scope="col" className="list-th">Nom</th>
+                      <th scope="col" className="list-th text-right">N°</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-warm-50">
+                    {ouverte.participants.map((p, i) => (
+                      <tr key={i}>
+                        <td className="list-td text-secondary-800"><span className="font-semibold">{p.nom.toUpperCase()}</span> {p.prenom}</td>
+                        <td className="list-td text-right text-warm-700 tabular-nums">{p.numero ?? '·'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </FormModal>
