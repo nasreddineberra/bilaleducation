@@ -8706,3 +8706,12 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Impayes anterieurs** : tableau en `.liste`, « Solder » en `size="mini"`, etat vide d'une phrase.
 - **Dates** : `fmtDate` ancre `AAAA-MM-JJ` a minuit local ; date par defaut d'une reduction en date locale
   (et non `toISOString()`).
+
+#### 21 octobre 2026 — Statistiques : barre de defilement apres la refonte
+
+- **Signale par l'utilisateur**. Les bandeaux `.encadre-titre` (28 px + 12 px de marge) remplacaient des
+  intitules d'une ligne (~16 px + 8 px) : environ 16 px de plus par encadre, deux rangees, et la page
+  calibree pour tenir sans defilement debordait. Les zones de trace rendent ces 16 px : anneaux 132 -> 116 px,
+  « Facture par activite » `max(134, n x 22)`, « Rythme de collecte » 168 -> 152 px.
+- A retenir pour la suite de la refonte : remplacer un intitule par un bandeau AJOUTE de la hauteur. Sur un
+  ecran sans defilement, la compenser dans le meme lot.

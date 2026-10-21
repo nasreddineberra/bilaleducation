@@ -269,7 +269,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
             {/* Statut */}
             <div className="min-w-0">
               <p className="text-[10px] text-warm-700 text-center mb-1">Dossiers par statut</p>
-              <div style={{ height: 132 }}>
+              <div style={{ height: 116 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -290,10 +290,10 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
             <div className="min-w-0 lg:border-l lg:border-warm-100 lg:pl-2">
               <p className="text-[10px] text-warm-700 text-center mb-1">Moyens de paiement</p>
               {methodTotal === 0 ? (
-                <p className="text-xs text-warm-700 italic grid place-items-center" style={{ height: 132 }}>Aucun encaissement.</p>
+                <p className="text-xs text-warm-700 italic grid place-items-center" style={{ height: 116 }}>Aucun encaissement.</p>
               ) : (
                 <>
-                  <div style={{ height: 132 }}>
+                  <div style={{ height: 116 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -317,7 +317,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
         <VizCard
           title="Facturé par activité"
           hint="l'encaissé n'est pas ventilable (paiement au foyer)"
-          height={Math.max(150, cotisData.length * 24)}
+          height={Math.max(134, cotisData.length * 22)}
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={cotisData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }} barSize={14}>
@@ -368,7 +368,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
           )}
         </section>
 
-        <VizCard title="Rythme de collecte" hint="cumul encaissé vs facturé" height={168}>
+        <VizCard title="Rythme de collecte" hint="cumul encaissé vs facturé" height={152}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={monthly} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
               <CartesianGrid vertical={false} stroke={INK.grid} />
