@@ -366,8 +366,8 @@ financements, retention…), ecole de demonstration.
    au-dessus des foyers), Messages envoyes, Support, fiche apprenant (Discipline, Scolarite, Documents,
    Historique), fiche parent (Scolarite adulte), listes Apprenants / Parents harmonisees, modales de
    synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
-   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT. **Reste** :
-   Cahier de texte, Temps de presence, Tableau de bord, Communications (nouveau message), Financements
+   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT, Cahier de texte. **Reste** :
+   Temps de presence, Tableau de bord, Communications (nouveau message), Financements
    (Statistiques, Situation), Parametres (annees, referentiel, enseignants, utilisateurs, cotisations,
    types de presence, ressources, journal, etablissement), Mon compte, Passage d'annee, console editeur.
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.

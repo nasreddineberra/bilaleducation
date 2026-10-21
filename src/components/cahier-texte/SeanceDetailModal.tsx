@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { X, CalendarDays } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarDays } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { FloatButton } from '@/components/ui/FloatFields'
 import SeanceForm from './SeanceForm'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
+import { dateLocale } from './commun'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { useRouter } from 'next/navigation'
@@ -35,7 +36,7 @@ function classInfoOf(c: any): string {
   return parts.join(' · ')
 }
 function formatDate(d: string): string {
-  return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+  return dateLocale(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 interface Props {
@@ -50,8 +51,6 @@ interface Props {
 // Détail d'une séance en modale verrouillée (fermable uniquement par X / Fermer).
 export default function SeanceDetailModal({ journal, role, teacherId, subjects, etablissementId, onClose }: Props) {
   const [showEdit, setShowEdit] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
 
   const teacherLabel = teacherLabelOf(journal.teachers)
   const canEdit = STAFF.includes(role) || journal.teacher_id === teacherId
@@ -84,69 +83,51 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
     router.refresh()
   }
 
-  if (!mounted) return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="seance-detail-title"
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
-      >
-        {/* Header */}
-        <div className="px-5 py-3 border-b border-warm-100 flex flex-col md:flex-row md:items-start md:justify-between gap-3 flex-shrink-0">
-          <div className="min-w-0">
-            <h3 id="seance-detail-title" className="text-sm font-bold text-secondary-800 truncate">{journal.title}</h3>
-            <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{journal.classes?.name}</span>
-              {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
-              <span>{teacherLabel}</span>
-              {classInfoOf(journal.classes) && <span>· {classInfoOf(journal.classes)}</span>}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
-            {canEdit && (
-              horsFenetre ? (
-                <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être modifiée.">
-                  <FloatButton variant="edit" type="button" disabled>Modifier</FloatButton>
-                </Tooltip>
-              ) : (
-                <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>
-              )
-            )}
-            {canEdit && (
-              horsFenetre ? (
-                <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être supprimée.">
-                  <FloatButton variant="danger" type="button" disabled>Supprimer</FloatButton>
-                </Tooltip>
-              ) : (
-                <FloatButton variant="danger" type="button" onClick={() => setConfirmSuppr(true)}>Supprimer</FloatButton>
-              )
-            )}
-            <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-          <div className="flex items-center gap-3 flex-wrap mb-3">
-            <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Contenu de la seance</h4>
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-warm-700">
-              <CalendarDays size={14} /> {formatDate(journal.session_date)}
-            </span>
-          </div>
-          <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(journal.content_html) }} />
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3 border-t border-warm-100 flex justify-end flex-shrink-0">
-          <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
-        </div>
+  // Modale verrouillée (FormModal) : fermeture par X / Fermer seulement.
+  return (
+    <>
+    <FormModal
+      title={journal.title}
+      onClose={onClose}
+      maxWidth="max-w-3xl"
+      footer={<>
+        {canEdit && (
+          horsFenetre ? (
+            <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être supprimée.">
+              <FloatButton variant="danger" type="button" disabled>Supprimer</FloatButton>
+            </Tooltip>
+          ) : (
+            <FloatButton variant="danger" type="button" onClick={() => setConfirmSuppr(true)}>Supprimer</FloatButton>
+          )
+        )}
+        <div className="flex-1" />
+        {canEdit && (
+          horsFenetre ? (
+            <Tooltip content="Cette séance date de plus de 7 jours : elle ne peut plus être modifiée.">
+              <FloatButton variant="edit" type="button" disabled>Modifier</FloatButton>
+            </Tooltip>
+          ) : (
+            <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>
+          )
+        )}
+        <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
+      </>}
+    >
+      <div className="flex items-center gap-2 text-[11px] text-warm-700 flex-wrap">
+        <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{journal.classes?.name}</span>
+        {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
+        <span>{teacherLabel}</span>
+        {classInfoOf(journal.classes) && <span>· {classInfoOf(journal.classes)}</span>}
       </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="section-title">Contenu de la séance</span>
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-warm-700">
+          <CalendarDays size={14} /> {formatDate(journal.session_date)}
+        </span>
+      </div>
+      <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(journal.content_html) }} />
+    </FormModal>
 
       {confirmSuppr && (
         <ConfirmModal
@@ -180,7 +161,6 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
           }}
         />
       )}
-    </div>,
-    document.body
+    </>
   )
 }

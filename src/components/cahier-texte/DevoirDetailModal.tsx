@@ -1,12 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
-import {
-  X, CalendarDays, ClipboardList, BookOpen, Lightbulb, FileText,
-  Eye, CheckCircle2, Circle,
-} from 'lucide-react'
+import { CalendarDays, Eye, CheckCircle2, Circle } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
@@ -14,18 +10,14 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import DevoirForm from './DevoirForm'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
+import { Puce } from '@/components/dashboard/tdb'
+import { typeDevoir, dateLocale, rendPasse } from './commun'
 import { useToast } from '@/lib/toast-context'
 import { useRouter } from 'next/navigation'
 import { supprimerDevoir } from '@/app/dashboard/cahier-texte/actions'
 
 const STAFF = ['admin', 'direction', 'responsable_pedagogique']
-
-const HW_TYPE: Record<string, { label: string; color: string; icon: any }> = {
-  exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
-  lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
-  expose:   { label: 'Exposé',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
-  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-700', icon: FileText },
-}
 
 function teacherLabelOf(t: any): string {
   if (!t) return ''
@@ -48,7 +40,7 @@ function classInfoOf(c: any): string {
   return parts.join(' · ')
 }
 function formatDate(d: string): string {
-  return new Date(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+  return dateLocale(d).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
 }
 function formatShortDate(d: string | null): string {
   if (!d) return ''
@@ -70,7 +62,6 @@ interface Props {
 }
 
 export default function DevoirDetailModal({ homework, role, teacherId, isAdult, subjects, etablissementId, onClose }: Props) {
-  const [mounted, setMounted] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [confirmSuppr, setConfirmSuppr] = useState(false)
   const [suppression, setSuppression] = useState(false)
@@ -90,7 +81,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
   // ne protege rien. Ici on la reflete pour dire POURQUOI c'est impossible.
   // Le bouton reste visible et grise plutot que masque : un bouton qui
   // disparait se lit comme un bug (regle du 4 aout).
-  const dateRenduPassee = new Date(homework.due_date) < new Date(new Date().toDateString())
+  const dateRenduPassee = rendPasse(homework.due_date)
   const horsFenetre = !STAFF.includes(role) && dateRenduPassee
   const canDelete   = canEdit && !isParent
 
@@ -106,10 +97,8 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
     router.refresh()
   }
 
-  const typeInfo = HW_TYPE[homework.homework_type] ?? HW_TYPE.autre
-  const isPast = new Date(homework.due_date) < new Date(new Date().toDateString())
-
-  useEffect(() => { setMounted(true) }, [])
+  const typeInfo = typeDevoir(homework.homework_type)
+  const isPast = dateRenduPassee
 
   useEffect(() => {
     let active = true
@@ -233,152 +222,134 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
   const doneCount = participants.filter(p => statusOf(p.key)?.is_done).length
   const total = participants.length
 
-  if (!mounted) return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="devoir-detail-title"
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
-      >
-        {/* Header */}
-        <div className="px-5 py-3 border-b border-warm-100 flex flex-col md:flex-row md:items-start md:justify-between gap-3 flex-shrink-0">
-          <div className="min-w-0">
-            <h3 id="devoir-detail-title" className="text-sm font-bold text-secondary-800 truncate">{homework.title}</h3>
-            <div className="flex items-center gap-2 text-[11px] text-warm-700 mt-0.5 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{homework.classes?.name}</span>
-              {homework.subject && homework.subject !== 'General' && (
-                <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
-              )}
-              <span>{teacherLabel}</span>
-              {classInfoOf(homework.classes) && <span>· {classInfoOf(homework.classes)}</span>}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end md:flex-shrink-0">
-            {canEdit && (
-              horsFenetre ? (
-                <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique, il ne peut plus être modifié.">
-                  <FloatButton variant="edit" type="button" disabled>Modifier</FloatButton>
-                </Tooltip>
-              ) : (
-                <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>
-              )
-            )}
-            {canDelete && (
-              horsFenetre ? (
-                <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique.">
-                  <FloatButton variant="danger" type="button" disabled>Supprimer</FloatButton>
-                </Tooltip>
-              ) : (
-                <FloatButton variant="danger" type="button" onClick={() => setConfirmSuppr(true)}>Supprimer</FloatButton>
-              )
-            )}
-            <button type="button" onClick={onClose} aria-label="Fermer" className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors">
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
-          {/* Type de devoir + date de rendu (juste au-dessus des consignes) */}
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={clsx('inline-flex items-center px-3 py-1.5 rounded-md font-bold text-sm uppercase tracking-wide', typeInfo.color)}>
-                {typeInfo.label}
-              </span>
-              <span className={clsx('inline-flex items-center gap-1.5 text-sm font-medium', isPast ? 'text-warm-700' : 'text-red-600')}>
-                <CalendarDays size={14} /> A rendre le {formatDate(homework.due_date)}
-              </span>
-            </div>
-
-            {/* Consignes (sans icone) */}
-            {homework.description_html && sanitize(homework.description_html).trim() && (
-              <div className="mt-2">
-                <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide mb-2">Consignes</h4>
-                <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(homework.description_html) }} />
-              </div>
-            )}
-          </div>
-
-          {/* Mon pointage (parent / participant adulte) */}
-          {myKeys.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">Suivi</h4>
-              {myKeys.map(key => {
-                const st = statusOf(key)
-                const p = participants.find(pt => pt.key === key)
-                return (
-                  <div key={key} className="flex items-center gap-4">
-                    {p && <span className="text-sm text-warm-700 w-40 truncate">{p.name}</span>}
-                    <button onClick={() => toggle(key, 'is_seen')} aria-pressed={!!st?.is_seen}
-                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_seen ? 'text-blue-600' : 'text-warm-700 hover:text-blue-500')}>
-                      {st?.is_seen ? <Eye size={16} /> : <Circle size={16} />} Vu
-                    </button>
-                    <button onClick={() => toggle(key, 'is_done')} aria-pressed={!!st?.is_done}
-                      className={clsx('flex items-center gap-1.5 text-sm transition-colors', st?.is_done ? 'text-primary-600' : 'text-warm-700 hover:text-primary-600')}>
-                      {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} Effectue
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Staff : tableau de suivi */}
-          {canViewTracking && participants.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <h4 className="text-sm font-bold text-secondary-700 uppercase tracking-wide">{trackingLabel}</h4>
-                <span className="text-xs text-warm-700">{seenCount}/{total} vus · {doneCount}/{total} effectues</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table aria-label={`${trackingLabel} (vu / effectué)`} className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-warm-700 border-b border-warm-200">
-                      <th className="pb-2 pr-4">{isAdult ? 'Participant' : 'Eleve'}</th>
-                      <th className="pb-2 px-4 text-center">Vu</th>
-                      <th className="pb-2 px-4 text-center">Effectue</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {participants.map(p => {
-                      const st = statusOf(p.key)
-                      return (
-                        <tr key={p.key} className="transition-colors hover:bg-warm-100 border-b border-warm-100">
-                          <td className="py-1.5 pr-4 text-warm-700">{p.name}</td>
-                          <td className="py-1.5 px-4 text-center">
-                            {st?.is_seen ? (
-                              <Tooltip content={`Vu le ${formatShortDate(st.seen_at)}`}>
-                                <span className="text-blue-600 text-xs" aria-label={`Vu le ${formatShortDate(st.seen_at)}`}><Eye size={14} className="inline" /></span>
-                              </Tooltip>
-                            ) : <span className="text-warm-700" aria-label="Non vu">·</span>}
-                          </td>
-                          <td className="py-1.5 px-4 text-center">
-                            {st?.is_done ? (
-                              <Tooltip content={`Effectué le ${formatShortDate(st.done_at)}`}>
-                                <span className="text-primary-600 text-xs" aria-label={`Effectué le ${formatShortDate(st.done_at)}`}><CheckCircle2 size={14} className="inline" /></span>
-                              </Tooltip>
-                            ) : <span className="text-warm-700" aria-label="Non effectué">·</span>}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-5 py-3 border-t border-warm-100 flex justify-end flex-shrink-0">
-          <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
-        </div>
+  // Modale verrouillée (FormModal) : fermeture par X / Fermer seulement.
+  return (
+    <>
+    <FormModal
+      title={homework.title}
+      onClose={onClose}
+      maxWidth="max-w-3xl"
+      footer={<>
+        {canDelete && (
+          horsFenetre ? (
+            <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique.">
+              <FloatButton variant="danger" type="button" disabled>Supprimer</FloatButton>
+            </Tooltip>
+          ) : (
+            <FloatButton variant="danger" type="button" onClick={() => setConfirmSuppr(true)}>Supprimer</FloatButton>
+          )
+        )}
+        <div className="flex-1" />
+        {canEdit && (
+          horsFenetre ? (
+            <Tooltip content="La date de rendu est passée : ce devoir appartient à l'historique, il ne peut plus être modifié.">
+              <FloatButton variant="edit" type="button" disabled>Modifier</FloatButton>
+            </Tooltip>
+          ) : (
+            <FloatButton variant="edit" type="button" onClick={() => setShowEdit(true)}>Modifier</FloatButton>
+          )
+        )}
+        <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
+      </>}
+    >
+      <div className="flex items-center gap-2 text-[11px] text-warm-700 flex-wrap">
+        <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{homework.classes?.name}</span>
+        {homework.subject && homework.subject !== 'General' && (
+          <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
+        )}
+        <span>{teacherLabel}</span>
+        {classInfoOf(homework.classes) && <span>· {classInfoOf(homework.classes)}</span>}
       </div>
+
+      <div className="space-y-5">
+        {/* Type de devoir + date de rendu (juste au-dessus des consignes) */}
+        <div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Puce ton={typeInfo.ton}>{typeInfo.label}</Puce>
+            <span className={clsx('inline-flex items-center gap-1.5 text-sm font-medium', isPast ? 'text-warm-700' : 'text-red-700')}>
+              <CalendarDays size={14} /> À rendre le {formatDate(homework.due_date)}
+            </span>
+          </div>
+
+          {/* Consignes (sans icone) */}
+          {homework.description_html && sanitize(homework.description_html).trim() && (
+            <div className="mt-3">
+              <h3 className="section-title mb-2">Consignes</h3>
+              <div className="prose prose-sm max-w-none text-warm-700" dangerouslySetInnerHTML={{ __html: sanitize(homework.description_html) }} />
+            </div>
+          )}
+        </div>
+
+        {/* Mon pointage (parent / participant adulte) */}
+        {myKeys.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="section-title">Suivi</h3>
+            {myKeys.map(key => {
+              const st = statusOf(key)
+              const p = participants.find(pt => pt.key === key)
+              return (
+                <div key={key} className="flex items-center gap-4">
+                  {p && <span className="text-sm text-warm-700 w-40 truncate">{p.name}</span>}
+                  <button onClick={() => toggle(key, 'is_seen')} aria-pressed={!!st?.is_seen}
+                    className={clsx(POINTAGE, st?.is_seen ? VU : 'text-warm-700 hover:text-secondary-700')}>
+                    {st?.is_seen ? <Eye size={16} /> : <Circle size={16} />} Vu
+                  </button>
+                  <button onClick={() => toggle(key, 'is_done')} aria-pressed={!!st?.is_done}
+                    className={clsx(POINTAGE, st?.is_done ? EFFECTUE : 'text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)]')}>
+                    {st?.is_done ? <CheckCircle2 size={16} /> : <Circle size={16} />} Effectué
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Staff : tableau de suivi */}
+        {canViewTracking && participants.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-4">
+              <h3 className="section-title">{trackingLabel}</h3>
+              <span className="text-xs text-warm-700 tabular-nums">{seenCount}/{total} vus · {doneCount}/{total} effectués</span>
+            </div>
+            <div className="liste overflow-x-auto">
+              <table aria-label={`${trackingLabel} (vu / effectué)`} className="w-full text-xs">
+                <thead>
+                  <tr className="liste-entete border-b border-[var(--card-border)]">
+                    <th className="text-left list-th">{isAdult ? 'Participant' : 'Élève'}</th>
+                    <th className="text-center list-th">Vu</th>
+                    <th className="text-center list-th">Effectué</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-warm-50">
+                  {participants.map(p => {
+                    const st = statusOf(p.key)
+                    return (
+                      <tr key={p.key}>
+                        <td className="list-td text-secondary-800">{p.name}</td>
+                        <td className="list-td text-center">
+                          {st?.is_seen ? (
+                            <Tooltip content={`Vu le ${formatShortDate(st.seen_at)}`}>
+                              <span className={VU} aria-label={`Vu le ${formatShortDate(st.seen_at)}`}><Eye size={14} className="inline" /></span>
+                            </Tooltip>
+                          ) : <span className="text-warm-700" aria-label="Non vu">·</span>}
+                        </td>
+                        <td className="list-td text-center">
+                          {st?.is_done ? (
+                            <Tooltip content={`Effectué le ${formatShortDate(st.done_at)}`}>
+                              <span className={EFFECTUE} aria-label={`Effectué le ${formatShortDate(st.done_at)}`}><CheckCircle2 size={14} className="inline" /></span>
+                            </Tooltip>
+                          ) : <span className="text-warm-700" aria-label="Non effectué">·</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </FormModal>
 
       {confirmSuppr && (
         <ConfirmModal
@@ -416,7 +387,11 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
           }}
         />
       )}
-    </div>,
-    document.body
+    </>
   )
 }
+
+// Pointage du suivi : « Vu » en ardoise, « Effectué » au vert de marque (21/10).
+const POINTAGE = 'flex items-center gap-1.5 text-sm transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
+const VU       = 'text-secondary-700'
+const EFFECTUE = 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'

@@ -8605,3 +8605,17 @@ marque ; les vraies ecoles gardent leur plaque.
   en vue Enseignant. Tooltip existant (`max-w-none`, pas au doigt, ouvert au clavier).
 - Le `Tooltip` n'enveloppe la zone que si le jour a des seances : un contenu vide affichait une bulle vide.
   `min-w-0` sur la zone, sinon le declencheur `inline-flex` empechait la troncature des capsules.
+
+#### 21 octobre 2026 — Refonte : Cahier de texte
+
+- **Inspection puis go** (13 points). `commun.ts` : tons des types de devoir en `Puce` (Exercice `info`, Lecon
+  `ok`, Expose `remplacement`, Autre `neutre` ; le bleu etait hors charte) et aides de date locale, source
+  unique pour la page et la modale (la liste des types etait recopiee).
+- **Page** : cartes avec survol par bordure `--brand-line` (l'ombre `hover:shadow-md` etait en dur) et focus
+  visible ; devoir passe sur fond `bg-warm-50` au lieu de `opacity-60` (contraste) ; Matiere en champ
+  verrouille ; etats vides d'une phrase ; accents retablis.
+- **4 modales en `FormModal`** : formulaires relies au bouton du pied par `form` ; detail avec Supprimer a
+  gauche, Modifier et Fermer a droite (infobulles de grisage gardees) ; champs verrouilles en
+  `FloatInput locked` ; suivi d'un devoir en `.liste`, « Vu » ardoise, « Effectue » vert de marque.
+- **Dates** : `new Date('AAAA-MM-JJ')` (UTC) remplace par `dateLocale` (`T00:00`) pour l'affichage et le
+  calcul de « passe » ; date par defaut d'une seance via la date locale et non `toISOString()`.

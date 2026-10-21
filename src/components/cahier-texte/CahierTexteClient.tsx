@@ -5,11 +5,9 @@ import { useState, useMemo, useEffect } from 'react'
 import SeanceDetailModal from './SeanceDetailModal'
 import DevoirDetailModal from './DevoirDetailModal'
 import { clsx } from 'clsx'
-import {
-  CalendarDays, BookOpen,
-  ClipboardList, FileText, Lightbulb,
-} from 'lucide-react'
-import { FloatSelect, SearchField, FloatButton } from '@/components/ui/FloatFields'
+import { FloatSelect, FloatInput, SearchField, FloatButton } from '@/components/ui/FloatFields'
+import { Puce } from '@/components/dashboard/tdb'
+import { typeDevoir, dateLocale, rendPasse } from './commun'
 import Tooltip from '@/components/ui/Tooltip'
 import RaisonBloquee from '@/components/ui/RaisonBloquee'
 import SeanceForm from './SeanceForm'
@@ -27,15 +25,12 @@ interface Props {
   etablissementId: string
 }
 
-const HOMEWORK_TYPE_LABELS: Record<string, { label: string; color: string; icon: any }> = {
-  exercice: { label: 'Exercice', color: 'bg-blue-100 text-blue-700', icon: ClipboardList },
-  lecon:    { label: 'Leçon',    color: 'bg-green-100 text-green-700', icon: BookOpen },
-  expose:   { label: 'Expose',   color: 'bg-purple-100 text-purple-700', icon: Lightbulb },
-  autre:    { label: 'Autre',    color: 'bg-warm-100 text-warm-700', icon: FileText },
-}
+// Carte d'une seance / d'un devoir : bouton, survol par la bordure de marque
+// (l'ombre `hover:shadow-md` etait une valeur Tailwind en dur), focus visible.
+const CARTE = 'card px-4 py-3 flex items-start gap-3 text-left w-full transition-colors hover:border-[var(--brand-line)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
 
 function formatDate(d: string): string {
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return dateLocale(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function stripHtml(html: string): string {
@@ -190,16 +185,9 @@ export default function CahierTexteClient({
         {/* V1 (mono-mode Primaire) : filtre Matière verrouillé sur « Général ».
             En Secondaire, réactiver le select alimenté par les matières de la classe. */}
         {filterClass && (
-          <FloatSelect
-            label="Matiere"
-            value="__general__"
-            onChange={() => {}}
-            disabled
-            wrapperClassName="w-fit"
-            className="bg-warm-50 text-warm-700 cursor-not-allowed"
-          >
-            <option value="__general__">Général</option>
-          </FloatSelect>
+          <div className="w-32">
+            <FloatInput label="Matière" value="Général" locked readOnly />
+          </div>
         )}
 
         <SearchField value={search} onChange={setSearch} ariaLabel="Rechercher dans le cahier de texte" />
@@ -279,16 +267,10 @@ export default function CahierTexteClient({
       {/* Contenu */}
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
       {!filterClass ? (
-        <div className="card px-6 py-10 text-center">
-          <BookOpen size={32} className="mx-auto text-warm-700 mb-2" />
-          <p className="text-sm text-warm-700">Sélectionnez une classe pour afficher le cahier de texte.</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Sélectionnez une classe pour afficher le cahier de texte.</div>
       ) : tab === 'journal' ? (
         filteredJournal.length === 0 ? (
-          <div className="card px-6 py-10 text-center">
-            <CalendarDays size={32} className="mx-auto text-warm-700 mb-2" />
-            <p className="text-sm text-warm-700">Aucune seance enregistree.</p>
-          </div>
+          <div className="card text-center text-sm text-warm-700 py-10">Aucune séance enregistrée.</div>
         ) : (
           <div className="space-y-2">
             {filteredJournal.map((j: any) => (
@@ -296,10 +278,10 @@ export default function CahierTexteClient({
                 key={j.id}
                 type="button"
                 onClick={() => setDetail({ type: 'seance', entry: j })}
-                className="card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group text-left w-full"
+                className={CARTE}
               >
                 <div className="flex-shrink-0 w-16 text-center">
-                  <div className="text-xs font-bold text-primary-600">{formatDate(j.session_date)}</div>
+                  <div className="text-xs font-bold text-[var(--brand-surface)] dark:text-[var(--brand-accent)] tabular-nums">{formatDate(j.session_date)}</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -326,40 +308,32 @@ export default function CahierTexteClient({
         )
       ) : (
         filteredHomework.length === 0 ? (
-          <div className="card px-6 py-10 text-center">
-            <ClipboardList size={32} className="mx-auto text-warm-700 mb-2" />
-            <p className="text-sm text-warm-700">Aucun devoir enregistre.</p>
-          </div>
+          <div className="card text-center text-sm text-warm-700 py-10">Aucun devoir enregistré.</div>
         ) : (
           <div className="space-y-2">
             {filteredHomework.map((h: any) => {
-              const typeInfo = HOMEWORK_TYPE_LABELS[h.homework_type] ?? HOMEWORK_TYPE_LABELS.autre
-              const TypeIcon = typeInfo.icon
-              const isPast = new Date(h.due_date) < new Date(new Date().toDateString())
+              const typeInfo = typeDevoir(h.homework_type)
+              // Devoir passe : fond de ligne inactive (et non `opacity-60`, qui faisait
+              // tomber le contraste du texte sous AA).
+              const isPast = rendPasse(h.due_date)
 
               return (
                 <button
                   key={h.id}
                   type="button"
                   onClick={() => setDetail({ type: 'devoir', entry: h })}
-                  className={clsx(
-                    'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group text-left w-full',
-                    isPast && 'opacity-60'
-                  )}
+                  className={clsx(CARTE, isPast && 'bg-warm-50')}
                 >
                   <div className="flex-shrink-0 w-16 text-center">
-                    <div className={clsx('text-xs font-bold', isPast ? 'text-warm-700' : 'text-red-600')}>
+                    <div className={clsx('text-xs font-bold tabular-nums', isPast ? 'text-warm-700' : 'text-red-700')}>
                       {formatDate(h.due_date)}
                     </div>
-                    <div className="text-[10px] text-warm-700">a rendre</div>
+                    <div className="text-[10px] text-warm-700">à rendre</div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-bold text-secondary-800 truncate">{h.title}</h3>
-                      <span className={clsx('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold', typeInfo.color)}>
-                        <TypeIcon size={10} />
-                        {typeInfo.label}
-                      </span>
+                      <Puce ton={typeInfo.ton}>{typeInfo.label}</Puce>
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary-100 text-secondary-700">
                         {h.classes?.name}
                       </span>
