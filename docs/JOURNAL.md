@@ -8715,3 +8715,10 @@ marque ; les vraies ecoles gardent leur plaque.
   « Facture par activite » `max(134, n x 22)`, « Rythme de collecte » 168 -> 152 px.
 - A retenir pour la suite de la refonte : remplacer un intitule par un bandeau AJOUTE de la hauteur. Sur un
   ecran sans defilement, la compenser dans le meme lot.
+- **Ce premier correctif n'a RIEN change** (capture de l'utilisateur apres deploiement) : la rangee 2 tire
+  sa hauteur de la liste « Top 10 » (10 lignes), pas du graphique, qui s'etire pour la suivre ; et le
+  tableau « Dossiers » avait une hauteur FIXE (`max-h-56`) qui depassait le bas de l'ecran. Correctif
+  structurel : page en `h-full flex flex-col`, bandeau et graphiques en `shrink-0`, tableau « Dossiers »
+  SEUL element elastique (`flex-1 min-h-[120px]`, defilement interne). Hauteurs des graphiques retablies.
+  Lecon : sur un ecran sans defilement, un element doit absorber la hauteur restante ; ajuster des pixels
+  ne tient que pour une taille d'ecran.

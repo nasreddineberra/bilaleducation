@@ -219,10 +219,10 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="h-full flex flex-col gap-3">
 
       {/* ── Bandeau (memes intitules que Reglements) ── */}
-      <div className={clsx('grid grid-cols-2 gap-2', kpi.counts.overpaid > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
+      <div className={clsx('grid grid-cols-2 gap-2 shrink-0', kpi.counts.overpaid > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5')}>
         <div className="card px-3 py-2">
           <p className="stat-label">Dossiers</p>
           <p className="text-lg font-bold text-secondary-800 tabular-nums">{rows.length}</p>
@@ -262,14 +262,14 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       </div>
 
       {/* ── Ligne 1 : répartitions (2 donuts dans un seul encadré) + activités ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 shrink-0">
         <section className="card p-3">
           <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Répartitions</h2>
           <div className="grid grid-cols-2 gap-2">
             {/* Statut */}
             <div className="min-w-0">
               <p className="text-[10px] text-warm-700 text-center mb-1">Dossiers par statut</p>
-              <div style={{ height: 116 }}>
+              <div style={{ height: 132 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -290,10 +290,10 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
             <div className="min-w-0 lg:border-l lg:border-warm-100 lg:pl-2">
               <p className="text-[10px] text-warm-700 text-center mb-1">Moyens de paiement</p>
               {methodTotal === 0 ? (
-                <p className="text-xs text-warm-700 italic grid place-items-center" style={{ height: 116 }}>Aucun encaissement.</p>
+                <p className="text-xs text-warm-700 italic grid place-items-center" style={{ height: 132 }}>Aucun encaissement.</p>
               ) : (
                 <>
-                  <div style={{ height: 116 }}>
+                  <div style={{ height: 132 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -317,7 +317,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
         <VizCard
           title="Facturé par activité"
           hint="l'encaissé n'est pas ventilable (paiement au foyer)"
-          height={Math.max(134, cotisData.length * 22)}
+          height={Math.max(150, cotisData.length * 24)}
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={cotisData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }} barSize={14}>
@@ -332,7 +332,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       </div>
 
       {/* ── Ligne 2 : débiteurs + rythme ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 shrink-0">
         <section className="card p-3 flex flex-col">
           <div className="encadre-titre gap-2">
             <h2 className="text-xs font-bold uppercase tracking-widest">Top 10 familles débitrices</h2>
@@ -368,7 +368,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
           )}
         </section>
 
-        <VizCard title="Rythme de collecte" hint="cumul encaissé vs facturé" height={152}>
+        <VizCard title="Rythme de collecte" hint="cumul encaissé vs facturé" height={168}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={monthly} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
               <CartesianGrid vertical={false} stroke={INK.grid} />
@@ -384,12 +384,15 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
         </VizCard>
       </div>
 
-      {/* ── Tableau des dossiers (reste dû décroissant) : la vue non graphique ── */}
-      <section className="card p-0 overflow-hidden">
+      {/* ── Tableau des dossiers (reste dû décroissant) : la vue non graphique ──
+          SEUL element elastique de la page (21/10) : il prend la hauteur restante
+          et defile en interne, la page n'a donc jamais de barre de defilement.
+          Une hauteur fixe (`max-h-56`) debordait des que l'ecran etait plus court. */}
+      <section className="card p-0 overflow-hidden flex-1 min-h-[120px] flex flex-col">
         <h2 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">
           Dossiers · {yearLabel} <span className="ml-1 text-warm-700 font-medium normal-case tracking-normal">· reste dû décroissant</span>
         </h2>
-        <div className="liste max-h-56 overflow-y-auto list-scroll">
+        <div className="liste flex-1 min-h-0 overflow-y-auto list-scroll">
           <table className="w-full text-xs leading-4" aria-label={`Dossiers ${yearLabel}, triés par reste dû décroissant`}>
             <thead className="sticky top-0 z-10">
               <tr className="liste-entete border-b border-[var(--card-border)]">
