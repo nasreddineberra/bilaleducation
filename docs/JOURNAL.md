@@ -8803,3 +8803,9 @@ marque ; les vraies ecoles gardent leur plaque.
 - Correctif : `.liste` seule ; cellules `list-td` en `text-xs`, horaires et dates en `tabular-nums` ;
   creneau actif en `.ligne-active` (barre des actifs, comme un eleve actif), survol commun retrouve ; etat
   vide d'une phrase ; erreur de chevauchement en `role="alert"`.
+
+#### 21 octobre 2026 — Types de presence : rappel de l'annee retire, boutons au-dessus du tableau
+
+- **Demandes utilisateur** : ligne « Annee 2026-2027 » retiree (doublon du contexte) ; « Copier depuis … »
+  et « Ajouter » deplaces juste au-dessus du tableau (sous l'encadre d'information), groupes avec lui
+  (`space-y-2`).

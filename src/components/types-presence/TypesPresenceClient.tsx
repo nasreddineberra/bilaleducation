@@ -322,22 +322,6 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
   return (
     <div className="space-y-4">
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-warm-700">Année <span className="font-semibold text-secondary-700">{currentYear.label}</span></p>
-        {!editing && (
-          <div className="flex items-center gap-2">
-            {previousYear && (
-              <FloatButton type="button" variant="secondary" onClick={copyFromPreviousYear} disabled={copying}>
-                {copying ? 'Copie…' : `Copier depuis ${previousYear.label}`}
-              </FloatButton>
-            )}
-            <FloatButton type="button" variant="submit" onClick={startAdd}>
-              Ajouter
-            </FloatButton>
-          </div>
-        )}
-      </div>
-
       {error && (
         <div role="alert" aria-live="assertive" className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
           <X size={14} className="shrink-0" />
@@ -354,6 +338,21 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             leur code sont verrouillés. Seule leur <strong>couleur</strong> est modifiable.
           </span>
       </div>
+
+      {/* Boutons juste au-dessus du tableau (demande du 21/10) */}
+      <div className="space-y-2">
+      {!editing && (
+        <div className="flex items-center justify-end gap-2 flex-wrap">
+          {previousYear && (
+            <FloatButton type="button" variant="secondary" onClick={copyFromPreviousYear} disabled={copying}>
+              {copying ? 'Copie…' : `Copier depuis ${previousYear.label}`}
+            </FloatButton>
+          )}
+          <FloatButton type="button" variant="submit" onClick={startAdd}>
+            Ajouter
+          </FloatButton>
+        </div>
+      )}
 
       <div className="liste">
         <table className="w-full text-xs" aria-label="Types de présence">
@@ -461,6 +460,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             )}
           </tbody>
         </table>
+      </div>
       </div>
 
       {confirmDeleteId && (
