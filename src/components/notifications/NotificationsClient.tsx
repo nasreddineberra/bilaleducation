@@ -4,13 +4,15 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { Bell, Mail, Users, UserCheck, Globe, Eye, EyeOff, AlertCircle, Clock, CreditCard, Megaphone, BookOpenText, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import PushSubscribeButton from './PushSubscribeButton'
 import { SearchField, FloatSelect } from '@/components/ui/FloatFields'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
@@ -59,21 +61,29 @@ interface Props {
   yearLabel: string | null
 }
 
-const ANNOUNCEMENT_TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
-  all_active:     { label: 'Parents (élèves inscrits)', icon: Users,     color: 'bg-blue-100 text-blue-700' },
-  all_registered: { label: 'Tous les contacts',        icon: Globe,     color: 'bg-purple-100 text-purple-700' },
-  class:          { label: "Parents d'une classe",     icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
-  selected:       { label: 'Parents choisis',          icon: UserCheck, color: 'bg-green-100 text-green-700' },
-  staff:          { label: 'Équipe',                   icon: Users,     color: 'bg-warm-100 text-warm-700' },
+// Pastilles de la charte (`Puce`, 21/10) : dix couleurs faites main, dont du
+// bleu, du vert et du violet hors charte.
+const ANNOUNCEMENT_TYPE_LABELS: Record<string, { label: string; ton: Ton }> = {
+  all_active:     { label: 'Parents (élèves inscrits)', ton: 'neutre' },
+  all_registered: { label: 'Tous les contacts',        ton: 'neutre' },
+  class:          { label: "Parents d'une classe",     ton: 'neutre' },
+  selected:       { label: 'Parents choisis',          ton: 'neutre' },
+  staff:          { label: 'Équipe',                   ton: 'neutre' },
 }
 
-const AUTO_TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
-  absence:      { label: 'Absence',      icon: AlertCircle, color: 'bg-red-100 text-red-700' },
-  retard:       { label: 'Retard',       icon: Clock,       color: 'bg-orange-100 text-orange-700' },
-  payment:      { label: 'Paiement',     icon: CreditCard,  color: 'bg-green-100 text-green-700' },
-  announcement: { label: 'Annonce',      icon: Megaphone,   color: 'bg-blue-100 text-blue-700' },
-  homework:     { label: 'Devoir',      icon: BookOpenText, color: 'bg-purple-100 text-purple-700' },
+const AUTO_TYPE_LABELS: Record<string, { label: string; ton: Ton }> = {
+  absence:      { label: 'Absence',  ton: 'danger' },
+  retard:       { label: 'Retard',   ton: 'orange' },
+  payment:      { label: 'Paiement', ton: 'ok' },
+  announcement: { label: 'Annonce',  ton: 'info' },
+  homework:     { label: 'Devoir',   ton: 'remplacement' },
 }
+
+// Carte d'une notification : survol par la bordure de marque (l'ombre
+// `hover:shadow-md` etait en dur), focus visible ; non lue = liseré et fond de marque.
+const CARTE = 'card px-4 py-3 flex items-start gap-3 w-full text-left transition-colors hover:border-[var(--brand-line)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
+const NON_LUE = 'border-l-[3px] border-l-[var(--brand-surface)] dark:border-l-[var(--brand-accent)] bg-[var(--brand-tint)]'
+const OEIL_NON_LU = 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
 
 function formatDate(d: string | null): string {
   if (!d) return '·'
@@ -198,36 +208,18 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
   return (
     <div className="space-y-4">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-sm text-warm-700">
-            <Bell size={16} className="text-warm-700" />
-            {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
-          </span>
-          {unreadCount > 0 && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-100 text-primary-700">
-              {unreadCount} non lu{unreadCount !== 1 ? 'es' : 'e'}
-            </span>
-          )}
-        </div>
-        {isParent && <PushSubscribeButton />}
-      </div>
-
       {/* Filtres */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <FloatSelect
-          label="Statut"
-          compact
-          aria-label="Filtrer par statut de lecture"
-          wrapperClassName="w-40"
-          value={filterRead}
-          onChange={e => setFilterRead(e.target.value)}
-        >
-          <option value="all">Toutes</option>
-          <option value="unread">Non lues</option>
-          <option value="read">Lues</option>
-        </FloatSelect>
+        <FiltreSwitch
+          ariaLabel="Filtrer par statut de lecture"
+          actif={filterRead}
+          onChange={setFilterRead}
+          options={[
+            { valeur: 'all',    libelle: 'Toutes',   nombre: notifications.length },
+            { valeur: 'unread', libelle: 'Non lues', nombre: unreadCount },
+            { valeur: 'read',   libelle: 'Lues',     nombre: notifications.length - unreadCount },
+          ]}
+        />
         {isParent && (
           <FloatSelect
             label="Type"
@@ -252,37 +244,31 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
           ariaLabel="Rechercher une notification"
           className="max-w-xs"
         />
+        {isParent && <div className="ml-auto"><PushSubscribeButton /></div>}
       </div>
 
       {/* Liste */}
       {filtered.length === 0 ? (
-        <div className="card px-6 py-10 text-center">
-          <Bell size={32} className="mx-auto text-warm-700 mb-2" />
-          <p className="text-sm text-warm-700">Aucune notification.</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Aucune notification.</div>
       ) : (
         <div className="space-y-1.5">
           {filtered.map(n => {
             const isRead = n.is_read || readIds.has(n.id)
 
             if (n.source === 'auto') {
-              const typeInfo = AUTO_TYPE_LABELS[n.type] ?? { label: '·', icon: Bell, color: 'bg-warm-100 text-warm-700' }
-              const TypeIcon = typeInfo.icon
+              const typeInfo = AUTO_TYPE_LABELS[n.type] ?? { label: '·', ton: 'neutre' as Ton }
 
               return (
                 <button
                   key={`auto-${n.id}`}
                   onClick={() => markAsRead(n)}
-                  className={clsx(
-                    'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all w-full text-left',
-                    !isRead && 'border-l-3 border-l-primary-500 bg-primary-50/30 dark:bg-primary-500/10'
-                  )}
+                  className={clsx(CARTE, !isRead && NON_LUE)}
                 >
                   <div className="mt-1 flex-shrink-0">
                     {isRead ? (
                       <Eye size={16} className="text-warm-700" aria-label="Lu" />
                     ) : (
-                      <EyeOff size={16} className="text-primary-500" aria-label="Non lu" />
+                      <EyeOff size={16} className={OEIL_NON_LU} aria-label="Non lu" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -293,10 +279,7 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
                       )}>
                         {n.title}
                       </h3>
-                      <span className={clsx('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0', typeInfo.color)}>
-                        <TypeIcon size={9} />
-                        {typeInfo.label}
-                      </span>
+                      <Puce ton={typeInfo.ton}>{typeInfo.label}</Puce>
                     </div>
                     <p className="text-xs text-warm-700 mt-0.5 truncate">{n.body}</p>
                     <div className="text-[11px] text-warm-700 mt-1">
@@ -310,8 +293,7 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
             // Announcement notification
             const ann = n.announcements
             if (!ann) return null
-            const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '·', icon: Mail, color: 'bg-warm-100 text-warm-700' }
-            const TypeIcon = typeInfo.icon
+            const typeInfo = ANNOUNCEMENT_TYPE_LABELS[ann.announcement_type ?? ''] ?? { label: '·', ton: 'neutre' as Ton }
             // « Parents {annee} » si une annee est en cours (aligne sur l'historique).
             const typeText = ann.announcement_type === 'all_active' && yearLabel
               ? `Parents ${yearLabel}`
@@ -323,16 +305,13 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
                 key={`ann-${n.id}`}
                 href={`/dashboard/notifications/${ann.id}?rid=${n.id}&rt=${n.recipientType}`}
                 onClick={() => markAsRead(n)}
-                className={clsx(
-                  'card px-4 py-3 flex items-start gap-3 hover:shadow-md transition-all group',
-                  !isRead && 'border-l-3 border-l-primary-500 bg-primary-50/30 dark:bg-primary-500/10'
-                )}
+                className={clsx(CARTE, !isRead && NON_LUE)}
               >
                 <div className="mt-1 flex-shrink-0">
                   {isRead ? (
                     <Eye size={16} className="text-warm-700" aria-label="Lu" />
                   ) : (
-                    <EyeOff size={16} className="text-primary-500" aria-label="Non lu" />
+                    <EyeOff size={16} className={OEIL_NON_LU} aria-label="Non lu" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -343,10 +322,7 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
                     )}>
                       {ann.title}
                     </h3>
-                    <span className={clsx('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase flex-shrink-0', typeInfo.color)}>
-                      <TypeIcon size={9} />
-                      {typeText}
-                    </span>
+                    <Puce ton={typeInfo.ton}>{typeText}</Puce>
                   </div>
                   {preview && (
                     <p className="text-xs text-warm-700 mt-0.5 truncate">{preview}</p>
@@ -365,7 +341,7 @@ export default function NotificationsClient({ notifications: toutes, role, yearL
                       type="button"
                       aria-label={`Supprimer la notification ${ann.title}`}
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setASupprimer(n) }}
-                      className="p-1.5 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                      className="p-1.5 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                     >
                       <Trash2 size={14} aria-hidden="true" />
                     </button>

@@ -8634,3 +8634,13 @@ marque ; les vraies ecoles gardent leur plaque.
   hauteur bornee (seule la liste defile) ; focus `--brand-focus` ; etats vides d'une phrase ; plages de dates
   « du JJ/MM/AAAA au JJ/MM/AAAA » (plus de tiret entoure d'espaces) ; liste des eleves de la modale en
   petite `.liste` (Nom, N°).
+
+#### 21 octobre 2026 — Refonte : Notifications
+
+- **Inspection puis go** (points 1 a 10). Filtre Statut en `FiltreSwitch` avec compteurs (le compteur
+  au-dessus faisait doublon, retire ; bouton push du parent a droite de la barre) ; non lue = liseré et
+  fond de marque ; pastilles de type en `Puce` (Absence `danger`, Retard `orange`, Paiement `ok`, Annonce
+  `info`, Devoir `remplacement`, ciblages `neutre` ; bleu / vert / violet hors charte retires) ; cartes au
+  survol de marque avec focus visible ; etat vide d'une phrase.
+- **Detail** : type et canal en `Puce` (le bleu du canal etait hors charte) ; piece jointe au vert de
+  marque, indisponible en `warm-400` au lieu de l'opacite.

@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { Paperclip } from 'lucide-react'
 import { sanitize } from '@/lib/security/sanitize'
 import { ouvrirPieceJointe } from '@/lib/communications/piece-jointe'
+import { Puce } from '@/components/dashboard/tdb'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,12 +73,10 @@ export default function NotificationDetailClient({ message, attachments, yearLab
               de <span className="font-medium text-warm-700">{message.profiles.last_name} {message.profiles.first_name}</span>
             </span>
           )}
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warm-100 text-warm-700">
-            {typeLabel}
-          </span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-50 text-blue-600">
+          <Puce ton="neutre">{typeLabel}</Puce>
+          <Puce ton="info">
             {message.channel === 'both' ? 'Email + Notification' : message.channel === 'notification' ? 'Notification' : 'Email'}
-          </span>
+          </Puce>
         </div>
       </div>
 
@@ -108,11 +107,11 @@ export default function NotificationDetailClient({ message, attachments, yearLab
                   }}
                   className={clsx(
                     'w-full text-left flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1.5 text-xs transition-colors',
-                    lisible ? 'hover:bg-warm-100' : 'opacity-50 pointer-events-none',
+                    lisible ? 'hover:bg-warm-100' : 'text-warm-400 pointer-events-none',
                   )}
                 >
                   <Paperclip size={12} className="text-warm-700" aria-hidden="true" />
-                  <span className="text-primary-600 font-medium flex-1">{a.file_name}</span>
+                  <span className={clsx('font-medium flex-1', lisible ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-400')}>{a.file_name}</span>
                   {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
                 </button>
               )
