@@ -8784,3 +8784,13 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Controles** : type-check OK, lint 0 erreur (649 avertissements, inchange), 123 tests OK, build OK.
 - **Lecon** (memoire `refonte-structure-pas-couleurs`) : une refonte se verifie sur la STRUCTURE ; un script
   de comptage repere, il ne conclut pas.
+
+#### 21 octobre 2026 — Fiche annee scolaire : switchs Oui / Non
+
+- **Demande utilisateur** (capture) : des switchs Oui / Non plutot que des cases. Types d'evaluation
+  (Diagnostique, Notee /10, Notee /20, Etoilee) et « Annee en cours » en `SwitchOuiNon` (celui de la fiche
+  parent) ; intitule a gauche, switch a droite ; option verrouillee = switch grise + pastille.
+- Le verrou ne passe plus par un `pointer-events-none` sur toute l'option (le switch se desactive lui-meme),
+  MAIS les options du diagnostique (AC / EC / NA) restent figees quand le type est verrouille : changer un
+  acronyme changerait le sens de notes deja saisies.
+- Repartition (Semestriel / Trimestriel) inchangee : ce n'est pas un choix oui / non.

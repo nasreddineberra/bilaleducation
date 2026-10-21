@@ -8,7 +8,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
+import { FloatInput, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
 import { Puce } from '@/components/dashboard/tdb'
@@ -649,8 +649,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 vLabelYearMismatch ? 'Le libellé ne correspond pas aux dates saisies.' : undefined
               }
             />
-            <FloatCheckbox
-              variant="switch"
+            <SwitchOuiNon
               label="Année en cours"
               checked={form.is_current}
               onChange={v => set('is_current', v)}
@@ -839,25 +838,26 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             return (
               <div className={clsx(
                 'px-3 py-2 rounded-xl border transition-colors col-span-2',
-                locked ? 'pointer-events-none [&_p]:text-warm-400' : '',
+                locked ? '[&_p]:text-warm-400' : '',
                 form.eval_types.includes('diagnostic') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white'
               )}>
-                <label className={clsx('flex items-center gap-3', locked ? 'cursor-not-allowed' : 'cursor-pointer')}>
-                  <input
-                    type="checkbox"
-                    checked={form.eval_types.includes('diagnostic')}
-                    onChange={() => !locked && toggleEvalType('diagnostic')}
-                    disabled={locked}
-                    className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
-                  />
+                <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-secondary-800">
                     Diagnostique
                     {lockBadge('diagnostic')}
                   </p>
-                </label>
+                  <SwitchOuiNon
+                    seul
+                    label="Évaluation diagnostique"
+                    checked={form.eval_types.includes('diagnostic')}
+                    onChange={v => { if (!locked && v !== form.eval_types.includes('diagnostic')) toggleEvalType('diagnostic') }}
+                    disabled={locked}
+                  />
+                </div>
 
                 {form.eval_types.includes('diagnostic') && (
-                  <div className="mt-1.5 ml-7 space-y-1">
+                  // Options figees avec le type : des notes existent deja avec ces acronymes.
+                  <div className={clsx('mt-1.5 space-y-1', locked && 'pointer-events-none [&_input]:bg-[var(--champ-verrou)] [&_input]:text-warm-400')} aria-disabled={locked || undefined}>
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-warm-700 w-20 text-center">Acronyme</span>
                       <span className="text-xs text-warm-700 flex-1">Commentaire</span>
@@ -914,18 +914,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           {(() => {
             const locked = isEvalTypeLocked('scored_10')
             return (
-              <label className={clsx(
-                'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
-                locked ? 'cursor-not-allowed pointer-events-none [&_p]:text-warm-400' : 'cursor-pointer',
+              <div className={clsx(
+                'flex items-center justify-between gap-3 px-3 py-2 rounded-xl border transition-colors',
+                locked ? '[&_p]:text-warm-400' : '',
                 form.eval_types.includes('scored_10') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
-                <input
-                  type="checkbox"
-                  checked={form.eval_types.includes('scored_10')}
-                  onChange={() => !locked && toggleEvalType('scored_10')}
-                  disabled={locked}
-                  className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
-                />
                 <div>
                   <p className="text-sm font-semibold text-secondary-800">
                     Notée sur 10
@@ -933,7 +926,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   </p>
                   <p className="text-xs text-warm-700">Notes de 0 à 10</p>
                 </div>
-              </label>
+                <SwitchOuiNon
+                  seul
+                  label="Évaluation notée sur 10"
+                  checked={form.eval_types.includes('scored_10')}
+                  onChange={v => { if (!locked && v !== form.eval_types.includes('scored_10')) toggleEvalType('scored_10') }}
+                  disabled={locked}
+                />
+              </div>
             )
           })()}
 
@@ -941,18 +941,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           {(() => {
             const locked = isEvalTypeLocked('scored_20')
             return (
-              <label className={clsx(
-                'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
-                locked ? 'cursor-not-allowed pointer-events-none [&_p]:text-warm-400' : 'cursor-pointer',
+              <div className={clsx(
+                'flex items-center justify-between gap-3 px-3 py-2 rounded-xl border transition-colors',
+                locked ? '[&_p]:text-warm-400' : '',
                 form.eval_types.includes('scored_20') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
-                <input
-                  type="checkbox"
-                  checked={form.eval_types.includes('scored_20')}
-                  onChange={() => !locked && toggleEvalType('scored_20')}
-                  disabled={locked}
-                  className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
-                />
                 <div>
                   <p className="text-sm font-semibold text-secondary-800">
                     Notée sur 20
@@ -960,7 +953,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   </p>
                   <p className="text-xs text-warm-700">Notes de 0 à 20</p>
                 </div>
-              </label>
+                <SwitchOuiNon
+                  seul
+                  label="Évaluation notée sur 20"
+                  checked={form.eval_types.includes('scored_20')}
+                  onChange={v => { if (!locked && v !== form.eval_types.includes('scored_20')) toggleEvalType('scored_20') }}
+                  disabled={locked}
+                />
+              </div>
             )
           })()}
 
@@ -968,18 +968,11 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           {(() => {
             const locked = isEvalTypeLocked('stars')
             return (
-              <label className={clsx(
-                'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors col-span-2',
-                locked ? 'cursor-not-allowed pointer-events-none [&_p]:text-warm-400' : 'cursor-pointer',
+              <div className={clsx(
+                'flex items-center justify-between gap-3 px-3 py-2 rounded-xl border transition-colors col-span-2',
+                locked ? '[&_p]:text-warm-400' : '',
                 form.eval_types.includes('stars') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
-                <input
-                  type="checkbox"
-                  checked={form.eval_types.includes('stars')}
-                  onChange={() => !locked && toggleEvalType('stars')}
-                  disabled={locked}
-                  className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
-                />
                 <div>
                   <p className="text-sm font-semibold text-secondary-800">
                     Étoilée
@@ -987,7 +980,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   </p>
                   <p className="text-xs text-warm-700">0 à 5 étoiles · par tranche de 0,5</p>
                 </div>
-              </label>
+                <SwitchOuiNon
+                  seul
+                  label="Évaluation étoilée"
+                  checked={form.eval_types.includes('stars')}
+                  onChange={v => { if (!locked && v !== form.eval_types.includes('stars')) toggleEvalType('stars') }}
+                  disabled={locked}
+                />
+              </div>
             )
           })()}
 
