@@ -9,8 +9,9 @@ import { Puce } from '@/components/dashboard/tdb'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
-import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput, FloatCheckbox } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { CotisationType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -126,10 +127,7 @@ export default function CotisationsClient({
 
   if (!currentYear) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-        <AlertTriangle size={36} className="text-warm-700" />
-        <p className="text-sm text-warm-700">Aucune année scolaire en cours.</p>
-      </div>
+      <div className="card text-center text-sm text-warm-700 py-10">Aucune année scolaire en cours.</div>
     )
   }
 
@@ -240,14 +238,11 @@ export default function CotisationsClient({
     <div className="flex flex-col gap-4 lg:h-full min-h-0 lg:overflow-y-auto lg:pr-1">
 
         {/* ── Encadré 1 : Types de cotisations ── */}
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-secondary-800">Types de cotisations · {currentYear.label}</h2>
-              <p className="text-xs text-warm-700 mt-0.5">Utilisés pour le calcul du coût dans le financement des cotisations</p>
-            </div>
+        <div className="card p-0 overflow-hidden">
+          <div className="encadre-titre m-0 justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-widest">Types de cotisations · {currentYear.label}</h2>
             {!editing && (
-              <FloatButton type="button" variant="submit" onClick={startAdd}>
+              <FloatButton type="button" variant="submit" size="mini" onClick={startAdd}>
                 Ajouter
               </FloatButton>
             )}
@@ -270,10 +265,7 @@ export default function CotisationsClient({
                     onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
                   />
                   <div className="flex items-center gap-1.5 mt-1.5">
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input type="checkbox" checked={editing.is_adult} onChange={e => setEditing({ ...editing, is_adult: e.target.checked })} className="accent-[var(--brand-surface)] w-3.5 h-3.5" />
-                      <span className="text-xs text-secondary-600">Cours adultes</span>
-                    </label>
+                    <FloatCheckbox variant="compact" label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
                     <InfoHint text="Les classes de ce type seront réservées aux adultes." />
                   </div>
                 </div>
@@ -321,10 +313,7 @@ export default function CotisationsClient({
                     <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1.5">
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input type="checkbox" checked={editing.sibling_discount_same_type} onChange={e => setEditing({ ...editing, sibling_discount_same_type: e.target.checked })} className="accent-amber-500 w-3.5 h-3.5" />
-                      <span className="text-xs text-secondary-600">Même type</span>
-                    </label>
+                    <FloatCheckbox variant="compact" label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
                     <InfoHint text="Réduction entre enfants du même type uniquement." />
                   </div>
                 </div>
@@ -384,12 +373,7 @@ export default function CotisationsClient({
                   </td>
                   <td className="list-td text-center text-warm-700">{row.max_installments === 1 ? 'Comptant' : `${row.max_installments}x`}</td>
                   <td className="list-td">
-                    {confirmDeleteId === row.id ? (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => remove(row.id)} disabled={saving} className="text-[11px] text-red-700 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
-                        <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] text-warm-700 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
-                      </div>
-                    ) : (
+                    {(
                       <div className="flex items-center justify-end gap-0.5">
                         <Tooltip content="Modifier">
                           <button onClick={() => startEdit(row)} disabled={!!editing} aria-label={`Modifier ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100')}><Pencil size={13} /></button>
@@ -411,9 +395,7 @@ export default function CotisationsClient({
 
           {/* Historique des cotisations */}
           <div className="flex-1 min-w-0 border-l border-warm-100 bg-warm-50/30 overflow-x-auto">
-            <div className="px-4 py-1.5 border-b border-warm-100">
-              <h3 className="text-[11px] leading-4 font-semibold text-warm-700 uppercase tracking-wider">Historique</h3>
-            </div>
+            <h3 className="stat-label px-4 py-1.5 border-b border-warm-100">Historique</h3>
             {pastYears.length === 0 ? (
               <p className="px-4 py-8 text-xs text-warm-700 text-center italic">Aucun historique disponible.</p>
             ) : (
@@ -465,11 +447,8 @@ export default function CotisationsClient({
         </div>
 
         {/* ── Encadré 2 : Taux horaires ── */}
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-warm-100 bg-warm-50">
-            <h2 className="text-sm font-bold text-secondary-800">Taux horaires généralisés · {currentYear.label}</h2>
-            <p className="text-xs text-warm-700 mt-0.5">Utilisés pour le calcul du coût dans le temps de présence</p>
-          </div>
+        <div className="card p-0 overflow-hidden">
+          <h2 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">Taux horaires généralisés · {currentYear.label}</h2>
 
           {/* Bandeau de statut : tous les taux enregistrés / manquants / modifiés */}
           {presenceTypes.length > 0 && (
@@ -545,7 +524,7 @@ export default function CotisationsClient({
                               onChange={e => setRates(prev => ({ ...prev, [pt.id]: e.target.value }))}
                               onBlur={e => setRates(prev => ({ ...prev, [pt.id]: to2(e.target.value) }))}
                               disabled={pt.is_absence}
-                              className={clsx('input text-sm pr-8 w-full disabled:bg-warm-100 disabled:text-warm-700 disabled:cursor-not-allowed', isMissing && 'border-amber-400 bg-amber-50/40')}
+                              className={clsx('input text-sm pr-8 w-full disabled:bg-[var(--champ-verrou)] disabled:text-warm-400 disabled:cursor-not-allowed', isMissing && 'border-amber-400 bg-amber-50/40')}
                               placeholder="0"
                             />
                             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">/h</span>
@@ -590,9 +569,7 @@ export default function CotisationsClient({
 
           {/* Historique des taux horaires */}
           <div className="flex-1 min-w-0 border-l border-warm-100 bg-warm-50/30 overflow-x-auto">
-            <div className="px-4 py-1.5 border-b border-warm-100">
-              <h3 className="text-[11px] leading-4 font-semibold text-warm-700 uppercase tracking-wider">Historique</h3>
-            </div>
+            <h3 className="stat-label px-4 py-1.5 border-b border-warm-100">Historique</h3>
             {pastYears.length === 0 ? (
               <p className="px-4 py-8 text-xs text-warm-700 text-center italic">Aucun historique disponible.</p>
             ) : (
@@ -623,6 +600,21 @@ export default function CotisationsClient({
           </div>
           </div>
         </div>
+
+      {confirmDeleteId && (
+        <ConfirmModal
+          open
+          variant="danger"
+          confirmColor="red"
+          title="Supprimer le type de cotisation"
+          confirmLabel={saving ? 'Suppression…' : 'Supprimer définitivement'}
+          confirmDisabled={saving}
+          onConfirm={() => remove(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        >
+          <p className="text-sm text-warm-700">{rows.find(r => r.id === confirmDeleteId)?.label ?? ''}</p>
+        </ConfirmModal>
+      )}
 
     </div>
   )

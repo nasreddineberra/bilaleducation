@@ -1,16 +1,16 @@
 'use client'
 
 import { normalizeNom } from '@/lib/normalize-name'
-import { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { X, Trash2, BookOpen, Pencil, CalendarDays } from 'lucide-react'
+import { Trash2, BookOpen, Pencil, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
 import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
@@ -213,14 +213,6 @@ export default function ClassForm({
   )
   const availableTeachers = teachers.filter(t => !activeAssignedIds.has(t.id))
 
-  // Accessibilité modale « clôture/modification d'affectation »
-  const assignModalRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!pendingAssignAction) return
-    // Pas d'Echap : cette modale porte un selecteur de date de cloture.
-    assignModalRef.current?.focus()
-    return () => {}
-  }, [pendingAssignAction])
 
   // ── Titulaire ──────────────────────────────────────────────────────────────
   const openTitulairePanel = () => {
@@ -762,7 +754,7 @@ export default function ClassForm({
               {/* ── Titulaire ── */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Titulaire</h3>
+                  <h3 className="section-title">Titulaire</h3>
                   {!showAddRow && (
                     <span className="flex items-center gap-3">
                       {activeTit && (
@@ -819,17 +811,17 @@ export default function ClassForm({
                         <div key={`ft-${realIdx}`} className="group flex items-center justify-between text-[11px] text-warm-700 pl-3 pr-1">
                           <span>Ancien titulaire : <span className="text-secondary-500">{a.teacher_name}</span></span>
                           <span className="flex items-center gap-1.5 whitespace-nowrap">
-                            <span>{a.effective_from ? fmtDate(a.effective_from) : 'Début'} · {a.effective_until ? fmtDate(a.effective_until) : ''}</span>
+                            <span>{a.effective_from ? `du ${fmtDate(a.effective_from)}` : 'depuis le début'}{a.effective_until ? ` au ${fmtDate(a.effective_until)}` : ''}</span>
                             <Tooltip content="Corriger les dates">
                               <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
-                                <Pencil size={11} />
+                                className="p-1 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
+                                <Pencil size={12} />
                               </button>
                             </Tooltip>
                             <Tooltip content="Supprimer">
                               <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
-                                <Trash2 size={11} />
+                                className="p-1 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                <Trash2 size={12} />
                               </button>
                             </Tooltip>
                           </span>
@@ -842,7 +834,7 @@ export default function ClassForm({
 
               {/* ── Remplacement en cours ── */}
               <div className="space-y-1.5 pt-3 border-t border-warm-100">
-                <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Remplacement en cours</h3>
+                <h3 className="section-title">Remplacement en cours</h3>
 
                 {currentSub ? (() => {
                   const realIdx = assignments.indexOf(currentSub)
@@ -905,32 +897,32 @@ export default function ClassForm({
               {/* ── Historique des remplacements ── */}
               {pastSubs.length > 0 && (
                 <div className="pt-3 border-t border-warm-100 space-y-1.5">
-                  <h3 className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">
+                  <h3 className="section-title">
                     Historique des remplacements ({pastSubs.length})
                   </h3>
-                  <div className="border border-warm-100 rounded-xl overflow-hidden opacity-70">
-                    <table className="w-full text-sm">
+                  <div className="border border-warm-100 rounded-xl overflow-hidden">
+                    <table className="liste w-full text-sm" aria-label="Historique des remplacements">
                       <tbody className="divide-y divide-warm-50">
                         {pastSubs.map(a => {
                           const realIdx = assignments.indexOf(a)
                           return (
-                            <tr key={`pastsub-${realIdx}`} className="transition-colors hover:bg-warm-100 group bg-warm-50/30">
-                              <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">{a.teacher_name}</td>
+                            <tr key={`pastsub-${realIdx}`}>
+                              <td className="px-3 py-1.5 text-secondary-700 text-xs whitespace-nowrap">{a.teacher_name}</td>
                               <td className="px-3 py-1.5 text-[10px] text-warm-700 whitespace-nowrap text-right">
-                                {a.effective_from ? fmtDate(a.effective_from) : 'Début'} · {a.effective_until ? fmtDate(a.effective_until) : ''}
+                                {a.effective_from ? `du ${fmtDate(a.effective_from)}` : 'depuis le début'}{a.effective_until ? ` au ${fmtDate(a.effective_until)}` : ''}
                               </td>
                               <td className="px-2 py-1.5 w-12">
                                 <div className="flex items-center gap-1 justify-end">
                                   <Tooltip content="Corriger les dates">
                                     <button type="button" onClick={() => openEditRow(realIdx)} aria-label={`Corriger les dates de ${a.teacher_name}`}
-                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
-                                      <Pencil size={11} />
+                                      className="p-1 text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
+                                      <Pencil size={12} />
                                     </button>
                                   </Tooltip>
                                   <Tooltip content="Supprimer">
                                     <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
-                                      <Trash2 size={11} />
+                                      className="p-1 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                      <Trash2 size={12} />
                                     </button>
                                   </Tooltip>
                                 </div>
@@ -1074,98 +1066,61 @@ export default function ClassForm({
     </form>
 
     {/* Modale confirmation modification/suppression affectation en cours d'annee */}
-    {pendingAssignAction && typeof document !== 'undefined' && createPortal(
-      <div
-        className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
-        
+    {/* Pas d'Echap (FormModal) : cette modale porte un selecteur de date de cloture. */}
+    {pendingAssignAction && (
+      <FormModal
+        title={pendingAssignAction.type === 'delete' ? 'Confirmer la clôture' : 'Confirmer la modification'}
+        onClose={() => setPendingAssignAction(null)}
+        maxWidth="max-w-sm"
+        footer={<>
+          <div className="flex-1" />
+          <FloatButton type="button" variant="secondary" onClick={() => setPendingAssignAction(null)}>Annuler</FloatButton>
+          <FloatButton
+            type="button"
+            variant={pendingAssignAction.type === 'delete' ? 'danger' : 'submit'}
+            onClick={() => {
+              pendingAssignAction.applyFn(pendingAssignAction.effectiveDate)
+              setPendingAssignAction(null)
+            }}
+            disabled={!pendingAssignAction.effectiveDate}
+          >
+            Confirmer
+          </FloatButton>
+        </>}
       >
-        <div
-          ref={assignModalRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="assign-modal-title"
-          tabIndex={-1}
-          className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-fade-in outline-none"
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-            <h3 id="assign-modal-title" className="text-sm font-bold text-secondary-800">
-              {pendingAssignAction.type === 'delete' ? 'Confirmer la cloture' : 'Confirmer la modification'}
-            </h3>
-          </div>
-          <div className="px-5 py-4 space-y-3">
-            <p className="text-sm text-warm-700">{pendingAssignAction.message}</p>
-            <div>
-              <label htmlFor="assign-effective-date" className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Date d&apos;effet</label>
-              <input
-                id="assign-effective-date"
-                type="date"
-                value={pendingAssignAction.effectiveDate}
-                min={todayISO()}
-                max={currentSchoolYear?.end_date ?? undefined}
-                onChange={e => setPendingAssignAction(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
-                className="mt-1 w-full text-sm border border-warm-200 rounded-lg px-3 py-2 bg-white text-secondary-800 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 px-5 py-3 border-t border-warm-100">
-            <button
-              type="button"
-              onClick={() => setPendingAssignAction(null)}
-              className="text-sm text-warm-700 hover:text-secondary-700 px-3 py-1.5 rounded-lg border border-warm-200 transition-colors"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                pendingAssignAction.applyFn(pendingAssignAction.effectiveDate)
-                setPendingAssignAction(null)
-              }}
-              disabled={!pendingAssignAction.effectiveDate}
-              className={clsx(
-                'text-sm text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50',
-                pendingAssignAction.type === 'delete' ? 'bg-red-500 hover:bg-red-600' : 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)]'
-              )}
-            >
-              Confirmer
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body
+        <p className="text-sm text-warm-700">{pendingAssignAction.message}</p>
+        <FloatInput
+          label="Date d'effet"
+          type="date"
+          required
+          value={pendingAssignAction.effectiveDate}
+          min={todayISO()}
+          max={currentSchoolYear?.end_date ?? undefined}
+          onChange={e => setPendingAssignAction(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
+        />
+      </FormModal>
     )}
 
     {/* Modale correction des dates (historique / ancien titulaire) */}
-    {editRow && typeof document !== 'undefined' && createPortal(
-      <div
-        className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30"
-        
+    {editRow && (
+      <FormModal
+        title="Corriger les dates"
+        onClose={() => setEditRow(null)}
+        maxWidth="max-w-sm"
+        footer={<>
+          <div className="flex-1" />
+          <FloatButton type="button" variant="secondary" onClick={() => setEditRow(null)}>Annuler</FloatButton>
+          <FloatButton type="button" variant="submit" onClick={applyEditRow}
+            disabled={!!editRow.from && !!editRow.until && editRow.until < editRow.from}>
+            Valider
+          </FloatButton>
+        </>}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-row-title"
-          className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 animate-fade-in outline-none"
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-            <h3 id="edit-row-title" className="text-sm font-bold text-secondary-800">Corriger les dates</h3>
-          </div>
-          <div className="px-5 py-4 grid grid-cols-2 gap-3">
-            <FloatInput label="Du" type="date" value={editRow.from} onChange={e => setEditRow(prev => prev ? { ...prev, from: e.target.value } : null)} />
-            <FloatInput label="Au" type="date" value={editRow.until} onChange={e => setEditRow(prev => prev ? { ...prev, until: e.target.value } : null)} />
-          </div>
-          <div className="flex justify-end gap-2 px-5 py-3 border-t border-warm-100">
-            <FloatButton type="button" variant="secondary" onClick={() => setEditRow(null)}>Annuler</FloatButton>
-            <FloatButton type="button" variant="submit" onClick={applyEditRow}
-              disabled={!!editRow.from && !!editRow.until && editRow.until < editRow.from}>
-              Valider
-            </FloatButton>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FloatInput label="Du" type="date" value={editRow.from} onChange={e => setEditRow(prev => prev ? { ...prev, from: e.target.value } : null)} />
+          <FloatInput label="Au" type="date" value={editRow.until} onChange={e => setEditRow(prev => prev ? { ...prev, until: e.target.value } : null)} />
         </div>
-      </div>,
-      document.body
+      </FormModal>
     )}
 
     <ConfirmModal
@@ -1207,16 +1162,8 @@ function SlotFormModal({
   const [effectiveFrom,  setEffectiveFrom]  = useState(initial?.effective_from  ?? '')
   const [effectiveUntil, setEffectiveUntil] = useState(initial?.effective_until ?? '')
   const [err,            setErr]            = useState<string | null>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-
-  // Focus initial. Pas de fermeture sur Echap : on saisit ici des dates d'effet,
-  // une touche reflexe ne doit pas faire perdre la saisie. (Echap reste actif
-  // sur les modales de CONFIRMATION, qui n'ont rien a perdre.)
-  useEffect(() => {
-    if (!open) return
-    panelRef.current?.focus()
-    return () => {}
-  }, [open, onCancel])
+  // Pas de fermeture sur Echap (FormModal) : on saisit ici des dates d'effet,
+  // une touche reflexe ne doit pas faire perdre la saisie.
 
   if (!open) return null
 
@@ -1244,38 +1191,18 @@ function SlotFormModal({
     onSave({ id: initial?.id, day_of_week: dayOfWeek, start_time: startTime, end_time: endTime, effective_from: effectiveFrom, effective_until: effectiveUntil })
   }
 
-  if (typeof document === 'undefined') return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30" >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="slot-modal-title"
-        tabIndex={-1}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-fade-in outline-none"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <div className="flex items-center gap-2">
-            <CalendarDays size={15} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" />
-            <h3 id="slot-modal-title" className="text-sm font-bold text-secondary-800">
-              {initial ? 'Modifier le créneau' : 'Nouveau créneau'}
-            </h3>
-          </div>
-          <button
-            type="button" onClick={onCancel}
-            aria-label="Fermer"
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="px-5 py-4 space-y-4">
+  return (
+    <FormModal
+      title={initial ? 'Modifier le créneau' : 'Nouveau créneau'}
+      onClose={onCancel}
+      footer={<>
+        <div className="flex-1" />
+        <FloatButton type="button" variant="secondary" onClick={onCancel}>Annuler</FloatButton>
+        <FloatButton type="button" variant={initial ? 'edit' : 'submit'} onClick={handleSave} disabled={!canSave}>
+          {initial ? 'Modifier' : 'Valider'}
+        </FloatButton>
+      </>}
+    >
           {err && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
 
           <div className="grid grid-cols-3 gap-3">
@@ -1333,7 +1260,7 @@ function SlotFormModal({
                 <button
                   type="button"
                   onClick={() => setEffectiveFrom((currentSchoolYear.start_date ?? '').slice(0, 10))}
-                  className="text-[10px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline transition-colors"
+                  className="text-[10px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                 >
                   Rentrée ({fmtDate((currentSchoolYear.start_date ?? '').slice(0, 10))})
                 </button>
@@ -1352,24 +1279,13 @@ function SlotFormModal({
                 <button
                   type="button"
                   onClick={() => setEffectiveUntil((currentSchoolYear.end_date ?? '').slice(0, 10))}
-                  className="text-[10px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline transition-colors"
+                  className="text-[10px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                 >
                   Fin d'année ({fmtDate((currentSchoolYear.end_date ?? '').slice(0, 10))})
                 </button>
               )}
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-warm-100">
-          <FloatButton type="button" variant="secondary" onClick={onCancel}>Annuler</FloatButton>
-          <FloatButton type="button" variant={initial ? 'edit' : 'submit'} onClick={handleSave} disabled={!canSave}>
-            {initial ? 'Modifier' : 'Valider'}
-          </FloatButton>
-        </div>
-      </div>
-    </div>,
-    document.body
+    </FormModal>
   )
 }

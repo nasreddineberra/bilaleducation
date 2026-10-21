@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
-import { FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput, FloatSelect } from '@/components/ui/FloatFields'
+import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import type { AuditLog, AuditAction } from '@/types/database'
 import { PURGE_OPTIONS, type PurgeJours } from '@/lib/audit/purge-options'
@@ -235,14 +235,11 @@ export default function AuditLogsClient({
   const [comptage, setComptage] = useState(false)
   /** L'option retenue, rappelee a la confirmation : on ne confirme pas a l'aveugle. */
   const optionChoisie = PURGE_OPTIONS.find(o => o.jours === purgeJours)
-  const dialogRef = useRef<HTMLDivElement>(null)
-
-  // Modale : focus a l'ouverture + fermeture par Echap
+  // Modale : fermeture par Echap (c'est un choix puis une confirmation, rien a perdre)
   useEffect(() => {
     if (!showPurge) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !purging) fermerPurge() }
     document.addEventListener('keydown', onKey)
-    dialogRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
   }, [showPurge, purging])
 
@@ -305,79 +302,53 @@ export default function AuditLogsClient({
   return (
     <div className="flex flex-col h-full animate-fade-in">
 
-      {/* Filtres */}
-      <div className="flex items-center gap-3 flex-wrap mb-3">
-        <div className="flex items-center gap-2">
-          <label htmlFor="log-date-from" className="text-xs text-warm-700">Du</label>
-          <input
-            id="log-date-from"
-            type="date"
-            value={filters.date_from}
-            onChange={e => navigate({ date_from: e.target.value, page: 1 })}
-            className="input text-sm py-1.5 px-2 w-36"
-          />
+      {/* Filtres : barre d'outils de la charte. « Tous » porte la sentinelle `__all__` :
+          une valeur vide laisserait le libelle flottant retomber sur l'option. */}
+      <div className="card px-3 py-2 flex items-center gap-3 flex-wrap mb-3">
+        <div className="w-36">
+          <FloatInput label="Du" type="date" compact value={filters.date_from}
+            onChange={e => navigate({ date_from: e.target.value, page: 1 })} />
         </div>
-        <div className="flex items-center gap-2">
-          <label htmlFor="log-date-to" className="text-xs text-warm-700">Au</label>
-          <input
-            id="log-date-to"
-            type="date"
-            value={filters.date_to}
-            onChange={e => navigate({ date_to: e.target.value, page: 1 })}
-            className="input text-sm py-1.5 px-2 w-36"
-          />
+        <div className="w-36">
+          <FloatInput label="Au" type="date" compact value={filters.date_to}
+            onChange={e => navigate({ date_to: e.target.value, page: 1 })} />
         </div>
         {/* Filtre par utilisateur. C'était une barre d'ONGLETS, un par personne :
-            lisible à trois comptes, illisible à trente — elle débordait en
-            défilement horizontal et poussait le tableau vers le bas. */}
-        <select
-          aria-label="Filtrer par utilisateur"
-          value={filters.user}
-          onChange={e => navigate({ user: e.target.value, page: 1 })}
-          className="input text-sm py-1.5 px-2 w-auto"
-        >
-          <option value="">Tous les utilisateurs</option>
+            lisible à trois comptes, illisible à trente. */}
+        <FloatSelect label="Utilisateur" compact wrapperClassName="w-fit"
+          value={filters.user || '__all__'}
+          onChange={e => navigate({ user: e.target.value === '__all__' ? '' : e.target.value, page: 1 })}>
+          <option value="__all__">Tous</option>
           {users.map(u => (
-            <option key={u.user_id} value={u.user_id}>
-              {u.user_name || u.user_email}
-            </option>
+            <option key={u.user_id} value={u.user_id}>{u.user_name || u.user_email}</option>
           ))}
-        </select>
-        <select
-          aria-label="Filtrer par entité"
-          value={filters.entity_type}
-          onChange={e => navigate({ entity_type: e.target.value, page: 1 })}
-          className="input text-sm py-1.5 px-2 w-auto"
-        >
-          <option value="">Toutes les entités</option>
-          {/* Tri sur le LIBELLÉ et non sur le nom de table : classer « Notes »
-              sous G parce que la table s'appelle `grades` n'aide personne. */}
+        </FloatSelect>
+        <FloatSelect label="Entité" compact wrapperClassName="w-fit"
+          value={filters.entity_type || '__all__'}
+          onChange={e => navigate({ entity_type: e.target.value === '__all__' ? '' : e.target.value, page: 1 })}>
+          <option value="__all__">Toutes</option>
+          {/* Tri sur le LIBELLÉ et non sur le nom de table. */}
           {[...entityTypes]
             .sort((a, b) => (ENTITY_LABELS[a] ?? a).localeCompare(ENTITY_LABELS[b] ?? b, 'fr'))
             .map(t => (
               <option key={t} value={t}>{ENTITY_LABELS[t] ?? t}</option>
             ))}
-        </select>
-        <select
-          aria-label="Filtrer par action"
-          value={filters.action}
-          onChange={e => navigate({ action: e.target.value, page: 1 })}
-          className="input text-sm py-1.5 px-2 w-auto"
-        >
-          <option value="">Toutes les actions</option>
+        </FloatSelect>
+        <FloatSelect label="Action" compact wrapperClassName="w-fit"
+          value={filters.action || '__all__'}
+          onChange={e => navigate({ action: e.target.value === '__all__' ? '' : e.target.value, page: 1 })}>
+          <option value="__all__">Toutes</option>
           <option value="INSERT">Création</option>
           <option value="UPDATE">Modification</option>
           <option value="DELETE">Suppression</option>
           <option value="LOGIN">Connexion</option>
           <option value="LOGOUT">Déconnexion</option>
-        </select>
+        </FloatSelect>
         {(filters.user || filters.date_from || filters.date_to || filters.entity_type || filters.action) && (
-          <button
-            onClick={() => navigate({ user: '', date_from: '', date_to: '', entity_type: '', action: '', page: 1 })}
-            className="text-xs text-red-700 hover:text-red-700 underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
-          >
+          <FloatButton type="button" variant="secondary" size="mini"
+            onClick={() => navigate({ user: '', date_from: '', date_to: '', entity_type: '', action: '', page: 1 })}>
             Réinitialiser
-          </button>
+          </FloatButton>
         )}
         <div className="ml-auto">
           {/* Désactivé, jamais masqué : un bouton qui disparaît se lit comme un
@@ -408,26 +379,39 @@ export default function AuditLogsClient({
       )}
 
       {/* Modale confirmation purge */}
-      {showPurge && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          
+      {showPurge && (
+        <FormModal
+          title={purgeEtape === 1 ? 'Purger le journal' : 'Confirmer la suppression'}
+          onClose={() => { if (!purging) fermerPurge() }}
+          footer={purgeEtape === 1 ? <>
+            <div className="flex-1" />
+            <FloatButton type="button" variant="secondary" onClick={fermerPurge} disabled={comptage}>
+              Annuler
+            </FloatButton>
+            {/* « Continuer » et non « Purger » : ce bouton ne detruit rien. */}
+            <FloatButton type="button" variant="submit" onClick={versConfirmation} disabled={comptage}>
+              {comptage ? 'Vérification…' : 'Continuer'}
+            </FloatButton>
+          </> : <>
+            <div className="flex-1" />
+            {/* Retour, et non Annuler : on revient au choix sans tout refermer. */}
+            <FloatButton type="button" variant="secondary" onClick={() => setPurgeEtape(1)} disabled={purging}>
+              Retour
+            </FloatButton>
+            <FloatButton
+              type="button"
+              variant="danger"
+              onClick={handlePurge}
+              disabled={purging || purgeCount === 0}
+            >
+              {purging
+                ? 'Suppression…'
+                : purgeJours === 0 ? 'Tout supprimer' : 'Supprimer définitivement'}
+            </FloatButton>
+          </>}
         >
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="purge-title"
-            tabIndex={-1}
-            onClick={e => e.stopPropagation()}
-            className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md outline-none"
-          >
-            <h3 id="purge-title" className="text-lg font-bold text-secondary-800 mb-2">
-              {purgeEtape === 1 ? 'Purger le journal' : 'Confirmer la suppression'}
-            </h3>
-
-            {purgeEtape === 1 ? (
-              <>
+          {purgeEtape === 1 ? (
+            <>
                 <p className="text-sm text-warm-700 mb-3">
                   Choisissez ce que vous souhaitez conserver. La suppression est
                   <span className="font-semibold"> définitive</span> : le journal ne se reconstitue pas.
@@ -467,19 +451,9 @@ export default function AuditLogsClient({
                     </label>
                   ))}
                 </fieldset>
-
-                <div className="flex justify-end gap-3">
-                  <FloatButton type="button" variant="secondary" onClick={fermerPurge} disabled={comptage}>
-                    Annuler
-                  </FloatButton>
-                  {/* « Continuer » et non « Purger » : ce bouton ne detruit rien. */}
-                  <FloatButton type="button" variant="submit" onClick={versConfirmation} disabled={comptage}>
-                    {comptage ? 'Vérification…' : 'Continuer'}
-                  </FloatButton>
-                </div>
-              </>
-            ) : (
-              <>
+            </>
+          ) : (
+            <>
                 <p className="text-sm text-warm-700 mb-3">
                   {optionChoisie?.label} · {optionChoisie?.detail}
                 </p>
@@ -507,40 +481,21 @@ export default function AuditLogsClient({
                   )}
                 </div>
 
-                <div className="flex justify-end gap-3">
-                  {/* Retour, et non Annuler : on revient au choix sans tout refermer. */}
-                  <FloatButton type="button" variant="secondary" onClick={() => setPurgeEtape(1)} disabled={purging}>
-                    Retour
-                  </FloatButton>
-                  <FloatButton
-                    type="button"
-                    variant="danger"
-                    onClick={handlePurge}
-                    disabled={purging || purgeCount === 0}
-                  >
-                    {purging
-                      ? 'Suppression…'
-                      : purgeJours === 0 ? 'Tout supprimer' : 'Supprimer définitivement'}
-                  </FloatButton>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-        ,
-        document.body
+            </>
+          )}
+        </FormModal>
       )}
 
       {/* Tableau */}
-      <div className="card flex-1 overflow-hidden">
-        <table className="liste w-full text-sm" aria-label="Journal d'activité">
-          <thead>
+      <div className="liste flex-1 min-h-0 overflow-y-auto list-scroll">
+        <table className="w-full text-sm" aria-label="Journal d'activité">
+          <thead className="sticky top-0 z-10">
             <tr className="liste-entete border-b border-[var(--card-border)] text-left text-xs uppercase tracking-wider">
-              <th className="py-2 px-3 whitespace-nowrap">Date</th>
-              <th className="py-2 px-3 whitespace-nowrap">Utilisateur</th>
-              <th className="py-2 px-3 whitespace-nowrap">Action</th>
-              <th className="py-2 px-3 whitespace-nowrap">Entite</th>
-              <th className="py-2 px-3 whitespace-nowrap">Detail</th>
+              <th className="list-th whitespace-nowrap">Date</th>
+              <th className="list-th whitespace-nowrap">Utilisateur</th>
+              <th className="list-th whitespace-nowrap">Action</th>
+              <th className="list-th whitespace-nowrap">Entité</th>
+              <th className="list-th whitespace-nowrap">Détail</th>
             </tr>
           </thead>
           <tbody>
@@ -616,7 +571,7 @@ export default function AuditLogsClient({
       {/* Pied de page : compteur + pagination */}
       <div className="flex items-center justify-between mt-2">
         <span className="text-xs text-warm-700">
-          {totalCount} resultat{totalCount > 1 ? 's' : ''}
+          {totalCount} résultat{totalCount > 1 ? 's' : ''}
         </span>
         <PaginationBar
           page={page}

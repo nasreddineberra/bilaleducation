@@ -226,7 +226,7 @@ function Ligne({
       className={[
         'group mx-1 px-1 py-0.5 rounded-md cursor-pointer flex items-center gap-1.5 outline-none',
         'focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] transition-colors',
-        actif ? 'bg-[var(--brand-tint)]' : 'hover:bg-[var(--surface-sunken)]',
+        actif ? 'bg-[var(--brand-tint)]' : 'hover:bg-[var(--survol-ligne)]',
       ].join(' ')}
     >
       {triable && <button
@@ -235,7 +235,7 @@ function Ligne({
         {...attributes}
         {...listeners}
         onClick={e => e.stopPropagation()}
-        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
+        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
       >
         <GripVertical size={11} />
       </button>}
@@ -259,9 +259,9 @@ function Ligne({
 
       {badge}
 
-      {/* Actions révélées au survol ET au focus clavier — sans `group-focus-within`
-          elles resteraient inatteignables sans souris. */}
-      <span className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
+      {/* Actions de ligne TOUJOURS visibles (charte du 15/10) : revelees au seul
+          survol, elles etaient introuvables au doigt et invisibles a l'oeil. */}
+      <span className="flex items-center gap-0.5 flex-shrink-0">
         {onEditer && (
           <Tooltip content="Modifier">
             <button

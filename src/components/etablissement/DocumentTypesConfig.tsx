@@ -7,7 +7,8 @@ import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { Trash2, Check, X } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
-import { FloatButton } from '@/components/ui/FloatFields'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
 import type { DocumentCategory } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -168,20 +169,15 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
 
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-sm font-bold text-warm-700">Documents requis par dossier</h2>
-        <p className="text-xs text-warm-700 mt-0.5">
-          Configurez les types de documents attendus pour chaque élève.
-        </p>
-      </div>
+      <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Documents requis par dossier</h2>
 
       <div className="grid grid-cols-2 gap-3">
         {CATEGORIES.map(cat => {
           const items = byCategory(cat.key)
           return (
-            <div key={cat.key} className="card">
-              <div className="px-3 py-1.5 border-b border-warm-200 flex items-center justify-between">
-                <h3 className="text-[11px] font-semibold text-warm-700 uppercase tracking-wide">{cat.label}</h3>
+            <div key={cat.key} className="card p-0 overflow-hidden">
+              <div className="encadre-titre m-0 justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-widest">{cat.label}</h3>
                 {/* Mini-bouton et non lien : « Ajouter » est une action de
                     creation, pas une navigation. `size="mini"` tient dans
                     l'en-tete sans le faire grandir. */}
@@ -214,7 +210,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
 
               <div className="divide-y divide-warm-50">
                 {items.map(d => (
-                  <div key={d.id} className="px-3 py-1.5 flex items-center gap-2 hover:bg-warm-50/50 group">
+                  <div key={d.id} className="px-3 py-1.5 flex items-center gap-2 hover:bg-warm-100 transition-colors group">
                     <span className="text-xs text-warm-700 flex-1 truncate">{d.label}</span>
 
                     {/* Badge requis cliquable */}
@@ -224,26 +220,19 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                       aria-label={`${d.label} : ${d.is_required ? 'requis' : 'optionnel'} · cliquer pour basculer`}
                       className={clsx(
                         'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
-                        d.is_required
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-warm-100 text-warm-700 hover:bg-warm-200'
+                        d.is_required ? 'puce ton-danger' : 'puce ton-neutre'
                       )}
                     >
                       {d.is_required ? 'Requis' : 'Optionnel'}
                     </button>
 
                     {/* Suppression */}
-                    {confirmDelete === d.id ? (
-                      <div className="flex items-center gap-1 text-[11px]">
-                        <button onClick={() => handleDelete(d.id)} className="text-red-700 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Oui</button>
-                        <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Non</button>
-                      </div>
-                    ) : (
+                    {(
                       <Tooltip content="Supprimer">
                         <button
                           onClick={() => setConfirmDelete(d.id)}
                           aria-label={`Supprimer ${d.label}`}
-                          className="text-warm-700 hover:text-red-700 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                          className="text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -254,7 +243,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
 
                 {/* Formulaire inline d'ajout */}
                 {adding === cat.key && (
-                  <div className="px-3 py-1.5 flex items-center gap-1.5 bg-warm-50/50">
+                  <div className="px-3 py-1.5 flex items-center gap-1.5 bg-[var(--brand-tint)]">
                     <input
                       type="text"
                       placeholder="Nom du type..."
@@ -265,15 +254,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                       onKeyDown={e => e.key === 'Enter' && handleAdd(cat.key)}
                       autoFocus
                     />
-                    <label className="flex items-center gap-0.5 text-[11px] text-warm-700 whitespace-nowrap cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newRequired}
-                        onChange={e => setNewRequired(e.target.checked)}
-                        className="h-3 w-3 rounded"
-                      />
-                      Requis
-                    </label>
+                    <FloatCheckbox variant="compact" label="Requis" checked={newRequired} onChange={setNewRequired} />
                     <Tooltip content="Valider">
                       <button
                         onClick={() => handleAdd(cat.key)}
@@ -300,6 +281,20 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
           )
         })}
       </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          open
+          variant="danger"
+          confirmColor="red"
+          title="Supprimer le type de document"
+          confirmLabel="Supprimer définitivement"
+          onConfirm={() => { const id = confirmDelete; setConfirmDelete(null); handleDelete(id) }}
+          onCancel={() => setConfirmDelete(null)}
+        >
+          <p className="text-sm text-warm-700">{docTypes.find(t => t.id === confirmDelete)?.label ?? ''}</p>
+        </ConfirmModal>
+      )}
     </div>
   )
 }

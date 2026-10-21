@@ -1,6 +1,5 @@
 'use client'
 
-import { Clock } from 'lucide-react'
 import ListStatCard from '@/components/ui/ListStatCard'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { fmtDuration } from '@/lib/temps-presence/format'
@@ -75,10 +74,7 @@ function fmtPlage(start: string, end: string): string {
 
 function EtatVide({ texte }: { texte: string }) {
   return (
-    <div className="card p-6 text-center w-full">
-      <Clock size={28} className="text-warm-700 mx-auto" />
-      <p className="text-sm text-warm-700 mt-2">{texte}</p>
-    </div>
+    <div className="card text-center text-sm text-warm-700 py-10 w-full">{texte}</div>
   )
 }
 
@@ -90,9 +86,11 @@ function EtatVide({ texte }: { texte: string }) {
  * l'inverse : un encadre a moitie vide pour deux lignes. D'ou `max-h`, qui ne
  * s'applique qu'a partir du moment ou il y a de quoi deborder.
  */
+const TITRE_SECTION = 'encadre-titre m-0 text-xs font-bold uppercase tracking-widest'
+
 function TableauBorne({ children, hauteur, dense }: { children: React.ReactNode; hauteur: string; dense: boolean }) {
   return (
-    <div className={`${dense ? 'border border-warm-100 rounded-lg' : 'card p-0'} overflow-hidden w-full`}>
+    <div className={`${dense ? 'border border-warm-100 rounded-lg' : ''} overflow-hidden w-full`}>
       <div className={`${hauteur} overflow-y-auto list-scroll`}>
         {children}
       </div>
@@ -194,8 +192,8 @@ export default function TeacherAttendance({
           d'elle-meme (`auto-fill`) : la meme bande tient sur la largeur d'une
           fiche comme dans la colonne etroite de Mon compte. */}
       <div className={`${dense ? '' : 'card p-3'} w-full space-y-2`}>
-        <div className="flex items-baseline gap-3">
-          <h2 className="stat-label">Heures assurées par mois</h2>
+        <div className={dense ? 'flex items-baseline gap-3' : 'encadre-titre gap-3'}>
+          <h2 className={dense ? 'stat-label' : 'text-xs font-bold uppercase tracking-widest'}>Heures assurées par mois</h2>
           <div className="flex-1" />
           {!dense && (
             <span className="text-xs text-warm-700">
@@ -238,11 +236,11 @@ export default function TeacherAttendance({
       </div>
 
       {/* ── Absences ── */}
-      <div className="space-y-2 w-full">
-        <h2 className="stat-label">Absences</h2>
+      <div className={dense ? 'space-y-2 w-full' : 'card p-0 overflow-hidden w-full'}>
+        <h2 className={dense ? 'stat-label' : TITRE_SECTION}>Absences</h2>
 
         {absences.length === 0 ? (
-          <div className={`${dense ? "border border-warm-100 rounded-lg" : "card"} p-3 text-center w-full`}>
+          <div className={`${dense ? 'border border-warm-100 rounded-lg' : ''} p-3 text-center w-full`}>
             <p className="text-sm text-warm-700">Aucune absence enregistrée cette année.</p>
           </div>
         ) : (
@@ -290,11 +288,11 @@ export default function TeacherAttendance({
       </div>
 
       {/* ── Remplacements assures pour d'autres ── */}
-      <div className="space-y-2 w-full">
-        <h2 className="stat-label">Remplacements assurés</h2>
+      <div className={dense ? 'space-y-2 w-full' : 'card p-0 overflow-hidden w-full'}>
+        <h2 className={dense ? 'stat-label' : TITRE_SECTION}>Remplacements assurés</h2>
 
         {remplacements.length === 0 ? (
-          <div className={`${dense ? "border border-warm-100 rounded-lg" : "card"} p-3 text-center w-full`}>
+          <div className={`${dense ? 'border border-warm-100 rounded-lg' : ''} p-3 text-center w-full`}>
             <p className="text-sm text-warm-700">Aucun remplacement assuré cette année.</p>
           </div>
         ) : (

@@ -54,7 +54,7 @@ export default function CurrentPeriodCard({ schoolYearId, periods, canEdit }: Pr
   return (
     <section className="card p-3 space-y-2">
       <div>
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Période en cours</h2>
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Période en cours</h2>
         {!initialId && (
           <p role="alert" className="text-[11px] font-semibold text-red-700 mt-0.5">
             Aucune période en cours définie. La première est présélectionnée : validez pour l&apos;enregistrer.
@@ -78,7 +78,7 @@ export default function CurrentPeriodCard({ schoolYearId, periods, canEdit }: Pr
                 'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] disabled:cursor-not-allowed',
                 active
                   ? 'border-[var(--brand-surface)] dark:border-[var(--brand-accent)] bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)]'
-                  : 'border-warm-300 text-secondary-700 bg-white hover:bg-warm-50 disabled:opacity-60',
+                  : 'border-warm-300 text-secondary-700 bg-white hover:bg-warm-100 disabled:text-warm-400 disabled:bg-[var(--champ-verrou)]',
               )}
             >
               {periodLabel(p.label)}

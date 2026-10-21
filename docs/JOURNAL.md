@@ -8763,3 +8763,24 @@ marque ; les vraies ecoles gardent leur plaque.
   Confirmation d'affectation (fiche classe) — faites main mais portees dans `<body>` et fermees par X /
   Annuler ; leur structure (calendrier 5 colonnes, deux etapes, recadreur sans marge) ne rentre pas telle
   quelle dans `FormModal`.
+
+#### 21 octobre 2026 — Parametres et Mon compte : reprise STRUCTURELLE
+
+- **Signale par l'utilisateur** : « beaucoup ne sont pas correctes ». La passe precedente (commit 0815894) etait
+  un remplacement de COULEURS par script ; la structure de la charte du 15/10 n'avait pas ete appliquee.
+- **Repris a la main, page par page** :
+  - Listes : `.liste` SANS `card p-0` autour (Annees, Types de presence, Salles, Materiels, Journal).
+  - Bandeaux `.encadre-titre` : fiche annee, Periode en cours, Cotisations (2), Etablissement (Identite,
+    Messagerie, Documents requis), Mon compte (5), assiduite et documents d'un enseignant.
+  - Saisies en `FormModal` : Ressources (salle, materiel), Vacances et jours feries (calendrier defilant,
+    periodes et feries fixes dans le pied), recadrage du logo, purge du journal, fiche classe (affectation —
+    elle n'avait pas de X —, correction des dates, creneau). Plus aucune modale faite main dans le menu.
+  - Confirmations en `ConfirmModal` au lieu de « Confirmer / Annuler » en ligne : annees, cotisations, types
+    de presence, salles, materiels, types de document.
+  - Actions de ligne toujours visibles (Referentiel, types de document, historique d'une classe).
+  - Champs bruts -> `Float*` (filtres du journal, confirmations par le nom) ; cases -> `FloatCheckbox`.
+  - Pastilles en `Puce` ; grise par `--champ-verrou` / `text-warm-400` au lieu d'une opacite ; etats vides
+    d'une phrase ; textes explicatifs retires ; accents retablis.
+- **Controles** : type-check OK, lint 0 erreur (649 avertissements, inchange), 123 tests OK, build OK.
+- **Lecon** (memoire `refonte-structure-pas-couleurs`) : une refonte se verifie sur la STRUCTURE ; un script
+  de comptage repere, il ne conclut pas.

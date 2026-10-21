@@ -6,8 +6,10 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { deletePresenceType } from '@/app/dashboard/types-presence/actions'
-import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import { Puce } from '@/components/dashboard/tdb'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -277,16 +279,14 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
         </div>
       </td>
       <td className="px-4 py-3 text-center">
-        <label className="inline-flex items-center gap-1.5 cursor-pointer select-none text-xs text-secondary-700">
-          <input
-            type="checkbox"
-            checked={editing.is_active ?? true}
-            disabled={!!editing.reserved_kind}
-            onChange={e => setEditing({ ...editing, is_active: e.target.checked })}
-            className="h-3.5 w-3.5 rounded border-warm-300 accent-[var(--brand-surface)] disabled:opacity-50"
-          />
-          Actif
-        </label>
+        <FloatCheckbox
+          variant="compact"
+          label="Actif"
+          checked={editing.is_active ?? true}
+          disabled={!!editing.reserved_kind}
+          onChange={v => setEditing({ ...editing, is_active: v })}
+          className="justify-center"
+        />
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
@@ -345,8 +345,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
         </div>
       )}
 
-      <div className="card p-0 overflow-hidden">
-        <div className="ton-info flex items-start gap-2 border-b px-4 py-2.5 text-xs">
+      <div className="ton-info flex items-start gap-2 rounded-lg px-4 py-2.5 text-xs">
           <Info size={13} className="mt-0.5 shrink-0" />
           <span>
             Les types <strong>ABSENCE</strong>, <strong>COURS</strong> et <strong>ACTIVITÉ</strong> sont <strong>réservés</strong> au
@@ -354,8 +353,10 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             Ils sont reconduits automatiquement chaque année et ne peuvent être ni supprimés ni désactivés ; leur libellé et
             leur code sont verrouillés. Seule leur <strong>couleur</strong> est modifiable.
           </span>
-        </div>
-        <table className="liste w-full text-xs" aria-label="Types de présence">
+      </div>
+
+      <div className="liste">
+        <table className="w-full text-xs" aria-label="Types de présence">
           <thead>
             <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="list-th w-10"></th>
@@ -391,20 +392,13 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                     </code>
                   </td>
                   <td className="list-td text-center">
-                    <span className={clsx(
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                      row.is_active
-                        ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
-                        : 'bg-warm-100 text-warm-700'
-                    )}>
-                      {row.is_active ? 'Actif' : 'Inactif'}
-                    </span>
+                    <Puce ton={row.is_active ? 'ok' : 'neutre'}>{row.is_active ? 'Actif' : 'Inactif'}</Puce>
                   </td>
                   <td className="list-td">
                     {row.reserved_kind ? (
                       <div className="flex items-center justify-end gap-1">
                         <Tooltip content="Type réservé : reconduit chaque année, non supprimable, libellé et code verrouillés (l'emploi du temps s'y rattache). Seule la couleur est modifiable.">
-                          <span className="text-[10px] text-warm-700 italic">Réservé</span>
+                          <span><Puce ton="neutre">Réservé</Puce></span>
                         </Tooltip>
                         <Tooltip content="Modifier la couleur">
                           <button
@@ -419,22 +413,6 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             <Pencil size={15} />
                           </button>
                         </Tooltip>
-                      </div>
-                    ) : confirmDeleteId === row.id ? (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => remove(row.id)}
-                          disabled={saving}
-                          className="text-xs text-red-700 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
-                        >
-                          Confirmer
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs text-warm-700 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
-                        >
-                          Annuler
-                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-1">
@@ -484,6 +462,21 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
           </tbody>
         </table>
       </div>
+
+      {confirmDeleteId && (
+        <ConfirmModal
+          open
+          variant="danger"
+          confirmColor="red"
+          title="Supprimer le type de présence"
+          confirmLabel={saving ? 'Suppression…' : 'Supprimer définitivement'}
+          confirmDisabled={saving}
+          onConfirm={() => remove(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        >
+          <p className="text-sm text-warm-700">{rows.find(r => r.id === confirmDeleteId)?.label ?? ''}</p>
+        </ConfirmModal>
+      )}
 
     </div>
   )

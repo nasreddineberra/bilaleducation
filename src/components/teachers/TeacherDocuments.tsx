@@ -149,7 +149,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
 
       {/* ── Formulaire d'ajout ── */}
       <div className="card p-3 space-y-3 w-full">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Ajouter un document</h2>
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Ajouter un document</h2>
 
         <div className="flex flex-wrap items-end gap-2">
           <div className="w-44">
@@ -213,10 +213,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
 
       {/* ── Tableau (trié par catégorie) ── */}
       {documents.length === 0 ? (
-        <div className="card py-12 text-center w-full">
-          <FileText size={32} className="text-warm-700 mx-auto" />
-          <p className="text-sm text-warm-700 mt-2">Aucun document pour le moment.</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10 w-full">Aucun document pour le moment.</div>
       ) : (
         <div className="card p-0 overflow-hidden w-full">
           <table className="liste w-full text-left text-xs">

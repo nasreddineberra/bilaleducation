@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { X, BookOpen, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { X, Pencil, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { clsx } from 'clsx'
-import { FloatButton, SearchField } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
@@ -193,16 +193,8 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
 
       {/* État vide */}
       {filtered.length === 0 ? (
-        <div className="card p-12 flex flex-col items-center gap-4 text-center">
-          <BookOpen size={40} className="text-warm-700" />
-          <div>
-            <p className="text-base font-semibold text-secondary-700">
-              {search || type ? 'Aucune classe trouvée' : 'Aucune classe configurée'}
-            </p>
-            <p className="text-sm text-warm-700 mt-1">
-              {search || type ? 'Modifiez votre recherche ou le filtre.' : 'Créez votre première classe pour commencer.'}
-            </p>
-          </div>
+        <div className="card text-center text-sm text-warm-700 py-10">
+          {search || type ? 'Aucune classe trouvée.' : 'Aucune classe configurée.'}
         </div>
       ) : (
         <div className="liste">
@@ -378,12 +370,11 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
             <p className="text-sm text-secondary-700">
               Saisissez le nom de la classe <strong>{deleteTarget.name}</strong> pour confirmer la suppression :
             </p>
-            <input
-              type="text"
+            <FloatInput
+              label="Nom de la classe"
               value={deleteNameInput}
               onChange={e => setDeleteNameInput(e.target.value)}
               placeholder={deleteTarget.name}
-              className="w-full px-3 py-2 text-sm border border-warm-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
               autoFocus
             />
             {deleteError && (

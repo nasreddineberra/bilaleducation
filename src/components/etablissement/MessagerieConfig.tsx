@@ -5,6 +5,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import AideMessagerie from './AideMessagerie'
+import { Puce } from '@/components/dashboard/tdb'
 import {
   saveSmtpSettings,
   testSmtpSettings,
@@ -108,12 +109,12 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
   }
 
   return (
-    <div className="card p-5 space-y-3">
+    <div className="card p-4 [--encadre-pad:1rem] space-y-3">
         {/* Le lien d'aide est groupe avec le TITRE (il porte sur son sujet) et la
             pastille garde le bord droit : d'ou `gap-3` + `ml-auto`, et non le
             `justify-between` d'origine qui espacerait les trois a egalite. */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Messagerie</h2>
+        <div className="encadre-titre gap-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest">Messagerie</h2>
           <button
             type="button"
             onClick={() => setAideOuverte(true)}
@@ -121,13 +122,8 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
           >
             Comment configurer ?
           </button>
-          <span
-            role="status"
-            className={`ml-auto text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-              isConfigured ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'bg-amber-100 text-amber-700'
-            }`}
-          >
-            {isConfigured ? 'Configurée' : 'Non configurée'}
+          <span role="status" className="ml-auto">
+            <Puce ton={isConfigured ? 'ok' : 'attente'}>{isConfigured ? 'Configurée' : 'Non configurée'}</Puce>
           </span>
         </div>
 

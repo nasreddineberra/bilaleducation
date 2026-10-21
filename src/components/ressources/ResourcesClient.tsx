@@ -8,6 +8,8 @@ import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Pencil, Trash2 } from 'lucide-react'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import FormModal from '@/components/ui/FormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Room, Material, RoomType, MaterialCategory, MaterialCondition } from '@/types/database'
 
 // ─── Labels ──────────────────────────────────────────────────────────────────
@@ -257,8 +259,8 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
         <div className="flex flex-col gap-2 pr-6">
 
           {/* Header : titre + recherche + bouton ajouter (une seule ligne) */}
-          <div className="flex items-center gap-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap">Salles</h2>
+          <div className="card px-3 py-2 flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest whitespace-nowrap text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Salles</h2>
             <div className="flex-1" />
             <SearchField value={roomSearch} onChange={setRoomSearch} placeholder="Rechercher une salle..." ariaLabel="Rechercher une salle" className="w-48 min-w-0" />
             <FloatButton type="button" variant="submit" onClick={startAddRoom}>
@@ -270,10 +272,18 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
 
           {/* Add / Edit form */}
           {(addingRoom || editingRoom) && (
-            <div className="card p-3 space-y-2.5">
-              <h3 className="section-title">
-                {editingRoom ? 'Modifier la salle' : 'Nouvelle salle'}
-              </h3>
+            <FormModal
+              title={editingRoom ? 'Modifier la salle' : 'Nouvelle salle'}
+              onClose={cancelRoom}
+              footer={<>
+                <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
+                <div className="flex-1" />
+                <FloatButton type="button" variant="secondary" onClick={cancelRoom} disabled={roomSaving}>Annuler</FloatButton>
+                <FloatButton type="button" variant={editingRoom ? 'edit' : 'submit'} onClick={saveRoom} disabled={roomSaving || !roomFormValid || roomUnchanged}>
+                  {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
+                </FloatButton>
+              </>}
+            >
               <div className="grid grid-cols-2 gap-2">
                 <FloatInput
                   label="Nom" required aria-required="true" compact
@@ -312,20 +322,12 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 value={roomForm.description ?? ''}
                 onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))}
               />
-              <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
-                <div className="flex-1" />
-                <FloatButton type="button" variant="secondary" onClick={cancelRoom} disabled={roomSaving}>Annuler</FloatButton>
-                <FloatButton type="button" variant={editingRoom ? 'edit' : 'submit'} onClick={saveRoom} disabled={roomSaving || !roomFormValid || roomUnchanged}>
-                  {roomSaving ? 'Enregistrement...' : editingRoom ? 'Modifier' : 'Créer'}
-                </FloatButton>
-              </div>
-            </div>
+            </FormModal>
           )}
 
           {/* List */}
-          <div className="card p-0 overflow-hidden">
-            <table className="liste w-full text-xs" aria-label="Salles">
+          <div className="liste">
+            <table className="w-full text-xs" aria-label="Salles">
               <thead>
                 <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th className="list-th">Nom</th>
@@ -344,7 +346,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                     <td className="list-td whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span className="list-name text-secondary-800">{r.name}</span>
-                        {!r.is_available && <span className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 font-medium">Indispo</span>}
+                        {!r.is_available && <Puce ton="danger">Indisponible</Puce>}
                       </div>
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">
@@ -357,12 +359,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                     <td className="list-td text-secondary-600 whitespace-nowrap">{r.floor || <span className="text-warm-700">·</span>}</td>
                     <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
-                        {confirmDeleteRoom === r.id ? (
-                          <>
-                            <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-700 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
-                            <button onClick={() => setConfirmDeleteRoom(null)} className="text-xs text-warm-700 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
-                          </>
-                        ) : (
+                        {(
                           <>
                             <Tooltip content="Modifier">
                               <button onClick={() => startEditRoom(r)} aria-label={`Modifier ${r.name}`} className="p-1.5 text-warm-700 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"><Pencil size={14} /></button>
@@ -388,8 +385,8 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
         <div className="flex flex-col gap-2 pl-6 xl:pl-6 mt-6 xl:mt-0">
 
           {/* Header : titre + recherche + bouton ajouter (une seule ligne) */}
-          <div className="flex items-center gap-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap">Matériels</h2>
+          <div className="card px-3 py-2 flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest whitespace-nowrap text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Matériels</h2>
             <div className="flex-1" />
             <SearchField value={matSearch} onChange={setMatSearch} placeholder="Rechercher un matériel..." ariaLabel="Rechercher un matériel" className="w-48 min-w-0" />
             <FloatButton type="button" variant="submit" onClick={startAddMat}>
@@ -401,10 +398,18 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
 
           {/* Add / Edit form */}
           {(addingMat || editingMat) && (
-            <div className="card p-3 space-y-2.5">
-              <h3 className="section-title">
-                {editingMat ? 'Modifier le matériel' : 'Nouveau matériel'}
-              </h3>
+            <FormModal
+              title={editingMat ? 'Modifier le matériel' : 'Nouveau matériel'}
+              onClose={cancelMat}
+              footer={<>
+                <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
+                <div className="flex-1" />
+                <FloatButton type="button" variant="secondary" onClick={cancelMat} disabled={matSaving}>Annuler</FloatButton>
+                <FloatButton type="button" variant={editingMat ? 'edit' : 'submit'} onClick={saveMat} disabled={matSaving || !matFormValid || matUnchanged}>
+                  {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}
+                </FloatButton>
+              </>}
+            >
               <div className="grid grid-cols-2 gap-2">
                 <FloatInput
                   label="Nom" required aria-required="true" compact
@@ -460,20 +465,12 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 value={matForm.notes ?? ''}
                 onChange={e => setMatForm(p => ({ ...p, notes: e.target.value }))}
               />
-              <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
-                <div className="flex-1" />
-                <FloatButton type="button" variant="secondary" onClick={cancelMat} disabled={matSaving}>Annuler</FloatButton>
-                <FloatButton type="button" variant={editingMat ? 'edit' : 'submit'} onClick={saveMat} disabled={matSaving || !matFormValid || matUnchanged}>
-                  {matSaving ? 'Enregistrement...' : editingMat ? 'Modifier' : 'Créer'}
-                </FloatButton>
-              </div>
-            </div>
+            </FormModal>
           )}
 
           {/* List */}
-          <div className="card p-0 overflow-hidden">
-            <table className="liste w-full text-xs" aria-label="Matériels">
+          <div className="liste">
+            <table className="w-full text-xs" aria-label="Matériels">
               <thead>
                 <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th className="list-th">Nom</th>
@@ -501,12 +498,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                     <td className="list-td text-secondary-600 whitespace-nowrap">{m.rooms?.name || <span className="text-warm-700">·</span>}</td>
                     <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
-                        {confirmDeleteMat === m.id ? (
-                          <>
-                            <button onClick={() => deleteMat(m.id)} className="text-xs text-red-700 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
-                            <button onClick={() => setConfirmDeleteMat(null)} className="text-xs text-warm-700 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
-                          </>
-                        ) : (
+                        {(
                           <>
                             <Tooltip content="Modifier">
                               <button onClick={() => startEditMat(m)} aria-label={`Modifier ${m.name}`} className="p-1.5 text-warm-700 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"><Pencil size={14} /></button>
@@ -525,6 +517,33 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
           </div>
         </div>
       </div>
+
+      {confirmDeleteRoom && (
+        <ConfirmModal
+          open
+          variant="danger"
+          confirmColor="red"
+          title="Supprimer la salle"
+          confirmLabel="Supprimer définitivement"
+          onConfirm={() => { const id = confirmDeleteRoom; setConfirmDeleteRoom(null); deleteRoom(id) }}
+          onCancel={() => setConfirmDeleteRoom(null)}
+        >
+          <p className="text-sm text-warm-700">{rooms.find(x => x.id === confirmDeleteRoom)?.name ?? ''}</p>
+        </ConfirmModal>
+      )}
+      {confirmDeleteMat && (
+        <ConfirmModal
+          open
+          variant="danger"
+          confirmColor="red"
+          title="Supprimer le matériel"
+          confirmLabel="Supprimer définitivement"
+          onConfirm={() => { const id = confirmDeleteMat; setConfirmDeleteMat(null); deleteMat(id) }}
+          onCancel={() => setConfirmDeleteMat(null)}
+        >
+          <p className="text-sm text-warm-700">{materials.find(x => x.id === confirmDeleteMat)?.name ?? ''}</p>
+        </ConfirmModal>
+      )}
     </div>
   )
 }

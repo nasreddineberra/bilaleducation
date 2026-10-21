@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
 import Image from 'next/image'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
@@ -11,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import FormModal from '@/components/ui/FormModal'
 import type { Etablissement } from '@/types/database'
 import { ETAB_NOM_MAX, ETAB_ADRESSE_MAX } from '@/lib/tenant/limites'
 
@@ -158,8 +157,8 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-        <div className="card p-5">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest mb-3">Identité</h2>
+        <div className="card p-4 [--encadre-pad:1rem]">
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Identité</h2>
 
           <div className="flex gap-6">
 
@@ -293,7 +292,6 @@ function LogoField({
   onChange: (url: string | null) => void
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const dialogRef    = useRef<HTMLDivElement>(null)
 
   const [cropSrc,           setCropSrc]           = useState<string | null>(null)
   const [crop,              setCrop]              = useState({ x: 0, y: 0 })
@@ -308,12 +306,8 @@ function LogoField({
     setCropSrc(null)
   }
 
-  // Modale recadrage : focus initial seulement. Ni Échap ni clic sur le fond —
-  // le recadrage en cours (zoom, cadrage) serait perdu sur un geste réflexe.
-  useEffect(() => {
-    if (!cropSrc) return
-    dialogRef.current?.focus()
-  }, [cropSrc])
+  // Modale recadrage (FormModal) : ni Échap ni clic sur le fond — le recadrage
+  // en cours (zoom, cadrage) serait perdu sur un geste réflexe.
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -426,68 +420,44 @@ function LogoField({
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
       {/* Modale recadrage */}
-      {cropSrc && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-
+      {cropSrc && (
+        <FormModal
+          title="Recadrer le logo"
+          onClose={closeCrop}
+          maxWidth="max-w-sm"
+          footer={<>
+            <div className="flex-1" />
+            <FloatButton type="button" variant="secondary" size="mini" onClick={closeCrop}>
+              Annuler
+            </FloatButton>
+            <FloatButton type="button" variant="submit" size="mini" onClick={handleCropConfirm} disabled={isUploading}>
+              {isUploading ? 'Envoi…' : 'Valider'}
+            </FloatButton>
+          </>}
         >
-          <div className="absolute inset-0 bg-black/60" />
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crop-title"
-            tabIndex={-1}
-            onClick={e => e.stopPropagation()}
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden outline-none"
-          >
-            <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
-              <h3 id="crop-title" className="text-sm font-bold text-secondary-800">Recadrer le logo</h3>
-              <button
-                type="button"
-                onClick={closeCrop}
-                aria-label="Fermer"
-                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="relative w-full" style={{ height: 320 }}>
-              <Cropper
-                image={cropSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
-              />
-            </div>
-            <div className="px-4 py-3 flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-xs text-warm-700">
-                <span className="whitespace-nowrap">Zoom</span>
-                <input
-                  type="range"
-                  min={1} max={3} step={0.05}
-                  value={zoom}
-                  onChange={e => setZoom(Number(e.target.value))}
-                  aria-label="Zoom du logo"
-                  className="w-full accent-[var(--brand-surface)]"
-                />
-              </label>
-              <div className="flex justify-end gap-2">
-                <FloatButton type="button" variant="secondary" size="mini" onClick={closeCrop}>
-                  Annuler
-                </FloatButton>
-                <FloatButton type="button" variant="submit" size="mini" onClick={handleCropConfirm} disabled={isUploading}>
-                  {isUploading ? 'Envoi…' : 'Valider'}
-                </FloatButton>
-              </div>
-            </div>
+          <div className="relative w-full rounded-lg overflow-hidden" style={{ height: 320 }}>
+            <Cropper
+              image={cropSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+            />
           </div>
-        </div>
-        ,
-        document.body
+          <label className="flex items-center gap-2 text-xs text-warm-700">
+            <span className="whitespace-nowrap">Zoom</span>
+            <input
+              type="range"
+              min={1} max={3} step={0.05}
+              value={zoom}
+              onChange={e => setZoom(Number(e.target.value))}
+              aria-label="Zoom du logo"
+              className="w-full accent-[var(--brand-surface)]"
+            />
+          </label>
+        </FormModal>
       )}
     </div>
   )

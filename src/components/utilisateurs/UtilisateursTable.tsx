@@ -7,6 +7,7 @@ import { Pencil, Trash2, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { clsx } from 'clsx'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { FloatInput } from '@/components/ui/FloatFields'
 import { deleteUser, getUserDeleteDeps, toggleActive } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { libelleRole, tonRole } from '@/lib/auth/role-labels'
@@ -272,13 +273,12 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
               Saisissez le nom <strong>{deleteTarget.last_name}</strong> pour confirmer la
               suppression définitive de ce compte :
             </p>
-            <input
-              type="text"
+            <FloatInput
+              label="Nom"
               value={nameInput}
               onChange={e => setNameInput(e.target.value)}
               placeholder={deleteTarget.last_name}
               aria-label={`Saisir le nom ${deleteTarget.last_name} pour confirmer`}
-              className="w-full px-3 py-2 text-sm border border-warm-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
               autoFocus
             />
           </div>

@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Pencil, Trash2, CalendarDays } from 'lucide-react'
-import { clsx } from 'clsx'
+import { Pencil, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import ConfirmModal from '@/components/ui/ConfirmModal'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import type { SchoolYear, EvalTypeConfig, Period } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -34,20 +35,17 @@ function fmtDate(iso: string) {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-const EVAL_LABELS: Record<string, { label: string; detail: string }> = {
-  diagnostic: { label: 'Diagnostique', detail: 'AC · EC · NA' },
-  scored:     { label: 'Notée',        detail: '' },
-  stars:      { label: 'Étoilée',      detail: '0-5 ★' },
+// Memes tons que les types d'evaluation des Gabarits (`Puce`).
+const EVAL_LABELS: Record<string, { label: string; detail: string; ton: Ton }> = {
+  diagnostic: { label: 'Diagnostique', detail: 'AC · EC · NA', ton: 'info' },
+  scored:     { label: 'Notée',        detail: '',             ton: 'ok' },
+  stars:      { label: 'Étoilée',      detail: '0-5 ★',        ton: 'attente' },
 }
 
 function EvalBadge({ config }: { config: EvalTypeConfig }) {
   const info   = EVAL_LABELS[config.eval_type]
   const detail = config.eval_type === 'scored' ? `/${config.max_score}` : info.detail
-  return (
-    <span className="inline-flex items-center gap-1 text-xs bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] border border-[var(--brand-line)] px-2 py-0.5 rounded-full">
-      {info.label}{detail && <span className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{detail}</span>}
-    </span>
-  )
+  return <Puce ton={info.ton}>{info.label}{detail && ` ${detail}`}</Puce>
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -102,19 +100,13 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
 
       {/* Liste vide */}
       {schoolYears.length === 0 && (
-        <div className="card py-16 text-center">
-          <CalendarDays size={32} className="mx-auto text-warm-700 mb-3" />
-          <p className="text-warm-700 text-sm">Aucune année scolaire configurée</p>
-          <p className="text-warm-700 text-xs mt-1">
-            Cliquez sur "Nouvelle année" pour commencer
-          </p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Aucune année scolaire configurée.</div>
       )}
 
       {/* Tableau années */}
       {schoolYears.length > 0 && (
-        <div className="card p-0 overflow-hidden">
-          <table className="liste w-full text-xs" aria-label="Années scolaires">
+        <div className="liste">
+          <table className="w-full text-xs" aria-label="Années scolaires">
             <thead>
               <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th className="list-th">Année</th>
@@ -146,9 +138,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                           {year.label}
                         </Link>
                         {year.is_current && (
-                          <span className="text-xs font-semibold bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)] px-1.5 py-0.5 rounded-full leading-none">
-                            En cours
-                          </span>
+                          <Puce ton="ok">En cours</Puce>
                         )}
                       </div>
                     </td>
@@ -170,18 +160,8 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                         {year.periods
                           .sort((a, b) => a.order_index - b.order_index)
                           .map(p => (
-                            <span
-                              key={p.id}
-                              className={clsx(
-                                'text-xs font-mono px-1.5 py-0.5 rounded',
-                                // Turquoise UNIQUEMENT pour la periode en cours de l'annee en cours.
-                                year.is_current && p.is_current
-                                  ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)]'
-                                  : 'bg-warm-100 text-warm-700',
-                              )}
-                            >
-                              {p.label}
-                            </span>
+                            // Vert de marque UNIQUEMENT pour la periode en cours de l'annee en cours.
+                            <Puce key={p.id} ton={year.is_current && p.is_current ? 'ok' : 'neutre'}>{p.label}</Puce>
                           ))}
                       </div>
                     </td>
@@ -198,15 +178,15 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                     <td className="list-td whitespace-nowrap">
                       {year.purged_at ? (
                         <Tooltip content={`Purgée le ${fmtDate(year.purged_at)}`}>
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">Purgée</span>
+                          <span><Puce ton="danger">Purgée</Puce></span>
                         </Tooltip>
                       ) : year.archived_at ? (
                         <Tooltip content={`Close le ${fmtDate(year.closed_at!)} · archivée le ${fmtDate(year.archived_at)}`}>
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Archivée</span>
+                          <span><Puce ton="ok">Archivée</Puce></span>
                         </Tooltip>
                       ) : year.closed_at ? (
                         <Tooltip content={`Close le ${fmtDate(year.closed_at)}`}>
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Close</span>
+                          <span><Puce ton="ok">Close</Puce></span>
                         </Tooltip>
                       ) : (
                         <span className="text-xs text-warm-700">·</span>
@@ -215,24 +195,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
 
                     {/* Actions */}
                     <td className="list-td text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                      {confirmDeleteId === year.id ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <span className="text-xs text-warm-700 mr-1">Supprimer ?</span>
-                          <button
-                            onClick={() => handleDelete(year.id)}
-                            disabled={isDeleting}
-                            className="text-xs font-medium px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
-                          >
-                            {isDeleting ? '...' : 'Confirmer'}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            className="text-xs font-medium px-2 py-0.5 bg-warm-100 text-warm-700 rounded hover:bg-warm-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50"
-                          >
-                            Annuler
-                          </button>
-                        </div>
-                      ) : (
+                      {(
                         <div className="flex items-center justify-end gap-1">
                           <Tooltip content="Modifier">
                             <button
@@ -264,6 +227,25 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
           </table>
         </div>
       )}
+
+      {/* Suppression : confirmation en modale (charte), et non en ligne. */}
+      {confirmDeleteId && (() => {
+        const year = schoolYears.find(y => y.id === confirmDeleteId)
+        return (
+          <ConfirmModal
+            open
+            variant="danger"
+            confirmColor="red"
+            title="Supprimer l'année scolaire"
+            confirmLabel={isDeleting ? 'Suppression…' : 'Supprimer définitivement'}
+            confirmDisabled={isDeleting}
+            onConfirm={() => handleDelete(confirmDeleteId)}
+            onCancel={() => setConfirmDeleteId(null)}
+          >
+            <p className="text-sm text-warm-700">Année {year?.label ?? ''}</p>
+          </ConfirmModal>
+        )
+      })()}
 
     </div>
   )

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { X, Pencil, Check, AlertTriangle, Lock } from 'lucide-react'
@@ -9,8 +8,10 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
-import { FloatInput, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import FormModal from '@/components/ui/FormModal'
+import { Puce } from '@/components/dashboard/tdb'
 import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod, JourFerie } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 
@@ -387,9 +388,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   // Badge affiché sur le type verrouillé
   const lockBadge = (type: FormEvalType) => {
     if (gradedEvalTypes.includes(type))
-      return <span className="ml-2 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Notes saisies · verrouillé</span>
+      return <span className="ml-2"><Puce ton="attente">Notes saisies · verrouillé</Puce></span>
     if (usedEvalTypes.includes(type))
-      return <span className="ml-2 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Utilisé dans gabarit · verrouillé</span>
+      return <span className="ml-2"><Puce ton="attente">Utilisé dans gabarit · verrouillé</Puce></span>
     return null
   }
 
@@ -627,6 +628,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
       {/* ── Encadré unique : Identité + Répartition + Type d'évaluation + actions ── */}
       <div className="card p-3 space-y-3">
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">
+          {isEditing ? `Année scolaire ${form.label}` : 'Nouvelle année scolaire'}
+        </h2>
         <div className="grid grid-cols-2 gap-4">
 
           {/* Colonne 1 : Libellé + En cours + Vacances */}
@@ -645,17 +649,13 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 vLabelYearMismatch ? 'Le libellé ne correspond pas aux dates saisies.' : undefined
               }
             />
-            <label className={clsx('flex items-center gap-2', anotherYearIsCurrent ? 'cursor-not-allowed' : 'cursor-pointer')}>
-              <input
-                type="checkbox"
-                id="is_current"
-                checked={form.is_current}
-                onChange={e => set('is_current', e.target.checked)}
-                disabled={anotherYearIsCurrent}
-                className="w-4 h-4 accent-[var(--brand-surface)] disabled:opacity-60"
-              />
-              <span className="text-sm text-secondary-700 select-none">Année en cours</span>
-            </label>
+            <FloatCheckbox
+              variant="switch"
+              label="Année en cours"
+              checked={form.is_current}
+              onChange={v => set('is_current', v)}
+              disabled={anotherYearIsCurrent}
+            />
             {anotherYearIsCurrent && (
               <p className="text-[11px] text-warm-700 -mt-1">
                 Une autre année est déjà en cours. Désactivez-la d'abord sur sa fiche.
@@ -779,7 +779,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 <h2 className="section-title">
                   Répartition <span className="text-red-700">*</span>
                 </h2>
-                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies · verrouillé</span>}
+                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <Puce ton="attente">Notes saisies · verrouillé</Puce>}
               </div>
             <div className="flex gap-2">
               {([
@@ -790,7 +790,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                   key={opt.value}
                   className={clsx(
                     'flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border transition-colors',
-                    (readOnly || gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                    (readOnly || gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) ? 'cursor-not-allowed [&_p]:text-warm-400' : 'cursor-pointer',
                     form.period_type === opt.value
                       ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]'
                       : 'border-warm-200 bg-white hover:border-warm-300'
@@ -839,7 +839,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             return (
               <div className={clsx(
                 'px-3 py-2 rounded-xl border transition-colors col-span-2',
-                locked ? 'opacity-60 pointer-events-none' : '',
+                locked ? 'pointer-events-none [&_p]:text-warm-400' : '',
                 form.eval_types.includes('diagnostic') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white'
               )}>
                 <label className={clsx('flex items-center gap-3', locked ? 'cursor-not-allowed' : 'cursor-pointer')}>
@@ -916,7 +916,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             return (
               <label className={clsx(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
-                locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
+                locked ? 'cursor-not-allowed pointer-events-none [&_p]:text-warm-400' : 'cursor-pointer',
                 form.eval_types.includes('scored_10') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
                 <input
@@ -943,7 +943,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             return (
               <label className={clsx(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
-                locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
+                locked ? 'cursor-not-allowed pointer-events-none [&_p]:text-warm-400' : 'cursor-pointer',
                 form.eval_types.includes('scored_20') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
                 <input
@@ -970,7 +970,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             return (
               <label className={clsx(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors col-span-2',
-                locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
+                locked ? 'cursor-not-allowed pointer-events-none [&_p]:text-warm-400' : 'cursor-pointer',
                 form.eval_types.includes('stars') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
                 <input
@@ -1011,111 +1011,20 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
       {currentPeriodSlot}
 
       {/* ── Modale Vacances scolaires ──────────────────────────────────────── */}
-      {showVacModal && weeks.length > 0 && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-          
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="vac-modal-title"
-            onClick={e => e.stopPropagation()}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl animate-fade-in flex flex-col max-h-[90vh]"
-          >
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-              <div>
-                <h2 id="vac-modal-title" className="text-base font-bold text-secondary-800">Vacances et jours fériés</h2>
-                {/* Le sous-titre compte les DEUX : la fenetre ne traite plus
-                    seulement des vacances, et un decompte partiel laisserait
-                    croire que les feries ne sont pas enregistres. */}
-                <p className="text-xs text-warm-700 mt-0.5">
-                  {(() => {
-                    const nbSem = vacationMondaySet.size
-                    const nbFer = feries.length
-                    if (!nbSem && !nbFer) return 'Cliquez sur une semaine pour la marquer en vacances'
-                    const parts: string[] = []
-                    if (nbSem) parts.push(`${nbSem} semaine${nbSem > 1 ? 's' : ''} de vacances`)
-                    if (nbFer) parts.push(`${nbFer} jour${nbFer > 1 ? 's' : ''} férié${nbFer > 1 ? 's' : ''}`)
-                    return parts.join(' · ')
-                  })()}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowVacModal(false)}
-                aria-label="Fermer"
-                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Corps DEFILANT : le calendrier seul. La liste des periodes en
-                sort (voir plus bas) — elle etait sous la ligne de flottaison,
-                et il fallait faire defiler pour decouvrir qu'une periode se
-                nomme. */}
-            <div className="p-4 overflow-y-auto flex-1 min-h-0 list-scroll">
-              {(() => {
-                const monthGroups: { month: number; year: number; weeks: WeekInfo[] }[] = []
-                for (const w of weeks) {
-                  const m = w.monday.getMonth()
-                  const y = w.monday.getFullYear()
-                  const last = monthGroups[monthGroups.length - 1]
-                  if (last && last.month === m && last.year === y) {
-                    last.weeks.push(w)
-                  } else {
-                    monthGroups.push({ month: m, year: y, weeks: [w] })
-                  }
-                }
-
-                return (
-                  <div className="grid grid-cols-5 gap-2">
-                    {monthGroups.map(group => (
-                      <div key={`${group.year}-${group.month}`} className="border border-warm-100 rounded-xl p-2">
-                        <p className="text-[11px] font-bold text-secondary-700 uppercase tracking-wide mb-1.5 text-center">
-                          {MONTH_NAMES[group.month].slice(0, 4)}. {group.year}
-                        </p>
-                        <div className="space-y-1">
-                          {group.weeks.map(w => {
-                            const mondayISO = toISO(w.monday)
-                            const isVac = vacationMondaySet.has(mondayISO)
-
-                            return (
-                              <button
-                                key={mondayISO}
-                                type="button"
-                                onClick={() => toggleWeekVacation(w.monday)}
-                                className={clsx(
-                                  'w-full flex items-center justify-between px-2 py-1 rounded-md border text-[11px] transition-colors',
-                                  isVac
-                                    ? 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
-                                    : 'bg-white border-warm-150 text-warm-700 hover:bg-warm-50 hover:border-warm-300'
-                                )}
-                              >
-                                <span className="font-semibold">S{w.weekNum}</span>
-                                <span className="opacity-70">
-                                  {fmtShort(w.monday)}-{fmtShort(w.sunday)}
-                                </span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()}
-
-            </div>
-
+      {/* Corps DEFILANT = le calendrier seul ; periodes et jours feries restent
+          HORS du defilement, dans le pied (toujours visibles). */}
+      {showVacModal && weeks.length > 0 && (
+        <FormModal
+          title="Vacances et jours fériés"
+          onClose={() => setShowVacModal(false)}
+          maxWidth="max-w-5xl"
+          footer={
+            <div className="w-full flex flex-col gap-1">
             {/* Periodes — HORS du defilement, toujours visibles. Bornees en
                 hauteur : une annee peut compter beaucoup de periodes, et un
                 pied qui s'allonge repousserait le bouton hors de l'ecran. */}
             {vacations.length > 0 && (
-              <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
+              <div className="py-1.5">
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide">Périodes de vacances sélectionnées</p>
                   {/* DEUX COLONNES : une annee compte volontiers cinq periodes,
@@ -1211,7 +1120,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 hauteurs differentes en 60 px de haut, et une cible sous le
                 minimum atteignable. `mini` convient a une barre d'en-tete, pas
                 au bouton de validation d'un formulaire. */}
-            <div className="px-4 py-2.5 border-t border-warm-100 shrink-0">
+            <div className="py-1.5">
               <p className="text-[11px] font-bold text-warm-700 uppercase tracking-wide mb-1.5">
                 Jours fériés saisis
               </p>
@@ -1333,15 +1242,78 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end px-5 py-3 border-t border-warm-100">
-              <FloatButton type="button" variant="secondary" onClick={() => setShowVacModal(false)}>
-                Fermer
-              </FloatButton>
+              <div className="flex justify-end">
+                <FloatButton type="button" variant="secondary" onClick={() => setShowVacModal(false)}>
+                  Fermer
+                </FloatButton>
+              </div>
             </div>
-          </div>
-        </div>,
-      document.body)}
+          }
+        >
+          <p className="text-xs text-warm-700">
+                  {(() => {
+                    const nbSem = vacationMondaySet.size
+                    const nbFer = feries.length
+                    if (!nbSem && !nbFer) return 'Cliquez sur une semaine pour la marquer en vacances'
+                    const parts: string[] = []
+                    if (nbSem) parts.push(`${nbSem} semaine${nbSem > 1 ? 's' : ''} de vacances`)
+                    if (nbFer) parts.push(`${nbFer} jour${nbFer > 1 ? 's' : ''} férié${nbFer > 1 ? 's' : ''}`)
+                    return parts.join(' · ')
+                  })()}
+          </p>
+              {(() => {
+                const monthGroups: { month: number; year: number; weeks: WeekInfo[] }[] = []
+                for (const w of weeks) {
+                  const m = w.monday.getMonth()
+                  const y = w.monday.getFullYear()
+                  const last = monthGroups[monthGroups.length - 1]
+                  if (last && last.month === m && last.year === y) {
+                    last.weeks.push(w)
+                  } else {
+                    monthGroups.push({ month: m, year: y, weeks: [w] })
+                  }
+                }
+
+                return (
+                  <div className="grid grid-cols-5 gap-2">
+                    {monthGroups.map(group => (
+                      <div key={`${group.year}-${group.month}`} className="border border-warm-100 rounded-xl p-2">
+                        <p className="text-[11px] font-bold text-secondary-700 uppercase tracking-wide mb-1.5 text-center">
+                          {MONTH_NAMES[group.month].slice(0, 4)}. {group.year}
+                        </p>
+                        <div className="space-y-1">
+                          {group.weeks.map(w => {
+                            const mondayISO = toISO(w.monday)
+                            const isVac = vacationMondaySet.has(mondayISO)
+
+                            return (
+                              <button
+                                key={mondayISO}
+                                type="button"
+                                onClick={() => toggleWeekVacation(w.monday)}
+                                className={clsx(
+                                  'w-full flex items-center justify-between px-2 py-1 rounded-md border text-[11px] transition-colors',
+                                  isVac
+                                    ? 'bg-amber-100 border-amber-300 text-amber-800 hover:bg-amber-200'
+                                    : 'bg-white border-warm-150 text-warm-700 hover:bg-warm-50 hover:border-warm-300'
+                                )}
+                              >
+                                <span className="font-semibold">S{w.weekNum}</span>
+                                <span className="opacity-70">
+                                  {fmtShort(w.monday)}-{fmtShort(w.sunday)}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+
+        </FormModal>
+      )}
 
     </form>
   )

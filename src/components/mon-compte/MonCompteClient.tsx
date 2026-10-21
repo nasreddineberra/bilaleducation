@@ -133,7 +133,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
 
       {/* ── Mes informations (éditable) ── */}
       <form onSubmit={handleSave} noValidate className="card p-3 space-y-2.5">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mes informations</h2>
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Mes informations</h2>
 
         <div className="grid grid-cols-[5rem_1fr] sm:grid-cols-[6rem_1fr_1fr] gap-3">
           <FloatSelect label="Civilité" value={form.civilite} onChange={e => set('civilite', e.target.value)}>
@@ -162,7 +162,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
 
       {/* ── Compte ── */}
       <div className="card p-3 space-y-2.5">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Compte</h2>
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Compte</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {canEditEmail ? (
             <FloatInput
@@ -199,7 +199,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
 
       {/* ── Mot de passe ── */}
       <form onSubmit={changePassword} noValidate className="card p-3 space-y-2.5">
-        <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mot de passe</h2>
+        <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Mot de passe</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="relative">
@@ -262,7 +262,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
           enseignant n'atteint donc jamais sa propre fiche. */}
       {assiduite && (
         <div className="card p-3 space-y-3 w-full lg:flex-1 lg:min-w-0">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Mon temps de présence</h2>
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Mon temps de présence</h2>
           <TeacherAttendance {...assiduite} dense />
         </div>
       )}
