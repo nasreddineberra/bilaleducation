@@ -697,7 +697,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                             const start = new Date(v.start_date + 'T00:00:00')
                             const end   = new Date(v.end_date + 'T00:00:00')
                             return (
-                              <tr key={v.start_date} className="hover:bg-warm-50/60">
+                              <tr key={v.start_date} className="transition-colors hover:bg-warm-100">
                                 <td className="px-2 py-1 font-medium text-secondary-700 truncate max-w-0 w-full">
                                   {v.label || <span className="text-warm-700 italic">Sans nom</span>}
                                 </td>
@@ -725,7 +725,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                       <table className="w-full text-[11px]">
                         <tbody className="divide-y divide-warm-100">
                           {feriesTries.map(f => (
-                            <tr key={f.date} className="hover:bg-warm-50/60">
+                            <tr key={f.date} className="transition-colors hover:bg-warm-100">
                               <td className="px-2 py-1 font-medium text-secondary-700 truncate max-w-0 w-full">{f.label}</td>
                               <td className="px-2 py-1 text-warm-700 whitespace-nowrap text-right tabular-nums">
                                 {new Date(f.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}

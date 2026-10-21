@@ -908,7 +908,7 @@ export default function ClassForm({
                         {pastSubs.map(a => {
                           const realIdx = assignments.indexOf(a)
                           return (
-                            <tr key={`pastsub-${realIdx}`} className="group bg-warm-50/30">
+                            <tr key={`pastsub-${realIdx}`} className="transition-colors hover:bg-warm-100 group bg-warm-50/30">
                               <td className="px-3 py-1.5 text-secondary-500 text-xs whitespace-nowrap">{a.teacher_name}</td>
                               <td className="px-3 py-1.5 text-[10px] text-warm-700 whitespace-nowrap text-right">
                                 {a.effective_from ? fmtDate(a.effective_from) : 'Début'} · {a.effective_until ? fmtDate(a.effective_until) : ''}
@@ -982,7 +982,7 @@ export default function ClassForm({
                   const today = new Date().toISOString().split('T')[0]
                   const isActive = !slot.effective_until || slot.effective_until >= today
                   return (
-                    <tr key={idx} className={clsx('transition-colors', isActive ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint)]' : 'hover:bg-warm-50/50')}>
+                    <tr key={idx} className={clsx('transition-colors', isActive ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint)]' : 'hover:bg-warm-100')}>
                       <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
                         {slot.day_of_week}
                         {isActive && <span className="ml-1.5 text-[9px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-semibold uppercase">actif</span>}

@@ -362,7 +362,7 @@ export default function CotisationsClient({
             </thead>
             <tbody className="divide-y divide-warm-50">
               {rows.map(row => (
-                <tr key={row.id} className={clsx('transition-colors', editing?.id === row.id ? 'bg-primary-50/40' : 'hover:bg-warm-50/50')}>
+                <tr key={row.id} className={clsx('transition-colors', editing?.id === row.id ? 'bg-primary-50/40' : 'hover:bg-warm-100')}>
                   <td className="list-td">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="list-name text-secondary-800">{row.label}</span>
@@ -435,7 +435,7 @@ export default function CotisationsClient({
                           <td colSpan={5} className="px-2 py-1 text-[11px] font-bold text-secondary-700">{year.label}</td>
                         </tr>
                         {yearCotisations.length > 0 ? yearCotisations.map((c: any) => (
-                          <tr key={c.id}>
+                          <tr className="transition-colors hover:bg-warm-100" key={c.id}>
                             <td className="px-2 py-1 text-secondary-800 whitespace-nowrap">{c.label}{c.is_adult ? <span className="ml-1 text-violet-600 font-semibold">·A</span> : null}</td>
                             <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{fmtEur(c.amount)}</td>
                             <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.registration_fee > 0 ? fmtEur(c.registration_fee) : <span className="text-warm-700">·</span>}</td>

@@ -126,7 +126,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                 key={teacher.id}
                 onClick={() => router.push(hrefFiche(teacher.id))}
                 className={`transition-colors cursor-pointer ${
-                  teacher.is_active ? 'ligne-active hover:bg-warm-50' : 'bg-warm-50/60 hover:bg-warm-100/60'
+                  teacher.is_active ? 'ligne-active hover:bg-warm-100' : 'bg-warm-50 hover:bg-warm-100'
                 }`}
               >
 

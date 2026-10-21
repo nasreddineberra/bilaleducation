@@ -404,7 +404,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
             </thead>
             <tbody className="divide-y divide-warm-50">
               {sortedRows.map(r => (
-                <tr key={r.parentId} onClick={() => openFamily(r.parentId)} className="hover:bg-warm-50 cursor-pointer transition-colors">
+                <tr key={r.parentId} onClick={() => openFamily(r.parentId)} className="hover:bg-warm-100 cursor-pointer transition-colors">
                   {/* Densite maximale : on herite du text-xs de la table (pas de
                       `list-name`, dont le 13px rallonge chaque ligne). */}
                   <td className="list-td font-medium text-secondary-800">{r.parentLabel}</td>

@@ -904,7 +904,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     </tr>
                   )}
                   {selectedParent.students.map(s => (
-                    <tr key={s.id} className="border-b border-warm-50">
+                    <tr key={s.id} className="transition-colors hover:bg-warm-100 border-b border-warm-50">
                       <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{s.last_name.toUpperCase()} {s.first_name}</td>
                       <td className="px-2 py-1.5 text-xs text-secondary-600">
                         {s.class_tooltip ? (
@@ -935,7 +935,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                         <td colSpan={6} className="px-2 py-1.5 text-[10px] font-bold text-violet-700 uppercase tracking-widest">Cours adultes</td>
                       </tr>
                       {selectedParent.adultLines.map(a => (
-                        <tr key={a.id} className="border-b border-warm-50">
+                        <tr key={a.id} className="transition-colors hover:bg-warm-100 border-b border-warm-50">
                           <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{a.tutor_label}</td>
                           <td className="px-2 py-1.5 text-xs text-secondary-600">
                             {a.class_tooltip ? (
@@ -1107,7 +1107,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                     else if (ref?.transaction_id) refLabel = ref.transaction_id
                     else if (ref?.reference) refLabel = ref.reference
                     return (
-                      <tr key={p.id} className="border-b border-warm-50 hover:bg-warm-50/40">
+                      <tr key={p.id} className="border-b border-warm-50 transition-colors hover:bg-warm-100">
                         <td className={clsx('px-2 py-1.5 text-xs text-center tabular-nums',
                           selectedParent.maxInstallments > 0 && idx + 1 > selectedParent.maxInstallments ? 'text-orange-600 font-bold' : 'text-warm-700')}>
                           {idx + 1}
@@ -1212,7 +1212,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 </thead>
                 <tbody>
                   {adjustments.map(a => (
-                    <tr key={a.id} className="border-b border-warm-50">
+                    <tr key={a.id} className="transition-colors hover:bg-warm-100 border-b border-warm-50">
                       <td className="px-2 py-1.5 text-xs text-secondary-600">{fmtDate(a.adjustment_date)}</td>
                       <td className="px-2 py-1.5">
                         <span className={clsx('px-2 py-0.5 rounded-full text-xs font-medium',

@@ -8553,3 +8553,17 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Etats vides** en `.card` d'une phrase (plus d'icone ni de texte d'aide).
 - **Appreciation en ligne** : `FloatButton` mini « Enregistrer » / « Annuler » au lieu des boutons faits main
   (« OK » turquoise) ; « Ajouter » sans icone.
+
+#### 21 octobre 2026 — Survol unique des lignes de liste
+
+- **Demande utilisateur** : le meme survol sur toutes les listes, celui de la liste Apprenants
+  (`hover:bg-warm-100`, remappe sur `--surface-sunken` par le pont sombre). Il y en avait 6 variantes
+  (`warm-50`, `warm-50/40`, `/50`, `/60`, `warm-100/60`, `--brand-tint`).
+- **Aligne** : ~30 lignes dans 22 fichiers (ecole et console editeur). Lignes inactives d'Enseignants et
+  d'Utilisateurs en `bg-warm-50` + meme survol, comme les eleves inactifs.
+- **Ajoute** aux lignes de donnees qui n'en avaient pas (recapitulatif de l'appel, foyer et echeances des
+  Reglements, historique des cotisations, discipline, modales de synchronisation, devoir, interventions et
+  facturation de la console…). Pas de survol sur les lignes de total, d'intertitre ou de message vide.
+- **Gardes** : fonds d'ETAT avec leur propre survol (PAI rouge, saisie des notes modifiee ou en conflit,
+  creneau actif d'une classe).
+- Inventaire fait par un script qui lit chaque `<tr>` du code (`scratchpad/tr.py`, a recreer si besoin).

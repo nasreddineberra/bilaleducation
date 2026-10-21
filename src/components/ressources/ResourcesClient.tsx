@@ -338,7 +338,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                   <tr><td colSpan={5} className="text-sm text-warm-700 text-center py-6">Aucune salle</td></tr>
                 )}
                 {filteredRooms.map(r => (
-                  <tr key={r.id} onClick={() => startEditRoom(r)} className={clsx('cursor-pointer transition-colors', r.is_available ? 'hover:bg-warm-50/60' : 'bg-warm-50/60')}>
+                  <tr key={r.id} onClick={() => startEditRoom(r)} className={clsx('cursor-pointer transition-colors', r.is_available ? 'hover:bg-warm-100' : 'bg-warm-50/60')}>
                     <td className="list-td whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span className="list-name text-secondary-800">{r.name}</span>
@@ -487,7 +487,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                   <tr><td colSpan={6} className="text-sm text-warm-700 text-center py-6">Aucun matériel</td></tr>
                 )}
                 {filteredMats.map(m => (
-                  <tr key={m.id} onClick={() => startEditMat(m)} className={clsx('cursor-pointer transition-colors', m.condition === 'hors_service' ? 'bg-warm-50/60' : 'hover:bg-warm-50/60')}>
+                  <tr key={m.id} onClick={() => startEditMat(m)} className={clsx('cursor-pointer transition-colors', m.condition === 'hors_service' ? 'bg-warm-50/60' : 'hover:bg-warm-100')}>
                     <td className="list-td whitespace-nowrap">
                       <span className="list-name text-secondary-800">{m.name}</span>
                     </td>

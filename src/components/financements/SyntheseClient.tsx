@@ -384,7 +384,7 @@ export default function SyntheseClient({
               <table className="w-full text-xs" aria-label={`Coût enseignement par mois, année ${yearLabel}`}>
                 <tbody className="divide-y divide-warm-50">
                   {teachingCosts.byMonth.map(row => (
-                    <tr key={row.month} className="hover:bg-warm-50">
+                    <tr key={row.month} className="transition-colors hover:bg-warm-100">
                       <td className="px-2 py-[2px]">
                         <Link
                           href={`/dashboard/temps-presence?month=${row.month}`}
@@ -425,7 +425,7 @@ export default function SyntheseClient({
             <table className="w-full text-xs" aria-label={`Dépenses de l'année ${yearLabel}`}>
               <tbody className="divide-y divide-warm-50">
                 {expenses.map(e => (
-                  <tr key={e.id} className="hover:bg-warm-50">
+                  <tr key={e.id} className="transition-colors hover:bg-warm-100">
                     <td className="px-2 py-[2px] text-warm-700 whitespace-nowrap w-0">{fmtDate(e.expense_date)}</td>
                     {/* `max-w-0 w-full` : sans lui, un libelle long elargit la colonne
                         (disposition auto du tableau) et fait apparaitre un defilement
@@ -504,7 +504,7 @@ export default function SyntheseClient({
             <table className="w-full text-xs" aria-label={`Revenus autres de l'année ${yearLabel}`}>
               <tbody className="divide-y divide-warm-50">
                 {revenues.map(r => (
-                  <tr key={r.id} className="hover:bg-warm-50">
+                  <tr key={r.id} className="transition-colors hover:bg-warm-100">
                     <td className="px-2 py-[2px] text-warm-700 whitespace-nowrap w-0">{fmtDate(r.revenue_date)}</td>
                     <td className="px-2 py-[2px] text-left max-w-0 w-full">
                       <div className="flex">

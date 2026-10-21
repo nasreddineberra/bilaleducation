@@ -661,7 +661,7 @@ export default function AbsencesClient({
                                 setExpandedStudent(null)
                               }
                             }}
-                            className="border-b border-warm-100 cursor-pointer hover:bg-warm-50 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+                            className="border-b border-warm-100 cursor-pointer transition-colors hover:bg-warm-100 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                           >
                             <td className="py-1.5 px-2 pl-3">
                               <span className="font-semibold text-secondary-800">{cls.name}</span>
@@ -696,7 +696,7 @@ export default function AbsencesClient({
                         </thead>
                         <tbody>
                           {topAbsentStudents.map(r => (
-                            <tr key={r.student.student_id} className="border-b border-warm-100">
+                            <tr key={r.student.student_id} className="transition-colors hover:bg-warm-100 border-b border-warm-100">
                               <td className="py-1.5 px-2 pl-3 font-semibold text-secondary-800">
                                 {r.student.last_name} {r.student.first_name}
                                 {r.absNJ >= ALERT_THRESHOLD && (
@@ -854,7 +854,7 @@ function StudentRow({
         className={clsx(
           'cursor-pointer transition-colors border-b border-warm-50',
           'focus:outline-none focus-visible:bg-[var(--brand-tint)]',
-          isExpanded ? 'bg-[var(--brand-tint)]' : 'hover:bg-warm-50'
+          isExpanded ? 'bg-[var(--brand-tint)]' : 'hover:bg-warm-100'
         )}
       >
         <td className="py-1 px-2 pl-3 font-medium text-secondary-700 flex items-center gap-1">

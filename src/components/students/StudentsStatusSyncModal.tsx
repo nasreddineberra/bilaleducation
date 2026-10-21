@@ -168,7 +168,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
                 {filtered.map(r => {
                   const active = working[r.id]
                   return (
-                    <tr key={r.id} className={clsx('transition-colors', !active && 'bg-warm-50/50')}>
+                    <tr key={r.id} className={clsx('transition-colors hover:bg-warm-100', !active && 'bg-warm-50/50')}>
                       <td className="list-td"><span className="list-name text-secondary-800">{r.name}</span></td>
                       <td className="list-td">
                         {r.className ? (

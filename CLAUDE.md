@@ -292,6 +292,9 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Aucune icone sur un bouton a libelle** (pas de `+`) ; icone seule = `Tooltip` + `aria-label`.
 - **Pas de `<h1>` de titre de page** (DashboardNav le rend). Pas de texte explicatif oisif. Pas d'emoji.
 - **Lignes de liste cliquables** vers la fiche (`stopPropagation` sur nom/actions).
+- **Survol des lignes de liste : un seul**, `transition-colors hover:bg-warm-100` (celui d'Apprenants ; le pont
+  sombre le remappe). Ligne inactive `bg-warm-50` + meme survol. Seul un fond d'ETAT (PAI, saisie non
+  enregistree, creneau actif) garde son propre survol. Pas de survol sur une ligne de total.
 - **Apres enregistrement : retour a l'origine** (liste par defaut, `?from=` pour audit/parents),
   avec les filtres de la liste conserves (URL ou `sessionStorage`).
 - **Selects demarrent vides** (placeholder `disabled hidden`), obligatoires si pertinent.

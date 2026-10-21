@@ -128,7 +128,7 @@ export default function HistoriqueClassesClient({ classes }: { classes: ClasseAr
               <tr
                 key={c.id}
                 onClick={() => setOuverte(c)}
-                className="hover:bg-warm-50 transition-colors cursor-pointer"
+                className="hover:bg-warm-100 transition-colors cursor-pointer"
               >
                 <td className="list-td">
                   <button

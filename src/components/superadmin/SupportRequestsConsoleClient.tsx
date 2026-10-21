@@ -176,7 +176,7 @@ export default function SupportRequestsConsoleClient({
                 <tr
                   key={d.id}
                   onClick={() => setDetail(d)}
-                  className="hover:bg-warm-50 transition-colors cursor-pointer"
+                  className="hover:bg-warm-100 transition-colors cursor-pointer"
                 >
                   <td className="list-td text-warm-700 whitespace-nowrap">
                     {formatDateHeureFr(d.created_at)}

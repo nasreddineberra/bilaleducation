@@ -210,7 +210,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
                   <tr
                     key={m.id}
                     onClick={() => router.push(`/dashboard/communications/${m.id}`)}
-                    className="hover:bg-warm-50 transition-colors cursor-pointer"
+                    className="hover:bg-warm-100 transition-colors cursor-pointer"
                   >
                     <td className="list-td text-warm-700 whitespace-nowrap">{formatDate(m.published_at)}</td>
                     <td className="list-td">

@@ -374,7 +374,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                 <tr
                   key={row.id}
                   className={clsx(
-                    'hover:bg-warm-50/50 transition-colors',
+                    'hover:bg-warm-100 transition-colors',
                     !row.is_active && 'opacity-50'
                   )}
                 >

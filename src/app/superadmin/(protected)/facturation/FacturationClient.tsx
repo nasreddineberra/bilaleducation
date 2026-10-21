@@ -120,7 +120,7 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees }: 
               return (
                 <Fragment key={g.annee}>
                   {g.lignes.map(({ r, base, montant, ecartBase, ecartMontant }) => (
-                    <tr key={r.mois}>
+                    <tr className="transition-colors hover:bg-warm-100" key={r.mois}>
                       <td className="list-td list-name capitalize">{MOIS.format(new Date(r.mois))}</td>
                       <td className="list-td text-right tabular-nums">{r.eleves_actifs}</td>
                       <td className="list-td text-right tabular-nums">{r.adultes_inscrits}</td>

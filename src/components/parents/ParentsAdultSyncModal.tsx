@@ -184,7 +184,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {filtered.map(f => (
-                  <tr key={f.id} className="align-middle">
+                  <tr key={f.id} className="transition-colors hover:bg-warm-100 align-middle">
                     <td className="list-td"><TutorCell name={f.tutor1Name} k={`${f.id}-1`} locked={f.tutor1Locked} classInfo={f.tutor1ClassInfo} /></td>
                     <td className="list-td">
                       {f.tutor2Name

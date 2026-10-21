@@ -589,7 +589,7 @@ export default function TempsPresenceClient({
             </thead>
             <tbody className="divide-y divide-warm-100">
               {recap.rows.map(r => (
-                <tr key={r.profileId} className="hover:bg-warm-50/60">
+                <tr key={r.profileId} className="transition-colors hover:bg-warm-100">
                   <td className="px-5 py-3 font-medium text-warm-700 whitespace-nowrap">{r.name}</td>
                   {nonAbsenceTypes.map(pt => {
                     const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0

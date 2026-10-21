@@ -58,7 +58,7 @@ export default function ImpayesAnterieurs({ debts }: { debts: Debt[] }) {
           </thead>
           <tbody className="divide-y divide-warm-50">
             {debts.map(d => (
-              <tr key={d.feeId} className="hover:bg-warm-50/60 transition-colors">
+              <tr key={d.feeId} className="hover:bg-warm-100 transition-colors">
                 <td className="list-td font-medium text-secondary-800">{d.parentLabel}</td>
                 <td className="list-td text-warm-700 tabular-nums">{d.yearLabel}</td>
                 <td className="list-td text-right tabular-nums">{fmtEur(d.totalDue)}</td>

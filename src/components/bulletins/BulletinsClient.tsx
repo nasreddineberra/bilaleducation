@@ -853,7 +853,7 @@ export default function BulletinsClient({
                 return (
                   <tr
                     key={s.student_id}
-                    className="hover:bg-warm-50/50 transition-colors"
+                    className="hover:bg-warm-100 transition-colors"
                   >
                     <td className="list-td text-warm-700 tabular-nums">{idx + 1}</td>
                     <td className="list-td whitespace-nowrap">

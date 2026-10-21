@@ -348,7 +348,7 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
                     {participants.map(p => {
                       const st = statusOf(p.key)
                       return (
-                        <tr key={p.key} className="border-b border-warm-100">
+                        <tr key={p.key} className="transition-colors hover:bg-warm-100 border-b border-warm-100">
                           <td className="py-1.5 pr-4 text-warm-700">{p.name}</td>
                           <td className="py-1.5 px-4 text-center">
                             {st?.is_seen ? (

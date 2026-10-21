@@ -240,7 +240,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
                   const info = STATUS_BADGE[r.status] ?? STATUS_FALLBACK
                   const Icon = info.icon
                   return (
-                    <tr key={idx} className="hover:bg-warm-50">
+                    <tr key={idx} className="transition-colors hover:bg-warm-100">
                       <td className="list-td text-warm-700 font-medium">{r.name}</td>
                       <td className="list-td text-warm-700">{r.email}</td>
                       <td className="list-td">

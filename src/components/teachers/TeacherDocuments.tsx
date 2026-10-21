@@ -234,7 +234,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                 const exp = expirationStatus(doc.expires_at)
                 const categoryLabel = CATEGORIES.find(c => c.key === doc.category)?.label ?? doc.category
                 return (
-                  <tr key={doc.id} className="hover:bg-warm-50/50 transition-colors">
+                  <tr key={doc.id} className="hover:bg-warm-100 transition-colors">
                     <td className="list-td text-secondary-700 whitespace-nowrap">{categoryLabel}</td>
                     <td className="list-td">
                       <span className="list-name text-secondary-800 truncate">

@@ -1002,7 +1002,7 @@ export default function ReferentielColonnes({
                   </thead>
                   <tbody>
                     {deps.emplacements.map((e: Emplacement, i: number) => (
-                      <tr key={`${e.classe}-${e.periode}-${i}`} className="border-t border-[var(--line)]">
+                      <tr key={`${e.classe}-${e.periode}-${i}`} className="transition-colors hover:bg-warm-100 border-t border-[var(--line)]">
                         <td className="px-2 py-1 text-[var(--ink)]">{e.classe}</td>
                         <td className="px-2 py-1 text-[var(--ink-muted)]">{e.periode}</td>
                       </tr>

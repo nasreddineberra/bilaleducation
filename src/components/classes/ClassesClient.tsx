@@ -231,7 +231,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                   <tr
                     key={cls.id}
                     onClick={() => router.push(`/dashboard/classes/${cls.id}`)}
-                    className="cursor-pointer hover:bg-warm-50/50 transition-colors"
+                    className="cursor-pointer hover:bg-warm-100 transition-colors"
                   >
                     <td className="list-td whitespace-nowrap">
                       <Link

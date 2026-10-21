@@ -359,7 +359,7 @@ export default function StudentDiscipline({
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {sortedAbsences.map(a => (
-                  <tr key={a.id}>
+                  <tr className="transition-colors hover:bg-warm-100" key={a.id}>
                     <td className="list-td whitespace-nowrap tabular-nums text-secondary-800">{dateFr(a.absence_date)}</td>
                     <td className="list-td whitespace-nowrap text-warm-700">{periodMap.get(a.period_id) ?? '·'}</td>
                     <td className="list-td">

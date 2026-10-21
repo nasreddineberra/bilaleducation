@@ -342,7 +342,7 @@ export default async function SuperAdminPage({ searchParams }: {
                 </tr>
               ) : (
                 interventions.map(i => (
-                  <tr key={i.id}>
+                  <tr className="transition-colors hover:bg-warm-100" key={i.id}>
                     <td className="list-td px-2">
                       <div className="flex min-w-0">
                         <TruncatedText className="list-name" text={nomEcole[i.etablissement_id] ?? 'Établissement supprimé'} />

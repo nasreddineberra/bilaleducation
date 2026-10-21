@@ -259,7 +259,7 @@ export default function TeacherAttendance({
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {absences.map(a => (
-                  <tr key={a.id} className="hover:bg-warm-50/50 transition-colors">
+                  <tr key={a.id} className="hover:bg-warm-100 transition-colors">
                     <td className="list-td whitespace-nowrap text-secondary-700">{fmtDate(a.date)}</td>
                     <td className="list-td whitespace-nowrap tabular-nums text-warm-700">{fmtPlage(a.start, a.end)}</td>
                     <td className="list-td text-center tabular-nums text-warm-700">{fmtDuration(a.minutes)}</td>
@@ -310,7 +310,7 @@ export default function TeacherAttendance({
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {remplacements.map(r => (
-                  <tr key={r.id} className="hover:bg-warm-50/50 transition-colors">
+                  <tr key={r.id} className="hover:bg-warm-100 transition-colors">
                     <td className="list-td whitespace-nowrap text-secondary-700">{fmtDate(r.date)}</td>
                     <td className="list-td whitespace-nowrap tabular-nums text-warm-700">{fmtPlage(r.start, r.end)}</td>
                     <td className="list-td text-center tabular-nums text-warm-700">{fmtDuration(r.minutes)}</td>

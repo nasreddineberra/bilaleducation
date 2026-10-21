@@ -575,7 +575,7 @@ export default function AuditLogsClient({
                           : ''
 
                 return (
-                  <tr key={log.id} className="border-b border-warm-100 hover:bg-warm-50 transition-colors">
+                  <tr key={log.id} className="border-b border-warm-100 hover:bg-warm-100 transition-colors">
                     <td className="py-1.5 px-3 text-xs text-secondary-600 whitespace-nowrap">
                       {fmtDate(log.created_at)}
                     </td>

@@ -765,8 +765,8 @@ export default function GradesClient({
                                   : entry.dirty
                                   ? 'bg-amber-50/40 hover:bg-amber-100/50'
                                   : idx % 2 === 0
-                                  ? 'bg-white hover:bg-[var(--brand-tint)]'
-                                  : 'bg-warm-50/20 hover:bg-[var(--brand-tint)]'
+                                  ? 'bg-white hover:bg-warm-100'
+                                  : 'bg-warm-50/20 hover:bg-warm-100'
                               )}
                             >
                               {/* Numéro */}
