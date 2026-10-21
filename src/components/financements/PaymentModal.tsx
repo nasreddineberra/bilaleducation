@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { useState, useEffect, useId } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import FormModal from '@/components/ui/FormModal'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
 import type { RecapDossier } from '@/lib/financements/compute'
 
@@ -86,6 +86,7 @@ export default function PaymentModal({
   const [paidDate,     setPaidDate]     = useState(initPaidDate)
   const [receipt,      setReceipt]      = useState(initReceipt)
   const [notes,        setNotes]        = useState(initNotes)
+  const formId = useId()
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
 
@@ -227,41 +228,31 @@ export default function PaymentModal({
   }
 
   return (
-    // Modale de saisie : fermeture par X / Annuler uniquement (pas de fond
-    // cliquable ni Echap → evite la perte de saisie), comme les autres saisies.
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="payment-modal-title"
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in"
-      >
+    // Modale de saisie : fermeture par X / Annuler uniquement (FormModal : ni fond
+    // cliquable ni Echap), portee dans <body> comme toutes les modales.
+    <FormModal
+      title={isEdit ? 'Modifier le paiement' : 'Enregistrer un paiement'}
+      onClose={onClose}
+      footer={<>
+        <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
+        <div className="flex-1" />
+        <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
+          Annuler
+        </FloatButton>
+        <FloatButton type="submit" form={formId} variant={isEdit ? 'edit' : 'submit'} disabled={saving || !canSubmit || !hasChanges}>
+          {isEdit ? 'Modifier' : 'Valider'}
+        </FloatButton>
+      </>}
+    >
+        <form id={formId} onSubmit={handleSubmit} className="space-y-4">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100">
-          <div>
-            <h2 id="payment-modal-title" className="text-base font-bold text-secondary-800">
-              {isEdit ? 'Modifier le paiement' : 'Enregistrer un paiement'}
-            </h2>
-            <p className="text-xs text-warm-700 mt-0.5">
-              Total dû : {fmtEur(totalDue)}
-              {remaining < totalDue && remaining > 0 && ` · Reste : ${fmtEur(remaining)}`}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <p className="text-xs text-warm-700">
+            Total dû : {fmtEur(totalDue)}
+            {remaining < totalDue && remaining > 0 && ` · Reste : ${fmtEur(remaining)}`}
+          </p>
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>
+            <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>
           )}
 
           {/* Montant + Date */}
@@ -287,7 +278,7 @@ export default function PaymentModal({
           {/* Mode de paiement */}
           <div>
             <label className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">
-              Mode de paiement <span className="text-red-400">*</span>
+              Mode de paiement <span className="text-red-700">*</span>
             </label>
             <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Mode de paiement">
               {METHODS.map(m => {
@@ -302,9 +293,9 @@ export default function PaymentModal({
                     onClick={() => !isOnline && setMethod(m.value)}
                     className={[
                       'relative w-full px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
-                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
                       isOnline   ? 'opacity-60 cursor-not-allowed border-warm-200 text-warm-700 bg-warm-50' : '',
-                      !isOnline && isSelected  ? 'border-primary-400 bg-primary-50 text-primary-700' : '',
+                      !isOnline && isSelected  ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : '',
                       !isOnline && !isSelected ? 'border-warm-200 hover:bg-warm-100 text-secondary-600' : '',
                     ].join(' ')}
                   >
@@ -402,20 +393,7 @@ export default function PaymentModal({
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
-            <div className="flex-1" />
-            <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>
-              Annuler
-            </FloatButton>
-            <FloatButton type="submit" variant={isEdit ? 'edit' : 'submit'} disabled={saving || !canSubmit || !hasChanges}>
-              {isEdit ? 'Modifier' : 'Valider'}
-            </FloatButton>
-          </div>
-
         </form>
-      </div>
-    </div>
+    </FormModal>
   )
 }

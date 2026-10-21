@@ -29,7 +29,6 @@ export default function ImpayesAnterieurs({ debts }: { debts: Debt[] }) {
     return (
       <div className="card p-8 text-center">
         <p className="text-sm text-warm-700">Aucun impayé sur les années précédentes.</p>
-        <p className="text-xs text-warm-700 mt-1">Les dettes d’années passées non soldées apparaissent ici, payables à tout moment.</p>
       </div>
     )
   }
@@ -45,9 +44,9 @@ export default function ImpayesAnterieurs({ debts }: { debts: Debt[] }) {
       </div>
 
       <div className="card p-0 overflow-hidden">
-        <table className="w-full text-xs" aria-label="Impayés des années précédentes">
+        <table className="liste w-full text-xs" aria-label="Impayés des années précédentes">
           <thead>
-            <tr className="border-b border-warm-100 bg-warm-50">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="list-th text-left">Foyer</th>
               <th className="list-th text-left">Année</th>
               <th className="list-th text-right">Dû</th>
@@ -58,14 +57,14 @@ export default function ImpayesAnterieurs({ debts }: { debts: Debt[] }) {
           </thead>
           <tbody className="divide-y divide-warm-50">
             {debts.map(d => (
-              <tr key={d.feeId} className="hover:bg-warm-100 transition-colors">
+              <tr key={d.feeId}>
                 <td className="list-td font-medium text-secondary-800">{d.parentLabel}</td>
                 <td className="list-td text-warm-700 tabular-nums">{d.yearLabel}</td>
                 <td className="list-td text-right tabular-nums">{fmtEur(d.totalDue)}</td>
-                <td className="list-td text-right tabular-nums text-primary-600">{fmtEur(d.totalPaid)}</td>
+                <td className="list-td text-right tabular-nums text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{fmtEur(d.totalPaid)}</td>
                 <td className="list-td text-right tabular-nums font-semibold text-orange-700">{fmtEur(d.remaining)}</td>
                 <td className="list-td text-right">
-                  <FloatButton type="button" variant="submit" onClick={() => setPayDebt(d)} className="!py-1 text-xs">
+                  <FloatButton type="button" variant="submit" size="mini" onClick={() => setPayDebt(d)}>
                     Solder
                   </FloatButton>
                 </td>

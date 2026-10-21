@@ -362,8 +362,8 @@ financements, retention…), ecole de demonstration.
    FILTRENT une liste -> `FiltreSwitch` (compteur optionnel ; periodes aussi). Confirmations en
    `ConfirmModal`, saisies en `FormModal`, actions de ligne toujours visibles. Script de conversion :
    `scratchpad/marque.py` (a recreer si besoin, regle ci-dessus).
-   **Fait (18-20/10)** : socle (ui, layout), Classes, Reglements (montants a droite des onglets, switch
-   au-dessus des foyers), Messages envoyes, Support, fiche apprenant (Discipline, Scolarite, Documents,
+   **Fait (18-20/10)** : socle (ui, layout), Classes, Reglements (disposition 18-20/10, couleurs
+   et modales 21/10), Messages envoyes, Support, fiche apprenant (Discipline, Scolarite, Documents,
    Historique), fiche parent (Scolarite adulte), listes Apprenants / Parents harmonisees, modales de
    synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
    Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT, Cahier de texte, Classes archivees, Notifications, Temps de presence, Tableau de bord (18/10), Communications, Financements (Statistiques, Situation). **Reste** :

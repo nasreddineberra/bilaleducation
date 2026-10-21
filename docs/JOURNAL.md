@@ -8688,3 +8688,21 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Modales Depense / Revenu** : la COPIE LOCALE de `FormModal` est retiree au profit du composant partage ;
   « Choisir un fichier » etait en `.btn-secondary` (classe abandonnee) avec une icone : `FloatButton` mini sans
   icone, qui declenche l'input fichier ; rouges en `red-700`.
+
+#### 21 octobre 2026 — Refonte : Reglements (couleurs et modales)
+
+- **Constat** : la passe des 18-20/10 avait traite la DISPOSITION (montants a droite des onglets, switch,
+  encadres du detail), pas les couleurs ni les composants. Restaient 25 turquoise, 18 contrastes faibles,
+  5 modales faites main (dont celle de paiement, NON portee dans `<body>`), 7 `card p-0` a en-tete maison.
+- **Liste des foyers** : statuts en `Puce` (Solde `ok`, Partiel `orange`, En attente `neutre`, Trop percu
+  `danger`) ; foyer actif en `--brand-tint` ; « Sans inscription » en `Puce attente` ; compteurs du switch
+  en `-700`.
+- **Detail** : nom du foyer en `<h2>` (pas de `<h1>`) ; 5 encadres a bandeau `.encadre-titre` ; tableaux en
+  `.liste` (intertitre « Cours adultes » et ligne « Plus aucune inscription » en `.sans-survol`) ; types
+  de reduction en `Puce` (bleu et violet hors charte) ; badges Relance / Attestation / echeances en `Puce` ;
+  totaux en casse normale (`.stat-label`) ; rouges et orange en `-700` ; texte explicatif retire.
+- **Modales** Paiement, Attestation, Relance, Reduction en `FormModal` (formulaire de paiement relie au pied
+  par `form`) ; mode de paiement et cases de l'attestation au vert de marque.
+- **Impayes anterieurs** : tableau en `.liste`, « Solder » en `size="mini"`, etat vide d'une phrase.
+- **Dates** : `fmtDate` ancre `AAAA-MM-JJ` a minuit local ; date par defaut d'une reduction en date locale
+  (et non `toISOString()`).
