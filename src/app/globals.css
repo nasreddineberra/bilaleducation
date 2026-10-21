@@ -297,9 +297,8 @@
            bg-[var(--surface-card)] text-[var(--ink)] placeholder-warm-400
            transition-all duration-200
            focus:outline-none
-           focus:border-primary-400
-           focus:ring-2 focus:ring-primary-400/20
-           focus:shadow-[0_0_0_3px_rgba(24,170,153,0.12)];
+           focus:border-[var(--brand-surface)]
+           focus:ring-2 focus:ring-[var(--brand-focus)];
   }
 
   .input-error {
@@ -1710,3 +1709,5 @@
 :root[data-theme="dark"] .ligne-active > td:first-child::before { background-color: var(--brand-accent); }
 :root[data-theme="dark"] .encadre-titre { background-image: linear-gradient(to right, color-mix(in srgb, var(--brand-accent) 12%, var(--surface-card)), var(--surface-card)); }
 :root[data-theme="dark"] .encadre-titre, :root[data-theme="dark"] .encadre-titre h2 { color: var(--brand-accent); }
+/* Champ `.input`, theme sombre : le trait de focus prend l'accent, comme FloatFields. */
+:root[data-theme="dark"] .input:focus { border-color: var(--brand-accent); }

@@ -3,13 +3,15 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   ChevronRight, ChevronDown, ChevronLeft,
-  BookOpen, AlertCircle, AlertTriangle, RotateCcw, Lock,
+  BookOpen, AlertCircle, AlertTriangle, Trash2, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { FloatSelect, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
@@ -90,11 +92,15 @@ interface Props {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const EVAL_BADGE: Record<string, { label: string; cls: string }> = {
-  diagnostic: { label: 'Diagnostique', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  scored:     { label: 'Notée',        cls: 'bg-primary-50 text-primary-700 border-primary-200' },
-  stars:      { label: 'Étoilée',      cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+// Memes tons que la page Gabarits (`Puce`, 21/10).
+const EVAL_BADGE: Record<string, { label: string; ton: Ton }> = {
+  diagnostic: { label: 'Diagnostique', ton: 'info' },
+  scored:     { label: 'Notée',        ton: 'ok' },
+  stars:      { label: 'Étoilée',      ton: 'attente' },
 }
+
+// Champ verrouille (absent, bulletins archives) : fond `--champ-verrou`, comme FloatFields.
+const CHAMP_VERROU = 'disabled:bg-[var(--champ-verrou)] disabled:text-warm-400 disabled:border-warm-200 disabled:cursor-not-allowed'
 
 const PERIOD_LABELS: Record<string, string> = {
   S1: 'Semestre 1', S2: 'Semestre 2', T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
@@ -477,28 +483,17 @@ export default function GradesClient({
 
         {/* Périodes */}
         {periods.length > 0 && (
-          <div className="flex items-center gap-1">
-            {periods.map(p => (
-              <button
-                key={p.id}
-                onClick={() => navigate({ type: 'period', value: p.id })}
-                aria-pressed={selectedPeriodId === p.id}
-                className={clsx(
-                  'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
-                  selectedPeriodId === p.id
-                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90'
-                    : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
-                )}
-              >
-                {PERIOD_LABELS[p.label] ?? p.label}
-              </button>
-            ))}
-          </div>
+          <FiltreSwitch
+            ariaLabel="Période"
+            actif={selectedPeriodId ?? ''}
+            onChange={v => navigate({ type: 'period', value: v })}
+            options={periods.map(p => ({ valeur: p.id, libelle: PERIOD_LABELS[p.label] ?? p.label }))}
+          />
         )}
 
         {/* Alerte année scolaire */}
         {noSchoolYear && (
-          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
             Aucune année scolaire active.
           </p>
         )}
@@ -535,7 +530,7 @@ export default function GradesClient({
         {/* ── Gauche : Gabarit (lecture seule) ── */}
         <div className="w-[27rem] flex-shrink-0 flex flex-col min-h-0">
           <div className="card p-3 flex flex-col gap-2 h-full min-h-0">
-            <p className="text-xs font-bold text-warm-700 uppercase tracking-widest flex-shrink-0">Gabarit</p>
+            <h2 className="encadre-titre mb-0 flex-shrink-0 text-xs font-bold uppercase tracking-widest">Gabarit</h2>
 
             {noSchoolYear || noClassOrPeriod || currentEvals.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
@@ -643,37 +638,11 @@ export default function GradesClient({
               </div>
             ) : (
               <>
-                {/* En-tête évaluation */}
-                <div className="flex items-start gap-3 mb-3 pb-2 border-b border-warm-100 flex-shrink-0">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-secondary-800">
-                      {selectedCours ? refLabel(selectedCours) : 'Cours introuvable'}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {(() => {
-                        const b = EVAL_BADGE[selectedEval.eval_kind ?? ''] ?? EVAL_BADGE.diagnostic
-                        return (
-                          <span className={clsx('text-[10px] font-semibold border px-1.5 py-px rounded-full', b.cls)}>
-                            {b.label}
-                            {selectedEval.eval_kind === 'scored' && selectedEval.max_score != null && ` /${selectedEval.max_score}`}
-                          </span>
-                        )
-                      })()}
-                      {selectedEval.eval_kind === 'diagnostic' && diagnosticOptions.some(o => o.comment) && (
-                        <span className="text-xs text-warm-700">
-                          {diagnosticOptions.filter(o => o.comment).map(o => `${o.acronym} : ${o.comment}`).join(' - ')}
-                        </span>
-                      )}
-                      {selectedEval.eval_kind === 'scored' && (
-                        <span className="text-xs text-warm-700">Coef. {selectedEval.coefficient}</span>
-                      )}
-                      {selectedEval.evaluation_date && (
-                        <span className="text-xs text-warm-700">
-                          {new Date(selectedEval.evaluation_date + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                {/* En-tête évaluation : bandeau (cours + complétion), puis caractéristiques */}
+                <div className="encadre-titre flex-shrink-0 justify-between gap-3">
+                  <h2 className="text-xs font-bold uppercase tracking-widest truncate">
+                    {selectedCours ? refLabel(selectedCours) : 'Cours introuvable'}
+                  </h2>
                   {(() => {
                     const { graded, total } = getCompletion(selectedEvalId!)
                     const kind = selectedEval.eval_kind
@@ -695,28 +664,48 @@ export default function GradesClient({
                       : null
 
                     return (
-                      <div className="flex-shrink-0 flex flex-col items-end gap-0.5">
-                        {total > 0 && graded >= total && (
-                          <span className="text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200 px-2 py-0.5 rounded-full">
-                            Saisie complète
-                          </span>
-                        )}
+                      <div className="flex-shrink-0 flex items-center gap-2">
                         {showAvg && avg !== null && total > 0 && graded >= total && (
-                          <span className="text-[10px] text-warm-700">
+                          <span className="text-[11px] text-warm-700 tabular-nums">
                             Moy.{' '}
                             <span className="font-semibold text-secondary-700">
                               {avg}{kind === 'scored' ? ` / ${selectedEval.max_score}` : ' / 5'}
                             </span>
                           </span>
                         )}
+                        {total > 0 && graded >= total && <Puce ton="ok">Saisie complète</Puce>}
                       </div>
                     )
                   })()}
                 </div>
+                <div className="flex items-center gap-2 mb-2 flex-wrap flex-shrink-0">
+                  {(() => {
+                    const b = EVAL_BADGE[selectedEval.eval_kind ?? ''] ?? EVAL_BADGE.diagnostic
+                    return (
+                      <Puce ton={b.ton}>
+                        {b.label}
+                        {selectedEval.eval_kind === 'scored' && selectedEval.max_score != null && ` /${selectedEval.max_score}`}
+                      </Puce>
+                    )
+                  })()}
+                  {selectedEval.eval_kind === 'diagnostic' && diagnosticOptions.some(o => o.comment) && (
+                    <span className="text-xs text-warm-700">
+                      {diagnosticOptions.filter(o => o.comment).map(o => `${o.acronym} : ${o.comment}`).join(' · ')}
+                    </span>
+                  )}
+                  {selectedEval.eval_kind === 'scored' && (
+                    <span className="text-xs text-warm-700">Coef. {selectedEval.coefficient}</span>
+                  )}
+                  {selectedEval.evaluation_date && (
+                    <span className="text-xs text-warm-700">
+                      {new Date(selectedEval.evaluation_date + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
 
                 {/* Erreur */}
                 {error && (
-                  <div role="alert" className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
+                  <div role="alert" className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 flex-shrink-0">
                     <AlertCircle size={13} className="flex-shrink-0" />
                     {error}
                   </div>
@@ -741,18 +730,18 @@ export default function GradesClient({
                     <p className="text-sm text-warm-700 text-center py-8">{isAdultClass ? 'Aucun participant inscrit dans ce cours.' : 'Aucun élève inscrit dans cette classe.'}</p>
                   ) : (
                     <table aria-label="Saisie des notes des élèves" className="w-full text-sm border-collapse">
-                      <thead className="sticky top-0 bg-white z-10">
-                        <tr className="border-b-2 border-warm-100">
-                          <th className="text-left text-xs font-semibold text-warm-700 py-2 pr-3 pl-1">#</th>
-                          <th className="text-left text-xs font-semibold text-warm-700 py-2 pr-3">{isAdultClass ? 'Participant' : 'Élève'}</th>
-                          <th className="text-center text-xs font-semibold text-warm-700 py-2 px-3 w-36">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="liste-entete border-b border-[var(--card-border)] text-[11px] uppercase tracking-wide">
+                          <th className="text-left font-semibold py-2 pr-3 pl-1">#</th>
+                          <th className="text-left font-semibold py-2 pr-3">{isAdultClass ? 'Participant' : 'Élève'}</th>
+                          <th className="text-center font-semibold py-2 px-3 w-36">
                             {selectedEval.eval_kind === 'scored'
                               ? `Note /${selectedEval.max_score}`
                               : selectedEval.eval_kind === 'diagnostic'
                               ? 'Appréciation'
                               : 'Étoiles'}
                           </th>
-                          <th className="text-center text-xs font-semibold text-warm-700 py-2 pl-3 w-20">Absent</th>
+                          <th className="text-center font-semibold py-2 pl-3 w-20">Absent</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -776,8 +765,8 @@ export default function GradesClient({
                                   : entry.dirty
                                   ? 'bg-amber-50/40 hover:bg-amber-100/50'
                                   : idx % 2 === 0
-                                  ? 'bg-white hover:bg-primary-50/40'
-                                  : 'bg-warm-50/20 hover:bg-primary-50/40'
+                                  ? 'bg-white hover:bg-[var(--brand-tint)]'
+                                  : 'bg-warm-50/20 hover:bg-[var(--brand-tint)]'
                               )}
                             >
                               {/* Numéro */}
@@ -815,7 +804,7 @@ export default function GradesClient({
                                     disabled={isAbsent || isArchived}
                                     placeholder=""
                                     data-row-idx={idx}
-                                    className="input text-sm py-0.5 w-24 text-center disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className={clsx('input text-sm py-0.5 w-24 text-center', CHAMP_VERROU)}
                                   />
                                 ) : selectedEval.eval_kind === 'diagnostic' ? (
                                   <select
@@ -823,7 +812,7 @@ export default function GradesClient({
                                     onChange={e => { updatePending(student.student_id, { scoreValue: e.target.value }); focusNext(idx) }}
                                     disabled={isAbsent || isArchived}
                                     data-row-idx={idx}
-                                    className="input text-sm py-0.5 w-28 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    className={clsx('input text-sm py-0.5 w-28', CHAMP_VERROU)}
                                   >
                                     <option value="">(aucune)</option>
                                     {diagnosticOptions.map(opt => (
@@ -881,14 +870,16 @@ export default function GradesClient({
                       <p className="text-xs text-warm-700 flex-1">
                         <span className={clsx(
                           'font-semibold',
-                          graded === total && total > 0 ? 'text-primary-600' : graded > 0 ? 'text-amber-600' : 'text-warm-700'
+                          graded === total && total > 0
+                            ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
+                            : graded > 0 ? 'text-amber-700' : 'text-warm-700'
                         )}>
                           {graded}/{total}
                         </span>
                         {' saisis'}
                         {absent > 0 && <span> · {absent} absent{absent > 1 ? 's' : ''}</span>}
                         {hasUserChanges
-                          ? <span className="text-amber-500 ml-2">· Modifications non enregistrées</span>
+                          ? <span className="text-amber-700 ml-2">· Modifications non enregistrées</span>
                           : autoAbsences > 0 && (
                               <span className="text-warm-700 ml-2">
                                 · {autoAbsences} absence{autoAbsences > 1 ? 's' : ''} report{autoAbsences > 1 ? 'ées' : 'ée'} de la feuille d'appel · à enregistrer
@@ -911,9 +902,9 @@ export default function GradesClient({
                           onClick={() => setConfirmReset(true)}
                           disabled={saving || !gradesList.some(g => g.evaluation_id === selectedEvalId)}
                           aria-label="Supprimer toutes les notes de cette évaluation"
-                          className="!px-2"
+                          className="!px-2 enabled:hover:text-red-700 enabled:hover:border-red-300 enabled:hover:bg-red-50 dark:enabled:hover:bg-red-950/40"
                         >
-                          <RotateCcw size={13} />
+                          <Trash2 size={13} />
                         </FloatButton>
                       </Tooltip>
                     )}
@@ -1019,14 +1010,14 @@ function EvalRow({
       className={clsx(
         'flex items-center gap-1.5 w-full px-1 py-1 text-left rounded-md transition-colors text-xs',
         selected
-          ? 'bg-primary-50 border border-primary-200 text-primary-700'
-          : 'hover:bg-warm-50 text-secondary-600'
+          ? 'bg-[var(--brand-tint)] border border-[var(--brand-line)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-medium'
+          : 'border border-transparent hover:bg-[var(--brand-tint)] text-secondary-600'
       )}
     >
       {/* Indicateur de complétion */}
       <span className={clsx(
         'w-1.5 h-1.5 rounded-full flex-shrink-0',
-        isComplete ? 'bg-primary-400' : isPartial ? 'bg-amber-400' : 'bg-warm-200'
+        isComplete ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]' : isPartial ? 'bg-amber-400' : 'bg-warm-200'
       )} />
 
       {/* Nom du cours */}
@@ -1042,7 +1033,7 @@ function EvalRow({
       {/* Compteur */}
       <span className={clsx(
         'text-[10px] font-mono flex-shrink-0',
-        isComplete ? 'text-primary-600' : isPartial ? 'text-amber-500' : 'text-warm-700'
+        isComplete ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : isPartial ? 'text-amber-700' : 'text-warm-700'
       )}>
         {graded}/{total}
       </span>

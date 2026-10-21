@@ -8526,3 +8526,18 @@ marque ; les vraies ecoles gardent leur plaque.
   archives : modification impossible ». `disabled:pointer-events-none` pour que l'infobulle (ecoutee sur le
   `span` parent) s'ouvre encore sur un bouton desactive. La base refusait deja (`fn_guard_periode_archivee`).
 
+
+#### 21 octobre 2026 — Refonte : Saisie des notes
+
+- **Inspection puis go de l'utilisateur** (14 points). Periodes en `FiltreSwitch` ; encadres « Gabarit » et
+  saisie a bandeau `encadre-titre` (cours, moyenne, « Saisie complete » en `Puce`) ; pastilles de type
+  alignees sur Gabarits (`info` / `ok` / `attente`, le bleu « diagnostique » etait hors charte) ; arbre,
+  survol et compteurs au vert de marque ; en-tete du tableau en `liste-entete`.
+- **Champs verrouilles** (absent, bulletins archives) : fond `--champ-verrou` + `text-warm-400` au lieu de
+  `opacity-30`, qui rendait la case presque invisible.
+- **Contraste** : `amber-500/600` et `red-500` en texte passes en `-700`.
+- **Supprimer toutes les notes** : icone `Trash2` (la fleche de retour suggerait une remise a zero, le
+  bouton fait un DELETE definitif), survol rouge.
+- **Socle (choix utilisateur)** : le focus de `.input` (`globals.css`) passe du turquoise au vert de marque
+  (`--brand-surface` + halo `--brand-focus`, accent en sombre). Touche toutes les pages qui l'utilisent
+  encore ; l'ombre en dur `rgba(24,170,153,…)` est supprimee.

@@ -356,7 +356,19 @@ financements, retention…), ecole de demonstration.
    `text-[var(--brand-surface)] dark:text-[var(--brand-accent)]` ; plein `bg-[var(--brand-surface)]
    dark:bg-[var(--brand-accent)]` (+ `dark:text-[var(--brand-surface-2)]` sur texte blanc) ; fond doux
    `--brand-tint` ; bordure `--brand-line` ; halo `--brand-focus` ; sur sidebar / header, halo
-   `--brand-accent`. Fait : socle partage (ui, layout), Classes. Ordre : celui de la sidebar.
+   `--brand-accent`. Pastilles d'etat = `Puce` (`components/dashboard/tdb.tsx`). Carte ou pilules qui
+   FILTRENT une liste -> `FiltreSwitch` (compteur optionnel ; periodes aussi). Confirmations en
+   `ConfirmModal`, saisies en `FormModal`, actions de ligne toujours visibles. Script de conversion :
+   `scratchpad/marque.py` (a recreer si besoin, regle ci-dessus).
+   **Fait (18-20/10)** : socle (ui, layout), Classes, Reglements (montants a droite des onglets, switch
+   au-dessus des foyers), Messages envoyes, Support, fiche apprenant (Discipline, Scolarite, Documents,
+   Historique), fiche parent (Scolarite adulte), listes Apprenants / Parents harmonisees, modales de
+   synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
+   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle). **Reste** : Bulletins, EDT,
+   Cahier de texte, Temps de presence, Tableau de bord, Communications (nouveau message), Financements
+   (Statistiques, Situation), Parametres (annees, referentiel, enseignants, utilisateurs, cotisations,
+   types de presence, ressources, journal, etablissement), Mon compte, Passage d'annee, console editeur.
+   Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
 2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
