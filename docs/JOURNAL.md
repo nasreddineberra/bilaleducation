@@ -8619,3 +8619,11 @@ marque ; les vraies ecoles gardent leur plaque.
   `FloatInput locked` ; suivi d'un devoir en `.liste`, « Vu » ardoise, « Effectue » vert de marque.
 - **Dates** : `new Date('AAAA-MM-JJ')` (UTC) remplace par `dateLocale` (`T00:00`) pour l'affichage et le
   calcul de « passe » ; date par defaut d'une seance via la date locale et non `toISOString()`.
+
+#### 21 octobre 2026 — Cahier de texte : alignement des cartes
+
+- **Signale par l'utilisateur** (capture) : la date d'une carte etait plus haute que le titre. Le titre partage
+  sa ligne avec des pastilles plus hautes que lui (`items-center`) et descendait, la date restait en haut
+  (`items-start`). Carte en `items-baseline` : la date suit la ligne de base du titre. Journal et Devoirs.
+- Classe en `Puce` neutre (meme hauteur que la pastille de type) ; matiere masquee quand elle vaut
+  « General » (forcee en V1), comme dans la modale de detail.

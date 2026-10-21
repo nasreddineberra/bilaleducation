@@ -27,7 +27,10 @@ interface Props {
 
 // Carte d'une seance / d'un devoir : bouton, survol par la bordure de marque
 // (l'ombre `hover:shadow-md` etait une valeur Tailwind en dur), focus visible.
-const CARTE = 'card px-4 py-3 flex items-start gap-3 text-left w-full transition-colors hover:border-[var(--brand-line)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
+// `items-baseline` : la date s'aligne sur la LIGNE DE BASE du titre. En
+// `items-start`, le titre, centre entre des pastilles plus hautes que lui,
+// descendait de quelques pixels sous la date.
+const CARTE = 'card px-4 py-3 flex items-baseline gap-3 text-left w-full transition-colors hover:border-[var(--brand-line)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
 
 function formatDate(d: string): string {
   return dateLocale(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -286,13 +289,9 @@ export default function CahierTexteClient({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-bold text-secondary-800 truncate">{j.title}</h3>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary-100 text-secondary-700">
-                      {j.classes?.name}
-                    </span>
-                    {j.subject && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warm-100 text-warm-700">
-                        {j.subject}
-                      </span>
+                    <Puce ton="neutre">{j.classes?.name}</Puce>
+                    {j.subject && j.subject !== 'General' && (
+                      <Puce ton="neutre">{j.subject}</Puce>
                     )}
                   </div>
                   <p className="text-xs text-warm-700 mt-0.5 truncate">
@@ -334,13 +333,9 @@ export default function CahierTexteClient({
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-bold text-secondary-800 truncate">{h.title}</h3>
                       <Puce ton={typeInfo.ton}>{typeInfo.label}</Puce>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-secondary-100 text-secondary-700">
-                        {h.classes?.name}
-                      </span>
-                      {h.subject && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warm-100 text-warm-700">
-                          {h.subject}
-                        </span>
+                      <Puce ton="neutre">{h.classes?.name}</Puce>
+                      {h.subject && h.subject !== 'General' && (
+                        <Puce ton="neutre">{h.subject}</Puce>
                       )}
                     </div>
                     <p className="text-xs text-warm-700 mt-0.5 truncate">
