@@ -8580,3 +8580,18 @@ marque ; les vraies ecoles gardent leur plaque.
 - Listes en `.liste` nettoyees (Apprenants, Parents, Classes, Enseignants, Utilisateurs, Bulletins) ; page
   modele en `.liste`. **Tableaux hors `.liste`** : `hover:bg-warm-100` provisoire jusqu'a leur refonte
   (choix 3a de l'utilisateur, le passage en `.liste` change aussi le cadre et l'en-tete).
+
+#### 21 octobre 2026 — Refonte : Emploi du temps
+
+- **Inspection puis go** (18 points). Barre d'outils : vues (Globale / Classe / Enseignant) et Jour / Semaine /
+  Mois en `FiltreSwitch` ; Classe et Enseignant en `FloatSelect` (les menus faits main et leur fermeture au
+  clic exterieur sont supprimes) ; « Ajouter » en `FloatButton` (ombres en dur retirees) ; icones de
+  navigation avec focus visible, « Revenir » au vert de marque.
+- **Grille, mois, creneaux** : ambre / orange / rouge de texte en `-700` ; pastille du jour du mois en
+  `amber-700` (blanc sur `amber-500` = 2:1) ; presence validee au vert de marque ; focus `--brand-focus` ;
+  zone de depot en `--brand-tint`. Couleurs de CATEGORIE des creneaux inchangees.
+- **Menu « … »** porte dans `<body>` avec `role="menu"` : hors du pont sombre, il restait blanc. Le selecteur
+  du pont devient `:is(#main-content, [role="dialog"], [role="menu"])` (651 regles, meme specificite).
+- **Modale de creneau** en `FormModal` ; Type et Frequence en switch a la creation, valeurs verrouillees
+  (`--champ-verrou`) en modification ; rouges en `red-700`.
+- Hors perimetre : apercu du glisser-deposer (couleurs en dur), inactif en V1 (`isDndActive = false`).

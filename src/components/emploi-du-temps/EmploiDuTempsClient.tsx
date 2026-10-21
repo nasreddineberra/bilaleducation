@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
-import { ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } from 'lucide-react'
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
 import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
@@ -13,6 +13,8 @@ import { usePetitEcran } from '@/hooks/usePetitEcran'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
@@ -260,6 +262,9 @@ function isSlotEffective(slot: SlotData, dateStr: string): boolean {
   return true
 }
 
+// Bouton icone de navigation (precedent / suivant / revenir) : focus visible.
+const NAV_ICONE = 'p-1 rounded-lg hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 /**
@@ -447,16 +452,8 @@ export default function EmploiDuTempsClient({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slot: ResolvedSlot; isLastCol: boolean } | null>(null)
   const contextRef = useRef<HTMLDivElement>(null)
 
-  // Custom dropdowns
-  const [classDropOpen, setClassDropOpen] = useState(false)
-  const [teacherDropOpen, setTeacherDropOpen] = useState(false)
-  const classDropRef = useRef<HTMLDivElement>(null)
-  const teacherDropRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (classDropRef.current && !classDropRef.current.contains(e.target as Node)) setClassDropOpen(false)
-      if (teacherDropRef.current && !teacherDropRef.current.contains(e.target as Node)) setTeacherDropOpen(false)
       if (contextRef.current && !contextRef.current.contains(e.target as Node)) setContextMenu(null)
     }
     document.addEventListener('mousedown', handleClick)
@@ -1718,10 +1715,6 @@ export default function EmploiDuTempsClient({
     }
   }
 
-  // ─── Selected labels ──────────────────────────────────────────────────────
-
-  const selectedTeacher = teachers.find(t => t.id === selectedTeacherId)
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   // Créneau dont le menu d'actions est ouvert (mis en surbrillance)
@@ -1733,125 +1726,55 @@ export default function EmploiDuTempsClient({
       <div className="card flex flex-wrap items-center gap-3 px-4 py-2 flex-shrink-0">
         {/* View tabs — voir `estEnseignant` : il consulte son planning, il n'arbitre pas */}
         {!estEnseignant && (
-        <div className="flex rounded-lg overflow-hidden text-xs font-medium border border-warm-200" role="group" aria-label="Type de vue">
-          {(['global', 'class', 'teacher'] as ViewMode[]).map(v => (
-            <button
-              key={v}
-              onClick={() => {
-                setViewMode(v)
-                if (v === 'global') { setSelectedClassId(''); setSelectedTeacherId(''); if (!vueJour) setSelectedDay(null) }
-                if (v === 'class') { setSelectedClassId(''); setSelectedTeacherId(''); if (!vueJour) setSelectedDay(null) }
-                if (v === 'teacher') { setSelectedClassId(''); setSelectedTeacherId(ownTeacherId); if (!vueJour) setSelectedDay(null) }
-              }}
-              aria-pressed={viewMode === v}
-              className={clsx(
-                'px-3 py-1.5 transition-colors',
-                viewMode === v
-                  ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
-                  : 'bg-white text-warm-700 hover:bg-warm-50'
-              )}
-            >
-              {petitEcran ? LIBELLES_VUE[v].court : LIBELLES_VUE[v].long}
-            </button>
-          ))}
-        </div>
+        <FiltreSwitch
+          ariaLabel="Type de vue"
+          actif={viewMode}
+          onChange={val => {
+            const v = val as ViewMode
+            setViewMode(v)
+            setSelectedClassId('')
+            setSelectedTeacherId(v === 'teacher' ? ownTeacherId : '')
+            if (!vueJour) setSelectedDay(null)
+          }}
+          options={(['global', 'class', 'teacher'] as ViewMode[]).map(v => ({
+            valeur: v, libelle: petitEcran ? LIBELLES_VUE[v].court : LIBELLES_VUE[v].long,
+          }))}
+        />
         )}
 
         {/* Class select */}
         {viewMode === 'class' && !estEnseignant && (
-          <div ref={classDropRef} className="relative" onKeyDown={e => { if (e.key === 'Escape') setClassDropOpen(false) }}>
-            <button
-              type="button"
-              onClick={() => setClassDropOpen(o => !o)}
-              aria-haspopup="listbox"
-              aria-expanded={classDropOpen}
-              aria-label="Sélectionner une classe"
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-400 transition-colors whitespace-nowrap"
-            >
-              {selectedClassId ? (() => {
-                const cls = classes.find(c => c.id === selectedClassId)
-                if (!cls) return <span className="text-warm-700">Sélectionner une classe</span>
-                const mainT = cls.class_teachers?.find(ct => ct.is_main_teacher)
-                const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
-                return (
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="font-semibold text-secondary-800">{cls.name}</span>
-                    {teacher && <span className="text-warm-700 text-xs">{teacher}</span>}
-                  </span>
-                )
-              })() : (
-                <span className="text-warm-700">Sélectionner une classe</span>
-              )}
-              <ChevronDown size={13} className={clsx('text-warm-700 flex-shrink-0 transition-transform', classDropOpen && 'rotate-180')} />
-            </button>
-            {classDropOpen && (
-              <div role="listbox" aria-label="Classes" className="absolute top-full left-0 mt-1 min-w-full w-max max-w-[calc(100vw-2.5rem)] bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
-                {classes.map(c => {
-                  const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
-                  const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
-                  const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      role="option"
-                      aria-selected={selectedClassId === c.id}
-                      onClick={() => { setSelectedClassId(c.id); setClassDropOpen(false) }}
-                      className={clsx(
-                        'w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-primary-50 transition-colors',
-                        selectedClassId === c.id && 'bg-primary-50'
-                      )}
-                    >
-                      <span className="font-semibold text-secondary-800 text-sm">{c.name}</span>
-                      {infoParts.length > 0 && <span className="text-warm-700 text-xs truncate">{infoParts.join(' · ')}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          <FloatSelect
+            label="Classe"
+            value={selectedClassId}
+            onChange={e => setSelectedClassId(e.target.value)}
+            wrapperClassName="w-fit"
+          >
+            <option value="" disabled hidden></option>
+            {classes.map(c => {
+              const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
+              const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
+              const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
+              return (
+                <option key={c.id} value={c.id}>{[c.name, ...infoParts].join(' · ')}</option>
+              )
+            })}
+          </FloatSelect>
         )}
 
         {/* Teacher select */}
         {viewMode === 'teacher' && !estEnseignant && (
-          <div ref={teacherDropRef} className="relative" onKeyDown={e => { if (e.key === 'Escape') setTeacherDropOpen(false) }}>
-            <button
-              type="button"
-              onClick={() => setTeacherDropOpen(o => !o)}
-              aria-haspopup="listbox"
-              aria-expanded={teacherDropOpen}
-              aria-label="Sélectionner un enseignant"
-              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-warm-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 hover:border-warm-400 transition-colors whitespace-nowrap"
-            >
-              {selectedTeacher ? (
-                <span className="font-semibold text-secondary-800">
-                  {selectedTeacher.last_name} {selectedTeacher.first_name}
-                </span>
-              ) : (
-                <span className="text-warm-700">Sélectionner un enseignant</span>
-              )}
-              <ChevronDown size={13} className={clsx('text-warm-700 flex-shrink-0 transition-transform', teacherDropOpen && 'rotate-180')} />
-            </button>
-            {teacherDropOpen && (
-              <div role="listbox" aria-label="Enseignants" className="absolute top-full left-0 mt-1 w-64 max-w-[calc(100vw-2.5rem)] bg-white border border-warm-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
-                {teachers.map(t => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="option"
-                    aria-selected={t.id === selectedTeacherId}
-                    onClick={() => { setSelectedTeacherId(t.id); setTeacherDropOpen(false) }}
-                    className={clsx(
-                      'w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors',
-                      t.id === selectedTeacherId && 'bg-primary-50'
-                    )}
-                  >
-                    {t.last_name} {t.first_name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <FloatSelect
+            label="Enseignant"
+            value={selectedTeacherId}
+            onChange={e => setSelectedTeacherId(e.target.value)}
+            wrapperClassName="w-fit"
+          >
+            <option value="" disabled hidden></option>
+            {teachers.map(t => (
+              <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+            ))}
+          </FloatSelect>
         )}
 
         {/* Cas defensif : la fiche de l'enseignant connecte n'est pas resolue (ligne
@@ -1878,38 +1801,18 @@ export default function EmploiDuTempsClient({
 
         {/* View type toggle: Semaine / Mois — masque sur telephone (la vue mois
             y est illisible, et « Semaine » contredirait l affichage a la journee) */}
-        <div className={clsx('rounded-lg overflow-hidden text-xs font-medium border border-warm-200', petitEcran ? 'hidden' : 'flex')} role="group" aria-label="Affichage jour, semaine ou mois">
-          <button
-            onClick={() => choisirVue('jour')}
-            aria-pressed={vueJour}
-            className={clsx(
-              'px-2.5 py-1.5 transition-colors',
-              vueJour ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
-            )}
-          >
-            Jour
-          </button>
-          <button
-            onClick={() => choisirVue('week')}
-            aria-pressed={viewType === 'week' && !vueJour}
-            className={clsx(
-              'px-2.5 py-1.5 transition-colors',
-              viewType === 'week' && !vueJour ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
-            )}
-          >
-            Semaine
-          </button>
-          <button
-            onClick={() => choisirVue('month')}
-            aria-pressed={viewType === 'month'}
-            className={clsx(
-              'px-2.5 py-1.5 transition-colors',
-              viewType === 'month' ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]' : 'bg-white text-warm-700 hover:bg-warm-50',
-            )}
-          >
-            Mois
-          </button>
-        </div>
+        {!petitEcran && (
+          <FiltreSwitch
+            ariaLabel="Affichage jour, semaine ou mois"
+            actif={vueJour ? 'jour' : viewType}
+            onChange={v => choisirVue(v as 'jour' | 'week' | 'month')}
+            options={[
+              { valeur: 'jour',  libelle: 'Jour' },
+              { valeur: 'week',  libelle: 'Semaine' },
+              { valeur: 'month', libelle: 'Mois' },
+            ]}
+          />
+        )}
 
         {/* Revenir à la période courante */}
         {((viewType === 'week' && !isCurrentWeek) || (viewType === 'month' && !isCurrentMonth)) && (
@@ -1921,7 +1824,7 @@ export default function EmploiDuTempsClient({
                 if (vueJour && orderedDays.includes(todayRealDow)) setSelectedDay(todayRealDow)
               }}
               aria-label={viewType === 'week' ? 'Revenir à la semaine courante' : 'Revenir au mois courant'}
-              className="p-1 rounded-lg hover:bg-warm-100 text-amber-600 transition-colors"
+              className={clsx(NAV_ICONE, 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]')}
             >
               <RotateCcw size={14} />
             </button>
@@ -1933,7 +1836,7 @@ export default function EmploiDuTempsClient({
           <button
             onClick={() => vueJour ? allerAuJour(-1) : viewType === 'week' ? setWeekOffset(o => o - 1) : setMonthOffset(o => o - 1)}
             aria-label={vueJour ? 'Jour précédent' : viewType === 'week' ? 'Semaine précédente' : 'Mois précédent'}
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors"
+            className={clsx(NAV_ICONE, 'text-warm-700')}
           >
             <ChevronLeft size={16} />
           </button>
@@ -1955,7 +1858,7 @@ export default function EmploiDuTempsClient({
           <button
             onClick={() => vueJour ? allerAuJour(1) : viewType === 'week' ? setWeekOffset(o => o + 1) : setMonthOffset(o => o + 1)}
             aria-label={vueJour ? 'Jour suivant' : viewType === 'week' ? 'Semaine suivante' : 'Mois suivant'}
-            className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors"
+            className={clsx(NAV_ICONE, 'text-warm-700')}
           >
             <ChevronRight size={16} />
           </button>
@@ -1963,18 +1866,15 @@ export default function EmploiDuTempsClient({
 
         {/* Add slot button */}
         {canEdit && (
-          <button
+          <FloatButton
+            variant="submit"
+            size="mini"
+            type="button"
             onClick={() => openNewSlot()}
             disabled={viewType === 'week' && isFullWeekVacation}
-            className={clsx(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
-              viewType === 'week' && isFullWeekVacation
-                ? 'bg-warm-200 text-warm-700 cursor-not-allowed'
-                : 'bg-[var(--brand-surface)] hover:bg-[var(--brand-surface-2)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]'
-            )}
           >
             Ajouter
-          </button>
+          </FloatButton>
         )}
       </div>
 
@@ -2012,13 +1912,13 @@ export default function EmploiDuTempsClient({
                   <button
                     onClick={() => allerAuJour(-1)}
                     aria-label="Jour précédent"
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-warm-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-warm-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                   >
                     <ChevronLeft size={18} />
                   </button>
                   <span className={clsx(
                     'min-w-0 truncate text-center text-sm font-semibold uppercase tracking-wide',
-                    d === todayDow ? 'text-amber-600' : 'text-warm-700'
+                    d === todayDow ? 'text-amber-700' : 'text-warm-700'
                   )}>
                     {DAY_LABELS[d]}
                     <span className="text-xs font-medium opacity-80 ml-1">{dayDatesDisplay[d]}</span>
@@ -2026,7 +1926,7 @@ export default function EmploiDuTempsClient({
                   <button
                     onClick={() => allerAuJour(1)}
                     aria-label="Jour suivant"
-                    className="flex items-center justify-center w-8 h-8 rounded-lg text-warm-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg text-warm-700 hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -2041,7 +1941,7 @@ export default function EmploiDuTempsClient({
                   'p-2 text-center text-sm font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
                   selectedDay === d
                     ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
-                    : d === todayDow ? 'text-amber-600 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-700 hover:bg-warm-50'
+                    : d === todayDow ? 'text-amber-700 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-700 hover:bg-warm-50'
                 )}
               >
                 {selectedDay !== null ? DAY_LABELS[d] : DAY_LABELS_SHORT[d]}
@@ -2210,7 +2110,7 @@ export default function EmploiDuTempsClient({
                 role="menuitem"
                 autoFocus
                 aria-label="Modifier ce créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none"
                 onClick={() => openEditThisOnly(contextMenu.slot)}
               >
                 <Pencil size={14} className="text-warm-700 flex-shrink-0" />
@@ -2219,7 +2119,7 @@ export default function EmploiDuTempsClient({
               <button
                 role="menuitem"
                 aria-label="Supprimer ce créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
                 onClick={() => { handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date) }}
               >
                 <Trash2 size={14} className="flex-shrink-0" />
@@ -2233,7 +2133,7 @@ export default function EmploiDuTempsClient({
               <button
                 role="menuitem"
                 aria-label="Modifier toute la série"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none"
                 onClick={() => openEditAll(contextMenu.slot)}
               >
                 <Pencil size={14} className="text-warm-700 flex-shrink-0" />
@@ -2242,7 +2142,7 @@ export default function EmploiDuTempsClient({
               <button
                 role="menuitem"
                 aria-label="Supprimer toute la série"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
                 onClick={() => {
                   handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
                   setContextMenu(null)
@@ -2259,7 +2159,7 @@ export default function EmploiDuTempsClient({
                 role="menuitem"
                 autoFocus
                 aria-label="Modifier le créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-50 focus:bg-warm-100 focus:outline-none"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none"
                 onClick={() => openEditAll(contextMenu.slot)}
               >
                 <Pencil size={14} className="text-warm-700 flex-shrink-0" />
@@ -2268,7 +2168,7 @@ export default function EmploiDuTempsClient({
               <button
                 role="menuitem"
                 aria-label="Supprimer le créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
+                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
                 onClick={() => {
                   handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
                   setContextMenu(null)

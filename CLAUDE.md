@@ -245,7 +245,7 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
   valeur en dur dans une regle.**
 - **Theme clair / sombre** : choix par utilisateur (`profiles.theme`), `data-theme` sur `<html>`.
   Le sombre passe par un **pont** dans `globals.css` (selecteurs PLATS scopes
-  `:is(#main-content, [role="dialog"])`) qui remappe les classes Tailwind ; tout nouveau composant
+  `:is(#main-content, [role="dialog"], [role="menu"])`) qui remappe les classes Tailwind ; tout nouveau composant
   hors `#main-content` (portail, toast) doit etre couvert. `bg-[#ffffff]` = blanc force (plaque de
   logo), `bg-white` est remappe.
 - **Graphiques** : palette dataviz validee (clair `#18aa99 · #cc8200 · #2a78d6 · #e87ba4 · #4a3aa7`,
@@ -366,7 +366,7 @@ financements, retention…), ecole de demonstration.
    au-dessus des foyers), Messages envoyes, Support, fiche apprenant (Discipline, Scolarite, Documents,
    Historique), fiche parent (Scolarite adulte), listes Apprenants / Parents harmonisees, modales de
    synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
-   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins. **Reste** : EDT,
+   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT. **Reste** :
    Cahier de texte, Temps de presence, Tableau de bord, Communications (nouveau message), Financements
    (Statistiques, Situation), Parametres (annees, referentiel, enseignants, utilisateurs, cotisations,
    types de presence, ressources, journal, etablissement), Mon compte, Passage d'annee, console editeur.

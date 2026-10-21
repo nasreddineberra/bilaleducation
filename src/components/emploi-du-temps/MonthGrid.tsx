@@ -112,7 +112,7 @@ export default function MonthGrid({
                       className={clsx(
                         'text-[11px] leading-none font-medium',
                         isToday
-                          ? 'bg-amber-500 text-white rounded-full w-5 h-5 flex items-center justify-center'
+                          ? 'bg-amber-700 text-white rounded-full w-5 h-5 flex items-center justify-center'
                           : isCurrentMonth ? 'text-warm-700' : 'text-warm-700',
                       )}
                     >
@@ -123,7 +123,7 @@ export default function MonthGrid({
                   {/* Vacation label */}
                   {vacLabel && (
                     <div className="flex-1 flex items-center justify-center">
-                      <span className="text-[8px] font-semibold text-amber-600 uppercase tracking-wide">
+                      <span className="text-[8px] font-semibold text-amber-700 uppercase tracking-wide">
                         {vacLabel}
                       </span>
                     </div>
@@ -192,7 +192,7 @@ function MonthSlotCapsule({
       data-month-slot
       className={clsx(
         'rounded px-1 py-px truncate cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
         menuActive && 'ring-2 ring-secondary-600 relative z-10',
         colorClass,
       )}

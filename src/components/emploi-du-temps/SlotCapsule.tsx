@@ -143,7 +143,7 @@ export default function SlotCapsule({
         // ligne de base — le contenu descendait donc de quelques pixels et
         // l'horaire sortait du cadre. En flex, ce décalage n'existe pas.
         'rounded-lg border overflow-hidden transition-shadow group flex',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] focus-visible:ring-offset-1',
         menuActive && 'ring-2 ring-secondary-600 ring-offset-1 shadow-lg',
         colorClass,
         // L'absence se marque par des HACHURES et non par une baisse d'opacite
@@ -197,7 +197,7 @@ export default function SlotCapsule({
               affiché même en densité minimale : c'est une anomalie à voir. */}
           {!court && viewMode !== 'teacher' && (
             noTeacher ? (
-              <div className={clsx('leading-tight truncate text-orange-500 font-medium', minimal ? 'text-[8px]' : 'text-[9px]')}>
+              <div className={clsx('leading-tight truncate text-orange-700 font-medium', minimal ? 'text-[8px]' : 'text-[9px]')}>
                 {minimal ? 'Sans prof' : 'Prof non affecté'}
               </div>
             ) : slot.teachers && !minimal ? (
@@ -227,7 +227,7 @@ export default function SlotCapsule({
               et AVANT l'horaire pour rester visible meme quand la capsule est courte. */}
           {remplaceParNom && slot.slot_type !== 'pause' && (
             <Tooltip content={`Remplacé par ${remplaceParNom} sur cette séance : la présence est validée par le remplaçant.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
-              <div className={clsx('leading-tight font-bold text-red-600', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+              <div className={clsx('leading-tight font-bold text-red-700', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
                 Remplacé par {remplaceParNom}
               </div>
             </Tooltip>
@@ -235,7 +235,7 @@ export default function SlotCapsule({
 
           {remplacementDe && slot.teachers && slot.slot_type !== 'pause' && (
             <Tooltip content={`Remplacement de ${nomEnseignant(slot.teachers)} : vous assurez sa séance et validez votre présence à sa place.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
-              <div className={clsx('leading-tight font-bold text-red-600', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+              <div className={clsx('leading-tight font-bold text-red-700', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
                 Remplacement de {nomEnseignant(slot.teachers)}
               </div>
             </Tooltip>
@@ -283,7 +283,7 @@ export default function SlotCapsule({
                 onClick={onCancelValidation}
                 aria-label={`Annuler la validation de présence : ${ariaLabel}`}
                 aria-pressed
-                className="w-[15px] h-[15px] rounded bg-primary-500 text-white hover:bg-red-500 transition-colors flex items-center justify-center"
+                className="w-[15px] h-[15px] rounded bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)] hover:bg-red-500 dark:hover:bg-red-500 dark:hover:text-white transition-colors flex items-center justify-center"
               >
                 <Check size={11} strokeWidth={3} />
               </button>

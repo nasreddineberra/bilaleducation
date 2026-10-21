@@ -51,7 +51,7 @@ function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heigh
       ref={setNodeRef}
       className={clsx(
         'absolute w-full z-10 transition-colors',
-        isOver && 'bg-primary-200/30',
+        isOver && 'bg-[var(--brand-tint)]',
       )}
       style={{ top: `${topPct}%`, height: `${heightPct}%` }}
     />
@@ -116,7 +116,7 @@ export default function DayColumn({
           premiere information ne doit jamais dependre de la seconde. */}
       {fermeture && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <span className="flex flex-col items-center gap-0.5 text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-2xl text-center">
+          <span className="flex flex-col items-center gap-0.5 text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-2xl text-center">
             <span className="text-xs font-semibold uppercase tracking-wide leading-none">
               {fermeture.titre}
             </span>

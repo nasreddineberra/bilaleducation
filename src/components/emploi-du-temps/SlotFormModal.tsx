@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
-import { clsx } from 'clsx'
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from 'react'
 import { FloatSelect, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 
 interface SlotData {
@@ -316,267 +315,215 @@ export default function SlotFormModal({
     ? `Modifier le ${new Date(editDate! + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} uniquement`
     : slot ? 'Modifier le créneau' : 'Nouveau créneau'
 
-  return createPortal(
+  const typeLabel = SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'
+  const frequenceLabel = isEditingThisOnly ? 'Exception ponctuelle' : isRecurring ? 'Récurrent' : 'Ponctuel'
+
+  return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="slot-form-title"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <h3 id="slot-form-title" className="text-sm font-bold text-warm-800">{modalTitle}</h3>
-          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-700">
-            <X size={16} />
-          </button>
+    <FormModal
+      title={modalTitle}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      footer={<>
+        <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
+        <div className="flex-1" />
+        <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
+        <FloatButton
+          variant={slot ? 'edit' : 'submit'}
+          type="button"
+          onClick={handleSubmit}
+          disabled={!isValid || !hasChanges}
+          loading={saving}
+        >
+          {isEditingThisOnly ? 'Modifier ce créneau' : slot ? 'Modifier' : 'Valider'}
+        </FloatButton>
+      </>}
+    >
+      {/* Type + Fréquence : choix en création, valeurs verrouillées en modification */}
+      <div className="flex justify-between">
+        <div>
+          <span className={LIBELLE_CHOIX}>Type</span>
+          <div className="mt-1">
+            {isEditMode ? (
+              <ValeurVerrouillee>{typeLabel}</ValeurVerrouillee>
+            ) : (
+              <FiltreSwitch
+                ariaLabel="Type de créneau"
+                actif={slotType}
+                onChange={setSlotType}
+                options={SLOT_TYPES.map(st => ({ valeur: st.value, libelle: st.label }))}
+              />
+            )}
+          </div>
         </div>
-
-        {/* Body */}
-        <div className="px-5 py-4 space-y-3">
-          {/* Type + Fréquence (greyed in edit mode) */}
-          {!isEditingThisOnly && (
-            <>
-              <div className="flex justify-between">
-                <div>
-                  <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Type</label>
-                  <div className="flex gap-2 mt-1" role="group" aria-label="Type de créneau">
-                    {SLOT_TYPES.map(st => (
-                      <button
-                        key={st.value}
-                        onClick={() => !isEditMode && setSlotType(st.value)}
-                        disabled={isEditMode}
-                        aria-pressed={slotType === st.value}
-                        className={clsx(
-                          'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
-                          slotType === st.value
-                            ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]'
-                            : 'bg-white text-warm-700 border-warm-200 hover:bg-warm-50',
-                          isEditMode && 'opacity-60 cursor-not-allowed'
-                        )}
-                      >
-                        {st.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Fréquence <span className="text-red-400">*</span></label>
-                  <div className="flex gap-2 mt-1" role="group" aria-label="Fréquence">
-                    {[
-                      { value: false, label: 'Ponctuel' },
-                      { value: true, label: 'Récurrent' },
-                    ].map(opt => (
-                      <button
-                        key={String(opt.value)}
-                        onClick={() => !isEditMode && setIsRecurring(opt.value)}
-                        disabled={isEditMode}
-                        aria-pressed={isRecurring === opt.value}
-                        className={clsx(
-                          'px-3 py-1 rounded-lg text-xs font-medium border transition-colors',
-                          isRecurring === opt.value
-                            ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]'
-                            : 'bg-white text-warm-700 border-warm-200 hover:bg-warm-50',
-                          isEditMode && 'opacity-60 cursor-not-allowed'
-                        )}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Class */}
-              <FloatSelect
-                label="Classe"
-                required
-                value={classId}
-                onChange={e => setClassId(e.target.value)}
-              >
-                <option value=""></option>
-                {classes.map(c => {
-                  const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
-                  const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
-                  const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {c.name}{infoParts.length > 0 ? ` · ${infoParts.join(' · ')}` : ''}
-                    </option>
-                  )
-                })}
-              </FloatSelect>
-            </>
-          )}
-
-          {/* Teacher */}
-          <FloatSelect
-            label="Enseignant"
-            required
-            value={teacherId}
-            onChange={e => setTeacherId(e.target.value)}
-          >
-            <option value=""></option>
-            {teachers.map(t => (
-              <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
-            ))}
-          </FloatSelect>
-
-          {/* Room */}
-          <FloatSelect
-            label="Salle"
-            value={roomId}
-            onChange={e => setRoomId(e.target.value)}
-          >
-            <option value=""></option>
-            {rooms.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
-              </option>
-            ))}
-          </FloatSelect>
-
-          {/* Day / Date + Times — toujours visible */}
-          {!isEditingThisOnly && (
-            <div className={isRecurring === true ? 'grid grid-cols-[3fr_2fr_2fr] gap-3' : 'grid grid-cols-3 gap-3'}>
-              <div>
-                {isRecurring === true ? (
-                  <FloatSelect
-                    label="Jour"
-                    required
-                    value={String(dayOfWeek)}
-                    onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
-                  >
-                    <option value=""></option>
-                    {DAY_OPTIONS.map(d => (
-                      <option key={d.value} value={d.value}>{d.recurring}</option>
-                    ))}
-                  </FloatSelect>
-                ) : isRecurring === false ? (
-                  <div>
-                    <FloatInput
-                      label="Date"
-                      required
-                      type="date"
-                      value={slotDate}
-                      onChange={e => setSlotDate(e.target.value)}
-                    />
-                    {dateInVacation && (
-                      <p role="alert" className="text-xs text-red-500 mt-1">Cette date tombe pendant les vacances scolaires</p>
-                    )}
-                  </div>
-                ) : (
-                  <FloatSelect
-                    label="Jour"
-                    required
-                    value={String(dayOfWeek)}
-                    onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
-                  >
-                    <option value=""></option>
-                    {DAY_OPTIONS.map(d => (
-                      <option key={d.value} value={d.value}>{d.label}</option>
-                    ))}
-                  </FloatSelect>
-                )}
-              </div>
-              <FloatInput
-                label="Début"
-                required
-                type="time"
-                value={startTime}
-                onChange={e => {
-                  setStartTime(e.target.value)
-                  if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
-                }}
+        <div>
+          <span className={LIBELLE_CHOIX}>Fréquence{!isEditMode && <span className="text-red-700"> *</span>}</span>
+          <div className="mt-1">
+            {isEditMode ? (
+              <ValeurVerrouillee>{frequenceLabel}</ValeurVerrouillee>
+            ) : (
+              <FiltreSwitch
+                ariaLabel="Fréquence"
+                actif={isRecurring === null ? '' : isRecurring ? 'recurrent' : 'ponctuel'}
+                onChange={v => setIsRecurring(v === 'recurrent')}
+                options={[
+                  { valeur: 'ponctuel',  libelle: 'Ponctuel' },
+                  { valeur: 'recurrent', libelle: 'Récurrent' },
+                ]}
               />
-              <FloatInput
-                label="Fin"
-                required
-                type="time"
-                value={endTime}
-                onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
-                min={startTime || undefined}
-                disabled={!startTime}
-              />
-            </div>
-          )}
-
-          {/* Fréquence grisée pour modification ce créneau uniquement */}
-          {isEditingThisOnly && (
-            <div className="flex justify-between">
-              <div>
-                <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Type</label>
-                <div className="flex gap-2 mt-1">
-                  <span className="px-3 py-1 rounded-lg text-xs font-medium border bg-[var(--brand-surface)] text-white border-[var(--brand-surface)] opacity-60 dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:border-[var(--brand-accent)]">
-                    {SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Fréquence</label>
-                <div className="flex gap-2 mt-1">
-                  <span className="px-3 py-1 rounded-lg text-xs font-medium border bg-[var(--brand-surface)] text-white border-[var(--brand-surface)] opacity-60 dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:border-[var(--brand-accent)]">
-                    Exception ponctuelle
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Times only for this_only edit */}
-          {isEditingThisOnly && (
-            <div className="grid grid-cols-2 gap-3">
-              <FloatInput
-                label="Début"
-                required
-                type="time"
-                value={startTime}
-                onChange={e => {
-                  setStartTime(e.target.value)
-                  if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
-                }}
-              />
-              <FloatInput
-                label="Fin"
-                required
-                type="time"
-                value={endTime}
-                onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
-                min={startTime || undefined}
-                disabled={!startTime}
-              />
-            </div>
-          )}
-
-          {/* Conflicts */}
-          {conflicts.length > 0 && (
-            <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
-              {conflicts.map((c, i) => (
-                <div key={i}>{c}</div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
-          <div className="flex-1" />
-          <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
-          <FloatButton
-            variant={slot ? 'edit' : 'submit'}
-            type="button"
-            onClick={handleSubmit}
-            disabled={!isValid || !hasChanges}
-            loading={saving}
-          >
-            {isEditingThisOnly ? 'Modifier ce créneau' : slot ? 'Modifier' : 'Valider'}
-          </FloatButton>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Class */}
+      {!isEditingThisOnly && (
+        <FloatSelect
+          label="Classe"
+          required
+          value={classId}
+          onChange={e => setClassId(e.target.value)}
+        >
+          <option value=""></option>
+          {classes.map(c => {
+            const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
+            const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
+            const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
+            return (
+              <option key={c.id} value={c.id}>
+                {c.name}{infoParts.length > 0 ? ` · ${infoParts.join(' · ')}` : ''}
+              </option>
+            )
+          })}
+        </FloatSelect>
+      )}
+
+      {/* Teacher */}
+      <FloatSelect
+        label="Enseignant"
+        required
+        value={teacherId}
+        onChange={e => setTeacherId(e.target.value)}
+      >
+        <option value=""></option>
+        {teachers.map(t => (
+          <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
+        ))}
+      </FloatSelect>
+
+      {/* Room */}
+      <FloatSelect
+        label="Salle"
+        value={roomId}
+        onChange={e => setRoomId(e.target.value)}
+      >
+        <option value=""></option>
+        {rooms.map(r => (
+          <option key={r.id} value={r.id}>
+            {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
+          </option>
+        ))}
+      </FloatSelect>
+
+      {/* Day / Date + Times */}
+      {!isEditingThisOnly && (
+        <div className={isRecurring === true ? 'grid grid-cols-[3fr_2fr_2fr] gap-3' : 'grid grid-cols-3 gap-3'}>
+          <div>
+            {isRecurring === true ? (
+              <FloatSelect
+                label="Jour"
+                required
+                value={String(dayOfWeek)}
+                onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value=""></option>
+                {DAY_OPTIONS.map(d => (
+                  <option key={d.value} value={d.value}>{d.recurring}</option>
+                ))}
+              </FloatSelect>
+            ) : isRecurring === false ? (
+              <div>
+                <FloatInput
+                  label="Date"
+                  required
+                  type="date"
+                  value={slotDate}
+                  onChange={e => setSlotDate(e.target.value)}
+                />
+                {dateInVacation && (
+                  <p role="alert" className="text-xs text-red-700 mt-1">Cette date tombe pendant les vacances scolaires</p>
+                )}
+              </div>
+            ) : (
+              <FloatSelect
+                label="Jour"
+                required
+                value={String(dayOfWeek)}
+                onChange={e => setDayOfWeek(e.target.value === '' ? '' : Number(e.target.value))}
+              >
+                <option value=""></option>
+                {DAY_OPTIONS.map(d => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </FloatSelect>
+            )}
+          </div>
+          <FloatInput
+            label="Début"
+            required
+            type="time"
+            value={startTime}
+            onChange={e => {
+              setStartTime(e.target.value)
+              if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+            }}
+          />
+          <FloatInput
+            label="Fin"
+            required
+            type="time"
+            value={endTime}
+            onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+            min={startTime || undefined}
+            disabled={!startTime}
+          />
+        </div>
+      )}
+
+      {/* Times only for this_only edit */}
+      {isEditingThisOnly && (
+        <div className="grid grid-cols-2 gap-3">
+          <FloatInput
+            label="Début"
+            required
+            type="time"
+            value={startTime}
+            onChange={e => {
+              setStartTime(e.target.value)
+              if (endTime && e.target.value && endTime <= e.target.value) setEndTime('')
+            }}
+          />
+          <FloatInput
+            label="Fin"
+            required
+            type="time"
+            value={endTime}
+            onChange={e => { if (!startTime || e.target.value > startTime) setEndTime(e.target.value) }}
+            min={startTime || undefined}
+            disabled={!startTime}
+          />
+        </div>
+      )}
+
+      {/* Conflicts */}
+      {conflicts.length > 0 && (
+        <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+          {conflicts.map((c, i) => (
+            <div key={i}>{c}</div>
+          ))}
+        </div>
+      )}
+    </FormModal>
 
     <ConfirmModal
       open={!!pendingConfirm}
@@ -585,8 +532,18 @@ export default function SlotFormModal({
       onConfirm={() => { pendingConfirm?.onConfirm(); setPendingConfirm(null) }}
       onCancel={() => setPendingConfirm(null)}
     />
-  </>,
-  document.body
+    </>
+  )
+}
+
+const LIBELLE_CHOIX = 'text-xs font-semibold text-warm-700 uppercase tracking-wide'
+
+// Valeur figee (Type, Frequence en modification) : meme habit qu'un champ verrouille.
+function ValeurVerrouillee({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-block px-3 py-1.5 rounded-lg text-xs font-medium border border-warm-200 bg-[var(--champ-verrou)] text-warm-400 cursor-default">
+      {children}
+    </span>
   )
 }
 
