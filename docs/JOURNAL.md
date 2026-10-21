@@ -8722,3 +8722,15 @@ marque ; les vraies ecoles gardent leur plaque.
   SEUL element elastique (`flex-1 min-h-[120px]`, defilement interne). Hauteurs des graphiques retablies.
   Lecon : sur un ecran sans defilement, un element doit absorber la hauteur restante ; ajuster des pixels
   ne tient que pour une taille d'ecran.
+
+#### 21 octobre 2026 — Refonte : Audits & Passage d'annee
+
+- **Inspection puis go** (11 points). Bandeaux `.encadre-titre` (audits, cloture, closes non archivees) ;
+  paragraphe d'introduction des audits retire (texte explicatif), ce qui compense la hauteur du bandeau sur
+  cet ecran sans defilement (lecon de Statistiques).
+- **Demande utilisateur** : libelle « Annee en cours » retire de l'encadre de l'annee (doublon de la pastille
+  « En cours ») ; l'encadre garde l'annee, ses dates et l'etat, sans bandeau.
+- Pastilles en `Puce` : Bloquant `danger` / Avertissement `orange` ; compteur `ok` a 0, `orange` sinon,
+  `neutre` si a reverifier ; etat de l'annee Purgee `danger`, Close `ok`, En cours `neutre`. Resume sans
+  anomalie, « Corriger », conditions remplies et « Archivee le » au vert de marque ; croix et icone en
+  `orange-700`. Choix d'epuration en `FiltreSwitch` (enregistre au clic, comme avant).

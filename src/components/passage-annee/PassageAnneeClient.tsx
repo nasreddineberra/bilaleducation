@@ -7,6 +7,8 @@ import { Check, X, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react
 import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce } from '@/components/dashboard/tdb'
 import { useToast } from '@/lib/toast-context'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
 import type { AuditResult } from '@/lib/closure/audits'
@@ -280,26 +282,13 @@ export default function PassageAnneeClient({
 
       {/* ═══ Colonne gauche : les audits ═══ */}
       <div className="card p-0 w-full xl:flex-1 xl:min-w-0">
-        <div className="px-3 py-2 border-b border-warm-200">
-          <h2 className="text-sm font-bold text-secondary-800">
-            {fige ? `Constat à la clôture · ${annee.label}` : `Audits de l’année ${annee.label}`}
-          </h2>
-          {/* Pas de « Tout auditer » : on les lance un par un, pour lire chacun
-              avant de passer au suivant. */}
-          <p className="text-[11px] text-warm-700">
-            {fige ? (
-              <>
-                Ces six résultats ont été recalculés au moment de la clôture : ils disent ce qui a été vérifié.
-                Ils sont <strong>figés</strong> et le restent tant que la clôture n’est pas annulée.
-              </>
-            ) : (
-              <>
-                Ils ne modifient rien et se lancent un par un, dans l’ordre que vous voulez. Tant qu’un audit
-                <strong> bloquant</strong> remonte des anomalies, ceux qui en dépendent sont signalés « à revérifier ».
-              </>
-            )}
-          </p>
-        </div>
+        {/* Pas de « Tout auditer » : on les lance un par un, pour lire chacun avant
+            de passer au suivant. Le paragraphe d'introduction est retire (21/10,
+            texte explicatif) : le bandeau, plus haut qu'un titre, s'en trouve
+            compense sur cet ecran sans defilement. */}
+        <h2 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">
+          {fige ? `Constat à la clôture · ${annee.label}` : `Audits de l’année ${annee.label}`}
+        </h2>
 
         <ul className="divide-y divide-warm-100">
           {CLOSURE_STEPS.map(step => {
@@ -317,19 +306,15 @@ export default function PassageAnneeClient({
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex items-center gap-2">
                     <h3 className="text-xs font-semibold text-secondary-800 truncate">{step.label}</h3>
-                    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                      step.blocking ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                    }`}>
-                      {step.blocking ? 'Bloquant' : 'Avertissement'}
+                    <span className="shrink-0">
+                      <Puce ton={step.blocking ? 'danger' : 'orange'}>{step.blocking ? 'Bloquant' : 'Avertissement'}</Puce>
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     {etat && (
-                      <span className={`px-2 py-0.5 rounded-lg text-xs font-bold tabular-nums ${
-                        perime ? 'bg-warm-100 text-warm-700' : n > 0 ? 'bg-orange-100 text-orange-700' : 'bg-primary-100 text-primary-700'
-                      }`}>
-                        {n}
+                      <span className="tabular-nums">
+                        <Puce ton={perime ? 'neutre' : n > 0 ? 'orange' : 'ok'}>{n}</Puce>
                       </span>
                     )}
 
@@ -378,7 +363,7 @@ export default function PassageAnneeClient({
                     existe, il dit ce qu'on a trouvé et la remplace. */}
                 {etat ? (
                   <p className={`text-[11px] leading-snug ${
-                    perime ? 'text-warm-700' : n > 0 ? 'text-orange-700 font-medium' : 'text-primary-700 font-medium'
+                    perime ? 'text-warm-700' : n > 0 ? 'text-orange-700 font-medium' : 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-medium'
                   }`}>
                     {res?.summary ?? `${n} anomalie(s).`}
                     <span className="ml-1.5 font-normal text-warm-700">· {horodate(etat.at)}</span>
@@ -400,7 +385,7 @@ export default function PassageAnneeClient({
                       type="button"
                       onClick={() => setDetail(d => (d === step.key ? null : step.key))}
                       aria-expanded={ouvert}
-                      className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                      className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       {ouvert ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                       {ouvert ? 'Masquer le détail' : `Voir le détail (${res.items.length})`}
@@ -412,9 +397,9 @@ export default function PassageAnneeClient({
                           <li key={i} className="px-2.5 py-1 flex items-center justify-between gap-3">
                             <div className="min-w-0">
                               <span className="text-[11px] font-medium text-secondary-800">{it.label}</span>
-                              {/* Categorie du participant. VIOLET et non `primary` :
-                                  le lien « Corriger » de la meme ligne est deja en
-                                  `text-primary-700`, deux turquoises se seraient
+                              {/* Categorie du participant. VIOLET et non la marque :
+                                  le lien « Corriger » de la meme ligne est deja au
+                                  vert de marque, les deux se seraient
                                   concurrences. Le violet a son precedent pour cette
                                   categorie meme — l'entete « Cours adultes » du
                                   recapitulatif de Financements — et il est couvert
@@ -434,7 +419,7 @@ export default function PassageAnneeClient({
                             {it.href && (
                               <Link
                                 href={it.href}
-                                className="text-[11px] font-medium text-primary-700 hover:underline shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                                className="text-[11px] font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                               >
                                 Corriger
                               </Link>
@@ -457,18 +442,15 @@ export default function PassageAnneeClient({
         <div className="card p-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="stat-label">Année en cours</p>
               <p className="text-base font-bold text-secondary-800 leading-tight">{annee.label}</p>
               {annee.startDate && annee.endDate && (
                 <p className="text-[11px] text-warm-700">Du {jour(annee.startDate)} au {jour(annee.endDate)}</p>
               )}
             </div>
-            <span className={`shrink-0 px-2 py-1 rounded-lg text-[11px] font-semibold ${
-              annee.purgedAt   ? 'bg-red-100 text-red-700'
-              : annee.closedAt ? 'bg-primary-100 text-primary-700'
-              : 'bg-warm-100 text-warm-700'
-            }`}>
-              {annee.purgedAt ? 'Purgée' : annee.archivedAt ? 'Close et archivée' : annee.closedAt ? 'Close' : 'En cours'}
+            <span className="shrink-0">
+              <Puce ton={annee.purgedAt ? 'danger' : annee.closedAt ? 'ok' : 'neutre'}>
+                {annee.purgedAt ? 'Purgée' : annee.archivedAt ? 'Close et archivée' : annee.closedAt ? 'Close' : 'En cours'}
+              </Puce>
             </span>
           </div>
         </div>
@@ -476,7 +458,7 @@ export default function PassageAnneeClient({
         {!annee.closedAt ? (
           <div className="card p-3 space-y-2">
             <div>
-              <h2 className="text-sm font-bold text-secondary-800">Clôturer l’année</h2>
+              <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Clôturer l’année</h2>
               <p className="text-[11px] text-warm-700 leading-snug">
                 La clôture se défait tant que l’année n’a pas été purgée. La purge, elle, est sans retour.
               </p>
@@ -509,7 +491,7 @@ export default function PassageAnneeClient({
         ) : (
           <div className="card p-3 space-y-2">
             <div>
-              <h2 className="text-sm font-bold text-secondary-800">Année clôturée</h2>
+              <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Année clôturée</h2>
               <p className="text-[11px] text-warm-700 leading-snug">
                 Le {horodate(annee.closedAt)}{annee.closedByNom ? ` par ${annee.closedByNom}` : ''}.
               </p>
@@ -517,7 +499,7 @@ export default function PassageAnneeClient({
 
             {/* Archivage : instantanés d'historique, prérequis absolu de la purge. */}
             {annee.archivedAt ? (
-              <p className="text-[11px] text-primary-700 font-medium leading-snug">
+              <p className="text-[11px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-medium leading-snug">
                 Archivée le {horodate(annee.archivedAt)} · l’historique des participants et des foyers est figé.
               </p>
             ) : (
@@ -539,24 +521,15 @@ export default function PassageAnneeClient({
                   Après la bascule sur l’année suivante, faut-il épurer les données de {annee.label} ? Le choix est
                   un repère : la purge reste manuelle, et se lance depuis la fiche de l’année.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <FloatButton
-                    type="button"
-                    variant={annee.purgeIntent === 'purge' ? 'submit' : 'secondary'}
-                    disabled={occupe}
-                    onClick={() => choisirEpuration('purge')}
-                  >
-                    Épurer plus tard
-                  </FloatButton>
-                  <FloatButton
-                    type="button"
-                    variant={annee.purgeIntent === 'keep' ? 'submit' : 'secondary'}
-                    disabled={occupe}
-                    onClick={() => choisirEpuration('keep')}
-                  >
-                    Tout conserver
-                  </FloatButton>
-                </div>
+                <FiltreSwitch
+                  ariaLabel="Épuration des données de l'année"
+                  actif={annee.purgeIntent ?? ''}
+                  onChange={v => { if (!occupe && (v === 'purge' || v === 'keep')) choisirEpuration(v) }}
+                  options={[
+                    { valeur: 'purge', libelle: 'Épurer plus tard' },
+                    { valeur: 'keep',  libelle: 'Tout conserver' },
+                  ]}
+                />
               </div>
             )}
 
@@ -575,8 +548,8 @@ export default function PassageAnneeClient({
             son archivage, et sans archivage il n'y a pas de purge. */}
         {precedentes.some(p => !p.archivedAt) && (
           <div className="card p-3 space-y-1.5">
-            <h2 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-              <AlertTriangle size={14} className="text-orange-500" />
+            <h2 className="encadre-titre gap-1.5 text-xs font-bold uppercase tracking-widest">
+              <AlertTriangle size={14} className="text-orange-700" />
               Closes non archivées
             </h2>
             <p className="text-[11px] text-warm-700 leading-snug">
@@ -641,7 +614,7 @@ export default function PassageAnneeClient({
 function Condition({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-1.5 text-[11px] leading-snug">
-      <span className={`mt-0.5 shrink-0 ${ok ? 'text-primary-600' : 'text-orange-600'}`}>
+      <span className={`mt-0.5 shrink-0 ${ok ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-orange-700'}`}>
         {ok ? <Check size={13} /> : <X size={13} />}
       </span>
       <span className={ok ? 'text-warm-700' : 'text-secondary-800 font-medium'}>{children}</span>

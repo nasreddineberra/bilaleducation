@@ -368,7 +368,7 @@ financements, retention…), ecole de demonstration.
    synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
    Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT, Cahier de texte, Classes archivees, Notifications, Temps de presence, Tableau de bord (18/10), Communications, Financements (Statistiques, Situation). **Reste** :
    Parametres (annees, referentiel, enseignants, utilisateurs, cotisations,
-   types de presence, ressources, journal, etablissement), Mon compte, Passage d'annee, console editeur.
+   types de presence, ressources, journal, etablissement), Mon compte, console editeur. **Fait aussi** : Passage d'annee (21/10).
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
 2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
