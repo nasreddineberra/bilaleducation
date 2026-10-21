@@ -98,7 +98,7 @@ function fmtAxis(n: number) {
 function VizTooltip({ active, payload, label, total, unit }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg border border-warm-200 bg-white px-2.5 py-1.5 shadow-lg">
+    <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-card)] px-2.5 py-1.5 shadow-[var(--card-shadow)]">
       {label && <p className="text-[11px] font-semibold text-secondary-800 mb-0.5">{label}</p>}
       {payload.map((p: any) => {
         const value = Number(p.value ?? 0)
@@ -122,8 +122,8 @@ function VizCard({ title, hint, height = 200, children, className }: {
 }) {
   return (
     <section className={clsx('card p-3 flex flex-col', className)}>
-      <div className="flex items-baseline gap-2 mb-2">
-        <h2 className="stat-label">{title}</h2>
+      <div className="encadre-titre gap-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest">{title}</h2>
         {hint && <p className="text-[10px] text-warm-700">{hint}</p>}
       </div>
       <div style={{ height }} className="min-w-0">{children}</div>
@@ -233,7 +233,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
         </div>
         <div className="card px-3 py-2">
           <p className="stat-label">Encaissé</p>
-          <p className="text-lg font-bold text-primary-600 tabular-nums">{fmt(kpi.collected)}</p>
+          <p className="text-lg font-bold text-[var(--brand-surface)] dark:text-[var(--brand-accent)] tabular-nums">{fmt(kpi.collected)}</p>
         </div>
         <div className="card px-3 py-2">
           <p className="stat-label">Reste à encaisser</p>
@@ -244,7 +244,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
             <p className="stat-label flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" /> Trop perçu
             </p>
-            <p className="text-lg font-bold text-red-600 tabular-nums flex items-baseline justify-between gap-2">
+            <p className="text-lg font-bold text-red-700 tabular-nums flex items-baseline justify-between gap-2">
               <span>{kpi.counts.overpaid}</span>
               <span>{fmt(kpi.overpaid)}</span>
             </p>
@@ -264,7 +264,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       {/* ── Ligne 1 : répartitions (2 donuts dans un seul encadré) + activités ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <section className="card p-3">
-          <h2 className="text-[11px] font-bold text-warm-700 uppercase tracking-widest mb-2">Répartitions</h2>
+          <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Répartitions</h2>
           <div className="grid grid-cols-2 gap-2">
             {/* Statut */}
             <div className="min-w-0">
@@ -334,8 +334,8 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       {/* ── Ligne 2 : débiteurs + rythme ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <section className="card p-3 flex flex-col">
-          <div className="flex items-baseline gap-2 mb-2">
-            <h2 className="stat-label">Top 10 familles débitrices</h2>
+          <div className="encadre-titre gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest">Top 10 familles débitrices</h2>
             <p className="text-[10px] text-warm-700">cliquer pour ouvrir le dossier</p>
           </div>
           {topDebtors.length === 0 ? (
@@ -347,7 +347,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
                   <button
                     type="button"
                     onClick={() => openFamily(r.parentId)}
-                    className="w-full flex items-center gap-2 px-1 py-0.5 rounded hover:bg-warm-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                    className="w-full flex items-center gap-2 px-1 py-0.5 rounded hover:bg-warm-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                   >
                     <Tooltip content={r.parentLabel} maxWidth="max-w-none" className="min-w-0 flex-1">
                       <span className="block text-[11px] text-secondary-800 text-left truncate whitespace-nowrap">
@@ -385,16 +385,14 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
       </div>
 
       {/* ── Tableau des dossiers (reste dû décroissant) : la vue non graphique ── */}
-      <section className="card p-0">
-        <div className="px-3 py-2 border-b border-warm-100">
-          <h2 className="stat-label">
-            Dossiers · {yearLabel} <span className="text-warm-700 font-medium normal-case tracking-normal">· reste dû décroissant</span>
-          </h2>
-        </div>
-        <div className="max-h-56 overflow-y-auto list-scroll">
+      <section className="card p-0 overflow-hidden">
+        <h2 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">
+          Dossiers · {yearLabel} <span className="ml-1 text-warm-700 font-medium normal-case tracking-normal">· reste dû décroissant</span>
+        </h2>
+        <div className="liste max-h-56 overflow-y-auto list-scroll">
           <table className="w-full text-xs leading-4" aria-label={`Dossiers ${yearLabel}, triés par reste dû décroissant`}>
-            <thead className="sticky top-0 bg-white z-10">
-              <tr>
+            <thead className="sticky top-0 z-10">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th text-left">Famille</th>
                 <th scope="col" className="list-th text-center">Statut</th>
                 <th scope="col" className="list-th text-right">Dû</th>
@@ -404,7 +402,7 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
             </thead>
             <tbody className="divide-y divide-warm-50">
               {sortedRows.map(r => (
-                <tr key={r.parentId} onClick={() => openFamily(r.parentId)} className="hover:bg-warm-100 cursor-pointer transition-colors">
+                <tr key={r.parentId} onClick={() => openFamily(r.parentId)} className="cursor-pointer">
                   {/* Densite maximale : on herite du text-xs de la table (pas de
                       `list-name`, dont le 13px rallonge chaque ligne). */}
                   <td className="list-td font-medium text-secondary-800">{r.parentLabel}</td>
@@ -415,9 +413,9 @@ export default function VueGlobaleClient({ rows, yearLabel, monthly, byMethod, b
                     </span>
                   </td>
                   <td className="list-td text-right tabular-nums">{fmt(r.totalDue)}</td>
-                  <td className="list-td text-right tabular-nums text-primary-600">{fmt(r.totalPaid)}</td>
+                  <td className="list-td text-right tabular-nums text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{fmt(r.totalPaid)}</td>
                   <td className={clsx('list-td text-right tabular-nums font-semibold',
-                    r.remaining > 0 ? 'text-orange-700' : r.remaining < 0 ? 'text-red-600' : 'text-warm-700')}>
+                    r.remaining > 0 ? 'text-orange-700' : r.remaining < 0 ? 'text-red-700' : 'text-warm-700')}>
                     {r.remaining < 0 ? `+ ${fmt(Math.abs(r.remaining))}` : fmt(Math.max(0, r.remaining))}
                   </td>
                 </tr>

@@ -8673,3 +8673,18 @@ marque ; les vraies ecoles gardent leur plaque.
   `Puce neutre` comme Notifications.
 - **Detail** : objet en `<h2>` (pas de `<h1>`) ; statuts en `Puce` ; destinataires en `.liste` sous bandeau,
   ombre en dur de l'en-tete retiree.
+
+#### 21 octobre 2026 — Refonte : Financements (Statistiques, Situation financiere)
+
+- **Graphiques : option A** (choix utilisateur). La palette dataviz validee garde son turquoise `#18aa99` pour
+  « Encaisse » : une couleur de SERIE n'est pas un etat d'interface. Seuls les textes et encadres autour passent
+  au vert de marque. Infobulle des graphiques en jetons (`--surface-card`, `--card-shadow`, `--card-border`).
+- **Statistiques** : intitules d'encadres en `.encadre-titre` (« Repartitions » avait un style a part) ; Encaisse
+  et Percu au vert de marque, trop-percu en `red-700` ; Top 10 au survol `warm-100` ; tableau des dossiers en
+  `.liste` (en-tete collant, survol de la charte).
+- **Situation financiere** : bandeaux des 4 encadres en `.encadre-titre` ; Encaisse et solde positif au vert de
+  marque (`--brand-tint`) ; « TOTAL » en casse normale, montants rouges en `red-700` ; actions de ligne de 11 a
+  12 px, zone `p-1`, corbeille rouge au survol.
+- **Modales Depense / Revenu** : la COPIE LOCALE de `FormModal` est retiree au profit du composant partage ;
+  « Choisir un fichier » etait en `.btn-secondary` (classe abandonnee) avec une icone : `FloatButton` mini sans
+  icone, qui declenche l'input fichier ; rouges en `red-700`.

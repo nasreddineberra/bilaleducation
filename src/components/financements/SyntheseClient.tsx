@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useCallback, useId, useMemo } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { TrendingUp, TrendingDown, Pencil, Trash2, X, FileText, Upload, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Pencil, Trash2, X, FileText, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatButton, FloatInput, FloatSelect, FloatTextarea } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { useTheme } from '@/components/layout/ThemeContext'
@@ -105,45 +105,8 @@ async function openDocument(supabase: ReturnType<typeof createClient>, path: str
   if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener')
 }
 
-/** Coque de modale de saisie, partagee par Depense et Revenu.
- *
- *  Fermeture par X / Annuler UNIQUEMENT : ni clic sur le fond, ni Echap. Une
- *  saisie ne doit pas se perdre sur un coup de souris malheureux ou une touche
- *  reflexe (meme regle que le cahier de texte, le temps de presence et l'EDT).
- *
- *  Portee dans <body> : `animate-fade-in` garde un `transform`, qui deviendrait
- *  le bloc conteneur du `position: fixed` et rognerait la modale. */
-function FormModal({ title, onClose, children, footer }: {
-  title: string; onClose: () => void; children: React.ReactNode; footer: React.ReactNode
-}) {
-  const titleId = useId()
-
-  if (typeof document === 'undefined') return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col max-h-[90vh]"
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100 shrink-0">
-          <h2 id={titleId} className="text-base font-bold text-secondary-800">{title}</h2>
-          <button
-            type="button" onClick={onClose} aria-label="Fermer"
-            className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="px-5 py-4 space-y-3 overflow-y-auto min-h-0">{children}</div>
-        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100 shrink-0">{footer}</div>
-      </div>
-    </div>,
-    document.body
-  )
-}
+// Modales de saisie : `FormModal` partage (la copie locale du composant a ete
+// retiree le 21/10 ; meme regle : fermeture par X / Annuler uniquement).
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,9 +277,7 @@ export default function SyntheseClient({
 
       {/* ── 1. Cotisations ──────────────────────────────────────────────── */}
       <div className="card p-0 overflow-hidden">
-        <div className="px-3 py-2 border-b border-warm-100 bg-warm-50">
-          <h2 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Cotisations</h2>
-        </div>
+        <h2 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">Cotisations</h2>
         <div className="px-3 py-2">
           <div className="grid grid-cols-4 gap-3">
             <div className="flex items-center justify-between rounded-lg border border-warm-100 px-3 py-2">
@@ -326,19 +287,19 @@ export default function SyntheseClient({
               </div>
               <span className="text-[9px] text-warm-700">{cotisations.familyCount} dossiers</span>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-primary-200 bg-primary-50/30 px-3 py-2">
+            <div className="flex items-center justify-between rounded-lg border border-[var(--brand-line)] bg-[var(--brand-tint)] px-3 py-2">
               <div>
                 <p className="stat-label">Encaissé</p>
-                <p className="text-sm font-bold text-primary-700">{fmt(cotisations.totalPaid)}</p>
+                <p className="text-sm font-bold text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{fmt(cotisations.totalPaid)}</p>
               </div>
-              <TrendingUp className="w-4 h-4 text-primary-500" />
+              <TrendingUp className="w-4 h-4 text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" />
             </div>
             <div className="flex items-center justify-between rounded-lg border border-warm-100 px-3 py-2">
               <div>
                 <p className="stat-label">Reste à encaisser</p>
                 <p className="text-sm font-bold text-orange-700">{fmt(cotisations.remaining)}</p>
               </div>
-              <TrendingDown className="w-4 h-4 text-orange-400" />
+              <TrendingDown className="w-4 h-4 text-orange-700" />
             </div>
             <div className="flex items-center justify-between rounded-lg border border-warm-100 px-3 py-2">
               <div>
@@ -346,7 +307,7 @@ export default function SyntheseClient({
                 <p className="text-sm font-bold text-secondary-800">{cotisations.collectRate} %</p>
               </div>
               <div className="h-1.5 w-14 bg-warm-100 rounded-full overflow-hidden">
-                <div className="h-full bg-primary-500 rounded-full" style={{ width: `${cotisations.collectRate}%` }} />
+                <div className="h-full bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] rounded-full" style={{ width: `${cotisations.collectRate}%` }} />
               </div>
             </div>
           </div>
@@ -358,14 +319,12 @@ export default function SyntheseClient({
 
         {/* Cout enseignement */}
         <div className="card p-0 overflow-hidden flex flex-col">
-          <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 shrink-0">
-            <h2 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Coût enseignement</h2>
-          </div>
+          <h2 className="encadre-titre m-0 shrink-0 text-xs font-bold uppercase tracking-widest">Coût enseignement</h2>
           {/* Sans taux, des heures comptaient pour 0 € en silence : le coût
               affiché etait sous-évalué sans aucun signal. */}
           {teachingCosts.unratedTypes.length > 0 && (
             <div role="status" className="flex items-start gap-1.5 px-2 py-1.5 bg-amber-50 border-b border-amber-200">
-              <AlertTriangle size={12} className="text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+              <AlertTriangle size={12} className="text-amber-700 shrink-0 mt-0.5" aria-hidden="true" />
               <p className="text-[10px] text-amber-800 leading-snug">
                 {teachingCosts.unratedTypes.map(t => `${t.code} (${t.hours.toLocaleString('fr-FR')} h)`).join(', ')}
                 {' '}sans taux : ces heures ne sont pas valorisées.{' '}
@@ -388,7 +347,7 @@ export default function SyntheseClient({
                       <td className="px-2 py-[2px]">
                         <Link
                           href={`/dashboard/temps-presence?month=${row.month}`}
-                          className="text-secondary-600 hover:text-secondary-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
+                          className="text-secondary-600 hover:text-secondary-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
                         >
                           {fmtMonth(row.month)}
                         </Link>
@@ -403,8 +362,8 @@ export default function SyntheseClient({
 
           <div className="shrink-0 border-t border-warm-200 bg-warm-50">
             <div className="flex items-center justify-between px-2 py-1.5 text-xs font-bold">
-              <span className="text-warm-700">TOTAL</span>
-              <span className="text-red-600 tabular-nums">{fmt(teachingCosts.total)}</span>
+              <span className="text-warm-700">Total</span>
+              <span className="text-red-700 tabular-nums">{fmt(teachingCosts.total)}</span>
             </div>
             <Breakdown slices={teachingSlices} ariaLabel="Répartition du coût enseignement par type de présence" />
           </div>
@@ -412,8 +371,8 @@ export default function SyntheseClient({
 
         {/* Depenses */}
         <div className="card p-0 overflow-hidden flex flex-col">
-          <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between shrink-0">
-            <h2 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Dépenses</h2>
+          <div className="encadre-titre m-0 justify-between shrink-0">
+            <h2 className="text-xs font-bold uppercase tracking-widest">Dépenses</h2>
             <FloatButton type="button" variant="submit" onClick={() => setExpenseModal('new')} size="mini">
               Ajouter
             </FloatButton>
@@ -447,9 +406,9 @@ export default function SyntheseClient({
                               type="button"
                               onClick={() => openDocument(supabase, e.document_path!)}
                               aria-label={`Voir le justificatif de ${e.label}`}
-                              className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                              className="p-1 rounded text-warm-700 hover:text-secondary-800 hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                             >
-                              <FileText size={11} className="text-primary-500" />
+                              <FileText size={12} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" />
                             </button>
                           </Tooltip>
                         )}
@@ -457,18 +416,18 @@ export default function SyntheseClient({
                           <button
                             type="button" onClick={() => setExpenseModal(e)}
                             aria-label={`Modifier la dépense ${e.label}`}
-                            className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                            className="p-1 rounded text-warm-700 hover:text-secondary-800 hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                           >
-                            <Pencil size={11} className="text-warm-700" />
+                            <Pencil size={12} />
                           </button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
                           <button
                             type="button" onClick={() => setDeleteTarget({ type: 'expense', row: e })}
                             aria-label={`Supprimer la dépense ${e.label}`}
-                            className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                            className="p-1 rounded text-warm-700 hover:text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                           >
-                            <Trash2 size={11} className="text-warm-700" />
+                            <Trash2 size={12} />
                           </button>
                         </Tooltip>
                       </span>
@@ -482,8 +441,8 @@ export default function SyntheseClient({
 
           <div className="shrink-0 border-t border-warm-200 bg-warm-50">
             <div className="flex items-center justify-between px-2 py-1.5 text-xs font-bold">
-              <span className="text-warm-700">TOTAL</span>
-              <span className="text-red-600 tabular-nums">{fmt(totalExp)}</span>
+              <span className="text-warm-700">Total</span>
+              <span className="text-red-700 tabular-nums">{fmt(totalExp)}</span>
             </div>
             <Breakdown slices={expenseSlices} ariaLabel="Répartition des dépenses par catégorie" />
           </div>
@@ -491,8 +450,8 @@ export default function SyntheseClient({
 
         {/* Revenus autres */}
         <div className="card p-0 overflow-hidden flex flex-col">
-          <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between shrink-0">
-            <h2 className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Revenus autres</h2>
+          <div className="encadre-titre m-0 justify-between shrink-0">
+            <h2 className="text-xs font-bold uppercase tracking-widest">Revenus autres</h2>
             <FloatButton type="button" variant="submit" onClick={() => setRevenueModal('new')} size="mini">
               Ajouter
             </FloatButton>
@@ -521,18 +480,18 @@ export default function SyntheseClient({
                           <button
                             type="button" onClick={() => setRevenueModal(r)}
                             aria-label={`Modifier le revenu ${r.label}`}
-                            className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                            className="p-1 rounded text-warm-700 hover:text-secondary-800 hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                           >
-                            <Pencil size={11} className="text-warm-700" />
+                            <Pencil size={12} />
                           </button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
                           <button
                             type="button" onClick={() => setDeleteTarget({ type: 'revenue', row: r })}
                             aria-label={`Supprimer le revenu ${r.label}`}
-                            className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                            className="p-1 rounded text-warm-700 hover:text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                           >
-                            <Trash2 size={11} className="text-warm-700" />
+                            <Trash2 size={12} />
                           </button>
                         </Tooltip>
                       </span>
@@ -546,8 +505,8 @@ export default function SyntheseClient({
 
           <div className="shrink-0 border-t border-warm-200 bg-warm-50">
             <div className="flex items-center justify-between px-2 py-1.5 text-xs font-bold">
-              <span className="text-warm-700">TOTAL</span>
-              <span className="text-primary-600 tabular-nums">{fmt(totalRev)}</span>
+              <span className="text-warm-700">Total</span>
+              <span className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] tabular-nums">{fmt(totalRev)}</span>
             </div>
             <Breakdown slices={revenueSlices} ariaLabel="Répartition des revenus par source" />
           </div>
@@ -557,16 +516,16 @@ export default function SyntheseClient({
       {/* ── 5. Situation financiere — solde uniquement ─────────────────── */}
       <div className={clsx(
         'card flex items-center justify-between px-4 py-3 border-l-4',
-        situation >= 0 ? 'border-l-primary-500 bg-primary-50/30' : 'border-l-red-500 bg-red-50/30'
+        situation >= 0 ? 'border-l-[var(--brand-surface)] dark:border-l-[var(--brand-accent)] bg-[var(--brand-tint)]' : 'border-l-red-500 bg-red-50/30'
       )}>
         <div className="flex items-center gap-2">
           {situation >= 0
-            ? <CheckCircle2 className="w-5 h-5 text-primary-600" />
-            : <AlertCircle className="w-5 h-5 text-red-600" />
+            ? <CheckCircle2 className="w-5 h-5 text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" />
+            : <AlertCircle className="w-5 h-5 text-red-700" />
           }
           <span className="text-xs font-bold text-secondary-800 uppercase tracking-widest">Situation financière</span>
         </div>
-        <span className={clsx('text-lg font-bold', situation >= 0 ? 'text-primary-700' : 'text-red-700')}>
+        <span className={clsx('text-lg font-bold', situation >= 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-red-700')}>
           {situation >= 0 ? '+ ' : ''}{fmt(situation)}
         </span>
       </div>
@@ -592,7 +551,7 @@ export default function SyntheseClient({
               <p className="text-warm-700">Le justificatif joint sera également supprimé.</p>
             )}
             {deleteError && (
-              <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mt-2">{deleteError}</p>
+              <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mt-2">{deleteError}</p>
             )}
           </div>
         )}
@@ -643,6 +602,7 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
   const [notes,        setNotes]        = useState(initNotes)
   const [documentPath, setDocumentPath] = useState(initDoc)
   const [uploading,    setUploading]    = useState(false)
+  const fichierRef = useRef<HTMLInputElement>(null)
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
 
@@ -741,7 +701,7 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
       onClose={onClose}
       footer={
         <>
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
           <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>Annuler</FloatButton>
           <FloatButton type="button" variant={isEdit ? 'edit' : 'submit'} onClick={handleSave} disabled={saving || !canSubmit || !hasChanges}>
@@ -751,7 +711,7 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
       }
     >
       <>
-          {error && <div role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
+          {error && <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <FloatInput label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
             <FloatInput label="Montant (€)" type="number" step="any" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
@@ -773,22 +733,22 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
           </FloatSelect>
           <FloatTextarea label="Notes" placeholder="Remarque optionnelle..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
           <div>
-            <label className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-1">Document</label>
+            <span className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-1">Document</span>
             <div className="flex items-center gap-2">
-              <label className="btn-secondary text-xs px-3 py-1.5 cursor-pointer flex items-center gap-1">
-                <Upload size={12} aria-hidden="true" />
-                {uploading ? 'Envoi...' : 'Choisir un fichier'}
-                <input
-                  type="file" className="sr-only" onChange={handleFileUpload} disabled={uploading}
-                  accept={ACCEPTED_MIME.join(',')}
-                />
-              </label>
+              <FloatButton variant="secondary" size="mini" type="button" onClick={() => fichierRef.current?.click()} loading={uploading}>
+                Choisir un fichier
+              </FloatButton>
+              <input
+                ref={fichierRef}
+                type="file" className="sr-only" onChange={handleFileUpload} disabled={uploading}
+                accept={ACCEPTED_MIME.join(',')}
+              />
               {documentPath && (
                 <span className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => openDocument(supabase, documentPath)}
-                    className="text-xs text-primary-600 underline hover:text-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
+                    className="text-xs text-[var(--brand-surface)] dark:text-[var(--brand-accent)] underline hover:no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
                   >
                     Voir le justificatif
                   </button>
@@ -798,7 +758,7 @@ function ExpenseModal({ entry, schoolYearId, onClose, onSaved }: {
                       aria-label="Retirer le justificatif"
                       className="p-0.5 rounded hover:bg-warm-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                     >
-                      <X size={12} className="text-red-500" />
+                      <X size={12} className="text-red-700" />
                     </button>
                   </Tooltip>
                 </span>
@@ -882,7 +842,7 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
       onClose={onClose}
       footer={
         <>
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
           <FloatButton type="button" variant="secondary" onClick={onClose} disabled={saving}>Annuler</FloatButton>
           <FloatButton type="button" variant={isEdit ? 'edit' : 'submit'} onClick={handleSave} disabled={saving || !canSubmit || !hasChanges}>
@@ -892,7 +852,7 @@ function RevenueModal({ entry, schoolYearId, onClose, onSaved }: {
       }
     >
       <>
-          {error && <div role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
+          {error && <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{error}</div>}
           <div className="grid grid-cols-2 gap-3">
             <FloatInput label="Date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
             <FloatInput label="Montant (€)" type="number" step="any" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
