@@ -851,10 +851,7 @@ export default function BulletinsClient({
                 const absCount = stAbs.filter(a => a.absence_type === 'absence').length
 
                 return (
-                  <tr
-                    key={s.student_id}
-                    className="hover:bg-warm-100 transition-colors"
-                  >
+                  <tr key={s.student_id}>
                     <td className="list-td text-warm-700 tabular-nums">{idx + 1}</td>
                     <td className="list-td whitespace-nowrap">
                       <span className="list-name text-secondary-800">{s.last_name} {s.first_name}</span>

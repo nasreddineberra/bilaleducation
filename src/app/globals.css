@@ -115,6 +115,7 @@
     --surface-page:   #faf8f6;   /* fond de page (warm-50) */
     --surface-card:   #ffffff;   /* cartes, champs */
     --surface-sunken: #faf8f6;   /* en-tête de tableau, lignes au survol */
+    --survol-ligne:   #f0ece8;   /* survol d'une ligne de `.liste` (warm-100) */
     --ink:            #1f2e35;   /* texte principal */
     --ink-muted:      #786d64;   /* texte secondaire (warm-700) */
     --line:           #f0ece8;   /* bordures douces (warm-100) */
@@ -202,6 +203,7 @@
     --surface-page:   #0e1418;
     --surface-card:   #161f24;
     --surface-sunken: #1a252b;
+    --survol-ligne:   var(--surface-sunken);
     --ink:            #e7eef0;
     --ink-muted:      #93a2a8;
     --line:           #243139;
@@ -371,6 +373,11 @@
   }
   .liste-entete > th:first-child { border-left-width: 1px; }
   .liste-entete > th:last-child  { border-right-width: 1px; }
+  /* SURVOL des lignes : integre a la liste (21/10), une seule source. Une ligne
+     de total, d'intertitre ou de message vide porte `.sans-survol` ; une ligne a
+     fond d'ETAT (PAI…) aussi, et garde son propre `hover:` Tailwind. */
+  :where(.liste) tbody tr { transition: background-color 150ms; }
+  .liste tbody tr:not(.sans-survol):hover { background-color: var(--survol-ligne); }
   .ligne-active > td:first-child { position: relative; }
   .ligne-active > td:first-child::before {
     content: '';
@@ -1707,6 +1714,9 @@
 :root[data-theme="dark"] .liste-entete { background-color: color-mix(in srgb, var(--brand-accent) 12%, var(--surface-card)); }
 :root[data-theme="dark"] .liste-entete > th { color: var(--brand-accent); }
 :root[data-theme="dark"] .ligne-active > td:first-child::before { background-color: var(--brand-accent); }
+/* Survol des lignes, sombre : meme poids que le pont, sinon le fond remappe d'une
+   ligne inactive (`bg-warm-50`) l'emporterait. */
+:root[data-theme="dark"] :is(#main-content, [role="dialog"]) .liste tbody tr:not(.sans-survol):hover { background-color: var(--survol-ligne); }
 :root[data-theme="dark"] .encadre-titre { background-image: linear-gradient(to right, color-mix(in srgb, var(--brand-accent) 12%, var(--surface-card)), var(--surface-card)); }
 :root[data-theme="dark"] .encadre-titre, :root[data-theme="dark"] .encadre-titre h2 { color: var(--brand-accent); }
 /* Champ `.input`, theme sombre : le trait de focus prend l'accent, comme FloatFields. */

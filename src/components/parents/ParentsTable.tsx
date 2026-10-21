@@ -178,7 +178,7 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
                 {/* Ligne principale */}
                 <tr
                   onClick={() => router.push(hrefFoyer(parent.id))}
-                  className="hover:bg-warm-100 transition-colors cursor-pointer"
+                  className="cursor-pointer"
                 >
 
                   {/* Tuteur 1 */}
@@ -276,7 +276,7 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
 
                 {/* Ligne enfants (expandable) */}
                 {expandedId === parent.id && (
-                  <tr className="bg-warm-50">
+                  <tr className="sans-survol bg-warm-50">
                     <td colSpan={4} className="px-6 py-2">
                       {loadingChildrenId === parent.id ? (
                         <p className="text-sm text-warm-700">Chargement...</p>

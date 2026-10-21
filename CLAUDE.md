@@ -277,7 +277,9 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Modales** : `FormModal` (saisie, portail), `ConfirmModal` (confirmation, recap via `children`).
   Toujours **portalisees dans `<body>`** (`animate-fade-in` capture le `fixed`).
 - **Refonte du 15/10** : `.liste` / `.liste-entete` / `.ligne-active` (listes sans cadre, en-tete teinte,
-  barre des actifs), `FiltreSwitch` (filtres de liste en switch segmente), `.encadre-titre` (bandeau en
+  barre des actifs ; **survol des lignes integre a `.liste`**, jeton `--survol-ligne`, aucun `hover:` sur une
+  ligne ; `.sans-survol` pour un total, un intertitre, un message vide ou un fond d'ETAT qui garde son
+  propre survol ; tableau hors `.liste` = `hover:bg-warm-100` provisoire jusqu'a sa refonte), `FiltreSwitch` (filtres de liste en switch segmente), `.encadre-titre` (bandeau en
   degrade estompe des encadres de fiche, hauteur fixe), `Onglets` + `classeOnglet` (soulignement anime),
   `SwitchOuiNon` (choix binaire, option `seul`), jeton `--champ-verrou`. Le **vert de marque**
   (`--brand-surface`, sombre : `--brand-accent`) remplace le turquoise au fil des pages.
@@ -292,9 +294,6 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Aucune icone sur un bouton a libelle** (pas de `+`) ; icone seule = `Tooltip` + `aria-label`.
 - **Pas de `<h1>` de titre de page** (DashboardNav le rend). Pas de texte explicatif oisif. Pas d'emoji.
 - **Lignes de liste cliquables** vers la fiche (`stopPropagation` sur nom/actions).
-- **Survol des lignes de liste : un seul**, `transition-colors hover:bg-warm-100` (celui d'Apprenants ; le pont
-  sombre le remappe). Ligne inactive `bg-warm-50` + meme survol. Seul un fond d'ETAT (PAI, saisie non
-  enregistree, creneau actif) garde son propre survol. Pas de survol sur une ligne de total.
 - **Apres enregistrement : retour a l'origine** (liste par defaut, `?from=` pour audit/parents),
   avec les filtres de la liste conserves (URL ou `sessionStorage`).
 - **Selects demarrent vides** (placeholder `disabled hidden`), obligatoires si pertinent.

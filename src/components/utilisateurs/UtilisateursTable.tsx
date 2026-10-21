@@ -122,8 +122,8 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                   key={profile.id}
                   onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
                   className={clsx(
-                    'transition-colors cursor-pointer',
-                    profile.is_active ? 'ligne-active hover:bg-warm-100' : 'bg-warm-50 hover:bg-warm-100'
+                    'cursor-pointer',
+                    profile.is_active ? 'ligne-active' : 'bg-warm-50'
                   )}
                 >
                   {/* Nom */}

@@ -320,7 +320,7 @@ function Liste({ ouvrir }: { ouvrir: (e: Eleve) => void }) {
 
       {/* Liste SANS cadre complet : ni bord gauche, ni droit, ni bas.
           Seuls le trait du haut et les separateurs de lignes subsistent. */}
-      <div className="border-t border-[var(--card-border)]">
+      <div className="liste">
         <table className="w-full text-xs" aria-label="Liste des apprenants">
           <thead>
             {/* En-tete teinte du teal de marque (variante 1, sans lisere), bordee a gauche et a droite. */}
@@ -339,8 +339,8 @@ function Liste({ ouvrir }: { ouvrir: (e: Eleve) => void }) {
                 key={e.id}
                 onClick={() => ouvrir(e)}
                 className={clsx(
-                  'cursor-pointer transition-colors',
-                  e.actif ? 'bg-[var(--surface-card)] hover:bg-warm-100' : 'bg-warm-50 hover:bg-warm-100',
+                  'cursor-pointer',
+                  !e.actif && 'bg-warm-50',
                 )}
               >
                 <td className="list-td relative pl-5">

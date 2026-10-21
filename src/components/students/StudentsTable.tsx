@@ -179,13 +179,12 @@ export default function StudentsTable({ students }: StudentsTableProps) {
                   // 3 niveaux distincts : actif au repos = blanc, inactif au repos
                   // = warm-50 (bande grise discrete), survol = warm-100 (toujours
                   // plus fonce que l'inactif → jamais confondu avec lui).
-                  'transition-colors cursor-pointer',
+                  'cursor-pointer',
                   student.is_active && 'ligne-active',
+                  // PAI = fond d'ETAT : il garde son propre survol (`.sans-survol`).
                   student.has_pai
-                    ? 'bg-red-50/70 hover:bg-red-100/70'
-                    : student.is_active
-                      ? 'hover:bg-warm-100'
-                      : 'bg-warm-50 hover:bg-warm-100'
+                    ? 'sans-survol bg-red-50/70 hover:bg-red-100/70'
+                    : !student.is_active && 'bg-warm-50'
                 )}
               >
 

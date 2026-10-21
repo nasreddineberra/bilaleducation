@@ -8567,3 +8567,16 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Gardes** : fonds d'ETAT avec leur propre survol (PAI rouge, saisie des notes modifiee ou en conflit,
   creneau actif d'une classe).
 - Inventaire fait par un script qui lit chaque `<tr>` du code (`scratchpad/tr.py`, a recreer si besoin).
+
+#### 21 octobre 2026 — Le survol fait partie de `.liste`
+
+- **Demande utilisateur** : le survol doit etre associe aux listes DANS la charte, pas recopie ligne par ligne
+  (ce que faisait le commit precedent). Regle dans le bloc `.liste` de `globals.css` :
+  `.liste tbody tr:not(.sans-survol):hover`, jeton `--survol-ligne` (warm-100 en clair, `--surface-sunken` en
+  sombre). Regle sombre au poids du pont (`:is(#main-content, …)`), sinon le fond remappe d'une ligne inactive
+  l'emportait.
+- `.sans-survol` : ligne de total, d'intertitre, de message vide, ou fond d'ETAT qui garde son propre survol
+  (PAI d'Apprenants, ligne depliee des enfants dans Parents).
+- Listes en `.liste` nettoyees (Apprenants, Parents, Classes, Enseignants, Utilisateurs, Bulletins) ; page
+  modele en `.liste`. **Tableaux hors `.liste`** : `hover:bg-warm-100` provisoire jusqu'a leur refonte
+  (choix 3a de l'utilisateur, le passage en `.liste` change aussi le cadre et l'en-tete).
