@@ -8830,3 +8830,12 @@ marque ; les vraies ecoles gardent leur plaque.
   une seule section ouverte, celle de la page affichee par defaut ; MEME etat `openSection` que le mode
   deplie (il se conserve d'un mode a l'autre) ; repli anime en `grid-rows`, contenu ferme en `inert`.
 - Controles : type-check OK, lint 0 erreur (649 avertissements, inchange), 123 tests OK, build OK.
+
+#### 21 octobre 2026 — Barre laterale repliee : retouches apres capture
+
+- **Signale par l'utilisateur** (capture) : logo et annee decentres, cadre de l'icone active coupe, titres de
+  section coupes (« VIE SCOLAI… »).
+- Causes et correctifs : le bouton de depliage partageait la ligne du logo -> en absolu sur le bord droit,
+  le logo et l'annee se centrent sur les 92 px ; l'`overflow-hidden` de l'accordeon rognait le cadre et
+  l'anneau de focus -> marge interieure `p-1` sur la grille d'icones ; le chevron ajoute mangeait la place
+  du titre -> retire, la section ouverte se lit a ses icones et a son titre en blanc.

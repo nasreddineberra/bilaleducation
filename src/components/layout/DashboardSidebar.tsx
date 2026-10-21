@@ -771,9 +771,9 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
 
       {/* ── En-tête ──────────────────────────────────────────────────────────── */}
       <div className={clsx(
-        'border-b border-white/10 flex-shrink-0 flex',
+        'border-b border-white/10 flex-shrink-0 flex relative',
         collapsed
-          ? 'items-center justify-center gap-1 px-1.5 h-[61px]'
+          ? 'items-center justify-center px-1.5 h-[61px]'
           : 'items-center gap-3 px-4 h-[61px]'
       )}>
 
@@ -836,7 +836,9 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         {/* Bouton toggle — tooltip standard (jamais de title= natif).
             Masque sur petit ecran : « Reduire » n a aucun sens dans un tiroir,
             et un tiroir de 92 px serait illisible. La croix le remplace. */}
-        <SidebarTooltip label={collapsed ? 'Développer' : 'Réduire'} className="w-auto flex-shrink-0 hidden lg:block">
+        {/* Replie : hors du flux, sur le bord droit, pour que le logo et l'annee
+            se centrent sur TOUTE la largeur de la barre (21/10). */}
+        <SidebarTooltip label={collapsed ? 'Développer' : 'Réduire'} className={clsx('w-auto flex-shrink-0 hidden lg:block', collapsed && 'absolute right-1 top-1/2 -translate-y-1/2')}>
           <button
             onClick={handleToggle}
             aria-label={collapsed ? 'Développer la navigation' : 'Réduire la navigation'}
@@ -873,18 +875,18 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                 type="button"
                 onClick={() => toggleSection(sectionLabel)}
                 aria-expanded={isSecOpen}
-                className="w-full flex items-center justify-center gap-0.5 pb-1 text-[9px] font-bold uppercase tracking-wide text-[var(--brand-label)] hover:text-white transition-colors motion-reduce:transition-none rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]"
+                className={clsx(
+                  'w-full block pb-1 text-[9px] font-bold uppercase tracking-wide text-center truncate hover:text-white transition-colors motion-reduce:transition-none rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]',
+                  // Pas de chevron (il coupait « VIE SCOLAIRE » sur 92 px) : la section
+                  // ouverte se lit a ses icones et a son titre en blanc.
+                  isSecOpen ? 'text-white' : 'text-[var(--brand-label)]',
+                )}
               >
-                <span className="truncate">{sectionLabel}</span>
-                <ChevronDown
-                  size={10}
-                  aria-hidden="true"
-                  className={clsx('flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none', isSecOpen && 'rotate-180')}
-                />
+                {sectionLabel}
               </button>
               <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', isSecOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
               <div className="overflow-hidden" inert={!isSecOpen}>
-              <div className="grid grid-cols-2 gap-1 justify-items-center">
+              <div className="grid grid-cols-2 gap-1 justify-items-center p-1">
                 {dests.map(d => {
                   const DIcon = d.icon
                   const isActive = isRouteActive(d.href)
