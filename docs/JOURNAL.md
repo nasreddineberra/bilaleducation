@@ -8541,3 +8541,15 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Socle (choix utilisateur)** : le focus de `.input` (`globals.css`) passe du turquoise au vert de marque
   (`--brand-surface` + halo `--brand-focus`, accent en sombre). Touche toutes les pages qui l'utilisent
   encore ; l'ombre en dur `rgba(24,170,153,…)` est supprimee.
+
+#### 21 octobre 2026 — Refonte : Bulletins
+
+- **Inspection puis go de l'utilisateur** (13 points). Periodes en `FiltreSwitch` ; actions « Voir tous les
+  bulletins » et « Archiver / Desarchiver » regroupees a droite de la barre ; bandeau d'archivage `ton-info`
+  avec cadenas, meme forme que Gabarits et Saisie des notes (le bleu etait hors charte).
+- **Liste** : `card p-0` + `.liste`, en-tete collant `liste-entete`, `list-th` / `list-td`, sans zebrage ;
+  hauteur bornee (seule la liste defile). Completion et actions de ligne au vert de marque, absences et
+  erreurs en `red-700`, `·` pour une valeur absente.
+- **Etats vides** en `.card` d'une phrase (plus d'icone ni de texte d'aide).
+- **Appreciation en ligne** : `FloatButton` mini « Enregistrer » / « Annuler » au lieu des boutons faits main
+  (« OK » turquoise) ; « Ajouter » sans icone.

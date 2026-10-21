@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react'
 import { grouperParGabarit } from '@/lib/evaluations/ordre'
 import {
-  Eye, FileText, Users, CheckCircle2, AlertCircle, Loader2, MessageSquare,
+  Eye, FileText, Users, CheckCircle2, AlertCircle, Loader2, Lock,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
@@ -13,6 +13,7 @@ import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -95,6 +96,9 @@ const capFirst = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v)
 const PERIOD_LABELS: Record<string, string> = {
   S1: 'Semestre 1', S2: 'Semestre 2', T1: 'Trimestre 1', T2: 'Trimestre 2', T3: 'Trimestre 3',
 }
+
+// Action de ligne (icone seule) : vert de marque, survol teinte, focus visible.
+const ACTION_LIGNE = 'inline-flex items-center p-1 rounded text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:bg-[var(--brand-tint)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]'
 
 const DAYS: Record<string, string> = {
   monday: 'Lundi', tuesday: 'Mardi', wednesday: 'Mercredi',
@@ -665,9 +669,9 @@ export default function BulletinsClient({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full flex flex-col gap-3">
       {/* ── Barre de sélection ─────────────────────────────────────────────────── */}
-      <div className="card p-3">
+      <div className="card p-3 flex-shrink-0">
         <div className="flex flex-wrap items-center gap-4">
           {/* Classe */}
           <FloatSelect
@@ -692,27 +696,16 @@ export default function BulletinsClient({
 
           {/* Périodes */}
           {periods.length > 0 && (
-            <div className="flex items-center gap-1">
-              {periods.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => { setSelectedPeriodId(p.id); setConfirmUnarchive(false) }}
-                  aria-pressed={selectedPeriodId === p.id}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200',
-                    selectedPeriodId === p.id
-                      ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90'
-                      : 'bg-white border border-warm-200 text-warm-700 hover:bg-warm-50 hover:border-warm-400'
-                  )}
-                >
-                  {PERIOD_LABELS[p.label] ?? p.label}
-                </button>
-              ))}
-            </div>
+            <FiltreSwitch
+              ariaLabel="Période"
+              actif={selectedPeriodId ?? ''}
+              onChange={v => { setSelectedPeriodId(v); setConfirmUnarchive(false) }}
+              options={periods.map(p => ({ valeur: p.id, libelle: PERIOD_LABELS[p.label] ?? p.label }))}
+            />
           )}
 
-          {/* Bouton télécharger tout */}
-          <div className="ml-auto">
+          {/* Actions : voir tous les bulletins, archiver / désarchiver */}
+          <div className="ml-auto flex items-center gap-2">
             {(() => {
               const hint = isArchived
                 ? 'Bulletins déjà archivés'
@@ -732,12 +725,30 @@ export default function BulletinsClient({
               )
               return hint ? <Tooltip content={hint}>{btn}</Tooltip> : btn
             })()}
+            {selectedClass && (isArchived ? (
+              <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(true)} disabled={archiving} loading={archiving}>
+                Désarchiver
+              </FloatButton>
+            ) : (() => {
+              const btn = (
+                <FloatButton
+                  variant="submit"
+                  type="button"
+                  onClick={handleArchive}
+                  disabled={archiving || !allComplete}
+                  loading={archiving}
+                >
+                  Archiver
+                </FloatButton>
+              )
+              return allComplete ? btn : <Tooltip content="Toutes les notes doivent être saisies">{btn}</Tooltip>
+            })())}
           </div>
         </div>
 
-        {/* Info classe + boutons archivage */}
+        {/* Info classe */}
         {selectedClass && (
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex items-center">
             <div className="flex items-center gap-4 text-xs text-warm-700">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
@@ -765,80 +776,54 @@ export default function BulletinsClient({
                 return <span>{parts.join(' · ')}</span>
               })()}
             </div>
-
-            <div className="flex items-center gap-2">
-              {isArchived ? (
-                <FloatButton variant="secondary" type="button" onClick={() => setConfirmUnarchive(true)} disabled={archiving} loading={archiving}>
-                  Désarchiver
-                </FloatButton>
-              ) : (() => {
-                const btn = (
-                  <FloatButton
-                    variant="submit"
-                    type="button"
-                    onClick={handleArchive}
-                    disabled={archiving || !allComplete}
-                    loading={archiving}
-                  >
-                    Archiver
-                  </FloatButton>
-                )
-                return allComplete ? btn : <Tooltip content="Toutes les notes doivent être saisies">{btn}</Tooltip>
-              })()}
-            </div>
           </div>
         )}
 
         {archiveError && (
-          <div role="alert" className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+          <div role="alert" className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
             {archiveError}
           </div>
         )}
 
         {appreciationError && (
-          <div role="alert" className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+          <div role="alert" className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
             {appreciationError}
           </div>
         )}
-
-        {isArchived && (
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-            Bulletins archivés le {new Date(currentArchives[0]?.archived_at).toLocaleDateString('fr-FR')}
-          </div>
-        )}
       </div>
+
+      {/* Verrou d'archivage : même bandeau que Gabarits et Saisie des notes. */}
+      {isArchived && (
+        <div className="ton-info flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium flex-shrink-0">
+          <Lock size={13} className="flex-shrink-0" />
+          Bulletins archivés le {new Date(currentArchives[0]?.archived_at).toLocaleDateString('fr-FR')}. Notes et appréciations verrouillées.
+        </div>
+      )}
 
       {/* ── Tableau des élèves ─────────────────────────────────────────────────── */}
       {/* Deux situations distinctes : pas encore de classe choisie (la période, elle,
           est présélectionnée sur l'année en cours) vs classe choisie mais vide. */}
       {!selectedClassId ? (
-        <div className="bg-white rounded-2xl shadow-card p-8 text-center text-warm-700">
-          <AlertCircle className="w-10 h-10 mx-auto mb-2 text-warm-700" />
-          <p className="font-medium">Sélectionnez une classe</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Sélectionnez une classe.</div>
       ) : currentEvals.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-card p-8 text-center text-warm-700">
-          <AlertCircle className="w-10 h-10 mx-auto mb-2 text-warm-700" />
-          <p className="font-medium">Aucune évaluation pour cette période</p>
-          <p className="text-xs mt-1">Créez d'abord des gabarits et saisissez les notes</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Aucune évaluation pour cette période.</div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-          <table aria-label="Bulletins des élèves" className="w-full text-sm">
-            <thead>
-              <tr className="bg-warm-50 border-b border-warm-200">
-                <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">#</th>
-                <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">{isAdultClass ? 'Participant' : 'Élève'}</th>
-                <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs">N° matricule</th>
-                <th className="text-center py-2 px-4 font-semibold text-secondary-700 text-xs">Complétion</th>
-                <th className="text-center py-2 px-4 font-semibold text-secondary-700 text-xs">Moy. générale</th>
-                <th className="text-center py-2 px-4 font-semibold text-secondary-700 text-xs">Absences</th>
-                <th className="text-left py-2 px-4 font-semibold text-secondary-700 text-xs min-w-[160px]">Appréciation</th>
-                <th className="text-center py-2 px-4 font-semibold text-secondary-700 text-xs">Action</th>
+        <div className="card p-0 overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="liste list-scroll flex-1 min-h-0 overflow-y-auto">
+          <table aria-label="Bulletins des élèves" className="w-full text-xs">
+            <thead className="sticky top-0 z-10">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
+                <th className="text-left list-th">#</th>
+                <th className="text-left list-th">{isAdultClass ? 'Participant' : 'Élève'}</th>
+                <th className="text-left list-th">N° matricule</th>
+                <th className="text-center list-th">Complétion</th>
+                <th className="text-center list-th">Moy. générale</th>
+                <th className="text-center list-th">Absences</th>
+                <th className="text-left list-th min-w-[160px]">Appréciation</th>
+                <th className="text-center list-th">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-warm-50">
               {classStudents.map((s, idx) => {
                 const comp = completionByStudent.get(s.student_id)
                 const isComplete = comp && comp.filled === comp.total && comp.total > 0
@@ -868,51 +853,48 @@ export default function BulletinsClient({
                 return (
                   <tr
                     key={s.student_id}
-                    className={clsx(
-                      'border-b border-warm-100 hover:bg-warm-50/50 transition-colors',
-                      idx % 2 === 0 ? 'bg-white' : 'bg-warm-50/30'
-                    )}
+                    className="hover:bg-warm-50/50 transition-colors"
                   >
-                    <td className="py-2 px-4 text-warm-700 text-xs">{idx + 1}</td>
-                    <td className="py-2 px-4 font-medium text-secondary-800">
-                      {s.last_name} {s.first_name}
+                    <td className="list-td text-warm-700 tabular-nums">{idx + 1}</td>
+                    <td className="list-td whitespace-nowrap">
+                      <span className="list-name text-secondary-800">{s.last_name} {s.first_name}</span>
                     </td>
-                    <td className="py-2 px-4 text-warm-700 text-xs">{s.student_number}</td>
-                    <td className="py-2 px-4 text-center">
+                    <td className="list-td text-warm-700 font-mono">{s.student_number}</td>
+                    <td className="list-td text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         {isComplete ? (
-                          <CheckCircle2 className="w-4 h-4 text-primary-600" />
+                          <CheckCircle2 className="w-4 h-4 text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" />
                         ) : (
                           <div className="w-16 h-1.5 bg-warm-200 rounded-full overflow-hidden">
                             <div
                               className={clsx(
                                 'h-full rounded-full',
-                                pct >= 80 ? 'bg-primary-400' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'
+                                pct >= 80 ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]' : pct >= 50 ? 'bg-amber-400' : 'bg-red-400'
                               )}
                               style={{ width: `${pct}%` }}
                             />
                           </div>
                         )}
-                        <span className="text-xs text-warm-700">{comp?.filled ?? 0}/{comp?.total ?? 0}</span>
+                        <span className="text-warm-700 tabular-nums">{comp?.filled ?? 0}/{comp?.total ?? 0}</span>
                       </div>
                     </td>
-                    <td className="py-2 px-4 text-center">
+                    <td className="list-td text-center tabular-nums">
                       {avg != null ? (
                         <span className="font-semibold text-secondary-800">
                           {avg.toFixed(2)}/20
                         </span>
                       ) : (
-                        <span className="text-warm-700">-</span>
+                        <span className="text-warm-700">·</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-center">
+                    <td className="list-td text-center tabular-nums">
                       {absCount > 0 ? (
-                        <span className="text-xs text-red-600 font-medium">{absCount}</span>
+                        <span className="text-red-700 font-medium">{absCount}</span>
                       ) : (
-                        <span className="text-xs text-warm-700">0</span>
+                        <span className="text-warm-700">0</span>
                       )}
                     </td>
-                    <td className="py-2 px-4">
+                    <td className="list-td">
                       <AppreciationCell
                         studentId={s.student_id}
                         value={appreciationMap.get(s.student_id) ?? ''}
@@ -921,7 +903,7 @@ export default function BulletinsClient({
                         disabled={isArchived || !isComplete}
                       />
                     </td>
-                    <td className="py-2 px-4 text-center">
+                    <td className="list-td text-center">
                       {isArchived ? (
                         archivePathMap.has(s.student_id) ? (
                           <Tooltip content="Voir le bulletin archivé">
@@ -929,13 +911,13 @@ export default function BulletinsClient({
                               type="button"
                               onClick={() => handleViewArchive(s.student_id)}
                               aria-label={`Voir le bulletin archivé de ${s.last_name} ${s.first_name}`}
-                              className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
+                              className={ACTION_LIGNE}
                             >
                               <FileText className="w-3.5 h-3.5" />
                             </button>
                           </Tooltip>
                         ) : (
-                          <span className="text-xs text-warm-700">-</span>
+                          <span className="text-warm-700">·</span>
                         )
                       ) : (
                         <Tooltip content={!isComplete ? 'Toutes les notes de cet élève doivent être saisies' : 'Voir le bulletin (nouvel onglet)'}>
@@ -943,7 +925,7 @@ export default function BulletinsClient({
                             onClick={() => handleDownloadOne(s)}
                             disabled={generating !== null || !isComplete}
                             aria-label={`Voir le bulletin de ${s.last_name} ${s.first_name}`}
-                            className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={clsx(ACTION_LIGNE, 'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none')}
                           >
                             {generating === s.student_id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -959,6 +941,7 @@ export default function BulletinsClient({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -1015,16 +998,13 @@ function AppreciationCell({
     return (
       <button
         onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.focus(), 50) }}
-        className="flex items-center gap-1 text-xs text-warm-700 hover:text-primary-600 transition-colors w-full text-left"
+        className="flex items-center gap-1 text-xs text-warm-700 hover:text-[var(--brand-surface)] dark:hover:text-[var(--brand-accent)] transition-colors w-full text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
         aria-label={value ? 'Modifier l\'appréciation' : 'Ajouter une appréciation'}
       >
         {value ? (
           <span className="line-clamp-1">{value}</span>
         ) : (
-          <span className="flex items-center gap-1 text-warm-700 italic">
-            <MessageSquare className="w-3 h-3" />
-            Ajouter
-          </span>
+          <span className="italic">Ajouter</span>
         )}
       </button>
     )
@@ -1043,21 +1023,25 @@ function AppreciationCell({
         placeholder="Appréciation…"
       />
       <div role="group" aria-label="Enregistrer ou annuler l'appréciation" className="flex items-center gap-1">
-        <button
+        <FloatButton
+          variant="submit"
+          size="mini"
+          type="button"
           onClick={handleSave}
-          disabled={saving}
+          loading={saving}
           aria-label="Enregistrer l'appréciation"
-          className="text-[10px] font-medium px-1.5 py-0.5 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 transition-colors"
         >
-          {saving ? '…' : 'OK'}
-        </button>
-        <button
+          Enregistrer
+        </FloatButton>
+        <FloatButton
+          variant="secondary"
+          size="mini"
+          type="button"
           onClick={() => { setText(value); setEditing(false) }}
           aria-label="Annuler la modification de l'appréciation"
-          className="text-[10px] font-medium px-1.5 py-0.5 bg-warm-100 text-warm-700 rounded hover:bg-warm-200 transition-colors"
         >
           Annuler
-        </button>
+        </FloatButton>
       </div>
     </div>
   )
