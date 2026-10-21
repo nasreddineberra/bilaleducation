@@ -44,8 +44,8 @@ function EvalBadge({ config }: { config: EvalTypeConfig }) {
   const info   = EVAL_LABELS[config.eval_type]
   const detail = config.eval_type === 'scored' ? `/${config.max_score}` : info.detail
   return (
-    <span className="inline-flex items-center gap-1 text-xs bg-primary-50 text-primary-700 border border-primary-200 px-2 py-0.5 rounded-full">
-      {info.label}{detail && <span className="text-primary-500">{detail}</span>}
+    <span className="inline-flex items-center gap-1 text-xs bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] border border-[var(--brand-line)] px-2 py-0.5 rounded-full">
+      {info.label}{detail && <span className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">{detail}</span>}
     </span>
   )
 }
@@ -114,9 +114,9 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
       {/* Tableau années */}
       {schoolYears.length > 0 && (
         <div className="card p-0 overflow-hidden">
-          <table className="w-full text-xs" aria-label="Années scolaires">
+          <table className="liste w-full text-xs" aria-label="Années scolaires">
             <thead>
-              <tr className="border-b border-warm-100 bg-warm-50">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th className="list-th">Année</th>
                 <th className="list-th">Rentrée</th>
                 <th className="list-th">Fin</th>
@@ -133,7 +133,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                   <tr
                     key={year.id}
                     onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
-                    className={`cursor-pointer transition-colors ${year.is_current ? 'bg-primary-50/40' : 'hover:bg-warm-100'}`}
+                    className={`cursor-pointer transition-colors ${year.is_current ? 'sans-survol bg-[var(--brand-tint)]' : ''}`}
                   >
                     {/* Année */}
                     <td className="list-td whitespace-nowrap">
@@ -141,12 +141,12 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                         <Link
                           href={`/dashboard/annee-scolaire/${year.id}`}
                           onClick={e => e.stopPropagation()}
-                          className="list-name text-secondary-800 hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                          className="list-name text-secondary-800 hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                         >
                           {year.label}
                         </Link>
                         {year.is_current && (
-                          <span className="text-xs font-semibold bg-primary-500 text-white px-1.5 py-0.5 rounded-full leading-none">
+                          <span className="text-xs font-semibold bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)] px-1.5 py-0.5 rounded-full leading-none">
                             En cours
                           </span>
                         )}
@@ -176,7 +176,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                                 'text-xs font-mono px-1.5 py-0.5 rounded',
                                 // Turquoise UNIQUEMENT pour la periode en cours de l'annee en cours.
                                 year.is_current && p.is_current
-                                  ? 'bg-primary-500 text-white'
+                                  ? 'bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)]'
                                   : 'bg-warm-100 text-warm-700',
                               )}
                             >
@@ -202,11 +202,11 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                         </Tooltip>
                       ) : year.archived_at ? (
                         <Tooltip content={`Close le ${fmtDate(year.closed_at!)} · archivée le ${fmtDate(year.archived_at)}`}>
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-primary-100 text-primary-700">Archivée</span>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Archivée</span>
                         </Tooltip>
                       ) : year.closed_at ? (
                         <Tooltip content={`Close le ${fmtDate(year.closed_at)}`}>
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-primary-100 text-primary-700">Close</span>
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">Close</span>
                         </Tooltip>
                       ) : (
                         <span className="text-xs text-warm-700">·</span>
@@ -238,7 +238,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                             <button
                               onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
                               aria-label={`Modifier ${year.label}`}
-                              className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                              className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                             >
                               <Pencil size={13} />
                             </button>
@@ -248,7 +248,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                               <button
                                 onClick={() => { setConfirmDeleteId(year.id); setDeleteError(null) }}
                                 aria-label={`Supprimer ${year.label}`}
-                                className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                                className="p-1.5 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                               >
                                 <Trash2 size={13} />
                               </button>

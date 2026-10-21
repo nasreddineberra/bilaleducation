@@ -134,7 +134,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                     <Link
                       href={hrefFiche(teacher.id)}
                       onClick={(e) => e.stopPropagation()}
-                      className={`list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50 ${teacher.is_active ? 'text-secondary-800' : 'text-warm-400'}`}
+                      className={`list-name rounded outline-none hover:underline focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)] ${teacher.is_active ? 'text-secondary-800' : 'text-warm-400'}`}
                     >
                       {teacher.last_name} {teacher.first_name}
                     </Link>
@@ -205,7 +205,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                       <button
                         onClick={() => router.push(hrefFiche(teacher.id))}
                         aria-label="Modifier l'enseignant"
-                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                        className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                       >
                         <Pencil size={14} />
                       </button>
@@ -218,7 +218,7 @@ export default function TeachersTable({ teachers, classesByTeacher, canDelete = 
                         <button
                           onClick={() => startDelete(teacher)}
                           aria-label="Supprimer l'enseignant"
-                          className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                          className="p-1.5 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={14} />
                         </button>

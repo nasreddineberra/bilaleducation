@@ -184,12 +184,12 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
 
         </div>
 
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-red-700">{error}</p>}
 
         <div className="flex flex-wrap items-center gap-2">
           <div>
             <p className="text-xs text-warm-700">
-              <span className="font-semibold text-red-400">*</span> champs obligatoires
+              <span className="font-semibold text-red-700">*</span> champs obligatoires
             </p>
             <p className="text-[11px] text-warm-700">Formats acceptés : PDF, image… · 1 Mo maximum.</p>
           </div>
@@ -219,9 +219,9 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
         </div>
       ) : (
         <div className="card p-0 overflow-hidden w-full">
-          <table className="w-full text-left text-xs">
+          <table className="liste w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-warm-100">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th className="list-th w-32">Catégorie</th>
                 <th className="list-th">Document</th>
                 <th className="list-th">Fichier</th>
@@ -234,7 +234,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                 const exp = expirationStatus(doc.expires_at)
                 const categoryLabel = CATEGORIES.find(c => c.key === doc.category)?.label ?? doc.category
                 return (
-                  <tr key={doc.id} className="hover:bg-warm-100 transition-colors">
+                  <tr key={doc.id}>
                     <td className="list-td text-secondary-700 whitespace-nowrap">{categoryLabel}</td>
                     <td className="list-td">
                       <span className="list-name text-secondary-800 truncate">
@@ -251,7 +251,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                       {doc.expires_at ? (
                         <span className={clsx(
                           'text-[11px] px-1.5 py-0.5 rounded font-medium',
-                          exp === 'expired' ? 'bg-red-100 text-red-600'
+                          exp === 'expired' ? 'bg-red-100 text-red-700'
                             : exp === 'soon' ? 'bg-amber-100 text-amber-700'
                             : 'bg-warm-100 text-warm-700'
                         )}>
@@ -265,14 +265,14 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                           <button
                             onClick={() => handlePreview(doc.file_url)}
                             aria-label="Ouvrir le document"
-                            className="p-1 text-warm-700 hover:text-primary-600 hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                            className="p-1 text-warm-700 hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:bg-warm-100 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                           >
                             <Eye size={14} />
                           </button>
                         </Tooltip>
                         {confirmDelete === doc.id ? (
                           <span className="flex items-center gap-1 text-[11px]">
-                            <button onClick={() => handleDelete(doc.id)} className="text-red-600 font-semibold hover:underline">Oui</button>
+                            <button onClick={() => handleDelete(doc.id)} className="text-red-700 font-semibold hover:underline">Oui</button>
                             <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline">Non</button>
                           </span>
                         ) : (
@@ -280,7 +280,7 @@ export default function TeacherDocuments({ teacherId, etablissementId, documents
                             <button
                               onClick={() => setConfirmDelete(doc.id)}
                               aria-label="Supprimer le document"
-                              className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              className="p-1 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                             >
                               <Trash2 size={14} />
                             </button>

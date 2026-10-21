@@ -123,7 +123,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                       href={`/dashboard/utilisateurs/${profile.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className={clsx(
-                        'list-name hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                        'list-name hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
                         profile.is_active ? 'text-secondary-800' : 'text-warm-400'
                       )}
                     >
@@ -146,7 +146,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                     <span className={clsx(
                       'text-xs font-medium px-2 py-0.5 rounded-full',
                       profile.is_active
-                        ? 'bg-primary-100 text-primary-700'
+                        ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
                         : 'bg-warm-200 text-warm-700'
                     )}>
                       {profile.is_active ? 'Actif' : 'Inactif'}
@@ -160,11 +160,11 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                         <span className="text-warm-700">·</span>
                       </Tooltip>
                     ) : twoFactorSet.has(profile.id) ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-primary-700">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">
                         <ShieldCheck size={13} className="flex-shrink-0" /> Activée
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700">
                         <ShieldAlert size={13} className="flex-shrink-0" /> Non
                       </span>
                     )}
@@ -178,7 +178,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                         <button
                           onClick={() => router.push(`/dashboard/utilisateurs/${profile.id}`)}
                           aria-label={`Modifier ${fullName}`}
-                          className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"
+                          className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"
                         >
                           <Pencil size={14} />
                         </button>
@@ -190,7 +190,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                           <button
                             onClick={() => startDelete(profile)}
                             aria-label={`Supprimer ${fullName}`}
-                            className="p-1.5 text-warm-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            className="p-1.5 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                           >
                             <Trash2 size={14} />
                           </button>

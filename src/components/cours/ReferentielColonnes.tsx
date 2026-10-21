@@ -121,7 +121,7 @@ function Badge({ n, annee }: { n: number; annee: string | null }) {
         </span>
       }
     >
-      <span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-1.5 py-px rounded-full flex-shrink-0 tabular-nums cursor-default">
+      <span className="text-[10px] font-bold text-[var(--brand-surface)] dark:text-[var(--brand-accent)] bg-[var(--brand-tint)] px-1.5 py-px rounded-full flex-shrink-0 tabular-nums cursor-default">
         {n}
       </span>
     </Tooltip>
@@ -225,8 +225,8 @@ function Ligne({
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } }}
       className={[
         'group mx-1 px-1 py-0.5 rounded-md cursor-pointer flex items-center gap-1.5 outline-none',
-        'focus-visible:ring-2 focus-visible:ring-primary-500/50 transition-colors',
-        actif ? 'bg-primary-50' : 'hover:bg-[var(--surface-sunken)]',
+        'focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] transition-colors',
+        actif ? 'bg-[var(--brand-tint)]' : 'hover:bg-[var(--surface-sunken)]',
       ].join(' ')}
     >
       {triable && <button
@@ -235,7 +235,7 @@ function Ligne({
         {...attributes}
         {...listeners}
         onClick={e => e.stopPropagation()}
-        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 rounded"
+        className="cursor-grab active:cursor-grabbing text-[var(--ink-muted)] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
       >
         <GripVertical size={11} />
       </button>}
@@ -249,7 +249,7 @@ function Ligne({
           bord droit, mais le nom ne les laisse pas s'en éloigner de 1 200 px
           comme dans l'arbre, où l'œil devait faire l'aller-retour. */}
       <span className="flex-1 min-w-0 flex items-baseline gap-1.5">
-        <span className={`text-sm truncate ${actif ? 'font-semibold text-primary-800' : 'font-medium text-[var(--ink)]'}`}>
+        <span className={`text-sm truncate ${actif ? 'font-semibold text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'font-medium text-[var(--ink)]'}`}>
           <Surligne text={nomFr} query={q} />
         </span>
         {nomAr && (
@@ -267,7 +267,7 @@ function Ligne({
             <button
               type="button" aria-label={`Modifier ${nomFr}`}
               onClick={e => { e.stopPropagation(); onEditer() }}
-              className="p-1 text-[var(--ink-muted)] hover:text-primary-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+              className="p-1 text-[var(--ink-muted)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
             >
               <Pencil size={12} />
             </button>
@@ -278,7 +278,7 @@ function Ligne({
             <button
               type="button" aria-label={`Supprimer ${nomFr}`}
               onClick={e => { e.stopPropagation(); onSupprimer() }}
-              className="p-1 text-[var(--ink-muted)] hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+              className="p-1 text-[var(--ink-muted)] hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
             >
               <Trash2 size={12} />
             </button>
@@ -420,7 +420,7 @@ function ModaleSaisie({
         <p className="text-xs text-[var(--ink-muted)] -mt-1">{rattachement}</p>
       )}
       {erreur && (
-        <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{erreur}</p>
+        <p role="alert" className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{erreur}</p>
       )}
 
       <FloatInput
@@ -987,22 +987,22 @@ export default function ReferentielColonnes({
               <p className="text-xs text-warm-700">Vérification des dépendances…</p>
             )}
             {deps.etat === 'pret' && deps.motifBlocage && (
-              <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{deps.motifBlocage}</p>
+              <p role="alert" className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{deps.motifBlocage}</p>
             )}
             {deps.etat === 'pret' && deps.emplacements.length > 0 && (
               /* Hauteur bornée : un cours peut servir dans beaucoup de classes,
                  et une modale qui s'allonge repousse ses boutons hors de l'écran. */
               <div className="rounded-lg border border-[var(--line-strong)] overflow-hidden max-h-40 overflow-y-auto list-scroll">
-                <table className="w-full text-xs" aria-label="Gabarits qui utilisent ce cours">
+                <table className="liste w-full text-xs" aria-label="Gabarits qui utilisent ce cours">
                   <thead>
-                    <tr className="bg-[var(--surface-sunken)]">
+                    <tr className="liste-entete border-b border-[var(--card-border)]">
                       <th scope="col" className="list-th !px-2 !py-1">Classe</th>
                       <th scope="col" className="list-th !px-2 !py-1">Période</th>
                     </tr>
                   </thead>
                   <tbody>
                     {deps.emplacements.map((e: Emplacement, i: number) => (
-                      <tr key={`${e.classe}-${e.periode}-${i}`} className="transition-colors hover:bg-warm-100 border-t border-[var(--line)]">
+                      <tr key={`${e.classe}-${e.periode}-${i}`} className="border-t border-[var(--line)]">
                         <td className="px-2 py-1 text-[var(--ink)]">{e.classe}</td>
                         <td className="px-2 py-1 text-[var(--ink-muted)]">{e.periode}</td>
                       </tr>
@@ -1012,10 +1012,10 @@ export default function ReferentielColonnes({
               </div>
             )}
             {deps.etat === 'pret' && !deps.motifBlocage && deps.avertissements.map((a: string) => (
-              <p key={a} className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">{a}</p>
+              <p key={a} className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{a}</p>
             ))}
             {erreurSuppr && (
-              <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{erreurSuppr}</p>
+              <p role="alert" className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{erreurSuppr}</p>
             )}
           </div>
         </ConfirmModal>

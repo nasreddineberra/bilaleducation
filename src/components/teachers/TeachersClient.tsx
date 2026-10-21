@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { SearchField } from '@/components/ui/FloatFields'
+import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import TeachersTable from './TeachersTable'
 import type { Teacher } from '@/types/database'
@@ -146,12 +145,9 @@ export default function TeachersClient({ teachers, canDelete, filteredCount, pag
         />
 
         {/* Ajouter */}
-        <Link
-          href="/dashboard/teachers/new"
-          className="inline-flex items-center px-5 py-2 rounded-lg font-semibold text-sm tracking-wide bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] transition-all duration-200 whitespace-nowrap"
-        >
+        <FloatButton href="/dashboard/teachers/new" variant="submit" className="whitespace-nowrap">
           Ajouter
-        </Link>
+        </FloatButton>
       </div>
 
       {/* Tableau */}

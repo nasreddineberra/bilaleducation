@@ -211,9 +211,9 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
             {initiales}
           </div>
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-secondary-800 leading-tight truncate">
+            <h2 className="text-lg font-bold text-secondary-800 leading-tight truncate">
               {profile.last_name} {profile.first_name}
-            </h1>
+            </h2>
             <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
               <span>{libelleRole(profile.role, 'court')}</span>
               <span>· {profile.email}</span>
@@ -222,7 +222,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
               )}
               {profile.role !== 'parent' && (
                 has2fa
-                  ? <span className="bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium">2FA activée</span>
+                  ? <span className="bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] px-1.5 py-0.5 rounded font-medium">2FA activée</span>
                   : <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">2FA non configurée</span>
               )}
             </div>
@@ -251,7 +251,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
         </div>
 
         {canToggleActive && (
-          <p className={`text-[11px] ${form.is_active ? 'text-warm-700' : 'text-amber-600'}`}>
+          <p className={`text-[11px] ${form.is_active ? 'text-warm-700' : 'text-amber-700'}`}>
             {form.is_active
               ? 'Statut actif : le compte de connexion est activé.'
               : 'Statut inactif : le compte sera désactivé, la personne ne pourra plus se connecter.'}
@@ -347,10 +347,10 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
             <div className="flex items-center gap-3 flex-shrink-0">
               <span role="status" aria-live="polite" className="text-xs">
                 {resetStatus === 'sent' && (
-                  <span className="flex items-center gap-1 text-primary-600"><CheckCircle2 size={13} /> Lien envoyé.</span>
+                  <span className="flex items-center gap-1 text-[var(--brand-surface)] dark:text-[var(--brand-accent)]"><CheckCircle2 size={13} /> Lien envoyé.</span>
                 )}
                 {resetStatus === 'error' && (
-                  <span className="text-red-500">Erreur lors de l'envoi.</span>
+                  <span className="text-red-700">Erreur lors de l'envoi.</span>
                 )}
               </span>
               <FloatButton
@@ -374,8 +374,8 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
           <div className="flex items-center justify-between gap-4 bg-warm-50 border border-warm-200 rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
               {has2fa
-                ? <ShieldCheck size={16} className="text-primary-600 flex-shrink-0" />
-                : <ShieldAlert size={16} className="text-amber-500 flex-shrink-0" />}
+                ? <ShieldCheck size={16} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
+                : <ShieldAlert size={16} className="text-amber-700 flex-shrink-0" />}
               <div>
                 <p className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Double authentification (2FA)</p>
                 <p className="text-xs text-warm-700 mt-0.5">
@@ -414,7 +414,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
                 onClick={() => setShowPassword(v => !v)}
                 aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 aria-pressed={showPassword}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-warm-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
               >
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -444,7 +444,7 @@ export default function UtilisateurForm({ profile, has2fa = false }: Utilisateur
 
       {/* Actions */}
       <div className="flex items-center gap-3 pt-1">
-        <span className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> obligatoire</span>
+        <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
         <div className="flex-1" />
         <FloatButton
           type="button"

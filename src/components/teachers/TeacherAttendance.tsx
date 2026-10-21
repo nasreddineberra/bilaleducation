@@ -145,12 +145,12 @@ export default function TeacherAttendance({
             assurées en {yearLabel}
           </span>
           <span>
-            <span className={`text-sm font-bold tabular-nums ${absences.length > 0 ? 'text-red-600' : 'text-secondary-800'}`}>{absences.length}</span>{' '}
+            <span className={`text-sm font-bold tabular-nums ${absences.length > 0 ? 'text-red-700' : 'text-secondary-800'}`}>{absences.length}</span>{' '}
             absence{pl(absences.length)}
             {absences.length > 0 && <> · {fmtDuration(absenceMinutes)} manquée{pl(absenceMinutes / 60)}</>}
           </span>
           <span>
-            <span className={`text-sm font-bold tabular-nums ${remplacements.length > 0 ? 'text-primary-600' : 'text-secondary-800'}`}>{remplacements.length}</span>{' '}
+            <span className={`text-sm font-bold tabular-nums ${remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}`}>{remplacements.length}</span>{' '}
             remplacement{pl(remplacements.length)} assuré{pl(remplacements.length)}
           </span>
         </div>
@@ -172,7 +172,7 @@ export default function TeacherAttendance({
               {fmtDuration(absenceMinutes)} manquée{pl(absenceMinutes / 60)}
             </>
           }
-          valueColor={absences.length > 0 ? 'text-red-600' : 'text-secondary-800'}
+          valueColor={absences.length > 0 ? 'text-red-700' : 'text-secondary-800'}
         />
         <ListStatCard
           value={remplacements.length}
@@ -183,7 +183,7 @@ export default function TeacherAttendance({
               assuré{pl(remplacements.length)} pour {remplacements.length > 1 ? 'des collègues' : 'un collègue'}
             </>
           }
-          valueColor={remplacements.length > 0 ? 'text-primary-600' : 'text-secondary-800'}
+          valueColor={remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}
         />
       </div>
       )}
@@ -226,7 +226,7 @@ export default function TeacherAttendance({
                 <div className="mt-1 h-1 rounded-full bg-warm-100 overflow-hidden">
                   {actif && (
                     <div
-                      className="h-full rounded-full bg-primary-500"
+                      className="h-full rounded-full bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]"
                       style={{ width: `${Math.round((m.minutes / maxMois) * 100)}%` }}
                     />
                   )}
@@ -247,9 +247,9 @@ export default function TeacherAttendance({
           </div>
         ) : (
           <TableauBorne hauteur={hauteurTable} dense={dense}>
-            <table className="w-full text-left text-xs" aria-label="Absences">
-              <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
-                <tr className="border-b border-warm-100">
+            <table className="liste w-full text-left text-xs" aria-label="Absences">
+              <thead className="sticky top-0 z-10">
+                <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th scope="col" className="list-th w-36">Date</th>
                   <th scope="col" className="list-th w-32">Horaires</th>
                   <th scope="col" className="list-th w-20 text-center">Durée</th>
@@ -259,7 +259,7 @@ export default function TeacherAttendance({
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {absences.map(a => (
-                  <tr key={a.id} className="hover:bg-warm-100 transition-colors">
+                  <tr key={a.id}>
                     <td className="list-td whitespace-nowrap text-secondary-700">{fmtDate(a.date)}</td>
                     <td className="list-td whitespace-nowrap tabular-nums text-warm-700">{fmtPlage(a.start, a.end)}</td>
                     <td className="list-td text-center tabular-nums text-warm-700">{fmtDuration(a.minutes)}</td>
@@ -278,7 +278,7 @@ export default function TeacherAttendance({
                       ) : (
                         // Un creneau manque sans personne pour le tenir n'est pas
                         // un detail administratif : c'est une classe sans adulte.
-                        <span className="text-red-600 font-medium">Non remplacé</span>
+                        <span className="text-red-700 font-medium">Non remplacé</span>
                       )}
                     </td>
                   </tr>
@@ -299,9 +299,9 @@ export default function TeacherAttendance({
           </div>
         ) : (
           <TableauBorne hauteur={hauteurTable} dense={dense}>
-            <table className="w-full text-left text-xs" aria-label="Remplacements assurés">
-              <thead className="sticky top-0 z-10 bg-[var(--surface-card)]">
-                <tr className="border-b border-warm-100">
+            <table className="liste w-full text-left text-xs" aria-label="Remplacements assurés">
+              <thead className="sticky top-0 z-10">
+                <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th scope="col" className="list-th w-36">Date</th>
                   <th scope="col" className="list-th w-32">Horaires</th>
                   <th scope="col" className="list-th w-20 text-center">Durée</th>
@@ -310,7 +310,7 @@ export default function TeacherAttendance({
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {remplacements.map(r => (
-                  <tr key={r.id} className="hover:bg-warm-100 transition-colors">
+                  <tr key={r.id}>
                     <td className="list-td whitespace-nowrap text-secondary-700">{fmtDate(r.date)}</td>
                     <td className="list-td whitespace-nowrap tabular-nums text-warm-700">{fmtPlage(r.start, r.end)}</td>
                     <td className="list-td text-center tabular-nums text-warm-700">{fmtDuration(r.minutes)}</td>

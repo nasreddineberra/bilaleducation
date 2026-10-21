@@ -117,14 +117,14 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
           <button
             type="button"
             onClick={() => setAideOuverte(true)}
-            className="text-xs font-medium text-primary-700 hover:text-primary-800 hover:underline rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] hover:underline rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
             Comment configurer ?
           </button>
           <span
             role="status"
             className={`ml-auto text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-              isConfigured ? 'bg-primary-50 text-primary-700' : 'bg-amber-100 text-amber-700'
+              isConfigured ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'bg-amber-100 text-amber-700'
             }`}
           >
             {isConfigured ? 'Configurée' : 'Non configurée'}
@@ -205,7 +205,7 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
               onMouseDown={e => e.preventDefault()}
               aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
               aria-pressed={showPassword}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-warm-700 hover:text-warm-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-warm-700 hover:text-warm-700 focus:outline-none focus:ring-2 focus:ring-[var(--brand-focus)]"
             >
               {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
@@ -246,8 +246,8 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
             role="alert"
             className={`text-xs rounded-lg px-3 py-2 border ${
               testResult.ok
-                ? 'text-primary-700 bg-primary-50 border-primary-200'
-                : 'text-red-600 bg-red-50 border-red-200'
+                ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)] bg-[var(--brand-tint)] border-[var(--brand-line)]'
+                : 'text-red-700 bg-red-50 border-red-200'
             }`}
           >
             {testResult.message}

@@ -152,7 +152,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
         <FloatInput label="Téléphone" value={form.phone} onChange={e => set('phone', e.target.value)} />
 
         <div className="flex items-center gap-3 pt-1">
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
           <FloatButton type="submit" variant="edit" disabled={saving || invalid || unchanged} loading={saving}>
             Enregistrer
@@ -216,7 +216,7 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
               onClick={() => setShowPw(v => !v)}
               aria-label={showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
               aria-pressed={showPw}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 z-10"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-warm-700 hover:text-secondary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] z-10"
             >
               {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>

@@ -184,7 +184,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
             <span className="font-semibold">{form.last_name} {form.first_name}</span> ({form.email}).
           </p>
           {lienEnvoye ? (
-            <p role="status" className="text-sm text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-4 py-3">
+            <p role="status" className="text-sm text-[var(--brand-surface)] dark:text-[var(--brand-accent)] bg-[var(--brand-tint)] border border-[var(--brand-line)] rounded-lg px-4 py-3">
               Un email lui a été envoyé pour qu&apos;il définisse son mot de passe.
             </p>
           ) : (
@@ -203,11 +203,11 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
                   aria-label={copied ? 'Mot de passe copié' : 'Copier le mot de passe'}
                   className="flex-shrink-0 p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
                 >
-                  {copied ? <Check size={16} className="text-primary-600" /> : <Copy size={16} />}
+                  {copied ? <Check size={16} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" /> : <Copy size={16} />}
                 </button>
               </Tooltip>
             </div>
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-amber-700">
               Notez-le maintenant. Il ne sera plus affiché. L'administrateur pourra envoyer un email de réinitialisation depuis la page Utilisateurs.
             </p>
           </div>
@@ -260,7 +260,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           </div>
 
           {isEditing && (
-            <p className={`text-[11px] ${form.is_active ? 'text-warm-700' : 'text-amber-600'}`}>
+            <p className={`text-[11px] ${form.is_active ? 'text-warm-700' : 'text-amber-700'}`}>
               {form.is_active
                 ? 'Statut actif : le compte de connexion de l’enseignant est activé.'
                 : 'Statut inactif : le compte de connexion sera désactivé, l’enseignant ne pourra plus se connecter.'}
@@ -360,8 +360,8 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
           </div>
 
           {!isEditing && (
-            <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-700">
+            <div className="ton-info p-2.5 rounded-lg">
+              <p className="text-xs">
                 Un compte utilisateur (role enseignant) sera créé automatiquement avec un mot de passe temporaire.
               </p>
             </div>
@@ -385,7 +385,7 @@ export default function TeacherForm({ teacher, defaultEmployeeNumber, backHref =
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-3 pt-1 max-w-2xl">
-        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+        <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
         <div className="flex-1" />
         <FloatButton
           type="button"

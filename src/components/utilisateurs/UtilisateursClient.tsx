@@ -2,9 +2,8 @@
 
 import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { useEffect, useRef } from 'react'
-import Link from 'next/link'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
-import { SearchField } from '@/components/ui/FloatFields'
+import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import UtilisateursTable from './UtilisateursTable'
 import type { Profile, UserRole } from '@/types/database'
@@ -163,12 +162,9 @@ export default function UtilisateursClient({ profiles, twoFactorUserIds = [] }: 
         />
 
         {tab === 'staff' && (
-          <Link
-            href="/dashboard/utilisateurs/new"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold text-sm tracking-wide transition-all duration-200 active:scale-[0.97] select-none whitespace-nowrap bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] outline-none focus:ring-2 focus:ring-offset-1 focus:ring-secondary-500"
-          >
+          <FloatButton href="/dashboard/utilisateurs/new" variant="submit" className="whitespace-nowrap">
             Ajouter
-          </Link>
+          </FloatButton>
         )}
       </div>
 

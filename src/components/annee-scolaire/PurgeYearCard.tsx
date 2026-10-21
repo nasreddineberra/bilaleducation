@@ -60,7 +60,7 @@ export default function PurgeYearCard({
     return (
       <div className="card p-4 space-y-1">
         <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-          <CheckCircle2 size={15} className="text-primary-600" /> Données conservées
+          <CheckCircle2 size={15} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)]" /> Données conservées
         </h3>
         <p className="text-xs text-warm-700">
           Vous avez choisi de conserver toutes les données de {yearLabel} lors de la clôture. Rien n’a été supprimé.
@@ -68,7 +68,7 @@ export default function PurgeYearCard({
         <button
           type="button"
           onClick={() => setRevealed(true)}
-          className="text-[11px] text-warm-700 underline decoration-dotted underline-offset-2 hover:text-red-600 outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
+          className="text-[11px] text-warm-700 underline decoration-dotted underline-offset-2 hover:text-red-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
         >
           Épurer quand même
         </button>
@@ -79,7 +79,7 @@ export default function PurgeYearCard({
   return (
     <div className="card p-4 space-y-2 border-red-200 bg-red-50/30">
       <h3 className="text-sm font-bold text-secondary-800 flex items-center gap-1.5">
-        <AlertTriangle size={15} className="text-red-500" /> Purge de l’année
+        <AlertTriangle size={15} className="text-red-700" /> Purge de l’année
       </h3>
       {purgeIntent === 'purge' && (
         <p className="text-[11px] font-medium text-red-700">Épuration demandée lors de la clôture de l’année.</p>

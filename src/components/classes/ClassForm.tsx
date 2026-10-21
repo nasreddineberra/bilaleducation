@@ -11,6 +11,7 @@ import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
@@ -98,7 +99,12 @@ function buildWorkingDayNames(weekStartDay: number, workingDays: number): string
   return days.map(n => DAY_NUM_TO_NAME[n])
 }
 
-function todayISO() { return new Date().toISOString().slice(0, 10) }
+/** Date du jour en `AAAA-MM-JJ` LOCAL : `toISOString` bascule en UTC et rend la
+ *  veille entre minuit et 2 h (heure de Paris). */
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -425,7 +431,7 @@ export default function ClassForm({
       }
 
       // Dériver le créneau de référence depuis le slot actif (sans effective_until ou le plus récent)
-      const today = new Date().toISOString().split('T')[0]
+      const today = todayISO()
       const activeSlot = slots.find(s => !s.effective_until || s.effective_until >= today)
         ?? slots[slots.length - 1]
 
@@ -761,7 +767,7 @@ export default function ClassForm({
                     <span className="flex items-center gap-3">
                       {activeTit && (
                         <button type="button" onClick={() => openRemoveTitulaire(assignments.indexOf(activeTit))}
-                          className="text-xs font-medium text-red-600 hover:text-red-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">
+                          className="text-xs font-medium text-red-700 hover:text-red-800 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">
                           Retirer
                         </button>
                       )}
@@ -782,7 +788,7 @@ export default function ClassForm({
                   </div>
                 ) : (
                   !showAddRow && (
-                    <div className="flex items-center gap-2 text-sm rounded-xl px-3 py-2 text-red-600 bg-red-50 border border-red-200">
+                    <div className="flex items-center gap-2 text-sm rounded-xl px-3 py-2 text-red-700 bg-red-50 border border-red-200">
                       <BookOpen size={14} />
                       Sans titulaire.
                     </div>
@@ -822,7 +828,7 @@ export default function ClassForm({
                             </Tooltip>
                             <Tooltip content="Supprimer">
                               <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                                 <Trash2 size={11} />
                               </button>
                             </Tooltip>
@@ -859,7 +865,7 @@ export default function ClassForm({
                         )}
                         <Tooltip content="Retirer (erreur de saisie)">
                           <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Retirer ${currentSub.teacher_name}`}
-                            className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50">
+                            className="p-1 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50">
                             <Trash2 size={13} />
                           </button>
                         </Tooltip>
@@ -877,7 +883,7 @@ export default function ClassForm({
                       <FloatInput label="Au" type="date" value={subUntil} onChange={e => setSubUntil(e.target.value)} />
                     </div>
                     <p className="text-[11px] text-warm-700">Laisser « Au » vide si la date de retour n'est pas connue (remplacement ouvert).</p>
-                    {subErr && <p role="alert" className="text-xs text-red-600">{subErr}</p>}
+                    {subErr && <p role="alert" className="text-xs text-red-700">{subErr}</p>}
                     <div className="flex gap-2 justify-end pt-1">
                       <FloatButton type="button" variant="secondary" onClick={() => setShowAddSub(false)}>Annuler</FloatButton>
                       <FloatButton type="button" variant="submit" onClick={addSubstitute} disabled={!subTeacherId || !subFrom}>Valider</FloatButton>
@@ -923,7 +929,7 @@ export default function ClassForm({
                                   </Tooltip>
                                   <Tooltip content="Supprimer">
                                     <button type="button" onClick={() => confirmRemoveAssignment(realIdx)} aria-label={`Supprimer ${a.teacher_name}`}
-                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-500 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
+                                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-0.5 text-warm-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/40">
                                       <Trash2 size={11} />
                                     </button>
                                   </Tooltip>
@@ -948,9 +954,7 @@ export default function ClassForm({
           <div className="flex items-center gap-2">
             <h2 className="text-xs font-bold uppercase tracking-widest">Planning EDT</h2>
             {slots.length > 0 && (
-              <span className="text-[10px] font-semibold bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] border border-[var(--brand-line)] px-1.5 py-0.5 rounded-full">
-                {slots.length} créneau{slots.length > 1 ? 'x' : ''}
-              </span>
+              <Puce ton="ok">{slots.length} créneau{slots.length > 1 ? 'x' : ''}</Puce>
             )}
           </div>
           {!showSlotForm && (
@@ -967,28 +971,28 @@ export default function ClassForm({
         {/* Tableau des créneaux */}
         {slots.length > 0 && (
           <div className="border border-warm-100 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="liste w-full text-sm" aria-label="Créneaux de la classe">
               <thead>
-                <tr className="bg-warm-50 border-b border-warm-100 text-[10px] font-semibold text-warm-700 uppercase tracking-wider">
-                  <th className="text-left px-3 py-2">Jour</th>
-                  <th className="text-left px-3 py-2">Horaire</th>
-                  <th className="text-left px-3 py-2">Du</th>
-                  <th className="text-left px-3 py-2">Au</th>
-                  <th className="px-3 py-2 w-16" />
+                <tr className="liste-entete border-b border-[var(--card-border)]">
+                  <th className="list-th text-left">Jour</th>
+                  <th className="list-th text-left">Horaire</th>
+                  <th className="list-th text-left">Du</th>
+                  <th className="list-th text-left">Au</th>
+                  <th className="list-th w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {slots.map((slot, idx) => {
-                  const today = new Date().toISOString().split('T')[0]
+                  const today = todayISO()
                   const isActive = !slot.effective_until || slot.effective_until >= today
                   return (
-                    <tr key={idx} className={clsx('transition-colors', isActive ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint)]' : 'hover:bg-warm-100')}>
+                    <tr key={idx} className={clsx(isActive && 'sans-survol bg-[var(--brand-tint)]')}>
                       <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
                         {slot.day_of_week}
-                        {isActive && <span className="ml-1.5 text-[9px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-semibold uppercase">actif</span>}
+                        {isActive && <span className="ml-1.5"><Puce ton="ok">Actif</Puce></span>}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 whitespace-nowrap font-mono text-xs">
-                        {slot.start_time.slice(0, 5)} · {slot.end_time.slice(0, 5)}
+                        {slot.start_time.slice(0, 5)}-{slot.end_time.slice(0, 5)}
                       </td>
                       <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
                         {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">·</span>}
@@ -1011,7 +1015,7 @@ export default function ClassForm({
                             <button
                               type="button" onClick={() => handleDeleteSlot(idx)}
                               aria-label={`Supprimer le créneau ${slot.day_of_week} ${slot.start_time.slice(0, 5)}`}
-                              className="p-1 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                              className="p-1 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -1035,7 +1039,7 @@ export default function ClassForm({
 
         {/* Erreur chevauchement */}
         {slotOverlapErr && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{slotOverlapErr}</p>
+          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{slotOverlapErr}</p>
         )}
 
         {/* Modal ajout/édition de créneau */}
@@ -1052,7 +1056,7 @@ export default function ClassForm({
 
       {/* ── Actions ── */}
       <div className="flex items-center gap-3 pt-1">
-        <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+        <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
         <div className="flex-1" />
         <FloatButton type="button" variant="secondary" onClick={() => router.push(backHref)} disabled={isSubmitting}>
           Annuler
@@ -1272,7 +1276,7 @@ function SlotFormModal({
 
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
-          {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
+          {err && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
 
           <div className="grid grid-cols-3 gap-3">
             <FloatSelect label="Jour" required value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)}>

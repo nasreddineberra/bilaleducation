@@ -209,7 +209,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
   const takenColors = new Set(rows.filter(r => r.id !== editing?.id).map(r => r.color))
 
   const editingRow = editing && (
-    <tr className="bg-primary-50/30">
+    <tr className="sans-survol bg-[var(--brand-tint)]">
       <td className="px-4 py-3">
         {editing.color ? (
           <span
@@ -283,7 +283,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             checked={editing.is_active ?? true}
             disabled={!!editing.reserved_kind}
             onChange={e => setEditing({ ...editing, is_active: e.target.checked })}
-            className="h-3.5 w-3.5 rounded border-warm-300 accent-primary-500 disabled:opacity-50"
+            className="h-3.5 w-3.5 rounded border-warm-300 accent-[var(--brand-surface)] disabled:opacity-50"
           />
           Actif
         </label>
@@ -346,8 +346,8 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
       )}
 
       <div className="card p-0 overflow-hidden">
-        <div className="flex items-start gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-xs text-blue-600">
-          <Info size={13} className="mt-0.5 shrink-0 text-blue-400" />
+        <div className="ton-info flex items-start gap-2 border-b px-4 py-2.5 text-xs">
+          <Info size={13} className="mt-0.5 shrink-0" />
           <span>
             Les types <strong>ABSENCE</strong>, <strong>COURS</strong> et <strong>ACTIVITÉ</strong> sont <strong>réservés</strong> au
             bon fonctionnement de l'application (gestion des absences, validation des présences depuis l'emploi du temps).
@@ -355,9 +355,9 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             leur code sont verrouillés. Seule leur <strong>couleur</strong> est modifiable.
           </span>
         </div>
-        <table className="w-full text-xs" aria-label="Types de présence">
+        <table className="liste w-full text-xs" aria-label="Types de présence">
           <thead>
-            <tr className="border-b border-warm-100 bg-warm-50">
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th className="list-th w-10"></th>
               <th className="list-th">Libellé</th>
               <th className="list-th">Code</th>
@@ -374,8 +374,8 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                 <tr
                   key={row.id}
                   className={clsx(
-                    'hover:bg-warm-100 transition-colors',
-                    !row.is_active && 'opacity-50'
+                    'transition-colors',
+                    !row.is_active && 'bg-warm-50'
                   )}
                 >
                   <td className="list-td">
@@ -394,7 +394,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                     <span className={clsx(
                       'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
                       row.is_active
-                        ? 'bg-primary-50 text-primary-700'
+                        ? 'bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
                         : 'bg-warm-100 text-warm-700'
                     )}>
                       {row.is_active ? 'Actif' : 'Inactif'}
@@ -412,7 +412,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             disabled={!!editing}
                             aria-label={`Modifier la couleur de ${row.label}`}
                             className={clsx(
-                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]',
                               editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100'
                             )}
                           >
@@ -425,7 +425,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                         <button
                           onClick={() => remove(row.id)}
                           disabled={saving}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                          className="text-xs text-red-700 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                         >
                           Confirmer
                         </button>
@@ -444,7 +444,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             disabled={!!editing}
                             aria-label={`Modifier ${row.label}`}
                             className={clsx(
-                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50',
+                              'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]',
                               editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100'
                             )}
                           >
@@ -458,7 +458,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
                             aria-label={`Supprimer ${row.label}`}
                             className={clsx(
                               'p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-400/60',
-                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-600 hover:bg-red-50'
+                              editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-700 hover:bg-red-50'
                             )}
                           >
                             <Trash2 size={15} />
@@ -475,7 +475,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
             {editing && !editing.id && editingRow}
 
             {sortedRows.length === 0 && !editing && (
-              <tr>
+              <tr className="sans-survol">
                 <td colSpan={5} className="px-4 py-12 text-center text-sm text-warm-700">
                   Aucun type de présence configuré.
                 </td>

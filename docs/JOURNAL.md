@@ -8734,3 +8734,32 @@ marque ; les vraies ecoles gardent leur plaque.
   `neutre` si a reverifier ; etat de l'annee Purgee `danger`, Close `ok`, En cours `neutre`. Resume sans
   anomalie, « Corriger », conditions remplies et « Archivee le » au vert de marque ; croix et icone en
   `orange-700`. Choix d'epuration en `FiltreSwitch` (enregistre au clic, comme avant).
+
+#### 21 octobre 2026 — Refonte : Parametres et Mon compte (lot unique)
+
+- **Consigne utilisateur** : inspecter toutes les pages Parametres + Mon compte, appliquer les regles deja
+  validees, puis commit + push si les controles passent. Les points qui demandent un CHOIX sont listes, non
+  appliques.
+- **Passage mecanique** (`scratchpad/marque.py`, 22 fichiers dont Classes) : `primary-*` -> jetons de marque
+  (texte, fond doux, plein avec texte fonce en sombre, bordure, halo de focus, `accent-`) ; textes
+  rouge / ambre / orange `-400` a `-600` -> `-700` (variantes `dark:` intactes). Plus aucun turquoise.
+- **Hors charte** : encadres d'information bleus -> `ton-info` (fiche enseignant, types de presence,
+  cotisations) ; pastilles en `Puce` : etat du materiel (Neuf `ok`, Bon `info`, Use `attente`, Hors service
+  `danger`), actions du journal (Creation `ok`, Modification `info`, Suppression `danger`, Connexion `neutre`,
+  Deconnexion `attente`), reduction fratrie (=type `attente`, tous `info`) ; 2FA activee au vert de marque.
+- **Tableaux en `.liste`** (annees, types de presence, salles, materiels, aide messagerie, documents et
+  assiduite d'un enseignant, cotisations + historique, journal, gabarits d'un cours, creneaux d'une classe) :
+  en-tete `liste-entete`, survol de la charte, `.sans-survol` sur intertitres, vides et lignes d'ETAT
+  (annee en cours, type en edition, creneau actif) ; type de presence inactif en `bg-warm-50` au lieu de
+  `opacity-50`.
+- `<h1>` -> `<h2>` (fiche enseignant, fiche utilisateur) ; « Ajouter » d'Enseignants et Utilisateurs en
+  `FloatButton href` ; recadrage du logo : curseur au vert de marque, boutons `size="mini"`.
+- **Fiche classe, encadre Planning EDT** (signale par l'utilisateur) : creneau « actif » calcule avec
+  `toISOString()` (UTC : la veille entre minuit et 2 h) -> date locale, ainsi que `todayISO()` et le creneau
+  de reference a l'enregistrement ; tableau en `.liste` ; plage `09:00-12:00` (et non `09:00 · 12:00`) ;
+  compteur et « Actif » en `Puce`.
+- **Controles** : type-check OK, lint 0 erreur (649 avertissements, inchange), 123 tests OK, build OK.
+- **Laisse en l'etat, a trancher** : modales Vacances et jours feries, Purge du journal, Recadrage du logo,
+  Confirmation d'affectation (fiche classe) — faites main mais portees dans `<body>` et fermees par X /
+  Annuler ; leur structure (calendrier 5 colonnes, deux etapes, recadreur sans marge) ne rentre pas telle
+  quelle dans `FormModal`.

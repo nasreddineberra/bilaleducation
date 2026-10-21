@@ -63,9 +63,9 @@ export default function TeacherDetail({ teacher, documents: initialDocuments, as
           {initiales}
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg font-bold text-secondary-800 leading-tight truncate">
+          <h2 className="text-lg font-bold text-secondary-800 leading-tight truncate">
             {teacher.last_name} {teacher.first_name}
-          </h1>
+          </h2>
           <div className="flex items-center gap-2 text-xs text-warm-700 mt-0.5 flex-wrap">
             <span className="font-mono">{teacher.employee_number}</span>
             {teacher.specialization && <span>· {teacher.specialization}</span>}

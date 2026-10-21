@@ -184,7 +184,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           <button
             onClick={() => setDeleteError(null)}
             aria-label="Fermer le message d'erreur"
-            className="text-red-400 hover:text-red-600 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+            className="text-red-700 hover:text-red-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
           >
             <X size={14} />
           </button>
@@ -277,7 +277,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                         : titulaire
                           // Un titulaire existe mais sa fiche n'est pas lisible par ce role : pas d'alerte.
                           ? <span className="text-warm-700">·</span>
-                          : <span className="text-red-600 text-xs font-semibold">Sans titulaire</span>}
+                          : <span className="text-red-700 text-xs font-semibold">Sans titulaire</span>}
                     </td>
                     <td className="list-td">
                       {remplacements.length === 0 ? (
@@ -310,7 +310,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                           <button
                             onClick={() => startDelete(cls)}
                             aria-label={`Supprimer ${cls.name}`}
-                            className="p-1.5 text-warm-700 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
+                            className="p-1.5 text-warm-700 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -336,7 +336,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
         >
           <div className="space-y-3">
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <AlertTriangle size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <AlertTriangle size={16} className="text-amber-700 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-amber-800">
                 Cette action est irréversible. Les éléments suivants seront supprimés :
               </p>
@@ -387,7 +387,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
               autoFocus
             />
             {deleteError && (
-              <p className="text-sm text-red-600">{deleteError}</p>
+              <p className="text-sm text-red-700">{deleteError}</p>
             )}
           </div>
         </ConfirmModal>

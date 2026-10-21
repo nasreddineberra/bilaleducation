@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { AuditLog, AuditAction } from '@/types/database'
@@ -85,12 +86,13 @@ const ENTITY_LABELS: Record<string, string> = {
 }
 
 
-const ACTION_CONFIG: Record<AuditAction, { label: string; bg: string; text: string }> = {
-  INSERT: { label: 'Création',     bg: 'bg-green-100', text: 'text-green-700' },
-  UPDATE: { label: 'Modification', bg: 'bg-blue-100',  text: 'text-blue-700' },
-  DELETE: { label: 'Suppression',  bg: 'bg-red-100',   text: 'text-red-700' },
-  LOGIN:  { label: 'Connexion',    bg: 'bg-secondary-100', text: 'text-secondary-700' },
-  LOGOUT: { label: 'Déconnexion',  bg: 'bg-amber-100',   text: 'text-amber-700' },
+// Actions en `Puce` (21/10) : vert et bleu generiques etaient hors charte.
+const ACTION_CONFIG: Record<AuditAction, { label: string; ton: Ton }> = {
+  INSERT: { label: 'Création',     ton: 'ok' },
+  UPDATE: { label: 'Modification', ton: 'info' },
+  DELETE: { label: 'Suppression',  ton: 'danger' },
+  LOGIN:  { label: 'Connexion',    ton: 'neutre' },
+  LOGOUT: { label: 'Déconnexion',  ton: 'attente' },
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -141,7 +143,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
         onClick={() => onNavigate(page - 1)}
         disabled={page === 1}
         aria-label="Page précédente"
-        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
       >
         <ChevronLeft size={15} />
       </button>
@@ -154,7 +156,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
             onClick={() => onNavigate(p)}
             aria-label={`Page ${p}`}
             aria-current={p === page ? 'page' : undefined}
-            className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${
+            className={`min-w-[30px] h-[30px] rounded-lg text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] ${
               p === page
                 ? 'bg-[var(--brand-surface)] text-white shadow-sm dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
                 : 'text-secondary-600 hover:bg-warm-100'
@@ -168,7 +170,7 @@ function PaginationBar({ page, totalPages, onNavigate }: {
         onClick={() => onNavigate(page + 1)}
         disabled={page === totalPages}
         aria-label="Page suivante"
-        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        className="p-1.5 rounded-lg text-warm-700 hover:text-secondary-700 hover:bg-warm-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
       >
         <ChevronRight size={15} />
       </button>
@@ -372,7 +374,7 @@ export default function AuditLogsClient({
         {(filters.user || filters.date_from || filters.date_to || filters.entity_type || filters.action) && (
           <button
             onClick={() => navigate({ user: '', date_from: '', date_to: '', entity_type: '', action: '', page: 1 })}
-            className="text-xs text-red-500 hover:text-red-700 underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+            className="text-xs text-red-700 hover:text-red-700 underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
           >
             Réinitialiser
           </button>
@@ -443,7 +445,7 @@ export default function AuditLogsClient({
                       className={clsx(
                         'flex items-start gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-colors',
                         purgeJours === o.jours
-                          ? 'border-primary-500 bg-primary-50'
+                          ? 'border-[var(--brand-surface)] dark:border-[var(--brand-accent)] bg-[var(--brand-tint)]'
                           : 'border-warm-200 hover:bg-warm-50',
                       )}
                     >
@@ -531,9 +533,9 @@ export default function AuditLogsClient({
 
       {/* Tableau */}
       <div className="card flex-1 overflow-hidden">
-        <table className="w-full text-sm" aria-label="Journal d'activité">
+        <table className="liste w-full text-sm" aria-label="Journal d'activité">
           <thead>
-            <tr className="border-b border-warm-200 text-left text-xs text-warm-700 uppercase tracking-wider">
+            <tr className="liste-entete border-b border-[var(--card-border)] text-left text-xs uppercase tracking-wider">
               <th className="py-2 px-3 whitespace-nowrap">Date</th>
               <th className="py-2 px-3 whitespace-nowrap">Utilisateur</th>
               <th className="py-2 px-3 whitespace-nowrap">Action</th>
@@ -575,7 +577,7 @@ export default function AuditLogsClient({
                           : ''
 
                 return (
-                  <tr key={log.id} className="border-b border-warm-100 hover:bg-warm-100 transition-colors">
+                  <tr key={log.id} className="border-b border-warm-100">
                     <td className="py-1.5 px-3 text-xs text-secondary-600 whitespace-nowrap">
                       {fmtDate(log.created_at)}
                     </td>
@@ -586,9 +588,9 @@ export default function AuditLogsClient({
                       )}
                     </td>
                     <td className="py-1.5 px-3 whitespace-nowrap">
-                      <span className={clsx('inline-block px-2 py-0.5 rounded text-xs font-medium', ac.bg, ac.text)}>
+                      <Puce ton={ac.ton}>
                         {ac.label}
-                      </span>
+                      </Puce>
                     </td>
                     <td className="py-1.5 px-3">
                       <span className="text-secondary-600">{ENTITY_LABELS[log.entity_type] ?? log.entity_type}</span>

@@ -387,7 +387,7 @@ function LogoField({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className={`${linkCls} text-primary-700 hover:text-primary-800 focus-visible:ring-primary-500/50`}
+          className={`${linkCls} text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] focus-visible:ring-[var(--brand-focus)]`}
         >
           {logoUrl ? 'Changer' : 'Importer'}
         </button>
@@ -396,7 +396,7 @@ function LogoField({
             type="button"
             onClick={() => setConfirmDelete(true)}
             disabled={isUploading}
-            className={`${linkCls} text-red-500 hover:text-red-700 focus-visible:ring-red-500/50`}
+            className={`${linkCls} text-red-700 hover:text-red-700 focus-visible:ring-red-500/50`}
           >
             Supprimer
           </button>
@@ -407,7 +407,7 @@ function LogoField({
               type="button"
               onClick={() => { setConfirmDelete(false); handleDelete() }}
               disabled={isUploading}
-              className={`${linkCls} font-semibold text-red-600 hover:text-red-800 focus-visible:ring-red-500/50`}
+              className={`${linkCls} font-semibold text-red-700 hover:text-red-800 focus-visible:ring-red-500/50`}
             >
               Confirmer ?
             </button>
@@ -420,7 +420,7 @@ function LogoField({
             </button>
           </div>
         )}
-        {uploadError && <p role="alert" className="text-[10px] text-red-500 text-center">{uploadError}</p>}
+        {uploadError && <p role="alert" className="text-[10px] text-red-700 text-center">{uploadError}</p>}
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
@@ -447,7 +447,7 @@ function LogoField({
                 type="button"
                 onClick={closeCrop}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
               >
                 <X size={16} />
               </button>
@@ -472,14 +472,14 @@ function LogoField({
                   value={zoom}
                   onChange={e => setZoom(Number(e.target.value))}
                   aria-label="Zoom du logo"
-                  className="w-full accent-amber-500"
+                  className="w-full accent-[var(--brand-surface)]"
                 />
               </label>
               <div className="flex justify-end gap-2">
-                <FloatButton type="button" variant="secondary" onClick={closeCrop} className="!py-1.5 !px-3">
+                <FloatButton type="button" variant="secondary" size="mini" onClick={closeCrop}>
                   Annuler
                 </FloatButton>
-                <FloatButton type="button" variant="submit" onClick={handleCropConfirm} disabled={isUploading} className="!py-1.5 !px-3">
+                <FloatButton type="button" variant="submit" size="mini" onClick={handleCropConfirm} disabled={isUploading}>
                   {isUploading ? 'Envoi…' : 'Valider'}
                 </FloatButton>
               </div>

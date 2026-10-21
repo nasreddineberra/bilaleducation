@@ -58,8 +58,8 @@ export default function TwoFactorCard() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {enrolled
-              ? <ShieldCheck size={18} className="text-emerald-600 flex-shrink-0" />
-              : <ShieldAlert size={18} className="text-amber-500 flex-shrink-0" />}
+              ? <ShieldCheck size={18} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] flex-shrink-0" />
+              : <ShieldAlert size={18} className="text-amber-700 flex-shrink-0" />}
             <div>
               <p className="text-sm font-medium text-secondary-800">{enrolled ? 'Activée' : 'Non configurée'}</p>
               <p className="text-[11px] text-warm-700">

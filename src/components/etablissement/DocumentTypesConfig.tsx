@@ -204,7 +204,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                     <button
                       onClick={() => handleInitCategory(cat.key)}
                       disabled={initializingCat === cat.key}
-                      className="text-[11px] text-primary-700 hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-40"
+                      className="text-[11px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] disabled:opacity-40"
                     >
                       {initializingCat === cat.key ? 'Initialisation...' : 'Types par défaut'}
                     </button>
@@ -223,7 +223,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                       aria-pressed={d.is_required}
                       aria-label={`${d.label} : ${d.is_required ? 'requis' : 'optionnel'} · cliquer pour basculer`}
                       className={clsx(
-                        'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                        'text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
                         d.is_required
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
                           : 'bg-warm-100 text-warm-700 hover:bg-warm-200'
@@ -235,7 +235,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                     {/* Suppression */}
                     {confirmDelete === d.id ? (
                       <div className="flex items-center gap-1 text-[11px]">
-                        <button onClick={() => handleDelete(d.id)} className="text-red-600 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Oui</button>
+                        <button onClick={() => handleDelete(d.id)} className="text-red-700 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Oui</button>
                         <button onClick={() => setConfirmDelete(null)} className="text-warm-700 font-semibold hover:underline rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Non</button>
                       </div>
                     ) : (
@@ -243,7 +243,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                         <button
                           onClick={() => setConfirmDelete(d.id)}
                           aria-label={`Supprimer ${d.label}`}
-                          className="text-warm-700 hover:text-red-500 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                          className="text-warm-700 hover:text-red-700 transition-opacity opacity-0 group-hover:opacity-100 focus-visible:opacity-100 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -279,7 +279,7 @@ export default function DocumentTypesConfig({ etablissementId, initialDocTypes }
                         onClick={() => handleAdd(cat.key)}
                         disabled={saving || !newLabel.trim()}
                         aria-label="Valider"
-                        className="text-primary-600 hover:text-primary-700 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                        className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                       >
                         <Check size={14} />
                       </button>

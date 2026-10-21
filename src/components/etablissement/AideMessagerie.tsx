@@ -95,9 +95,9 @@ export default function AideMessagerie({ onClose }: { onClose: () => void }) {
       <section className="space-y-1.5">
         <h3 className="section-title">Réglages des fournisseurs courants</h3>
         <div className="card p-0 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-warm-50 border-b border-warm-100">
-              <tr>
+          <table className="liste w-full">
+            <thead>
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th-compact">Fournisseur</th>
                 <th scope="col" className="list-th-compact">Serveur</th>
                 <th scope="col" className="list-th-compact">Port</th>

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { Pencil, Trash2 } from 'lucide-react'
@@ -37,11 +38,12 @@ const CONDITION_LABELS: Record<MaterialCondition, string> = {
   hors_service: 'Hors service',
 }
 
-const CONDITION_COLORS: Record<MaterialCondition, string> = {
-  neuf: 'bg-emerald-100 text-emerald-700',
-  bon: 'bg-sky-100 text-sky-700',
-  use: 'bg-amber-100 text-amber-700',
-  hors_service: 'bg-red-100 text-red-700',
+// Etat du materiel en `Puce` (21/10) : emeraude et bleu ciel etaient hors charte.
+const CONDITION_TON: Record<MaterialCondition, Ton> = {
+  neuf: 'ok',
+  bon: 'info',
+  use: 'attente',
+  hors_service: 'danger',
 }
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -264,7 +266,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
             </FloatButton>
           </div>
 
-          {roomError && <p role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{roomError}</p>}
+          {roomError && <p role="alert" aria-live="assertive" className="text-xs text-red-700 bg-red-50 rounded-xl px-3 py-2">{roomError}</p>}
 
           {/* Add / Edit form */}
           {(addingRoom || editingRoom) && (
@@ -311,7 +313,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 onChange={e => setRoomForm(p => ({ ...p, description: e.target.value }))}
               />
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> obligatoire</span>
+                <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
                 <div className="flex-1" />
                 <FloatButton type="button" variant="secondary" onClick={cancelRoom} disabled={roomSaving}>Annuler</FloatButton>
                 <FloatButton type="button" variant={editingRoom ? 'edit' : 'submit'} onClick={saveRoom} disabled={roomSaving || !roomFormValid || roomUnchanged}>
@@ -323,9 +325,9 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
 
           {/* List */}
           <div className="card p-0 overflow-hidden">
-            <table className="w-full text-xs" aria-label="Salles">
+            <table className="liste w-full text-xs" aria-label="Salles">
               <thead>
-                <tr className="border-b border-warm-100 bg-warm-50">
+                <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th className="list-th">Nom</th>
                   <th className="list-th">Type</th>
                   <th className="list-th text-center">Cap.</th>
@@ -335,14 +337,14 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {filteredRooms.length === 0 && (
-                  <tr><td colSpan={5} className="text-sm text-warm-700 text-center py-6">Aucune salle</td></tr>
+                  <tr className="sans-survol"><td colSpan={5} className="text-sm text-warm-700 text-center py-6">Aucune salle</td></tr>
                 )}
                 {filteredRooms.map(r => (
-                  <tr key={r.id} onClick={() => startEditRoom(r)} className={clsx('cursor-pointer transition-colors', r.is_available ? 'hover:bg-warm-100' : 'bg-warm-50/60')}>
+                  <tr key={r.id} onClick={() => startEditRoom(r)} className={clsx('cursor-pointer transition-colors', !r.is_available && 'bg-warm-50/60')}>
                     <td className="list-td whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span className="list-name text-secondary-800">{r.name}</span>
-                        {!r.is_available && <span className="text-[10px] bg-red-100 text-red-600 rounded px-1.5 py-0.5 font-medium">Indispo</span>}
+                        {!r.is_available && <span className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 font-medium">Indispo</span>}
                       </div>
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">
@@ -357,16 +359,16 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                       <div className="flex items-center gap-1 justify-end">
                         {confirmDeleteRoom === r.id ? (
                           <>
-                            <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                            <button onClick={() => deleteRoom(r.id)} className="text-xs text-red-700 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
                             <button onClick={() => setConfirmDeleteRoom(null)} className="text-xs text-warm-700 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
                           </>
                         ) : (
                           <>
                             <Tooltip content="Modifier">
-                              <button onClick={() => startEditRoom(r)} aria-label={`Modifier ${r.name}`} className="p-1.5 text-warm-700 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
+                              <button onClick={() => startEditRoom(r)} aria-label={`Modifier ${r.name}`} className="p-1.5 text-warm-700 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"><Pencil size={14} /></button>
                             </Tooltip>
                             <Tooltip content="Supprimer">
-                              <button onClick={() => { setConfirmDeleteRoom(r.id); setRoomError('') }} aria-label={`Supprimer ${r.name}`} className="p-1.5 text-warm-700 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
+                              <button onClick={() => { setConfirmDeleteRoom(r.id); setRoomError('') }} aria-label={`Supprimer ${r.name}`} className="p-1.5 text-warm-700 hover:text-red-700 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
                             </Tooltip>
                           </>
                         )}
@@ -395,7 +397,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
             </FloatButton>
           </div>
 
-          {matError && <p role="alert" aria-live="assertive" className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{matError}</p>}
+          {matError && <p role="alert" aria-live="assertive" className="text-xs text-red-700 bg-red-50 rounded-xl px-3 py-2">{matError}</p>}
 
           {/* Add / Edit form */}
           {(addingMat || editingMat) && (
@@ -459,7 +461,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
                 onChange={e => setMatForm(p => ({ ...p, notes: e.target.value }))}
               />
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> obligatoire</span>
+                <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
                 <div className="flex-1" />
                 <FloatButton type="button" variant="secondary" onClick={cancelMat} disabled={matSaving}>Annuler</FloatButton>
                 <FloatButton type="button" variant={editingMat ? 'edit' : 'submit'} onClick={saveMat} disabled={matSaving || !matFormValid || matUnchanged}>
@@ -471,9 +473,9 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
 
           {/* List */}
           <div className="card p-0 overflow-hidden">
-            <table className="w-full text-xs" aria-label="Matériels">
+            <table className="liste w-full text-xs" aria-label="Matériels">
               <thead>
-                <tr className="border-b border-warm-100 bg-warm-50">
+                <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th className="list-th">Nom</th>
                   <th className="list-th">Catégorie</th>
                   <th className="list-th text-center">Qté</th>
@@ -484,33 +486,33 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {filteredMats.length === 0 && (
-                  <tr><td colSpan={6} className="text-sm text-warm-700 text-center py-6">Aucun matériel</td></tr>
+                  <tr className="sans-survol"><td colSpan={6} className="text-sm text-warm-700 text-center py-6">Aucun matériel</td></tr>
                 )}
                 {filteredMats.map(m => (
-                  <tr key={m.id} onClick={() => startEditMat(m)} className={clsx('cursor-pointer transition-colors', m.condition === 'hors_service' ? 'bg-warm-50/60' : 'hover:bg-warm-100')}>
+                  <tr key={m.id} onClick={() => startEditMat(m)} className={clsx('cursor-pointer transition-colors', m.condition === 'hors_service' && 'bg-warm-50/60')}>
                     <td className="list-td whitespace-nowrap">
                       <span className="list-name text-secondary-800">{m.name}</span>
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">{MATERIAL_CATEGORY_LABELS[m.category]}</td>
                     <td className="list-td text-center text-secondary-600">{m.quantity}</td>
                     <td className="list-td whitespace-nowrap">
-                      <span className={clsx('text-[10px] rounded px-1.5 py-0.5 font-medium', CONDITION_COLORS[m.condition])}>{CONDITION_LABELS[m.condition]}</span>
+                      <Puce ton={CONDITION_TON[m.condition]}>{CONDITION_LABELS[m.condition]}</Puce>
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">{m.rooms?.name || <span className="text-warm-700">·</span>}</td>
                     <td className="list-td whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1 justify-end">
                         {confirmDeleteMat === m.id ? (
                           <>
-                            <button onClick={() => deleteMat(m.id)} className="text-xs text-red-600 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                            <button onClick={() => deleteMat(m.id)} className="text-xs text-red-700 hover:text-red-700 font-medium px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
                             <button onClick={() => setConfirmDeleteMat(null)} className="text-xs text-warm-700 hover:text-warm-700 px-2 rounded outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
                           </>
                         ) : (
                           <>
                             <Tooltip content="Modifier">
-                              <button onClick={() => startEditMat(m)} aria-label={`Modifier ${m.name}`} className="p-1.5 text-warm-700 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50"><Pencil size={14} /></button>
+                              <button onClick={() => startEditMat(m)} aria-label={`Modifier ${m.name}`} className="p-1.5 text-warm-700 hover:text-secondary-600 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]"><Pencil size={14} /></button>
                             </Tooltip>
                             <Tooltip content="Supprimer">
-                              <button onClick={() => { setConfirmDeleteMat(m.id); setMatError('') }} aria-label={`Supprimer ${m.name}`} className="p-1.5 text-warm-700 hover:text-red-500 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
+                              <button onClick={() => { setConfirmDeleteMat(m.id); setMatError('') }} aria-label={`Supprimer ${m.name}`} className="p-1.5 text-warm-700 hover:text-red-700 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50"><Trash2 size={14} /></button>
                             </Tooltip>
                           </>
                         )}

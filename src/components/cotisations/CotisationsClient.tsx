@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil, Trash2, CheckCircle2, AlertTriangle, Info } from 'lucide-react'
 import { clsx } from 'clsx'
+import { Puce } from '@/components/dashboard/tdb'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
@@ -78,7 +79,7 @@ function InfoHint({ text }: { text: string }) {
       <button
         type="button"
         aria-label={text}
-        className="inline-flex text-warm-700 hover:text-secondary-600 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+        className="inline-flex text-warm-700 hover:text-secondary-600 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
       >
         <Info size={12} />
       </button>
@@ -256,7 +257,7 @@ export default function CotisationsClient({
           <div className="flex-[2] min-w-0 overflow-x-auto">
           {/* Formulaire d'édition */}
           {editing && (
-            <div className="p-4 border-b border-warm-100 bg-primary-50/20 space-y-3">
+            <div className="p-4 border-b border-warm-100 bg-[var(--brand-tint)] space-y-3">
               <div className="flex flex-wrap items-start gap-2">
                 <div className="w-48">
                   <FloatInput
@@ -270,7 +271,7 @@ export default function CotisationsClient({
                   />
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                      <input type="checkbox" checked={editing.is_adult} onChange={e => setEditing({ ...editing, is_adult: e.target.checked })} className="accent-primary-600 w-3.5 h-3.5" />
+                      <input type="checkbox" checked={editing.is_adult} onChange={e => setEditing({ ...editing, is_adult: e.target.checked })} className="accent-[var(--brand-surface)] w-3.5 h-3.5" />
                       <span className="text-xs text-secondary-600">Cours adultes</span>
                     </label>
                     <InfoHint text="Les classes de ce type seront réservées aux adultes." />
@@ -345,13 +346,13 @@ export default function CotisationsClient({
                   <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>Annuler</FloatButton>
                 </div>
               </div>
-              <span className="block text-xs text-warm-700"><span className="font-semibold text-red-400">*</span> champs obligatoires</span>
+              <span className="block text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> champs obligatoires</span>
             </div>
           )}
 
-          <table className="w-full text-left text-xs" aria-label={`Types de cotisations · ${currentYear.label}`}>
+          <table className="liste w-full text-left text-xs" aria-label={`Types de cotisations · ${currentYear.label}`}>
             <thead>
-              <tr className="border-b border-warm-100">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th className="list-th">Type</th>
                 <th className="list-th text-right">Cotisation</th>
                 <th className="list-th text-right">Dossier</th>
@@ -362,7 +363,7 @@ export default function CotisationsClient({
             </thead>
             <tbody className="divide-y divide-warm-50">
               {rows.map(row => (
-                <tr key={row.id} className={clsx('transition-colors', editing?.id === row.id ? 'bg-primary-50/40' : 'hover:bg-warm-100')}>
+                <tr key={row.id} className={clsx('transition-colors', editing?.id === row.id && 'sans-survol bg-[var(--brand-tint)]')}>
                   <td className="list-td">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="list-name text-secondary-800">{row.label}</span>
@@ -375,9 +376,9 @@ export default function CotisationsClient({
                     {row.sibling_discount > 0 ? (
                       <span className="inline-flex items-center gap-1 justify-end">
                         -{fmtEur(row.sibling_discount)}
-                        <span className={clsx('text-[10px] px-1 py-0.5 rounded-full font-medium', row.sibling_discount_same_type ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700')}>
+                        <Puce ton={row.sibling_discount_same_type ? 'attente' : 'info'}>
                           {row.sibling_discount_same_type ? '=type' : 'tous'}
-                        </span>
+                        </Puce>
                       </span>
                     ) : <span className="text-warm-700">·</span>}
                   </td>
@@ -385,16 +386,16 @@ export default function CotisationsClient({
                   <td className="list-td">
                     {confirmDeleteId === row.id ? (
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => remove(row.id)} disabled={saving} className="text-[11px] text-red-600 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
+                        <button onClick={() => remove(row.id)} disabled={saving} className="text-[11px] text-red-700 hover:text-red-700 font-medium rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50">Confirmer</button>
                         <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] text-warm-700 hover:text-warm-700 rounded px-1 outline-none focus-visible:ring-2 focus-visible:ring-warm-400/50">Annuler</button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-0.5">
                         <Tooltip content="Modifier">
-                          <button onClick={() => startEdit(row)} disabled={!!editing} aria-label={`Modifier ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100')}><Pencil size={13} /></button>
+                          <button onClick={() => startEdit(row)} disabled={!!editing} aria-label={`Modifier ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100')}><Pencil size={13} /></button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
-                          <button onClick={() => startDelete(row)} disabled={!!editing} aria-label={`Supprimer ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-600 hover:bg-red-50')}><Trash2 size={13} /></button>
+                          <button onClick={() => startDelete(row)} disabled={!!editing} aria-label={`Supprimer ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-700 hover:bg-red-50')}><Trash2 size={13} /></button>
                         </Tooltip>
                       </div>
                     )}
@@ -402,7 +403,7 @@ export default function CotisationsClient({
                 </tr>
               ))}
               {rows.length === 0 && !editing && (
-                <tr><td colSpan={6} className="px-3 py-8 text-center text-warm-700">Aucun type configuré pour cette année.</td></tr>
+                <tr className="sans-survol"><td colSpan={6} className="px-3 py-8 text-center text-warm-700">Aucun type configuré pour cette année.</td></tr>
               )}
             </tbody>
           </table>
@@ -416,9 +417,9 @@ export default function CotisationsClient({
             {pastYears.length === 0 ? (
               <p className="px-4 py-8 text-xs text-warm-700 text-center italic">Aucun historique disponible.</p>
             ) : (
-              <table className="w-full text-left text-[11px]" aria-label="Historique des types de cotisations">
+              <table className="liste w-full text-left text-[11px]" aria-label="Historique des types de cotisations">
                 <thead>
-                  <tr className="border-b border-warm-100 text-[10px] uppercase tracking-wide text-warm-700">
+                  <tr className="liste-entete border-b border-[var(--card-border)] text-[10px] uppercase tracking-wide">
                     <th className="px-2 py-1 font-semibold">Type</th>
                     <th className="px-2 py-1 font-semibold text-right">Cotis.</th>
                     <th className="px-2 py-1 font-semibold text-right">Dossier</th>
@@ -431,11 +432,11 @@ export default function CotisationsClient({
                     const yearCotisations = allCotisationTypes.filter((c: any) => c.school_year_id === year.id)
                     return (
                       <Fragment key={year.id}>
-                        <tr className="bg-warm-100/50">
+                        <tr className="sans-survol bg-warm-100/50">
                           <td colSpan={5} className="px-2 py-1 text-[11px] font-bold text-secondary-700">{year.label}</td>
                         </tr>
                         {yearCotisations.length > 0 ? yearCotisations.map((c: any) => (
-                          <tr className="transition-colors hover:bg-warm-100" key={c.id}>
+                          <tr key={c.id}>
                             <td className="px-2 py-1 text-secondary-800 whitespace-nowrap">{c.label}{c.is_adult ? <span className="ml-1 text-violet-600 font-semibold">·A</span> : null}</td>
                             <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{fmtEur(c.amount)}</td>
                             <td className="px-2 py-1 text-right text-secondary-700 tabular-nums whitespace-nowrap">{c.registration_fee > 0 ? fmtEur(c.registration_fee) : <span className="text-warm-700">·</span>}</td>
@@ -443,7 +444,7 @@ export default function CotisationsClient({
                             <td className="px-2 py-1 text-center text-warm-700 whitespace-nowrap">{c.max_installments === 1 ? 'Comptant' : `${c.max_installments}x`}</td>
                           </tr>
                         )) : (
-                          <tr><td colSpan={5} className="px-2 py-2 text-center text-[11px] text-warm-700 italic">Aucune donnée</td></tr>
+                          <tr className="sans-survol"><td colSpan={5} className="px-2 py-2 text-center text-[11px] text-warm-700 italic">Aucune donnée</td></tr>
                         )}
                       </Fragment>
                     )
@@ -480,8 +481,8 @@ export default function CotisationsClient({
                 !allRatesSaved
                   ? 'bg-amber-50 border-amber-200 text-amber-700'
                   : isRatesDirty
-                    ? 'bg-blue-50 border-blue-200 text-blue-700'
-                    : 'bg-primary-50 border-primary-100 text-primary-600'
+                    ? 'ton-info'
+                    : 'bg-[var(--brand-tint)] border-[var(--brand-line)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
               )}
             >
               {!allRatesSaved ? (
@@ -510,7 +511,7 @@ export default function CotisationsClient({
             {presenceTypes.length === 0 ? (
               <p className="text-sm text-warm-700 italic">
                 Aucun type de présence configuré.{' '}
-                <Link href="/dashboard/types-presence" className="text-primary-600 hover:underline">Configurer</Link>
+                <Link href="/dashboard/types-presence" className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline">Configurer</Link>
               </p>
             ) : (
               <>
@@ -519,10 +520,10 @@ export default function CotisationsClient({
                     const isMissing = !pt.is_absence && !(pt.id in initialRateMap)
                     return (
                     <div key={pt.id} className="w-32">
-                      <label htmlFor={`rate-${pt.id}`} className={clsx('flex items-center gap-1 text-xs font-medium mb-1 truncate', isMissing ? 'text-amber-600' : 'text-warm-700')}>
+                      <label htmlFor={`rate-${pt.id}`} className={clsx('flex items-center gap-1 text-xs font-medium mb-1 truncate', isMissing ? 'text-amber-700' : 'text-warm-700')}>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: pt.color }} />
                         <span className="truncate">{pt.label}</span>
-                        {isMissing && <AlertTriangle size={11} className="text-amber-500 flex-shrink-0 ml-auto" />}
+                        {isMissing && <AlertTriangle size={11} className="text-amber-700 flex-shrink-0 ml-auto" />}
                       </label>
                       {(() => {
                         // `title=` natif remplace par le `Tooltip` du projet : une
@@ -578,7 +579,7 @@ export default function CotisationsClient({
                       }}>
                         {rateSaving ? 'Enregistrement...' : 'Enregistrer'}
                       </FloatButton>
-                      <span role="status" aria-live="polite" className="flex items-center gap-1 text-xs text-primary-600">
+                      <span role="status" aria-live="polite" className="flex items-center gap-1 text-xs text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">
                         {rateSuccess && <><CheckCircle2 size={13} /> {rateSuccess}</>}
                       </span>
                   </div>

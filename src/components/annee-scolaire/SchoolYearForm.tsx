@@ -387,9 +387,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
   // Badge affiché sur le type verrouillé
   const lockBadge = (type: FormEvalType) => {
     if (gradedEvalTypes.includes(type))
-      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Notes saisies · verrouillé</span>
+      return <span className="ml-2 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Notes saisies · verrouillé</span>
     if (usedEvalTypes.includes(type))
-      return <span className="ml-2 text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Utilisé dans gabarit · verrouillé</span>
+      return <span className="ml-2 text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full font-medium">Utilisé dans gabarit · verrouillé</span>
     return null
   }
 
@@ -598,7 +598,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
           L'état vit sur l'année elle-même : il se lit ici, sans aller le chercher
           ailleurs. Le lien renvoie à l'écran qui pilote le cycle. */}
       {schoolYear?.closed_at && (
-        <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-primary-50 border border-primary-200 text-[11px] text-primary-800">
+        <div role="status" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[var(--brand-tint)] border border-[var(--brand-line)] text-[11px] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]">
           <Lock size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
           <span>
             <b>Année clôturée</b> le {new Date(schoolYear.closed_at).toLocaleDateString('fr-FR')}
@@ -606,7 +606,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             {schoolYear.archived_at ? ` · archivée le ${new Date(schoolYear.archived_at).toLocaleDateString('fr-FR')}` : ' · non archivée'}
             {schoolYear.purged_at ? ` · purgée le ${new Date(schoolYear.purged_at).toLocaleDateString('fr-FR')}` : ''}
             {'. '}
-            <Link href="/dashboard/passage-annee" className="underline underline-offset-2 hover:no-underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-400">
+            <Link href="/dashboard/passage-annee" className="underline underline-offset-2 hover:no-underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
               Passage d’année
             </Link>
           </span>
@@ -652,7 +652,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 checked={form.is_current}
                 onChange={e => set('is_current', e.target.checked)}
                 disabled={anotherYearIsCurrent}
-                className="w-4 h-4 accent-primary-500 disabled:opacity-60"
+                className="w-4 h-4 accent-[var(--brand-surface)] disabled:opacity-60"
               />
               <span className="text-sm text-secondary-700 select-none">Année en cours</span>
             </label>
@@ -777,9 +777,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <h2 className="section-title">
-                  Répartition <span className="text-red-400">*</span>
+                  Répartition <span className="text-red-700">*</span>
                 </h2>
-                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies · verrouillé</span>}
+                {(gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) && <span className="text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Notes saisies · verrouillé</span>}
               </div>
             <div className="flex gap-2">
               {([
@@ -792,7 +792,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     'flex items-center gap-2 flex-1 px-3 py-2 rounded-xl border transition-colors',
                     (readOnly || gradedEvalTypes.length > 0 || usedEvalTypes.length > 0) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
                     form.period_type === opt.value
-                      ? 'border-primary-400 bg-primary-50'
+                      ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]'
                       : 'border-warm-200 bg-white hover:border-warm-300'
                   )}
                 >
@@ -803,7 +803,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     checked={form.period_type === opt.value}
                     onChange={() => (!readOnly && gradedEvalTypes.length === 0 && usedEvalTypes.length === 0) && set('period_type', opt.value)}
                     disabled={readOnly || gradedEvalTypes.length > 0 || usedEvalTypes.length > 0}
-                    className="accent-primary-500"
+                    className="accent-[var(--brand-surface)]"
                   />
                   <div>
                     <p className="text-sm font-semibold text-secondary-800">{opt.label}</p>
@@ -824,10 +824,10 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         )}>
         <div className="flex items-center gap-2">
           <h2 className="section-title">
-            Type d'évaluation <span className="text-red-400">*</span>
+            Type d'évaluation <span className="text-red-700">*</span>
           </h2>
           {vNoEval && hasSubmitted && (
-            <p className="text-xs text-red-500">Sélectionnez au moins un type.</p>
+            <p className="text-xs text-red-700">Sélectionnez au moins un type.</p>
           )}
         </div>
 
@@ -840,7 +840,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <div className={clsx(
                 'px-3 py-2 rounded-xl border transition-colors col-span-2',
                 locked ? 'opacity-60 pointer-events-none' : '',
-                form.eval_types.includes('diagnostic') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white'
+                form.eval_types.includes('diagnostic') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white'
               )}>
                 <label className={clsx('flex items-center gap-3', locked ? 'cursor-not-allowed' : 'cursor-pointer')}>
                   <input
@@ -848,7 +848,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     checked={form.eval_types.includes('diagnostic')}
                     onChange={() => !locked && toggleEvalType('diagnostic')}
                     disabled={locked}
-                    className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                    className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
                   />
                   <p className="text-sm font-semibold text-secondary-800">
                     Diagnostique
@@ -886,7 +886,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                               type="button"
                               onClick={() => removeDiagnosticOption(i)}
                               aria-label={`Supprimer l'option ${opt.acronym || i + 1}`}
-                              className="p-1 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+                              className="p-1 text-warm-700 hover:text-red-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
                             >
                               <X size={13} />
                             </button>
@@ -897,12 +897,12 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     <button
                       type="button"
                       onClick={addDiagnosticOption}
-                      className="text-xs text-primary-700 hover:underline rounded px-1 mt-0.5 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                      className="text-xs text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded px-1 mt-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       Ajouter une option
                     </button>
                     {vDiagOptions && hasSubmitted && (
-                      <p className="text-xs text-red-500 mt-1">Au moins une option avec un acronyme est requise.</p>
+                      <p className="text-xs text-red-700 mt-1">Au moins une option avec un acronyme est requise.</p>
                     )}
                   </div>
                 )}
@@ -917,14 +917,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <label className={clsx(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
                 locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
-                form.eval_types.includes('scored_10') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+                form.eval_types.includes('scored_10') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
                 <input
                   type="checkbox"
                   checked={form.eval_types.includes('scored_10')}
                   onChange={() => !locked && toggleEvalType('scored_10')}
                   disabled={locked}
-                  className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                  className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
                 />
                 <div>
                   <p className="text-sm font-semibold text-secondary-800">
@@ -944,14 +944,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <label className={clsx(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors',
                 locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
-                form.eval_types.includes('scored_20') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+                form.eval_types.includes('scored_20') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
                 <input
                   type="checkbox"
                   checked={form.eval_types.includes('scored_20')}
                   onChange={() => !locked && toggleEvalType('scored_20')}
                   disabled={locked}
-                  className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                  className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
                 />
                 <div>
                   <p className="text-sm font-semibold text-secondary-800">
@@ -971,14 +971,14 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
               <label className={clsx(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors col-span-2',
                 locked ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'cursor-pointer',
-                form.eval_types.includes('stars') ? 'border-primary-400 bg-primary-50' : 'border-warm-200 bg-white hover:border-warm-300'
+                form.eval_types.includes('stars') ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 bg-white hover:border-warm-300'
               )}>
                 <input
                   type="checkbox"
                   checked={form.eval_types.includes('stars')}
                   onChange={() => !locked && toggleEvalType('stars')}
                   disabled={locked}
-                  className="accent-primary-500 flex-shrink-0 w-4 h-4"
+                  className="accent-[var(--brand-surface)] flex-shrink-0 w-4 h-4"
                 />
                 <div>
                   <p className="text-sm font-semibold text-secondary-800">
@@ -996,7 +996,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
 
         {/* ── Actions (dans le même encadré) ────────────────────────────────── */}
         <div className="flex items-center gap-3 pt-3 border-t border-warm-100">
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
+          <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
           <div className="flex-1" />
           <FloatButton type="button" variant="secondary" onClick={() => router.push('/dashboard/annee-scolaire')} disabled={isSubmitting}>
             Annuler
@@ -1047,7 +1047,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                 type="button"
                 onClick={() => setShowVacModal(false)}
                 aria-label="Fermer"
-                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
               >
                 <X size={18} />
               </button>
@@ -1169,7 +1169,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                             type="button"
                             onClick={() => { setEditingVacLabel(groupKey); setVacLabelDraft(v.label) }}
                             aria-label={`Renommer la période ${v.label || 'sans nom'}`}
-                            className="p-0.5 text-warm-700 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                            className="p-0.5 text-warm-700 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                           >
                             <Pencil size={11} />
                           </button>
@@ -1279,7 +1279,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                             <button
                               type="button" onClick={() => enregistrerFerie(f.date)}
                               aria-label="Valider" disabled={!draftLabel.trim()}
-                              className="p-1 -m-0.5 text-primary-700 hover:text-primary-800 disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0 order-3"
+                              className="p-1 -m-0.5 text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] flex-shrink-0 order-3"
                             >
                               <Check size={12} />
                             </button>
@@ -1287,7 +1287,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                           <Tooltip content="Annuler">
                             <button
                               type="button" onClick={() => setEditionFerie(null)} aria-label="Annuler"
-                              className="p-1 -m-0.5 text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0 order-4"
+                              className="p-1 -m-0.5 text-warm-700 hover:text-secondary-700 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] flex-shrink-0 order-4"
                             >
                               <X size={12} />
                             </button>
@@ -1311,7 +1311,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                             type="button"
                             onClick={() => ouvrirEdition(f)}
                             aria-label={`Modifier ${f.label}`}
-                            className="p-1.5 -m-1 text-warm-700 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 flex-shrink-0"
+                            className="p-1.5 -m-1 text-warm-700 hover:text-secondary-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] flex-shrink-0"
                           >
                             <Pencil size={11} />
                           </button>
@@ -1321,7 +1321,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                             type="button"
                             onClick={() => retirerFerie(f.date)}
                             aria-label={`Retirer ${f.label}`}
-                            className="p-1.5 -m-1 text-warm-700 hover:text-red-500 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
+                            className="p-1.5 -m-1 text-warm-700 hover:text-red-700 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 flex-shrink-0"
                           >
                             <X size={11} />
                           </button>
