@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { clsx } from 'clsx'
-import { Paperclip, Mail, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Paperclip } from 'lucide-react'
 import { SearchField } from '@/components/ui/FloatFields'
 import { sanitize } from '@/lib/security/sanitize'
 import { ouvrirPieceJointe } from '@/lib/communications/piece-jointe'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,11 +57,11 @@ const TYPE_LABELS: Record<string, string> = {
 // Statuts reellement produits par l'envoi (actions.ts) : pending (avant envoi),
 // sent, failed, skipped (foyer sans adresse : rien tente). `delivered` n'est
 // jamais pose par le code — pas d'accuse de reception → on ne l'affiche pas.
-const STATUS_BADGE: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: 'En attente', color: 'bg-warm-100 text-warm-700',   icon: Clock },
-  sent:    { label: 'Envoyé',     color: 'bg-green-100 text-green-700', icon: CheckCircle },
-  failed:  { label: 'Échec',      color: 'bg-red-100 text-red-700',     icon: XCircle },
-  skipped: { label: 'Sans email', color: 'bg-amber-100 text-amber-700', icon: Mail },
+const STATUS_BADGE: Record<string, { label: string; ton: Ton }> = {
+  pending: { label: 'En attente', ton: 'neutre' },
+  sent:    { label: 'Envoyé',     ton: 'ok' },
+  failed:  { label: 'Échec',      ton: 'danger' },
+  skipped: { label: 'Sans email', ton: 'attente' },
 }
 const STATUS_FALLBACK = STATUS_BADGE.pending
 const STATUS_ORDER = ['sent', 'failed', 'skipped', 'pending']
@@ -141,7 +141,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
       <div className="card p-3 space-y-2">
         <div>
           <p className="text-[10px] font-bold text-warm-700 uppercase tracking-widest">Objet</p>
-          <h1 className="text-sm text-warm-800 font-semibold mt-0.5">{message.title}</h1>
+          <h2 className="text-sm text-warm-800 font-semibold mt-0.5">{message.title}</h2>
         </div>
         <dl className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4 gap-y-2 pt-2 border-t border-warm-100">
           {meta.map(({ k, v }) => (
@@ -155,12 +155,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
           <div className="flex flex-wrap gap-1.5 pt-2 border-t border-warm-100">
             {orderedStatuses.map(status => {
               const info = STATUS_BADGE[status]
-              const Icon = info.icon
-              return (
-                <span key={status} className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold', info.color)}>
-                  <Icon size={11} aria-hidden="true" /> {statusCounts[status]} {info.label}
-                </span>
-              )
+              return <Puce key={status} ton={info.ton}>{statusCounts[status]} {info.label}</Puce>
             })}
           </div>
         )}
@@ -188,7 +183,7 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
                   className="inline-flex items-center gap-2 bg-warm-50 rounded-lg px-3 py-1 text-xs hover:bg-warm-100 transition-colors mr-2"
                 >
                   <Paperclip size={12} className="text-warm-700" aria-hidden="true" />
-                  <span className="text-primary-700 font-medium">{a.file_name}</span>
+                  <span className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-medium">{a.file_name}</span>
                   {a.file_size && <span className="text-warm-700">{(a.file_size / 1024).toFixed(0)} Ko</span>}
                 </button>
               ) : (
@@ -204,9 +199,9 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
       </div>
 
       {/* Destinataires : encadre a hauteur figee, recherche, defilement interne */}
-      <div className="card p-0 overflow-hidden">
-        <div className="px-3 py-2 border-b border-warm-100 bg-warm-50 flex items-center justify-between gap-3">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest whitespace-nowrap">
+      <div className="card p-3">
+        <div className="encadre-titre h-auto py-1.5 mb-2 justify-between gap-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest whitespace-nowrap">
             Destinataires ({allRecipients.length})
           </h2>
           {allRecipients.length > 0 && (
@@ -225,10 +220,10 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
         ) : (
           // Hauteur figee (~8 lignes + entete) : la liste defile en interne, la
           // page ne s'allonge pas quel que soit le nombre de destinataires.
-          <div className="h-[320px] overflow-y-auto list-scroll">
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-white shadow-[0_1px_0_rgb(0_0_0/0.05)]">
-                <tr>
+          <div className="liste h-[320px] overflow-y-auto list-scroll">
+            <table className="w-full text-xs" aria-label="Destinataires">
+              <thead className="sticky top-0 z-10">
+                <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th scope="col" className="list-th">Nom</th>
                   <th scope="col" className="list-th">Email</th>
                   <th scope="col" className="list-th">Type</th>
@@ -238,29 +233,21 @@ export default function MessageDetailClient({ message, classTeacher, parentRecip
               <tbody className="divide-y divide-warm-50">
                 {filteredRecipients.map((r, idx) => {
                   const info = STATUS_BADGE[r.status] ?? STATUS_FALLBACK
-                  const Icon = info.icon
                   return (
-                    <tr key={idx} className="transition-colors hover:bg-warm-100">
+                    <tr key={idx}>
                       <td className="list-td text-warm-700 font-medium">{r.name}</td>
                       <td className="list-td text-warm-700">{r.email}</td>
                       <td className="list-td">
-                        <span className={clsx(
-                          'px-1.5 py-0.5 rounded text-[10px] font-bold uppercase',
-                          r.type === 'parent' ? 'bg-blue-50 text-blue-600' : 'bg-warm-100 text-warm-700'
-                        )}>
-                          {r.type === 'parent' ? 'Parent' : 'Membre'}
-                        </span>
+                        <Puce ton={r.type === 'parent' ? 'info' : 'neutre'}>{r.type === 'parent' ? 'Parent' : 'Membre'}</Puce>
                       </td>
                       <td className="list-td">
-                        <span className={clsx('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold', info.color)}>
-                          <Icon size={10} aria-hidden="true" /> {info.label}
-                        </span>
+                        <Puce ton={info.ton}>{info.label}</Puce>
                       </td>
                     </tr>
                   )
                 })}
                 {filteredRecipients.length === 0 && (
-                  <tr>
+                  <tr className="sans-survol">
                     <td colSpan={4} className="list-td text-warm-700 italic">Aucun destinataire trouvé.</td>
                   </tr>
                 )}

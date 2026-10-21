@@ -1,4 +1,5 @@
 import type { UserRole } from '@/types/database'
+import type { Ton } from '@/components/dashboard/tdb'
 
 /**
  * Libellés des rôles, en français, pour l'AFFICHAGE.
@@ -70,4 +71,24 @@ export function libelleRole(
   if (!role) return ''
   const table = forme === 'court' ? ROLE_LABEL_COURT : ROLE_LABEL
   return table[role as UserRole] ?? ''
+}
+
+/**
+ * Ton de la pastille (`Puce`) d'un role, source unique (21/10) : la table de
+ * couleurs etait recopiee dans la liste Utilisateurs et dans Communications,
+ * avec du bleu, du violet et du turquoise hors charte.
+ */
+const ROLE_TON: Record<UserRole, Ton> = {
+  super_admin:             'remplacement',
+  admin:                   'danger',
+  direction:               'info',
+  comptable:               'attente',
+  responsable_pedagogique: 'remplacement',
+  enseignant:              'ok',
+  secretaire:              'orange',
+  parent:                  'neutre',
+}
+
+export function tonRole(role: string | null | undefined): Ton {
+  return ROLE_TON[role as UserRole] ?? 'neutre'
 }

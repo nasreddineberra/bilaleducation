@@ -51,7 +51,7 @@ export default async function CommunicationsPage() {
     .single()
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="h-full animate-fade-in">
       <SentMessagesClient messages={messages} yearLabel={schoolYear?.label ?? null} />
     </div>
   )

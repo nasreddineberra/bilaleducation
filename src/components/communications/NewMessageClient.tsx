@@ -3,13 +3,13 @@
 import { useState, useMemo, useRef, lazy, Suspense } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { createPortal } from 'react-dom'
 import { Paperclip, X, CheckSquare, Square, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import type { UserRole } from '@/types/database'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
 import { sanitize } from '@/lib/security/sanitize'
 import { sendParentMessage } from '@/app/dashboard/communications/actions'
 
@@ -98,34 +98,18 @@ function getParentLabel(parent: ParentRow): string {
 /** Modale portee dans <body> : une modale `fixed` doit sortir de tout ancetre
  *  transforme (`animate-fade-in` garde un transform → deviendrait le conteneur). */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  if (typeof document === 'undefined') return null
-  return createPortal(
-    <div
-   className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
-   
-  >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-warm-100">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer"
-            className="text-warm-700 hover:text-warm-700 rounded p-1 focus:outline-none focus:ring-2 focus:ring-primary-400"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="p-4 overflow-y-auto list-scroll min-h-0">{children}</div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <FormModal
+      title={title}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      footer={<>
+        <div className="flex-1" />
+        <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
+      </>}
+    >
+      {children}
+    </FormModal>
   )
 }
 
@@ -366,16 +350,16 @@ export default function NewMessageClient({
             />
           </div>
 
-          <div className="card p-4 space-y-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Message</h2>
+          <div className="card p-4 [--encadre-pad:1rem] space-y-2">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Message</h2>
             <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
               <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
             </Suspense>
           </div>
 
-          <div className="card p-4 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          <div className="card p-4 [--encadre-pad:1rem] space-y-2">
+            <div className="encadre-titre justify-between gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest">
                 Pièces jointes
                 {attachments.length > 0 && (
                   <span className="ml-2 font-normal normal-case tracking-normal text-warm-700">
@@ -383,13 +367,9 @@ export default function NewMessageClient({
                   </span>
                 )}
               </h2>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-primary-700 hover:underline font-medium rounded px-1 focus:outline-none focus:ring-2 focus:ring-primary-400"
-              >
+              <FloatButton variant="secondary" size="mini" type="button" onClick={() => fileInputRef.current?.click()}>
                 Ajouter un document
-              </button>
+              </FloatButton>
               <input ref={fileInputRef} type="file" multiple onChange={handleFileAdd} className="hidden" />
             </div>
 
@@ -406,7 +386,7 @@ export default function NewMessageClient({
                       type="button"
                       onClick={() => removeAttachment(idx)}
                       aria-label={`Retirer ${file.name}`}
-                      className="text-warm-700 hover:text-red-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-400"
+                      className="text-warm-700 hover:text-red-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       <X size={12} />
                     </button>
@@ -439,8 +419,8 @@ export default function NewMessageClient({
 
         {/* ─── Destinataires ───────────────────────────────────────────────── */}
         <aside className="w-[340px] shrink-0 sticky top-0 space-y-3">
-          <div className="card p-4 space-y-3">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Destinataires</h2>
+          <div className="card p-4 [--encadre-pad:1rem] space-y-3">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Destinataires</h2>
 
             {/* Seuls les ciblages autorises sont proposes : on ne montre pas ce
                 qui est interdit. */}
@@ -458,10 +438,10 @@ export default function NewMessageClient({
                       setSelectedParentIds(new Set())
                     }}
                     className={clsx(
-                      'text-left px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400',
+                      'text-left px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
                       active
-                        ? 'border-primary-300 bg-primary-50 text-primary-700'
-                        : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
+                        ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
+                        : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-100',
                     )}
                   >
                     {TARGET_LABELS[tt]}
@@ -532,7 +512,7 @@ export default function NewMessageClient({
                     type="button"
                     onClick={deselectAllFiltered}
                     disabled={selectedParentIds.size === 0}
-                    className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                    className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                   >
                     Tout désélectionner
                   </button>
@@ -559,18 +539,18 @@ export default function NewMessageClient({
                           aria-checked={selected}
                           onClick={() => toggleParent(p.id)}
                           className={clsx(
-                            'flex items-center gap-2 w-full px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-400',
-                            selected ? 'bg-primary-50' : 'hover:bg-warm-50',
+                            'flex items-center gap-2 w-full px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]',
+                            selected ? 'bg-[var(--brand-tint)]' : 'hover:bg-warm-100',
                           )}
                         >
                           {selected
-                            ? <CheckSquare size={14} className="text-primary-600 shrink-0" />
+                            ? <CheckSquare size={14} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] shrink-0" />
                             : <Square size={14} className="text-warm-700 shrink-0" />}
-                          <span className={clsx('font-medium truncate', selected ? 'text-primary-700' : 'text-warm-700')}>
+                          <span className={clsx('font-medium truncate', selected ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-700')}>
                             {getParentLabel(p)}
                           </span>
                           {emails.length === 0 && (
-                            <span className="ml-auto text-amber-600 shrink-0">Sans email</span>
+                            <span className="ml-auto text-amber-700 shrink-0">Sans email</span>
                           )}
                         </button>
                       </li>
@@ -616,7 +596,7 @@ export default function NewMessageClient({
                 <button
                   type="button"
                   onClick={() => setShowRecipients(true)}
-                  className="text-xs text-primary-700 hover:underline rounded focus:outline-none focus:ring-2 focus:ring-primary-400"
+                  className="text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                 >
                   Voir le détail
                 </button>
@@ -643,16 +623,28 @@ export default function NewMessageClient({
       {/* ─── Détail des destinataires ───────────────────────────────────────── */}
       {showRecipients && (
         <Modal title={`Destinataires (${recipients.length})`} onClose={() => setShowRecipients(false)}>
-          <ul className="divide-y divide-warm-50">
-            {recipients.map(r => (
-              <li key={`${r.parent.id}-${r.emails.join('')}`} className="flex items-center gap-2 py-1.5 text-xs">
-                <span className="font-medium text-warm-700 flex-1 truncate">{getParentLabel(r.parent)}</span>
-                {r.emails.length > 0
-                  ? <span className="text-warm-700 truncate max-w-[280px]">{r.emails.join(', ')}</span>
-                  : <span className="text-amber-600 shrink-0">Sans adresse email</span>}
-              </li>
-            ))}
-          </ul>
+          <div className="liste">
+            <table className="w-full text-xs" aria-label="Destinataires">
+              <thead>
+                <tr className="liste-entete border-b border-[var(--card-border)]">
+                  <th scope="col" className="list-th text-left">Famille</th>
+                  <th scope="col" className="list-th text-left">Emails</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-50">
+                {recipients.map(r => (
+                  <tr key={`${r.parent.id}-${r.emails.join('')}`}>
+                    <td className="list-td font-medium text-secondary-800">{getParentLabel(r.parent)}</td>
+                    <td className="list-td">
+                      {r.emails.length > 0
+                        ? <span className="text-warm-700">{r.emails.join(', ')}</span>
+                        : <span className="text-amber-700">Sans adresse email</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Modal>
       )}
 

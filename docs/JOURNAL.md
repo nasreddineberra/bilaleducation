@@ -8657,3 +8657,19 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Modale de saisie** en `FormModal` ; libelles en casse normale (« MEMBRE ÉQUIPE » etc. ecrits en
   majuscules) ; asterisques et erreur en `red-700`. Couleurs des types de presence (categories reglees
   par l'ecole) inchangees.
+
+#### 21 octobre 2026 — Refonte : Communications (Parents, Equipe, Messages envoyes)
+
+- **Inspection puis go** (19 points). **Source unique `tonRole()`** (`lib/auth/role-labels`) : la table de
+  couleurs des roles etait recopiee dans Communications Equipe et la liste Utilisateurs (bleu, violet,
+  turquoise hors charte). Pastilles `Puce` : admin `danger`, direction `info`, comptable `attente`, resp.
+  pedagogique `remplacement`, enseignant `ok`, secretaire `orange`, parent `neutre`. Appliquee aux deux
+  ecrans (choix utilisateur) ; le reste du turquoise d'Utilisateurs attend sa page.
+- **Parents / Equipe** : modale maison (recopiee dans les deux fichiers) remplacee par `FormModal` ; liste des
+  destinataires en `.liste` ; encadres a bandeau `.encadre-titre` (`[--encadre-pad:1rem]` sur les cartes
+  p-4) ; « Ajouter un document » en `FloatButton` mini ; ciblages, roles et listes a cocher au vert de
+  marque ; Canal en `FiltreSwitch` ; « Sans email » en `amber-700`.
+- **Messages envoyes** : liste en `.liste` a hauteur bornee (conteneur de page en `h-full`) ; ciblages en
+  `Puce neutre` comme Notifications.
+- **Detail** : objet en `<h2>` (pas de `<h1>`) ; statuts en `Puce` ; destinataires en `.liste` sous bandeau,
+  ombre en dur de l'en-tete retiree.

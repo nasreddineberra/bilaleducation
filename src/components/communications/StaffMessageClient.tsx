@@ -3,15 +3,17 @@
 import { useState, useMemo, useRef, lazy, Suspense } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
-import { createPortal } from 'react-dom'
 import { Paperclip, X, CheckSquare, Square, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
 import { sanitize } from '@/lib/security/sanitize'
 import { sendStaffMessage, type StaffChannel } from '@/app/dashboard/communications/staff-actions'
-import { libelleRole } from '@/lib/auth/role-labels'
+import { libelleRole, tonRole } from '@/lib/auth/role-labels'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce } from '@/components/dashboard/tdb'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -39,18 +41,6 @@ const CHIP_LABELS: Record<string, string> = {
 }
 const chipLabel = (r: string) => CHIP_LABELS[r] ?? libelleRole(r, 'court')
 
-// Memes couleurs que la colonne « Role » de la liste des utilisateurs.
-const ROLE_COLORS: Record<string, string> = {
-  super_admin:             'bg-violet-100 text-violet-700',
-  admin:                   'bg-red-100 text-red-700',
-  direction:               'bg-secondary-100 text-secondary-700',
-  comptable:               'bg-amber-100 text-amber-700',
-  responsable_pedagogique: 'bg-purple-100 text-purple-700',
-  enseignant:              'bg-primary-100 text-primary-700',
-  secretaire:              'bg-blue-100 text-blue-700',
-  parent:                  'bg-warm-100 text-warm-700',
-}
-const roleColor = (r: string) => ROLE_COLORS[r] ?? 'bg-warm-100 text-warm-700'
 
 // Meme ordre hierarchique que la liste des utilisateurs : role puis NOM Prenom.
 const ROLE_ORDER: Record<string, number> = {
@@ -80,25 +70,18 @@ const norm = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').to
 
 /** Modale portee dans <body> : sort de tout ancetre transforme (animate-fade-in). */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  if (typeof document === 'undefined') return null
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" >
-      <div
-        role="dialog" aria-modal="true" aria-label={title}
-        className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-warm-100">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Fermer"
-            className="text-warm-700 hover:text-warm-700 rounded p-1 focus:outline-none focus:ring-2 focus:ring-primary-400">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="p-4 overflow-y-auto list-scroll min-h-0">{children}</div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <FormModal
+      title={title}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      footer={<>
+        <div className="flex-1" />
+        <FloatButton variant="secondary" type="button" onClick={onClose}>Fermer</FloatButton>
+      </>}
+    >
+      {children}
+    </FormModal>
   )
 }
 
@@ -263,43 +246,30 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
 
         {/* ─── Composition ─────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-3">
-          <div className="card p-4 space-y-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Canal</h2>
-            <div className="flex gap-2" role="group" aria-label="Canal d'envoi">
-              {CHANNELS.map(({ value, label }) => {
-                const active = channel === value
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setChannel(value)}
-                    className={clsx(
-                      'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                      active ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
-                    )}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="card p-4 [--encadre-pad:1rem] space-y-2">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Canal</h2>
+            <FiltreSwitch
+              ariaLabel="Canal d'envoi"
+              actif={channel}
+              onChange={v => setChannel(v as StaffChannel)}
+              options={CHANNELS.map(c => ({ valeur: c.value, libelle: c.label }))}
+            />
           </div>
 
           <div className="card p-4">
             <FloatInput label="Objet" required aria-required="true" type="text" value={subject} onChange={e => setSubject(e.target.value)} />
           </div>
 
-          <div className="card p-4 space-y-2">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Message</h2>
+          <div className="card p-4 [--encadre-pad:1rem] space-y-2">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Message</h2>
             <Suspense fallback={<div className="h-48 bg-warm-50 rounded-lg animate-pulse" />}>
               <RichTextEditor content={bodyHtml} onChange={setBodyHtml} />
             </Suspense>
           </div>
 
-          <div className="card p-4 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">
+          <div className="card p-4 [--encadre-pad:1rem] space-y-2">
+            <div className="encadre-titre justify-between gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-widest">
                 Pièces jointes
                 {attachments.length > 0 && (
                   <span className="ml-2 font-normal normal-case tracking-normal text-warm-700">
@@ -307,10 +277,9 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                   </span>
                 )}
               </h2>
-              <button type="button" onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-primary-700 hover:underline font-medium rounded px-1 focus:outline-none focus:ring-2 focus:ring-primary-400">
+              <FloatButton variant="secondary" size="mini" type="button" onClick={() => fileInputRef.current?.click()}>
                 Ajouter un document
-              </button>
+              </FloatButton>
               <input ref={fileInputRef} type="file" multiple onChange={handleFileAdd} className="hidden" />
             </div>
             {attachments.length === 0 ? (
@@ -325,7 +294,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                     <span className="text-warm-700 flex-1 truncate">{file.name}</span>
                     <span className="text-warm-700">{(file.size / 1024).toFixed(0)} Ko</span>
                     <button type="button" onClick={() => removeAttachment(idx)} aria-label={`Retirer ${file.name}`}
-                      className="text-warm-700 hover:text-red-500 rounded focus:outline-none focus:ring-2 focus:ring-primary-400">
+                      className="text-warm-700 hover:text-red-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                       <X size={12} />
                     </button>
                   </li>
@@ -346,8 +315,8 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
 
         {/* ─── Destinataires ───────────────────────────────────────────────── */}
         <aside className="w-[340px] shrink-0 sticky top-0 space-y-3">
-          <div className="card p-4 space-y-3">
-            <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Destinataires</h2>
+          <div className="card p-4 [--encadre-pad:1rem] space-y-3">
+            <h2 className="encadre-titre text-xs font-bold uppercase tracking-widest">Destinataires</h2>
 
             {/* Un seul niveau : on coche des roles. « Tous » = tout cocher/decocher. */}
             <div className="flex flex-wrap gap-1.5">
@@ -356,8 +325,10 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                 aria-pressed={allRolesSelected}
                 onClick={toggleAllRoles}
                 className={clsx(
-                  'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                  allRolesSelected ? 'border-primary-400 bg-primary-500 text-white' : 'border-warm-300 text-secondary-700 bg-white hover:bg-warm-50',
+                  'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
+                  allRolesSelected
+                    ? 'border-[var(--brand-surface)] bg-[var(--brand-surface)] text-white dark:border-[var(--brand-accent)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
+                    : 'border-warm-300 text-secondary-700 bg-white hover:bg-warm-100',
                 )}
               >
                 Tous
@@ -369,8 +340,10 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                   aria-pressed={selectedRoles.has(r)}
                   onClick={() => toggleRole(r)}
                   className={clsx(
-                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                    selectedRoles.has(r) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
+                    'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
+                    selectedRoles.has(r)
+                      ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
+                      : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-100',
                   )}
                 >
                   {/* Chip = groupe/service (le badge d'un membre garde son role au singulier). */}
@@ -386,7 +359,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                   type="button"
                   onClick={() => { setSelectedRoles(new Set()); setSelectedIds(new Set()) }}
                   disabled={recipients.length === 0}
-                  className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary-400 disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+                  className="text-xs text-warm-700 hover:underline rounded whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
                 >
                   Tout désélectionner
                 </button>
@@ -403,14 +376,14 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                         aria-checked={selected}
                         onClick={() => toggleMember(s.id)}
                         className={clsx(
-                          'flex items-center gap-2 w-full px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-400',
-                          selected ? 'bg-primary-50' : 'hover:bg-warm-50',
+                          'flex items-center gap-2 w-full px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]',
+                          selected ? 'bg-[var(--brand-tint)]' : 'hover:bg-warm-100',
                         )}
                       >
-                        {selected ? <CheckSquare size={14} className="text-primary-600 shrink-0" /> : <Square size={14} className="text-warm-700 shrink-0" />}
-                        <span className={clsx('font-medium truncate', selected ? 'text-primary-700' : 'text-warm-700')}>{fullName(s)}</span>
-                        <span className={clsx('ml-auto px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0', roleColor(s.role))}>{libelleRole(s.role, 'court')}</span>
-                        {!s.email && <span className="text-amber-600 shrink-0">Sans email</span>}
+                        {selected ? <CheckSquare size={14} className="text-[var(--brand-surface)] dark:text-[var(--brand-accent)] shrink-0" /> : <Square size={14} className="text-warm-700 shrink-0" />}
+                        <span className={clsx('font-medium truncate', selected ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-warm-700')}>{fullName(s)}</span>
+                        <span className="ml-auto shrink-0"><Puce ton={tonRole(s.role)}>{libelleRole(s.role, 'court')}</Puce></span>
+                        {!s.email && <span className="text-amber-700 shrink-0">Sans email</span>}
                       </button>
                     </li>
                   )
@@ -430,7 +403,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
                 <p className="text-xs text-amber-700">{withoutEmail.length} sans adresse email (pas d'envoi mail)</p>
               )}
               <button type="button" onClick={() => setShowRecipients(true)}
-                className="text-xs text-primary-700 hover:underline rounded focus:outline-none focus:ring-2 focus:ring-primary-400">
+                className="text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
                 Voir le détail
               </button>
             </div>
@@ -450,17 +423,30 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
       {/* Détail destinataires */}
       {showRecipients && (
         <Modal title={`Destinataires (${recipients.length})`} onClose={() => setShowRecipients(false)}>
-          <ul className="divide-y divide-warm-50">
-            {[...recipients].sort(byRoleThenName).map(r => (
-              <li key={r.id} className="flex items-center gap-2 py-1.5 text-xs">
-                <span className="font-medium text-warm-700 flex-1 truncate">{fullName(r)}</span>
-                <span className={clsx('px-1.5 py-0.5 rounded text-[10px] font-medium', roleColor(r.role))}>{libelleRole(r.role, 'court')}</span>
-                {r.email
-                  ? <span className="text-warm-700 truncate max-w-[220px]">{r.email}</span>
-                  : <span className="text-amber-600 shrink-0">Sans email</span>}
-              </li>
-            ))}
-          </ul>
+          <div className="liste">
+            <table className="w-full text-xs" aria-label="Destinataires">
+              <thead>
+                <tr className="liste-entete border-b border-[var(--card-border)]">
+                  <th scope="col" className="list-th text-left">Nom</th>
+                  <th scope="col" className="list-th text-left">Rôle</th>
+                  <th scope="col" className="list-th text-left">Email</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-50">
+                {[...recipients].sort(byRoleThenName).map(r => (
+                  <tr key={r.id}>
+                    <td className="list-td font-medium text-secondary-800">{fullName(r)}</td>
+                    <td className="list-td"><Puce ton={tonRole(r.role)}>{libelleRole(r.role, 'court')}</Puce></td>
+                    <td className="list-td">
+                      {r.email
+                        ? <span className="text-warm-700">{r.email}</span>
+                        : <span className="text-amber-700">Sans email</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Modal>
       )}
 

@@ -210,7 +210,7 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Doublons** : enseignants (nom+prenom), apprenants (nom+prenom+date de naissance), tuteurs (une
   personne une seule fois par ecole), insensibles a la casse et aux accents (`norm_name` en base,
   `normalizeNom` / `sameName` cote app, `lib/doublons.ts` pour les messages).
-- **Sources uniques** (ne jamais recopier) : `lib/financements/compute.ts`, `lib/auth/role-labels`,
+- **Sources uniques** (ne jamais recopier) : `lib/financements/compute.ts`, `lib/auth/role-labels` (libelles + `tonRole`),
   `lib/teachers/nom`, `lib/school-year/jours-fermes.ts`, `lib/parents/situation-familiale.ts`,
   `lib/temps-presence/*`, `lib/evaluations/ordre.ts`, `lib/closure/ordre.ts`, `lib/mobile.ts`,
   `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`, `lib/tenant/*`, `lib/pdf/ouvrir.ts`.
@@ -366,8 +366,8 @@ financements, retention…), ecole de demonstration.
    au-dessus des foyers), Messages envoyes, Support, fiche apprenant (Discipline, Scolarite, Documents,
    Historique), fiche parent (Scolarite adulte), listes Apprenants / Parents harmonisees, modales de
    synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
-   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT, Cahier de texte, Classes archivees, Notifications, Temps de presence. **Reste** :
-   Tableau de bord, Communications (nouveau message), Financements
+   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT, Cahier de texte, Classes archivees, Notifications, Temps de presence, Tableau de bord (18/10), Communications. **Reste** :
+   Financements
    (Statistiques, Situation), Parametres (annees, referentiel, enseignants, utilisateurs, cotisations,
    types de presence, ressources, journal, etablissement), Mon compte, Passage d'annee, console editeur.
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.

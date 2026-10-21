@@ -3,10 +3,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { clsx } from 'clsx'
-import { Mail, Users, UserCheck, Globe } from 'lucide-react'
 import { FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { Puce } from '@/components/dashboard/tdb'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,12 +34,14 @@ interface Props {
   yearLabel: string | null
 }
 
-const TYPE_LABELS: Record<string, { label: string; icon: any; color: string }> = {
-  all_active:     { label: 'Parents (élèves inscrits)', icon: Users,     color: 'bg-blue-100 text-blue-700' },
-  all_registered: { label: 'Tous les contacts',         icon: Globe,     color: 'bg-purple-100 text-purple-700' },
-  class:          { label: "Parents d'une classe",      icon: UserCheck, color: 'bg-amber-100 text-amber-700' },
-  selected:       { label: 'Parents choisis',           icon: UserCheck, color: 'bg-green-100 text-green-700' },
-  staff:          { label: 'Équipe',                    icon: Users,     color: 'bg-warm-100 text-warm-700' },
+// Ciblages en `Puce` neutre (21/10), comme dans Notifications : bleu, violet et
+// vert etaient hors charte.
+const TYPE_LABELS: Record<string, { label: string }> = {
+  all_active:     { label: 'Parents (élèves inscrits)' },
+  all_registered: { label: 'Tous les contacts' },
+  class:          { label: "Parents d'une classe" },
+  selected:       { label: 'Parents choisis' },
+  staff:          { label: 'Équipe' },
 }
 
 // Ordre canonique des ciblages. La liste AFFICHEE en est derivee, en ne gardant
@@ -143,12 +144,12 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="h-full flex flex-col gap-2">
       {/* Pas de boutons raccourcis : la creation passe par la sidebar
           (Communications → Parents / Équipe). */}
 
       {/* Filtres */}
-      <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
+      <div className="card px-3 py-2 flex flex-wrap items-center gap-3 flex-shrink-0">
         <SearchField
           value={search}
           onChange={setSearch}
@@ -186,15 +187,13 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
 
       {/* Tableau */}
       {filtered.length === 0 ? (
-        <div className="card px-6 py-10 text-center">
-          <Mail size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
-          <p className="text-sm text-warm-700">Aucun message envoyé.</p>
-        </div>
+        <div className="card text-center text-sm text-warm-700 py-10">Aucun message envoyé.</div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="card p-0 overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="liste list-scroll flex-1 min-h-0 overflow-y-auto">
           <table className="w-full text-xs" aria-label="Messages envoyés">
-            <thead>
-              <tr className="border-b border-warm-100">
+            <thead className="sticky top-0 z-10">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th w-2/12">Date</th>
                 <th scope="col" className="list-th w-4/12">Objet</th>
                 <th scope="col" className="list-th w-3/12">Type</th>
@@ -204,30 +203,27 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
             </thead>
             <tbody className="divide-y divide-warm-50">
               {filtered.map(m => {
-                const typeInfo = TYPE_LABELS[m.announcement_type ?? ''] ?? { label: m.announcement_type ?? '·', icon: Mail, color: 'bg-warm-100 text-warm-700' }
-                const TypeIcon = typeInfo.icon
                 return (
                   <tr
                     key={m.id}
                     onClick={() => router.push(`/dashboard/communications/${m.id}`)}
-                    className="hover:bg-warm-100 transition-colors cursor-pointer"
+                    className="cursor-pointer"
                   >
                     <td className="list-td text-warm-700 whitespace-nowrap">{formatDate(m.published_at)}</td>
                     <td className="list-td">
                       <Link
                         href={`/dashboard/communications/${m.id}`}
                         onClick={e => e.stopPropagation()}
-                        className="list-name hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                        className="list-name hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                       >
                         {m.title}
                       </Link>
                     </td>
                     <td className="list-td">
-                      <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase', typeInfo.color)}>
-                        <TypeIcon size={10} aria-hidden="true" />
+                      <Puce ton="neutre">
                         {typeLabel(m.announcement_type ?? '')}
                         {m.classes?.name ? ` · ${m.classes.name}` : ''}
-                      </span>
+                      </Puce>
                     </td>
                     <td className="list-td text-warm-700 tabular-nums">{m.recipient_count ?? '·'}</td>
                     <td className="list-td text-warm-700">
@@ -238,6 +234,7 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
               })}
             </tbody>
           </table>
+        </div>
         </div>
       )}
     </div>

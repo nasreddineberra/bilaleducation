@@ -9,19 +9,10 @@ import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { deleteUser, getUserDeleteDeps, toggleActive } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
-import { libelleRole } from '@/lib/auth/role-labels'
+import { libelleRole, tonRole } from '@/lib/auth/role-labels'
+import { Puce } from '@/components/dashboard/tdb'
 
 
-const ROLE_COLORS: Record<UserRole, string> = {
-  super_admin:             'bg-violet-100 text-violet-700',
-  admin:                   'bg-red-100 text-red-700',
-  direction:               'bg-secondary-100 text-secondary-700',
-  comptable:               'bg-amber-100 text-amber-700',
-  responsable_pedagogique: 'bg-purple-100 text-purple-700',
-  enseignant:              'bg-primary-100 text-primary-700',
-  secretaire:              'bg-blue-100 text-blue-700',
-  parent:                  'bg-warm-100 text-warm-700',
-}
 
 interface UtilisateursTableProps {
   profiles: Profile[]
@@ -147,12 +138,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
 
                   {/* Rôle */}
                   <td className="list-td">
-                    <span className={clsx(
-                      'text-xs font-semibold px-2 py-0.5 rounded-full',
-                      ROLE_COLORS[profile.role]
-                    )}>
-                      {libelleRole(profile.role, 'court')}
-                    </span>
+                    <Puce ton={tonRole(profile.role)}>{libelleRole(profile.role, 'court')}</Puce>
                   </td>
 
                   {/* Statut */}
