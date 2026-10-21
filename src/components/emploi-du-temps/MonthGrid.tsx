@@ -3,6 +3,7 @@
 import { clsx } from 'clsx'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 import { nomEnseignant } from '@/lib/teachers/nom'
+import Tooltip from '@/components/ui/Tooltip'
 
 type ViewMode = 'global' | 'class' | 'teacher'
 
@@ -129,9 +130,15 @@ export default function MonthGrid({
                     </div>
                   )}
 
-                  {/* Slot capsules */}
-                  {!vacLabel && (
-                    <div className="flex-1 flex flex-col gap-px px-1 pb-1 overflow-hidden min-h-0">
+                  {/* Slot capsules : l'infobulle du jour liste TOUTES les seances (triees
+                      par heure), la case n'en montrant que 3 au plus, tronquees. */}
+                  {!vacLabel && daySlots.length > 0 && (
+                    <Tooltip
+                      content={<SeancesDuJour date={cell.date} slots={daySlots} viewMode={viewMode} />}
+                      maxWidth="max-w-none"
+                      className="flex-1 min-h-0 w-full"
+                    >
+                    <div className="flex-1 min-w-0 flex flex-col gap-px px-1 pb-1 overflow-hidden min-h-0">
                       {visibleSlots.map(slot => (
                         <MonthSlotCapsule
                           key={slot.id}
@@ -150,6 +157,7 @@ export default function MonthGrid({
                         </span>
                       )}
                     </div>
+                    </Tooltip>
                   )}
                 </div>
               )
@@ -157,6 +165,36 @@ export default function MonthGrid({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ─── Infobulle d'un jour : toutes les seances, une par ligne ────────────────
+
+const TYPE_LABELS: Record<string, string> = { cours: 'Cours', activite: 'Activité' }
+
+function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedSlot[]; viewMode: ViewMode }) {
+  const titre = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  return (
+    <div className="text-left">
+      <p className="font-semibold capitalize mb-1">{titre}</p>
+      <ul className="space-y-0.5">
+        {slots.map(slot => {
+          const parts = [
+            `${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`,
+            slot.cours?.nom_fr ?? TYPE_LABELS[slot.slot_type] ?? slot.slot_type,
+            viewMode !== 'class' ? slot.classes?.name : null,
+            viewMode !== 'teacher' && slot.teachers ? nomEnseignant(slot.teachers) : null,
+            slot.rooms?.name,
+          ].filter(Boolean)
+          return (
+            <li key={slot.id} className="flex items-center gap-1.5 whitespace-nowrap tabular-nums">
+              <span className={clsx('w-2 h-2 rounded-full border flex-shrink-0', SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours)} aria-hidden="true" />
+              {parts.join(' · ')}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

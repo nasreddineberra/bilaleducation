@@ -8595,3 +8595,13 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Modale de creneau** en `FormModal` ; Type et Frequence en switch a la creation, valeurs verrouillees
   (`--champ-verrou`) en modification ; rouges en `red-700`.
 - Hors perimetre : apercu du glisser-deposer (couleurs en dur), inactif en V1 (`isDndActive = false`).
+
+#### 21 octobre 2026 — EDT, vue mois : infobulle des seances du jour
+
+- **Demande utilisateur** : au survol d'un jour qui a des seances, une infobulle les liste toutes, une par
+  ligne, triees par heure. La case n'en montre que 3 (puis « +N autres »), tronquees.
+- `SeancesDuJour` (`MonthGrid.tsx`) : date en titre, puis `debut-fin · cours (ou type) · classe · NOM Prenom ·
+  salle`, pastille de type aux couleurs des capsules (`edt-slot-*`) ; classe omise en vue Classe, enseignant
+  en vue Enseignant. Tooltip existant (`max-w-none`, pas au doigt, ouvert au clavier).
+- Le `Tooltip` n'enveloppe la zone que si le jour a des seances : un contenu vide affichait une bulle vide.
+  `min-w-0` sur la zone, sinon le declencheur `inline-flex` empechait la troncature des capsules.
