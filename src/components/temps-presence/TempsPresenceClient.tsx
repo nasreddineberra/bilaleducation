@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
@@ -15,7 +15,9 @@ import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { FloatSelect } from '@/components/ui/FloatFields'
+import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import FormModal from '@/components/ui/FormModal'
 import { generateStaffTimePDF } from './staffTimePdf'
 import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
@@ -533,7 +535,7 @@ export default function TempsPresenceClient({
               {ligne('Total heures', <span className="font-semibold">{r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·'}</span>)}
               {ligne(
                 'Absences',
-                <span className={r.absenceMinutes > 0 ? 'text-red-600 font-medium' : ''}>
+                <span className={r.absenceMinutes > 0 ? 'text-red-700 font-medium' : ''}>
                   {r.absenceMinutes > 0 ? fmtDuration(r.absenceMinutes) : '·'}
                 </span>,
               )}
@@ -560,7 +562,7 @@ export default function TempsPresenceClient({
               return <div key={pt.id}>{ligne(pt.label, mins > 0 ? fmtDuration(mins) : '·', pt.color)}</div>
             })}
             {ligne('Total heures', <span className="font-bold">{recap.totals.workedMinutes > 0 ? fmtDuration(recap.totals.workedMinutes) : '·'}</span>)}
-            {ligne('Absences', <span className={recap.totals.absenceMinutes > 0 ? 'text-red-600 font-medium' : ''}>{recap.totals.absenceMinutes > 0 ? fmtDuration(recap.totals.absenceMinutes) : '·'}</span>)}
+            {ligne('Absences', <span className={recap.totals.absenceMinutes > 0 ? 'text-red-700 font-medium' : ''}>{recap.totals.absenceMinutes > 0 ? fmtDuration(recap.totals.absenceMinutes) : '·'}</span>)}
             {canSeeCosts && ligne('Coût', <span className="font-bold">{fmtEur(recap.totals.cost)}</span>)}
           </dl>
         </li>
@@ -572,24 +574,24 @@ export default function TempsPresenceClient({
     recap.rows.length === 0 ? (
       <p className="text-sm text-warm-700 italic text-center py-10">{emptyMsg}</p>
     ) : petitEcran ? renderRecapCartes(recap, ariaLabel) : (
-      <div className="overflow-x-auto rounded-xl border border-warm-100">
+      <div className="liste overflow-x-auto">
           <table className="w-full text-sm" aria-label={ariaLabel}>
             <thead>
-              <tr className="bg-warm-50/60 border-b border-warm-100">
-                <th className="px-5 py-2.5 text-left text-[11px] font-bold text-warm-700 uppercase tracking-wide">Personnel</th>
+              <tr className="liste-entete border-b border-[var(--card-border)]">
+                <th className="px-5 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide">Personnel</th>
                 {nonAbsenceTypes.map(pt => (
                   <th key={pt.id} className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide" style={{ color: pt.color }}>
                     {pt.label}
                   </th>
                 ))}
-                <th className="px-4 py-2.5 text-center text-[11px] font-bold text-secondary-800 uppercase tracking-wide border-l border-warm-200">Total heures</th>
-                <th className="px-4 py-2.5 text-center text-[11px] font-bold text-red-400 uppercase tracking-wide">Absences</th>
-                {canSeeCosts && <th className="px-5 py-2.5 text-right text-[11px] font-bold text-warm-700 uppercase tracking-wide">Coût</th>}
+                <th className="px-4 py-2.5 text-center text-[11px] font-bold uppercase tracking-wide border-l border-warm-200">Total heures</th>
+                <th className="px-4 py-2.5 text-center text-[11px] font-bold !text-red-700 uppercase tracking-wide">Absences</th>
+                {canSeeCosts && <th className="px-5 py-2.5 text-right text-[11px] font-bold uppercase tracking-wide">Coût</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-100">
               {recap.rows.map(r => (
-                <tr key={r.profileId} className="transition-colors hover:bg-warm-100">
+                <tr key={r.profileId}>
                   <td className="px-5 py-3 font-medium text-warm-700 whitespace-nowrap">{r.name}</td>
                   {nonAbsenceTypes.map(pt => {
                     const mins = r.typeMinutes[pt.code.toUpperCase()] ?? 0
@@ -602,7 +604,7 @@ export default function TempsPresenceClient({
                   <td className="px-4 py-3 text-center tabular-nums font-semibold text-secondary-800 border-l border-warm-200">
                     {r.workedMinutes > 0 ? fmtDuration(r.workedMinutes) : '·'}
                   </td>
-                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceMinutes > 0 ? 'text-red-600 font-medium' : 'text-warm-700'}`}>
+                  <td className={`px-4 py-3 text-center tabular-nums ${r.absenceMinutes > 0 ? 'text-red-700 font-medium' : 'text-warm-700'}`}>
                     {r.absenceMinutes > 0 ? (
                       // Une somme d'heures ne dit pas QUAND : l'infobulle liste
                       // chaque absence, une par ligne.
@@ -640,7 +642,7 @@ export default function TempsPresenceClient({
                 <td className="px-4 py-3 text-center tabular-nums text-secondary-800 border-l border-warm-200">
                   {recap.totals.workedMinutes > 0 ? fmtDuration(recap.totals.workedMinutes) : '·'}
                 </td>
-                <td className="px-4 py-3 text-center text-red-600 tabular-nums">{recap.totals.absenceMinutes > 0 ? fmtDuration(recap.totals.absenceMinutes) : '·'}</td>
+                <td className="px-4 py-3 text-center text-red-700 tabular-nums">{recap.totals.absenceMinutes > 0 ? fmtDuration(recap.totals.absenceMinutes) : '·'}</td>
                 {canSeeCosts && <td className="px-5 py-3 text-right text-secondary-800 tabular-nums whitespace-nowrap">{fmtEur(recap.totals.cost)}</td>}
               </tr>
             </tfoot>
@@ -719,28 +721,26 @@ export default function TempsPresenceClient({
 
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 bg-warm-100 dark:bg-black/25 rounded-lg p-0.5" role="group" aria-label="Mode d'affichage">
-          <button onClick={() => setViewMode('month')} aria-pressed={viewMode === 'month'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'month' ? 'bg-white dark:bg-[var(--surface-sunken)] shadow text-secondary-800' : 'text-warm-700')}>
-            Mois
-          </button>
-          <button onClick={() => setViewMode('week')} aria-pressed={viewMode === 'week'} className={clsx('px-3 py-1 rounded-md text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', viewMode === 'week' ? 'bg-white dark:bg-[var(--surface-sunken)] shadow text-secondary-800' : 'text-warm-700')}>
-            Semaine
-          </button>
-        </div>
+        <FiltreSwitch
+          ariaLabel="Mode d'affichage"
+          actif={viewMode}
+          onChange={v => setViewMode(v as 'month' | 'week')}
+          options={[
+            { valeur: 'month', libelle: 'Mois' },
+            { valeur: 'week',  libelle: 'Semaine' },
+          ]}
+        />
 
         <div className="flex items-center gap-1">
-          <button onClick={prev} aria-label={viewMode === 'month' ? 'Mois précédent' : 'Semaine précédente'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronLeft size={16} /></button>
+          <button onClick={prev} aria-label={viewMode === 'month' ? 'Mois précédent' : 'Semaine précédente'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"><ChevronLeft size={16} /></button>
           <span className="text-sm font-bold text-secondary-800 min-w-[180px] text-center">{title}</span>
-          <button onClick={next} aria-label={viewMode === 'month' ? 'Mois suivant' : 'Semaine suivante'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><ChevronRight size={16} /></button>
+          <button onClick={next} aria-label={viewMode === 'month' ? 'Mois suivant' : 'Semaine suivante'} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"><ChevronRight size={16} /></button>
         </div>
 
         {canSeeRecap && (
-          <button
-            onClick={() => setRecapModal('month')}
-            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 active:scale-[0.97] transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-secondary-300 whitespace-nowrap"
-          >
+          <FloatButton variant="secondary" size="mini" type="button" onClick={() => setRecapModal('month')} className="whitespace-nowrap">
             Récap. mensuel
-          </button>
+          </FloatButton>
         )}
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:ml-auto">
@@ -763,12 +763,9 @@ export default function TempsPresenceClient({
             </FloatSelect>
           )}
           {canSeeRecap && (
-            <button
-              onClick={() => setRecapModal('year')}
-              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 active:scale-[0.97] transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-secondary-300 whitespace-nowrap"
-            >
+            <FloatButton variant="secondary" size="mini" type="button" onClick={() => setRecapModal('year')} className="whitespace-nowrap">
               Récap. annuel
-            </button>
+            </FloatButton>
           )}
         </div>
 
@@ -827,17 +824,18 @@ export default function TempsPresenceClient({
                   aria-pressed={isSelected}
                   aria-current={isToday ? 'date' : undefined}
                   className={clsx(
-                    'relative border border-warm-50 p-1 text-left transition-colors min-h-[70px] outline-none focus-visible:ring-2 focus-visible:ring-primary-500/60 focus-visible:z-10',
+                    'relative border border-warm-50 p-1 text-left transition-colors min-h-[70px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] focus-visible:z-10',
                     viewMode === 'week' && 'min-h-[120px]',
                     ferme ? 'bg-amber-50' : (isCurrentMonth ? 'bg-white' : 'bg-warm-50/50'),
-                    isSelected && 'ring-2 ring-primary-400 ring-inset',
-                    !isSelected && (ferme ? 'hover:bg-amber-100' : 'hover:bg-warm-50'),
+                    isSelected && 'ring-2 ring-[var(--brand-surface)] dark:ring-[var(--brand-accent)] ring-inset',
+                    !isSelected && (ferme ? 'hover:bg-amber-100' : 'hover:bg-warm-100'),
                   )}
                 >
                   <div className="flex items-start gap-1">
                     <span className={clsx(
                       'text-xs font-medium shrink-0',
-                      isToday && 'bg-primary-500 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
+                      // Marqueur du jour : meme ambre que l'emploi du temps.
+                      isToday && 'bg-amber-700 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
                       !isToday && (isCurrentMonth ? 'text-warm-700' : 'text-warm-700'),
                     )}>
                       {d.getDate()}
@@ -872,18 +870,15 @@ export default function TempsPresenceClient({
                 types manquent : cet etat-la est temporaire. */}
             {canManage && (
             <Tooltip content={addBlockReason ?? 'Ajouter une saisie'}>
-              <button
+              <FloatButton
+                variant="submit"
+                size="mini"
+                type="button"
                 onClick={() => { setEditingEntry(null); setModalOpen(true) }}
                 disabled={!canAdd}
-                className={clsx(
-                  'inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
-                  canAdd
-                    ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] hover:bg-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)]'
-                    : 'bg-warm-200 text-warm-700 cursor-not-allowed'
-                )}
               >
                 Ajouter
-              </button>
+              </FloatButton>
             </Tooltip>
             )}
           </div>
@@ -899,7 +894,7 @@ export default function TempsPresenceClient({
                   <div key={pid} className="flex items-start gap-2 py-2">
                     {/* Identite (colonne gauche) : avatar + nom sur une seule ligne, aligne en haut */}
                     <div className="flex items-center gap-1.5 w-36 shrink-0">
-                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-[10px] font-bold shrink-0">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] text-[10px] font-bold shrink-0">
                         {s ? getInitials(s.first_name, s.last_name) : '??'}
                       </span>
                       <TruncatedText text={name} className="text-[11px] font-bold text-warm-800" />
@@ -951,18 +946,18 @@ export default function TempsPresenceClient({
                                 <button
                                   onClick={() => { setEditingEntry(e); setModalOpen(true) }}
                                   aria-label="Modifier la saisie"
-                                  className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                                  className="p-1 rounded text-warm-700 hover:text-secondary-800 hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                                 >
-                                  <Pencil size={10} className="text-warm-700" />
+                                  <Pencil size={12} />
                                 </button>
                               </Tooltip>
                               <Tooltip content="Supprimer">
                                 <button
                                   onClick={() => setDeleteConfirm(e.id)}
                                   aria-label="Supprimer la saisie"
-                                  className="p-0.5 rounded hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+                                  className="p-1 rounded text-warm-700 hover:text-red-700 hover:bg-white/50 outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
                                 >
-                                  <Trash2 size={10} className="text-warm-700" />
+                                  <Trash2 size={12} />
                                 </button>
                               </Tooltip>
                             </span>
@@ -1004,50 +999,34 @@ export default function TempsPresenceClient({
         const recap = isMonth ? monthlyRecap : annualRecap
         const emptyMsg = isMonth ? 'Aucune saisie ce mois' : 'Aucune saisie cette année'
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="recap-modal-title"
-              className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col"
-            >
-              {/* En-tete : titre + export + fermer */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-5 py-3 border-b border-warm-100 shrink-0">
-                <h3 id="recap-modal-title" className="text-sm font-bold text-secondary-800">{modalTitle}</h3>
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end md:flex-shrink-0">
-                  {recap.rows.length > 0 && (
-                    <Tooltip content="Exporter le récapitulatif en PDF">
-                      <button
-                        onClick={() => handleExportPdf(isMonth ? 'month' : 'year')}
-                        disabled={exporting}
-                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 dark:bg-[var(--surface-sunken)] dark:text-[var(--ink)] dark:border-[var(--line-strong)] dark:hover:bg-[var(--line-strong)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                      >
-                        {exporting ? 'Export…' : 'Exporter PDF'}
-                      </button>
-                    </Tooltip>
-                  )}
-                  <button onClick={() => setRecapModal(null)} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
-                </div>
-              </div>
-
-              {/* Legende des taux horaires (une fois, si couts visibles) */}
-              {canSeeCosts && presenceTypeRates.length > 0 && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2 border-b border-warm-100 bg-warm-50/60 text-[11px] shrink-0">
-                  <span className="font-semibold text-warm-700">Taux horaires</span>
-                  {nonAbsenceTypes.map(pt => {
-                    const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
-                    if (!rate) return null
-                    return <span key={pt.id} style={{ color: pt.color }}>{pt.label} {fmtEur(rate)}/h</span>
-                  })}
-                </div>
+          <FormModal
+            title={modalTitle}
+            onClose={() => setRecapModal(null)}
+            maxWidth="max-w-4xl"
+            footer={<>
+              {recap.rows.length > 0 && (
+                <FloatButton variant="secondary" type="button" onClick={() => handleExportPdf(isMonth ? 'month' : 'year')} loading={exporting}>
+                  Exporter PDF
+                </FloatButton>
               )}
-
-              {/* Tableau */}
-              <div className="p-4 overflow-y-auto min-h-0">
-                {renderRecapTable(recap, modalTitle, emptyMsg)}
+              <div className="flex-1" />
+              <FloatButton variant="secondary" type="button" onClick={() => setRecapModal(null)}>Fermer</FloatButton>
+            </>}
+          >
+            {/* Legende des taux horaires (une fois, si couts visibles) */}
+            {canSeeCosts && presenceTypeRates.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
+                <span className="font-semibold text-warm-700">Taux horaires</span>
+                {nonAbsenceTypes.map(pt => {
+                  const rate = presenceTypeRates.find(r => r.presence_type_id === pt.id)?.rate ?? 0
+                  if (!rate) return null
+                  return <span key={pt.id} style={{ color: pt.color }}>{pt.label} {fmtEur(rate)}/h</span>
+                })}
               </div>
-            </div>
-          </div>
+            )}
+
+            {renderRecapTable(recap, modalTitle, emptyMsg)}
+          </FormModal>
         )
       })()}
 

@@ -8644,3 +8644,16 @@ marque ; les vraies ecoles gardent leur plaque.
   survol de marque avec focus visible ; etat vide d'une phrase.
 - **Detail** : type et canal en `Puce` (le bleu du canal etait hors charte) ; piece jointe au vert de
   marque, indisponible en `warm-400` au lieu de l'opacite.
+
+#### 21 octobre 2026 — Refonte : Temps de presence
+
+- **Inspection puis go** (points 11 a 25). Mois / Semaine en `FiltreSwitch` ; recapitulatifs en
+  `FloatButton` secondaires ; focus `--brand-focus` ; jour selectionne au vert de marque, pastille du jour en
+  `amber-700` (marqueur de l'emploi du temps), survol des cases en `warm-100`.
+- **Panneau du jour** : « Ajouter » en `FloatButton` (ombres en dur retirees) ; avatar en `--brand-tint` ;
+  icones Modifier / Supprimer de 10 a 12 px, zone `p-1`, corbeille rouge au survol.
+- **Recapitulatifs** en `FormModal` (Exporter PDF et Fermer au pied) ; tableau en `.liste`, total sans
+  survol (`<tfoot>`) ; absences en `red-700` (tableau et cartes mobiles).
+- **Modale de saisie** en `FormModal` ; libelles en casse normale (« MEMBRE ÉQUIPE » etc. ecrits en
+  majuscules) ; asterisques et erreur en `red-700`. Couleurs des types de presence (categories reglees
+  par l'ecole) inchangees.

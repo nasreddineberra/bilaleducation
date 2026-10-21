@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
+import FormModal from '@/components/ui/FormModal'
 import type { TimeEntry } from './TempsPresenceClient'
 
 interface PresenceType {
@@ -100,14 +100,8 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const titleId = 'time-entry-modal-title'
-
-  // Focus initial. Fermeture volontairement limitee a X / Annuler (pas de clic
-  // hors modale ni Echap) pour ne pas perdre une saisie en cours.
-  useEffect(() => {
-    dialogRef.current?.focus()
-  }, [])
+  // Fermeture volontairement limitee a X / Annuler (FormModal : ni clic hors
+  // modale ni Echap) pour ne pas perdre une saisie en cours.
 
   const isAbsence = presenceTypes.find(p => p.code.toUpperCase() === entryType.toUpperCase())?.is_absence ?? false
 
@@ -389,26 +383,25 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 outline-none"
-      >
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-warm-100">
-          <h3 id={titleId} className="text-sm font-bold text-secondary-800">
-            {isEdit ? 'Modifier la saisie' : 'Nouvelle saisie'}
-          </h3>
-          <button onClick={onClose} aria-label="Fermer" className="p-1 rounded-lg hover:bg-warm-100 text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"><X size={16} /></button>
-        </div>
-
-        {/* Body */}
-        <div className="px-5 py-4 space-y-4">
+    <FormModal
+      title={isEdit ? 'Modifier la saisie' : 'Nouvelle saisie'}
+      onClose={onClose}
+      footer={<>
+        <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
+        <div className="flex-1" />
+        <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
+        <FloatButton
+          variant={isEdit ? 'edit' : 'submit'}
+          type="button"
+          onClick={handleSave}
+          loading={saving}
+          disabled={!canSave}
+        >
+          {isEdit ? 'Modifier' : 'Valider'}
+        </FloatButton>
+      </>}
+    >
+        <div className="space-y-4">
           {fermeture && (
             <p
               role="status"
@@ -422,7 +415,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
           {/* Type (choisi en premier : conditionne la liste des membres) */}
           <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
-            <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">Type<span className="text-red-400 ml-0.5">*</span></span>
+            <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">Type<span className="text-red-700 ml-0.5">*</span></span>
             {/* Grille 2 colonnes : tous les boutons de largeur identique, label
                 sur une ligne (le flex-wrap etirait les rangees differemment et
                 faisait deborder les libelles longs comme « ADMINISTRATIF »). */}
@@ -465,7 +458,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
             </p>
           ) : canManage ? (
             <FloatSelect
-              label="MEMBRE ÉQUIPE"
+              label="Membre équipe"
               required
               disabled={!entryType}
               value={profileId}
@@ -490,7 +483,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           {!isAbsence && (
             <div className="grid grid-cols-2 gap-3">
               <FloatInput
-                label="DÉBUT"
+                label="Début"
                 required
                 type="time"
                 value={startTime}
@@ -500,7 +493,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                 }}
               />
               <FloatInput
-                label="FIN"
+                label="Fin"
                 required
                 type="time"
                 value={endTime}
@@ -517,11 +510,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               <div className="flex items-center gap-1">
                 <FloatCheckbox
                   variant="compact"
-                  label="EN REMPLACEMENT DE"
+                  label="En remplacement de"
                   checked={isReplacement}
                   onChange={val => { setIsReplacement(val); if (!val) setReplacedId('') }}
                 />
-                {isReplacement && <span className="text-red-400 text-xs">*</span>}
+                {isReplacement && <span className="text-red-700 text-xs">*</span>}
               </div>
               {isReplacement && (
                 replaceableStaff.length === 0 ? (
@@ -554,7 +547,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           {isAbsence && creneauxDuJourPersonne.length > 0 && (
             <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5">
               <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">
-                Créneaux manqués <span className="text-red-500">*</span>
+                Créneaux manqués <span className="text-red-700">*</span>
               </span>
               <div className="flex flex-wrap gap-2" role="group" aria-label="Créneaux manqués">
                 {creneauxDuJourPersonne.map(cr => {
@@ -570,7 +563,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                         return suivant
                       })}
                       aria-pressed={choisi}
-                      className={`text-center text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 ${choisi ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
+                      className={`text-center text-xs font-semibold px-3 py-1.5 rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] ${choisi ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] border-[var(--brand-surface)] dark:border-[var(--brand-accent)]' : 'bg-white border-warm-300 text-warm-700 hover:border-warm-400'}`}
                     >
                       {classesById[cr.classId] ?? 'Classe'} · {cr.startTime}-{cr.endTime}
                     </button>
@@ -585,7 +578,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
               second — et sans lui le remplacant ne voit pas le creneau. */}
           {isAbsence && (
             <FloatInput
-              label="MOTIF"
+              label="Motif"
               value={absenceReason}
               onChange={e => setAbsenceReason(e.target.value)}
               placeholder="Maladie, congé..."
@@ -604,7 +597,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
           {isAbsence && (
             <div className="relative border border-warm-300 rounded-lg px-3 pt-6 pb-2.5 space-y-2.5">
               <span className="absolute top-1.5 left-3 text-[10px] font-semibold tracking-wide uppercase text-warm-700 pointer-events-none select-none">
-                Remplacement{creneauxConcernes.length > 0 && <span className="text-red-500"> *</span>}
+                Remplacement{creneauxConcernes.length > 0 && <span className="text-red-700"> *</span>}
               </span>
 
               {creneauxConcernes.length === 0 ? (
@@ -622,7 +615,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
                     {' · '}{cr.startTime}-{cr.endTime}
                   </p>
                   <FloatSelect
-                    label="REMPLACÉ PAR"
+                    label="Remplacé par"
                     value={remplacants[cr.slotId] ?? ''}
                     onChange={e => setRemplacants(r => ({ ...r, [cr.slotId]: e.target.value }))}
                   >
@@ -656,7 +649,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
           {/* Notes */}
           <FloatTextarea
-            label="NOTES"
+            label="Notes"
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={2}
@@ -665,26 +658,9 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
 
           {/* Error */}
           {error && (
-            <p role="alert" className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            <p role="alert" className="text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center gap-2 px-5 py-3 border-t border-warm-100">
-          <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
-          <div className="flex-1" />
-          <FloatButton variant="secondary" type="button" onClick={onClose}>Annuler</FloatButton>
-          <FloatButton
-            variant={isEdit ? 'edit' : 'submit'}
-            type="button"
-            onClick={handleSave}
-            loading={saving}
-            disabled={!canSave}
-          >
-            {isEdit ? 'Modifier' : 'Valider'}
-          </FloatButton>
-        </div>
-      </div>
-    </div>
+    </FormModal>
   )
 }
