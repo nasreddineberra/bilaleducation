@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { clsx } from 'clsx'
 import { LifeBuoy } from 'lucide-react'
 import { FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import SupportRequestDetailModal from '@/components/support/SupportRequestDetailModal'
-import { CATEGORY_COLORS, type SupportRequestRow } from '@/components/support/SupportRequestsClient'
+import { tonCategorie, type SupportRequestRow } from '@/components/support/SupportRequestsClient'
+import { Puce } from '@/components/dashboard/tdb'
 import { SUPPORT_CATEGORIES, categoryLabel, impactLabel } from '@/lib/support/categories'
 import { getSupportAttachmentUrlEditeur } from '@/app/superadmin/support-actions'
 import { formatDateHeureFr } from '@/lib/dates'
@@ -194,13 +194,10 @@ export default function SupportRequestsConsoleClient({
                     </button>
                   </td>
                   <td className="list-td">
-                    <span className={clsx(
-                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-                      CATEGORY_COLORS[d.category] ?? 'bg-warm-100 text-warm-700'
-                    )}>
+                    <Puce ton={tonCategorie(d.category)}>
                       {categoryLabel(d.category)}
                       {d.impact ? ` · ${impactLabel(d.impact)}` : ''}
-                    </span>
+                    </Puce>
                   </td>
                   <td className="list-td">
                     {d.email_status === 'sent' ? (

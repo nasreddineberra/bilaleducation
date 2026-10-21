@@ -7,7 +7,8 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import { categoryLabel, impactLabel } from '@/lib/support/categories'
 import { formatDateHeureFr } from '@/lib/dates'
 import { getSupportAttachmentUrl } from '@/app/dashboard/support/actions'
-import type { SupportRequestRow } from './SupportRequestsClient'
+import { tonCategorie, type SupportRequestRow } from './SupportRequestsClient'
+import { Puce } from '@/components/dashboard/tdb'
 
 /**
  * Consultation d'une demande envoyée. Lecture seule : une demande partie ne se
@@ -73,10 +74,10 @@ export default function SupportRequestDetailModal({
       }
     >
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warm-100 text-warm-700">
+        <Puce ton={tonCategorie(demande.category)}>
           {categoryLabel(demande.category)}
           {demande.impact ? ` · ${impactLabel(demande.impact)}` : ''}
-        </span>
+        </Puce>
         <span className="text-xs text-warm-700">{formatDateHeureFr(demande.created_at)}</span>
       </div>
 
@@ -93,7 +94,7 @@ export default function SupportRequestDetailModal({
           <button
             type="button"
             onClick={ouvrirPieceJointe}
-            className="text-sm text-primary-700 hover:text-primary-800 underline underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+            className="text-sm text-[var(--brand-surface)] dark:text-[var(--brand-accent)] underline underline-offset-2 hover:no-underline rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
             Voir la pièce jointe
           </button>
@@ -107,8 +108,8 @@ export default function SupportRequestDetailModal({
       <div className={clsx(
         'rounded-lg px-3 py-2 text-xs',
         demande.email_status === 'sent'
-          ? 'bg-primary-50 text-primary-700'
-          : 'bg-amber-50 text-amber-700'
+          ? 'ton-ok'
+          : 'ton-attente'
       )}>
         {demande.email_status === 'sent' ? (
           vue === 'editeur' ? 'Reçue par email.' : 'Notification transmise au support.'

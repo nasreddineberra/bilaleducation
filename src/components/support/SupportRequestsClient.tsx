@@ -2,8 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { clsx } from 'clsx'
-import { LifeBuoy } from 'lucide-react'
+import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import SupportRequestModal from './SupportRequestModal'
@@ -41,15 +40,17 @@ export type SupportRequestRow = {
   created_at: string
 }
 
-/** Couleurs de nature. Une teinte par catégorie, jamais par rang. */
-export const CATEGORY_COLORS: Record<string, string> = {
-  assistance:  'bg-blue-100 text-blue-700',
-  incident:    'bg-red-100 text-red-700',
-  information: 'bg-warm-100 text-warm-700',
-  suggestion:  'bg-purple-100 text-purple-700',
-  facturation: 'bg-amber-100 text-amber-700',
-  autre:       'bg-warm-100 text-warm-700',
+/** Ton de nature (`Puce`, 21/10) : un ton par categorie, jamais par rang. Partage
+ *  avec la console editeur. Le bleu et le violet d'origine etaient hors charte. */
+const CATEGORY_TON: Record<string, Ton> = {
+  assistance:  'info',
+  incident:    'danger',
+  information: 'neutre',
+  suggestion:  'remplacement',
+  facturation: 'attente',
+  autre:       'neutre',
 }
+export const tonCategorie = (cat: string): Ton => CATEGORY_TON[cat] ?? 'neutre'
 
 const FILTERS = ['', ...SUPPORT_CATEGORIES.map(c => c.value)] as const
 
@@ -112,9 +113,9 @@ export default function SupportRequestsClient({
   return (
     <div className="space-y-2">
 
-      {/* Bouton d'action, au-dessus des filtres et à gauche : c'est le geste
-          principal de l'écran, il ne se cherche pas. Sans icône (règle projet). */}
-      <div>
+      {/* Bouton d'action, au-dessus des filtres et a DROITE (comme « Ajouter »
+          sur les autres ecrans). Sans icone (regle projet). */}
+      <div className="flex justify-end">
         <FloatButton variant="submit" onClick={() => setFormOuvert(true)}>
           Contacter le support
         </FloatButton>
@@ -156,19 +157,16 @@ export default function SupportRequestsClient({
 
       {/* Tableau */}
       {filtered.length === 0 ? (
-        <div className="card px-6 py-10 text-center">
-          <LifeBuoy size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
-          <p className="text-sm text-warm-700">
-            {demandes.length === 0
-              ? "Aucune demande envoyée au support."
-              : "Aucune demande ne correspond à ces critères."}
-          </p>
+        <div className="card text-center text-sm text-warm-700 py-10">
+          {demandes.length === 0
+            ? 'Aucune demande envoyée au support.'
+            : 'Aucune demande ne correspond à ces critères.'}
         </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="liste">
           <table className="w-full text-xs" aria-label="Demandes envoyées au support">
             <thead>
-              <tr className="border-b border-warm-100">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th w-2/12">Date</th>
                 <th scope="col" className="list-th w-4/12">Objet</th>
                 <th scope="col" className="list-th w-3/12">Nature</th>
@@ -181,7 +179,7 @@ export default function SupportRequestsClient({
                 <tr
                   key={d.id}
                   onClick={() => setDetail(d)}
-                  className="hover:bg-warm-100 transition-colors cursor-pointer"
+                  className="cursor-pointer"
                 >
                   <td className="list-td text-warm-700 whitespace-nowrap">
                     {formatDateHeureFr(d.created_at)}
@@ -192,19 +190,16 @@ export default function SupportRequestsClient({
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); setDetail(d) }}
-                      className="list-name hover:underline text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                      className="list-name hover:underline text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       {d.subject}
                     </button>
                   </td>
                   <td className="list-td">
-                    <span className={clsx(
-                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
-                      CATEGORY_COLORS[d.category] ?? 'bg-warm-100 text-warm-700'
-                    )}>
+                    <Puce ton={tonCategorie(d.category)}>
                       {categoryLabel(d.category)}
                       {d.impact ? ` · ${impactLabel(d.impact)}` : ''}
-                    </span>
+                    </Puce>
                   </td>
                   <td className="list-td">
                     {d.email_status === 'sent' ? (
@@ -212,7 +207,7 @@ export default function SupportRequestsClient({
                     ) : (
                       // Ambre et non rouge : la demande EST enregistrée, c'est
                       // la notification qui manque. Le rouge dirait « perdue ».
-                      <span className="text-amber-700 font-medium">Non transmise</span>
+                      <Puce ton="attente">Non transmise</Puce>
                     )}
                   </td>
                   <td className="list-td text-warm-700 truncate">{d.author_name}</td>

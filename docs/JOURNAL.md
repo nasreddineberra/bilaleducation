@@ -8809,3 +8809,15 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Demandes utilisateur** : ligne « Annee 2026-2027 » retiree (doublon du contexte) ; « Copier depuis … »
   et « Ajouter » deplaces juste au-dessus du tableau (sous l'encadre d'information), groupes avec lui
   (`space-y-2`).
+
+#### 21 octobre 2026 — Refonte : Support technique
+
+- **Inspection puis go** (12 points). Liste en `.liste` sans cadre (en-tete `liste-entete`, survol de la
+  charte) ; « Contacter le support » a DROITE (demande utilisateur, comme « Ajouter ») ; etat vide d'une phrase.
+- Natures en `Puce` via `tonCategorie()` (Assistance `info`, Incident `danger`, Facturation `attente`,
+  Suggestion `remplacement`, Information / Autre `neutre` ; bleu et violet hors charte), partagee avec la
+  console editeur ; « Non transmise » en `Puce attente`.
+- Detail : nature en `Puce`, lien de piece jointe au vert de marque, encadre de notification en `ton-ok` /
+  `ton-attente`.
+- Contacter : « Joindre une capture d'ecran » en `FloatButton` mini ; deux phrases de motivation retirees
+  (aides de nature / impact, consigne d'incident et contraintes de la PJ gardees) ; focus `--brand-focus`.

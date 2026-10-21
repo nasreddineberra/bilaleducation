@@ -203,11 +203,11 @@ export default function SupportRequestModal({
           maxLength={SUPPORT_MESSAGE_MAX}
           onChange={e => setMessage(e.target.value)}
         />
-        <p className="text-xs text-warm-700 mt-1">
-          {estIncident
-            ? "Décrivez ce que vous faisiez, ce que vous attendiez, et ce qui s'est produit."
-            : 'Plus votre demande est précise, plus la réponse le sera.'}
-        </p>
+        {estIncident && (
+          <p className="text-xs text-warm-700 mt-1">
+            Décrivez ce que vous faisiez, ce que vous attendiez, et ce qui s&apos;est produit.
+          </p>
+        )}
       </div>
 
       {/* ── Pièce jointe ─────────────────────────────────────────────────── */}
@@ -236,24 +236,19 @@ export default function SupportRequestModal({
                   // `change` : la valeur de l'input n'aurait pas varié.
                   if (inputFichier.current) inputFichier.current.value = ''
                 }}
-                className="p-1 rounded hover:bg-warm-100 text-warm-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                className="p-1 rounded hover:bg-warm-100 text-warm-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
               >
                 <X size={14} />
               </button>
             </Tooltip>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => inputFichier.current?.click()}
-            className="text-sm text-primary-700 hover:text-primary-800 underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
-          >
+          <FloatButton type="button" variant="secondary" size="mini" onClick={() => inputFichier.current?.click()}>
             Joindre une capture d&apos;écran
-          </button>
+          </FloatButton>
         )}
         <p className="text-xs text-warm-700 mt-1">
-          Facultatif &middot; image ou PDF, {SUPPORT_ATTACHMENT_MAX_LABEL} maximum. Sur une anomalie,
-          une capture vaut souvent mieux qu&apos;une description.
+          Facultatif &middot; image ou PDF, {SUPPORT_ATTACHMENT_MAX_LABEL} maximum.
         </p>
       </div>
 
@@ -264,7 +259,7 @@ export default function SupportRequestModal({
           type="button"
           onClick={() => setContexteOuvert(o => !o)}
           aria-expanded={contexteOuvert}
-          className="text-xs text-warm-700 hover:text-secondary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded"
+          className="text-xs text-warm-700 hover:text-secondary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded"
         >
           {contexteOuvert ? 'Masquer' : 'Voir'} les informations jointes automatiquement
         </button>
