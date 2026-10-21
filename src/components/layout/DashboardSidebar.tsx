@@ -781,7 +781,7 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           href="/dashboard"
           className={clsx(
             'flex min-w-0 rounded-lg outline-none transition-opacity hover:opacity-90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]',
-            collapsed ? 'justify-center' : 'items-start gap-3 flex-1'
+            collapsed ? 'flex-col items-center gap-1' : 'items-start gap-3 flex-1'
           )}
         >
         {/* Avatar / Logo établissement */}
@@ -808,6 +808,14 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
           >
             <span className="text-white drop-shadow-sm leading-none">{initiales}</span>
           </div>
+        )}
+
+        {/* Mode reduit : l'annee en cours sous le logo (le nom de l'ecole, trop
+            long pour 92 px, reste reserve au mode deplie). */}
+        {collapsed && anneeCourante && (
+          <span className="text-[9px] leading-none font-medium text-[var(--brand-muted)] whitespace-nowrap tabular-nums">
+            {anneeCourante}
+          </span>
         )}
 
         {/* Textes (cachés en mode réduit) */}
@@ -855,12 +863,27 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
         {collapsed && SECTION_ORDER.map((sectionLabel, si) => {
           const dests = destsOfSection(sectionLabel)
           if (dests.length === 0) return null
+          // Accordeon comme en mode deploye (21/10) : MEME etat `openSection`,
+          // une section ouverte a la fois, celle de la page affichee par defaut.
+          const isSecOpen = openSection === sectionLabel
           return (
             <div key={sectionLabel} className={clsx('mx-2', si > 0 && 'mt-1.5 pt-1.5 border-t border-white/10')}>
-              {/* Rappel du titre de section sous le filet */}
-              <p className="pb-1 text-[9px] font-bold uppercase tracking-wide text-center text-[var(--brand-label)] truncate">
-                {sectionLabel}
-              </p>
+              {/* Titre de section : bouton d'ouverture / fermeture */}
+              <button
+                type="button"
+                onClick={() => toggleSection(sectionLabel)}
+                aria-expanded={isSecOpen}
+                className="w-full flex items-center justify-center gap-0.5 pb-1 text-[9px] font-bold uppercase tracking-wide text-[var(--brand-label)] hover:text-white transition-colors motion-reduce:transition-none rounded outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]"
+              >
+                <span className="truncate">{sectionLabel}</span>
+                <ChevronDown
+                  size={10}
+                  aria-hidden="true"
+                  className={clsx('flex-shrink-0 transition-transform duration-200 motion-reduce:transition-none', isSecOpen && 'rotate-180')}
+                />
+              </button>
+              <div className={clsx('grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none', isSecOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+              <div className="overflow-hidden" inert={!isSecOpen}>
               <div className="grid grid-cols-2 gap-1 justify-items-center">
                 {dests.map(d => {
                   const DIcon = d.icon
@@ -883,6 +906,8 @@ export default function DashboardSidebar({ role, etablissementNom, etablissement
                     </SidebarTooltip>
                   )
                 })}
+              </div>
+              </div>
               </div>
             </div>
           )

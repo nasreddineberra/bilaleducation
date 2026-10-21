@@ -8821,3 +8821,12 @@ marque ; les vraies ecoles gardent leur plaque.
   `ton-attente`.
 - Contacter : « Joindre une capture d'ecran » en `FloatButton` mini ; deux phrases de motivation retirees
   (aides de nature / impact, consigne d'incident et contraintes de la PJ gardees) ; focus `--brand-focus`.
+
+#### 21 octobre 2026 — Barre laterale repliee : annee sous le logo, sections en accordeon
+
+- **Demandes utilisateur**. Mode replie (92 px) : l'annee en cours s'affiche sous le logo (9 px, couleur
+  `--brand-muted`, comme sous le nom de l'ecole en mode deplie ; le logo et l'annee forment un seul lien).
+- Sections en ACCORDEON comme en mode deplie : titres cliquables (`aria-expanded`, chevron de 10 px),
+  une seule section ouverte, celle de la page affichee par defaut ; MEME etat `openSection` que le mode
+  deplie (il se conserve d'un mode a l'autre) ; repli anime en `grid-rows`, contenu ferme en `inert`.
+- Controles : type-check OK, lint 0 erreur (649 avertissements, inchange), 123 tests OK, build OK.
