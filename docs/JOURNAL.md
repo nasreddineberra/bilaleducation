@@ -8794,3 +8794,12 @@ marque ; les vraies ecoles gardent leur plaque.
   MAIS les options du diagnostique (AC / EC / NA) restent figees quand le type est verrouille : changer un
   acronyme changerait le sens de notes deja saisies.
 - Repartition (Semestriel / Trimestriel) inchangee : ce n'est pas un choix oui / non.
+
+#### 21 octobre 2026 — Fiche classe : encadre Planning EDT
+
+- **Signale par l'utilisateur**. Le tableau des creneaux etait dans une boite bordee EN PLUS de `.liste`
+  (double cadre) ; cellules faites main (`px-3 py-2`, `text-sm` et `text-xs` melanges, horaires en police a
+  chasse fixe) ; creneau actif marque deux fois (ligne teintee + pastille « Actif »).
+- Correctif : `.liste` seule ; cellules `list-td` en `text-xs`, horaires et dates en `tabular-nums` ;
+  creneau actif en `.ligne-active` (barre des actifs, comme un eleve actif), survol commun retrouve ; etat
+  vide d'une phrase ; erreur de chevauchement en `role="alert"`.

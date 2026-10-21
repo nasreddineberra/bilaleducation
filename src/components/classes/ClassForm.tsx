@@ -4,7 +4,7 @@ import { normalizeNom } from '@/lib/normalize-name'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
-import { Trash2, BookOpen, Pencil, CalendarDays } from 'lucide-react'
+import { Trash2, BookOpen, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture, verifierEcritureLot } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
@@ -962,8 +962,8 @@ export default function ClassForm({
 
         {/* Tableau des créneaux */}
         {slots.length > 0 && (
-          <div className="border border-warm-100 rounded-xl overflow-hidden">
-            <table className="liste w-full text-sm" aria-label="Créneaux de la classe">
+          <div className="liste">
+            <table className="w-full text-xs" aria-label="Créneaux de la classe">
               <thead>
                 <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th className="list-th text-left">Jour</th>
@@ -978,21 +978,21 @@ export default function ClassForm({
                   const today = todayISO()
                   const isActive = !slot.effective_until || slot.effective_until >= today
                   return (
-                    <tr key={idx} className={clsx(isActive && 'sans-survol bg-[var(--brand-tint)]')}>
-                      <td className="px-3 py-2 font-medium text-secondary-800 whitespace-nowrap">
+                    // Creneau actif : barre des actifs (`.ligne-active`), comme un eleve actif.
+                    <tr key={idx} className={clsx(isActive && 'ligne-active')}>
+                      <td className="list-td font-medium text-secondary-800 whitespace-nowrap">
                         {slot.day_of_week}
-                        {isActive && <span className="ml-1.5"><Puce ton="ok">Actif</Puce></span>}
                       </td>
-                      <td className="px-3 py-2 text-secondary-600 whitespace-nowrap font-mono text-xs">
+                      <td className="list-td text-secondary-700 whitespace-nowrap tabular-nums">
                         {slot.start_time.slice(0, 5)}-{slot.end_time.slice(0, 5)}
                       </td>
-                      <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
+                      <td className="list-td text-secondary-700 whitespace-nowrap tabular-nums">
                         {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">·</span>}
                       </td>
-                      <td className="px-3 py-2 text-secondary-600 text-xs whitespace-nowrap">
+                      <td className="list-td text-secondary-700 whitespace-nowrap tabular-nums">
                         {slot.effective_until ? fmtDate(slot.effective_until) : <span className="text-warm-700 italic">ouvert</span>}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="list-td">
                         <div className="flex items-center gap-1 justify-end">
                           <Tooltip content="Modifier">
                             <button
@@ -1023,15 +1023,12 @@ export default function ClassForm({
         )}
 
         {slots.length === 0 && (
-          <div className="flex items-center gap-2 text-sm text-warm-700 bg-warm-50 rounded-xl px-4 py-3">
-            <CalendarDays size={14} />
-            Aucun créneau déployé dans l'emploi du temps.
-          </div>
+          <p className="text-xs text-warm-700 italic">Aucun créneau déployé dans l&apos;emploi du temps.</p>
         )}
 
         {/* Erreur chevauchement */}
         {slotOverlapErr && (
-          <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{slotOverlapErr}</p>
+          <p role="alert" className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{slotOverlapErr}</p>
         )}
 
         {/* Modal ajout/édition de créneau */}
