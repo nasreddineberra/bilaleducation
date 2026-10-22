@@ -362,14 +362,18 @@ financements, retention…), ecole de demonstration.
    FILTRENT une liste -> `FiltreSwitch` (compteur optionnel ; periodes aussi). Confirmations en
    `ConfirmModal`, saisies en `FormModal`, actions de ligne toujours visibles. Script de conversion :
    `scratchpad/marque.py` (a recreer si besoin, regle ci-dessus).
-   **Fait (18-20/10)** : socle (ui, layout), Classes, Reglements (disposition 18-20/10, couleurs
-   et modales 21/10), Messages envoyes, Support (repris 21/10), fiche apprenant (Discipline, Scolarite, Documents,
-   Historique), fiche parent (Scolarite adulte), listes Apprenants / Parents harmonisees, modales de
-   synchronisation, Affectations apprenants et adultes, Feuille d'appel (+ modales), Importation,
-   Gabarits, Saisie des notes (21/10, + focus de `.input` au socle), Bulletins, EDT, Cahier de texte, Classes archivees, Notifications, Temps de presence, Tableau de bord (18/10), Communications, Financements (Statistiques, Situation). **Reste** : console editeur. **Fait le
-   21/10** : Parametres (annees, referentiel, enseignants, utilisateurs, cotisations, types de presence,
-   ressources, journal, etablissement) et Mon compte, par passage mecanique (`scratchpad/marque.py`) +
-   reprises a la main. **Fait aussi** : Passage d'annee (21/10).
+   **Etat au 21/10 au soir : refonte faite sur TOUTES les pages de l'ecole** (Principal, Vie scolaire,
+   Pedagogie, Gestion, Cloture, Parametres, Mon compte, barre laterale). **Reste : la console editeur.**
+   Regles appliquees partout (memoire `refonte-structure-pas-couleurs`) : listes en `.liste` SANS `card p-0`
+   (survol integre, `--survol-ligne`, `.sans-survol`, `.ligne-active`) ; bandeaux `.encadre-titre` ; saisies
+   en `FormModal`, confirmations en `ConfirmModal` (jamais « Confirmer / Annuler » en ligne) ; actions de ligne
+   visibles ; `Puce` / `ton-*` pour les etats ; `Float*` et `SwitchOuiNon` pour les champs et choix oui / non ;
+   etats vides d'une phrase ; grise = `--champ-verrou` / `warm-400` ; page sans defilement = un element
+   elastique absorbe la hauteur. Graphiques : palette dataviz validee CONSERVEE (option A, 21/10).
+   Sources uniques ajoutees le 21/10 : `tonRole()` (role-labels), `tonCategorie()` (support),
+   `cahier-texte/commun.ts` (types de devoir, dates locales).
+   **Ecart connu** : Bulletins, Classes archivees et Messages envoyes gardent une `card p-0` autour de leur
+   `.liste` (faits avant la correction de la regle, 21/10) : a retirer a leur prochain passage.
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
 2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
