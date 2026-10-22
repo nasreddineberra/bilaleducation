@@ -9,7 +9,7 @@ import { Puce } from '@/components/dashboard/tdb'
 import { createClient } from '@/lib/supabase/client'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
-import { FloatButton, FloatInput, FloatCheckbox } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
@@ -540,7 +540,9 @@ export default function CotisationsClient({
               onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
             />
             <div className="flex items-center gap-1.5">
-              <FloatCheckbox variant="compact" label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
+              <div className="flex-1 min-w-0">
+                <SwitchOuiNon label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
+              </div>
               <InfoHint text="Les classes de ce type seront réservées aux adultes." />
             </div>
           </div>
@@ -586,7 +588,9 @@ export default function CotisationsClient({
               <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <FloatCheckbox variant="compact" label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
+              <div className="flex-1 min-w-0">
+                <SwitchOuiNon label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
+              </div>
               <InfoHint text="Réduction entre enfants du même type uniquement." />
             </div>
           </div>

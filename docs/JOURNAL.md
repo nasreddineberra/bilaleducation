@@ -8870,3 +8870,5 @@ marque ; les vraies ecoles gardent leur plaque.
 - Annees scolaires : l'annee en cours n'a plus de fond teinte (`brand-tint` + `sans-survol`, double marquage avec
   la pastille « En cours ») mais la barre `.ligne-active`, et retrouve le survol commun.
 - Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK.
+- **Suite (demande utilisateur)** : dans les deux modales, cases a cocher -> `SwitchOuiNon` (« Actif » ;
+  « Cours adultes » et « Meme type », bulles d'aide conservees a cote).

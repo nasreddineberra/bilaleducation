@@ -6,7 +6,7 @@ import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { deletePresenceType } from '@/app/dashboard/types-presence/actions'
-import { FloatInput, FloatButton, FloatCheckbox } from '@/components/ui/FloatFields'
+import { FloatInput, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import { Puce } from '@/components/dashboard/tdb'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -415,8 +415,7 @@ export default function TypesPresenceClient({ initialTypes, currentYear, previou
               })}
             </div>
           </div>
-          <FloatCheckbox
-            variant="compact"
+          <SwitchOuiNon
             label="Actif"
             checked={editing.is_active ?? true}
             disabled={!!editing.reserved_kind}
