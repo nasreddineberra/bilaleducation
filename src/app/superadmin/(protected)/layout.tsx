@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import SuperAdminSidebar from '@/components/superadmin/SuperAdminSidebar'
+import ConsoleBarre from '@/components/superadmin/ConsoleBarre'
 import SingleTabGuard from '@/components/layout/SingleTabGuard'
 import { expirerSiDepassee } from '@/lib/support/intervention'
 
@@ -39,11 +39,11 @@ export default async function SuperAdminProtectedLayout({
 
   return (
     <SingleTabGuard>
-    <div className="h-screen overflow-hidden bg-warm-50 flex">
+    <div className="h-screen overflow-hidden bg-[var(--surface-page)] flex flex-col">
       {/* NOM Prénom, et non l'adresse : c'est l'identité, pas un identifiant
           technique — et l'ordre est celui de toute l'application. */}
-      <SuperAdminSidebar nom={`${profile.last_name ?? ''} ${profile.first_name ?? ''}`.trim()} />
-      <main className="flex-1 overflow-y-auto p-8">
+      <ConsoleBarre nom={`${profile.last_name ?? ''} ${profile.first_name ?? ''}`.trim()} />
+      <main className="flex-1 min-h-0 overflow-y-auto px-4 py-6 sm:px-10">
         {children}
       </main>
     </div>

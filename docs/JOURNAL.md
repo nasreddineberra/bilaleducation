@@ -8917,3 +8917,14 @@ marque ; les vraies ecoles gardent leur plaque.
 - 2FA en contexte console : `totp-challenge` n'applique plus le theme du profil (la console reste claire). La
   carte blanche des ecrans de code n'est pas encore refaite (maquette I) : a reprendre.
 - Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK, regles presentes dans le CSS servi.
+
+#### 22 octobre 2026 — Console editeur, lot 2 : navigation horizontale
+
+- `SuperAdminSidebar` supprimee, remplacee par `ConsoleBarre` (maquette G) : bande graphite de 56 px (logo,
+  « Bilal Education », pastille « CONSOLE », NOM Prenom, version en chasse fixe, deconnexion `Power` avec
+  infobulle en dessous) puis bande blanche de 54 px avec les 4 rubriques en pilules (active : graphite + point
+  citron vert ; sinon texte secondaire, survol `--survol-ligne`). Sur telephone, les pilules defilent.
+- Conserves tels quels : deconnexion par inactivite, navigation dure a la deconnexion, controle du role brut et
+  expiration des interventions dans le layout. Mise en page en colonne, fond `--surface-page`, marges 24 x 40 px.
+- Pas de rubrique « Interventions » : aucune page dediee (elles vivent dans la fiche ecole et le bandeau).
+- Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK, classes presentes dans le CSS servi.
