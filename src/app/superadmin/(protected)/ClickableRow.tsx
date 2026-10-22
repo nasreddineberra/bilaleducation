@@ -16,11 +16,14 @@ export default function ClickableRow({
   label,
   children,
   className = '',
+  survolIntegre = false,
 }: {
   href: string
   label: string
   children: React.ReactNode
   className?: string
+  /** Ligne d'une `.liste` : le survol est celui de la charte, pas `hover:bg-warm-100`. */
+  survolIntegre?: boolean
 }) {
   const router = useRouter()
 
@@ -42,7 +45,7 @@ export default function ClickableRow({
       tabIndex={0}
       role="link"
       aria-label={label}
-      className={`cursor-pointer hover:bg-warm-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/50 ${className}`}
+      className={`cursor-pointer ${survolIntegre ? '' : 'hover:bg-warm-100'} transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)] ${className}`}
     >
       {children}
     </tr>

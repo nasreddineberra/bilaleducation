@@ -1,7 +1,8 @@
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { Building2, Users, Layers, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Building2 } from 'lucide-react'
+import { Puce } from '@/components/dashboard/tdb'
 import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -156,14 +157,11 @@ export default async function SuperAdminPage({ searchParams }: {
         />
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-secondary-800">Établissements</h1>
-          <p className="text-warm-700 text-sm mt-1">
-            {etablissements?.length ?? 0} établissement{(etablissements?.length ?? 0) > 1 ? 's' : ''} enregistré{(etablissements?.length ?? 0) > 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      {/* Pas de titre de page : l'onglet « Établissements » le dit deja (regle de
+          l'application). Le nombre d'ecoles est porte par le segment « Toutes ». */}
+      <div className="flex flex-wrap items-center gap-3">
+        {toutes.length > 0 && <FiltresEcoles filtre={filtre} q={q} comptes={comptes} />}
+        <div className="ml-auto flex items-center gap-2">
           {!(etablissements ?? []).some(e => e.est_demo) && <CreerEcoleDemo />}
           <FloatButton href="/superadmin/ecoles/new" variant="submit">
             Nouvel établissement
@@ -173,124 +171,110 @@ export default async function SuperAdminPage({ searchParams }: {
 
       <div className="flex-1 grid grid-cols-4 gap-4 items-start">
 
-      <div className="col-span-3 space-y-2">
-      {toutes.length > 0 && <FiltresEcoles filtre={filtre} q={q} comptes={comptes} />}
+      <div className="col-span-3">
       {!etablissements?.length ? (
         <div className="card p-12 text-center">
           <Building2 className="w-12 h-12 text-warm-700 mx-auto mb-3" />
           <p className="text-warm-700 font-medium">Aucun établissement</p>
-          <p className="text-warm-700 text-sm mt-1">Créez votre premier client avec le bouton ci-dessus.</p>
         </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        // Colonnes de la maquette G (22/10) + Utilisateurs. Le domaine a sa
+        // colonne : il ne se repete plus sous le nom.
+        <div className="liste">
           <table className="w-full text-xs" aria-label="Établissements clients">
             <thead>
-              <tr>
-                {/* Toutes les colonnes a la largeur de leur contenu (`w-px` +
-                    `whitespace-nowrap`), sauf Etablissement qui prend le reste.
-                    Donnees centrees, sauf Etablissement et Derniere connexion. */}
-                <th scope="col" className="list-th w-px px-2" />
-                <th scope="col" className="list-th text-left">Établissement</th>
-                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Statut</th>
-                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Abonnement</th>
-                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Inscrits</th>
-                <th scope="col" className="list-th w-px whitespace-nowrap text-left">Dernière connexion</th>
-                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Utilisateurs</th>
-                <th scope="col" className="list-th w-px whitespace-nowrap text-center">Classes</th>
+              <tr className="liste-entete border-b border-[var(--card-border)]">
+                <th scope="col" className="list-th text-left">École</th>
+                <th scope="col" className="list-th text-left">Domaine</th>
+                <th scope="col" className="list-th text-left w-[200px]">Inscrits</th>
+                <th scope="col" className="list-th text-left whitespace-nowrap">Échéance</th>
+                <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
+                <th scope="col" className="list-th text-left">État</th>
+                <th scope="col" className="list-th text-center">Utilisateurs</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-warm-100">
+            <tbody className="divide-y divide-warm-50">
               {visibles.length === 0 && (
-                <tr><td colSpan={8} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
+                <tr className="sans-survol"><td colSpan={7} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
               )}
               {visibles.map(e => {
                 const expired = isExpired(e.subscription_expires_at)
                 const dateStr = formatDate(e.subscription_expires_at)
                 const s       = statsMap[e.id]
+                const sig     = signaux(e)
                 // Base facturable (eleves actifs + adultes inscrits) : le chiffre
                 // qui fixe le prix, et que la limite d'inscrits plafonne.
                 const quota    = e.max_students && s ? s.inscrits / e.max_students : null
                 const activite = depuis(s?.derniereConnexion ?? null, maintenant)
                 const dormante = e.is_active && (activite.jours === null || activite.jours >= SEUIL_INACTIVITE_JOURS)
+                // Une seule pastille d'etat, la plus grave d'abord.
+                const etat: { ton: 'ok' | 'attente' | 'danger' | 'neutre'; texte: string } =
+                  e.donnees_effacees_le ? { ton: 'neutre',  texte: 'Données effacées' }
+                  : !e.is_active        ? { ton: 'danger',  texte: 'Inactive' }
+                  : expired             ? { ton: 'danger',  texte: 'Expirée' }
+                  : sig.echeance        ? { ton: 'attente', texte: 'Échéance proche' }
+                  :                       { ton: 'ok',      texte: 'Active' }
 
                 return (
                   <ClickableRow
                     key={e.id}
                     href={`/superadmin/ecoles/${e.id}`}
                     label={`Fiche de ${e.nom}`}
+                    survolIntegre
                     className={e.donnees_effacees_le ? 'opacity-60 grayscale' : ''}
                   >
-                    <td className="list-td px-2">
-                      {e.logo_url ? (
-                        <Image
-                          src={e.logo_url}
-                          alt=""
-                          width={32}
-                          height={32}
-                          unoptimized
-                          className="w-8 h-8 max-w-none rounded-lg object-contain bg-[#ffffff] ring-1 ring-warm-200"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold select-none bg-warm-100 text-warm-700 ring-1 ring-warm-200">
-                          {(e.nom ?? '?').trim().charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </td>
                     <td className="list-td">
-                      <p className="list-name flex items-center gap-2">
-                        {e.nom}
-                        {e.est_demo && (
-                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">Démo</span>
+                      <div className="flex items-center gap-2.5">
+                        {e.logo_url ? (
+                          <Image
+                            src={e.logo_url}
+                            alt=""
+                            width={28}
+                            height={28}
+                            unoptimized
+                            className="w-7 h-7 max-w-none rounded-lg object-contain bg-[#ffffff] ring-1 ring-[var(--card-border)]"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold select-none bg-[var(--survol-ligne)] text-[var(--ink)]">
+                            {(e.nom ?? '?').trim().charAt(0).toUpperCase()}
+                          </div>
                         )}
-                      </p>
-                      <p className="text-xs text-warm-700 mt-0.5 font-mono">{e.slug}.bilaleducation.fr</p>
+                        <span className="list-name">{e.nom}</span>
+                        {e.est_demo && <Puce ton="neutre">Démo</Puce>}
+                      </div>
                     </td>
-                    <td className="list-td whitespace-nowrap text-center">
-                      {e.donnees_effacees_le ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warm-700 bg-warm-100 px-2.5 py-1 rounded-full whitespace-nowrap">
-                          <XCircle className="w-3.5 h-3.5" /> Données effacées
-                        </span>
-                      ) : e.is_active ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Actif
-                        </span>
+                    <td className="list-td mono text-[var(--ink-muted)] whitespace-nowrap">{e.slug}</td>
+                    <td className="list-td">
+                      {e.max_students ? (
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex-1 h-1.5 rounded-full bg-[var(--jauge-fond)] overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${quota !== null && quota >= 0.9 ? 'bg-amber-500' : 'bg-[var(--brand-surface)]'}`}
+                              style={{ width: `${Math.min(100, Math.round((quota ?? 0) * 100))}%` }}
+                            />
+                          </div>
+                          <span className={`mono tabular-nums whitespace-nowrap ${quota !== null && quota >= 0.9 ? 'text-amber-700 font-medium' : ''}`}>
+                            {s?.inscrits ?? '·'}/{e.max_students}
+                          </span>
+                        </div>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-50 px-2.5 py-1 rounded-full">
-                          <XCircle className="w-3.5 h-3.5" /> Inactif
-                        </span>
+                        <span className="mono tabular-nums">{s?.inscrits ?? '·'}</span>
                       )}
                     </td>
-                    <td className="list-td whitespace-nowrap text-center">
+                    <td className="list-td whitespace-nowrap">
                       {dateStr ? (
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${expired ? 'text-red-600 bg-red-50' : 'text-warm-700 bg-warm-100'}`}>
-                          <Clock className="w-3.5 h-3.5" />
-                          {expired ? 'Expiré ' : ''}{dateStr}
-                        </span>
+                        <span className={`mono ${expired ? 'text-red-700 font-medium' : sig.echeance ? 'text-amber-700 font-medium' : ''}`}>{dateStr}</span>
                       ) : (
-                        <span className="text-xs text-warm-700">Sans expiration</span>
+                        <span className="text-warm-700">Sans expiration</span>
                       )}
-                    </td>
-                    <td className="list-td text-center whitespace-nowrap tabular-nums">
-                      <span className={quota !== null && quota >= 0.9 ? 'text-amber-700 font-medium' : 'text-warm-700'}>
-                        {s?.inscrits ?? '·'}
-                        {e.max_students ? ` / ${e.max_students}` : ''}
-                      </span>
                     </td>
                     <td className="list-td whitespace-nowrap">
                       <span className={dormante ? 'text-amber-700 font-medium' : 'text-warm-700'}>
                         {s ? activite.texte : '·'}
                       </span>
                     </td>
-                    <td className="list-td text-center whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-warm-700">
-                        <Users className="w-3.5 h-3.5" />{s?.users ?? '·'}
-                      </span>
-                    </td>
-                    <td className="list-td text-center whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-warm-700">
-                        <Layers className="w-3.5 h-3.5" />{s?.classes ?? '·'}
-                      </span>
-                    </td>
+                    <td className="list-td whitespace-nowrap"><Puce ton={etat.ton}>{etat.texte}</Puce></td>
+                    <td className="list-td text-center tabular-nums">{s?.users ?? '·'}</td>
                   </ClickableRow>
                 )
               })}

@@ -8,13 +8,15 @@ import { authRepository } from '@/lib/database/auth'
 import { useInactivityLogout } from '@/hooks/useInactivityLogout'
 import { APP_VERSION } from '@/lib/app-version'
 import Tooltip from '@/components/ui/Tooltip'
+import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { PastilleConsole } from '@/components/superadmin/MarqueConsole'
-import { clsx } from 'clsx'
+import RechercheEcoles, { type EcoleRecherche } from '@/components/superadmin/RechercheEcoles'
 
 /**
  * Navigation de la CONSOLE (refonte du 22/10, maquette G) : remplace la barre
  * laterale par deux bandes pleine largeur. En haut, la bande graphite (marque,
- * identite, version, deconnexion) ; dessous, les rubriques en pilules.
+ * recherche globale, identite, version, deconnexion) ; dessous, les rubriques
+ * avec les MEMES onglets que l'application (fiche apprenant), demande du 22/10.
  *
  * La version reste affichee ICI et non sur la connexion : derriere
  * l'authentification, elle n'apprend rien a un visiteur.
@@ -26,11 +28,14 @@ const RUBRIQUES: { href: string; libelle: string; actif: (p: string) => boolean 
   { href: '/superadmin/support',     libelle: 'Demandes de support', actif: p => p.startsWith('/superadmin/support') },
 ]
 
-export default function ConsoleBarre({ nom }: {
+export default function ConsoleBarre({ nom, ecoles }: {
   /** NOM Prénom de l'éditeur connecté : une identité, pas un identifiant de connexion. */
   nom?: string
+  /** Toutes les écoles, pour la recherche globale. */
+  ecoles: EcoleRecherche[]
 }) {
   const pathname = usePathname()
+  const actifIndex = RUBRIQUES.findIndex(r => r.actif(pathname))
 
   const handleLogout = async () => {
     try {
@@ -53,17 +58,21 @@ export default function ConsoleBarre({ nom }: {
 
   return (
     <header className="flex-shrink-0">
-      <div className="h-14 flex items-center gap-3 px-4 sm:px-10 bg-[var(--brand-surface)]">
+      <div className="h-16 flex items-center gap-4 px-4 sm:px-10 bg-[var(--brand-surface)]">
         <Link
           href="/superadmin"
-          className="flex items-center gap-2.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]"
+          className="flex items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]"
         >
-          <Image src="/icon.png" alt="" width={30} height={30} unoptimized className="flex-shrink-0" />
-          <span className="text-sm font-semibold text-white whitespace-nowrap">Bilal Education</span>
+          <Image src="/icon.png" alt="" width={36} height={36} unoptimized className="flex-shrink-0" />
+          <span className="text-lg font-bold uppercase tracking-wide text-white whitespace-nowrap">Bilal Education</span>
         </Link>
         <PastilleConsole>Console</PastilleConsole>
 
-        <div className="ml-auto flex items-center gap-3 min-w-0">
+        <div className="hidden md:flex flex-1 justify-center px-4">
+          <RechercheEcoles ecoles={ecoles} />
+        </div>
+
+        <div className="ml-auto md:ml-0 flex items-center gap-3 min-w-0">
           <span className="hidden sm:block text-xs text-[var(--brand-text)] truncate">{nom}</span>
           <span className="mono text-[11px] leading-none text-[var(--brand-muted)] bg-white/10 px-1.5 py-1 rounded flex-shrink-0">
             {APP_VERSION}
@@ -81,31 +90,20 @@ export default function ConsoleBarre({ nom }: {
         </div>
       </div>
 
-      {/* Sur telephone, les pilules defilent plutot que de passer a la ligne. */}
-      <nav
-        aria-label="Navigation de la console"
-        className="h-[54px] flex items-center gap-1 px-4 sm:px-10 overflow-x-auto bg-[var(--surface-card)] border-b border-[var(--card-border)]"
-      >
-        {RUBRIQUES.map(r => {
-          const actif = r.actif(pathname)
-          return (
+      <nav aria-label="Navigation de la console" className="px-4 sm:px-10 pt-2 bg-[var(--surface-card)]">
+        <Onglets navigation ariaLabel="Navigation de la console" actifIndex={actifIndex}>
+          {RUBRIQUES.map((r, i) => (
             <Link
               key={r.href}
               href={r.href}
-              aria-current={actif ? 'page' : undefined}
-              className={clsx(
-                'flex items-center gap-2 h-[34px] px-3.5 rounded-full text-[13px] whitespace-nowrap transition-colors outline-none',
-                'focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
-                actif
-                  ? 'bg-[var(--brand-surface)] text-white font-semibold'
-                  : 'text-[var(--ink-muted)] hover:bg-[var(--survol-ligne)] hover:text-[var(--ink)]',
-              )}
+              data-onglet
+              aria-current={i === actifIndex ? 'page' : undefined}
+              className={classeOnglet(i === actifIndex)}
             >
-              {actif && <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-[var(--brand-accent)]" />}
               {r.libelle}
             </Link>
-          )
-        })}
+          ))}
+        </Onglets>
       </nav>
     </header>
   )

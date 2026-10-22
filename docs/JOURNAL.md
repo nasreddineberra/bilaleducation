@@ -8928,3 +8928,24 @@ marque ; les vraies ecoles gardent leur plaque.
   expiration des interventions dans le layout. Mise en page en colonne, fond `--surface-page`, marges 24 x 40 px.
 - Pas de rubrique « Interventions » : aucune page dediee (elles vivent dans la fiche ecole et le bandeau).
 - Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK, classes presentes dans le CSS servi.
+
+#### 22 octobre 2026 — Console editeur : barre, onglets, recherche globale, liste des ecoles
+
+- **Demandes utilisateur** (captures de la maquette G).
+- Barre du haut : « BILAL EDUCATION » en majuscules, plus gros (text-lg, gras), contre le logo (36 px) ;
+  bande portee a 64 px.
+- Menu : les MEMES onglets que l'application (`Onglets` + `classeOnglet`, fiche apprenant) au lieu des pilules.
+  `Onglets` gagne un mode `navigation` : liens `data-onglet` + `aria-current`, sans `role="tablist"` (ce sont
+  des pages, pas des onglets) ; barre a zero si aucune rubrique n'est active.
+- **Recherche globale** (`RechercheEcoles`, barre du haut, toutes les pages) : nom ou sous-domaine, insensible
+  aux accents, 2 caracteres minimum, 8 resultats ; Ctrl+K (⌘K sur Mac) ; fleches + Entree ouvrent la fiche ;
+  Entree sans selection -> liste filtree `/superadmin?q=`. La liste des ecoles vient du layout (aucun appel a la
+  frappe). Pas de recherche de comptes (« Aller a un compte ») : a faire si besoin.
+- Liste des etablissements : colonnes de la maquette + Utilisateurs (Ecole, Domaine, Inscrits en jauge + n/limite,
+  Echeance, Derniere connexion, Etat, Utilisateurs) ; l'adresse ne se repete plus sous le nom ; colonne Classes
+  retiree. Etat = une seule `Puce`, la plus grave d'abord (Donnees effacees, Inactive, Expiree, Echeance proche,
+  Active). `.liste` sans cadre ; `ClickableRow` prend `survolIntegre`. Titre de page retire (l'onglet le dit).
+- Filtres en `FiltreSwitch` avec compteurs ; le champ de recherche de la liste est remplace par un rappel du terme
+  (avec effacement), la saisie etant dans la barre du haut.
+- `--jauge-fond` de la console : `#eef0ec` (neutre, comme le reste).
+- Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK, classes presentes dans le CSS servi.

@@ -1,16 +1,17 @@
 'use client'
 
-import { useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { clsx } from 'clsx'
-import { SearchField } from '@/components/ui/FloatFields'
+import { X } from 'lucide-react'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 
 /**
- * Filtres de la liste des établissements (console).
+ * Filtres de la liste des établissements (console), en `FiltreSwitch` comme
+ * toutes les listes de l'application.
  *
  * L'état vit dans l'ADRESSE (`?filtre=` et `?q=`) : la page, rendue côté
  * serveur, filtre elle-même, et le filtre survit au retour depuis une fiche.
- * Ce composant ne fait qu'écrire l'adresse.
+ * Ce composant ne fait qu'écrire l'adresse. La saisie de la recherche est dans
+ * la barre du haut (recherche globale) ; ici, seulement le rappel du terme.
  */
 export type Filtre = 'toutes' | 'surveiller' | 'echeance' | 'inactives'
 
@@ -28,7 +29,6 @@ export default function FiltresEcoles({ filtre, q, comptes }: {
 }) {
   const router = useRouter()
   const params = useSearchParams()
-  const minuterie = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const ecrire = (cle: 'filtre' | 'q', valeur: string) => {
     const p = new URLSearchParams(params.toString())
@@ -38,41 +38,32 @@ export default function FiltresEcoles({ filtre, q, comptes }: {
     router.replace(qs ? `?${qs}` : '?', { scroll: false })
   }
 
-  // La recherche relance un rendu serveur : on attend la fin de la frappe.
-  const rechercher = (v: string) => {
-    if (minuterie.current) clearTimeout(minuterie.current)
-    minuterie.current = setTimeout(() => ecrire('q', v), 300)
-  }
-
   return (
-    <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
-      <SearchField
-        value={q}
-        onChange={rechercher}
-        placeholder="Nom ou adresse…"
-        ariaLabel="Rechercher un établissement par nom ou adresse"
+    <div className="flex flex-wrap items-center gap-3">
+      <FiltreSwitch
+        ariaLabel="Filtrer les établissements"
+        actif={filtre}
+        onChange={v => ecrire('filtre', v)}
+        options={(Object.keys(LIBELLES) as Filtre[]).map(f => ({
+          valeur: f,
+          nombre: comptes[f],
+          libelle: LIBELLES[f],
+          couleur: f === 'echeance' || f === 'surveiller' ? 'text-amber-700' : f === 'inactives' ? 'text-red-700' : undefined,
+        }))}
       />
-      <div className="flex flex-wrap items-center gap-1.5">
-        {(Object.keys(LIBELLES) as Filtre[]).map(f => {
-          const actif = filtre === f
-          return (
-            <button
-              key={f}
-              type="button"
-              aria-pressed={actif}
-              onClick={() => ecrire('filtre', f)}
-              className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
-                actif
-                  ? 'border-primary-300 bg-primary-50 text-primary-700'
-                  : 'border-warm-200 text-warm-700 bg-white hover:bg-warm-50',
-              )}
-            >
-              {LIBELLES[f]} <span className="tabular-nums">({comptes[f]})</span>
-            </button>
-          )
-        })}
-      </div>
+      {q && (
+        <span className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 rounded-full text-xs bg-[var(--surface-card)] border border-[var(--card-border)] text-[var(--ink)]">
+          Recherche : <span className="font-semibold">{q}</span>
+          <button
+            type="button"
+            onClick={() => ecrire('q', '')}
+            aria-label="Effacer la recherche"
+            className="p-1 rounded-full text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--survol-ligne)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+          >
+            <X size={12} />
+          </button>
+        </span>
+      )}
     </div>
   )
 }

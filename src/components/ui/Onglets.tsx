@@ -13,6 +13,10 @@ import { clsx } from 'clsx'
  * simplement `classeOnglet(actif)`. La position de la barre est MESUREE sur le
  * bouton actif (et remesuree si la largeur change : compteur dans un libelle,
  * fenetre redimensionnee) — jamais ecrite en dur.
+ *
+ * `navigation` : meme apparence pour un MENU de liens (console de l'editeur) :
+ * pas de `role="tablist"` (ce ne sont pas des onglets mais des pages), les liens
+ * se marquent `data-onglet` et portent `aria-current`.
  */
 export function classeOnglet(actif: boolean): string {
   return clsx(
@@ -24,13 +28,15 @@ export function classeOnglet(actif: boolean): string {
   )
 }
 
-export default function Onglets({ ariaLabel, actifIndex, children, className }: {
+export default function Onglets({ ariaLabel, actifIndex, children, className, navigation }: {
   ariaLabel:  string
   /** Index du bouton `role="tab"` actif, dans l'ordre du rendu. */
   actifIndex: number
   children:   ReactNode
   className?: string
+  navigation?: boolean
 }) {
+  const cible = navigation ? '[data-onglet]' : '[role="tab"]'
   const ref = useRef<HTMLDivElement>(null)
   const [barre, setBarre] = useState({ left: 0, width: 0 })
 
@@ -38,21 +44,22 @@ export default function Onglets({ ariaLabel, actifIndex, children, className }: 
     const conteneur = ref.current
     if (!conteneur) return
     const mesurer = () => {
-      const el = conteneur.querySelectorAll<HTMLElement>('[role="tab"]')[actifIndex]
+      const el = conteneur.querySelectorAll<HTMLElement>(cible)[actifIndex]
       if (el) setBarre({ left: el.offsetLeft, width: el.offsetWidth })
+      else setBarre({ left: 0, width: 0 })
     }
     mesurer()
     const obs = new ResizeObserver(mesurer)
     obs.observe(conteneur)
-    conteneur.querySelectorAll('[role="tab"]').forEach(t => obs.observe(t))
+    conteneur.querySelectorAll(cible).forEach(t => obs.observe(t))
     return () => obs.disconnect()
-  }, [actifIndex, children])
+  }, [actifIndex, children, cible])
 
   return (
     <div
       ref={ref}
-      role="tablist"
-      aria-label={ariaLabel}
+      role={navigation ? undefined : 'tablist'}
+      aria-label={navigation ? undefined : ariaLabel}
       className={clsx('relative flex gap-6 border-b border-[var(--card-border)] overflow-x-auto', className)}
     >
       {children}
