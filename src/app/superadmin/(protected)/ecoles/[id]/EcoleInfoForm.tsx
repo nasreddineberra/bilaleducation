@@ -191,7 +191,7 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
               onChange={e => set('contact', e.target.value)} onBlur={() => touch('contact')}
               error={vu('contact') && vContact ? 'Adresse invalide.' : undefined} />
           </div>
-          <FloatTextarea bordure label="Notes internes" rows={7} value={form.notes}
+          <FloatTextarea bordure label="Notes internes" rows={5} value={form.notes}
             onChange={e => set('notes', e.target.value)} className="resize-none text-xs" />
 
           <h3 className={`${titre} pt-1`}>Facturation</h3>
