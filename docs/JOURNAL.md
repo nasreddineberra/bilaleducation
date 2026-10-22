@@ -8875,3 +8875,24 @@ marque ; les vraies ecoles gardent leur plaque.
 - **Retouche apres capture** (modale type de cotisation) : « Cours adultes » et « Meme type » sans cadre
   (libelle + `SwitchOuiNon seul` + bulle) ; ordre : type, cotisation + dossier, filet, max echeances, filet,
   reduction fratrie + meme type.
+
+#### 22 octobre 2026 — Console editeur : direction visuelle choisie (maquettes, rien de code)
+
+- **Demande utilisateur** : une palette differente de l'application pour distinguer visuellement la console.
+- Serie 1 (indigo, ardoise + ambre, bleu nuit, sur la mise en page de l'ecole) **refusee** : « trop classique,
+  pas assez moderne ». Serie 2 : D Nuit (tout sombre), E Technique (clair, menu horizontal), F Graphite + citron
+  vert (rail d'icones). **Retenu : la disposition de E avec les couleurs de F.**
+- Palette : graphite `#16181d` (barre du haut, rubrique active, boutons secondaires pleins, tuile phare),
+  citron vert `#c8f169` (action principale avec texte fonce, pastilles et points sur fond sombre, halo de
+  focus) ; fond `#f5f6f4`, cartes blanches, bordures `#e3e5e0`, texte secondaire `#5a5f66`. Etats inchanges
+  (actif, echeance proche, expiree, demo). Sous-domaines et dates en police a chasse fixe, jauge inscrits / limite.
+- Le citron vert ne passe pas en indicateur sur blanc (contraste trop faible) : sur fond clair, l'actif est graphite.
+- **Connexion** : double colonne et accroche refusees. Un seul ecran graphite centre : logo, « Bilal Education »,
+  pastille « CONSOLE EDITEUR », email, mot de passe, « Se connecter » ; etape du code : 6 cases, « Verifier »,
+  « Changer de compte ». **Raison (utilisateur)** : ne rien apprendre a une personne malveillante tombee sur le
+  site. Retires pour la meme raison : version, domaine, region, mention de la 2FA, exemple d'adresse, email du
+  compte a l'etape du code.
+- **A reporter dans le code** : message d'erreur unique (« Identifiants incorrects ») quel que soit le motif ;
+  neutraliser le message actuel « Cet espace est reserve a l'editeur… » montre a un compte d'ecole (il confirme
+  l'existence de la console).
+- Maquettes : https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (pages Serie 1 a 3 ; G, H, I = la cible).

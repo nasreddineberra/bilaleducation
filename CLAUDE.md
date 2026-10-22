@@ -373,7 +373,15 @@ financements, retention…), ecole de demonstration.
    Sources uniques ajoutees le 21/10 : `tonRole()` (role-labels), `tonCategorie()` (support),
    `cahier-texte/commun.ts` (types de devoir, dates locales).
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
-2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
+2. **Console editeur, refonte visuelle (decidee le 22/10, pas codee)** : palette PROPRE a la console pour
+   la distinguer de l'ecole : **graphite `#16181d` + citron vert `#c8f169`** (citron vert seulement sur fond
+   sombre ou en fond de bouton a texte fonce ; sur blanc, l'actif est en graphite). **Menu horizontal** (barre
+   graphite : logo, pastille CONSOLE, recherche, etat ; puis rubriques en pilules) a la place de la barre
+   laterale. **Connexion minimale** : un seul ecran graphite centre, logo + « Bilal Education » + pastille
+   « CONSOLE EDITEUR » + champs, AUCUNE information pour un visiteur (ni version, ni domaine, ni 2FA annoncee,
+   ni exemple d'adresse, ni message « reserve a l'editeur »). Maquettes G, H, I :
+   https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (page « Serie 3 »). Plan a presenter avant le code.
+3. **Console editeur, fonctionnalites** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
    l'ordre des Gabarits.
