@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { estContexteConsole } from '@/lib/tenant/console-host'
+import MarqueConsole from '@/components/superadmin/MarqueConsole'
 
 /**
  * En-tête des écrans d'authentification : le logo et le nom de L'ÉCOLE.
@@ -77,22 +78,12 @@ export default function AuthBrandHeader({
 
   // ── Console de l'éditeur : sa propre marque, sans plaque ──────────────────
   //
-  // Traitement repris À L'IDENTIQUE de `/superadmin/login`, pour que les deux
-  // écrans de la console se ressemblent. Pas de plaque blanche : le logo se
-  // pose directement sur le panneau, son relief venant de `.logo-relief`.
+  // La MÊME marque que `/superadmin/login` (composant partagé), pour que les
+  // écrans de la console se ressemblent et n'en disent pas plus.
   if (console_) {
     return (
-      <div className="flex flex-col items-center mb-8">
-        <Image
-          src="/icon.png"
-          alt=""
-          width={96}
-          height={96}
-          unoptimized
-          className="mb-4 logo-relief"
-        />
-        <h1 className="text-xl font-bold text-white tracking-tight">Bilal Education</h1>
-        <p className="text-white/75 mt-0.5 text-sm">Console éditeur</p>
+      <div className="mb-8">
+        <MarqueConsole />
       </div>
     )
   }

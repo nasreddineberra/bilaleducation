@@ -586,7 +586,8 @@ const VARIANT_CLS: Record<NonNullable<FloatButtonProps['variant']>, string> = {
   // Clair : surface teal profond + texte blanc (accord avec la sidebar).
   // Sombre : la surface (#18242a) serait invisible sur une carte (#161f24) →
   // on passe à l'ACCENT turquoise avec un texte très foncé.
-  submit:    'bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-[var(--brand-focus)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 dark:shadow-none',
+  // `bouton-principal` : sans effet ici, c'est le crochet de la console (citron vert, globals.css).
+  submit:    'bouton-principal bg-[var(--brand-surface)] text-white hover:bg-[var(--brand-surface-2)] focus:ring-[var(--brand-focus)] shadow-[0_2px_6px_rgba(12,91,81,0.30)] hover:shadow-[0_4px_12px_rgba(12,91,81,0.40)] dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] dark:hover:bg-[var(--brand-accent)] dark:hover:opacity-90 dark:shadow-none',
   secondary: 'bg-white text-secondary-600 border border-warm-300 shadow-sm hover:bg-warm-50 hover:border-warm-400 focus:ring-secondary-300 dark:bg-[var(--surface-sunken)] dark:text-[var(--ink)] dark:border-[var(--line-strong)] dark:hover:bg-[var(--line-strong)]',
   // « Modifier » = CONTOUR de marque (l'ambre est abandonné) : Valider est plein,
   // Modifier est en contour → hiérarchie lisible sans introduire de teinte

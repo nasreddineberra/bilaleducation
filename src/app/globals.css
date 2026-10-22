@@ -238,6 +238,49 @@
     color-scheme: dark;
   }
 
+  /* Console de l'EDITEUR (decision du 22/10, maquettes G/H/I) : sa propre palette,
+     graphite + citron vert, pour ne jamais la confondre avec une ecole. Marqueur
+     pose sur <html> par le script de `app/layout.tsx` (sous-domaine `superadmin.`),
+     donc les portails (modales, infobulles) suivent. Toujours en theme clair.
+     Le citron vert ne sert JAMAIS d'indicateur sur fond blanc (1,2:1) : sur une
+     surface claire, l'actif est graphite ; le citron vert va sur fond sombre ou
+     en fond de bouton, texte graphite (13,9:1). Etats (`--etat-*`) inchanges. */
+  :root[data-espace="console"] {
+    --brand-surface:    #16181d;
+    --brand-surface-2:  #0c0d10;
+    --brand-accent:     #c8f169;
+    --brand-on-surface: #e8eaee;
+    --brand-label:      #8a9099;
+    --brand-text:       #e8eaee;
+    --brand-icon:       #b9bec7;
+    --brand-muted:      #9aa0a8;
+    --brand-tint:  color-mix(in srgb, var(--brand-surface) 6%, transparent);
+    --brand-line:  color-mix(in srgb, var(--brand-surface) 25%, transparent);
+    --brand-focus: color-mix(in srgb, var(--brand-accent) 70%, transparent);
+
+    --surface-page:   #f5f6f4;
+    --surface-sunken: #f5f6f4;
+    --survol-ligne:   #eef0ec;
+    --ink:            #14161a;
+    --ink-muted:      #5a5f66;
+    --line:           #eef0ec;
+    --card-border:    #e3e5e0;
+    --line-strong:    #d6d9d2;
+
+    /* Propres a la console : l'action principale et ses champs sur fond sombre. */
+    --console-accent:       #c8f169;
+    --console-accent-2:     #b4dd52;   /* survol */
+    --console-accent-encre: #16181d;
+    --console-champ:        #22252c;   /* champ sur fond graphite (connexion) */
+    --console-champ-trait:  #2c3038;
+    --console-texte-doux:   #b9bec7;   /* libelles sur fond graphite (9,6:1) */
+    --console-pastille-fond:  #22281a; /* pastille « CONSOLE » sur fond graphite */
+    --console-pastille-trait: #3e4a22;
+    --console-halo:           color-mix(in srgb, var(--console-accent) 18%, transparent); /* focus d'un champ sur graphite */
+    --console-erreur:         #ff8a80; /* message d'erreur sur fond graphite */
+    --console-alerte:         #ffc04d; /* avertissement (Verr. Maj) sur fond graphite */
+  }
+
   html {
     @apply antialiased;
   }
@@ -1721,3 +1764,13 @@
 :root[data-theme="dark"] .encadre-titre, :root[data-theme="dark"] .encadre-titre h2 { color: var(--brand-accent); }
 /* Champ `.input`, theme sombre : le trait de focus prend l'accent, comme FloatFields. */
 :root[data-theme="dark"] .input:focus { border-color: var(--brand-accent); }
+
+/* Console de l'editeur : l'action principale (`FloatButton` submit, marquee
+   `bouton-principal`) passe en citron vert, texte graphite. Hors calque : doit
+   l'emporter sur les classes Tailwind du bouton. */
+:root[data-espace="console"] .bouton-principal { background-color: var(--console-accent); color: var(--console-accent-encre); box-shadow: none; }
+:root[data-espace="console"] .bouton-principal:hover { background-color: var(--console-accent-2); box-shadow: none; }
+
+/* Police a chasse fixe (sous-domaines, dates, versions) : celle du systeme,
+   aucune police a telecharger. */
+.mono { font-family: ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace; }

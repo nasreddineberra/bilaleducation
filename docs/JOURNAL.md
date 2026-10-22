@@ -8896,3 +8896,24 @@ marque ; les vraies ecoles gardent leur plaque.
   neutraliser le message actuel « Cet espace est reserve a l'editeur… » montre a un compte d'ecole (il confirme
   l'existence de la console).
 - Maquettes : https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (pages Serie 1 a 3 ; G, H, I = la cible).
+
+#### 22 octobre 2026 — Console editeur, lots 0 et 1 : socle de la palette et connexion
+
+- **Socle** : `data-espace="console"` pose sur `<html>` par le script de `app/layout.tsx` (sous-domaine
+  `superadmin.`, chemin `/superadmin`, ou `?next=/superadmin` sur les ecrans 2FA : meme regle que
+  `estContexteConsole`, recopiee car le script tourne avant tout module) ; theme clair impose. `globals.css` :
+  bloc `:root[data-espace="console"]` qui redefinit les jetons de marque et de contenu (graphite `#16181d`,
+  citron vert `#c8f169`, fond `#f5f6f4`, bordures `#e3e5e0`, texte secondaire `#5a5f66`) + jetons `--console-*`
+  (action principale, champs et libelles sur graphite, pastille, halo, erreur, alerte). Les composants partages
+  suivent sans modification. Cote ecole : rien ne change (le marqueur n'y est jamais pose).
+- `FloatButton submit` porte la classe `bouton-principal` (sans effet a l'ecole) ; dans la console elle passe
+  en citron vert, texte graphite (regle hors calque). Classe `.mono` : police a chasse fixe du SYSTEME (aucune
+  police a telecharger).
+- **Connexion** (`/superadmin/login`) : un seul ecran graphite centre (maquette H). `MarqueConsole` (logo,
+  « Bilal Education », pastille « CONSOLE EDITEUR ») partagee avec `AuthBrandHeader` en contexte console.
+  Retires : pied (2FA, ©, version), exemple d'adresse, sous-titre, barre orange, et le message du
+  `?reason=reserve`. Un seul message d'echec : « Identifiants incorrects. » (« Trop de tentatives » conserve,
+  decision utilisateur). Bouton « Se connecter ».
+- 2FA en contexte console : `totp-challenge` n'applique plus le theme du profil (la console reste claire). La
+  carte blanche des ecrans de code n'est pas encore refaite (maquette I) : a reprendre.
+- Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK, regles presentes dans le CSS servi.

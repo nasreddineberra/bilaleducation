@@ -128,10 +128,13 @@ export default function RootLayout({
       <head>
         {/* Thème avant le rendu (anti-FOUC). Appliqué sur /dashboard ET /auth (2FA) :
             dès la 2FA l'utilisateur est identifié, donc son thème s'applique.
-            /login reste toujours clair (on ne sait pas encore qui se connecte). */}
+            /login reste toujours clair (on ne sait pas encore qui se connecte).
+            Console de l'éditeur (même règle que `estContexteConsole`, recopiée car ce
+            script s'exécute avant tout module) : `data-espace="console"` (sa palette,
+            globals.css) et thème clair imposé. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var p=location.pathname;var a=p.indexOf('/dashboard')===0||p.indexOf('/auth')===0;var t=a&&localStorage.getItem('theme')==='dark'?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','light')}`,
+            __html: `try{var d=document.documentElement,p=location.pathname,n=new URLSearchParams(location.search).get('next')||'';var c=location.hostname.split('.')[0]==='superadmin'||p.indexOf('/superadmin')===0||n.indexOf('/superadmin')===0;if(c)d.setAttribute('data-espace','console');var a=!c&&(p.indexOf('/dashboard')===0||p.indexOf('/auth')===0);var t=a&&localStorage.getItem('theme')==='dark'?'dark':'light';d.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','light')}`,
           }}
         />
       </head>

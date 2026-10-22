@@ -1,23 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
-import { Eye, EyeOff, AlertCircle, Shield } from 'lucide-react'
+import { useState } from 'react'
+import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
-import { APP_VERSION } from '@/lib/app-version'
+import MarqueConsole from '@/components/superadmin/MarqueConsole'
 
 /**
- * Connexion de l'ESPACE ÉDITEUR.
+ * Connexion de la CONSOLE DE L'EDITEUR (refonte du 22/10, maquette H).
  *
- * Volontairement distinct de l'écran des écoles : arriver ici ne doit pas
- * ressembler à arriver chez un client. Mais la distinction passe désormais par
- * les JETONS DE MARQUE et l'orange de la charte, non par une palette inventée
- * — l'écran portait trois teintes (`#0f1923`, `#16232f`, `#e85d04`) qui
- * n'appartenaient à rien et qu'aucune évolution de la marque n'aurait suivies.
+ * Un seul ecran graphite, centre : la marque et les champs, RIEN d'autre. Une
+ * personne malveillante qui tombe sur cette adresse ne doit rien apprendre :
+ * ni version, ni mention de la 2FA, ni exemple d'adresse, ni message disant
+ * qu'il s'agit d'un espace reserve (un compte d'ecole ecarte par le middleware,
+ * `?reason=reserve`, voit le meme ecran que tout le monde). Un seul message pour
+ * tout echec d'identification, quel qu'en soit le motif.
  *
- * Les corrections d'ergonomie du 3 août apportées à la connexion des écoles sont
- * reprises telles quelles : focus initial, verrouillage majuscules, bouton actif
- * à vide, œil accessible au clavier.
+ * Les corrections d'ergonomie du 3 août sont conservees : focus initial,
+ * verrouillage majuscules, bouton actif a vide, œil accessible au clavier.
  */
 export default function SuperAdminLoginPage() {
   const [email,        setEmail]        = useState('')
@@ -26,14 +25,6 @@ export default function SuperAdminLoginPage() {
   const [capsLock,     setCapsLock]     = useState(false)
   const [error,        setError]        = useState('')
   const [loading,      setLoading]      = useState(false)
-
-  // Un compte d'école qui atterrit ici : le middleware l'a écarté sans le
-  // déconnecter. Sans ce mot, il verrait un écran de connexion inexpliqué alors
-  // qu'il est déjà authentifié — et se croirait déconnecté de son école.
-  const [refus, setRefus] = useState(false)
-  useEffect(() => {
-    setRefus(new URLSearchParams(window.location.search).get('reason') === 'reserve')
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,153 +43,96 @@ export default function SuperAdminLoginPage() {
       window.location.href = '/superadmin'
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
-      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
-        setError('Email ou mot de passe incorrect.')
-      } else if (msg.includes('Too many requests')) {
-        setError('Trop de tentatives. Veuillez patienter quelques minutes.')
-      } else {
-        setError('Identifiants incorrects ou accès non autorisé.')
-      }
+      setError(msg.includes('Too many requests')
+        ? 'Trop de tentatives. Veuillez patienter quelques minutes.'
+        : 'Identifiants incorrects.')
       setLoading(false)
     }
   }
 
   const champ =
-    'w-full px-4 py-2.5 rounded-xl text-sm text-white placeholder-white/25 outline-none ' +
-    'bg-white/[0.06] border border-white/10 transition-colors ' +
-    'focus:border-orange-400 focus-visible:ring-2 focus-visible:ring-orange-400/40'
+    'w-full h-11 px-3.5 rounded-xl text-sm text-white outline-none transition-colors ' +
+    'bg-[var(--console-champ)] border border-[var(--console-champ-trait)] ' +
+    'focus:border-[var(--console-accent)] focus:shadow-[0_0_0_4px_var(--console-halo)]'
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden"
-      style={{ background: 'linear-gradient(145deg, var(--brand-surface) 0%, var(--brand-surface-2) 100%)' }}
-    >
-      <div className="relative z-10 w-full max-w-sm animate-fade-in">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[var(--brand-surface)]">
+      <div className="w-full max-w-[360px] flex flex-col items-center gap-9 animate-fade-in">
 
-        {/* Marque — le logo de l'application, comme sur l'écran des écoles : la
-            console reste le même produit, vue depuis l'autre côté. */}
-        <div className="flex flex-col items-center mb-8">
-          <Image src="/icon.png" alt="" width={56} height={56} unoptimized className="mb-3 opacity-95 logo-relief" />
-          <h1 className="text-xl font-bold text-white tracking-tight">Bilal Education</h1>
-          <div className="mt-2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30">
-            <Shield size={11} className="text-orange-400" />
-            <span className="text-xs font-bold tracking-widest uppercase text-orange-400">
-              Éditeur
-            </span>
+        <MarqueConsole />
+
+        <form onSubmit={handleSubmit} className="w-full space-y-4" noValidate>
+
+          {error && (
+            <div role="alert" className="flex items-start gap-2 text-sm text-[var(--console-erreur)]">
+              <AlertCircle size={15} className="mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="block text-xs font-semibold text-[var(--console-texte-doux)]">
+              Adresse email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoFocus
+              autoComplete="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              disabled={loading}
+              className={champ}
+            />
           </div>
-        </div>
 
-        <div className="rounded-2xl overflow-hidden bg-black/25 border border-white/10 shadow-2xl">
-          <div className="h-1 w-full bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500" />
-
-          <div className="p-8">
-            <h2 className="text-base font-bold text-white mb-0.5">Connexion</h2>
-            <p className="text-xs mb-6 text-white/40">
-              Espace réservé à l&apos;éditeur de l&apos;application
-            </p>
-
-            {refus && !error && (
-              <div
-                role="status"
-                className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm mb-4 bg-white/[0.06] border border-white/15 text-white/70"
-              >
-                <AlertCircle size={15} className="mt-0.5 shrink-0" />
-                <span>Cet espace est réservé à l&apos;éditeur. Votre session reste ouverte sur le site de votre établissement.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-              {error && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-sm animate-fade-in bg-orange-500/10 border border-orange-500/30 text-orange-300"
-                >
-                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Adresse email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoFocus
-                  autoComplete="email"
-                  placeholder="vous@bilaleducation.fr"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  disabled={loading}
-                  className={champ}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Mot de passe
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    // Cause n°1 des échecs de connexion, et la seule que
-                    // l'utilisateur ne peut pas voir puisque le champ est masqué.
-                    onKeyUp={e => setCapsLock(e.getModifierState('CapsLock'))}
-                    onKeyDown={e => setCapsLock(e.getModifierState('CapsLock'))}
-                    onBlur={() => setCapsLock(false)}
-                    disabled={loading}
-                    className={`${champ} pr-11`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                    aria-pressed={showPassword}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-orange-400/50"
-                  >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                {capsLock && (
-                  <p role="status" className="flex items-center gap-1.5 mt-1.5 text-xs text-orange-300">
-                    <AlertCircle size={13} className="shrink-0" />
-                    Verr. Maj est activé
-                  </p>
-                )}
-              </div>
-
-              {/* Actif même à vide : un bouton grisé n'explique pas ce qui manque. */}
-              <button
-                type="submit"
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="block text-xs font-semibold text-[var(--console-texte-doux)]">
+              Mot de passe
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                // Cause n°1 des échecs de connexion, et la seule que
+                // l'utilisateur ne peut pas voir puisque le champ est masqué.
+                onKeyUp={e => setCapsLock(e.getModifierState('CapsLock'))}
+                onKeyDown={e => setCapsLock(e.getModifierState('CapsLock'))}
+                onBlur={() => setCapsLock(false)}
                 disabled={loading}
-                className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-colors mt-2 bg-orange-500 hover:bg-orange-600 outline-none focus-visible:ring-2 focus-visible:ring-orange-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${champ} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                aria-pressed={showPassword}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--brand-muted)] hover:text-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--console-accent)]"
               >
-                {loading ? 'Vérification…' : 'Accéder à la console'}
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
-
-            </form>
+            </div>
+            {capsLock && (
+              <p role="status" className="flex items-center gap-1.5 mt-1.5 text-xs text-[var(--console-alerte)]">
+                <AlertCircle size={13} className="shrink-0" />
+                Verr. Maj est activé
+              </p>
+            )}
           </div>
-        </div>
 
-        {/* N'affirmer que ce qui est vrai : l'éditeur n'est JAMAIS tracé au
-            journal d'une école (décision du 16/10, `fn_audit_logs_sans_editeur`) ;
-            ses interventions et ses actions vont aux historiques de la console
-            (`support_interventions`, `actions_editeur`). */}
-        <p className="mt-6 text-center text-xs text-white/25">
-          Double authentification requise
-          <span className="mx-1.5" aria-hidden="true">·</span>
-          © Bilal Education
-          <span className="mx-1.5" aria-hidden="true">·</span>
-          {APP_VERSION}
-        </p>
+          {/* Actif même à vide : un bouton grisé n'explique pas ce qui manque. */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-[46px] !mt-6 rounded-full text-sm font-bold transition-colors bg-[var(--console-accent)] text-[var(--console-accent-encre)] hover:bg-[var(--console-accent-2)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--console-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-surface)] disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Vérification…' : 'Se connecter'}
+          </button>
 
+        </form>
       </div>
     </div>
   )

@@ -38,6 +38,8 @@ export default function TotpChallengePage() {
   // préférence (et on l'amorce dans localStorage → dashboard sans flash).
   useEffect(() => {
     const applyTheme = async () => {
+      // Console de l'éditeur : toujours en clair, sa palette est imposée (layout.tsx).
+      if (document.documentElement.dataset.espace === 'console') return
       try {
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
