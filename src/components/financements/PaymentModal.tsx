@@ -3,7 +3,7 @@
 import { useState, useEffect, useId } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
-import Tooltip from '@/components/ui/Tooltip'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import FormModal from '@/components/ui/FormModal'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
 import type { RecapDossier } from '@/lib/financements/compute'
@@ -277,40 +277,18 @@ export default function PaymentModal({
 
           {/* Mode de paiement */}
           <div>
-            <label className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">
+            <p className="block text-xs font-semibold text-warm-700 uppercase tracking-wide mb-2">
               Mode de paiement <span className="text-red-700">*</span>
-            </label>
-            <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Mode de paiement">
-              {METHODS.map(m => {
-                const isOnline   = m.value === 'online'
-                const isSelected = method === m.value
-                const btn = (
-                  <button
-                    key={m.value}
-                    type="button"
-                    disabled={isOnline}
-                    aria-pressed={!isOnline && isSelected}
-                    onClick={() => !isOnline && setMethod(m.value)}
-                    className={[
-                      'relative w-full px-2 py-2 rounded-lg border text-xs font-medium transition-colors text-center',
-                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
-                      isOnline   ? 'opacity-60 cursor-not-allowed border-warm-200 text-warm-700 bg-warm-50' : '',
-                      !isOnline && isSelected  ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : '',
-                      !isOnline && !isSelected ? 'border-warm-200 hover:bg-warm-100 text-secondary-600' : '',
-                    ].join(' ')}
-                  >
-                    {m.label}
-                    {isOnline && (
-                      <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-warm-200 text-warm-700 text-[9px] font-semibold px-1 rounded-full whitespace-nowrap">
-                        bientôt
-                      </span>
-                    )}
-                  </button>
-                )
-                return isOnline
-                  ? <Tooltip key={m.value} content="Bientôt disponible">{btn}</Tooltip>
-                  : btn
-              })}
+            </p>
+            <div className="flex">
+              <FiltreSwitch
+                ariaLabel="Mode de paiement"
+                actif={method}
+                onChange={v => setMethod(v as FeePaymentMethod)}
+                options={METHODS.map(m => m.value === 'online'
+                  ? { valeur: m.value, libelle: m.label, desactive: true, infobulle: 'Bientôt disponible' }
+                  : { valeur: m.value, libelle: m.label })}
+              />
             </div>
           </div>
 

@@ -8845,3 +8845,15 @@ marque ; les vraies ecoles gardent leur plaque.
 - Ecart laisse le 21/10 : ces trois listes gardaient une `card p-0` autour de leur `.liste` (double cadre).
   Enveloppe retiree ; la `.liste` porte deja `flex-1 min-h-0 overflow-y-auto`, la hauteur elastique est
   conservee.
+
+#### 22 octobre 2026 — Reglements : mode de paiement et attestation en switch
+
+- **Demande utilisateur**. Mode de paiement : grille de 5 boutons faits main -> `FiltreSwitch` (choix de
+  valeur unique, aucun segment actif tant que rien n'est choisi). « En ligne » : segment grise
+  (`--champ-verrou` / `warm-400`, plus d'`opacity-60`) avec l'infobulle « Bientot disponible » ; pastille
+  « bientot » retiree (doublon).
+- `FiltreSwitch` accepte `desactive` + `infobulle` par option.
+- Attestation : raccourcis Tout / Eleves seulement / Adultes seulement -> switch Tout / Eleves / Adultes ; le
+  segment actif se DEDUIT des cases cochees (aucun si la selection est faite a la main). Affiche seulement si
+  le foyer cumule eleves et adultes (sinon « Tout » serait seul). Phrase explicative retiree.
+- Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK.

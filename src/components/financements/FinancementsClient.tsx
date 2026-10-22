@@ -1320,29 +1320,34 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
             </FloatButton>
           </>}
         >
-              <p className="text-xs text-warm-700">Choisissez les inscriptions à faire figurer sur le document.</p>
-              {/* Raccourcis : le cas d'usage courant est « les enfants seulement ». */}
-              <div className="flex flex-wrap items-center gap-2">
-                <FloatButton type="button" variant="secondary" size="mini"
-                  onClick={() => {
-                    setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
-                    setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))
-                  }}>Tout</FloatButton>
-                {selectedParent.students.length > 0 && (
-                  <FloatButton type="button" variant="secondary" size="mini"
-                    onClick={() => {
-                      setAttestStudents(new Set(selectedParent.students.map(s => s.id)))
-                      setAttestAdults(new Set())
-                    }}>Élèves seulement</FloatButton>
-                )}
-                {selectedParent.adultLines.length > 0 && (
-                  <FloatButton type="button" variant="secondary" size="mini"
-                    onClick={() => {
-                      setAttestStudents(new Set())
-                      setAttestAdults(new Set(selectedParent.adultLines.map(a => a.id)))
-                    }}>Adultes seulement</FloatButton>
-                )}
-              </div>
+              {/* Raccourcis (le cas d'usage courant est « les enfants seulement »), utiles
+                  seulement si le foyer cumule les deux. Le segment actif se DEDUIT des cases
+                  cochees : aucun quand la selection a ete faite a la main. */}
+              {selectedParent.students.length > 0 && selectedParent.adultLines.length > 0 && (() => {
+                const elevesTous   = selectedParent.students.every(s => attestStudents.has(s.id))
+                const adultesTous  = selectedParent.adultLines.every(a => attestAdults.has(a.id))
+                const portee = elevesTous && adultesTous ? 'tout'
+                  : elevesTous && attestAdults.size === 0 ? 'eleves'
+                  : adultesTous && attestStudents.size === 0 ? 'adultes'
+                  : ''
+                return (
+                  <div className="flex">
+                  <FiltreSwitch
+                    ariaLabel="Inscriptions à faire figurer"
+                    actif={portee}
+                    onChange={v => {
+                      setAttestStudents(new Set(v === 'adultes' ? [] : selectedParent.students.map(s => s.id)))
+                      setAttestAdults(new Set(v === 'eleves' ? [] : selectedParent.adultLines.map(a => a.id)))
+                    }}
+                    options={[
+                      { valeur: 'tout',    libelle: 'Tout' },
+                      { valeur: 'eleves',  libelle: 'Élèves' },
+                      { valeur: 'adultes', libelle: 'Adultes' },
+                    ]}
+                  />
+                  </div>
+                )
+              })()}
 
               <ul className="divide-y divide-warm-100 border border-warm-200 rounded-xl overflow-hidden">
                 {selectedParent.students.map(s => (
