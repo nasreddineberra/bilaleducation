@@ -363,7 +363,7 @@ financements, retention…), ecole de demonstration.
    `ConfirmModal`, saisies en `FormModal`, actions de ligne toujours visibles. Script de conversion :
    `scratchpad/marque.py` (a recreer si besoin, regle ci-dessus).
    **Etat au 21/10 au soir : refonte faite sur TOUTES les pages de l'ecole** (Principal, Vie scolaire,
-   Pedagogie, Gestion, Cloture, Parametres, Mon compte, barre laterale). **Reste : la console editeur.**
+   Pedagogie, Gestion, Cloture, Parametres, Mon compte, barre laterale). **Reste : la console editeur (point 2).**
    Regles appliquees partout (memoire `refonte-structure-pas-couleurs`) : listes en `.liste` SANS `card p-0`
    (survol integre, `--survol-ligne`, `.sans-survol`, `.ligne-active`) ; bandeaux `.encadre-titre` ; saisies
    en `FormModal`, confirmations en `ConfirmModal` (jamais « Confirmer / Annuler » en ligne) ; actions de ligne
@@ -373,14 +373,24 @@ financements, retention…), ecole de demonstration.
    Sources uniques ajoutees le 21/10 : `tonRole()` (role-labels), `tonCategorie()` (support),
    `cahier-texte/commun.ts` (types de devoir, dates locales).
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
-2. **Console editeur, refonte visuelle (decidee le 22/10, pas codee)** : palette PROPRE a la console pour
-   la distinguer de l'ecole : **graphite `#16181d` + citron vert `#c8f169`** (citron vert seulement sur fond
-   sombre ou en fond de bouton a texte fonce ; sur blanc, l'actif est en graphite). **Menu horizontal** (barre
-   graphite : logo, pastille CONSOLE, recherche, etat ; puis rubriques en pilules) a la place de la barre
-   laterale. **Connexion minimale** : un seul ecran graphite centre, logo + « Bilal Education » + pastille
-   « CONSOLE EDITEUR » + champs, AUCUNE information pour un visiteur (ni version, ni domaine, ni 2FA annoncee,
-   ni exemple d'adresse, ni message « reserve a l'editeur »). Maquettes G, H, I :
-   https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (page « Serie 3 »). Plan a presenter avant le code.
+2. **Console editeur, refonte visuelle (EN COURS, 22/10)** : palette PROPRE a la console, **graphite `#16181d`
+   + citron vert `#c8f169`**. Maquettes : https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (Serie 3, G/H/I).
+   **Socle** : `data-espace="console"` sur `<html>` (script de `app/layout.tsx`, theme clair impose) ; bloc
+   `:root[data-espace="console"]` de `globals.css` qui redefinit `--brand-*`, les neutres, `--etat-*` et ajoute
+   `--console-*`. L'ecole n'est jamais touchee. Regles : citron vert JAMAIS en indicateur sur blanc (l'actif
+   y est graphite) ; **tout bouton citron vert a une bordure** (`--console-accent-trait`) ; `FloatButton submit`
+   = citron vert via la classe `bouton-principal` ; `.mono` = police a chasse fixe du systeme.
+   **Fait** : connexion minimale (`MarqueConsole` : logo + « Bilal Education » + pastille, AUCUNE information pour
+   un visiteur, message d'echec unique) ; `ConsoleBarre` (bande graphite : BILAL EDUCATION, pastille, recherche
+   globale `RechercheEcoles` Ctrl+K, nom, version, deconnexion ; puis `Onglets navigation`) ; liste des
+   etablissements (colonnes Etablissement, Sante, Domaine, Inscrits en jauge, Utilisateurs, Echeance, Derniere
+   connexion, Etat ; `FiltreSwitch` Tous / A surveiller / Echeance / Inactifs ; accords au MASCULIN) ; page Sante
+   (switch Tous / A surveiller) ; signaux de sante en source unique `lib/tenant/sante.ts` (1 signal = a
+   surveiller, 2+ = critique, demo jamais a surveiller) ; fiche etablissement sans turquoise, retour en grande
+   icone, sans defilement ; titres de page retires (l'onglet suffit).
+   **Reste** : neutres BEIGES `warm-*` (~110) a remapper en gris par un pont console (propose, pas valide) ;
+   ecrans de code 2FA au format de la maquette I (carte blanche encore la) ; pages Facturation, Support,
+   creation d'ecole et colonne Interventions au format `.liste` ; recherche des comptes (non faite).
 3. **Console editeur, fonctionnalites** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
