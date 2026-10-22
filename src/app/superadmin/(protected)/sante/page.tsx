@@ -1,9 +1,11 @@
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import ClickableRow from '../ClickableRow'
+import FiltreSante from './FiltreSante'
 import { formatDateFr } from '@/lib/dates'
 import { joursRestants } from '@/lib/tenant/abonnement'
 import { depuis } from '@/lib/tenant/activite'
+import { alertesSante } from '@/lib/tenant/sante'
 
 /**
  * Santé des établissements clients.
@@ -27,13 +29,16 @@ function formatDate(date: string | null | undefined) {
   return formatDateFr(date)
 }
 
-export default async function SantePage() {
+export default async function SantePage({ searchParams }: {
+  searchParams: Promise<{ filtre?: string }>
+}) {
+  const filtre = (await searchParams).filtre === 'surveiller' ? 'surveiller' : 'tous'
   const supabase = createAdminClient()
 
   const [{ data: etablissements }, { data: sante }] = await Promise.all([
     supabase
       .from('etablissements')
-      .select('id, slug, nom, is_active, logo_url, max_students, subscription_expires_at')
+      .select('id, slug, nom, is_active, est_demo, logo_url, max_students, subscription_expires_at')
       // L'ecole de demonstration d'abord, puis les autres par nom (regle de toutes les listes d'ecoles).
       .order('est_demo', { ascending: false })
       .order('nom', { ascending: true }),
@@ -62,34 +67,26 @@ export default async function SantePage() {
     // etait sans rapport avec ce que la base controle.
     const quota    = e.max_students && s ? s.base_facturable / e.max_students : null
 
-    // Un signal n'est une alerte que s'il appelle une action. Un établissement
-    // désactivé n'en produit aucune : son silence et sa messagerie absente sont
-    // la conséquence d'une décision, pas un symptôme.
-    const alertes = e.is_active ? [
-      !s?.smtp_configured                  && 'Messagerie non configurée',
-      activite.jours === null              && 'Jamais connecté',
-      activite.jours !== null && activite.jours >= 30 && `Sans connexion depuis ${activite.texte.toLowerCase().replace('il y a ', '')}`,
-      quota !== null && quota >= 0.9       && "Inscrits proches de la limite",
-      jAvant !== null && jAvant < 0        && 'Abonnement expiré',
-      jAvant !== null && jAvant >= 0 && jAvant <= 30 && `Abonnement dans ${jAvant} j`,
-    ].filter(Boolean) as string[] : []
+    // Regles des signaux : source unique `lib/tenant/sante.ts` (partagee avec la
+    // colonne Sante de la liste des etablissements).
+    const alertes = alertesSante({
+      ...e,
+      smtp_configured: s?.smtp_configured,
+      last_sign_in:    s?.last_sign_in,
+      base_facturable: s?.base_facturable,
+    })
 
     return { e, s, activite, jAvant, quota, alertes }
   })
 
   const aSurveiller = lignes.filter(l => l.alertes.length > 0).length
+  const visibles = filtre === 'surveiller' ? lignes.filter(l => l.alertes.length > 0) : lignes
 
   return (
     <div className="space-y-4 animate-fade-in">
 
-      <div>
-        <h1 className="text-2xl font-bold text-secondary-800">Santé des établissements</h1>
-        <p className="text-warm-700 text-sm mt-1">
-          {aSurveiller === 0
-            ? 'Aucun point à surveiller.'
-            : `${aSurveiller} établissement${aSurveiller > 1 ? 's' : ''} à surveiller.`}
-        </p>
-      </div>
+      {/* Pas de titre de page : l'onglet le dit deja. Le decompte est dans le switch. */}
+      <FiltreSante filtre={filtre} tous={lignes.length} aSurveiller={aSurveiller} />
 
       <div className="card p-0 overflow-hidden">
         <table className="w-full text-xs" aria-label="Santé des établissements clients">
@@ -99,13 +96,16 @@ export default async function SantePage() {
               <th scope="col" className="list-th text-left">Établissement</th>
               <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
               <th scope="col" className="list-th text-left">Messagerie</th>
-              <th scope="col" className="list-th text-right">Inscrits</th>
+              <th scope="col" className="list-th text-center">Inscrits</th>
               <th scope="col" className="list-th text-left">Abonnement</th>
               <th scope="col" className="list-th text-left">À surveiller</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-warm-100">
-            {lignes.map(({ e, s, activite, jAvant, quota, alertes }) => (
+            {visibles.length === 0 && (
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-warm-700">Aucun établissement à surveiller.</td></tr>
+            )}
+            {visibles.map(({ e, s, activite, jAvant, quota, alertes }) => (
               <ClickableRow key={e.id} href={`/superadmin/ecoles/${e.id}`} label={`Fiche de ${e.nom}`}>
                 <td className="list-td">
                   {e.logo_url ? (
@@ -143,7 +143,7 @@ export default async function SantePage() {
                     : <span className="text-amber-700 font-medium">À configurer</span>}
                 </td>
 
-                <td className="list-td text-right whitespace-nowrap tabular-nums">
+                <td className="list-td text-center whitespace-nowrap tabular-nums">
                   <span className={quota !== null && quota >= 0.9 ? 'text-amber-700 font-medium' : 'text-warm-700'}>
                     {s?.base_facturable ?? '·'}
                     {e.max_students ? ` / ${e.max_students}` : ''}

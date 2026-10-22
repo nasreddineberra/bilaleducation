@@ -16,10 +16,11 @@ import FiltreSwitch from '@/components/ui/FiltreSwitch'
 export type Filtre = 'toutes' | 'surveiller' | 'echeance' | 'inactives'
 
 const LIBELLES: Record<Filtre, string> = {
-  toutes:     'Toutes',
+  // Accord avec « établissement » (masculin), pas avec « école ».
+  toutes:     'Tous',
   surveiller: 'À surveiller',
   echeance:   'Échéance < 30 j',
-  inactives:  'Inactives',
+  inactives:  'Inactifs',
 }
 
 export default function FiltresEcoles({ filtre, q, comptes }: {

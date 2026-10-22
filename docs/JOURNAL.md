@@ -8949,3 +8949,28 @@ marque ; les vraies ecoles gardent leur plaque.
   (avec effacement), la saisie etant dans la barre du haut.
 - `--jauge-fond` de la console : `#eef0ec` (neutre, comme le reste).
 - Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK, classes presentes dans le CSS servi.
+
+#### 22 octobre 2026 — Console editeur : retouches de la liste, pastilles, page Sante
+
+- Accord avec « etablissement » (masculin) : filtres « Tous », « Inactifs » ; pastilles « Actif », « Inactif », « Expire ».
+- Pastilles d'etat de la console aux teintes de la maquette G : `--etat-ok|attente|danger` redefinis dans le bloc
+  console + fonds `--console-etat-*-fond` (regles `.ton-*` scopees en fin de `globals.css`). L'ecole ne change pas.
+- Liste des etablissements : Utilisateurs a droite d'Inscrits ; Inscrits, Utilisateurs et Etat centres (Ecole,
+  Domaine, Echeance, Derniere connexion a gauche). Jauge d'inscrits quand une limite est definie (sinon le nombre).
+- **Page Sante** : titre et phrase de decompte retires, remplaces par un `FiltreSwitch` Tous / A surveiller
+  (`?filtre=surveiller`, composant `FiltreSante`). **L'ecole de demonstration n'est jamais « a surveiller »**
+  (donnees fictives), ni sur la page Sante ni dans le filtre de la liste des etablissements.
+
+#### 22 octobre 2026 — Console editeur : colonne Sante, source unique des signaux, retour de la fiche ecole
+
+- **Source unique** `lib/tenant/sante.ts` (+ 6 tests) : `alertesSante()` (les 6 signaux de la page Sante :
+  messagerie, jamais connecte, 30 j sans connexion, inscrits >= 90 %, abonnement expire, echeance <= 30 j) et
+  `niveauSante()`. **Decision utilisateur** : aucun signal = bon, UN = a surveiller, DEUX OU PLUS = critique ;
+  demo, inactif, donnees effacees = sans objet. La page Sante l'utilise (plus de regles recopiees).
+- Liste des etablissements : colonne **Sante** avant Etat, un cœur dont la FORME et la couleur changent
+  (Heart plein vert, HeartPulse ambre, HeartCrack rouge, HeartOff gris) ; infobulle = niveau + signaux, meme
+  texte en `aria-label`.
+- Page Sante : colonne Inscrits centree. Demandes de support : « Aucune demande. » retire (la liste vide le dit).
+- Fiche etablissement : lien « Retour a la liste » remplace par une grande icone retour (chevron 28 px, case
+  44 px, infobulle) a gauche du logo, hors du bandeau grise d'une ecole effacee.
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.

@@ -57,14 +57,15 @@ export default async function ConsoleSupportPage() {
 
       <div>
         <h1 className="text-2xl font-bold text-secondary-800">Demandes de support</h1>
-        <p className="text-warm-700 text-sm mt-1">
-          {lignes.length === 0
-            ? 'Aucune demande.'
-            : `${lignes.length} demande${lignes.length > 1 ? 's' : ''}`
+        {/* Sans demande, rien ici : la liste vide le dit déjà, au centre. */}
+        {lignes.length > 0 && (
+          <p className="text-warm-700 text-sm mt-1">
+            {`${lignes.length} demande${lignes.length > 1 ? 's' : ''}`
               + (nonRecues > 0
                   ? ` · ${nonRecues} non reçue${nonRecues > 1 ? 's' : ''} par email`
                   : '')}
-        </p>
+          </p>
+        )}
       </div>
 
       <SupportRequestsConsoleClient demandes={lignes} ecoles={ecoles ?? []} />

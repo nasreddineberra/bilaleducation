@@ -267,6 +267,16 @@
     --card-border:    #e3e5e0;
     --line-strong:    #d6d9d2;
     --jauge-fond:     #eef0ec;
+    /* Pastilles d'etat aux teintes de la maquette G (demande du 22/10) : encre ici,
+       fond dans `--console-etat-*-fond` (regles en fin de fichier). */
+    --etat-ok:        #3b5a0a;
+    --etat-attente:   #8a4b00;
+    --etat-danger:    #b3261e;
+    --console-etat-ok-fond:      #e7f8c2;
+    --console-etat-attente-fond: #fff0d4;
+    --console-etat-danger-fond:  #fde2e0;
+    --console-etat-neutre-encre: #3d4249;
+    --console-etat-neutre-fond:  #eef0ec;
 
     /* Propres a la console : l'action principale et ses champs sur fond sombre. */
     --console-accent:       #c8f169;
@@ -1775,3 +1785,9 @@
 /* Police a chasse fixe (sous-domaines, dates, versions) : celle du systeme,
    aucune police a telecharger. */
 .mono { font-family: ui-monospace, 'Cascadia Mono', Consolas, Menlo, monospace; }
+
+/* Console : fonds des pastilles d'etat (encres redefinies dans le bloc des jetons). */
+:root[data-espace="console"] .ton-ok      { background: var(--console-etat-ok-fond); }
+:root[data-espace="console"] .ton-attente { background: var(--console-etat-attente-fond); }
+:root[data-espace="console"] .ton-danger  { background: var(--console-etat-danger-fond); }
+:root[data-espace="console"] .ton-neutre  { color: var(--console-etat-neutre-encre); background: var(--console-etat-neutre-fond); }

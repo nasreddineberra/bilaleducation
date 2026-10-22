@@ -1,7 +1,9 @@
 import Image from 'next/image'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { Building2 } from 'lucide-react'
+import { Building2, Heart, HeartPulse, HeartCrack, HeartOff } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
+import { alertesSante, niveauSante, type NiveauSante } from '@/lib/tenant/sante'
 import { Puce } from '@/components/dashboard/tdb'
 import { SupportBar } from './SupportControls'
 import ClickableRow from './ClickableRow'
@@ -44,6 +46,14 @@ const isExpired = (date: string | null | undefined) => abonnementExpire(date)
 // Recherche insensible aux accents et a la casse.
 const norm = (v: string) => v.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
+/** Colonne Sante : forme ET couleur changent (lisible sans distinguer les couleurs). */
+const COEUR: Record<NiveauSante, { Icone: typeof Heart; couleur: string; texte: string }> = {
+  bon:        { Icone: Heart,      couleur: 'text-[var(--etat-ok)]',      texte: 'Bonne santé' },
+  surveiller: { Icone: HeartPulse, couleur: 'text-amber-600',             texte: 'À surveiller' },
+  critique:   { Icone: HeartCrack, couleur: 'text-[var(--etat-danger)]',  texte: 'Critique' },
+  sans_objet: { Icone: HeartOff,   couleur: 'text-warm-400',              texte: 'Sans objet' },
+}
+
 /** Echeance dans 30 jours ou moins, ou deja depassee. */
 const SEUIL_ECHEANCE_JOURS = 30
 
@@ -68,12 +78,12 @@ export default async function SuperAdminPage({ searchParams }: {
 
   type Sante = {
     etablissement_id: string; users_count: number; base_facturable: number
-    classes_count: number; last_sign_in: string | null
+    classes_count: number; last_sign_in: string | null; smtp_configured: boolean
   }
   const statsMap = Object.fromEntries(
     ((sante ?? []) as Sante[]).map(s => [s.etablissement_id, {
       users: s.users_count, inscrits: s.base_facturable, classes: s.classes_count,
-      derniereConnexion: s.last_sign_in,
+      derniereConnexion: s.last_sign_in, smtp: s.smtp_configured,
     }])
   )
 
@@ -121,7 +131,8 @@ export default async function SuperAdminPage({ searchParams }: {
     const dormante = act.jours === null || act.jours >= SEUIL_INACTIVITE_JOURS
     return {
       echeance,
-      surveiller: Boolean(e.is_active) && (echeance || quotaAtteint || dormante),
+      // L'ecole de demonstration n'est jamais « a surveiller » : donnees fictives.
+      surveiller: Boolean(e.is_active) && !e.est_demo && (echeance || quotaAtteint || dormante),
       inactive: !e.is_active,
     }
   }
@@ -186,16 +197,17 @@ export default async function SuperAdminPage({ searchParams }: {
               <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th text-left">École</th>
                 <th scope="col" className="list-th text-left">Domaine</th>
-                <th scope="col" className="list-th text-left w-[200px]">Inscrits</th>
+                <th scope="col" className="list-th text-center w-[200px]">Inscrits</th>
+                <th scope="col" className="list-th text-center">Utilisateurs</th>
                 <th scope="col" className="list-th text-left whitespace-nowrap">Échéance</th>
                 <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
-                <th scope="col" className="list-th text-left">État</th>
-                <th scope="col" className="list-th text-center">Utilisateurs</th>
+                <th scope="col" className="list-th text-center">Santé</th>
+                <th scope="col" className="list-th text-center">État</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-warm-50">
               {visibles.length === 0 && (
-                <tr className="sans-survol"><td colSpan={7} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
+                <tr className="sans-survol"><td colSpan={8} className="px-3 py-8 text-center text-warm-700">Aucun établissement ne correspond.</td></tr>
               )}
               {visibles.map(e => {
                 const expired = isExpired(e.subscription_expires_at)
@@ -207,13 +219,19 @@ export default async function SuperAdminPage({ searchParams }: {
                 const quota    = e.max_students && s ? s.inscrits / e.max_students : null
                 const activite = depuis(s?.derniereConnexion ?? null, maintenant)
                 const dormante = e.is_active && (activite.jours === null || activite.jours >= SEUIL_INACTIVITE_JOURS)
+                const etatSante = {
+                  ...e, smtp_configured: s?.smtp, last_sign_in: s?.derniereConnexion, base_facturable: s?.inscrits,
+                }
+                const coeur   = COEUR[niveauSante(etatSante, maintenant)]
+                const signes  = alertesSante(etatSante, maintenant)
+                const bulle   = [coeur.texte, ...signes].join(' · ')
                 // Une seule pastille d'etat, la plus grave d'abord.
                 const etat: { ton: 'ok' | 'attente' | 'danger' | 'neutre'; texte: string } =
                   e.donnees_effacees_le ? { ton: 'neutre',  texte: 'Données effacées' }
-                  : !e.is_active        ? { ton: 'danger',  texte: 'Inactive' }
-                  : expired             ? { ton: 'danger',  texte: 'Expirée' }
+                  : !e.is_active        ? { ton: 'danger',  texte: 'Inactif' }
+                  : expired             ? { ton: 'danger',  texte: 'Expiré' }
                   : sig.echeance        ? { ton: 'attente', texte: 'Échéance proche' }
-                  :                       { ton: 'ok',      texte: 'Active' }
+                  :                       { ton: 'ok',      texte: 'Actif' }
 
                 return (
                   <ClickableRow
@@ -258,9 +276,10 @@ export default async function SuperAdminPage({ searchParams }: {
                           </span>
                         </div>
                       ) : (
-                        <span className="mono tabular-nums">{s?.inscrits ?? '·'}</span>
+                        <div className="text-center mono tabular-nums">{s?.inscrits ?? '·'}</div>
                       )}
                     </td>
+                    <td className="list-td text-center tabular-nums">{s?.users ?? '·'}</td>
                     <td className="list-td whitespace-nowrap">
                       {dateStr ? (
                         <span className={`mono ${expired ? 'text-red-700 font-medium' : sig.echeance ? 'text-amber-700 font-medium' : ''}`}>{dateStr}</span>
@@ -273,8 +292,14 @@ export default async function SuperAdminPage({ searchParams }: {
                         {s ? activite.texte : '·'}
                       </span>
                     </td>
-                    <td className="list-td whitespace-nowrap"><Puce ton={etat.ton}>{etat.texte}</Puce></td>
-                    <td className="list-td text-center tabular-nums">{s?.users ?? '·'}</td>
+                    <td className="list-td text-center">
+                      <Tooltip content={bulle}>
+                        <span role="img" aria-label={bulle} className={`inline-flex ${coeur.couleur}`}>
+                          <coeur.Icone size={16} aria-hidden="true" fill={niveauSante(etatSante, maintenant) === 'bon' ? 'currentColor' : 'none'} />
+                        </span>
+                      </Tooltip>
+                    </td>
+                    <td className="list-td whitespace-nowrap text-center"><Puce ton={etat.ton}>{etat.texte}</Puce></td>
                   </ClickableRow>
                 )
               })}

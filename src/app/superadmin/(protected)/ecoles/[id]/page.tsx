@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Tooltip from '@/components/ui/Tooltip'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
@@ -241,19 +242,24 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-3 animate-fade-in">
 
-      {/* Retour, au niveau page — même forme que les fiches classe et année scolaire. */}
-      <Link
-        href="/superadmin"
-        className="inline-flex items-center gap-1 text-sm text-warm-700 hover:text-secondary-700 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
-      >
-        <ChevronLeft className="w-4 h-4" />
-        Retour à la liste
-      </Link>
+      {/* Retour : une grande icône à gauche du logo (demande du 22/10), à la place
+          du lien « Retour à la liste ». Hors du bandeau grisé d'une école effacée :
+          la sortie reste toujours lisible. */}
+      <div className="flex items-center gap-3">
+      <Tooltip content="Retour à la liste">
+        <Link
+          href="/superadmin"
+          aria-label="Retour à la liste"
+          className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--survol-ligne)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </Link>
+      </Tooltip>
 
       {/* Bandeau d'identité, calqué sur les fiches de l'application (élève,
           enseignant, utilisateur) : le logo tient lieu d'avatar, le nom est le
           `h1`, et les repères tiennent sur la ligne du dessous. */}
-      <div className={`flex items-center gap-3 ${grise}`}>
+      <div className={`flex-1 min-w-0 flex items-center gap-3 ${grise}`}>
         {ecole.logo_url ? (
           <Image
             src={ecole.logo_url}
@@ -314,6 +320,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
             />
           </fieldset>
         </div>
+      </div>
       </div>
 
       {effacee && (
