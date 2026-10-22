@@ -10,7 +10,7 @@ import Image from 'next/image'
 export default function MarqueConsole() {
   return (
     <div className="flex flex-col items-center gap-3">
-      <Image src="/icon.png" alt="" width={56} height={56} unoptimized className="logo-relief" />
+      <Image src="/icon.png" alt="" width={112} height={112} unoptimized className="logo-relief" />
       <h1 className="text-xl font-bold text-white tracking-tight">Bilal Education</h1>
       <PastilleConsole>Console éditeur</PastilleConsole>
     </div>
