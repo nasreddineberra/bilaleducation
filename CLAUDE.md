@@ -372,8 +372,6 @@ financements, retention…), ecole de demonstration.
    elastique absorbe la hauteur. Graphiques : palette dataviz validee CONSERVEE (option A, 21/10).
    Sources uniques ajoutees le 21/10 : `tonRole()` (role-labels), `tonCategorie()` (support),
    `cahier-texte/commun.ts` (types de devoir, dates locales).
-   **Ecart connu** : Bulletins, Classes archivees et Messages envoyes gardent une `card p-0` autour de leur
-   `.liste` (faits avant la correction de la regle, 21/10) : a retirer a leur prochain passage.
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
 2. **Console editeur** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
    section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).

@@ -8839,3 +8839,9 @@ marque ; les vraies ecoles gardent leur plaque.
   le logo et l'annee se centrent sur les 92 px ; l'`overflow-hidden` de l'accordeon rognait le cadre et
   l'anneau de focus -> marge interieure `p-1` sur la grille d'icones ; le chevron ajoute mangeait la place
   du titre -> retire, la section ouverte se lit a ses icones et a son titre en blanc.
+
+#### 22 octobre 2026 — Listes : cadre `card p-0` retire (Bulletins, Classes archivees, Messages envoyes)
+
+- Ecart laisse le 21/10 : ces trois listes gardaient une `card p-0` autour de leur `.liste` (double cadre).
+  Enveloppe retiree ; la `.liste` porte deja `flex-1 min-h-0 overflow-y-auto`, la hauteur elastique est
+  conservee.

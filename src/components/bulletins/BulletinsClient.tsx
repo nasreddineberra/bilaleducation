@@ -808,8 +808,7 @@ export default function BulletinsClient({
       ) : currentEvals.length === 0 ? (
         <div className="card text-center text-sm text-warm-700 py-10">Aucune évaluation pour cette période.</div>
       ) : (
-        <div className="card p-0 overflow-hidden flex-1 min-h-0 flex flex-col">
-          <div className="liste list-scroll flex-1 min-h-0 overflow-y-auto">
+        <div className="liste list-scroll flex-1 min-h-0 overflow-y-auto">
           <table aria-label="Bulletins des élèves" className="w-full text-xs">
             <thead className="sticky top-0 z-10">
               <tr className="liste-entete border-b border-[var(--card-border)]">
@@ -938,7 +937,6 @@ export default function BulletinsClient({
               })}
             </tbody>
           </table>
-          </div>
         </div>
       )}
 

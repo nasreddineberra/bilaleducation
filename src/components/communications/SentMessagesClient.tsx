@@ -189,7 +189,6 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
       {filtered.length === 0 ? (
         <div className="card text-center text-sm text-warm-700 py-10">Aucun message envoyé.</div>
       ) : (
-        <div className="card p-0 overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="liste list-scroll flex-1 min-h-0 overflow-y-auto">
           <table className="w-full text-xs" aria-label="Messages envoyés">
             <thead className="sticky top-0 z-10">
@@ -234,7 +233,6 @@ export default function SentMessagesClient({ messages, yearLabel }: Props) {
               })}
             </tbody>
           </table>
-        </div>
         </div>
       )}
     </div>
