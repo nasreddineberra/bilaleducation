@@ -281,6 +281,7 @@
     /* Propres a la console : l'action principale et ses champs sur fond sombre. */
     --console-accent:       #c8f169;
     --console-accent-2:     #b4dd52;   /* survol */
+    --console-accent-trait: #8fb83a;   /* bordure de tout bouton citron vert (regle du 22/10) */
     --console-accent-encre: #16181d;
     --console-champ:        #22252c;   /* champ sur fond graphite (connexion) */
     --console-champ-trait:  #2c3038;
@@ -1778,8 +1779,9 @@
 
 /* Console de l'editeur : l'action principale (`FloatButton` submit, marquee
    `bouton-principal`) passe en citron vert, texte graphite. Hors calque : doit
-   l'emporter sur les classes Tailwind du bouton. */
-:root[data-espace="console"] .bouton-principal { background-color: var(--console-accent); color: var(--console-accent-encre); box-shadow: none; }
+   l'emporter sur les classes Tailwind du bouton. REGLE (22/10) : tout bouton
+   citron vert porte une bordure, comme les boutons secondaires a cote de lui. */
+:root[data-espace="console"] .bouton-principal { background-color: var(--console-accent); color: var(--console-accent-encre); box-shadow: none; border: 1px solid var(--console-accent-trait); }
 :root[data-espace="console"] .bouton-principal:hover { background-color: var(--console-accent-2); box-shadow: none; }
 
 /* Police a chasse fixe (sous-domaines, dates, versions) : celle du systeme,

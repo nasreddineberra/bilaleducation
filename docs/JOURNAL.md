@@ -8990,3 +8990,10 @@ marque ; les vraies ecoles gardent leur plaque.
 - Reste : les neutres BEIGES (`warm-*`, environ 110 occurrences dans la console) jurent un peu avec le gris
   neutre de la console. Proposition : un pont `:root[data-espace="console"]` qui les remappe, comme le pont du
   theme sombre.
+
+#### 22 octobre 2026 — Console editeur : bordure des boutons citron vert
+
+- **Regle (utilisateur)** : tout bouton citron vert porte une bordure, comme le bouton secondaire a cote
+  (« Reinitialiser » / « Intervenir », « Enregistrer » de l'encadre Informations). Jeton
+  `--console-accent-trait` (`#8fb83a`) sur `.bouton-principal` (tous les `FloatButton submit` de la console)
+  et sur « Se connecter ». Notes internes ramenees a 5 lignes (fiche sans defilement).

@@ -127,7 +127,7 @@ export default function SuperAdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-[46px] !mt-6 rounded-full text-sm font-bold transition-colors bg-[var(--console-accent)] text-[var(--console-accent-encre)] hover:bg-[var(--console-accent-2)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--console-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-surface)] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full h-[46px] !mt-6 rounded-full text-sm font-bold transition-colors border border-[var(--console-accent-trait)] bg-[var(--console-accent)] text-[var(--console-accent-encre)] hover:bg-[var(--console-accent-2)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--console-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-surface)] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? 'Vérification…' : 'Se connecter'}
           </button>
