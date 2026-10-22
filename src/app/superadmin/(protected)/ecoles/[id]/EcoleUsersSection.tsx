@@ -250,13 +250,13 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
       )}
 
       {ouvert && (
-        <p role="status" className="text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+        <p role="status" className="text-xs ton-ok rounded-lg px-3 py-1.5">
           Accès ouvert pour <span className="font-semibold">{ouvert.email}</span> · mot de passe <span className="font-semibold font-mono">{ouvert.password}</span>
         </p>
       )}
 
       {envoye && (
-        <p role="status" className="text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5">
+        <p role="status" className="text-xs ton-ok rounded-lg px-3 py-1.5">
           Lien envoyé à {envoye}.
         </p>
       )}
@@ -282,14 +282,14 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
                   <Tooltip content={auth[p.id].connexion ? `Dernière connexion le ${formatDateFr(auth[p.id].connexion as string)}` : 'Jamais connecté'}>
                     <span className={clsx(
                       'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap cursor-default',
-                      auth[p.id].deuxFacteurs ? 'bg-primary-100 text-primary-700' : 'bg-amber-100 text-amber-700',
+                      auth[p.id].deuxFacteurs ? 'ton-ok' : 'ton-attente',
                     )}>
                       {auth[p.id].deuxFacteurs ? '2FA' : 'Sans 2FA'}
                     </span>
                   </Tooltip>
                 )}
                 {estDemo && p.role !== 'super_admin' && !p.email?.endsWith(DOMAINE_DEMO) && (
-                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap bg-violet-100 text-violet-700">Prospect</span>
+                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full whitespace-nowrap ton-remplacement">Prospect</span>
                 )}
                 <span className="text-xs text-warm-700 bg-white px-2 py-0.5 rounded-full border border-warm-200">{libelleRole(p.role, 'court')}</span>
                 {estDemo && p.role !== 'super_admin' && (
@@ -332,8 +332,8 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
                     disabled={envoiId === p.id}
                     aria-label={`Envoyer un lien de mot de passe à ${p.last_name} ${p.first_name}`}
                     className={clsx(
-                      'p-1 rounded-lg text-warm-700 hover:text-primary-600 hover:bg-primary-50 transition-colors',
-                      'outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50',
+                      'p-1 rounded-lg text-warm-700 hover:text-[var(--ink)] hover:bg-[var(--survol-ligne)] transition-colors',
+                      'outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
                       envoiId === p.id && 'opacity-40 cursor-not-allowed',
                     )}
                   >
@@ -348,7 +348,7 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
                     onClick={() => setADesactiver(p)}
                     disabled={togglingId === p.id}
                     aria-label={`${p.is_active ? 'Désactiver' : 'Réactiver'} le compte de ${p.last_name} ${p.first_name}`}
-                    className={clsx('p-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50', p.is_active ? 'text-warm-700 hover:text-red-500 hover:bg-red-50' : 'text-primary-600 hover:bg-primary-50', togglingId === p.id && 'opacity-40 cursor-not-allowed')}
+                    className={clsx('p-1 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]', p.is_active ? 'text-warm-700 hover:text-red-500 hover:bg-red-50' : 'text-[var(--etat-ok)] hover:bg-[var(--survol-ligne)]', togglingId === p.id && 'opacity-40 cursor-not-allowed')}
                   >
                     {p.is_active ? <UserX size={15} /> : <UserCheck size={15} />}
                   </button>

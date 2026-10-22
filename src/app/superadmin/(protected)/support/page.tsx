@@ -55,18 +55,16 @@ export default async function ConsoleSupportPage() {
   return (
     <div className="space-y-4 animate-fade-in">
 
-      <div>
-        <h1 className="text-2xl font-bold text-secondary-800">Demandes de support</h1>
-        {/* Sans demande, rien ici : la liste vide le dit déjà, au centre. */}
-        {lignes.length > 0 && (
-          <p className="text-warm-700 text-sm mt-1">
-            {`${lignes.length} demande${lignes.length > 1 ? 's' : ''}`
-              + (nonRecues > 0
-                  ? ` · ${nonRecues} non reçue${nonRecues > 1 ? 's' : ''} par email`
-                  : '')}
-          </p>
-        )}
-      </div>
+      {/* Pas de titre : l'onglet actif dit déjà où l'on est. Sans demande, rien
+          ici non plus : la liste vide le dit, au centre. */}
+      {lignes.length > 0 && (
+        <p className="text-warm-700 text-sm">
+          {`${lignes.length} demande${lignes.length > 1 ? 's' : ''}`
+            + (nonRecues > 0
+                ? ` · ${nonRecues} non reçue${nonRecues > 1 ? 's' : ''} par email`
+                : '')}
+        </p>
+      )}
 
       <SupportRequestsConsoleClient demandes={lignes} ecoles={ecoles ?? []} />
 

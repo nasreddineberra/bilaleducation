@@ -66,9 +66,9 @@ export default function TempPasswordField({
             onClick={copier}
             disabled={!value}
             aria-label="Copier le mot de passe"
-            className="text-warm-700 hover:text-secondary-700 transition-colors disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="text-warm-700 hover:text-secondary-700 transition-colors disabled:opacity-40 rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
-            {copie ? <Check size={14} className="text-primary-600" /> : <Copy size={14} />}
+            {copie ? <Check size={14} className="text-[var(--etat-ok)]" /> : <Copy size={14} />}
           </button>
         </Tooltip>
         <Tooltip content="Générer un mot de passe de 12 caractères">
@@ -77,7 +77,7 @@ export default function TempPasswordField({
             onClick={generer}
             disabled={disabled}
             aria-label="Générer un mot de passe temporaire"
-            className="text-warm-700 hover:text-primary-600 transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+            className="text-warm-700 hover:text-[var(--ink)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
           >
             <RefreshCw size={14} />
           </button>

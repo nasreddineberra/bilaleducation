@@ -216,7 +216,7 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
           </div>
 
           {error   && <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">{error}</p>}
-          {success && <p role="status" className="flex items-center gap-2 text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5"><CheckCircle2 size={13} /> Enregistré.</p>}
+          {success && <p role="status" className="flex items-center gap-2 text-xs ton-ok rounded-lg px-3 py-1.5"><CheckCircle2 size={13} /> Enregistré.</p>}
 
           <div className="flex items-center gap-3">
             <span className="text-xs text-red-400"><span className="font-semibold">*</span> obligatoire</span>
@@ -233,7 +233,7 @@ export default function EcoleInfoForm({ ecole, notes, facturation }: {
         <h2 className={titre}>Accès et abonnement</h2>
 
         {message && (
-          <p role="status" className="flex items-center gap-2 text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-lg px-3 py-1">
+          <p role="status" className="flex items-center gap-2 text-xs ton-ok rounded-lg px-3 py-1">
             <CheckCircle2 size={13} className="shrink-0" /> {message}
           </p>
         )}

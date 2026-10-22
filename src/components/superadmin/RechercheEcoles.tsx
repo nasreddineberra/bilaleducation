@@ -89,12 +89,12 @@ export default function RechercheEcoles({ ecoles }: { ecoles: EcoleRecherche[] }
         ref={champ}
         type="text"
         role="combobox"
-        aria-label="Rechercher une école"
+        aria-label="Rechercher un établissement"
         aria-expanded={visible}
         aria-controls={listeId}
         aria-autocomplete="list"
         aria-activedescendant={visible && actif >= 0 ? `${listeId}-${actif}` : undefined}
-        placeholder="Rechercher une école…"
+        placeholder="Rechercher un établissement…"
         value={q}
         onChange={e => { setQ(e.target.value); setOuvert(true); setActif(-1) }}
         onFocus={() => setOuvert(true)}
@@ -111,11 +111,11 @@ export default function RechercheEcoles({ ecoles }: { ecoles: EcoleRecherche[] }
         <ul
           id={listeId}
           role="listbox"
-          aria-label="Écoles trouvées"
+          aria-label="Établissements trouvés"
           className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 py-1 rounded-xl bg-[var(--surface-card)] border border-[var(--card-border)] shadow-[var(--card-shadow)] max-h-80 overflow-y-auto"
         >
           {resultats.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-[var(--ink-muted)]">Aucune école ne correspond.</li>
+            <li className="px-3 py-2 text-xs text-[var(--ink-muted)]">Aucun établissement ne correspond.</li>
           ) : resultats.map((e, i) => (
             <li
               key={e.id}

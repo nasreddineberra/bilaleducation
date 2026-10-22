@@ -8974,3 +8974,19 @@ marque ; les vraies ecoles gardent leur plaque.
 - Fiche etablissement : lien « Retour a la liste » remplace par une grande icone retour (chevron 28 px, case
   44 px, infobulle) a gauche du logo, hors du bandeau grise d'une ecole effacee.
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 22 octobre 2026 — Console editeur : fiche etablissement a la palette, titres retires, espacement
+
+- Liste : colonne Sante juste apres la premiere colonne, renommee « Etablissement » (et textes de la recherche
+  globale : « Rechercher un etablissement… »).
+- Titres « Facturation » et « Demandes de support » retires : l'onglet actif dit deja ou l'on est.
+- **Fiche etablissement, controle de la palette** : plus aucun turquoise `primary-*`. Pastilles d'identite en
+  `Puce` (Actif / Acces coupe / Donnees effacees) ; compteur facturable en graphite ; « Enregistre » en `ton-ok` ;
+  2FA des comptes en `ton-ok` / `ton-attente` ; « Prospect » en `ton-remplacement` (au lieu du violet en dur) ;
+  choix de purge en `--brand-tint` / `--brand-line` ; survols et halos sur `--survol-ligne` / `--brand-focus`.
+  Meme correction dans `TempPasswordField` et un halo de la page Support.
+- Espace entre le menu et le contenu reduit (`main` : 24 px -> 12 px en haut, 20 px en bas) : la fiche
+  affichait une barre de defilement.
+- Reste : les neutres BEIGES (`warm-*`, environ 110 occurrences dans la console) jurent un peu avec le gris
+  neutre de la console. Proposition : un pont `:root[data-espace="console"]` qui les remappe, comme le pont du
+  theme sombre.

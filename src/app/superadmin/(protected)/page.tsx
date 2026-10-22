@@ -195,13 +195,13 @@ export default async function SuperAdminPage({ searchParams }: {
           <table className="w-full text-xs" aria-label="Établissements clients">
             <thead>
               <tr className="liste-entete border-b border-[var(--card-border)]">
-                <th scope="col" className="list-th text-left">École</th>
+                <th scope="col" className="list-th text-left">Établissement</th>
+                <th scope="col" className="list-th text-center">Santé</th>
                 <th scope="col" className="list-th text-left">Domaine</th>
                 <th scope="col" className="list-th text-center w-[200px]">Inscrits</th>
                 <th scope="col" className="list-th text-center">Utilisateurs</th>
                 <th scope="col" className="list-th text-left whitespace-nowrap">Échéance</th>
                 <th scope="col" className="list-th text-left whitespace-nowrap">Dernière connexion</th>
-                <th scope="col" className="list-th text-center">Santé</th>
                 <th scope="col" className="list-th text-center">État</th>
               </tr>
             </thead>
@@ -261,6 +261,13 @@ export default async function SuperAdminPage({ searchParams }: {
                         {e.est_demo && <Puce ton="neutre">Démo</Puce>}
                       </div>
                     </td>
+                    <td className="list-td text-center">
+                      <Tooltip content={bulle}>
+                        <span role="img" aria-label={bulle} className={`inline-flex ${coeur.couleur}`}>
+                          <coeur.Icone size={16} aria-hidden="true" fill={niveauSante(etatSante, maintenant) === 'bon' ? 'currentColor' : 'none'} />
+                        </span>
+                      </Tooltip>
+                    </td>
                     <td className="list-td mono text-[var(--ink-muted)] whitespace-nowrap">{e.slug}</td>
                     <td className="list-td">
                       {e.max_students ? (
@@ -291,13 +298,6 @@ export default async function SuperAdminPage({ searchParams }: {
                       <span className={dormante ? 'text-amber-700 font-medium' : 'text-warm-700'}>
                         {s ? activite.texte : '·'}
                       </span>
-                    </td>
-                    <td className="list-td text-center">
-                      <Tooltip content={bulle}>
-                        <span role="img" aria-label={bulle} className={`inline-flex ${coeur.couleur}`}>
-                          <coeur.Icone size={16} aria-hidden="true" fill={niveauSante(etatSante, maintenant) === 'bon' ? 'currentColor' : 'none'} />
-                        </span>
-                      </Tooltip>
                     </td>
                     <td className="list-td whitespace-nowrap text-center"><Puce ton={etat.ton}>{etat.texte}</Puce></td>
                   </ClickableRow>

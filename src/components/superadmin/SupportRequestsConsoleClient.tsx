@@ -188,7 +188,7 @@ export default function SupportRequestsConsoleClient({
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); setDetail(d) }}
-                      className="list-name hover:underline text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50"
+                      className="list-name hover:underline text-left rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
                     >
                       {d.subject}
                     </button>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
@@ -281,10 +282,10 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
             <span className="font-mono">{ecole.slug}.bilaleducation.fr</span>
             <span aria-hidden="true">·</span>
             {effacee
-              ? <span className="bg-warm-100 text-warm-700 px-1.5 py-0.5 rounded font-medium">Données effacées</span>
+              ? <Puce ton="neutre">Données effacées</Puce>
               : ecole.is_active
-                ? <span className="bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded font-medium">Actif</span>
-                : <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">Accès coupé</span>}
+                ? <Puce ton="ok">Actif</Puce>
+                : <Puce ton="danger">Accès coupé</Puce>}
           </div>
         </div>
 
@@ -293,9 +294,9 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           {compteurs.map(c => (
             <div
               key={c.label}
-              className={`card px-3 py-1.5 text-center min-w-[84px] ${c.facturable ? 'ring-2 ring-primary-600' : ''}`}
+              className={`card px-3 py-1.5 text-center min-w-[84px] ${c.facturable ? 'ring-2 ring-[var(--brand-surface)]' : ''}`}
             >
-              <p className={`text-base font-bold leading-none tabular-nums ${c.facturable ? 'text-primary-700' : 'text-secondary-800'}`}>
+              <p className={`text-base font-bold leading-none tabular-nums ${c.facturable ? 'text-[var(--brand-surface)]' : 'text-secondary-800'}`}>
                 {c.value ?? '?'}
                 {c.limite != null && <span className="text-warm-700 font-semibold"> / {c.limite}</span>}
               </p>

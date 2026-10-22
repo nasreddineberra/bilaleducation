@@ -25,7 +25,7 @@ function Groupe({ titre, etapes }: { titre: string; etapes: Etape[] }) {
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">{titre}</h2>
-        <span className={`text-xs font-semibold tabular-nums ${faites === etapes.length ? 'text-primary-700' : 'text-amber-700'}`}>
+        <span className={`text-xs font-semibold tabular-nums ${faites === etapes.length ? 'text-[var(--etat-ok)]' : 'text-amber-700'}`}>
           {faites}/{etapes.length}
         </span>
       </div>
@@ -35,7 +35,7 @@ function Groupe({ titre, etapes }: { titre: string; etapes: Etape[] }) {
         {etapes.map(e => (
           <li key={e.label} className="flex items-center gap-2 text-xs">
             {e.ok
-              ? <CheckCircle2 className="w-4 h-4 text-primary-600 flex-shrink-0" aria-label="Fait" />
+              ? <CheckCircle2 className="w-4 h-4 text-[var(--etat-ok)] flex-shrink-0" aria-label="Fait" />
               : <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" aria-label="À faire" />}
             <span className={`whitespace-nowrap ${e.ok ? 'text-secondary-800' : 'text-secondary-800 font-medium'}`}>{e.label}</span>
             {e.detail && (

@@ -75,7 +75,8 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees }: 
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-secondary-800 mr-auto">Facturation</h1>
+        {/* Pas de titre : l'onglet actif dit déjà où l'on est. L'espace garde les contrôles à droite. */}
+        <div className="mr-auto" />
         <label htmlFor="facturation-ecole" className="sr-only">Établissement</label>
         <select
           id="facturation-ecole"

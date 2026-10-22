@@ -53,7 +53,7 @@ export default async function SuperAdminProtectedLayout({
         nom={`${profile.last_name ?? ''} ${profile.first_name ?? ''}`.trim()}
         ecoles={(ecoles ?? []).map(e => ({ id: e.id, nom: e.nom ?? '', slug: e.slug ?? '' }))}
       />
-      <main className="flex-1 min-h-0 overflow-y-auto px-4 py-6 sm:px-10">
+      <main className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-5 sm:px-10">
         {children}
       </main>
     </div>

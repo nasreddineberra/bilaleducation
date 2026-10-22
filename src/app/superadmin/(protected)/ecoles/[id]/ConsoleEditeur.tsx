@@ -177,7 +177,7 @@ export default function ConsoleEditeur({ etablissementId, actions, interventions
                   key={c.mois}
                   className={clsx(
                     'flex items-center justify-between gap-3 px-3 py-2 rounded-lg border cursor-pointer text-sm',
-                    choix === c.mois ? 'border-primary-400 bg-primary-50' : 'border-warm-200 hover:bg-warm-50',
+                    choix === c.mois ? 'border-[var(--brand-line)] bg-[var(--brand-tint)]' : 'border-warm-200 hover:bg-warm-50',
                   )}
                 >
                   <span className="flex items-center gap-2">
