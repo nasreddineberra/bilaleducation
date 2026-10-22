@@ -375,7 +375,7 @@ export default function CotisationsClient({
                   ? 'bg-amber-50 border-amber-200 text-amber-700'
                   : isRatesDirty
                     ? 'ton-info'
-                    : 'bg-[var(--brand-tint)] border-[var(--brand-line)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
+                    : 'border-warm-100 text-[var(--brand-surface)] dark:text-[var(--brand-accent)]'
               )}
             >
               {!allRatesSaved ? (
