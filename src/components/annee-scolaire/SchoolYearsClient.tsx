@@ -125,7 +125,7 @@ export default function SchoolYearsClient({ schoolYears }: SchoolYearsClientProp
                   <tr
                     key={year.id}
                     onClick={() => router.push(`/dashboard/annee-scolaire/${year.id}`)}
-                    className={`cursor-pointer transition-colors ${year.is_current ? 'sans-survol bg-[var(--brand-tint)]' : ''}`}
+                    className={`cursor-pointer transition-colors ${year.is_current ? 'ligne-active' : ''}`}
                   >
                     {/* Année */}
                     <td className="list-td whitespace-nowrap">

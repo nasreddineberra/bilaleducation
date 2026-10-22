@@ -8857,3 +8857,16 @@ marque ; les vraies ecoles gardent leur plaque.
   segment actif se DEDUIT des cases cochees (aucun si la selection est faite a la main). Affiche seulement si
   le foyer cumule eleves et adultes (sinon « Tout » serait seul). Phrase explicative retiree.
 - Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK.
+
+#### 22 octobre 2026 — Types de presence et types de cotisations : saisie en modale ; annee en cours
+
+- **Demande utilisateur** : « Ajouter » ouvre une `FormModal`. La MODIFICATION y passe aussi (meme formulaire ;
+  une modification restee dans le tableau a cote d'un ajout en modale aurait ete incoherente). Modele : Ressources
+  (titre Nouveau / Modifier, bouton `submit` / `edit`, desactive si rien n'a change, « * obligatoire » au pied).
+- Types de presence : ligne d'edition inline retiree (libelle, code, palette de couleurs, Actif) ; type reserve
+  -> titre « Modifier la couleur », libelle et code verrouilles ; erreur d'enregistrement dans la modale.
+- Cotisations : panneau de saisie au-dessus du tableau retire ; `ligneDepuis()` sert a l'edition ET a la
+  detection « inchange ». Actions de ligne plus grisees pendant une saisie (la modale couvre la page).
+- Annees scolaires : l'annee en cours n'a plus de fond teinte (`brand-tint` + `sans-survol`, double marquage avec
+  la pastille « En cours ») mais la barre `.ligne-active`, et retrouve le survol commun.
+- Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK.

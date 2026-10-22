@@ -12,6 +12,7 @@ import { useToast } from '@/lib/toast-context'
 import { FloatButton, FloatInput, FloatCheckbox } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
 import type { CotisationType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,15 @@ type EditingRow = {
 const EMPTY_ROW: EditingRow = {
   id: null, label: '', amount: '', registration_fee: '', sibling_discount: '',
   sibling_discount_same_type: false, max_installments: '', is_adult: false,
+}
+
+function ligneDepuis(row: CotisationType): EditingRow {
+  return {
+    id: row.id, label: row.label, amount: Number(row.amount).toFixed(2),
+    registration_fee: Number(row.registration_fee).toFixed(2), sibling_discount: Number(row.sibling_discount).toFixed(2),
+    sibling_discount_same_type: row.sibling_discount_same_type ?? false,
+    max_installments: String(row.max_installments), is_adult: row.is_adult ?? false,
+  }
 }
 
 function fmtEur(n: number) {
@@ -134,15 +144,7 @@ export default function CotisationsClient({
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const startAdd  = () => { setEditing({ ...EMPTY_ROW }); setConfirmDeleteId(null) }
-  const startEdit = (row: CotisationType) => {
-    setEditing({
-      id: row.id, label: row.label, amount: Number(row.amount).toFixed(2),
-      registration_fee: Number(row.registration_fee).toFixed(2), sibling_discount: Number(row.sibling_discount).toFixed(2),
-      sibling_discount_same_type: row.sibling_discount_same_type ?? false,
-      max_installments: String(row.max_installments), is_adult: row.is_adult ?? false,
-    })
-    setConfirmDeleteId(null)
-  }
+  const startEdit = (row: CotisationType) => { setEditing(ligneDepuis(row)); setConfirmDeleteId(null) }
   const cancel = () => setEditing(null)
 
   const save = async () => {
@@ -225,6 +227,9 @@ export default function CotisationsClient({
     && editing.amount.trim() !== '' && Number(editing.amount) >= 0
     && editing.max_installments.trim() !== '' && Number(editing.max_installments) >= 1
 
+  const original = editing?.id ? rows.find(r => r.id === editing.id) : undefined
+  const inchange = !!original && JSON.stringify(ligneDepuis(original)) === JSON.stringify(editing)
+
   // Types de présence : absences en tête de liste
   const sortedPresenceTypes = [...presenceTypes].sort((a, b) => Number(b.is_absence) - Number(a.is_absence))
 
@@ -241,104 +246,13 @@ export default function CotisationsClient({
         <div className="card p-0 overflow-hidden">
           <div className="encadre-titre m-0 justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest">Types de cotisations · {currentYear.label}</h2>
-            {!editing && (
-              <FloatButton type="button" variant="submit" size="mini" onClick={startAdd}>
-                Ajouter
-              </FloatButton>
-            )}
+            <FloatButton type="button" variant="submit" size="mini" onClick={startAdd}>
+              Ajouter
+            </FloatButton>
           </div>
 
           <div className="flex flex-row">
           <div className="flex-[2] min-w-0 overflow-x-auto">
-          {/* Formulaire d'édition */}
-          {editing && (
-            <div className="p-4 border-b border-warm-100 bg-[var(--brand-tint)] space-y-3">
-              <div className="flex flex-wrap items-start gap-2">
-                <div className="w-48">
-                  <FloatInput
-                    label="Type de scolarité"
-                    required
-                    aria-required="true"
-                    compact
-                    autoFocus
-                    value={editing.label}
-                    onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
-                  />
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <FloatCheckbox variant="compact" label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
-                    <InfoHint text="Les classes de ce type seront réservées aux adultes." />
-                  </div>
-                </div>
-                <div className="w-32">
-                  <div className="relative">
-                    <FloatInput
-                      label="Côtis. annuelle"
-                      required
-                      aria-required="true"
-                      compact
-                      type="number" min="0" step="10"
-                      className="pr-7"
-                      value={editing.amount}
-                      onChange={e => setEditing({ ...editing, amount: e.target.value })}
-                      onBlur={e => setEditing(ed => ed ? { ...ed, amount: to2(e.target.value) } : ed)}
-                    />
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
-                  </div>
-                </div>
-                <div className="w-32">
-                  <div className="relative">
-                    <FloatInput
-                      label="Frais de dossier"
-                      compact
-                      type="number" min="0" step="10"
-                      className="pr-7"
-                      value={editing.registration_fee}
-                      onChange={e => setEditing({ ...editing, registration_fee: e.target.value })}
-                      onBlur={e => setEditing(ed => ed ? { ...ed, registration_fee: to2(e.target.value) } : ed)}
-                    />
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
-                  </div>
-                </div>
-                <div className="w-32">
-                  <div className="relative">
-                    <FloatInput
-                      label="Réduc. fratrie"
-                      compact
-                      type="number" min="0" step="10"
-                      className="pr-7"
-                      value={editing.sibling_discount}
-                      onChange={e => setEditing({ ...editing, sibling_discount: e.target.value })}
-                      onBlur={e => setEditing(ed => ed ? { ...ed, sibling_discount: to2(e.target.value) } : ed)}
-                    />
-                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <FloatCheckbox variant="compact" label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
-                    <InfoHint text="Réduction entre enfants du même type uniquement." />
-                  </div>
-                </div>
-                <div className="w-32">
-                  <FloatInput
-                    label="Max échéances"
-                    required
-                    aria-required="true"
-                    compact
-                    type="number" min="1" max="12"
-                    value={editing.max_installments}
-                    onChange={e => setEditing({ ...editing, max_installments: e.target.value })}
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <FloatButton type="button" variant="submit" onClick={save} disabled={saving || !isFormValid}>
-                    {saving ? 'Enregistrement...' : editing.id ? 'Enregistrer' : 'Ajouter'}
-                  </FloatButton>
-                  <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>Annuler</FloatButton>
-                </div>
-              </div>
-              <span className="block text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> champs obligatoires</span>
-            </div>
-          )}
-
           <table className="liste w-full text-left text-xs" aria-label={`Types de cotisations · ${currentYear.label}`}>
             <thead>
               <tr className="liste-entete border-b border-[var(--card-border)]">
@@ -352,7 +266,7 @@ export default function CotisationsClient({
             </thead>
             <tbody className="divide-y divide-warm-50">
               {rows.map(row => (
-                <tr key={row.id} className={clsx('transition-colors', editing?.id === row.id && 'sans-survol bg-[var(--brand-tint)]')}>
+                <tr key={row.id}>
                   <td className="list-td">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="list-name text-secondary-800">{row.label}</span>
@@ -376,17 +290,17 @@ export default function CotisationsClient({
                     {(
                       <div className="flex items-center justify-end gap-0.5">
                         <Tooltip content="Modifier">
-                          <button onClick={() => startEdit(row)} disabled={!!editing} aria-label={`Modifier ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)]', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-secondary-700 hover:bg-warm-100')}><Pencil size={13} /></button>
+                          <button onClick={() => startEdit(row)} aria-label={`Modifier ${row.label}`} className="p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-focus)] text-warm-700 hover:text-secondary-700 hover:bg-warm-100"><Pencil size={13} /></button>
                         </Tooltip>
                         <Tooltip content="Supprimer">
-                          <button onClick={() => startDelete(row)} disabled={!!editing} aria-label={`Supprimer ${row.label}`} className={clsx('p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50', editing ? 'text-warm-700 cursor-not-allowed' : 'text-warm-700 hover:text-red-700 hover:bg-red-50')}><Trash2 size={13} /></button>
+                          <button onClick={() => startDelete(row)} aria-label={`Supprimer ${row.label}`} className="p-1.5 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-500/50 text-warm-700 hover:text-red-700 hover:bg-red-50"><Trash2 size={13} /></button>
                         </Tooltip>
                       </div>
                     )}
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && !editing && (
+              {rows.length === 0 && (
                 <tr className="sans-survol"><td colSpan={6} className="px-3 py-8 text-center text-warm-700">Aucun type configuré pour cette année.</td></tr>
               )}
             </tbody>
@@ -600,6 +514,95 @@ export default function CotisationsClient({
           </div>
           </div>
         </div>
+
+      {editing && (
+        <FormModal
+          title={editing.id ? 'Modifier le type de cotisation' : 'Nouveau type de cotisation'}
+          onClose={cancel}
+          maxWidth="max-w-lg"
+          footer={<>
+            <span className="text-xs text-warm-700"><span className="font-semibold text-red-700">*</span> obligatoire</span>
+            <div className="flex-1" />
+            <FloatButton type="button" variant="secondary" onClick={cancel} disabled={saving}>Annuler</FloatButton>
+            <FloatButton type="button" variant={editing.id ? 'edit' : 'submit'} onClick={save} disabled={saving || !isFormValid || inchange}>
+              {saving ? 'Enregistrement...' : editing.id ? 'Modifier' : 'Créer'}
+            </FloatButton>
+          </>}
+        >
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <FloatInput
+              label="Type de scolarité"
+              required
+              aria-required="true"
+              compact
+              autoFocus
+              value={editing.label}
+              onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
+            />
+            <div className="flex items-center gap-1.5">
+              <FloatCheckbox variant="compact" label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
+              <InfoHint text="Les classes de ce type seront réservées aux adultes." />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="relative">
+              <FloatInput
+                label="Côtis. annuelle"
+                required
+                aria-required="true"
+                compact
+                type="number" min="0" step="10"
+                className="pr-7"
+                value={editing.amount}
+                onChange={e => setEditing({ ...editing, amount: e.target.value })}
+                onBlur={e => setEditing(ed => ed ? { ...ed, amount: to2(e.target.value) } : ed)}
+              />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
+            </div>
+            <div className="relative">
+              <FloatInput
+                label="Frais de dossier"
+                compact
+                type="number" min="0" step="10"
+                className="pr-7"
+                value={editing.registration_fee}
+                onChange={e => setEditing({ ...editing, registration_fee: e.target.value })}
+                onBlur={e => setEditing(ed => ed ? { ...ed, registration_fee: to2(e.target.value) } : ed)}
+              />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <div className="relative">
+              <FloatInput
+                label="Réduc. fratrie"
+                compact
+                type="number" min="0" step="10"
+                className="pr-7"
+                value={editing.sibling_discount}
+                onChange={e => setEditing({ ...editing, sibling_discount: e.target.value })}
+                onBlur={e => setEditing(ed => ed ? { ...ed, sibling_discount: to2(e.target.value) } : ed)}
+              />
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <FloatCheckbox variant="compact" label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
+              <InfoHint text="Réduction entre enfants du même type uniquement." />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <FloatInput
+              label="Max échéances"
+              required
+              aria-required="true"
+              compact
+              type="number" min="1" max="12"
+              value={editing.max_installments}
+              onChange={e => setEditing({ ...editing, max_installments: e.target.value })}
+            />
+          </div>
+        </FormModal>
+      )}
 
       {confirmDeleteId && (
         <ConfirmModal
