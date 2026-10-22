@@ -539,10 +539,9 @@ export default function CotisationsClient({
               value={editing.label}
               onChange={e => setEditing({ ...editing, label: e.target.value.toUpperCase() })}
             />
-            <div className="flex items-center gap-1.5">
-              <div className="flex-1 min-w-0">
-                <SwitchOuiNon label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-warm-700">Cours adultes</span>
+              <SwitchOuiNon seul label="Cours adultes" checked={editing.is_adult} onChange={v => setEditing({ ...editing, is_adult: v })} />
               <InfoHint text="Les classes de ce type seront réservées aux adultes." />
             </div>
           </div>
@@ -574,6 +573,19 @@ export default function CotisationsClient({
               <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
             </div>
           </div>
+          <hr className="border-warm-100" />
+          <div className="grid grid-cols-2 gap-2">
+            <FloatInput
+              label="Max échéances"
+              required
+              aria-required="true"
+              compact
+              type="number" min="1" max="12"
+              value={editing.max_installments}
+              onChange={e => setEditing({ ...editing, max_installments: e.target.value })}
+            />
+          </div>
+          <hr className="border-warm-100" />
           <div className="grid grid-cols-2 gap-2 items-center">
             <div className="relative">
               <FloatInput
@@ -587,23 +599,11 @@ export default function CotisationsClient({
               />
               <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-warm-700">€</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="flex-1 min-w-0">
-                <SwitchOuiNon label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-warm-700">Même type</span>
+              <SwitchOuiNon seul label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
               <InfoHint text="Réduction entre enfants du même type uniquement." />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <FloatInput
-              label="Max échéances"
-              required
-              aria-required="true"
-              compact
-              type="number" min="1" max="12"
-              value={editing.max_installments}
-              onChange={e => setEditing({ ...editing, max_installments: e.target.value })}
-            />
           </div>
         </FormModal>
       )}

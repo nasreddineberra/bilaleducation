@@ -8872,3 +8872,6 @@ marque ; les vraies ecoles gardent leur plaque.
 - Controles : type-check OK, lint 0 erreur, 123 tests OK, build OK.
 - **Suite (demande utilisateur)** : dans les deux modales, cases a cocher -> `SwitchOuiNon` (« Actif » ;
   « Cours adultes » et « Meme type », bulles d'aide conservees a cote).
+- **Retouche apres capture** (modale type de cotisation) : « Cours adultes » et « Meme type » sans cadre
+  (libelle + `SwitchOuiNon seul` + bulle) ; ordre : type, cotisation + dossier, filet, max echeances, filet,
+  reduction fratrie + meme type.
