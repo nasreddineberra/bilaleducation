@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { clsx } from 'clsx'
@@ -91,6 +91,18 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
   const setField = (f: keyof typeof newUser, v: string) => setNewUser(p => ({ ...p, [f]: v }))
 
   const triees = useMemo(() => [...profiles].sort(parRolePuisNom), [profiles])
+
+  // Arrivee depuis la recherche de la console (`?compte=<id>`) : la ligne du
+  // compte defile a l'ecran et reste mise en evidence quelques secondes.
+  const compteCherche = useSearchParams().get('compte')
+  const [enEvidence, setEnEvidence] = useState<string | null>(null)
+  useEffect(() => {
+    if (!compteCherche) return
+    setEnEvidence(compteCherche)
+    document.getElementById(`compte-${compteCherche}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const minuteur = setTimeout(() => setEnEvidence(null), 4000)
+    return () => clearTimeout(minuteur)
+  }, [compteCherche])
 
   const canSubmit = isValidEmail(newUser.email.trim()) &&
     isPasswordValid(newUser.password, newUser.first_name, newUser.last_name) &&
@@ -268,7 +280,11 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
         // colonne (jusqu'au bas d'« Acces et abonnement »), jamais plus.
         <div className="flex-1 min-h-0 overflow-y-auto list-scroll space-y-1 pr-1">
           {triees.map(p => (
-            <div key={p.id} className={clsx('flex items-center justify-between px-3 py-1.5 rounded-xl', p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60')}>
+            <div key={p.id} id={`compte-${p.id}`} className={clsx(
+              'flex items-center justify-between px-3 py-1.5 rounded-xl transition-shadow',
+              p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60',
+              enEvidence === p.id && 'ring-2 ring-[var(--console-accent-trait)]',
+            )}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-secondary-800 leading-tight">{p.last_name} {p.first_name}</p>
                 <p className="text-xs text-warm-700 leading-tight mt-0.5">{p.email}</p>

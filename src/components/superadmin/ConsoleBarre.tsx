@@ -10,7 +10,7 @@ import { APP_VERSION } from '@/lib/app-version'
 import Tooltip from '@/components/ui/Tooltip'
 import Onglets, { classeOnglet } from '@/components/ui/Onglets'
 import { PastilleConsole } from '@/components/superadmin/MarqueConsole'
-import RechercheEcoles, { type EcoleRecherche } from '@/components/superadmin/RechercheEcoles'
+import RechercheConsole, { type EcoleRecherche } from '@/components/superadmin/RechercheConsole'
 
 /**
  * Navigation de la CONSOLE (refonte du 22/10, maquette G) : remplace la barre
@@ -69,7 +69,7 @@ export default function ConsoleBarre({ nom, ecoles }: {
         <PastilleConsole>Console</PastilleConsole>
 
         <div className="hidden md:flex flex-1 justify-center px-4">
-          <RechercheEcoles ecoles={ecoles} />
+          <RechercheConsole ecoles={ecoles} />
         </div>
 
         <div className="ml-auto md:ml-0 flex items-center gap-3 min-w-0">

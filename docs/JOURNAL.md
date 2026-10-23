@@ -9163,3 +9163,18 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   ecoles sans tarif ») ; la ligne ouvre le detail de l'ecole. Une requete pour les deux mois. Detail inchange.
 - Controles : type-check OK, lint 0 erreur, build OK, classes servies verifiees. Donnee reelle au 23/10 : un
   seul releve (octobre 2026, ECOLE BILAL, base 0, sans tarif).
+
+#### 23 octobre 2026 — Console editeur : recherche des comptes
+
+- La recherche Ctrl+K de la barre (`RechercheEcoles` -> **`RechercheConsole`**) trouve aussi les COMPTES : nom,
+  prenom ou email, sans accents ni casse. Deux groupes dans la liste : « Etablissements » (filtre instantane sur
+  la liste fournie par le layout, inchange) puis « Comptes » (`NOM Prenom · role court`, dessous `email · Ecole`,
+  inactif grise). Clavier : une seule suite (fleches, Entree, Echap) ; Entree sans selection = liste des ecoles.
+- Les comptes viennent d'une action serveur (`app/superadmin/recherche-actions.ts`, `requireEditor`,
+  service-role), a la frappe (2 caracteres, 250 ms, reponse perimee ignoree), 8 au plus : la liste complete
+  aurait mis noms et emails de tous les utilisateurs dans le HTML de chaque page. Ni parents ni editeurs (la
+  destination ne montre que le personnel).
+- Choisir un compte ouvre la fiche de son ecole avec `?compte=<id>` : la ligne de la section Utilisateurs
+  defile a l'ecran et garde un contour 4 s.
+- Controles : type-check OK, lint 0 erreur, build OK, classes servies verifiees ; requete eprouvee en lecture
+  sur la base (10 comptes du personnel, jointure du nom d'ecole correcte).
