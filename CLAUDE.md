@@ -395,8 +395,9 @@ financements, retention…), ecole de demonstration.
    `.liste` / fiche ; recherche des COMPTES dans Ctrl+K (action serveur `recherche-actions.ts`, 8 max, ni parents
    ni editeurs, compte mis en evidence sur la fiche via `?compte=`). Fonctions deja presentes : historique editeur
    (colonne « Console editeur » de la fiche), etat 2FA dans Utilisateurs, filtres de la liste.
-3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
-   l'ordre des Gabarits.
+3. **Ecole de demonstration** : 2FA des comptes enrolee et ordre des Gabarits verifie (23/10). Reste : y tester
+   le DEPART d'une ecole (export ZIP, effacement, reouverture, puis « Reinitialiser »), mene par l'utilisateur
+   depuis la console, avec releve en base avant / apres.
 4. **Jour J** : effacer les donnees de test, creer l'etablissement reel (admin + direction).
    `clean-all-data.sql` NE DOIT PAS servir tel quel (vide le registre des migrations et les tables
    editeur, laisse `auth.users` et Storage).

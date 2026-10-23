@@ -9178,3 +9178,28 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   defile a l'ecran et garde un contour 4 s.
 - Controles : type-check OK, lint 0 erreur, build OK, classes servies verifiees ; requete eprouvee en lecture
   sur la base (10 comptes du personnel, jointure du nom d'ecole correcte).
+
+#### 23 octobre 2026 — Ecole de demonstration : 2FA et ordre des Gabarits verifies
+
+- Verifie par l'utilisateur : la 2FA des comptes de demonstration est enrolee ; l'ordre des Gabarits fonctionne.
+- Reste sur ce point : le test du DEPART d'une ecole sur la demonstration (export ZIP, effacement RGPD, fiche
+  conservee et reouverte, puis « Reinitialiser »), mene depuis la console, avec un releve en base avant et
+  apres (lecture seule).
+
+#### 23 octobre 2026 — Depart d'une ecole : teste sur la demonstration, garde-fous de l'export
+
+- **Test du depart** sur l'ecole de demonstration (mene par l'utilisateur, releve en base avant / apres en
+  lecture seule) : ses 300 lignes « portant l'ecole » (573 avec les tables liees) effacees, 7 comptes (profils +
+  auth) supprimes, 19 PDF de bulletins effaces, ecole inactive ; restent comme prevu la fiche, le logo, la note
+  interne, les actions et interventions de l'editeur, la trace `etablissement_departs`. Autres ecoles : 307
+  lignes identiques table par table. Le 20e fichier efface est le ZIP d'export lui-meme (depose dans le dossier
+  de l'ecole). Signale : un export reel d'ECOLE BILAL du 13/10 reste dans `exports-ecoles`.
+- **Constat** : « Effacer » ne verifiait pas qu'un export existait, et le ZIP stocke part avec l'effacement ; un
+  export non enregistre etait perdu. **Decision utilisateur** : bouton GRISE tant que les conditions ne sont pas
+  reunies, et question avant d'effacer.
+- « Effacer » grise (infobulle) si l'acces n'est pas coupe OU si aucun export n'existe (`exportExiste`, ZIP dans
+  `exports-ecoles/<id>/`) ; la meme verification est refaite dans `effacerEcole` (serveur). La modale demande
+  d'abord « Avez-vous enregistre le fichier ZIP de l'export sur votre ordinateur ? » : Non ferme avec un rappel
+  (« cliquez a nouveau sur Exporter »), Oui continue la procedure (simulation, saisie du sous-domaine).
+- Controles : type-check OK, lint 0 erreur, build OK ; detection eprouvee sur le stockage reel (BILAL : export
+  present ; demonstration : aucun).

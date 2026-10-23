@@ -1,20 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
-import { exporterEcole, simulerEffacement, effacerEcole } from '@/app/superadmin/depart-actions'
+import { exporterEcole, exportExiste, simulerEffacement, effacerEcole } from '@/app/superadmin/depart-actions'
 
 /**
  * Départ d'une école (RGPD) : exporter ses données, puis l'effacer.
  *
- * L'effacement exige que l'accès soit DÉJÀ coupé (on n'efface pas une école
- * active par erreur) et la saisie de son adresse. La modale montre d'abord le
- * compte rendu d'une SIMULATION faite en base : ce qui partira, cascades
- * comprises, et non une estimation.
+ * « Effacer » reste GRISÉ tant que les conditions ne sont pas réunies (23/10) :
+ * l'accès est coupé (on n'efface pas une école active par erreur) ET un export
+ * existe (le ZIP part avec l'effacement : sans export, les données seraient
+ * perdues). La modale demande d'abord si le ZIP est enregistré sur l'ordinateur,
+ * PUIS montre le compte rendu d'une SIMULATION faite en base (ce qui partira,
+ * cascades comprises) et la saisie de l'adresse.
  */
 export default function DepartEcole({ etablissementId, slug, nom, actif }: {
   etablissementId: string
@@ -30,6 +32,14 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
   const [erreur, setErreur] = useState<string | null>(null)
   const [saisie, setSaisie] = useState('')
   const [effacement, setEffacement] = useState(false)
+  // `null` tant que la verification n'a pas repondu : le bouton reste grise.
+  const [exportPret, setExportPret] = useState<boolean | null>(null)
+  // Etape de la modale : la question sur le ZIP, puis la confirmation.
+  const [zipConfirme, setZipConfirme] = useState(false)
+
+  useEffect(() => {
+    exportExiste(etablissementId).then(r => setExportPret(r.existe)).catch(() => setExportPret(false))
+  }, [etablissementId])
 
   const exporter = async () => {
     // Onglet ouvert AVANT l'attente : après, le navigateur le bloquerait comme
@@ -43,14 +53,20 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
       else window.location.href = r.url
       if (r.manquants) toast.warning(`Export créé, mais ${r.manquants} fichier(s) n'ont pas pu être récupérés (voir le LISEZ-MOI).`)
       else toast.success(`Export créé : ${r.lignes} lignes, ${r.fichiers} fichier(s).`)
+      setExportPret(true)
       router.refresh()
     } finally {
       setExportEnCours(false)
     }
   }
 
-  const ouvrir = async () => {
-    setOuverte(true); setSimulation(null); setErreur(null); setSaisie('')
+  const ouvrir = () => {
+    setOuverte(true); setZipConfirme(false); setSimulation(null); setErreur(null); setSaisie('')
+  }
+
+  // « Oui, il est enregistré » : la procédure continue, simulation comprise.
+  const continuer = async () => {
+    setZipConfirme(true)
     const r = await simulerEffacement(etablissementId, slug)
     if (r.error || !r.lignes) { setErreur(r.error ?? 'Simulation impossible.'); return }
     setSimulation({ lignes: r.lignes, comptes: r.comptes ?? 0, fichiers: r.fichiers ?? 0 })
@@ -80,8 +96,8 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
         <FloatButton type="button" size="mini" variant="secondary" loading={exportEnCours} onClick={exporter}>
           Exporter
         </FloatButton>
-        {actif ? (
-          <Tooltip content="Coupez d'abord l'accès de l'école.">
+        {actif || !exportPret ? (
+          <Tooltip content={actif ? "Coupez d'abord l'accès de l'école." : "Exportez d'abord les données de l'école."}>
             <span>
               <FloatButton type="button" size="mini" variant="danger" disabled>Effacer</FloatButton>
             </span>
@@ -95,7 +111,17 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
         <FormModal
           title="Effacer les données de l'école"
           onClose={() => setOuverte(false)}
-          footer={
+          footer={!zipConfirme ? (
+            <>
+              <FloatButton type="button" variant="secondary" onClick={() => {
+                setOuverte(false)
+                toast.warning("Enregistrez d'abord le fichier ZIP : cliquez à nouveau sur « Exporter ».")
+              }}>
+                Non
+              </FloatButton>
+              <FloatButton type="button" variant="danger" onClick={continuer}>Oui, il est enregistré</FloatButton>
+            </>
+          ) : (
             <>
               <FloatButton type="button" variant="secondary" onClick={() => setOuverte(false)}>Annuler</FloatButton>
               <FloatButton
@@ -108,8 +134,14 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
                 Effacer définitivement
               </FloatButton>
             </>
-          }
+          )}
         >
+          {!zipConfirme ? (
+            <p className="text-sm text-secondary-800">
+              Avez-vous enregistré le fichier ZIP de l&apos;export sur votre ordinateur ? Il est effacé avec les
+              données de l&apos;école.
+            </p>
+          ) : (
           <div className="space-y-3 text-sm">
             {erreur && <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">{erreur}</p>}
             {!simulation && !erreur && <p className="text-warm-700">Simulation en cours…</p>}
@@ -128,7 +160,7 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
                   </ul>
                 </details>
                 <p className="text-xs text-amber-700 font-medium">
-                  L&apos;effacement est définitif. La fiche reste et pourra être rouverte, mais vide. Exportez les données avant de confirmer.
+                  L&apos;effacement est définitif. La fiche reste et pourra être rouverte, mais vide.
                 </p>
                 <FloatInput
                   label={`Saisissez « ${slug} » pour confirmer`}
@@ -139,6 +171,7 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
               </>
             )}
           </div>
+          )}
         </FormModal>
       )}
     </div>

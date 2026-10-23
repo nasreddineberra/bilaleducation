@@ -29,6 +29,22 @@ const LOT_SUPPRESSION = 100
 
 type Fichier = { bucket: string; nom: string }
 
+/**
+ * Un export de l'ecole existe-t-il ? (ZIP depose dans `exports-ecoles/<id>/`).
+ * Condition de l'effacement (23/10) : on n'efface pas une ecole dont les
+ * donnees n'ont jamais ete exportees. Verifiee a l'ecran ET dans `effacerEcole`.
+ */
+async function aUnExport(etablissementId: string): Promise<boolean> {
+  const { data } = await createAdminClient().storage.from(BUCKET_EXPORTS).list(etablissementId, { limit: 1 })
+  return (data ?? []).some(f => f.name.endsWith('.zip'))
+}
+
+export async function exportExiste(etablissementId: string): Promise<{ existe: boolean; error?: string }> {
+  const { error: refus } = await requireEditor()
+  if (refus) return { existe: false, error: refus }
+  return { existe: await aUnExport(etablissementId) }
+}
+
 /** AAAA-MM-JJ_HHhMM, heure de Paris : lisible dans un nom de fichier. */
 function horodatage(d = new Date()): string {
   const p = new Intl.DateTimeFormat('fr-FR', {
@@ -157,6 +173,7 @@ export async function effacerEcole(etablissementId: string, slugSaisi: string): 
 }> {
   const { error: refus, userId } = await requireEditor()
   if (refus) return { error: refus }
+  if (!(await aUnExport(etablissementId))) return { error: "Exportez d'abord les données de l'école." }
 
   const admin = createAdminClient()
   const { data, error } = await admin.rpc('effacer_etablissement', {
