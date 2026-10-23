@@ -45,7 +45,11 @@ export default function PurgeYearCard({
       const res = await purgeYear(yearId, typed)
       if (res.error) { toast.error(res.error); return }
       const s = res.summary
-      toast.success(`Année ${yearLabel} purgée : ${s?.notes ?? 0} note(s), ${s?.absences ?? 0} absence(s), ${s?.fees_paid ?? 0} foyer(s) soldé(s).`)
+      toast.success(`Année ${yearLabel} purgée : ${s?.notes ?? 0} note(s), ${s?.absences ?? 0} absence(s), ${s?.fees_paid ?? 0} foyer(s) soldé(s), ${s?.messages ?? 0} message(s), ${s?.notifications ?? 0} notification(s), ${s?.relances ?? 0} relance(s).`)
+      // Les lignes sont parties ; seuls des fichiers sont restes dans le stockage.
+      if ((s?.fichiers_retires ?? 0) < (s?.fichiers_attendus ?? 0)) {
+        toast.warning(`${s.fichiers_attendus - s.fichiers_retires} pièce(s) jointe(s) n'ont pas pu être retirées du stockage.`)
+      }
       setOpen(false); setTyped('')
       router.refresh()
     } catch (e: any) {

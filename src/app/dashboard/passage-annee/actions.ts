@@ -440,16 +440,29 @@ export async function purgeYear(yearId: string, typedLabel: string): Promise<{ e
   const { data, error } = await supabase.rpc('purge_school_year', { p_year_id: yearId })
   if (error) return { error: error.message }
 
+  // Pieces jointes des messages purges : la base a rendu leurs chemins, le SQL
+  // ne touchant jamais au stockage. Les lignes sont deja parties (la ligne
+  // d'abord, le fichier ensuite) ; un echec ici laisse un fichier orphelin,
+  // pas une donnee vivante : il se signale, il ne defait rien.
+  const fichiers: string[] = Array.isArray(data?.fichiers) ? data.fichiers : []
+  let fichiersRetires = 0
+  for (let i = 0; i < fichiers.length; i += 100) {
+    const lot = fichiers.slice(i, i + 100)
+    const { data: retires, error: errStockage } = await supabase.storage.from('communication-attachments').remove(lot)
+    if (errStockage) console.error('[purgeYear] pieces jointes non retirees :', errStockage.message)
+    fichiersRetires += retires?.length ?? 0
+  }
+
   try {
     await logAudit(supabase, {
       action: 'DELETE', entityType: 'school_years', entityId: yearId,
-      description: `Année ${year.label} purgée (${data?.notes ?? 0} notes, ${data?.absences ?? 0} absences, ${data?.fees_paid ?? 0} foyer(s) soldé(s))`,
+      description: `Année ${year.label} purgée (${data?.notes ?? 0} notes, ${data?.absences ?? 0} absences, ${data?.fees_paid ?? 0} foyer(s) soldé(s), ${data?.messages ?? 0} message(s), ${data?.notifications ?? 0} notification(s), ${data?.relances ?? 0} relance(s), ${fichiersRetires} fichier(s))`,
     })
   } catch { /* non bloquant */ }
 
   revalidatePath('/dashboard/passage-annee')
   revalidatePath('/dashboard/annee-scolaire', 'layout')
-  return { summary: data }
+  return { summary: { ...data, fichiers: undefined, fichiers_retires: fichiersRetires, fichiers_attendus: fichiers.length } }
 }
 
 /**

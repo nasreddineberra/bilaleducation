@@ -9087,3 +9087,22 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   refusee pendant une intervention de support (la session est celle de l'editeur), trace au journal.
 - Les autres appareils tombent a leur requete suivante : le middleware appelle `getUser()`, qui interroge le
   serveur d'authentification. A eprouver en reel (deux navigateurs).
+
+#### 23 octobre 2026 — Purge d'une annee : les messages partent avec le reste
+
+- Constat : `purge_school_year` (definition en base) vidait 15 tables, aucune de la messagerie. Annonces,
+  destinataires, pieces jointes (base ET stockage), notifications et relances restaient indefiniment.
+- **Decision utilisateur** : les messages se purgent comme les autres tables. Rattachement : un message
+  appartient a l'annee dont la date de fin le SUIT (ceux de l'ete vont a l'annee superieure). La purge emporte
+  donc ]fin de l'annee precedente ; fin de l'annee], dates a l'heure de Paris ; borne basse absente s'il n'y a
+  pas d'annee precedente. Une annee precedente conservee garde ses messages. Copie hors application : boite
+  « Envoyes » du compte SMTP (Gmail oui, OVH / Ionos non) et CCI direction des messages aux parents.
+- Migration `purge-messages-annee.sql` (fonction reprise a l'identique + messagerie) : annonces (cascade
+  destinataires parents / equipe et pieces jointes), notifications, relances de l'annee SAUF foyers dont le
+  dossier reste (impayes conserves, meme regle que les reglements). Support non touche. Triggers d'audit des
+  annonces et pieces jointes neutralises le temps de la purge, comme les autres. La fonction RENVOIE les chemins
+  des pieces jointes ; `purgeYear` les retire du bucket apres le succes (avertissement si certains restent).
+  Resultat et journal : messages, notifications, relances, fichiers.
+- Controle 20 (`supabase/controles/20-purge-messages.sql`, ecole de demonstration, deux annees jetables) : ROUGE
+  6 ecarts avant la migration, VERT 11 / 11 apres (migration + controle en transaction annulee).
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
