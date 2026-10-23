@@ -395,12 +395,25 @@ financements, retention…), ecole de demonstration.
    `.liste` / fiche ; recherche des COMPTES dans Ctrl+K (action serveur `recherche-actions.ts`, 8 max, ni parents
    ni editeurs, compte mis en evidence sur la fiche via `?compte=`). Fonctions deja presentes : historique editeur
    (colonne « Console editeur » de la fiche), etat 2FA dans Utilisateurs, filtres de la liste.
-3. **Ecole de demonstration** : 2FA des comptes enrolee et ordre des Gabarits verifie (23/10). Reste : y tester
-   le DEPART d'une ecole (export ZIP, effacement, reouverture, puis « Reinitialiser »), mene par l'utilisateur
-   depuis la console, avec releve en base avant / apres.
-4. **Jour J** : effacer les donnees de test, creer l'etablissement reel (admin + direction).
-   `clean-all-data.sql` NE DOIT PAS servir tel quel (vide le registre des migrations et les tables
-   editeur, laisse `auth.users` et Storage).
+3. **Ecole de demonstration** : FAIT (23/10). 2FA des comptes enrolee, ordre des Gabarits verifie, DEPART teste
+   (export, effacement, reouverture, « Reinitialiser », releve en base avant / apres : concluant, autres ecoles
+   intactes). Trois correctifs en sont sortis : « Effacer » exige un export (+ question « ZIP enregistre ? ») ;
+   la remise a zero recree les comptes disparus ; « Intervenir » grise tant que la demo n'est pas reinitialisee.
+   Apres un depart, la 2FA des comptes recrees est a reenroler.
+4. **Essai d'un prospect** (deux facons) :
+   - **ecole de demonstration** : donnees fictives, partagees, effacees a chaque « Reinitialiser » ; acces par
+     « Ouvrir un acces prospect ». JAMAIS de donnees reelles.
+   - **son propre etablissement** : cree depuis la console, borne par une **echeance** et/ou une **limite
+     d'eleves** ; ses donnees sont conservees.
+   **Passage en service d'un etablissement (Jour J)** :
+   - essai fait dans SON etablissement : rien n'est efface. On leve la borne (echeance ou limite), on remplit la
+     facturation, et on retire seulement les eventuelles saisies d'essai qu'il designe (relevees en base, liste
+     validee avant suppression) ;
+   - essai fait dans la demonstration, ou pas d'essai : on cree son etablissement depuis la console (directeur
+     initial), il part de zero ou importe ses eleves (`.xlsx`) ;
+   - s'il ne signe pas : depart (export, puis effacement).
+   `clean-all-data.sql` NE DOIT JAMAIS servir tel quel (vide le registre des migrations et les tables editeur,
+   laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;

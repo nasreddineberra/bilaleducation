@@ -9228,3 +9228,17 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   impossible = pas prete).
 - Etat en base au moment du correctif : demonstration rouverte, inactive, sans annee ni compte ni eleve.
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 23 octobre 2026 — Test du depart concluant ; essai d'un prospect et passage en service
+
+- **Remise a zero apres depart** (releve en base) : eleves, foyers, classes, enseignants, evaluations, absences,
+  seances, devoirs, reglements, emploi du temps et annee identiques a avant le depart ; 7 comptes recrees (bons
+  roles) ; ecarts normaux = traces d'usage non semees (messages, notifications, bulletins archives et leurs PDF,
+  journal, taux de presence saisis a la main, une echeance de moins car calculee depuis le jour). Autres ecoles :
+  307 lignes identiques. Test du depart CONCLUANT.
+- **Decision utilisateur, generalisee a tout etablissement** : un prospect essaie soit dans l'ecole de
+  demonstration (donnees fictives, effacees a la remise a zero, jamais de donnees reelles), soit dans SON
+  etablissement, borne par une echeance et/ou une limite d'eleves, ses donnees conservees. Le « Jour J » devient
+  le passage en service : on leve la borne et on remplit la facturation, sans rien effacer (seules les saisies
+  d'essai qu'il designe, sur liste validee) ; sinon creation de son etablissement ; s'il ne signe pas, depart.
+  L'ancien plan « effacer les donnees de test » est abandonne : il aurait fait ressaisir des donnees reelles.
