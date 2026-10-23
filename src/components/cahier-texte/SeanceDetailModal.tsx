@@ -116,8 +116,8 @@ export default function SeanceDetailModal({ journal, role, teacherId, subjects, 
       <div className="flex items-center gap-2 text-[11px] text-warm-700 flex-wrap">
         <span className="px-1.5 py-0.5 rounded bg-secondary-100 text-secondary-700 font-bold whitespace-nowrap">{journal.classes?.name}</span>
         {journal.subject && <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{journal.subject}</span>}
-        <span>{teacherLabel}</span>
-        {classInfoOf(journal.classes) && <span>· {classInfoOf(journal.classes)}</span>}
+        {/* Un seul bloc : sur telephone, le retour a la ligne commencait par « · ». */}
+        <span>{teacherLabel}{classInfoOf(journal.classes) && ` · ${classInfoOf(journal.classes)}`}</span>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

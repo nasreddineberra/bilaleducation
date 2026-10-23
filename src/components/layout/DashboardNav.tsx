@@ -241,7 +241,7 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
   useInactivityLogout(() => doLogout('inactivity'))
 
   return (
-    <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none pl-6 sticky top-0 z-30">
+    <nav className="h-[61px] flex items-center bg-white dark:bg-[var(--brand-surface-2)] border-b border-warm-200 dark:border-[#243139] shadow-nav dark:shadow-none pl-3 md:pl-6 sticky top-0 z-30">
       {/* `relative` : ancre du rappel d'intervention, centré en absolu. */}
       <div className="relative w-full h-full flex items-center justify-between">
 
@@ -295,8 +295,8 @@ export default function DashboardNav({ profile, unreadNotifCount = 0, supportEco
         {/* ZONE COMPTE (charte du 15/10/2026) : bandeau aux couleurs de marque,
             coupe EN BIAIS a gauche, elements separes par des barres obliques.
             Pleine hauteur et colle au bord droit (le <nav> n'a plus de marge
-            droite). */}
-        <div className="ml-auto self-stretch flex items-center gap-3 pl-14 pr-6 bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
+            droite). Resserre sous 768 px : l'avatar sortait de l'ecran (23/10). */}
+        <div className="ml-auto self-stretch flex items-center gap-2 md:gap-3 pl-10 md:pl-14 pr-4 md:pr-6bg-[linear-gradient(110deg,var(--brand-surface)_0%,var(--brand-surface-2)_100%)] [clip-path:polygon(36px_0,100%_0,100%_100%,0_100%)]">
           {/* ── Bascule thème clair / sombre — sélecteur segmenté ──────────────
               MASQUÉE PENDANT UNE INTERVENTION DE SUPPORT. Le thème est une
               préférence PERSONNELLE, rangée dans `profiles.theme` — donc dans le

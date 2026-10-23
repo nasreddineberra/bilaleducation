@@ -49,9 +49,11 @@ export default function FormModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`bg-white rounded-2xl shadow-xl w-full ${maxWidth} flex flex-col max-h-[90vh]`}
+        // `dvh` : sur telephone, `vh` compte l'ecran SANS les barres du
+        // navigateur, et le pied (les boutons) passait sous celle du bas.
+        className={`bg-white rounded-2xl shadow-xl w-full ${maxWidth} flex flex-col max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh]`}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-warm-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-warm-100 shrink-0">
           <h2 id={titleId} className="text-base font-bold text-secondary-800">{title}</h2>
           <button
             type="button"
@@ -65,10 +67,12 @@ export default function FormModal({
         {/* Sans filet, le pied CONTINUE le formulaire : les remplissages ne
             doivent plus se cumuler, sinon un trou de 28 px s'ouvre au milieu
             des champs. On retombe alors sur le rythme de `space-y-3`. */}
-        <div className={`px-5 pt-4 space-y-3 overflow-y-auto min-h-0 ${footerSeparator ? 'pb-4' : 'pb-3'}`}>
+        <div className={`px-4 sm:px-5 pt-4 space-y-3 overflow-y-auto min-h-0 ${footerSeparator ? 'pb-4' : 'pb-3'}`}>
           {children}
         </div>
-        <div className={`flex items-center gap-2 px-5 pb-4 shrink-0${footerSeparator ? ' pt-3 border-t border-warm-100' : ' pt-0'}`}>
+        {/* Sur telephone, trois boutons de taille normale debordaient d'environ
+            20 px : remplissage reduit, et retour a la ligne en dernier recours. */}
+        <div className={`flex flex-wrap items-center gap-2 px-4 sm:px-5 pb-4 shrink-0 max-sm:[&_button]:px-3${footerSeparator ? ' pt-3 border-t border-warm-100' : ' pt-0'}`}>
           {footer}
         </div>
       </div>

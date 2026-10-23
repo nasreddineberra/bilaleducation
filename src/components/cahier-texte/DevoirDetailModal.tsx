@@ -257,8 +257,8 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
         {homework.subject && homework.subject !== 'General' && (
           <span className="px-1.5 py-0.5 rounded bg-warm-100 text-warm-700 font-bold">{homework.subject}</span>
         )}
-        <span>{teacherLabel}</span>
-        {classInfoOf(homework.classes) && <span>· {classInfoOf(homework.classes)}</span>}
+        {/* Un seul bloc : sur telephone, le retour a la ligne commencait par « · ». */}
+        <span>{teacherLabel}{classInfoOf(homework.classes) && ` · ${classInfoOf(homework.classes)}`}</span>
       </div>
 
       <div className="space-y-5">
@@ -307,9 +307,9 @@ export default function DevoirDetailModal({ homework, role, teacherId, isAdult, 
         {/* Staff : tableau de suivi */}
         {canViewTracking && participants.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-4">
-              <h3 className="section-title">{trackingLabel}</h3>
-              <span className="text-xs text-warm-700 tabular-nums">{seenCount}/{total} vus · {doneCount}/{total} effectués</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <h3 className="section-title whitespace-nowrap">{trackingLabel}</h3>
+              <span className="text-xs text-warm-700 tabular-nums whitespace-nowrap">{seenCount}/{total} vus · {doneCount}/{total} effectués</span>
             </div>
             <div className="liste overflow-x-auto">
               <table aria-label={`${trackingLabel} (vu / effectué)`} className="w-full text-xs">

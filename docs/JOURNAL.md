@@ -9046,3 +9046,20 @@ marque ; les vraies ecoles gardent leur plaque.
   les 6 affichages de texte riche (apercus parents / equipe, detail d'un message, d'une notification, d'une
   seance, d'un devoir) montrent ce qui part. Plugin typography ecarte : il restylerait tout le texte hors charte.
 - Verifie dans le CSS servi. Build OK.
+
+#### 23 octobre 2026 — Telephone : defauts d'affichage apres la refonte
+
+Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px).
+- **Tableau de bord** : raccourcis masques sous 768 px (`DashboardHeader`, `hidden md:flex`) ; le tiroir donne
+  deja ces ecrans. Le filtre `mobile` des `RACCOURCIS` reste (sans effet sous 768 px).
+- **`FiltreSwitch`** : sous 768 px, une seule ligne qui defile au doigt (`flex-nowrap`, `overflow-x-auto`,
+  segments `shrink-0`). Le retour a la ligne empilait les 7 natures du Support en colonne irreguliere.
+- **`FormModal`** : `max-h-[90vh]` -> `90dvh` sous `@supports` (repli conserve, verifie dans le CSS servi) ; `vh`
+  compte l'ecran sans les barres du navigateur, le pied passait sous la barre du bas (devoir a 20 eleves).
+  Pied en `flex-wrap`, boutons du pied a `px-3` et marges laterales a 16 px sous 640 px (Supprimer / Modifier /
+  Fermer debordaient d'environ 20 px).
+- **Seance / Devoir** : enseignant et niveau dans un seul bloc (le retour a la ligne commencait par « · ») ;
+  « Suivi des familles » ne se coupe plus, le compteur passe dessous.
+- **En-tete** : sous 768 px, marges resserrees (`pl-3`, bandeau `pl-10 pr-4`, `gap-2`) ; l'avatar sortait de
+  l'ecran (environ 395 px de contenu pour 360).
+- Controles : type-check OK, lint 0 erreur, build OK.

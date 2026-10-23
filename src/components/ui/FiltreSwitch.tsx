@@ -33,7 +33,9 @@ export default function FiltreSwitch({ options, actif, onChange, ariaLabel }: {
   ariaLabel: string
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className="flex flex-wrap rounded-lg overflow-hidden text-xs font-medium border border-warm-300">
+    // Sur telephone, une seule ligne qui defile au doigt : le retour a la ligne
+    // empilait les segments en colonne irreguliere (Support, 23/10).
+    <div role="group" aria-label={ariaLabel} className="flex flex-wrap max-md:flex-nowrap max-md:max-w-full max-md:overflow-x-auto rounded-lg overflow-hidden text-xs font-medium border border-warm-300">
       {options.map((o, i) => {
         const estActif = !o.desactive && actif === o.valeur
         const segment = (
@@ -44,7 +46,7 @@ export default function FiltreSwitch({ options, actif, onChange, ariaLabel }: {
             aria-pressed={estActif}
             onClick={() => onChange(o.valeur)}
             className={clsx(
-              'flex items-baseline gap-1.5 px-3 py-1.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]',
+              'flex items-baseline gap-1.5 px-3 py-1.5 max-md:shrink-0 max-md:whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-accent)]',
               i > 0 && 'border-l border-warm-300',
               o.desactive
                 ? 'bg-[var(--champ-verrou)] text-warm-400 cursor-not-allowed'

@@ -52,7 +52,9 @@ export default function DashboardHeader({
             {sousTitre ?? `${roleLabel} · ${today}`}
           </p>
         </div>
-        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+        {/* Masques sur telephone (23/10) : le tiroir donne deja ces ecrans, et
+            les raccourcis repoussaient les cartes sous la ligne de flottaison. */}
+        {actions && <div className="hidden md:flex flex-wrap gap-2">{actions}</div>}
       </div>
 
       {/* Notifications recentes */}
