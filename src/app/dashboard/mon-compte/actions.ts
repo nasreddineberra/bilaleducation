@@ -6,6 +6,7 @@ import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
 import { alerterAncienneAdresse } from '@/lib/auth/email-change-alert'
+import { logAudit } from '@/lib/audit'
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 
@@ -86,6 +87,39 @@ export async function setOwnTheme(theme: 'light' | 'dark'): Promise<{ error?: st
   }
 
   updateTag('profile')
+  return {}
+}
+
+// Déconnexion de ses AUTRES appareils (décision du 23/10) : plusieurs sessions
+// restent permises (téléphone + ordinateur), l'utilisateur garde la main en cas
+// de doute. `scope: 'others'` révoque les autres sessions côté Supabase et garde
+// celle-ci. Leur jeton d'accès est refusé dès la requête suivante : le
+// middleware appelle `getUser()`, qui vérifie la session auprès du serveur.
+export async function signOutOtherDevices(): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non authentifié.' }
+
+  // Pendant une intervention, la session est celle de l'ÉDITEUR : couper ses
+  // autres appareils toucherait sa console, hors de l'école (motif du thème).
+  const { data: profil } = await supabase
+    .from('profiles').select('role, etablissement_id').eq('id', user.id).maybeSingle()
+  if (isSupportSession(profil)) {
+    return { error: "Impossible pendant une intervention de support." }
+  }
+
+  const { error } = await supabase.auth.signOut({ scope: 'others' })
+  if (error) {
+    console.error('[mon-compte] déconnexion des autres appareils refusée:', error.message)
+    return { error: "Les autres appareils n'ont pas pu être déconnectés." }
+  }
+
+  await logAudit(supabase, {
+    action:      'UPDATE',
+    entityType:  'profiles',
+    entityId:    user.id,
+    description: 'Déconnexion de ses autres appareils',
+  })
   return {}
 }
 

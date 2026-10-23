@@ -9074,3 +9074,16 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   sur telephone : laissees.
 - Controles : type-check OK, lint 0 erreur, build OK ; TOUTES les classes des lignes modifiees verifiees dans le
   CSS servi (lecon de 3386711).
+
+#### 23 octobre 2026 — Mon compte : deconnecter ses autres appareils
+
+- Constat utilisateur : un meme compte se connecte en parallele sur deux ordinateurs. Rien ne l'empechait
+  (Supabase : une session par appareil). Decision (option 2 sur 3) : **plusieurs sessions restent permises**
+  (telephone + ordinateur, cas d'usage du mobile ; 2FA exigee sur chaque appareil), mais l'utilisateur garde
+  la main. Ecartees : laisser tel quel ; session unique (casse telephone + ordinateur ; le reglage Supabase
+  vaut pour tous les comptes et demande l'offre Pro).
+- Encadre Compte : bouton « Deconnecter mes autres appareils » + `ConfirmModal`. Action
+  `signOutOtherDevices` : `signOut({ scope: 'others' })` en client session (la session courante est gardee),
+  refusee pendant une intervention de support (la session est celle de l'editeur), trace au journal.
+- Les autres appareils tombent a leur requete suivante : le middleware appelle `getUser()`, qui interroge le
+  serveur d'authentification. A eprouver en reel (deux navigateurs).

@@ -10,7 +10,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import { isPasswordValid } from '@/lib/validation/password'
 import { messageErreurMotDePasse } from '@/lib/auth/password-error'
-import { updateOwnProfile, updateOwnEmail } from '@/app/dashboard/mon-compte/actions'
+import { updateOwnProfile, updateOwnEmail, signOutOtherDevices } from '@/app/dashboard/mon-compte/actions'
 import TwoFactorCard from '@/components/mon-compte/TwoFactorCard'
 import TeacherAttendance from '@/components/teachers/TeacherAttendance'
 import type { Assiduite } from '@/lib/temps-presence/assiduite'
@@ -73,8 +73,21 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
     router.refresh()
   }
 
+  // ── Autres appareils ──
+  const [confirmAutres, setConfirmAutres] = useState(false)
+  const [autresSaving,  setAutresSaving]  = useState(false)
+
+  const handleSignOutOthers = async () => {
+    setAutresSaving(true)
+    const { error } = await signOutOtherDevices()
+    setAutresSaving(false)
+    setConfirmAutres(false)
+    if (error) { toast.error(error); return }
+    toast.success('Vos autres appareils ont été déconnectés.')
+  }
+
   // ── Mot de passe ──
-  const [newPw,     setNewPw]     = useState('')
+  const [newPw,    setNewPw]     = useState('')
   const [confirmPw, setConfirmPw] = useState('')
   const [showPw,    setShowPw]    = useState(false)
   const [pwSaving,  setPwSaving]  = useState(false)
@@ -195,6 +208,11 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
             Pour changer d&apos;adresse email, de rôle ou d&apos;établissement, contactez un administrateur.
           </p>
         )}
+        <div className="flex justify-end">
+          <FloatButton type="button" variant="secondary" disabled={autresSaving} onClick={() => setConfirmAutres(true)}>
+            Déconnecter mes autres appareils
+          </FloatButton>
+        </div>
       </div>
 
       {/* ── Mot de passe ── */}
@@ -276,6 +294,18 @@ export default function MonCompteClient({ profile, email, etablissementName, ass
           confirmDisabled={emailSaving}
           onConfirm={handleChangeEmail}
           onCancel={() => setConfirmEmail(false)}
+        />
+      )}
+
+      {confirmAutres && (
+        <ConfirmModal
+          title="Déconnecter mes autres appareils ?"
+          message="Toutes vos autres connexions (ordinateurs, téléphones) seront fermées. Cet appareil reste connecté."
+          confirmLabel={autresSaving ? 'Déconnexion…' : 'Déconnecter'}
+          confirmColor="amber"
+          confirmDisabled={autresSaving}
+          onConfirm={handleSignOutOthers}
+          onCancel={() => setConfirmAutres(false)}
         />
       )}
 
