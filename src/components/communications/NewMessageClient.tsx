@@ -303,7 +303,8 @@ export default function NewMessageClient({
       if (result.withoutEmail) details.push(`${result.withoutEmail} sans adresse email`)
 
       const base = `${result.sent} email(s) envoyé(s) sur ${result.households} foyer(s).`
-      if (details.length > 0) toast.error(`${base} ${details.join(', ')}.`)
+      const cause = result.firstError ? ` Cause : ${result.firstError}` : ''
+      if (details.length > 0) toast.error(`${base} ${details.join(', ')}.${cause}`)
       else                    toast.success(base)
 
       setSubject('')

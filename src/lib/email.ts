@@ -180,6 +180,8 @@ export async function sendNotificationEmail(params: {
     await marquerMessagerieEprouvee(params.etablissementId, resolved.config)
     return { success: true }
   } catch (e: any) {
+    // Seule trace de la raison cote serveur : les appelants ne gardent qu'un statut.
+    console.error(`[email] envoi refuse (etablissement ${params.etablissementId}) :`, e.message)
     return { success: false, error: e.message }
   }
 }

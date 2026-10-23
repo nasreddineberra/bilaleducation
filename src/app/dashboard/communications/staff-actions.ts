@@ -39,6 +39,7 @@ export interface SendStaffMessageResult {
   sent?:           number    // emails envoyes (0 si canal notification seul)
   failed?:         number
   notified?:       number    // destinataires notifies in-app
+  firstError?:     string    // raison du premier echec (reponse du serveur SMTP)
 }
 
 type StaffMember = { id: string; email: string | null; first_name: string; last_name: string; role: string }
@@ -169,6 +170,7 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
   // ─── Envoi email ───────────────────────────────────────────────────────────
   let sent = 0
   let failed = 0
+  let firstError: string | undefined
 
   if (wantsEmail) {
     // Direction en CCI (role direction seul, pas l'admin).
@@ -206,7 +208,7 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
       const batch = recipients.slice(i, i + SEND_BATCH_SIZE)
       const results = await Promise.all(
         batch.map(async r => {
-          if (!r.email) return { r, status: 'skipped' as const }
+          if (!r.email) return { r, status: 'skipped' as const, error: undefined }
           // Un envoi par destinataire (aucune adresse d'un collegue exposee).
           // On evite de remettre en CCI une adresse deja destinataire (doublon).
           const bcc = bccAll.filter(e => e !== r.email)
@@ -219,12 +221,12 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
             replyTo,
             attachments: attachments.length > 0 ? attachments : undefined,
           })
-          return { r, status: res.success ? ('sent' as const) : ('failed' as const) }
+          return { r, status: res.success ? ('sent' as const) : ('failed' as const), error: res.error }
         })
       )
-      for (const { r, status } of results) {
+      for (const { r, status, error } of results) {
         if (status === 'sent') sent++
-        else if (status === 'failed') failed++
+        else if (status === 'failed') { failed++; firstError ??= error }
         const echecStatut = erreurEcriture(
           await supabase
             .from('announcement_staff_recipients')
@@ -241,5 +243,5 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
 
   revalidatePath('/dashboard/communications')
 
-  return { announcementId: announcement.id, recipients: recipients.length, sent, failed, notified }
+  return { announcementId: announcement.id, recipients: recipients.length, sent, failed, notified, firstError }
 }

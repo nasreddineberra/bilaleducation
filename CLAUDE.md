@@ -23,7 +23,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
   traversait l'Atlantique.
 - **Tailwind CSS 3** (`darkMode: ['selector', '[data-theme="dark"]']`).
 - TipTap 3 (editeur riche), jsPDF 4 + autoTable (PDF), Recharts 3 (statistiques), dnd-kit,
-  nodemailer 9 (SMTP par ecole), web-push, date-fns, DOMPurify, `read-excel-file` (import),
+  nodemailer 10 (SMTP par ecole), web-push, date-fns, DOMPurify, `read-excel-file` (import),
   `fflate` (export ZIP), lucide-react.
 - **Sanitisation** : `src/lib/security/sanitize.ts` isomorphe (window natif au navigateur, jsdom
   au SSR via `require` paresseux). **jsdom epingle en 26.1.0** : Vercel lance les fonctions avec

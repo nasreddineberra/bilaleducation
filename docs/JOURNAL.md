@@ -9023,3 +9023,16 @@ marque ; les vraies ecoles gardent leur plaque.
   controle `erreurEcriture` (0 ligne = echec), trace explicite au journal en client session, sans secret.
 - `oublierTransporteur()` (`lib/email.ts`) ferme le pool SMTP mis en cache par l'instance.
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 23 octobre 2026 — nodemailer 10 et raison des echecs d'envoi
+
+- **nodemailer 9.1.1 -> 10.2.1** (avis haut : cache DNS global qui reutilise le `servername` TLS d'un
+  transporteur a l'autre, donc fuite possible d'identifiants SMTP entre ecoles ; corrige a partir de 10.0.10).
+  Majeure : Node 20+ exige (Vercel et poste en 24), paquet reecrit en TypeScript avec ses propres types.
+  Aucun changement de code. `npm audit` ne garde que postcss-selector-parser (Tailwind 4, ecarte).
+- **Raison d'un echec d'envoi** : elle n'etait conservee nulle part (toast « 1 echec », statut `failed`,
+  rien dans les logs). Constat du 23/10 : mot de passe d'application de 15 caracteres au lieu de 16, trouve
+  par deduction. Desormais `sendNotificationEmail` ecrit la reponse du serveur SMTP dans les logs
+  (`[email] envoi refuse`), et les envois parents / equipe rendent `firstError`, affichee dans le toast
+  (« Cause : ... »).
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.

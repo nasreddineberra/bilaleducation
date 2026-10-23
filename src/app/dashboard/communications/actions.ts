@@ -45,6 +45,8 @@ export interface SendParentMessageResult {
   sent?:           number
   failed?:         number
   withoutEmail?:   number
+  /** Raison du premier echec (reponse du serveur SMTP), pour le toast. */
+  firstError?:     string
 }
 
 /** Un foyer destinataire et les adresses a servir pour lui. */
@@ -348,6 +350,7 @@ export async function sendParentMessage(
   let sent = 0
   let failed = 0
   let withoutEmail = 0
+  let firstError: string | undefined
 
   for (let i = 0; i < recipients.length; i += SEND_BATCH_SIZE) {
     const batch = recipients.slice(i, i + SEND_BATCH_SIZE)
@@ -385,6 +388,7 @@ export async function sendParentMessage(
       } else {
         status = 'failed'
         failed++
+        firstError ??= result.error
       }
 
       const echecStatut = erreurEcriture(
@@ -408,5 +412,6 @@ export async function sendParentMessage(
     sent,
     failed,
     withoutEmail,
+    firstError,
   }
 }

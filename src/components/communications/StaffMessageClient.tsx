@@ -215,7 +215,8 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
       if (result.notified) parts.push(`${result.notified} notifié(s)`)
       if (wantsEmail)      parts.push(`${result.sent} email(s) envoyé(s)`)
       const base = parts.join(' · ') || 'Message enregistré.'
-      if (result.failed) toast.error(`${base} · ${result.failed} échec(s).`)
+      const cause = result.firstError ? ` Cause : ${result.firstError}` : ''
+      if (result.failed) toast.error(`${base} · ${result.failed} échec(s).${cause}`)
       else               toast.success(base)
 
       setSubject(''); setBodyHtml(signatureHtml); setAttachments([])
