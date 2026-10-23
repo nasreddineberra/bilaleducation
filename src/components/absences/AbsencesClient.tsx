@@ -1404,7 +1404,8 @@ function SaisieModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="appel-title"
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+        // `dvh` : meme raison que FormModal (barres du navigateur sur telephone).
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] flex flex-col overflow-hidden"
       >
 
         {/* Header */}
@@ -1581,7 +1582,9 @@ function SaisieModal({
               Placée entre le résumé et les boutons, elle tombe juste au-dessus
               de celui qu'elle explique. */}
           <RaisonBloquee raison={printBlockedReason} />
-          <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+          {/* Sur telephone, les trois boutons tiennent sur une ligne (libelle
+              court, remplissage reduit) : « Valider » passait seul dessous. */}
+          <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end max-sm:[&_button]:px-3">
             <Tooltip content={printBlockedReason ?? "Imprimer la feuille d'appel enregistrée de cette date"}>
               <span>
                 <FloatButton
@@ -1590,7 +1593,7 @@ function SaisieModal({
                   onClick={handlePrintSaisie}
                   disabled={!canPrint}
                 >
-                  Imprimer la saisie
+                  Imprimer<span className="max-sm:hidden"> la saisie</span>
                 </FloatButton>
               </span>
             </Tooltip>

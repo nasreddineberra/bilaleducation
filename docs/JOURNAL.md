@@ -9063,3 +9063,14 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
 - **En-tete** : sous 768 px, marges resserrees (`pl-3`, bandeau `pl-10 pr-4`, `gap-2`) ; l'avatar sortait de
   l'ecran (environ 395 px de contenu pour 360).
 - Controles : type-check OK, lint 0 erreur, build OK.
+
+#### 23 octobre 2026 — Telephone : feuille d'appel
+
+- La modale de la feuille d'appel a sa propre fenetre (pas `FormModal`) : `max-h-[90vh]` -> `90dvh` sous
+  `@supports` (le titre etait rogne en haut, « Valider » cache en bas).
+- Pied : sous 640 px, « Imprimer » au lieu de « Imprimer la saisie » et boutons a `px-3` ; les trois boutons
+  tiennent sur une ligne (« Valider » passait seul dessous).
+- Les autres modales en `vh` (synchronisations parents / eleves, fiche eleve, import) ne sont pas accessibles
+  sur telephone : laissees.
+- Controles : type-check OK, lint 0 erreur, build OK ; TOUTES les classes des lignes modifiees verifiees dans le
+  CSS servi (lecon de 3386711).
