@@ -9150,3 +9150,16 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   d'explication retires (« facultatif » dans les libelles d'echeance et de limite) ; « * obligatoire » en
   `red-700` ; ecran « Etablissement cree » en `ton-ok` / `ton-attente`, erreur en `ton-danger`.
 - Controles : type-check OK, lint 0 erreur, build OK, classes des lignes modifiees verifiees dans le CSS servi.
+
+#### 23 octobre 2026 — Console editeur : Facturation, vue « Tous »
+
+- La page s'ouvrait sur la PREMIERE ecole de la liste, soit l'ecole de demonstration (en tete partout), jamais
+  facturee. Decision utilisateur (option 2 sur 2) : une vue d'ensemble par defaut.
+- Selecteur : « Tous » en premier (defaut, `/superadmin/facturation` sans `?ecole`), puis les ecoles par nom, la
+  demonstration EN DERNIER (consultable, jamais facturee).
+- Vue « Tous » : le dernier mois releve (pg_cron, le 1er, meme jour pour toutes), une ligne par ecole ayant un
+  releve ce mois-la, demonstration exclue : eleves, adultes, base, ecart, limite, montant, ecart (mois
+  precedent, `montantMensuel` et tarif fige du releve, comme le detail) ; total base et montant (« dont des
+  ecoles sans tarif ») ; la ligne ouvre le detail de l'ecole. Une requete pour les deux mois. Detail inchange.
+- Controles : type-check OK, lint 0 erreur, build OK, classes servies verifiees. Donnee reelle au 23/10 : un
+  seul releve (octobre 2026, ECOLE BILAL, base 0, sans tarif).
