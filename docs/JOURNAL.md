@@ -8997,3 +8997,19 @@ marque ; les vraies ecoles gardent leur plaque.
   (« Reinitialiser » / « Intervenir », « Enregistrer » de l'encadre Informations). Jeton
   `--console-accent-trait` (`#8fb83a`) sur `.bouton-principal` (tous les `FloatButton submit` de la console)
   et sur « Se connecter ». Notes internes ramenees a 5 lignes (fiche sans defilement).
+
+#### 23 octobre 2026 — Securite : Next.js 16.4.2 et dependances
+
+- **Avis Next.js** (critiques et haute, versions 16.0.0 a 16.4.0, correctif 16.4.1 du 14/10) : `next` 16.3.5 ->
+  **16.4.2**. Nous concernaient : optimisation d'images (SSRF, RCE SVG ; `next/image` + `remotePatterns`) et
+  deni de service des server actions. Hors perimetre : `next/og`, `use cache`, Draft Mode, cache SSG/ISR
+  auto-heberge.
+- `npm audit fix` (sans `--force`) : DOMPurify 3.4.17 (critique, sanitisation), sharp, source-map-js,
+  brace-expansion. jsdom reste en 26.1.0.
+- **Laisses a part** : `eslint-config-next` garde 16.2.10 et `eslint-plugin-react-hooks` est epingle en 7.0.1
+  (`overrides`) : la 7.1.1 ajoute des regles React Compiler (`refs`, `purity`, `immutability`) qui levaient 31
+  erreurs de lint. Outil de developpement seulement, aucun avis. Ces 31 endroits sont a revoir un jour.
+  **nodemailer** (haute : cache DNS partage entre transports -> fuite possible d'identifiants SMTP entre
+  ecoles) : correctif seulement en 10.x (majeure, Node 20+, passage en TypeScript), decision a prendre.
+  **tailwindcss** : correctif = Tailwind 4 (majeure), build seulement, ecarte.
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.

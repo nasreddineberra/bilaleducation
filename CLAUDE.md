@@ -17,7 +17,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ## 1. Stack et commandes
 
-- **Next.js 16.3** (App Router + Turbopack), **React 19.2**, TypeScript.
+- **Next.js 16.4.2** (App Router + Turbopack), **React 19.2**, TypeScript.
 - **Supabase** (PostgreSQL + RLS + Auth + Storage), projet en Europe.
 - **Vercel**, fonctions epinglees en **`cdg1`** (`vercel.json`) — en `iad1` chaque requete
   traversait l'Atlantique.
