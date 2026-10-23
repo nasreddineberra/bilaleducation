@@ -9134,3 +9134,19 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   chiffre conservee). Activation : QR code sur plaque BLANCHE (lisibilite au telephone), cle de secours a chasse
   fixe, memes cases, « Activer », puis « Acceder a la console ». L'ecole garde ses ecrans.
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK, 58 classes verifiees dans le CSS servi.
+
+#### 23 octobre 2026 — Console editeur : Facturation, Support, Interventions, creation d'ecole
+
+- **Facturation** : tableau en `.liste` (en-tete teinte, survol integre, total et message vide `.sans-survol`) ;
+  selecteur d'ecole en `FloatSelect bordure` (comme Support) ; base facturable en encre de marque, ecarts et
+  message en `--etat-ok` / `--etat-danger` (plus de turquoise ni de rouge Tailwind).
+- **Support** : tableau en `.liste`, lignes cliquables sans `hover:` ; « Non recue » en `Puce ton="attente"` ;
+  etat vide = une phrase (plus de carte a grande icone).
+- **Colonne Interventions** (liste des etablissements) : `.liste`, en-tete collant teinte ; « En cours » en
+  `Puce` ; message vide « Aucune intervention. ».
+- **Creation d'ecole** : fil d'Ariane, `<h1>` et sous-titre retires au profit de la grande icone de retour de la
+  fiche ; titres d'encadre ceux de la fiche (`EcoleInfoForm`, pas de `.encadre-titre` dans la console) ; champs
+  en `FloatInput` (bordure, `*` automatique), sous-domaine a chasse fixe suivi de `.bilaleducation.fr` ; textes
+  d'explication retires (« facultatif » dans les libelles d'echeance et de limite) ; « * obligatoire » en
+  `red-700` ; ecran « Etablissement cree » en `ton-ok` / `ton-attente`, erreur en `ton-danger`.
+- Controles : type-check OK, lint 0 erreur, build OK, classes des lignes modifiees verifiees dans le CSS servi.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, Fragment } from 'react'
-import { FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton, FloatSelect } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import { releverMaintenant } from '../../facturation-actions'
 import { montantMensuel } from '@/lib/tenant/facturation'
@@ -27,7 +27,7 @@ function Ecart({ v, euros }: { v: number | null; euros?: boolean }) {
   if (v === null) return <span className="text-warm-700">·</span>
   if (v === 0) return <span className="text-warm-700">0</span>
   const texte = euros ? EUR.format(Math.abs(v)) : String(Math.abs(v))
-  return <span className={v > 0 ? 'text-primary-700' : 'text-red-600'}>{v > 0 ? '+' : '-'}{texte}</span>
+  return <span className={v > 0 ? 'text-[var(--etat-ok)]' : 'text-[var(--etat-danger)]'}>{v > 0 ? '+' : '-'}{texte}</span>
 }
 
 export default function FacturationClient({ ecoles, ecoleId, releves, annees }: {
@@ -77,30 +77,31 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees }: 
       <div className="flex flex-wrap items-center gap-3">
         {/* Pas de titre : l'onglet actif dit déjà où l'on est. L'espace garde les contrôles à droite. */}
         <div className="mr-auto" />
-        <label htmlFor="facturation-ecole" className="sr-only">Établissement</label>
-        <select
-          id="facturation-ecole"
+        <FloatSelect
+          label="Établissement"
+          bordure
+          className="py-2 truncate"
           value={ecoleId ?? ''}
           onChange={e => router.push(`/superadmin/facturation?ecole=${e.target.value}`)}
-          className="input w-auto py-1.5"
+          wrapperClassName="w-56"
         >
           {ecoles.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
-        </select>
+        </FloatSelect>
         <FloatButton type="button" variant="secondary" loading={enCours} onClick={relever}>
           Relever maintenant
         </FloatButton>
       </div>
 
       {message && (
-        <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-primary-700' : 'text-red-600'}`}>
+        <p role={message.ok ? 'status' : 'alert'} className={`text-sm ${message.ok ? 'text-[var(--etat-ok)]' : 'text-[var(--etat-danger)]'}`}>
           {message.texte}
         </p>
       )}
 
-      <div className="card p-0 overflow-hidden">
+      <div className="liste">
         <table className="w-full text-xs" aria-label="Relevés mensuels de la base facturable">
           <thead>
-            <tr>
+            <tr className="liste-entete border-b border-[var(--card-border)]">
               <th scope="col" className="list-th text-left">Mois</th>
               <th scope="col" className="list-th text-right">Élèves actifs</th>
               <th scope="col" className="list-th text-right">Adultes inscrits</th>
@@ -114,18 +115,18 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees }: 
           </thead>
           <tbody className="divide-y divide-warm-100">
             {groupes.length === 0 ? (
-              <tr><td colSpan={9} className="list-td text-center text-warm-700">Aucun relevé pour cet établissement.</td></tr>
+              <tr className="sans-survol"><td colSpan={9} className="px-3 py-8 text-center text-warm-700">Aucun relevé pour cet établissement.</td></tr>
             ) : groupes.map(g => {
               const total = g.lignes.reduce((s, l) => s + (l.montant ?? 0), 0)
               const sansTarif = g.lignes.some(l => l.montant === null)
               return (
                 <Fragment key={g.annee}>
                   {g.lignes.map(({ r, base, montant, ecartBase, ecartMontant }) => (
-                    <tr className="transition-colors hover:bg-warm-100" key={r.mois}>
+                    <tr key={r.mois}>
                       <td className="list-td list-name capitalize">{MOIS.format(new Date(r.mois))}</td>
                       <td className="list-td text-right tabular-nums">{r.eleves_actifs}</td>
                       <td className="list-td text-right tabular-nums">{r.adultes_inscrits}</td>
-                      <td className="list-td text-right tabular-nums font-semibold text-primary-700">{base}</td>
+                      <td className="list-td text-right tabular-nums font-semibold text-[var(--brand-surface)]">{base}</td>
                       <td className="list-td text-right tabular-nums"><Ecart v={ecartBase} /></td>
                       <td className="list-td text-right tabular-nums text-warm-700">{r.limite ?? 'Aucune'}</td>
                       <td className="list-td text-right tabular-nums font-semibold">{montant === null ? <span className="text-warm-700 font-normal">Sans tarif</span> : EUR.format(montant)}</td>
@@ -133,7 +134,7 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees }: 
                       <td className="list-td text-warm-700">{formatDateFr(r.releve_le)}</td>
                     </tr>
                   ))}
-                  <tr className="bg-warm-50">
+                  <tr className="sans-survol !bg-[var(--surface-sunken)]">
                     <td colSpan={6} className="list-td font-semibold text-secondary-800">Total {g.annee}</td>
                     <td className="list-td text-right tabular-nums font-bold text-secondary-800">{EUR.format(total)}</td>
                     <td colSpan={2} className="list-td text-warm-700">{sansTarif ? 'dont des mois sans tarif' : ''}</td>

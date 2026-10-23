@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { LifeBuoy } from 'lucide-react'
 import { FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import SupportRequestDetailModal from '@/components/support/SupportRequestDetailModal'
 import { tonCategorie, type SupportRequestRow } from '@/components/support/SupportRequestsClient'
@@ -150,19 +149,16 @@ export default function SupportRequestsConsoleClient({
 
       {/* Tableau */}
       {filtered.length === 0 ? (
-        <div className="card px-6 py-10 text-center">
-          <LifeBuoy size={32} className="mx-auto text-warm-700 mb-2" aria-hidden="true" />
-          <p className="text-sm text-warm-700">
-            {demandes.length === 0
-              ? 'Aucune demande de support.'
-              : 'Aucune demande ne correspond à ces critères.'}
-          </p>
-        </div>
+        <p className="py-10 text-center text-sm text-warm-700">
+          {demandes.length === 0
+            ? 'Aucune demande de support.'
+            : 'Aucune demande ne correspond à ces critères.'}
+        </p>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="liste">
           <table className="w-full text-xs" aria-label="Demandes de support des établissements">
             <thead>
-              <tr className="border-b border-warm-100">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th w-2/12">Date</th>
                 <th scope="col" className="list-th w-2/12">Établissement</th>
                 <th scope="col" className="list-th w-3/12">Objet</th>
@@ -176,7 +172,7 @@ export default function SupportRequestsConsoleClient({
                 <tr
                   key={d.id}
                   onClick={() => setDetail(d)}
-                  className="hover:bg-warm-100 transition-colors cursor-pointer"
+                  className="cursor-pointer"
                 >
                   <td className="list-td text-warm-700 whitespace-nowrap">
                     {formatDateHeureFr(d.created_at)}
@@ -203,9 +199,9 @@ export default function SupportRequestsConsoleClient({
                     {d.email_status === 'sent' ? (
                       <span className="text-warm-700">Reçue</span>
                     ) : (
-                      // Ambre : la demande EST là, c'est l'email qui manque —
-                      // et c'est précisément celle-ci que l'écran sert à voir.
-                      <span className="text-amber-700 font-medium">Non reçue</span>
+                      // Ton « attente » : la demande EST là, c'est l'email qui
+                      // manque — et c'est précisément celle-ci que l'écran sert à voir.
+                      <Puce ton="attente">Non reçue</Puce>
                     )}
                   </td>
                   <td className="list-td text-warm-700 truncate">{d.author_name}</td>

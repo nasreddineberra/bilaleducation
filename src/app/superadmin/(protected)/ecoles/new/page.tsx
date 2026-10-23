@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { FloatButton } from '@/components/ui/FloatFields'
+import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { clsx } from 'clsx'
+import { ChevronLeft } from 'lucide-react'
+import Tooltip from '@/components/ui/Tooltip'
 import { createTenant } from '@/app/superadmin/actions'
 import { validateSlug, SLUG_MAX } from '@/lib/tenant/slug'
 import { isPasswordValid } from '@/lib/validation/password'
@@ -20,18 +21,8 @@ type FormData = {
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 // Regle unique, partagee avec la server action : `src/lib/tenant/slug.ts`.
 
-function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-warm-700 uppercase tracking-wide">
-        {label}
-        {required && <span className="text-red-400 font-semibold" aria-hidden="true"> *</span>}
-      </label>
-      {children}
-      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-    </div>
-  )
-}
+// Titre d'encadre, celui de la fiche etablissement (EcoleInfoForm).
+const TITRE = 'text-xs font-bold text-warm-700 uppercase tracking-widest'
 
 export default function NewEcolePage() {
   const router = useRouter()
@@ -60,8 +51,9 @@ export default function NewEcolePage() {
   }
   const isValid = !Object.values(v).some(Boolean)
 
-  const inputCls = (field: keyof typeof v) =>
-    v[field] && touched.has(field) ? 'input input-error' : 'input'
+  /** Message d'erreur d'un champ, une fois le champ quitte. */
+  const err = (field: keyof typeof v, message: string) =>
+    v[field] && touched.has(field) ? message : undefined
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,21 +93,20 @@ export default function NewEcolePage() {
   if (cree) {
     return (
       <div className="space-y-4 animate-fade-in max-w-xl">
-        <h1 className="text-2xl font-bold text-secondary-800">Établissement créé</h1>
-
-        <div className="card p-4 space-y-3">
+        <div className="card p-3 space-y-3">
+          <h2 className={TITRE}>Établissement créé</h2>
           <p className="text-sm text-secondary-700">
             <span className="font-semibold">{form.nom}</span> est en ligne sur{' '}
             <span className="font-mono text-xs">{form.slug}.bilaleducation.fr</span>.
           </p>
 
           {cree.emailEnvoye ? (
-            <p role="status" className="text-sm text-primary-700 bg-primary-50 border border-primary-200 rounded-xl px-4 py-3">
+            <p role="status" className="text-sm ton-ok rounded-xl px-4 py-3">
               Un lien de définition du mot de passe a été envoyé à{' '}
               <span className="font-semibold">{form.email}</span>.
             </p>
           ) : (
-            <p role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
+            <p role="alert" className="text-sm ton-attente rounded-xl px-4 py-3">
               L&apos;email n&apos;a pas pu être envoyé. Transmettez le mot de passe
               ci-dessous, ou renvoyez le lien depuis la fiche une fois la messagerie
               configurée.
@@ -144,112 +135,91 @@ export default function NewEcolePage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <nav className="text-xs text-warm-700 mb-2">
-          <Link href="/superadmin" className="hover:text-warm-700">Établissements</Link>
-          <span className="mx-1.5">/</span>
-          <span className="text-secondary-700">Nouveau</span>
-        </nav>
-        <h1 className="text-2xl font-bold text-secondary-800">Nouvel établissement</h1>
-        <p className="text-warm-700 text-sm mt-1">Créer un nouveau tenant avec son directeur initial</p>
-      </div>
+    <div className="space-y-3 animate-fade-in">
+      {/* Pas de titre de page (l'onglet le dit) : la grande icône de retour de la
+          fiche établissement. */}
+      <Tooltip content="Retour à la liste">
+        <Link
+          href="/superadmin"
+          aria-label="Retour à la liste"
+          className="w-11 h-11 flex items-center justify-center rounded-xl text-[var(--ink-muted)] hover:text-[var(--ink)] hover:bg-[var(--survol-ligne)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </Link>
+      </Tooltip>
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-4 max-w-5xl">
-        <div className="grid grid-cols-2 gap-4 items-start">
+      <form onSubmit={handleSubmit} noValidate className="space-y-3 max-w-5xl">
+        <div className="grid grid-cols-2 gap-3 items-start">
 
-        <div className="space-y-4">
-        <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Établissement</h2>
+        <div className="space-y-3">
+        <div className="card p-3 space-y-3">
+          <h2 className={TITRE}>Établissement</h2>
 
-          <Field label="Slug (sous-domaine)" required error={touched.has('slug') ? (validateSlug(form.slug) ?? undefined) : undefined}>
-            <div className="flex items-center input gap-0 p-0 overflow-hidden">
-              <input
-                type="text"
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <FloatInput
+                label="Sous-domaine"
+                required
                 value={form.slug}
                 maxLength={SLUG_MAX}
                 onChange={e => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, SLUG_MAX))}
                 onBlur={() => touch('slug')}
-                placeholder="al-kindi"
-                className={clsx('flex-1 px-3 py-2 outline-none bg-transparent text-sm', touched.has('slug') && v.slug && 'text-red-600')}
+                error={touched.has('slug') ? (validateSlug(form.slug) ?? undefined) : undefined}
+                className="mono"
               />
-              <span className="px-3 text-warm-700 text-xs border-l border-warm-200 bg-warm-50 py-2 whitespace-nowrap">.bilaleducation.fr</span>
             </div>
-          </Field>
+            <span className="mono text-xs text-warm-700 pt-2">.bilaleducation.fr</span>
+          </div>
 
-          <Field label="Nom de l'établissement" required error={touched.has('nom') && v.nom ? 'Obligatoire (2 caractères min.).' : undefined}>
-            <input type="text" value={form.nom} onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')} className={inputCls('nom')} />
-          </Field>
+          <FloatInput label="Nom de l'établissement" required value={form.nom}
+            onChange={e => set('nom', e.target.value.toUpperCase())} onBlur={() => touch('nom')}
+            error={err('nom', 'Obligatoire (2 caractères min.).')} />
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Adresse">
-              <input type="text" value={form.adresse} onChange={e => set('adresse', e.target.value)} className="input" />
-            </Field>
-            <Field label="Téléphone">
-              <input type="tel" value={form.telephone} onChange={e => set('telephone', e.target.value)} className="input" />
-            </Field>
+            <FloatInput label="Adresse" value={form.adresse} onChange={e => set('adresse', e.target.value)} />
+            <FloatInput label="Téléphone" type="tel" value={form.telephone} onChange={e => set('telephone', e.target.value)} />
           </div>
         </div>
 
-        <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Accès et abonnement</h2>
+        <div className="card p-3 space-y-3">
+          <h2 className={TITRE}>Accès et abonnement</h2>
 
+          {/* « facultatif » dans le libellé : vide, il n'y a ni échéance ni limite. */}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Expiration de l'abonnement">
-              <input
-                type="date"
-                value={form.subscription_expires_at}
-                onChange={e => set('subscription_expires_at', e.target.value)}
-                className="input"
-              />
-              <p className="text-xs text-warm-700 mt-1">Vide : aucune expiration.</p>
-            </Field>
-
-            <Field
-              label="Limite d'élèves"
-              error={touched.has('max_students') && v.max_students ? 'Nombre entier supérieur à zéro.' : undefined}
-            >
-              <input
-                type="number"
-                min="1"
-                step="1"
-                placeholder="Illimité"
-                value={form.max_students}
-                onChange={e => set('max_students', e.target.value)}
-                onBlur={() => touch('max_students')}
-                className={inputCls('max_students')}
-              />
-              <p className="text-xs text-warm-700 mt-1">Vide : accès illimité.</p>
-            </Field>
+            <FloatInput label="Échéance (facultatif)" type="date" value={form.subscription_expires_at}
+              onChange={e => set('subscription_expires_at', e.target.value)} />
+            <FloatInput label="Limite d'élèves (facultatif)" type="number" min="1" step="1" value={form.max_students}
+              onChange={e => set('max_students', e.target.value)} onBlur={() => touch('max_students')}
+              error={err('max_students', 'Nombre entier supérieur à zéro.')} />
           </div>
-
-          <p className="text-xs text-warm-700">
-            L&apos;établissement est actif dès sa création ; l&apos;accès se coupe depuis sa fiche.
-          </p>
         </div>
 
         </div>
 
-        <div className="card p-4 space-y-3">
-          <h2 className="text-xs font-bold text-warm-700 uppercase tracking-widest">Directeur initial</h2>
+        <div className="card p-3 space-y-3">
+          <h2 className={TITRE}>Directeur initial</h2>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nom" required error={touched.has('last_name') && v.last_name ? 'Obligatoire.' : undefined}>
-              <input type="text" value={form.last_name} onChange={e => set('last_name', e.target.value.toUpperCase())} onBlur={() => touch('last_name')} className={inputCls('last_name')} />
-            </Field>
-            <Field label="Prénom" required error={touched.has('first_name') && v.first_name ? 'Obligatoire.' : undefined}>
-              <input type="text" value={form.first_name} onChange={e => set('first_name', e.target.value)} onBlur={() => touch('first_name')} className={inputCls('first_name')} />
-            </Field>
+            <FloatInput label="Nom" required value={form.last_name}
+              onChange={e => set('last_name', e.target.value.toUpperCase())} onBlur={() => touch('last_name')}
+              error={err('last_name', 'Obligatoire.')} />
+            <FloatInput label="Prénom" required value={form.first_name}
+              onChange={e => set('first_name', e.target.value)} onBlur={() => touch('first_name')}
+              error={err('first_name', 'Obligatoire.')} />
           </div>
 
-          <Field label="Email" required error={touched.has('email') && v.email ? 'Adresse email invalide.' : undefined}>
-            <input type="email" value={form.email} onChange={e => set('email', e.target.value)} onBlur={() => touch('email')} className={inputCls('email')} />
-          </Field>
+          <FloatInput label="Email" required type="email" value={form.email}
+            onChange={e => set('email', e.target.value)} onBlur={() => touch('email')}
+            error={err('email', 'Adresse email invalide.')} />
 
           {/* Le mot de passe se GÉNÈRE : l'éditeur ouvre ce compte pour
               quelqu'un d'autre et doit le lui transmettre — il n'a pas à en
-              inventer un, ni à le masquer à ses propres yeux. */}
-          <Field label="Mot de passe temporaire" required>
+              inventer un, ni à le masquer à ses propres yeux. Libellé au-dessus,
+              comme dans la fiche (le champ n'est pas un `FloatInput`). */}
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-warm-700 uppercase tracking-wide">
+              Mot de passe temporaire<span className="text-red-700" aria-hidden="true"> *</span>
+            </span>
             <TempPasswordField
               value={form.password}
               onChange={v => { set('password', v); touch('password') }}
@@ -261,15 +231,15 @@ export default function NewEcolePage() {
                 lastName={form.last_name}
               />
             )}
-          </Field>
+          </div>
         </div>
 
         </div>
 
-        {error && <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>}
+        {error && <p role="alert" className="text-sm ton-danger rounded-xl px-4 py-3">{error}</p>}
 
         <div className="flex items-center justify-end gap-3 pt-1">
-          <span className="text-xs text-red-400 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
+          <span className="text-xs text-red-700 mr-auto"><span className="font-semibold">*</span> obligatoire</span>
           <FloatButton href="/superadmin" variant="secondary">Annuler</FloatButton>
           <FloatButton type="submit" variant="submit" loading={isSubmitting} disabled={isSubmitting || !isValid}>
             Créer l&apos;établissement

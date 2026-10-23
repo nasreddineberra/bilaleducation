@@ -325,17 +325,17 @@ export default async function SuperAdminPage({ searchParams }: {
           Interventions de support ({INTERVENTION_MAX_HEURES} h max)
         </h2>
 
-        {/* `card p-0` : un tableau de liste ne prend pas le retrait de 24 px.
-            Padding réduit à `px-2` — sur un quart de largeur, les 16 px de
-            `.list-th` mangeraient un cinquième de la place utile. */}
-        <div className="card p-0 flex-1 min-h-0 overflow-y-auto list-scroll">
+        {/* `.liste` (charte du 15/10), sans cadre. Padding réduit à `px-2` — sur
+            un quart de largeur, les 16 px de `.list-th` mangeraient un cinquième
+            de la place utile. */}
+        <div className="liste flex-1 min-h-0 overflow-y-auto list-scroll">
           {/* `table-fixed` : en disposition automatique, un tableau s'elargit a son
               contenu et la troncature du nom n'agit pas — « Refermee · 1 h 04 »
               poussait une barre de defilement horizontale. Date et statut ont une
               largeur taillee sur leur valeur la plus longue, le nom prend le reste. */}
           <table className="w-full table-fixed text-xs" aria-label="Interventions de support">
-            <thead className="sticky top-0 bg-white z-10">
-              <tr>
+            <thead className="sticky top-0 z-10">
+              <tr className="liste-entete border-b border-[var(--card-border)]">
                 <th scope="col" className="list-th px-2 text-left">Établissement</th>
                 <th scope="col" className="list-th px-2 text-left w-[6.75rem]">Date</th>
                 <th scope="col" className="list-th px-2 text-left w-[7.75rem]">Statut</th>
@@ -343,15 +343,12 @@ export default async function SuperAdminPage({ searchParams }: {
             </thead>
             <tbody className="divide-y divide-warm-100">
               {!interventions?.length ? (
-                <tr>
-                  <td colSpan={3} className="px-2 py-3 text-xs text-warm-700 leading-snug">
-                    Aucune intervention enregistrée. L&apos;historique démarre au
-                    premier «&nbsp;Intervenir&nbsp;».
-                  </td>
+                <tr className="sans-survol">
+                  <td colSpan={3} className="px-2 py-3 text-xs text-warm-700">Aucune intervention.</td>
                 </tr>
               ) : (
                 interventions.map(i => (
-                  <tr className="transition-colors hover:bg-warm-100" key={i.id}>
+                  <tr key={i.id}>
                     <td className="list-td px-2">
                       <div className="flex min-w-0">
                         <TruncatedText className="list-name" text={nomEcole[i.etablissement_id] ?? 'Établissement supprimé'} />
@@ -362,7 +359,7 @@ export default async function SuperAdminPage({ searchParams }: {
                     </td>
                     <td className="list-td px-2">
                       {!i.closed_at ? (
-                        <span className="text-amber-700 font-medium whitespace-nowrap">En cours</span>
+                        <Puce ton="attente">En cours</Puce>
                       ) : (
                         // Sur une ligne : la duree dit ce que la date ne dit pas,
                         // combien de temps l'acces est reste ouvert.
