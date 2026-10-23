@@ -28,11 +28,13 @@ const RUBRIQUES: { href: string; libelle: string; actif: (p: string) => boolean 
   { href: '/superadmin/support',     libelle: 'Demandes de support', actif: p => p.startsWith('/superadmin/support') },
 ]
 
-export default function ConsoleBarre({ nom, ecoles }: {
+export default function ConsoleBarre({ nom, ecoles, runtime }: {
   /** NOM Prénom de l'éditeur connecté : une identité, pas un identifiant de connexion. */
   nom?: string
   /** Toutes les écoles, pour la recherche globale. */
   ecoles: EcoleRecherche[]
+  /** `process.version` du serveur (ex. « v24.22.1 »). */
+  runtime?: string
 }) {
   const pathname = usePathname()
   const actifIndex = RUBRIQUES.findIndex(r => r.actif(pathname))
@@ -74,9 +76,14 @@ export default function ConsoleBarre({ nom, ecoles }: {
 
         <div className="ml-auto md:ml-0 flex items-center gap-3 min-w-0">
           <span className="hidden sm:block text-xs text-[var(--brand-text)] truncate">{nom}</span>
-          <span className="mono text-[11px] leading-none text-[var(--brand-muted)] bg-white/10 px-1.5 py-1 rounded flex-shrink-0">
-            {APP_VERSION}
-          </span>
+          {/* Version de Node.js EXECUTEE par le serveur (23/10, faille Brotli
+              CVE-2026-111497) : la branche est fixee par `engines`, le correctif
+              est celui que Vercel deploie. Visible de l'editeur seul. */}
+          <Tooltip content={runtime ? `Node.js ${runtime}` : 'Version de Node.js inconnue'} position="bottom">
+            <span tabIndex={0} className="mono text-[11px] leading-none text-[var(--brand-muted)] bg-white/10 px-1.5 py-1 rounded flex-shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]">
+              {APP_VERSION}
+            </span>
+          </Tooltip>
           {/* `bottom` : bouton colle en haut de l'ecran, une bulle au-dessus sortirait du cadre. */}
           <Tooltip content="Déconnexion" position="bottom">
             <button

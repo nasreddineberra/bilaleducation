@@ -9242,3 +9242,21 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   le passage en service : on leve la borne et on remplit la facturation, sans rien effacer (seules les saisies
   d'essai qu'il designe, sur liste validee) ; sinon creation de son etablissement ; s'il ne signe pas, depart.
   L'ancien plan « effacer les donnees de test » est abandonne : il aurait fait ressaisir des donnees reelles.
+
+#### 23 octobre 2026 — Securite : React2Shell, Node2Shell, zod
+
+- **React2Shell** (CVE-2025-55182 / CVE-2025-66478, RCE React Server Components, decembre 2025) : NON concernes
+  (Next 16.4.2 > 16.0.7, React 19.2.7 > 19.2.1).
+- **Node2Shell** (CVE-2026-111497, ecriture hors limites du decodeur Brotli de Node.js, RCE ; corrige le 21/10 en
+  22.23.4 / 24.22.1 / 26.12.1). Vecteurs : corps `Content-Encoding: br` decompresses (Express 5, body-parser 2 :
+  non utilises), `fetch()` serveur vers une adresse hostile (nos appels : Supabase, notre site, SMTP ; `web-push`
+  passe par `https.request`, sans decompression), `zlib.brotliDecompress` (aucun). Exposition faible.
+  - Poste de travail : Node 24.13.1 -> **24.22.1** (winget), marqueur Brotli = -17 (corrige). npm 11.19 bloque
+    desormais les scripts d'installation (avertissement `unrs-resolver`, sans effet : lint OK).
+  - Serveur : la branche n'etait fixee nulle part (reglage du projet Vercel) -> `"engines": { "node": "24.x" }`.
+    La version reellement executee s'affiche dans la console (infobulle de la pastille de version, editeur seul)
+    pour verifier que Vercel sert 24.22.1 ou plus.
+- **zod** 4.3.6 -> **4.6.7** (GHSA-mrhx-c7xc-m3w5, epuisement memoire sur grandes collections ; valide les
+  saisies serveur des Utilisateurs, Enseignants, Parents). `npm audit` : reste postcss-selector-parser (Tailwind 4,
+  ecarte).
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK (Node 24.22.1).

@@ -2,6 +2,9 @@
   "name": "bilaleducation",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "browser": {
     "jsdom": false
   },
@@ -48,7 +51,7 @@
     "read-excel-file": "^9.3.10",
     "recharts": "^3.9.2",
     "web-push": "^3.6.7",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.1",
