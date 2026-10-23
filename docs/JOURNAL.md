@@ -9036,3 +9036,13 @@ marque ; les vraies ecoles gardent leur plaque.
   (`[email] envoi refuse`), et les envois parents / equipe rendent `firstError`, affichee dans le toast
   (« Cause : ... »).
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 23 octobre 2026 — Texte riche : listes visibles
+
+- Email recu avec une puce a chaque ligne : la liste a puces de l'editeur etait ACTIVE mais invisible.
+  `prose` vient de `@tailwindcss/typography`, jamais installe : la classe ne fait rien et le preflight
+  retire puces et retrait. Les clients mail, eux, affichent les puces.
+- Deux regles plates dans `globals.css` (`.prose ul` disc, `.prose ol` decimal, retrait 1,25 rem) : l'editeur et
+  les 6 affichages de texte riche (apercus parents / equipe, detail d'un message, d'une notification, d'une
+  seance, d'un devoir) montrent ce qui part. Plugin typography ecarte : il restylerait tout le texte hors charte.
+- Verifie dans le CSS servi. Build OK.
