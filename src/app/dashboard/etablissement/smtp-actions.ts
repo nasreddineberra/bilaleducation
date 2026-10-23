@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
-import { verifySmtpConfig, sendTestEmail, getSmtpConfig, signatureOf, marquerMessagerieEprouvee, type SmtpConfig } from '@/lib/email'
+import { verifySmtpConfig, sendTestEmail, getSmtpConfig, signatureOf, marquerMessagerieEprouvee, oublierTransporteur, type SmtpConfig } from '@/lib/email'
 import { revalidatePath } from 'next/cache'
 
 // La messagerie engage l'etablissement entier : reservee a admin/direction.
@@ -150,6 +150,39 @@ export async function saveSmtpSettings(payload: SaveSmtpPayload): Promise<{ erro
     entityType:  'etablissement_smtp',
     entityId:    ctx.etablissementId,
     description: `Configuration de la messagerie modifiée (serveur ${config.host}:${config.port}, expéditeur ${config.from_email})`,
+  })
+
+  revalidatePath('/dashboard/etablissement')
+  return {}
+}
+
+export async function deleteSmtpSettings(): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer([...SMTP_ROLES])
+  if (roleError) return { error: roleError }
+
+  const ctx = await getContext()
+  if ('error' in ctx) return { error: ctx.error }
+
+  const admin = createAdminClient()
+  const echec = erreurEcriture(
+    await admin
+      .from('etablissement_smtp')
+      .delete()
+      .eq('etablissement_id', ctx.etablissementId)
+      .select('etablissement_id'),
+    'La configuration',
+  )
+
+  if (echec) return { error: "La configuration n'a pas pu être supprimée." }
+
+  oublierTransporteur(ctx.etablissementId)
+
+  // Meme raison que l'enregistrement : trace explicite en client session.
+  await logAudit(ctx.supabase, {
+    action:      'DELETE',
+    entityType:  'etablissement_smtp',
+    entityId:    ctx.etablissementId,
+    description: 'Configuration de la messagerie supprimée',
   })
 
   revalidatePath('/dashboard/etablissement')

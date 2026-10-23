@@ -91,6 +91,13 @@ async function getTransporter(etablissementId: string): Promise<{ transporter: T
   return { transporter, config }
 }
 
+/** Configuration supprimee : on ferme le pool de cette instance. Les envois
+ *  suivants relisent la base et n'y trouvent plus rien. */
+export function oublierTransporteur(etablissementId: string): void {
+  cache.get(etablissementId)?.transporter.close()
+  cache.delete(etablissementId)
+}
+
 /** Compose l'expediteur : nom d'affichage lisible + adresse du compte SMTP. */
 function formatFrom(c: SmtpConfig): string {
   return c.from_name ? `"${c.from_name.replace(/"/g, '')}" <${c.from_email}>` : c.from_email

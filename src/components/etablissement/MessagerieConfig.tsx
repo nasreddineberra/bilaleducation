@@ -6,9 +6,11 @@ import { useToast } from '@/lib/toast-context'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import AideMessagerie from './AideMessagerie'
 import { Puce } from '@/components/dashboard/tdb'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import {
   saveSmtpSettings,
   testSmtpSettings,
+  deleteSmtpSettings,
   type SmtpConfigPublic,
   type SaveSmtpPayload,
 } from '@/app/dashboard/etablissement/smtp-actions'
@@ -52,6 +54,8 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [aideOuverte, setAideOuverte] = useState(false)
+  const [confirmSuppression, setConfirmSuppression] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const set = (k: keyof FormData, v: string) => {
     setForm(f => ({ ...f, [k]: v }))
@@ -106,6 +110,20 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
     const { error, message } = await testSmtpSettings(payload())
     setTesting(false)
     setTestResult(error ? { ok: false, message: error } : { ok: true, message: message ?? 'Connexion réussie.' })
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    const { error } = await deleteSmtpSettings()
+    setDeleting(false)
+    setConfirmSuppression(false)
+
+    if (error) return toast.error(error)
+
+    toast.success('Messagerie supprimée.')
+    setConfig(null)
+    setForm(toForm(null, etablissementNom))
+    setTestResult(null)
   }
 
   return (
@@ -251,11 +269,21 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
         )}
 
         <div className="flex items-center justify-end gap-3">
+          {isConfigured && (
+            <FloatButton
+              type="button"
+              variant="danger"
+              onClick={() => setConfirmSuppression(true)}
+              disabled={testing || saving || deleting}
+            >
+              Supprimer
+            </FloatButton>
+          )}
           <FloatButton
             type="button"
             variant="secondary"
             onClick={handleTest}
-            disabled={incomplete || testing || saving}
+            disabled={incomplete || testing || saving || deleting}
             loading={testing}
           >
             Tester la connexion
@@ -264,12 +292,27 @@ export default function MessagerieConfig({ initialConfig, contact, etablissement
             type="button"
             variant={isConfigured ? 'edit' : 'submit'}
             onClick={handleSave}
-            disabled={incomplete || saving || testing}
+            disabled={incomplete || saving || testing || deleting}
             loading={saving}
           >
             Enregistrer
           </FloatButton>
         </div>
+
+        {confirmSuppression && (
+          <ConfirmModal
+            open
+            variant="danger"
+            confirmColor="red"
+            title="Supprimer la messagerie"
+            message="Plus aucun email ne partira : communications, devoirs, relances. Continuer ?"
+            confirmLabel={deleting ? 'Suppression…' : 'Supprimer'}
+            cancelLabel="Annuler"
+            confirmDisabled={deleting}
+            onConfirm={handleDelete}
+            onCancel={() => setConfirmSuppression(false)}
+          />
+        )}
     </div>
   )
 }

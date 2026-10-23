@@ -9013,3 +9013,13 @@ marque ; les vraies ecoles gardent leur plaque.
   ecoles) : correctif seulement en 10.x (majeure, Node 20+, passage en TypeScript), decision a prendre.
   **tailwindcss** : correctif = Tailwind 4 (majeure), build seulement, ecarte.
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 23 octobre 2026 — Messagerie : supprimer la configuration
+
+- Aucun moyen de retirer une messagerie enregistree (seulement la modifier). Ajout d'un bouton « Supprimer »
+  (`danger`, visible seulement si configuree) dans l'encadre Messagerie, avec `ConfirmModal` (« Plus aucun
+  email ne partira »). Apres suppression : champs vides, nom affiche = nom de l'ecole, pastille « Non configuree ».
+- Action `deleteSmtpSettings` (admin / direction) : suppression par le client admin (table serveur uniquement),
+  controle `erreurEcriture` (0 ligne = echec), trace explicite au journal en client session, sans secret.
+- `oublierTransporteur()` (`lib/email.ts`) ferme le pool SMTP mis en cache par l'instance.
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
