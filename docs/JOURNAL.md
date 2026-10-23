@@ -9217,3 +9217,14 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   presents restent tels quels, 2FA comprise. Message « N compte(s) recree(s) : leur double authentification est
   a enroler de nouveau », et la trace editeur le mentionne.
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 23 octobre 2026 — Demonstration : « Intervenir » grise tant qu'elle n'est pas reinitialisee
+
+- Demande utilisateur : apres le depart (puis la reouverture), « Intervenir » restait actif sur une
+  demonstration vide. Regle unique `lib/tenant/demo.ts` : la demonstration est PRETE si elle a une annee scolaire
+  en cours ET des comptes (les premieres choses que cree une remise a zero reussie) ; sinon (depart, remise a
+  zero interrompue) « Intervenir » est grise avec « Reinitialisez d'abord l'ecole de demonstration. »
+  (`EnterButton` recoit la raison), et `enterSchool` refuse cote serveur (`demoPreteEnBase`, comptage
+  impossible = pas prete).
+- Etat en base au moment du correctif : demonstration rouverte, inactive, sans annee ni compte ni eleve.
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.

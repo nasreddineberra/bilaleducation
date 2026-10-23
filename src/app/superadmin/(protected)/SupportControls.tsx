@@ -17,11 +17,13 @@ import { FloatButton } from '@/components/ui/FloatFields'
  * le droit de faire. Le layout du tableau de bord se contente de vérifier que le
  * rattachement correspond au sous-domaine visité.
  */
-export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, taille = 'xs' }: {
+export function EnterButton({ id, slug, nom, disabled, raison, dejaOuverte = false, taille = 'xs' }: {
   id: string
   slug: string
   nom: string
   disabled: boolean
+  /** Raison du blocage, en infobulle (defaut : intervention ouverte ailleurs). */
+  raison?: string
   /** L'intervention en cours porte DÉJÀ sur cette école. */
   dejaOuverte?: boolean
   taille?: 'xs' | 'sm'
@@ -59,7 +61,7 @@ export function EnterButton({ id, slug, nom, disabled, dejaOuverte = false, tail
           wrapper qui recoit le survol. On n'enveloppe que le cas bloque — sur
           un bouton actif, le libelle se suffit. */}
       {disabled ? (
-        <Tooltip content="Une intervention est déjà en cours sur une autre école.">
+        <Tooltip content={raison ?? 'Une intervention est déjà en cours sur une autre école.'}>
           <span>
             <FloatButton type="button" variant="submit" size={taillePx} disabled>
               Intervenir

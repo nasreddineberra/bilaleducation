@@ -14,6 +14,7 @@ import MiseEnService, { type Etape } from './MiseEnService'
 import ConsoleEditeur from './ConsoleEditeur'
 import RouvrirEcole from './RouvrirEcole'
 import { formatDateFr } from '@/lib/dates'
+import { demoPrete, RAISON_DEMO_A_REINITIALISER } from '@/lib/tenant/demo'
 
 /**
  * Fiche d'un établissement client.
@@ -222,6 +223,8 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
     ? await supabase.from('profiles').select('etablissement_id').eq('id', user.id).single()
     : { data: null }
   const interventionAilleurs = Boolean(moi?.etablissement_id) && moi!.etablissement_id !== id
+  // Demonstration videe (depart) ou remise a zero interrompue : pas d'intervention.
+  const demoAReinitialiser = Boolean(ecole.est_demo) && !demoPrete(Boolean(anneeCourante), personnel.length)
 
   const compteurs: { label: string; value: number | null; limite?: number | null; facturable?: boolean }[] = [
     { label: 'Utilisateurs',     value: personnel.length },
@@ -315,7 +318,8 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
               id={ecole.id}
               slug={ecole.slug}
               nom={ecole.nom}
-              disabled={interventionAilleurs}
+              disabled={interventionAilleurs || demoAReinitialiser}
+              raison={demoAReinitialiser && !interventionAilleurs ? RAISON_DEMO_A_REINITIALISER : undefined}
               dejaOuverte={moi?.etablissement_id === id}
               taille="sm"
             />

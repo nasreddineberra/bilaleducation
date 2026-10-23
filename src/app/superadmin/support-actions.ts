@@ -6,6 +6,7 @@ import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { logAudit } from '@/lib/audit'
 import { requireEditor } from '@/lib/auth/requireEditor'
 import { refuserSiEffacee } from '@/lib/tenant/effacement'
+import { demoPreteEnBase, RAISON_DEMO_A_REINITIALISER } from '@/lib/tenant/demo'
 import { ouvrirIntervention, fermerIntervention } from '@/lib/support/intervention'
 import { updateTag } from 'next/cache'
 
@@ -56,10 +57,11 @@ export async function enterSchool(etablissementId: string): Promise<{ error?: st
 
   const { data: ecole } = await admin
     .from('etablissements')
-    .select('nom')
+    .select('nom, est_demo')
     .eq('id', etablissementId)
     .maybeSingle()
   if (!ecole) return { error: 'Établissement introuvable.' }
+  if (ecole.est_demo && !(await demoPreteEnBase(etablissementId))) return { error: RAISON_DEMO_A_REINITIALISER }
 
   const { error } = await admin
     .from('profiles')
