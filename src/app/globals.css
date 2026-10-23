@@ -1801,3 +1801,61 @@
 :root[data-espace="console"] .ton-attente { background: var(--console-etat-attente-fond); }
 :root[data-espace="console"] .ton-danger  { background: var(--console-etat-danger-fond); }
 :root[data-espace="console"] .ton-neutre  { color: var(--console-etat-neutre-encre); background: var(--console-etat-neutre-fond); }
+
+/* ── Console : pont des neutres BEIGES vers les gris de la console (23/10) ────
+   Les `warm-*` (beige chaud) juraient avec la palette graphite. Chaque nuance
+   prend le jeton console du MEME role, sans couleur nouvelle : 50 fond leger,
+   100 survol / separateur, 200 bordure, 300 bordure de champ, 400 grise,
+   700 texte secondaire (6,4:1 au lieu de 5,0:1). Regles GENEREES depuis le CSS
+   servi (classes warm-* + beiges apportes par @apply) par
+   `scripts/generer-pont-console.cjs` : a regenerer si une
+   classe warm-* nouvelle apparait dans la console. L ecole n a jamais
+   `data-espace="console"` : elle n est pas touchee. */
+:root[data-espace="console"] .\[\&_input\]\:text-warm-400 input { color: var(--brand-icon); }
+:root[data-espace="console"] .\[\&_p\]\:text-warm-400 p { color: var(--brand-icon); }
+:root[data-espace="console"] .bg-warm-100 { background-color: var(--line); }
+:root[data-espace="console"] .bg-warm-100\/50 { background-color: color-mix(in srgb, var(--line) 50%, transparent); }
+:root[data-espace="console"] .bg-warm-100\/70 { background-color: color-mix(in srgb, var(--line) 70%, transparent); }
+:root[data-espace="console"] .bg-warm-200 { background-color: var(--card-border); }
+:root[data-espace="console"] .bg-warm-300 { background-color: var(--line-strong); }
+:root[data-espace="console"] .bg-warm-400 { background-color: var(--brand-icon); }
+:root[data-espace="console"] .bg-warm-50 { background-color: var(--surface-sunken); }
+:root[data-espace="console"] .bg-warm-50\/20 { background-color: color-mix(in srgb, var(--surface-sunken) 20%, transparent); }
+:root[data-espace="console"] .bg-warm-50\/30 { background-color: color-mix(in srgb, var(--surface-sunken) 30%, transparent); }
+:root[data-espace="console"] .bg-warm-50\/50 { background-color: color-mix(in srgb, var(--surface-sunken) 50%, transparent); }
+:root[data-espace="console"] .bg-warm-50\/60 { background-color: color-mix(in srgb, var(--surface-sunken) 60%, transparent); }
+:root[data-espace="console"] .border-warm-100 { border-color: var(--line); }
+:root[data-espace="console"] .border-warm-200 { border-color: var(--card-border); }
+:root[data-espace="console"] .border-warm-300 { border-color: var(--line-strong); }
+:root[data-espace="console"] .border-warm-50 { border-color: var(--surface-sunken); }
+:root[data-espace="console"] .decoration-warm-300 { text-decoration-color: var(--line-strong); }
+:root[data-espace="console"] .disabled\:border-warm-200:disabled { border-color: var(--card-border); }
+:root[data-espace="console"] .disabled\:text-warm-400:disabled { color: var(--brand-icon); }
+:root[data-espace="console"] .divide-warm-100>:not([hidden])~:not([hidden]) { border-color: var(--line); }
+:root[data-espace="console"] .divide-warm-200>:not([hidden])~:not([hidden]) { border-color: var(--card-border); }
+:root[data-espace="console"] .divide-warm-50>:not([hidden])~:not([hidden]) { border-color: var(--surface-sunken); }
+:root[data-espace="console"] .focus-visible\:ring-warm-400\/50:focus-visible { --tw-ring-color: color-mix(in srgb, var(--brand-icon) 50%, transparent); }
+:root[data-espace="console"] .focus\:bg-warm-100:focus { background-color: var(--line); }
+:root[data-espace="console"] .focus\:border-warm-200:focus { border-color: var(--card-border); }
+:root[data-espace="console"] .hover\:bg-warm-100:hover { background-color: var(--line); }
+:root[data-espace="console"] .hover\:bg-warm-200:hover { background-color: var(--card-border); }
+:root[data-espace="console"] .hover\:bg-warm-50:hover { background-color: var(--surface-sunken); }
+:root[data-espace="console"] .hover\:border-warm-300:hover { border-color: var(--line-strong); }
+:root[data-espace="console"] .hover\:border-warm-400:hover { border-color: var(--brand-icon); }
+:root[data-espace="console"] .hover\:text-warm-500:hover { color: var(--brand-muted); }
+:root[data-espace="console"] .hover\:text-warm-700:hover { color: var(--ink-muted); }
+:root[data-espace="console"] .peer:not(:-moz-placeholder-shown)~.peer-\[\&\:not\(\:-moz-placeholder\)\]\:text-warm-700 { color: var(--ink-muted); }
+:root[data-espace="console"] .peer:not(:placeholder-shown)~.peer-\[\&\:not\(\:placeholder-shown\)\]\:text-warm-700 { color: var(--ink-muted); }
+:root[data-espace="console"] .placeholder\:text-warm-700::placeholder { color: var(--ink-muted); }
+:root[data-espace="console"] .ring-warm-200 { --tw-ring-color: var(--card-border); }
+:root[data-espace="console"] .text-warm-200 { color: var(--card-border); }
+:root[data-espace="console"] .text-warm-400 { color: var(--brand-icon); }
+:root[data-espace="console"] .text-warm-700 { color: var(--ink-muted); }
+:root[data-espace="console"] .text-warm-800 { color: var(--console-etat-neutre-encre); }
+@media (min-width:1024px) { :root[data-espace="console"] .lg\:border-warm-100 { border-color: var(--line); } }
+:root[data-espace="console"] .btn-secondary { border-color: var(--line-strong); }
+:root[data-espace="console"] .btn-secondary:hover { background-color: var(--surface-sunken); }
+:root[data-espace="console"] .input::placeholder { color: var(--brand-icon); }
+:root[data-espace="console"] .table th { background-color: var(--surface-sunken); }
+:root[data-espace="console"] .table tbody tr { border-color: var(--line); }
+:root[data-espace="console"] .table tbody tr:hover { background-color: var(--surface-sunken); }

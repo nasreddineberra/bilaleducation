@@ -9106,3 +9106,16 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
 - Controle 20 (`supabase/controles/20-purge-messages.sql`, ecole de demonstration, deux annees jetables) : ROUGE
   6 ecarts avant la migration, VERT 11 / 11 apres (migration + controle en transaction annulee).
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
+
+#### 23 octobre 2026 — Console editeur : pont des neutres beiges
+
+- Les `warm-*` (beige chaud, ~120 occurrences dans la console + composants partages) juraient avec la palette
+  graphite. Pont `:root[data-espace="console"]` en fin de `globals.css` : chaque nuance prend le jeton console du
+  meme role, AUCUNE couleur nouvelle (50 -> `--surface-sunken`, 100 -> `--line`, 200 -> `--card-border`,
+  300 -> `--line-strong`, 400 -> `--brand-icon`, 500 / 600 -> `--brand-muted` / `--brand-label`,
+  700 -> `--ink-muted` 6,4:1 au lieu de 5,0:1, 800 / 900 -> encre neutre / `--ink`). Variantes d'opacite en
+  `color-mix`.
+- 48 regles GENEREES depuis le CSS servi par `scripts/generer-pont-console.cjs` (PostCSS) : 42 classes `warm-*`
+  (fond, texte, bordure, anneau, separateur, placeholder, survol, focus, disabled, peer, `lg:`) + 6 beiges
+  apportes par `@apply` (`.btn-secondary`, `.input`, `.table`), reperes a leur valeur `rgb`. Les 48 verifiees
+  dans le CSS servi. L'ecole n'a jamais `data-espace="console"` : intacte.
