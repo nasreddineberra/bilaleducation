@@ -373,7 +373,7 @@ financements, retention…), ecole de demonstration.
    Sources uniques ajoutees le 21/10 : `tonRole()` (role-labels), `tonCategorie()` (support),
    `cahier-texte/commun.ts` (types de devoir, dates locales).
    Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
-2. **Console editeur, refonte visuelle (EN COURS, 22/10)** : palette PROPRE a la console, **graphite `#16181d`
+2. **Console editeur, refonte visuelle (FAITE, 23/10 ; reste l'inspection a l'ecran)** : palette PROPRE a la console, **graphite `#16181d`
    + citron vert `#c8f169`**. Maquettes : https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (Serie 3, G/H/I).
    **Socle** : `data-espace="console"` sur `<html>` (script de `app/layout.tsx`, theme clair impose) ; bloc
    `:root[data-espace="console"]` de `globals.css` qui redefinit `--brand-*`, les neutres, `--etat-*` et ajoute
@@ -382,17 +382,19 @@ financements, retention…), ecole de demonstration.
    = citron vert via la classe `bouton-principal` ; `.mono` = police a chasse fixe du systeme.
    **Fait** : connexion minimale (`MarqueConsole` : logo + « Bilal Education » + pastille, AUCUNE information pour
    un visiteur, message d'echec unique) ; `ConsoleBarre` (bande graphite : BILAL EDUCATION, pastille, recherche
-   globale `RechercheEcoles` Ctrl+K, nom, version, deconnexion ; puis `Onglets navigation`) ; liste des
+   globale `RechercheConsole` Ctrl+K, nom, version, deconnexion ; puis `Onglets navigation`) ; liste des
    etablissements (colonnes Etablissement, Sante, Domaine, Inscrits en jauge, Utilisateurs, Echeance, Derniere
    connexion, Etat ; `FiltreSwitch` Tous / A surveiller / Echeance / Inactifs ; accords au MASCULIN) ; page Sante
    (switch Tous / A surveiller) ; signaux de sante en source unique `lib/tenant/sante.ts` (1 signal = a
    surveiller, 2+ = critique, demo jamais a surveiller) ; fiche etablissement sans turquoise, retour en grande
    icone, sans defilement ; titres de page retires (l'onglet suffit).
-   **Reste** : neutres BEIGES `warm-*` (~110) a remapper en gris par un pont console (propose, pas valide) ;
-   ecrans de code 2FA au format de la maquette I (carte blanche encore la) ; pages Facturation, Support,
-   creation d'ecole et colonne Interventions au format `.liste` ; recherche des comptes (non faite).
-3. **Console editeur, fonctionnalites** : historique des actions editeur sur la fiche (point 4), etat 2FA dans la
-   section Utilisateurs (point 5), filtres de la liste des ecoles (point 6).
+   **Fait le 23/10** : pont des beiges `warm-*` vers les gris console (bloc genere en fin de `globals.css`,
+   `scripts/generer-pont-console.cjs`, a relancer si une classe warm-* nouvelle apparait) ; ecrans 2FA a la
+   maquette I (`CoqueConsoleAuth`, `OtpInput variante="console"`, sans version ni carte) ; Facturation (vue
+   « Tous » par defaut, demonstration exclue), Support, colonne Interventions et creation d'ecole au format
+   `.liste` / fiche ; recherche des COMPTES dans Ctrl+K (action serveur `recherche-actions.ts`, 8 max, ni parents
+   ni editeurs, compte mis en evidence sur la fiche via `?compte=`). Fonctions deja presentes : historique editeur
+   (colonne « Console editeur » de la fiche), etat 2FA dans Utilisateurs, filtres de la liste.
 3. **Ecole de demonstration** : enroler la 2FA des comptes ; y tester le depart d'une ecole et
    l'ordre des Gabarits.
 4. **Jour J** : effacer les donnees de test, creer l'etablissement reel (admin + direction).

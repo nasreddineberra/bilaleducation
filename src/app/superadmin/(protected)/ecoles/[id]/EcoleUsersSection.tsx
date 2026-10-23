@@ -283,7 +283,8 @@ export default function EcoleUsersSection({ profiles, auth, etablissementId, eta
             <div key={p.id} id={`compte-${p.id}`} className={clsx(
               'flex items-center justify-between px-3 py-1.5 rounded-xl transition-shadow',
               p.is_active ? 'bg-warm-50' : 'bg-warm-100 opacity-60',
-              enEvidence === p.id && 'ring-2 ring-[var(--console-accent-trait)]',
+              // `ring-inset` : la liste defile (overflow), un contour exterieur y etait rogne.
+              enEvidence === p.id && 'ring-2 ring-inset ring-[var(--console-accent-trait)]',
             )}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-secondary-800 leading-tight">{p.last_name} {p.first_name}</p>
