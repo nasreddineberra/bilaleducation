@@ -66,11 +66,42 @@ async function appliquerComptes(admin: ReturnType<typeof createAdminClient>, eta
       .eq('etablissement_id', etablissementId).eq('email', `${c.email}@${DOMAINE}`).select('id')
     if (error) console.error('[demo] nom du compte %s non mis a jour :', c.email, error)
   }
-  const { data } = await admin.from('etablissement_notes').select('notes').eq('etablissement_id', etablissementId).maybeSingle()
-  const ligne = (data?.notes ?? '').split('\n').find((l: string) => l.startsWith(LIGNE_MDP))
-  const mdp = ligne ? ligne.slice(LIGNE_MDP.length) : null
+  const mdp = await lireMotDePasse(admin, etablissementId)
   const { error } = await admin.from('etablissement_notes').upsert({ etablissement_id: etablissementId, notes: notesDemo(mdp) })
   if (error) console.error('[demo] notes:', error)
+}
+
+/** Mot de passe commun range dans les notes de la fiche (`null` s'il n'y est plus). */
+async function lireMotDePasse(admin: ReturnType<typeof createAdminClient>, etablissementId: string): Promise<string | null> {
+  const { data } = await admin.from('etablissement_notes').select('notes').eq('etablissement_id', etablissementId).maybeSingle()
+  const ligne = (data?.notes ?? '').split('\n').find((l: string) => l.startsWith(LIGNE_MDP))
+  return ligne ? ligne.slice(LIGNE_MDP.length).trim() || null : null
+}
+
+/**
+ * Cree UN compte de la demonstration : connexion (API d'authentification) puis
+ * profil. Si le profil echoue, le compte de connexion est retire : pas de compte
+ * orphelin. Partagee par la creation de l'ecole et par la remise a zero (qui
+ * recree les comptes disparus, apres un depart de l'ecole par exemple).
+ */
+async function creerCompteDemo(
+  admin: ReturnType<typeof createAdminClient>, c: (typeof COMPTES)[number], etablissementId: string, mdp: string,
+): Promise<{ id?: string; error?: string }> {
+  const email = `${c.email}@${DOMAINE}`
+  const { data: auth, error: eAuth } = await admin.auth.admin.createUser({
+    email, password: mdp, email_confirm: true,
+    app_metadata: { role: c.role, etablissement_id: etablissementId },
+  })
+  if (eAuth || !auth.user) return { error: `Création du compte ${email} impossible : ${eAuth?.message ?? 'réponse vide'}` }
+  const { error: eProfil } = await admin.from('profiles').insert({
+    id: auth.user.id, email, role: c.role, civilite: c.civilite,
+    first_name: c.prenom, last_name: c.nom, is_active: true, etablissement_id: etablissementId,
+  })
+  if (eProfil) {
+    await admin.auth.admin.deleteUser(auth.user.id).catch(e => console.error('[demo] retrait du compte orphelin:', e))
+    return { error: `Création du profil ${email} impossible : ${eProfil.message}` }
+  }
+  return { id: auth.user.id }
 }
 
 type Fichier = { bucket: string; nom: string }
@@ -160,18 +191,9 @@ export async function creerEcoleDemo(): Promise<{ error?: string; id?: string; m
   }
 
   for (const c of COMPTES) {
-    const email = `${c.email}@${DOMAINE}`
-    const { data: auth, error: eAuth } = await admin.auth.admin.createUser({
-      email, password: mdp, email_confirm: true,
-      app_metadata: { role: c.role, etablissement_id: ecole.id },
-    })
-    if (eAuth || !auth.user) return annuler(`Création du compte ${email} impossible : ${eAuth?.message ?? 'réponse vide'}`)
-    crees.push(auth.user.id)
-    const { error: eProfil } = await admin.from('profiles').insert({
-      id: auth.user.id, email, role: c.role, civilite: c.civilite,
-      first_name: c.prenom, last_name: c.nom, is_active: true, etablissement_id: ecole.id,
-    })
-    if (eProfil) return annuler(`Création du profil ${email} impossible : ${eProfil.message}`)
+    const r = await creerCompteDemo(admin, c, ecole.id, mdp)
+    if (r.error || !r.id) return annuler(r.error ?? 'Création d\'un compte impossible.')
+    crees.push(r.id)
   }
 
   const { error: ePeuple } = await admin.rpc('reinitialiser_ecole_demo', { p_id: ecole.id })
@@ -349,7 +371,7 @@ async function retablirTous(admin: ReturnType<typeof createAdminClient>, etablis
   return echecs
 }
 
-export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{ error?: string; fichiers?: number; logo?: boolean }> {
+export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{ error?: string; fichiers?: number; logo?: boolean; recrees?: number }> {
   const { error: refus } = await requireEditor()
   if (refus) return { error: refus }
 
@@ -362,6 +384,26 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   // quoi `appliquerComptes` (qui retrouve les comptes par adresse) les sauterait.
   const echecs = await retablirTous(admin, etablissementId)
   if (echecs.length) return { error: `Accès prospects non fermés, remise à zéro annulée · ${echecs.join(' · ')}` }
+
+  // Comptes DISPARUS (un depart de l'ecole les supprime, RGPD) : recrees avec le
+  // mot de passe commun des notes, sinon un nouveau, range a son tour. Leur 2FA
+  // est perdue avec eux et sera a enroler de nouveau. Les comptes presents sont
+  // conserves tels quels, 2FA comprise.
+  const { data: presents } = await admin.from('profiles').select('email').eq('etablissement_id', etablissementId)
+  const emails = new Set((presents ?? []).map(p => p.email))
+  const manquants = COMPTES.filter(c => !emails.has(`${c.email}@${DOMAINE}`))
+  if (manquants.length) {
+    let mdp = await lireMotDePasse(admin, etablissementId)
+    if (!mdp || COMPTES.some(c => validatePasswordServer(mdp as string, c.prenom, c.nom))) {
+      mdp = motDePasse()
+      const { error: eNotes } = await admin.from('etablissement_notes').upsert({ etablissement_id: etablissementId, notes: notesDemo(mdp) })
+      if (eNotes) return { error: `Mot de passe des comptes non rangé, remise à zéro annulée : ${eNotes.message}` }
+    }
+    for (const c of manquants) {
+      const r = await creerCompteDemo(admin, c, etablissementId, mdp)
+      if (r.error) return { error: `${r.error} Remise à zéro annulée.` }
+    }
+  }
   await appliquerComptes(admin, etablissementId)
 
   const { data, error } = await admin.rpc('reinitialiser_ecole_demo', { p_id: etablissementId })
@@ -376,9 +418,10 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
 
   await tracerActionEditeur(await createClient(), {
     etablissementId,
-    description: `Remise à zéro de l'école de démonstration (année ${data.annee})`,
+    description: `Remise à zéro de l'école de démonstration (année ${data.annee})`
+      + (manquants.length ? ` · ${manquants.length} compte(s) recréé(s)` : ''),
   })
   revalidatePath('/superadmin')
   revalidatePath(`/superadmin/ecoles/${etablissementId}`)
-  return { fichiers, logo }
+  return { fichiers, logo, recrees: manquants.length }
 }

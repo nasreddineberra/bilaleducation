@@ -22,6 +22,8 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
       setAConfirmer(false)
       if (r.logo === false) toast.warning("L'école de démonstration est remise à zéro, mais son logo n'a pas pu être posé.")
       else toast.success("L'école de démonstration est remise à zéro.")
+      // Comptes recrees (apres un depart) : leur double authentification est perdue.
+      if (r.recrees) toast.warning(`${r.recrees} compte(s) recréé(s) : leur double authentification est à enrôler de nouveau.`)
       router.refresh()
     } finally {
       setEnCours(false)

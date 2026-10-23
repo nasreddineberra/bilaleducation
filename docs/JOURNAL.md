@@ -9203,3 +9203,17 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   (« cliquez a nouveau sur Exporter »), Oui continue la procedure (simulation, saisie du sous-domaine).
 - Controles : type-check OK, lint 0 erreur, build OK ; detection eprouvee sur le stockage reel (BILAL : export
   present ; demonstration : aucun).
+
+#### 23 octobre 2026 — Demonstration : la remise a zero recree les comptes disparus
+
+- Apres le test du depart, « Reinitialiser » echouait : « Il faut 3 comptes enseignants dans l'ecole de
+  demonstration (trouves : 0) ». La remise a zero CONSERVE les 7 comptes (et leur 2FA) ; le depart les
+  supprime (RGPD) ; seule la creation de l'ecole savait les fabriquer, et elle refuse une ecole existante. Plus
+  aucun moyen de remettre la demonstration en etat apres un depart.
+- `creerCompteDemo` (connexion + profil, compte de connexion retire si le profil echoue) partagee par la
+  creation et la remise a zero ; `lireMotDePasse` (notes de la fiche) partagee avec `appliquerComptes`.
+- La remise a zero recree les comptes MANQUANTS (apres la fermeture des acces prospects) avec le mot de passe
+  commun des notes internes (qui survivent au depart), sinon un nouveau, range dans les notes. Les comptes
+  presents restent tels quels, 2FA comprise. Message « N compte(s) recree(s) : leur double authentification est
+  a enroler de nouveau », et la trace editeur le mentionne.
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK.
