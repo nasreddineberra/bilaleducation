@@ -353,6 +353,11 @@ sauvegarde locale automatisee, tests automatises (session, ordre,
 financements, retention…), ecole de demonstration.
 
 ### Reste a faire
+0. **A LA REPRISE (24/10) · Node2Shell (CVE-2026-111497)** : la production tournait en Node **24.21.0** le 23/10
+   au soir (correctif = **24.22.1**, Vercel le deploie lui-meme, WAF en attendant). Survoler la pastille de
+   version de la console : si < 24.22.1, relancer un deploiement (Vercel « Redeploy » ou commit vide), puis
+   verifier le reglage « Node.js Version » du projet. Poste de travail deja en 24.22.1. Verifier aussi qu'une
+   fiche Utilisateur / Enseignant / Foyer s'enregistre (zod 4.6.7).
 1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
    (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Passe PAGE PAR
    PAGE en cours (18/10)** : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Regle : texte

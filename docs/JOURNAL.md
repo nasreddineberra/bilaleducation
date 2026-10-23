@@ -9260,3 +9260,12 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   saisies serveur des Utilisateurs, Enseignants, Parents). `npm audit` : reste postcss-selector-parser (Tailwind 4,
   ecarte).
 - Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK (Node 24.22.1).
+
+#### 23 octobre 2026 (soir) — Node2Shell : production pas encore corrigee
+
+- La console affiche **Node.js v24.21.0** en production : Vercel n'avait pas encore deploye 24.22.1. D'apres des
+  sources secondaires, Vercel corrige lui-meme les projets 22.x / 24.x (deploiement en cours le 22/10) et son WAF
+  bloque les schemas d'attaque connus en attendant (pas les reponses que le code va chercher). Exposition faible
+  (appels sortants vers des serveurs de confiance, pas de decompression Brotli dans le code).
+- A la reprise : survoler la pastille de version ; si < 24.22.1, redeployer, puis verifier le reglage Node.js du
+  projet Vercel.
