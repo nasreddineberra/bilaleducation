@@ -9119,3 +9119,18 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   (fond, texte, bordure, anneau, separateur, placeholder, survol, focus, disabled, peer, `lg:`) + 6 beiges
   apportes par `@apply` (`.btn-secondary`, `.input`, `.table`), reperes a leur valeur `rgb`. Les 48 verifiees
   dans le CSS servi. L'ecole n'a jamais `data-espace="console"` : intacte.
+
+#### 23 octobre 2026 — Console editeur : ecrans de 2FA (maquette I)
+
+- La console passe par `/auth/totp-challenge` et `/auth/enroll-totp`, partages avec l'ecole. En contexte console
+  ils gardaient la carte blanche de l'ecole, un pied de page qui AFFICHAIT LA VERSION (contraire a la regle « un
+  visiteur n'apprend rien ») et « Retour a la connexion » vers `/login` (celle des ecoles) sans deconnecter.
+- `components/superadmin/CoqueConsoleAuth.tsx` : coque graphite sans carte ni pied (celle de la connexion),
+  `useEspaceConsole()` (lit `data-espace`, `null` avant montage -> `FondAuth`), `BOUTON_CONSOLE` (citron vert
+  borde, desormais aussi celui de la connexion : une seule definition), `ErreurConsole`, `ChangerDeCompte`
+  (deconnexion puis `/superadmin/login`).
+- Saisie du code : legende « Code de verification », 6 cases sombres (`OtpInput variante="console"` : champ
+  console, chiffres a chasse fixe, focus citron vert + halo), bouton « Verifier » (validation auto au 6e
+  chiffre conservee). Activation : QR code sur plaque BLANCHE (lisibilite au telephone), cle de secours a chasse
+  fixe, memes cases, « Activer », puis « Acceder a la console ». L'ecole garde ses ecrans.
+- Controles : type-check OK, lint 0 erreur, 129 tests OK, build OK, 58 classes verifiees dans le CSS servi.

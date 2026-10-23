@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { authRepository } from '@/lib/database/auth'
 import MarqueConsole from '@/components/superadmin/MarqueConsole'
+import { BOUTON_CONSOLE } from '@/components/superadmin/CoqueConsoleAuth'
 
 /**
  * Connexion de la CONSOLE DE L'EDITEUR (refonte du 22/10, maquette H).
@@ -127,7 +128,7 @@ export default function SuperAdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-[46px] !mt-6 rounded-full text-sm font-bold transition-colors border border-[var(--console-accent-trait)] bg-[var(--console-accent)] text-[var(--console-accent-encre)] hover:bg-[var(--console-accent-2)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--console-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-surface)] disabled:opacity-60 disabled:cursor-not-allowed"
+            className={`${BOUTON_CONSOLE} !mt-6`}
           >
             {loading ? 'Vérification…' : 'Se connecter'}
           </button>

@@ -9,6 +9,9 @@ import OtpInput from '@/components/ui/OtpInput'
 import { FloatButton } from '@/components/ui/FloatFields'
 import { createClient } from '@/lib/supabase/client'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader'
+import CoqueConsoleAuth, {
+  useEspaceConsole, FondAuth, BOUTON_CONSOLE, ErreurConsole, ChangerDeCompte,
+} from '@/components/superadmin/CoqueConsoleAuth'
 
 /**
  * Destination après validation : `next` s'il est fourni, sinon le tableau de
@@ -34,6 +37,7 @@ export default function TotpChallengePage() {
   const [chargementEchoue, setChargementEchoue] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
+  const enConsole = useEspaceConsole()
   // Thème de l'utilisateur : dès la 2FA il est identifié, on applique sa
   // préférence (et on l'amorce dans localStorage → dashboard sans flash).
   useEffect(() => {
@@ -146,6 +150,46 @@ export default function TotpChallengePage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (enConsole === null) return <FondAuth />
+
+  // Console de l'editeur : maquette I (marque + code, sans carte ni pied de page).
+  if (enConsole) {
+    return (
+      <CoqueConsoleAuth>
+        {chargementEchoue ? (
+          <div className="w-full space-y-4">
+            <ErreurConsole>{chargementEchoue}</ErreurConsole>
+            <button type="button" onClick={() => window.location.reload()} className={BOUTON_CONSOLE}>
+              Réessayer
+            </button>
+          </div>
+        ) : !isReady ? (
+          <Loader2 size={28} className="animate-spin text-[var(--console-texte-doux)]" aria-label="Chargement" />
+        ) : (
+          <form onSubmit={e => { e.preventDefault(); verify(otp) }} noValidate className="w-full space-y-4">
+            {error && <ErreurConsole>{error}</ErreurConsole>}
+            <fieldset>
+              <legend className="mb-2 text-xs font-semibold text-[var(--console-texte-doux)]">Code de vérification</legend>
+              <OtpInput
+                value={otp}
+                onChange={setOtp}
+                onComplete={verify}
+                disabled={isSubmitting}
+                error={!!error}
+                variante="console"
+                ariaLabel="Code à 6 chiffres de votre application d'authentification"
+              />
+            </fieldset>
+            <button type="submit" disabled={otp.length !== 6 || isSubmitting} className={`${BOUTON_CONSOLE} !mt-6`}>
+              {isSubmitting ? 'Vérification…' : 'Vérifier'}
+            </button>
+          </form>
+        )}
+        <ChangerDeCompte />
+      </CoqueConsoleAuth>
+    )
   }
 
   return (

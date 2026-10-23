@@ -26,6 +26,9 @@ import OtpInput from '@/components/ui/OtpInput'
 import { createClient } from '@/lib/supabase/client'
 import QRCode from 'qrcode'
 import AuthBrandHeader from '@/components/auth/AuthBrandHeader'
+import CoqueConsoleAuth, {
+  useEspaceConsole, FondAuth, BOUTON_CONSOLE, ErreurConsole, ChangerDeCompte,
+} from '@/components/superadmin/CoqueConsoleAuth'
 
 type Step = 'enroll' | 'otp' | 'done'
 
@@ -40,6 +43,9 @@ export default function EnrollTotpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,        setError]        = useState<string | null>(null)
   const [isLoadingQr,  setIsLoadingQr]  = useState(false)
+  // Clé à saisir à la main si le QR code ne se lit pas (affichée sur la console).
+  const [secret,       setSecret]       = useState('')
+  const enConsole = useEspaceConsole()
 
   // Générer le QR code quand un URI TOTP est disponible
   useEffect(() => {
@@ -171,6 +177,7 @@ export default function EnrollTotpPage() {
       }
 
       setFactorId(enrollData.id)
+      setSecret(enrollData.totp?.secret ?? '')
       setStep('otp')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? ''
@@ -214,6 +221,76 @@ export default function EnrollTotpPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (enConsole === null) return <FondAuth />
+
+  // Console de l'editeur : alignee sur la maquette I. Le QR code garde une
+  // plaque BLANCHE : un telephone le lit mal sur fond sombre.
+  if (enConsole) {
+    return (
+      <CoqueConsoleAuth>
+        {step === 'enroll' && (
+          <div className="w-full space-y-4">
+            {error && <ErreurConsole>{error}</ErreurConsole>}
+            <button type="button" onClick={handleEnroll} disabled={isSubmitting} className={BOUTON_CONSOLE}>
+              {isSubmitting ? 'Préparation…' : 'Activer la double authentification'}
+            </button>
+          </div>
+        )}
+
+        {step === 'otp' && (
+          <form onSubmit={e => { e.preventDefault(); verify(otp) }} noValidate className="w-full space-y-4">
+            {error && <ErreurConsole>{error}</ErreurConsole>}
+            <div className="flex flex-col items-center gap-3">
+              <div className="p-3 rounded-2xl bg-[#ffffff]">
+                {isLoadingQr ? (
+                  <div className="w-[200px] h-[200px] flex items-center justify-center">
+                    <Loader2 size={28} className="animate-spin text-[var(--brand-surface)]" />
+                  </div>
+                ) : qrCodeData?.type === 'image' ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrCodeData.value} alt="QR code à scanner" className="w-[200px] h-[200px]" />
+                ) : qrCodeData?.type === 'uri' ? (
+                  <canvas ref={canvasRef} aria-label="QR code à scanner" />
+                ) : null}
+              </div>
+              {secret && (
+                <p className="mono text-xs tracking-wider text-[var(--console-texte-doux)] break-all text-center select-all">
+                  {secret}
+                </p>
+              )}
+            </div>
+            <fieldset>
+              <legend className="mb-2 text-xs font-semibold text-[var(--console-texte-doux)]">Code de vérification</legend>
+              <OtpInput
+                value={otp}
+                onChange={setOtp}
+                onComplete={verify}
+                disabled={isSubmitting}
+                error={!!error}
+                variante="console"
+                ariaLabel="Code à 6 chiffres de votre application d'authentification"
+              />
+            </fieldset>
+            <button type="submit" disabled={otp.length !== 6 || isSubmitting} className={`${BOUTON_CONSOLE} !mt-6`}>
+              {isSubmitting ? 'Vérification…' : 'Activer'}
+            </button>
+          </form>
+        )}
+
+        {step === 'done' && (
+          <div className="w-full space-y-4 text-center">
+            <p role="status" className="text-sm font-semibold text-white">Double authentification activée.</p>
+            <button type="button" onClick={() => router.push(destinationApres2FA())} className={BOUTON_CONSOLE}>
+              Accéder à la console
+            </button>
+          </div>
+        )}
+
+        {step !== 'done' && <ChangerDeCompte />}
+      </CoqueConsoleAuth>
+    )
   }
 
   return (

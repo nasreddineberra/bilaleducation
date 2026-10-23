@@ -14,6 +14,8 @@ interface OtpInputProps {
   error?: boolean
   autoFocus?: boolean
   ariaLabel?: string
+  /** `console` : cases sombres de la console de l'editeur (maquette I). */
+  variante?: 'ecole' | 'console'
 }
 
 /**
@@ -25,7 +27,7 @@ interface OtpInputProps {
  */
 export default function OtpInput({
   value, onChange, onComplete, length = 6, disabled = false, error = false,
-  autoFocus = true, ariaLabel = 'Code de vérification',
+  autoFocus = true, ariaLabel = 'Code de vérification', variante = 'ecole',
 }: OtpInputProps) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const digits = Array.from({ length }, (_, i) => value[i] ?? '')
@@ -78,7 +80,7 @@ export default function OtpInput({
   }
 
   return (
-    <div className="flex justify-center gap-2 sm:gap-2.5" role="group" aria-label={ariaLabel}>
+    <div className={variante === 'console' ? 'flex justify-between gap-1.5' : 'flex justify-center gap-2 sm:gap-2.5'} role="group" aria-label={ariaLabel}>
       {digits.map((d, i) => (
         <input
           key={i}
@@ -94,16 +96,24 @@ export default function OtpInput({
           onKeyDown={e => handleKeyDown(i, e)}
           onPaste={e => handlePaste(i, e)}
           onFocus={e => e.currentTarget.select()}
-          className={clsx(
-            'w-11 h-14 sm:w-12 rounded-xl border-2 text-center text-2xl font-bold tabular-nums',
-            'text-secondary-800 dark:text-[#e7eef0] outline-none transition-colors',
-            'focus:ring-2 focus:ring-[var(--brand-focus)] disabled:opacity-60 disabled:cursor-not-allowed',
-            error
-              ? 'border-red-400 focus:border-red-500'
-              : d
-                ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)]'
-                : 'border-warm-200 bg-white dark:border-[#2c3a42] dark:bg-[#1a252b] focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)]',
-          )}
+          className={variante === 'console'
+            ? clsx(
+                'w-11 h-14 sm:w-[52px] sm:h-[58px] rounded-xl border text-center mono text-[22px] font-semibold tabular-nums',
+                'text-white bg-[var(--console-champ)] outline-none transition-colors',
+                'focus:border-[var(--console-accent)] focus:shadow-[0_0_0_4px_var(--console-halo)]',
+                'disabled:opacity-60 disabled:cursor-not-allowed',
+                error ? 'border-[var(--console-erreur)]' : 'border-[var(--console-champ-trait)]',
+              )
+            : clsx(
+                'w-11 h-14 sm:w-12 rounded-xl border-2 text-center text-2xl font-bold tabular-nums',
+                'text-secondary-800 dark:text-[#e7eef0] outline-none transition-colors',
+                'focus:ring-2 focus:ring-[var(--brand-focus)] disabled:opacity-60 disabled:cursor-not-allowed',
+                error
+                  ? 'border-red-400 focus:border-red-500'
+                  : d
+                    ? 'border-[var(--brand-line)] bg-[var(--brand-tint)] focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)]'
+                    : 'border-warm-200 bg-white dark:border-[#2c3a42] dark:bg-[#1a252b] focus:border-[var(--brand-surface)] dark:focus:border-[var(--brand-accent)]',
+              )}
         />
       ))}
     </div>
