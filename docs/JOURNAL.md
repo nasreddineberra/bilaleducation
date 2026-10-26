@@ -9269,3 +9269,38 @@ Releves par l'utilisateur sur l'ecole de demonstration (Brave, Android, ~360 px)
   (appels sortants vers des serveurs de confiance, pas de decompression Brotli dans le code).
 - A la reprise : survoler la pastille de version ; si < 24.22.1, redeployer, puis verifier le reglage Node.js du
   projet Vercel.
+
+#### 26 octobre 2026 — Node2Shell en attente de Vercel ; mouvements d'inscription (lot 1)
+
+**Node2Shell** : apres un « Redeploy » sans cache, la production reste en Node 24.21.0. Le projet est bien en
+24.x (`engines` et reglage Vercel) : le PATCH depend de Vercel seul. Redeployer ne sert a rien tant que Vercel n'a
+pas publie 24.22.1 ; pare-feu Vercel actif, exposition faible. zod 4.6.7 verifie (Utilisateur, Enseignant, Foyer).
+
+**`family_fees.subtotal` : le signalement etait en grande partie perime.** Depuis le 06/10, les 4 RPC d'argent
+reecrivent le sous-total a chaque passage, et l'audit Financements rafraichit les dossiers divergents. Restait un
+cas etroit (foyer sans inscription : le sous-total enregistre fait foi), et l'audit ne le voit PAS (le « vivant »
+y repart du stocke) — je l'avais d'abord affirme a tort.
+
+**La vraie question etait metier.** Retirer un enfant SUPPRIME son inscription : sa cotisation disparait du du,
+en totalite, sans trace. L'application tranchait seule ce qui appartient a l'etablissement, et un etablissement
+qui voulait facturer quand meme ne le pouvait pas (ajustements negatifs seulement).
+
+**Decisions de l'utilisateur** : reglage PAR ETABLISSEMENT (Sans ajustement · Due en totalite · Au prorata · Au cas
+par cas), meme regle pour arrivees et departs, defaut = comportement actuel (« Sans ajustement » : l'enfant present
+doit l'annee, l'enfant parti ne doit plus rien — « Annulee » lu au pied de la lettre aurait rendu gratuite toute
+inscription faite apres la rentree), prorata au mois commence, frais d'inscription toujours dus, enfant parti garde
+sa place dans la remise fratrie, transfert le meme jour, regle appliquee seulement apres la rentree. **Tout
+mouvement est trace**, date, heure, auteur.
+
+**Lot 1 (migration `add-mouvements-inscription.sql`, controle 21)** : aucun effet sur les montants.
+- Declencheurs plutot que code applicatif : Affectations, statuts en lot, fiche foyer, RPC passent tous par la
+  base ; la trace est dans la meme transaction que le mouvement.
+- Table propre plutot que `audit_logs` : le journal ne trace ni les admins ni l'editeur (16/10), une trace
+  financiere ne peut pas avoir de trous.
+- `date_effet` distincte de `survenu_le` : une arrivee prend la date d'inscription (la demonstration la pose a la
+  rentree), c'est elle que la regle comparera a la rentree.
+- Non trace : effacement d'ecole (`fn_effacement_en_cours`), cascades (fiche disparue), annee close.
+- Controle 21 vu ROUGE (declencheur retire, policy de fuite ajoutee : 2 KO) avant d'etre cru vert ; controles 08
+  (depart, la table est exportee et effacee d'office) et 09 (demonstration) verts avec la migration.
+- Encadre « Informations sur mouvements » dans Reglements, en lecture, SANS regle ni montant tant que le calcul
+  ne les applique pas (sinon il laisserait croire a un prorata).

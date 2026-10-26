@@ -11,6 +11,7 @@ interface Props {
   adultEnrollments: any[]
   familyFees: any[]
   communications: any[]
+  mouvements: any[]
   etablissement: any
   initialParentId?: string
   familyHistory: Record<string, any[]>

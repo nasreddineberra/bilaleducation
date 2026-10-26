@@ -358,7 +358,7 @@ financements, retention…), ecole de demonstration.
    « Redeploy » sans cache (correctif = **24.22.1**), pare-feu Vercel actif en attendant. Exposition faible (pas
    d'Express, appels sortants vers Supabase / push / SMTP seulement). Survoler la pastille de version de la
    console : aucun redeploiement utile tant que Vercel n'a pas publie 24.22.1 ; la version se lit au demarrage
-   de la fonction. Reste a verifier qu'une fiche Utilisateur / Enseignant / Foyer s'enregistre (zod 4.6.7).
+   de la fonction. zod 4.6.7 verifie le 26/10 (fiches Utilisateur, Enseignant, Foyer).
 1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
    (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Passe PAGE PAR
    PAGE en cours (18/10)** : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Regle : texte
@@ -423,8 +423,16 @@ financements, retention…), ecole de demonstration.
    laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
+5 bis. **Ajustements en cours d'annee (26/10, lot 1 FAIT)** : table `mouvements_inscription` ecrite par la base
+   (declencheurs sur `enrollments`, `parent_class_enrollments`, `students.is_active`), auteur compris admin, regle de
+   l'etablissement FIGEE au mouvement (`etablissements.regle_ajustement`, defaut `sans_ajustement`), controle 21 ;
+   encadre « Informations sur mouvements » dans Reglements (lecture). **Lot 2** : reglage en tete de Cotisations
+   (bandeau « Ajustements en cours d'annee », `FiltreSwitch` Sans ajustement / Due en totalite / Au prorata / Au cas
+   par cas), calcul dans `compute.ts` (prorata au mois commence, frais d'inscription toujours dus, enfant parti garde
+   sa place dans la remise fratrie, transfert = meme jour), decisions « au cas par cas » (compte sans ajustement en
+   attendant, signale par l'audit Financements), regle appliquee seulement apres la rentree (`date_effet`).
 6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
-   `family_fees.subtotal` jamais rafraichi ; `import_foyer` ne compte que les eleves au pre-controle ;
+   `import_foyer` ne compte que les eleves au pre-controle ;
    sortie des 503 `any` ; `.card-flush`
    inutilisee (adopter ou supprimer).
 7. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur, accords « (s) »

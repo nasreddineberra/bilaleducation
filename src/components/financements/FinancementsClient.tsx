@@ -81,6 +81,8 @@ interface Props {
   adultEnrollments: any[]
   familyFees: any[]
   communications: any[]
+  /** Mouvements d'inscription de l'annee, tous foyers (`mouvements_inscription`). */
+  mouvements?: Mouvement[]
   /** Suppression du journal comptable : admin/direction seuls (policy fin_comm_delete). */
   canDeleteComms?: boolean
   /** Emplacement des cartes de montants, a droite des onglets (`ReglementsShell`). */
@@ -102,6 +104,49 @@ function fmtEur(n: number) {
 function fmtDate(d: string) {
   // `AAAA-MM-JJ` seul est lu en UTC : on l'ancre a minuit LOCAL.
   return new Date(d.length === 10 ? `${d}T00:00` : d).toLocaleDateString('fr-FR')
+}
+
+function fmtDateHeure(d: string) {
+  const dt = new Date(d)
+  return `${dt.toLocaleDateString('fr-FR')} ${dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+}
+
+/** Une ligne de `mouvements_inscription`, telle que la page la charge. */
+interface Mouvement {
+  id: string
+  parent_id: string | null
+  student_id: string | null
+  tutor_number: 1 | 2 | null
+  sens: 'arrivee' | 'depart'
+  motif: 'affectation' | 'statut'
+  survenu_le: string
+  date_effet: string
+  classe_nom: string | null
+  auteur_nom: string | null
+  students: { last_name: string; first_name: string } | null
+  parents: { tutor1_last_name: string; tutor1_first_name: string; tutor2_last_name: string | null; tutor2_first_name: string | null } | null
+}
+
+/** Eleve `NOM Prenom`, ou tuteur (cours adulte) d'apres son numero. */
+function nomMouvement(m: Mouvement): string {
+  const p = m.student_id
+    ? { nom: m.students?.last_name, prenom: m.students?.first_name }
+    : m.tutor_number === 2
+      ? { nom: m.parents?.tutor2_last_name, prenom: m.parents?.tutor2_first_name }
+      : { nom: m.parents?.tutor1_last_name, prenom: m.parents?.tutor1_first_name }
+  return [p.nom?.toUpperCase(), p.prenom].filter(Boolean).join(' ')
+}
+
+function libelleMouvement(m: Mouvement): string {
+  const classe = m.classe_nom ?? 'classe supprimée'
+  if (m.motif === 'statut') return `${m.sens === 'arrivee' ? 'Réactivé' : 'Rendu inactif'} · ${classe}`
+  const action = m.sens === 'arrivee' ? `Affecté à ${classe}` : `Retiré de ${classe}`
+  // Une arrivee datee d'avant le geste (rentree, import) : on dit depuis quand.
+  // `survenu_le` est en UTC : on compare au jour LOCAL du geste.
+  const jourGeste = new Date(m.survenu_le).toLocaleDateString('fr-CA')
+  return m.date_effet !== jourGeste
+    ?`${action} · effet le ${fmtDate(m.date_effet)}`
+    : action
 }
 
 /** Aujourd'hui en `AAAA-MM-JJ` local (jamais `toISOString()`). */
@@ -273,7 +318,7 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, etablissement, initialParentId, familyHistory = {}, canDeleteComms = false, emplacementMontants = null }: Props & { initialParentId?: string }) {
+export default function FinancementsClient({ currentYear, parents: rawParents, adultEnrollments, familyFees: initialFees, communications: initialComms, mouvements = [], etablissement, initialParentId, familyHistory = {}, canDeleteComms = false, emplacementMontants = null }: Props & { initialParentId?: string }) {
   const supabase = createClient()
   const toast = useToast()
 
@@ -388,6 +433,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const familyComms = useMemo(
     () => communications.filter(c => c.parent_id === selectedParentId),
     [communications, selectedParentId],
+  )
+  const familyMouvements = useMemo(
+    () => mouvements.filter(m => m.parent_id === selectedParentId),
+    [mouvements, selectedParentId],
   )
 
   // ── Créer/récupérer le family_fee ────────────────────────────────────────
@@ -970,6 +1019,32 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   </tr>
                 </tfoot>
               </table>
+            </div>
+
+            {/* Informations sur mouvements : affectations et retraits de l'annee, traces par la base */}
+            <div className="card p-0 overflow-hidden">
+              <h3 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">Informations sur mouvements</h3>
+              {familyMouvements.length === 0 ? (
+                <div className="px-4 py-3 text-center">
+                  <p className="text-sm text-warm-700">Aucun mouvement.</p>
+                </div>
+              ) : (
+                <ul className="divide-y divide-warm-50 max-h-48 overflow-y-auto list-scroll" aria-label="Mouvements d'inscription">
+                  {familyMouvements.map(m => {
+                    const texte = [nomMouvement(m), libelleMouvement(m), m.auteur_nom && `par ${m.auteur_nom}`]
+                      .filter(Boolean).join(' · ')
+                    return (
+                      <li key={m.id} className="px-3 py-1.5 flex items-center gap-2 text-xs">
+                        <span className="text-warm-700 whitespace-nowrap tabular-nums">{fmtDateHeure(m.survenu_le)}</span>
+                        <span className="shrink-0">
+                          <Puce ton={m.sens === 'arrivee' ? 'ok' : 'orange'}>{m.sens === 'arrivee' ? 'Arrivée' : 'Départ'}</Puce>
+                        </span>
+                        <TruncatedText text={texte} className="text-secondary-700" />
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
 
             {/* Communication comptable — historique des envois (relance / attestation) */}

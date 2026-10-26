@@ -151,6 +151,14 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     .eq('school_year_id', currentYear.id)
     .order('sent_at', { ascending: false })
 
+  // Mouvements d'inscription de l'annee (affectations, retraits, statut), ecrits
+  // par la base elle-meme (`add-mouvements-inscription.sql`). Lecture seule.
+  const { data: mouvements } = await supabase
+    .from('mouvements_inscription')
+    .select('id, parent_id, student_id, tutor_number, sens, motif, survenu_le, date_effet, classe_nom, auteur_nom, students:student_id(last_name, first_name), parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
+    .eq('school_year_id', currentYear.id)
+    .order('survenu_le', { ascending: false })
+
   // Etablissement (en-tete de l'attestation PDF, identique aux bulletins).
   const { data: etablissement } = await supabase
     .from('etablissements')
@@ -219,6 +227,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         adultEnrollments={(adultEnrollments ?? []) as any[]}
         familyFees={(familyFees ?? []) as any[]}
         communications={(communications ?? []) as any[]}
+        mouvements={(mouvements ?? []) as any[]}
         etablissement={(etablissement ?? null) as any}
         initialParentId={initialParentId}
         familyHistory={familyHistory}
