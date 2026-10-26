@@ -139,6 +139,8 @@ interface Mouvement {
   decision: DecisionAjustement | null
   classe_nom: string | null
   auteur_nom: string | null
+  /** Depart encore compte (`chargerDeparts`) : faux pour un participant revenu ou un depart plus ancien. */
+  retenu?: boolean
   students: { last_name: string; first_name: string } | null
   parents: { tutor1_last_name: string; tutor1_first_name: string; tutor2_last_name: string | null; tutor2_first_name: string | null } | null
 }
@@ -1118,11 +1120,11 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                 <ul className="divide-y divide-warm-50 max-h-48 overflow-y-auto list-scroll" aria-label="Mouvements d'inscription">
                   {familyMouvements.map(m => {
                     // Un DEPART : ce que la regle en retient, d'apres la ligne du recapitulatif.
-                    const ligne = m.motif !== 'depart' ? null
+                    const ligne = m.motif !== 'depart' || !m.retenu ? null
                       : m.student_id
                         ? selectedParent.students.find(s => s.id === m.student_id && s.depart)
                         : selectedParent.adultLines.find(a => a.id.startsWith(`adult-${m.parent_id}-${m.tutor_number}-`) && a.depart)
-                    const aDecider = m.motif === 'depart' && m.regle === 'cas_par_cas'
+                    const aDecider = m.motif === 'depart' && m.regle === 'cas_par_cas' && !!m.retenu
                     const texte = [
                       nomMouvement(m), libelleMouvement(m),
                       ligne?.depart && `${detailDepart(ligne.depart)} · ${fmtEur(ligne.total)}`,

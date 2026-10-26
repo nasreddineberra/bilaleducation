@@ -8,7 +8,7 @@
 // les familles - ce qui etait possible tant qu'on refaisait le calcul.
 
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
-import { lignesCotisation, REGLE_PAR_DEFAUT } from '@/lib/financements/compute'
+import { lignesCotisation } from '@/lib/financements/compute'
 import { chargerDeparts } from '@/lib/financements/departs'
 import type { YearCtx } from './audits'
 
@@ -251,7 +251,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       .map(a => ({ type: a.adjustment_type, label: a.label, montant: Number(a.amount), date: a.adjustment_date }))
 
     // Lignes de cotisation (memes regles que le helper partage)
-    // Un depart que `chargerDeparts` ecarte (enfant revenu, ou depart plus ancien
+    // Un depart que `chargerDeparts` ecarte (participant revenu, ou depart plus ancien
     // qu'un autre) reste dans l'historique scolaire mais n'est pas facture.
     const famStudents = (studentsByParent.get(pid) ?? [])
       .filter((e: any) => e.status !== 'withdrawn' || departEleve.has(`${e.student_id}:${e.class_id}`))
@@ -271,10 +271,11 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
         ...(e.status === 'withdrawn' ? { date_depart: e.date_depart, regle: lignes[i].regle } : {}),
       })
     })
-    const famAdultes = adultsByParent.get(pid) ?? []
+    const famAdultes = (adultsByParent.get(pid) ?? [])
+      .filter((a: any) => a.status !== 'withdrawn' || departAdulte.has(`${a.parent_id}-${a.tutor_number}:${a.class_id}`))
     const lignesAdultes = lignesCotisation(famAdultes.map((a: any) => ({
       ct:     classById.get(a.class_id)?.cotisation_types,
-      depart: a.status === 'withdrawn' ? departAdulte.get(`${a.parent_id}-${a.tutor_number}:${a.class_id}`) ?? { date: a.date_depart, regle: REGLE_PAR_DEFAUT } : null,
+      depart: a.status === 'withdrawn' ? departAdulte.get(`${a.parent_id}-${a.tutor_number}:${a.class_id}`)! : null,
     })), annee, { fratrie: false })
     famAdultes.forEach((a: any, i: number) => {
       const ct = classById.get(a.class_id)?.cotisation_types

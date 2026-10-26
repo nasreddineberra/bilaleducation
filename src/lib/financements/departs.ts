@@ -14,8 +14,8 @@
 // Un enfant parti puis REVENU dans l'annee (reaffecte, dans la meme classe ou une
 // autre) ne compte qu'une fois : sa classe active prend le relais et le depart
 // sort du calcul (il reste dans les mouvements). Parti plusieurs fois : seul le
-// DERNIER depart compte. Un adulte peut suivre plusieurs cours : ses departs
-// restent chacun sur leur classe (le retour dans la meme classe reactive la ligne).
+// DERNIER depart compte. Meme regle pour un adulte (decision du 26/10), cours
+// adultes seulement : un adulte reinscrit a un cours ne paie plus celui qu'il a quitte.
 //
 // La regle vient du MOUVEMENT (`mouvements_inscription`, lu par la direction,
 // l'admin et la comptabilite) ; s'il manque, la regle par defaut s'applique
@@ -57,7 +57,7 @@ export async function chargerDeparts(
   supabase: SB,
   annee: { id: string; label: string },
 ): Promise<{ eleves: EleveParti[]; adultes: AdultePartie[] }> {
-  const [{ data: enr }, { data: pce }, { data: mvts }, { data: actifs }] = await Promise.all([
+  const [{ data: enr }, { data: pce }, { data: mvts }, { data: actifs }, { data: adultesActifs }] = await Promise.all([
     supabase.from('enrollments')
       .select(`id, status, class_id, date_depart, students!inner ( id, parent_id, first_name, last_name, created_at, is_active ), classes!inner ( ${CLASSE} )`)
       .eq('status', 'withdrawn')
@@ -75,8 +75,15 @@ export async function chargerDeparts(
       .select('student_id, classes!inner ( academic_year )')
       .eq('status', 'active')
       .eq('classes.academic_year', annee.label),
+    supabase.from('parent_class_enrollments')
+      .select('parent_id, tutor_number, classes!inner ( academic_year, cotisation_types ( is_adult ) )')
+      .eq('status', 'active')
+      .eq('classes.academic_year', annee.label),
   ])
   const revenus = new Set(((actifs ?? []) as any[]).map(a => a.student_id))
+  const tuteur = (a: any) => `${a.parent_id}-${a.tutor_number}`
+  const adultesRevenus = new Set(((adultesActifs ?? []) as any[])
+    .filter(a => a.classes?.cotisation_types?.is_adult).map(tuteur))
 
   // Le DERNIER depart de chaque participant dans chaque classe (un enfant parti,
   // revenu puis reparti : seul le dernier compte).
@@ -106,14 +113,14 @@ export async function chargerDeparts(
     depart:      depart(`e:${e.students.id}:${e.class_id}`, e.date_depart),
   }))
 
-  const adultes: AdultePartie[] = ((pce ?? []) as any[])
-    .filter(a => a.classes?.cotisation_types?.is_adult)
-    .map(a => ({
-      parent_id:    a.parent_id,
-      tutor_number: a.tutor_number,
-      classes:      a.classes,
-      depart:       depart(`a:${a.parent_id}-${a.tutor_number}:${a.class_id}`, a.date_depart),
-    }))
+  const adultes: AdultePartie[] = departsRetenus(
+    ((pce ?? []) as any[]).filter(a => a.classes?.cotisation_types?.is_adult), tuteur, adultesRevenus,
+  ).map(a => ({
+    parent_id:    a.parent_id,
+    tutor_number: a.tutor_number,
+    classes:      a.classes,
+    depart:       depart(`a:${a.parent_id}-${a.tutor_number}:${a.class_id}`, a.date_depart),
+  }))
 
   return { eleves, adultes }
 }

@@ -188,6 +188,13 @@ describe('departsRetenus : un enfant revenu ne compte qu une fois', () => {
     assert.deepEqual(departsRetenus([d('a', '2026-10-26'), d('b', '2026-11-02')], x => x.id, new Set(['a'])).map(x => x.id), ['b'])
   })
 
+  test('adulte : la cle est le tuteur, revenu a un cours le depart sort', () => {
+    const t = (p: string, n: number, date: string) => ({ parent_id: p, tutor_number: n, date_depart: date })
+    const cle = (x: { parent_id: string; tutor_number: number }) => `${x.parent_id}-${x.tutor_number}`
+    const l = departsRetenus([t('f', 1, '2026-10-26'), t('f', 2, '2026-10-26')], cle, new Set(['f-1']))
+    assert.deepEqual(l.map(cle), ['f-2'])
+  })
+
   test('parti deux fois : seul le dernier depart compte', () => {
     assert.deepEqual(ids(departsRetenus([d('a', '2026-10-26'), d('a', '2027-02-10')], x => x.id, new Set())), ['a:2027-02-10'])
   })

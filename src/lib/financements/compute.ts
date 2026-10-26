@@ -263,15 +263,15 @@ export function computeFamilyFinancials(
 }
 
 /**
- * Departs d'eleves qui comptent : aucun pour un enfant revenu (inscription active
- * cette annee), sinon le plus RECENT de chacun. Lue par `chargerDeparts` ; testee.
+ * Departs qui comptent (eleves, ou tuteurs en cours adulte) : aucun pour un
+ * participant revenu (inscription active cette annee), sinon le plus RECENT de chacun. Lue par `chargerDeparts` ; testee.
  */
 export function departsRetenus<T extends { date_depart: string | null }>(
-  departs: T[], eleve: (d: T) => string, revenus: Set<string>,
+  departs: T[], participant: (d: T) => string, revenus: Set<string>,
 ): T[] {
   const dernier = new Map<string, T>()
   for (const d of departs) {
-    const id = eleve(d)
+    const id = participant(d)
     if (revenus.has(id)) continue
     const prec = dernier.get(id)
     if (!prec || (d.date_depart ?? '') > (prec.date_depart ?? '')) dernier.set(id, d)

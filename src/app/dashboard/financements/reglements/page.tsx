@@ -174,6 +174,11 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     .eq('school_year_id', currentYear.id)
     .order('survenu_le', { ascending: false })
 
+  // Departs encore comptes : seuls eux portent un montant et une decision.
+  const departsRetenusIds = new Set(
+    [...departs.eleves, ...departs.adultes].map(d => d.depart.mouvementId).filter(Boolean),
+  )
+
   // Etablissement (en-tete de l'attestation PDF, identique aux bulletins).
   const { data: etablissement } = await supabase
     .from('etablissements')
@@ -242,7 +247,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         adultEnrollments={[...(adultEnrollments ?? []), ...departs.adultes] as any[]}
         familyFees={(familyFees ?? []) as any[]}
         communications={(communications ?? []) as any[]}
-        mouvements={(mouvements ?? []) as any[]}
+        mouvements={((mouvements ?? []) as any[]).map(m => ({ ...m, retenu: departsRetenusIds.has(m.id) }))}
         etablissement={(etablissement ?? null) as any}
         initialParentId={initialParentId}
         familyHistory={familyHistory}
