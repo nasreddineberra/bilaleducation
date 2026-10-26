@@ -1094,9 +1094,9 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               </table>
             </div>
 
-            {/* Informations sur mouvements : affectations et retraits de l'annee, traces par la base */}
+            {/* Informations sur mouvements pédagogiques : affectations et retraits de l'annee, traces par la base */}
             <div className="card p-0 overflow-hidden">
-              <h3 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">Informations sur mouvements</h3>
+              <h3 className="encadre-titre m-0 text-xs font-bold uppercase tracking-widest">Informations sur mouvements pédagogiques</h3>
               {familyMouvements.length === 0 ? (
                 <div className="px-4 py-3 text-center">
                   <p className="text-sm text-warm-700">Aucun mouvement.</p>
