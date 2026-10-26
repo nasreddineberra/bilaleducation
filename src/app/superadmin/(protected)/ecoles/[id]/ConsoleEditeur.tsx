@@ -10,6 +10,7 @@ import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
 import { compterPurgeHistorique, purgerHistorique } from '@/app/superadmin/historique-actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /**
  * Colonne « Console éditeur » de la fiche école : ce que l'éditeur a fait chez ce
@@ -90,7 +91,7 @@ export default function ConsoleEditeur({ etablissementId, actions, interventions
     setAConfirmer(false)
     if (r.error) { toast.error(r.error); return }
     setOuverte(false)
-    toast.success(`Historique purgé : ${r.actions} action(s), ${r.interventions} intervention(s).`)
+    toast.success(`Historique purgé : ${pluriel(r.actions, 'action')}, ${pluriel(r.interventions, 'intervention')}.`)
     router.refresh()
   }
 
@@ -200,7 +201,7 @@ export default function ConsoleEditeur({ etablissementId, actions, interventions
           variant="danger"
           confirmLabel="Purger"
           confirmDisabled={enCours}
-          message={`Supprimer définitivement ${selection.actions} action(s) et ${selection.interventions} intervention(s) de ${LIBELLE_PERIODE[selection.mois].toLowerCase()} ? Les interventions en cours et les traces des purges précédentes sont conservées. Cette purge sera inscrite à l'historique.`}
+          message={`Supprimer définitivement ${pluriel(selection.actions, 'action')} et ${pluriel(selection.interventions, 'intervention')} de ${LIBELLE_PERIODE[selection.mois].toLowerCase()} ? Les interventions en cours et les traces des purges précédentes sont conservées. Cette purge sera inscrite à l'historique.`}
           onConfirm={purger}
           onCancel={() => setAConfirmer(false)}
         />

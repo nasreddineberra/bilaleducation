@@ -8,6 +8,7 @@ import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { Users, UserX, FileWarning, CalendarX } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import { Tuile, JaugeTuile, Encadre, LigneATraiter, LigneSeance, RemplissageClasses, Puce, Vide } from './tdb'
+import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
   firstName: string
@@ -29,7 +30,6 @@ const RACCOURCIS: Raccourci[] = [
   { href: '/dashboard/parents', label: 'Parents' },
 ]
 
-const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
 const dateCourte = (d: string) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '')
 const lienNom = 'block font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]'
 

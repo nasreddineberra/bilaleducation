@@ -14,6 +14,7 @@ import { sendStaffMessage, type StaffChannel } from '@/app/dashboard/communicati
 import { libelleRole, tonRole } from '@/lib/auth/role-labels'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
+import { pluriel } from '@/lib/texte/pluriel'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -212,11 +213,11 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
       }
 
       const parts: string[] = []
-      if (result.notified) parts.push(`${result.notified} notifié(s)`)
-      if (wantsEmail)      parts.push(`${result.sent} email(s) envoyé(s)`)
+      if (result.notified) parts.push(pluriel(result.notified, 'notifié'))
+      if (wantsEmail)      parts.push(pluriel(result.sent, 'email envoyé', 'emails envoyés'))
       const base = parts.join(' · ') || 'Message enregistré.'
       const cause = result.firstError ? ` Cause : ${result.firstError}` : ''
-      if (result.failed) toast.error(`${base} · ${result.failed} échec(s).${cause}`)
+      if (result.failed) toast.error(`${base} · ${pluriel(result.failed, 'échec')}.${cause}`)
       else               toast.success(base)
 
       setSubject(''); setBodyHtml(signatureHtml); setAttachments([])
@@ -470,7 +471,7 @@ export default function StaffMessageClient({ staffMembers, etablissementId, smtp
             <p><span className="text-warm-700">Pièces jointes :</span> {attachments.map(a => a.name).join(', ')}</p>
           )}
           {wantsEmail && withoutEmail.length > 0 && (
-            <p className="text-amber-700">{withoutEmail.length} destinataire(s) sans email ne recevront pas le mail.</p>
+            <p className="text-amber-700">{pluriel(withoutEmail.length, 'destinataire')} sans email {withoutEmail.length > 1 ? 'ne recevront' : 'ne recevra'} pas le mail.</p>
           )}
         </div>
       </ConfirmModal>

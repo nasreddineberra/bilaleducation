@@ -8,6 +8,7 @@ import { requireEditor } from '@/lib/auth/requireEditor'
 import { tracerActionEditeur } from '@/lib/support/actions-editeur'
 import { versCsv } from '@/lib/depart/csv'
 import { refuserSiEffacee } from '@/lib/tenant/effacement'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /**
  * DEPART D'UNE ECOLE (RGPD) : export de ses donnees, effacement, reouverture.
@@ -61,12 +62,12 @@ const lisezMoi = (nom: string, slug: string, quand: string, nTables: number, nFi
   'CONTENU',
   `  donnees/   ${nTables} fichiers CSV, un par table. Séparateur « ; », encodage UTF-8 :`,
   '             ils s\'ouvrent directement dans Excel ou LibreOffice.',
-  `  fichiers/  ${nFichiers} fichier(s) déposé(s) dans l'application, rangés par dossier :`,
+  `  fichiers/  ${pluriel(nFichiers, 'fichier déposé', 'fichiers déposés')} dans l'application, rangés par dossier :`,
   '             bulletins, documents des apprenants et des enseignants, justificatifs,',
   '             pièces jointes, photos, logo.',
   '  manifeste.json  le nombre de lignes de chaque table et la liste des fichiers.',
   ...(manquants > 0
-    ? ['', `ATTENTION : ${manquants} fichier(s) n'ont pas pu être récupérés (voir manifeste.json).`]
+    ? ['', `ATTENTION : ${pluriel(manquants, 'fichier')} ${manquants > 1 ? "n'ont pas pu être récupérés" : "n'a pas pu être récupéré"} (voir manifeste.json).`]
     : []),
   '',
   'Les colonnes « id » et « ..._id » sont les identifiants qui relient les tables entre elles.',
@@ -145,7 +146,7 @@ export async function exporterEcole(etablissementId: string): Promise<{
   await tracerActionEditeur(await createClient(), {
     etablissementId,
     description: `Export des données · ${nLignes} ligne${nLignes > 1 ? 's' : ''}, ${fichiers.length - manquants.length} fichier${fichiers.length - manquants.length > 1 ? 's' : ''}`
-      + (manquants.length ? ` · ${manquants.length} manquant(s)` : ''),
+      + (manquants.length ? ` · ${pluriel(manquants.length, 'manquant')}` : ''),
   })
 
   return { url: signe.signedUrl, lignes: nLignes, fichiers: fichiers.length - manquants.length, manquants: manquants.length }
@@ -219,7 +220,7 @@ export async function effacerEcole(etablissementId: string, slugSaisi: string): 
   return {
     lignes, comptes: data.comptes, fichiers: effaces,
     avertissement: effaces < fichiers.length
-      ? `${fichiers.length - effaces} fichier(s) n'ont pas pu être effacés. Ils restent dans le stockage, sous le dossier ${etablissementId}.`
+      ? `${pluriel(fichiers.length - effaces, 'fichier')} ${fichiers.length - effaces > 1 ? "n'ont pas pu être effacés" : "n'a pas pu être effacé"}. ${fichiers.length - effaces > 1 ? 'Ils restent' : 'Il reste'} dans le stockage, sous le dossier ${etablissementId}.`
       : undefined,
   }
 }

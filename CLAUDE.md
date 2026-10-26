@@ -214,7 +214,8 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Sources uniques** (ne jamais recopier) : `lib/financements/compute.ts`, `lib/auth/role-labels` (libelles + `tonRole`),
   `lib/teachers/nom`, `lib/school-year/jours-fermes.ts`, `lib/parents/situation-familiale.ts`,
   `lib/temps-presence/*`, `lib/evaluations/ordre.ts`, `lib/closure/ordre.ts`, `lib/mobile.ts`,
-  `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`, `lib/tenant/*`, `lib/pdf/ouvrir.ts`.
+  `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`, `lib/tenant/*`, `lib/pdf/ouvrir.ts`,
+  `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
@@ -442,12 +443,10 @@ financements, retention…), ecole de demonstration.
    (`departsRetenus`). Changer la regle propose de l'appliquer aux departs deja declares de l'annee en cours
    (apercu des montants, `definir_regle_ajustement(p_regle, p_retroactif)`, trace `regle_initiale` /
    `regle_modifiee_*`, controle 23).
-   Signale : Reglements compte les cours adultes sans filtre d'annee (les stats filtrent).
 6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
-   sortie des 503 `any` ; `.card-flush`
-   inutilisee (adopter ou supprimer).
-7. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur, accords « (s) »
-   des toasts d'envoi.
+   sortie des 503 `any` ; accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon
+   d'apprenant) ; `anon` garde tous les droits de TABLE (defaut Supabase, la RLS seule protege).
+7. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 8. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).
 

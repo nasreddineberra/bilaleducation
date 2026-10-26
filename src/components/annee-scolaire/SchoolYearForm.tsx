@@ -487,7 +487,9 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
                     diagnostic: 'Diagnostique', scored_10: 'Notée /10', scored_20: 'Notée /20', stars: 'Étoilée',
                   }
                   const names = removedTypes.map(t => labels[t] ?? t).join(', ')
-                  toast.error(`Impossible de supprimer le(s) type(s) "${names}" : des gabarits d'évaluation utilisent déjà ce(s) type(s). Supprimez d'abord les gabarits concernés.`)
+                  toast.error(removedTypes.length > 1
+                    ? `Impossible de supprimer les types "${names}" : des gabarits d'évaluation les utilisent déjà. Supprimez d'abord les gabarits concernés.`
+                    : `Impossible de supprimer le type "${names}" : des gabarits d'évaluation l'utilisent déjà. Supprimez d'abord les gabarits concernés.`)
                   setIsSubmitting(false); return
                 }
               }

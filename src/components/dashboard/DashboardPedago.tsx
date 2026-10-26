@@ -10,6 +10,7 @@ import { PenLine, FileText, CheckCheck, CalendarDays } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, Puce, Vide } from './tdb'
+import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
   firstName: string
@@ -33,7 +34,6 @@ const RACCOURCIS: Raccourci[] = [
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
-const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
 const jourEtDate = (d: string) =>
   new Date(`${d}T12:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit' })
 const lienNom = 'block font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]'

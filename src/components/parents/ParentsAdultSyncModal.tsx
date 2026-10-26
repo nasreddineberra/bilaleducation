@@ -9,6 +9,7 @@ import { useToast } from '@/lib/toast-context'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import { getParentsForAdultModal, saveParentsAdultCourses, type ParentAdultRow } from '@/app/dashboard/parents/actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 function Toggle({ active, disabled, onChange, label }: {
   active: boolean; disabled?: boolean; onChange: () => void; label: string
@@ -94,7 +95,7 @@ export default function ParentsAdultSyncModal({ onClose }: { onClose: () => void
     })))
     setSaving(false)
     if (res.error) { toast.error(res.error); return }
-    toast.success(`Cours adultes mis à jour : ${res.updated ?? 0} famille(s).`)
+    toast.success(`Cours adultes mis à jour : ${pluriel(res.updated ?? 0, 'famille')}.`)
     router.refresh()
     onClose()
   }

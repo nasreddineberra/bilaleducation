@@ -12,6 +12,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { classInfoOf } from '@/components/dashboard/classInfo'
 import { CreateParentSchema, UpdateParentSchema, validateInput } from '@/lib/validation/schemas'
+import { pluriel } from '@/lib/texte/pluriel'
 
 // ─── Types strictes pour les payloads ─────────────────────────────────────────
 
@@ -419,7 +420,7 @@ export async function saveParentsAdultCourses(
   try {
     await logAudit(supabase, {
       action: 'UPDATE', entityType: 'parents',
-      description: `Mise à jour en lot des inscriptions cours adultes : ${updated} famille(s).`,
+      description: `Mise à jour en lot des inscriptions cours adultes : ${pluriel(updated, 'famille')}.`,
     })
   } catch { /* non bloquant */ }
 

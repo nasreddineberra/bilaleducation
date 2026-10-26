@@ -14,6 +14,7 @@ import DashboardHeader from './DashboardHeader'
 import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, RemplissageClasses, Vide } from './tdb'
 import { SERIES, INK, VizTooltip, VizLegend, fmtEur } from './viz'
 import { HistoEncaissements, RepartitionFamilles } from './finances-tdb'
+import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
   firstName: string
@@ -40,7 +41,6 @@ const RACCOURCIS: Raccourci[] = [
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
-const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
 
 export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps }: Props) {
   const petitEcran = usePetitEcran()

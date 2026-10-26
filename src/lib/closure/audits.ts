@@ -8,6 +8,7 @@ import { classInfoOf } from '@/components/dashboard/classInfo'
 // La REGLE DE PRESENTATION vit a part : un module feuille, sans alias `@/`,
 // donc eprouvable par `node --test` (ce fichier ne l'est pas, il interroge la base).
 import { ordonnerAnomalies, type AuditItem } from './ordre'
+import { pluriel } from '@/lib/texte/pluriel'
 export type { AuditItem }
 
 export interface AuditResult {
@@ -92,8 +93,8 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
 
   const total = unassigned.length + adultesNonAffectes.length
   const parts: string[] = []
-  if (unassigned.length > 0) parts.push(`${unassigned.length} élève(s) actif(s) sans classe`)
-  if (adultesNonAffectes.length > 0) parts.push(`${adultesNonAffectes.length} adulte(s) inscrit(s) aux cours sans classe`)
+  if (unassigned.length > 0) parts.push(`${pluriel(unassigned.length, 'élève actif', 'élèves actifs')} sans classe`)
+  if (adultesNonAffectes.length > 0) parts.push(`${pluriel(adultesNonAffectes.length, 'adulte inscrit', 'adultes inscrits')} aux cours sans classe`)
 
   return {
     blocking: true,
@@ -185,12 +186,12 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
       ...(s.adulte ? { badge: 'adulte' } : {}),
       className: s.cls?.name,
       classInfo: classInfoOf(s.cls),
-      detail: `${s.count} non justifiée(s) · ${perPeriodLabel(s.perPeriod)}`,
+      detail: `${pluriel(s.count, 'non justifiée', 'non justifiées')} · ${perPeriodLabel(s.perPeriod)}`,
       href: '/dashboard/absences',
     }))),
     summary: total === 0
       ? 'Aucune absence non justifiée en attente.'
-      : `${total} absence(s) non justifiée(s) · ${list.length} participant(s).`,
+      : `${pluriel(total, 'absence non justifiée', 'absences non justifiées')} · ${pluriel(list.length, 'participant')}.`,
   }
 }
 
@@ -306,8 +307,8 @@ export async function auditNotes(supabase: any, ctx: YearCtx): Promise<AuditResu
   const items = anoms.map(a => a.item)
 
   const parts: string[] = []
-  if (missingClasses > 0) parts.push(`${missingClasses} classe(s) sans évaluation sur une période`)
-  if (incompleteEvals > 0) parts.push(`${incompleteEvals} évaluation(s) incomplète(s) · ${totalMissing} note(s) manquante(s)`)
+  if (missingClasses > 0) parts.push(`${pluriel(missingClasses, 'classe')} sans évaluation sur une période`)
+  if (incompleteEvals > 0) parts.push(`${pluriel(incompleteEvals, 'évaluation incomplète', 'évaluations incomplètes')} · ${pluriel(totalMissing, 'note manquante', 'notes manquantes')}`)
 
   return {
     blocking: true,
@@ -382,8 +383,8 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
   // celui-ci n'agrege plus que des bulletins, il faut donc qu'ils existent tous.
   const total = studentMissing + adultMissing
   const parts: string[] = []
-  if (studentMissing > 0) parts.push(`${studentMissing} élève(s)`)
-  if (adultMissing > 0) parts.push(`${adultMissing} adulte(s)`)
+  if (studentMissing > 0) parts.push(pluriel(studentMissing, 'élève'))
+  if (adultMissing > 0) parts.push(pluriel(adultMissing, 'adulte'))
 
   return {
     blocking: true,
@@ -415,7 +416,7 @@ export async function auditTempsPresence(supabase: any, ctx: YearCtx): Promise<A
     items: ordonnerAnomalies(noEntry.map((s: any) => ({ label: nom(s.last_name, s.first_name), detail: 'aucune saisie sur l’année', href: '/dashboard/temps-presence' }))),
     summary: noEntry.length === 0
       ? 'Tout le personnel a au moins une saisie de présence.'
-      : `${noEntry.length} membre(s) du personnel sans aucune saisie.`,
+      : `${pluriel(noEntry.length, 'membre')} du personnel sans aucune saisie.`,
   }
 }
 
@@ -475,11 +476,11 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
   ]
 
   const parts: string[] = []
-  if (debtors.length > 0) parts.push(`${debtors.length} foyer(s) débiteur(s) · reste ${eur(fin.kpi.outstanding)}`)
-  if (overpaid.length > 0) parts.push(`${overpaid.length} trop-perçu(s)`)
-  if (perimes.length > 0)  parts.push(`${perimes.length} récapitulatif(s) à rafraîchir`)
-  if (sansDossier.length > 0) parts.push(`${sansDossier.length} foyer(s) sans dossier ouvert`)
-  if (aDecider.length > 0) parts.push(`${aDecider.length} départ(s) à décider`)
+  if (debtors.length > 0) parts.push(`${pluriel(debtors.length, 'foyer débiteur', 'foyers débiteurs')} · reste ${eur(fin.kpi.outstanding)}`)
+  if (overpaid.length > 0) parts.push(pluriel(overpaid.length, 'trop-perçu'))
+  if (perimes.length > 0)  parts.push(`${pluriel(perimes.length, 'récapitulatif')} à rafraîchir`)
+  if (sansDossier.length > 0) parts.push(`${pluriel(sansDossier.length, 'foyer')} sans dossier ouvert`)
+  if (aDecider.length > 0) parts.push(`${pluriel(aDecider.length, 'départ')} à décider`)
 
   return {
     blocking: false,

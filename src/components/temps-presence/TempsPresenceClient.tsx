@@ -21,6 +21,7 @@ import FormModal from '@/components/ui/FormModal'
 import { generateStaffTimePDF } from './staffTimePdf'
 import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
+import { pluriel } from '@/lib/texte/pluriel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1092,7 +1093,7 @@ export default function TempsPresenceClient({
             variant={blocked ? 'warning' : 'danger'}
             title={blocked ? 'Suppression impossible' : 'Supprimer la saisie'}
             message={blocked
-              ? `Cette absence justifie ${deps.length} remplacement(s) ce jour (${depNames.join(', ')}). Supprimez d'abord ces saisies de remplacement.`
+              ? `Cette absence justifie ${pluriel(deps.length, 'remplacement')} ce jour (${depNames.join(', ')}). Supprimez d'abord ces saisies de remplacement.`
               : 'Cette saisie de temps de présence sera définitivement supprimée.'}
             confirmLabel="Supprimer"
             confirmDisabled={blocked}

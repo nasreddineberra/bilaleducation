@@ -6,6 +6,7 @@ import { messageDoublon } from '@/lib/doublons'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { logAudit } from '@/lib/audit'
 import { COLONNES } from '@/lib/import/colonnes'
+import { accord, pluriel } from '@/lib/texte/pluriel'
 
 /**
  * ENREGISTREMENT DES FOYERS COCHES.
@@ -140,7 +141,7 @@ export async function enregistrerFoyers(
     action: 'INSERT',
     entityType: 'parents',
     description:
-      `Importation : ${reussis.length} foyer(s) et ${enfants} apprenant(s) enregistrés`
+      `Importation : ${pluriel(reussis.length, 'foyer')} et ${pluriel(enfants, 'apprenant')} ${accord(reussis.length + enfants, 'enregistré')}`
       + (echoues > 0 ? `, ${echoues} en échec` : ''),
   })
 

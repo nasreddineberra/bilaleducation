@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireEditor } from '@/lib/auth/requireEditor'
 import { tracerActionEditeur } from '@/lib/support/actions-editeur'
 import { validatePasswordServer } from '@/lib/validation/password'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /**
  * ECOLE DE DEMONSTRATION (console de l'editeur).
@@ -419,7 +420,7 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   await tracerActionEditeur(await createClient(), {
     etablissementId,
     description: `Remise à zéro de l'école de démonstration (année ${data.annee})`
-      + (manquants.length ? ` · ${manquants.length} compte(s) recréé(s)` : ''),
+      + (manquants.length ? ` · ${pluriel(manquants.length, 'compte recréé', 'comptes recréés')}` : ''),
   })
   revalidatePath('/superadmin')
   revalidatePath(`/superadmin/ecoles/${etablissementId}`)

@@ -7,6 +7,7 @@ import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
 import { purgeYear } from '@/app/dashboard/passage-annee/actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 function fmt(d: string) {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -45,10 +46,10 @@ export default function PurgeYearCard({
       const res = await purgeYear(yearId, typed)
       if (res.error) { toast.error(res.error); return }
       const s = res.summary
-      toast.success(`Année ${yearLabel} purgée : ${s?.notes ?? 0} note(s), ${s?.absences ?? 0} absence(s), ${s?.fees_paid ?? 0} foyer(s) soldé(s), ${s?.messages ?? 0} message(s), ${s?.notifications ?? 0} notification(s), ${s?.relances ?? 0} relance(s).`)
+      toast.success(`Année ${yearLabel} purgée : ${pluriel(s?.notes ?? 0, 'note')}, ${pluriel(s?.absences ?? 0, 'absence')}, ${pluriel(s?.fees_paid ?? 0, 'foyer soldé', 'foyers soldés')}, ${pluriel(s?.messages ?? 0, 'message')}, ${pluriel(s?.notifications ?? 0, 'notification')}, ${pluriel(s?.relances ?? 0, 'relance')}.`)
       // Les lignes sont parties ; seuls des fichiers sont restes dans le stockage.
       if ((s?.fichiers_retires ?? 0) < (s?.fichiers_attendus ?? 0)) {
-        toast.warning(`${s.fichiers_attendus - s.fichiers_retires} pièce(s) jointe(s) n'ont pas pu être retirées du stockage.`)
+        toast.warning(`${pluriel(s.fichiers_attendus - s.fichiers_retires, 'pièce jointe', 'pièces jointes')} ${s.fichiers_attendus - s.fichiers_retires > 1 ? "n'ont pas pu être retirées" : "n'a pas pu être retirée"} du stockage.`)
       }
       setOpen(false); setTyped('')
       router.refresh()

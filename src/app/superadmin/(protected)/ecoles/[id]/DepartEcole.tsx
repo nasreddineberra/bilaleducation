@@ -7,6 +7,7 @@ import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
 import { exporterEcole, exportExiste, simulerEffacement, effacerEcole } from '@/app/superadmin/depart-actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /**
  * Départ d'une école (RGPD) : exporter ses données, puis l'effacer.
@@ -51,8 +52,8 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
       if (r.error || !r.url) { onglet?.close(); toast.error(r.error ?? 'Export impossible.'); return }
       if (onglet) onglet.location.href = r.url
       else window.location.href = r.url
-      if (r.manquants) toast.warning(`Export créé, mais ${r.manquants} fichier(s) n'ont pas pu être récupérés (voir le LISEZ-MOI).`)
-      else toast.success(`Export créé : ${r.lignes} lignes, ${r.fichiers} fichier(s).`)
+      if (r.manquants) toast.warning(`Export créé, mais ${pluriel(r.manquants, 'fichier')} ${r.manquants > 1 ? 'n’ont pas pu être récupérés' : 'n’a pas pu être récupéré'} (voir le LISEZ-MOI).`)
+      else toast.success(`Export créé : ${pluriel(r.lignes, 'ligne')}, ${pluriel(r.fichiers, 'fichier')}.`)
       setExportPret(true)
       router.refresh()
     } finally {
@@ -79,7 +80,7 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
       if (r.error) { setErreur(r.error); return }
       setOuverte(false)
       if (r.avertissement) toast.warning(`École effacée. ${r.avertissement}`)
-      else toast.success(`Données de « ${nom} » effacées : ${r.lignes} lignes, ${r.comptes} compte(s), ${r.fichiers} fichier(s).`)
+      else toast.success(`Données de « ${nom} » effacées : ${pluriel(r.lignes, 'ligne')}, ${pluriel(r.comptes, 'compte')}, ${pluriel(r.fichiers, 'fichier')}.`)
       router.refresh()
     } finally {
       setEffacement(false)
@@ -149,7 +150,7 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
               <>
                 <p className="text-secondary-800">
                   <span className="font-semibold">{nom}</span> : {total} lignes dans {tables.length} tables,{' '}
-                  {simulation.comptes} compte(s) de connexion, {simulation.fichiers} fichier(s).
+                  {pluriel(simulation.comptes, 'compte')} de connexion, {pluriel(simulation.fichiers, 'fichier')}.
                 </p>
                 <details className="text-xs text-warm-700">
                   <summary className="cursor-pointer">Détail par table</summary>

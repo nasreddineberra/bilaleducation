@@ -9,6 +9,7 @@ import { useToast } from '@/lib/toast-context'
 import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import { getStudentsForStatusModal, saveStudentsActive, type StudentStatusRow } from '@/app/dashboard/students/actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 // Petit interrupteur actif/inactif
 function Toggle({ active, disabled, onChange, label }: {
@@ -85,7 +86,7 @@ export default function StudentsStatusSyncModal({ onClose }: { onClose: () => vo
     const res = await saveStudentsActive(changed.map(r => ({ id: r.id, is_active: working[r.id] })))
     setSaving(false)
     if (res.error) { toast.error(res.error); return }
-    toast.success(`Statuts mis à jour : ${res.activated ?? 0} activé(s), ${res.deactivated ?? 0} désactivé(s).`)
+    toast.success(`Statuts mis à jour : ${pluriel(res.activated ?? 0, 'activé')}, ${pluriel(res.deactivated ?? 0, 'désactivé')}.`)
     router.refresh()
     onClose()
   }

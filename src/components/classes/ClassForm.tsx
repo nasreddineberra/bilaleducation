@@ -15,6 +15,7 @@ import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
+import { accord, pluriel } from '@/lib/texte/pluriel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -562,7 +563,7 @@ export default function ClassForm({
               logAudit(supabase, {
                 action: 'UPDATE',
                 entityType: 'class_journal',
-                description: `Cahier de texte de ${form.name.trim()} : ${seances} séance(s) et ${devoirs} devoir(s) transférés à ${newMain.teacher_name}`,
+                description: `Cahier de texte de ${form.name.trim()} : ${pluriel(seances, 'séance')} et ${pluriel(devoirs, 'devoir')} ${accord(seances + devoirs, 'transféré')} à ${newMain.teacher_name}`,
               })
             }
           }

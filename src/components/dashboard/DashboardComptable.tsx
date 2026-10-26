@@ -9,6 +9,7 @@ import DashboardHeader from './DashboardHeader'
 import { Tuile, JaugeTuile, Sparkline, Encadre, Puce, Vide } from './tdb'
 import { METHOD_LABELS, fmtEur } from './viz'
 import { HistoEncaissements, RepartitionFamilles, COULEUR_MOYEN } from './finances-tdb'
+import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
   firstName: string
@@ -32,7 +33,6 @@ const RACCOURCIS: Raccourci[] = [
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
-const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
 const signe = (n: number) => `${n > 0 ? '+' : ''}${fmtEur(n)}`
 const dateCourte = (d: string | null) =>
   d ? new Date(`${d.slice(0, 10)}T12:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''

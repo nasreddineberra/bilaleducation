@@ -485,13 +485,6 @@
     filter: drop-shadow(var(--logo-shadow));
   }
 
-  /* Card sans padding interne (pour les composants qui gèrent leur propre layout) */
-  .card-flush {
-    @apply bg-[var(--surface-card)] rounded-lg
-           border border-[var(--card-border)]
-           shadow-[var(--card-shadow)];
-  }
-
   .card-hover {
     @apply transition-all duration-200
            hover:shadow-[0_10px_32px_rgba(47,69,80,0.16),0_3px_8px_rgba(47,69,80,0.08)]

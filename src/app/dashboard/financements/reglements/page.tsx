@@ -82,13 +82,15 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     .order('tutor1_last_name')
     .order('tutor1_first_name')
 
-  // Inscriptions adultes (cours parents/tuteurs)
+  // Inscriptions adultes (cours parents/tuteurs) — BORNEES A L'ANNEE, comme le
+  // dossier financier : le passage d'annee conserve les inscriptions actives, sans
+  // ce filtre la cotisation de l'an passe s'ajouterait au du de l'annee en cours.
   const { data: adultEnrollments } = await supabase
     .from('parent_class_enrollments')
     .select(`
       parent_id, tutor_number,
-      classes (
-        id, name, day_of_week, start_time, end_time,
+      classes!inner (
+        id, name, academic_year, day_of_week, start_time, end_time,
         class_teachers (
           is_main_teacher,
           teachers ( civilite, first_name, last_name )
@@ -99,6 +101,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
       )
     `)
     .eq('status', 'active')
+    .eq('classes.academic_year', currentYear.label)
 
   // Departs de l'annee (inscription `withdrawn`) : l'enfant ou l'adulte parti
   // reste dans le calcul de son foyer, selon la regle de l'ecole.

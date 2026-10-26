@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FloatButton } from '@/components/ui/FloatFields'
 import PaymentModal from './PaymentModal'
+import { pluriel } from '@/lib/texte/pluriel'
 
 interface Debt {
   feeId: string
@@ -39,7 +40,7 @@ export default function ImpayesAnterieurs({ debts }: { debts: Debt[] }) {
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
         <p className="text-xs text-warm-700">
-          {debts.length} foyer(s) · reste dû <span className="font-semibold text-orange-700 tabular-nums">{fmtEur(totalRemaining)}</span>
+          {pluriel(debts.length, 'foyer')} · reste dû <span className="font-semibold text-orange-700 tabular-nums">{fmtEur(totalRemaining)}</span>
         </p>
       </div>
 

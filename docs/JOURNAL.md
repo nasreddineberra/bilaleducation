@@ -9411,3 +9411,19 @@ Au prorata · Au cas par cas · Sans ajustement, et « Due en totalite » PAR DE
 - **Controle 25** : 11 KO sans la migration, 0 avec ; 21 a 24 verts (24 avec la migration d'import).
 - **Signale, non traite** : `anon` garde TOUS les droits de TABLE (defaut Supabase) ; la RLS seule protege
   (`TRUNCATE` l'ignore mais l'API ne l'expose pas). Chantier distinct.
+
+#### 26 octobre 2026 (soir, suite) — Accords « (s) », `.card-flush`, cours adultes de l'annee
+
+- **Accords** : une cinquantaine de textes affiches portaient « (s) » (toasts d'envoi, purge, archivage,
+  audits de cloture, Journal d'activite, console editeur). Source unique `lib/texte/pluriel.ts` : `pluriel(n,
+  mot, pluriel?)` → « 3 foyers », `accord(n, mot, pluriel?)` → le mot seul (participes) ; 0 et 1 au
+  singulier ; un compteur absent vaut 0 (plusieurs toasts auraient affiche « undefined fichier(s) »). Les sept
+  fonctions recopiees (5 tableaux de bord, Affectations, fiche enseignant ; `limite-inscrits`) la reprennent.
+  Verbes accordes aussi (« n'a pas pu / n'ont pas pu », « ne recevra / ne recevront », « Il reste / Ils
+  restent ») ; « le(s) type(s) … ce(s) type(s) » reecrit en deux phrases. Testee (`pluriel.test.ts`).
+- **Reste** : les accords en GENRE « (e) » (« Ne(e) le » dans Affectations, notification d'absence, message
+  de doublon d'apprenant), qui demandent le genre de l'eleve.
+- **`.card-flush`** supprimee (inutilisee depuis toujours, doublon de `card p-0`).
+- **Reglements** : les cours adultes sont bornes a l'annee en cours, comme le dossier financier. Aucun
+  montant n'etait faux (5 inscriptions, toutes 2026-2027), mais apres le passage d'annee la cotisation de l'an
+  passe se serait ajoutee au du de l'annee nouvelle dans Reglements, pas dans les statistiques.

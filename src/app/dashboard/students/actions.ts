@@ -5,6 +5,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { phraseRefus } from '@/lib/financements/depart-refus'
+import { pluriel } from '@/lib/texte/pluriel'
 
 export type StudentStatusRow = {
   id:           string
@@ -135,7 +136,7 @@ export async function saveStudentsActive(
     // Le compte RENDU doit egaler le compte demande : un refus partiel passerait
     // inapercu si l'on se contentait de « au moins une ligne ».
     if ((res.data?.length ?? 0) !== toFalse.length) {
-      return { error: `Désactivation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toFalse.length} : vos droits ne permettent pas de modifier les autres.` }
+      return { error: `Désactivation a porte sur ${pluriel(res.data?.length ?? 0, 'apprenant')} sur ${toFalse.length} : vos droits ne permettent pas de modifier les autres.` }
     }
   }
   if (toTrue.length > 0) {
@@ -146,14 +147,14 @@ export async function saveStudentsActive(
     // Le compte RENDU doit egaler le compte demande : un refus partiel passerait
     // inapercu si l'on se contentait de « au moins une ligne ».
     if ((res.data?.length ?? 0) !== toTrue.length) {
-      return { error: `Activation a porte sur ${res.data?.length ?? 0} apprenant(s) sur ${toTrue.length} : vos droits ne permettent pas de modifier les autres.` }
+      return { error: `Activation a porte sur ${pluriel(res.data?.length ?? 0, 'apprenant')} sur ${toTrue.length} : vos droits ne permettent pas de modifier les autres.` }
     }
   }
   if (toTrue.length + toFalse.length > 0) {
     await logAudit(supabase, {
       action: 'UPDATE',
       entityType: 'students',
-      description: `Mise à jour des statuts apprenants : ${toTrue.length} activé(s), ${toFalse.length} désactivé(s).`,
+      description: `Mise à jour des statuts apprenants : ${pluriel(toTrue.length, 'activé')}, ${pluriel(toFalse.length, 'désactivé')}.`,
     })
   }
   return { activated: toTrue.length, deactivated: toFalse.length }

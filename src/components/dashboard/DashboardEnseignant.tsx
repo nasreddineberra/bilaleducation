@@ -10,6 +10,7 @@ import { fmtDuration } from '@/lib/temps-presence/format'
 import { Users, CheckCheck, PenLine } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import { Encadre, CarteCompteur, Puce, Vide, type Ton } from './tdb'
+import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
   firstName: string
@@ -39,7 +40,6 @@ const STATUT: Record<SeanceEnseignant['statut'], { label: string; ton: Ton } | n
   annulee:   { label: 'Annulée', ton: 'danger' },
 }
 
-const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
 const jourCourt = (d: string) => new Date(`${d}T12:00`).toLocaleDateString('fr-FR', { weekday: 'long' })
 
 export default function DashboardEnseignant({ donnees: d, ...headerProps }: Props) {

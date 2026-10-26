@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { pluriel } from '@/lib/texte/pluriel'
 
 const ROLES_AFFECTATION = ['admin', 'direction', 'responsable_pedagogique', 'secretaire'] as const
 
@@ -28,14 +29,13 @@ interface DiagRetrait {
   appreciations: string[] // libelles de periode
 }
 
-const pl = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`
 
 function bloquants(d: DiagRetrait): string[] {
   const p: string[] = []
-  if (d.notes > 0)           p.push(`${pl(d.notes, 'note')} sur ${pl(d.evaluations, 'évaluation')}`)
-  if (d.absences > 0)        p.push(pl(d.absences, 'absence'))
-  if (d.retards > 0)         p.push(pl(d.retards, 'retard'))
-  if (d.archives.length > 0) p.push(`${pl(d.archives.length, 'bulletin archivé')} (${d.archives.join(', ')})`)
+  if (d.notes > 0)           p.push(`${pluriel(d.notes, 'note')} sur ${pluriel(d.evaluations, 'évaluation')}`)
+  if (d.absences > 0)        p.push(pluriel(d.absences, 'absence'))
+  if (d.retards > 0)         p.push(pluriel(d.retards, 'retard'))
+  if (d.archives.length > 0) p.push(`${pluriel(d.archives.length, 'bulletin archivé')} (${d.archives.join(', ')})`)
   return p
 }
 
@@ -240,7 +240,7 @@ export async function saveStudentEnrollments(
       action:      'UPDATE',
       entityType:  'enrollments',
       entityId:    classId,
-      description: `Affectation classe ${cls?.name ?? classId} : ${toAdd.length} ajout(s), ${toRemove.length} retrait(s).`,
+      description: `Affectation classe ${cls?.name ?? classId} : ${pluriel(toAdd.length, 'ajout')}, ${pluriel(toRemove.length, 'retrait')}.`,
     })
   }
 
@@ -328,7 +328,7 @@ export async function saveParentEnrollments(
       action:      'UPDATE',
       entityType:  'parent_class_enrollments',
       entityId:    classId,
-      description: `Affectation cours adulte ${cls?.name ?? classId} : ${toAdd.length} ajout(s), ${toRemove.length} retrait(s).`,
+      description: `Affectation cours adulte ${cls?.name ?? classId} : ${pluriel(toAdd.length, 'ajout')}, ${pluriel(toRemove.length, 'retrait')}.`,
     })
   }
 

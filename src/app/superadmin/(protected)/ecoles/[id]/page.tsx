@@ -15,6 +15,7 @@ import ConsoleEditeur from './ConsoleEditeur'
 import RouvrirEcole from './RouvrirEcole'
 import { formatDateFr } from '@/lib/dates'
 import { demoPrete, RAISON_DEMO_A_REINITIALISER } from '@/lib/tenant/demo'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /**
  * Fiche d'un établissement client.
@@ -333,7 +334,7 @@ export default async function EcolePage({ params }: { params: Promise<{ id: stri
           <p className="flex-1 min-w-0">
             <span className="font-semibold">Données effacées le {formatDateFr(ecole.donnees_effacees_le as string)}</span>
             {depart?.efface_par_email && <> par {depart.efface_par_email}</>}
-            {depart && <> · {lignesEffacees} lignes, {depart.comptes} compte(s), {depart.fichiers_effaces ?? depart.fichiers} fichier(s)</>}
+            {depart && <> · {pluriel(lignesEffacees, 'ligne')}, {pluriel(depart.comptes, 'compte')}, {pluriel(depart.fichiers_effaces ?? depart.fichiers, 'fichier')}</>}
           </p>
           <RouvrirEcole etablissementId={id} nom={ecole.nom} />
         </div>

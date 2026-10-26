@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /**
  * Supprime un type de présence.
@@ -49,7 +50,7 @@ export async function deletePresenceType(id: string): Promise<{ error?: string }
       .lte('entry_date', year.end_date)
 
     if (count && count > 0) {
-      return { error: `Ce type est utilisé dans ${count} saisie(s) de l'année en cours et ne peut pas être supprimé.` }
+      return { error: `Ce type est utilisé dans ${pluriel(count ?? 0, 'saisie')} de l'année en cours et ne peut pas être supprimé.` }
     }
   }
 

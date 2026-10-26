@@ -12,6 +12,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import { sanitize } from '@/lib/security/sanitize'
 import { sendParentMessage } from '@/app/dashboard/communications/actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -299,10 +300,10 @@ export default function NewMessageClient({
 
       // Rendre compte de ce qui s'est reellement passe, sans arrondir.
       const details: string[] = []
-      if (result.failed)       details.push(`${result.failed} échec(s)`)
+      if (result.failed)       details.push(pluriel(result.failed, 'échec'))
       if (result.withoutEmail) details.push(`${result.withoutEmail} sans adresse email`)
 
-      const base = `${result.sent} email(s) envoyé(s) sur ${result.households} foyer(s).`
+      const base = `${pluriel(result.sent, 'email envoyé', 'emails envoyés')} sur ${pluriel(result.households, 'foyer')}.`
       const cause = result.firstError ? ` Cause : ${result.firstError}` : ''
       if (details.length > 0) toast.error(`${base} ${details.join(', ')}.${cause}`)
       else                    toast.success(base)
@@ -561,7 +562,7 @@ export default function NewMessageClient({
                     <li className="text-xs text-warm-700 italic px-3 py-2">Aucune famille trouvée.</li>
                   )}
                 </ul>
-                <p className="text-xs text-warm-700">{selectedParentIds.size} famille(s) sélectionnée(s)</p>
+                <p className="text-xs text-warm-700">{pluriel(selectedParentIds.size, 'famille sélectionnée', 'familles sélectionnées')}</p>
               </div>
             )}
           </div>
@@ -588,7 +589,7 @@ export default function NewMessageClient({
                     {withoutEmail.slice(0, 5).map(r => (
                       <li key={r.parent.id} className="truncate">{getParentLabel(r.parent)}</li>
                     ))}
-                    {withoutEmail.length > 5 && <li>et {withoutEmail.length - 5} autre(s)</li>}
+                    {withoutEmail.length > 5 && <li>et {pluriel(withoutEmail.length - 5, 'autre')}</li>}
                   </ul>
                 </div>
               )}
@@ -674,7 +675,7 @@ export default function NewMessageClient({
             <p><span className="text-warm-700">Pièces jointes :</span> {attachments.map(a => a.name).join(', ')}</p>
           )}
           {withoutEmail.length > 0 && (
-            <p className="text-amber-700">{withoutEmail.length} destinataire(s) sans adresse email ne recevront rien.</p>
+            <p className="text-amber-700">{pluriel(withoutEmail.length, 'destinataire')} sans adresse email {withoutEmail.length > 1 ? 'ne recevront' : 'ne recevra'} rien.</p>
           )}
           {targetType === 'all_registered' && (
             <p className="text-amber-700">Ce ciblage inclut les familles non inscrites cette année.</p>

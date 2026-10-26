@@ -10,6 +10,7 @@ import { CLOSURE_STEPS, CLOSURE_STEP_BY_KEY } from '@/lib/closure/steps'
 import { runAuditFor, type YearCtx, type AuditResult } from '@/lib/closure/audits'
 import { generateArchive } from '@/lib/closure/archive'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
+import { accord, pluriel } from '@/lib/texte/pluriel'
 
 /**
  * PASSAGE D'ANNÉE — actions serveur.
@@ -201,7 +202,7 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
   const faits = new Set((passes ?? []).map((a: any) => a.step_key))
   const manquants = CLOSURE_STEPS.filter(s => !faits.has(s.key))
   if (manquants.length > 0) {
-    return { error: `Audit(s) non passé(s) : ${manquants.map(s => s.label).join(', ')}.` }
+    return { error: `${accord(manquants.length, 'Audit non passé', 'Audits non passés')} : ${manquants.map(s => s.label).join(', ')}.` }
   }
 
   // 3. Passe fraîche, autoritative.
@@ -228,7 +229,7 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
     if (echecAudit) return { error: echecAudit }
 
     if (result.blocking && result.anomalies > 0) {
-      bloquants.push(`${step.label} : ${result.anomalies} anomalie(s)`)
+      bloquants.push(`${step.label} : ${pluriel(result.anomalies, 'anomalie')}`)
     }
   }
 
@@ -377,7 +378,7 @@ export async function archiveYear(yearId: string): Promise<{ error?: string; stu
   try {
     await logAudit(supabase, {
       action: 'UPDATE', entityType: 'school_years', entityId: yearId,
-      description: `Année ${ctx.yearLabel} archivée (${studentRows.length} participant(s), ${familyRows.length} foyer(s), ${classRows.length} classe(s))`,
+      description: `Année ${ctx.yearLabel} archivée (${pluriel(studentRows.length, 'participant')}, ${pluriel(familyRows.length, 'foyer')}, ${pluriel(classRows.length, 'classe')})`,
     })
   } catch { /* non bloquant */ }
 
@@ -456,7 +457,7 @@ export async function purgeYear(yearId: string, typedLabel: string): Promise<{ e
   try {
     await logAudit(supabase, {
       action: 'DELETE', entityType: 'school_years', entityId: yearId,
-      description: `Année ${year.label} purgée (${data?.notes ?? 0} notes, ${data?.absences ?? 0} absences, ${data?.fees_paid ?? 0} foyer(s) soldé(s), ${data?.messages ?? 0} message(s), ${data?.notifications ?? 0} notification(s), ${data?.relances ?? 0} relance(s), ${fichiersRetires} fichier(s))`,
+      description: `Année ${year.label} purgée (${pluriel(data?.notes ?? 0, 'note')}, ${pluriel(data?.absences ?? 0, 'absence')}, ${pluriel(data?.fees_paid ?? 0, 'foyer soldé', 'foyers soldés')}, ${pluriel(data?.messages ?? 0, 'message')}, ${pluriel(data?.notifications ?? 0, 'notification')}, ${pluriel(data?.relances ?? 0, 'relance')}, ${pluriel(fichiersRetires, 'fichier')})`,
     })
   } catch { /* non bloquant */ }
 
@@ -550,7 +551,7 @@ export async function rafraichirRecapitulatifs(
       action: 'UPDATE',
       entityType: 'family_fees',
       entityId: yearId,
-      description: `Rafraichissement des recapitulatifs ${ctx.yearLabel} : ${corriges} dossier(s) corrige(s)${echecs > 0 ? `, ${echecs} echec(s)` : ''}`,
+      description: `Rafraichissement des recapitulatifs ${ctx.yearLabel} : ${pluriel(corriges, 'dossier corrige', 'dossiers corriges')}${echecs > 0 ? `, ${pluriel(echecs, 'echec')}` : ''}`,
     })
   } catch { /* la trace ne doit pas faire echouer la correction */ }
 

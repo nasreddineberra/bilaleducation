@@ -6,6 +6,7 @@ import { FloatButton } from '@/components/ui/FloatFields'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { useToast } from '@/lib/toast-context'
 import { reinitialiserEcoleDemo } from '@/app/superadmin/demo-actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 /** Remise à zéro de l'école de démonstration : données refaites, comptes conservés. */
 export default function ReinitialiserDemo({ etablissementId }: { etablissementId: string }) {
@@ -23,7 +24,7 @@ export default function ReinitialiserDemo({ etablissementId }: { etablissementId
       if (r.logo === false) toast.warning("L'école de démonstration est remise à zéro, mais son logo n'a pas pu être posé.")
       else toast.success("L'école de démonstration est remise à zéro.")
       // Comptes recrees (apres un depart) : leur double authentification est perdue.
-      if (r.recrees) toast.warning(`${r.recrees} compte(s) recréé(s) : leur double authentification est à enrôler de nouveau.`)
+      if (r.recrees) toast.warning(`${pluriel(r.recrees, 'compte recréé', 'comptes recréés')} : ${r.recrees > 1 ? 'leur' : 'sa'} double authentification est à enrôler de nouveau.`)
       router.refresh()
     } finally {
       setEnCours(false)

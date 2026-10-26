@@ -11,6 +11,8 @@
  * message. Module PUR, eprouve par `node --test`.
  */
 
+import { accord } from '../texte/pluriel.ts'
+
 type ErreurBase = { message?: string; details?: string | null; hint?: string | null; code?: string } | null | undefined
 
 export const REPERE_LIMITE = 'limite_inscrits'
@@ -28,8 +30,7 @@ export function messageLimiteInscrits(err: ErreurBase): string | null {
     return "Limite d'inscrits de l'abonnement atteinte. Contactez l'éditeur pour l'augmenter."
   }
 
-  const pl = (n: number, s: string, p: string) => (n > 1 ? p : s)
-  return `Limite de l'abonnement atteinte : ${max} ${pl(max, 'inscrit', 'inscrits')} au maximum `
-    + `(${eleves} ${pl(eleves, 'élève actif', 'élèves actifs')} + ${adultes} ${pl(adultes, 'adulte inscrit', 'adultes inscrits')}). `
+  return `Limite de l'abonnement atteinte : ${max} ${accord(max, 'inscrit')} au maximum `
+    + `(${eleves} ${accord(eleves, 'élève actif', 'élèves actifs')} + ${adultes} ${accord(adultes, 'adulte inscrit', 'adultes inscrits')}). `
     + "Contactez l'éditeur pour l'augmenter."
 }

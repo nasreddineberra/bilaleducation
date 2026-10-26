@@ -4,6 +4,7 @@ import ListStatCard from '@/components/ui/ListStatCard'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { fmtDuration } from '@/lib/temps-presence/format'
 import type { Assiduite } from '@/lib/temps-presence/assiduite'
+import { accord } from '@/lib/texte/pluriel'
 
 /**
  * ASSIDUITE D'UNE PERSONNE — bloc en LECTURE SEULE.
@@ -48,17 +49,6 @@ function fmtDate(iso: string): string {
   const [y, m, d] = iso.split('-')
   const jour = DAY_NAMES[new Date(Number(y), Number(m) - 1, Number(d)).getDay()]
   return `${jour} ${d}/${m}/${y}`
-}
-
-/**
- * Marque du pluriel.
- *
- * En français, ZERO reste au singulier (« 0 remplacement assuré ») : le seuil
- * est donc `> 1`, jamais `!== 1`. C'est la faute qu'accorder « à l'œil » produit
- * systématiquement, et elle ne se voit qu'une fois le compteur à 0 devant soi.
- */
-function pl(n: number): string {
-  return n > 1 ? 's' : ''
 }
 
 /**
@@ -144,12 +134,12 @@ export default function TeacherAttendance({
           </span>
           <span>
             <span className={`text-sm font-bold tabular-nums ${absences.length > 0 ? 'text-red-700' : 'text-secondary-800'}`}>{absences.length}</span>{' '}
-            absence{pl(absences.length)}
-            {absences.length > 0 && <> · {fmtDuration(absenceMinutes)} manquée{pl(absenceMinutes / 60)}</>}
+            {accord(absences.length, 'absence')}
+            {absences.length > 0 && <> · {fmtDuration(absenceMinutes)} {accord(absenceMinutes / 60, 'manquée')}</>}
           </span>
           <span>
             <span className={`text-sm font-bold tabular-nums ${remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}`}>{remplacements.length}</span>{' '}
-            remplacement{pl(remplacements.length)} assuré{pl(remplacements.length)}
+            {accord(remplacements.length, 'remplacement')} {accord(remplacements.length, 'assuré')}
           </span>
         </div>
       ) : (
@@ -163,11 +153,11 @@ export default function TeacherAttendance({
           value={absences.length}
           label={
             <>
-              absence{pl(absences.length)}
+              {accord(absences.length, 'absence')}
               <br />
               {/* « manquée » s'accorde avec les HEURES, pas avec le nombre
                   d'absences : une seule absence peut peser trois heures. */}
-              {fmtDuration(absenceMinutes)} manquée{pl(absenceMinutes / 60)}
+              {fmtDuration(absenceMinutes)} {accord(absenceMinutes / 60, 'manquée')}
             </>
           }
           valueColor={absences.length > 0 ? 'text-red-700' : 'text-secondary-800'}
@@ -176,9 +166,9 @@ export default function TeacherAttendance({
           value={remplacements.length}
           label={
             <>
-              remplacement{pl(remplacements.length)}
+              {accord(remplacements.length, 'remplacement')}
               <br />
-              assuré{pl(remplacements.length)} pour {remplacements.length > 1 ? 'des collègues' : 'un collègue'}
+              {accord(remplacements.length, 'assuré')} pour {remplacements.length > 1 ? 'des collègues' : 'un collègue'}
             </>
           }
           valueColor={remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}

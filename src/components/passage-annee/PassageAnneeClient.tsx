@@ -13,6 +13,7 @@ import { useToast } from '@/lib/toast-context'
 import { CLOSURE_STEPS } from '@/lib/closure/steps'
 import type { AuditResult } from '@/lib/closure/audits'
 import { runAudit, resetAudit, closeYear, reopenYear, archiveYear, setPurgeIntent, rafraichirRecapitulatifs } from '@/app/dashboard/passage-annee/actions'
+import { pluriel } from '@/lib/texte/pluriel'
 
 export interface AnneeEtat {
   id: string
@@ -162,9 +163,9 @@ export default function PassageAnneeClient({
       // On dit ce qui a REELLEMENT abouti. Un echec partiel ne s annonce pas
       // comme un succes : c est tout l objet du chantier du 1er octobre.
       if ((res.echecs ?? 0) > 0) {
-        toast.error(`${res.corriges ?? 0} dossier(s) rafraichi(s), ${res.echecs} en echec. Rechargez la page.`)
+        toast.error(`${pluriel(res.corriges ?? 0, 'dossier rafraîchi', 'dossiers rafraîchis')}, ${res.echecs} en échec. Rechargez la page.`)
       } else {
-        toast.success(`${res.corriges ?? 0} dossier(s) rafraichi(s).`)
+        toast.success(`${pluriel(res.corriges ?? 0, 'dossier rafraîchi', 'dossiers rafraîchis')}.`)
       }
     } catch (e: any) {
       toast.error(e?.message ?? 'Une erreur est survenue.')
@@ -263,7 +264,7 @@ export default function PassageAnneeClient({
     try {
       const res = await archiveYear(yearId)
       if (res.error) { toast.error(res.error); return }
-      toast.success(`Année ${label} archivée : ${res.students ?? 0} participant(s), ${res.families ?? 0} foyer(s).`)
+      toast.success(`Année ${label} archivée : ${pluriel(res.students ?? 0, 'participant')}, ${pluriel(res.families ?? 0, 'foyer')}.`)
       router.refresh()
     } finally { setOccupe(false) }
   }
@@ -365,7 +366,7 @@ export default function PassageAnneeClient({
                   <p className={`text-[11px] leading-snug ${
                     perime ? 'text-warm-700' : n > 0 ? 'text-orange-700 font-medium' : 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-medium'
                   }`}>
-                    {res?.summary ?? `${n} anomalie(s).`}
+                    {res?.summary ?? `${pluriel(n, 'anomalie')}.`}
                     <span className="ml-1.5 font-normal text-warm-700">· {horodate(etat.at)}</span>
                     {perime && <span className="ml-1.5 font-semibold text-orange-700">· à revérifier</span>}
                   </p>
