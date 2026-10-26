@@ -9388,3 +9388,26 @@ Au prorata · Au cas par cas · Sans ajustement, et « Due en totalite » PAR DE
   (`.*?`) ; le `\s*` final ne mangeait rien. Ancre par anticipation `(?=-- ── 1\. )`.
 - **Controle 24** : 3 cas (2 + 2 > 3 refuse AVEC repere, 2 + 1 = 3 accepte, adultes comptes). Vu ROUGE sans
   la migration (le premier cas levait sans repere), vert avec.
+
+#### 26 octobre 2026 (soir, suite) — Fonctions : plus d'execution anonyme
+
+- **Inventaire** : aucune page publique n'interroge la base sous `anon` (middleware, route publique de
+  l'etablissement et notifications passent par le service-role ; reinitialisation et 2FA sont sous session).
+  Neuf fonctions d'ACTION ou de DONNEES etaient executables sans connexion (`import_foyer`,
+  `create_profile_and_parent`, `cleanup_*`, `set_teacher_profile_active`, `get_verified_totp_user_ids`,
+  `fn_ensure_reserved_presence_types`, `is_admin` inutilisee). Aucune faille : chacune garde son role ou
+  s'execute sous la RLS (le controle le montre : avant la migration, l'appel anonyme est refuse PAR LA
+  FONCTION, « Acces refuse »).
+- **Cause** : privileges par defaut du projet, toute fonction creee dans `public` est executable par PUBLIC
+  et `anon`. Les migrations recentes revoquaient a la main.
+- **Fait** : migration `revoke-anon-fonctions.sql` : EXECUTE retire a PUBLIC et `anon` sur les neuf ; defauts
+  changes (retrait de PUBLIC GLOBAL pour `postgres` : un defaut par schema ne peut qu'AJOUTER a la regle
+  globale ; `anon` retire du defaut de `public`). `authenticated` et `service_role` gardent leur octroi.
+  GARDEES pour `anon` : les fonctions des regles d'acces (`current_etablissement_id`, `get_user_role`,
+  `teaches_*`, `est_destinataire_annonce`) et les utilitaires `fn_effacement_en_cours`, `norm_name`.
+- **Consequence a connaitre** : une NOUVELLE fonction n'est plus executable par `anon`. Si une regle d'acces
+  appelle une fonction nouvelle, une requete anonyme sur la table leve « permission denied » au lieu de rendre
+  vide (aucune requete anonyme aujourd'hui) ; l'octroyer a `anon` si une page publique en a besoin.
+- **Controle 25** : 11 KO sans la migration, 0 avec ; 21 a 24 verts (24 avec la migration d'import).
+- **Signale, non traite** : `anon` garde TOUS les droits de TABLE (defaut Supabase) ; la RLS seule protege
+  (`TRUNCATE` l'ignore mais l'API ne l'expose pas). Chantier distinct.

@@ -220,6 +220,9 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
   restrictive -> code d'abord.** Tester en transaction annulee + controle (bloc DO a exception
   volontaire). Delimiteurs nommes (`$fn$`). Apres `REVOKE ... FROM public`, revoquer aussi `anon`.
+  Depuis le 26/10 une fonction NOUVELLE n'est plus executable par PUBLIC ni `anon` (defauts changes,
+  controle 25) : l'octroyer explicitement a `authenticated` reste la regle ; a `anon` seulement si une page
+  publique en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
 
 ## 6. Charte graphique
 
