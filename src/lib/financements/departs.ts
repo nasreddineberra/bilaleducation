@@ -12,10 +12,10 @@
 // (`lignesCotisation`).
 //
 // La regle vient du MOUVEMENT (`mouvements_inscription`, lu par la direction,
-// l'admin et la comptabilite) ; s'il manque, le depart compte « sans
-// ajustement », le comportement d'avant le 26/10.
+// l'admin et la comptabilite) ; s'il manque, la regle par defaut s'applique
+// (`REGLE_PAR_DEFAUT`).
 
-import type { DepartLike, DecisionAjustement, RegleAjustement } from './compute'
+import { REGLE_PAR_DEFAUT, type DepartLike, type DecisionAjustement, type RegleAjustement } from './compute'
 
 type SB = { from: (table: string) => any }
 
@@ -78,7 +78,7 @@ export async function chargerDeparts(
     const m = mvtPar.get(cle)
     return {
       date:        date ?? '',
-      regle:       (m?.regle ?? 'sans_ajustement') as RegleAjustement,
+      regle:       (m?.regle ?? REGLE_PAR_DEFAUT) as RegleAjustement,
       decision:    (m?.decision ?? null) as DecisionAjustement | null,
       mouvementId: m?.id ?? null,
     }

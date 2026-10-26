@@ -4,7 +4,7 @@
 -- Cree une ecole JETABLE (annee 2026-2027 en cours, rentree le 01/09/2026),
 -- une classe avec cotisation, un eleve, un foyer. Les gestes sont faits par une
 -- SECRETAIRE (session simulee), comme a l'ecran Affectations :
---   affectation a la rentree          -> 1 arrivee, date d'effet = rentree, regle figee
+--   affectation a la rentree          -> 1 arrivee, date d'effet = rentree, regle figee (defaut : due)
 --   mise a jour sans changement       -> rien
 --   reglage passe a « prorata »       -> le retrait (correction) porte « prorata », date d'arrivee
 --   eleve rendu inactif puis reactive -> 1 depart puis 1 arrivee (motif statut)
@@ -65,13 +65,13 @@ BEGIN
   SELECT count(*) INTO n FROM mouvements_inscription WHERE etablissement_id = e;
   SELECT * INTO m FROM mouvements_inscription WHERE etablissement_id = e ORDER BY survenu_le DESC, sens LIMIT 1;
   rapport := rapport || E'\n[' || CASE WHEN n = 1 AND m.sens = 'arrivee' AND m.date_effet = '2026-09-01'
-                                         AND m.regle = 'sans_ajustement' AND m.school_year_id = y
+                                         AND m.regle = 'due' AND m.school_year_id = y
                                          AND m.parent_id = par AND m.cotisation_montant = 300
                                          AND m.frais_inscription = 20 AND m.classe_nom = 'CTL-MVT'
                                        THEN 'OK' ELSE 'KO' END
     || '] affectation a la rentree   ' || n || ' mvt · ' || coalesce(m.sens, '?') || ' · effet ' || coalesce(m.date_effet::text, '?')
     || ' · ' || coalesce(m.regle, '?') || ' · ' || coalesce(m.cotisation_montant::text, '?') || '+' || coalesce(m.frais_inscription::text, '?');
-  IF NOT (n = 1 AND m.sens = 'arrivee' AND m.date_effet = '2026-09-01' AND m.regle = 'sans_ajustement') THEN nb_ko := nb_ko + 1; END IF;
+  IF NOT (n = 1 AND m.sens = 'arrivee' AND m.date_effet = '2026-09-01' AND m.regle = 'due') THEN nb_ko := nb_ko + 1; END IF;
   rapport := rapport || E'\n[' || CASE WHEN m.auteur_id = sec AND m.auteur_nom = 'CTLSECRETAIRE Sophie' THEN 'OK' ELSE 'KO' END
     || '] auteur                     ' || coalesce(m.auteur_nom, '(vide)');
   IF NOT (m.auteur_id = sec AND m.auteur_nom = 'CTLSECRETAIRE Sophie') THEN nb_ko := nb_ko + 1; END IF;

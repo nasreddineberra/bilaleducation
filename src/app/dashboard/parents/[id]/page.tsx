@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { hrefRetour } from '@/lib/navigation/retour'
 import ParentDetail from '@/components/parents/ParentDetail'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { LIBELLES_REGLE, type RegleAjustement } from '@/lib/financements/compute'
+import { LIBELLES_REGLE, REGLE_PAR_DEFAUT, type RegleAjustement } from '@/lib/financements/compute'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -64,7 +64,7 @@ export default async function EditParentPage({ params, searchParams }: Props) {
   const { data: etab } = await supabase.from('etablissements').select('regle_ajustement').maybeSingle()
   const contexteDepart = adultCurrent[0]
     ? {
-        regle:   LIBELLES_REGLE[((etab?.regle_ajustement ?? 'sans_ajustement') as RegleAjustement)],
+        regle:   LIBELLES_REGLE[((etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement)],
         rentree: adultCurrent[0].rentree,
         fin:     adultCurrent[0].fin,
       }

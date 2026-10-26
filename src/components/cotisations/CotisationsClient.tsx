@@ -263,7 +263,7 @@ export default function CotisationsClient({
         {/* ── Ajustements en cours d'annee : regle appliquee a un DEPART ── */}
         <div className="card p-0 overflow-hidden shrink-0">
           <div className="encadre-titre m-0 justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-widest">Ajustements en cours d’année</h2>
+            <h2 className="text-xs font-bold uppercase tracking-widest">Règle de cotisation pour départ en cours d’année</h2>
             <FloatButton type="button" variant="submit" size="mini" onClick={enregistrerRegle} loading={regleEnCours} disabled={regle === reglage.regle}>
               Enregistrer
             </FloatButton>

@@ -1484,7 +1484,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               onChange={e => setDecisionChoix(e.target.value as DecisionAjustement)}
             >
               <option value="" disabled hidden></option>
-              {(['sans_ajustement', 'due', 'prorata'] as const).map(r => <option key={r} value={r}>{LIBELLES_REGLE[r]}</option>)}
+              {(['due', 'prorata', 'sans_ajustement'] as const).map(r => <option key={r} value={r}>{LIBELLES_REGLE[r]}</option>)}
             </FloatSelect>
             {decisionErreur && <p role="alert" className="text-xs text-red-700">{decisionErreur}</p>}
           </div>

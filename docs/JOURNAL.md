@@ -9339,3 +9339,15 @@ production. Le controle 07 echoue AVANT la migration (jeu de donnees insuffisant
 
 **SIGNALE, NON TRAITE** : Reglements lit les cours adultes sans filtre d'annee, les statistiques filtrent ; sans
 effet tant qu'une seule annee existe.
+
+#### 26 octobre 2026 (fin) — Regle de cotisation : « Due en totalite » par defaut
+
+Retour de l'utilisateur sur la page Cotisations : encadre renomme « Regle de cotisation pour depart en cours
+d'annee » (le titre propose citait les arrivees, que la regle ne concerne pas), ordre du switch Due en totalite ·
+Au prorata · Au cas par cas · Sans ajustement, et « Due en totalite » PAR DEFAUT.
+- Migration `regle-ajustement-due-par-defaut.sql` : defaut de colonne, ecoles qui n'ont JAMAIS choisi passees a
+  `due` (ECOLE BILAL ; la demonstration garde son choix), repli de `fn_mouvement_inscrire`. Aucun montant ne
+  bouge : la regle est figee sur chaque depart deja trace.
+- Code : `REGLE_PAR_DEFAUT` (`compute.ts`) remplace les replis ecrits en dur ; l'ordre de `LIBELLES_REGLE` est
+  celui de l'ecran.
+- Controle 21 : attend `due` ; vu ROUGE sans la migration (1 KO), vert avec ; 22 vert.

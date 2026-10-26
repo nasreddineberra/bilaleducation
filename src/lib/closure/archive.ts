@@ -8,7 +8,7 @@
 // les familles - ce qui etait possible tant qu'on refaisait le calcul.
 
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
-import { lignesCotisation } from '@/lib/financements/compute'
+import { lignesCotisation, REGLE_PAR_DEFAUT } from '@/lib/financements/compute'
 import { chargerDeparts } from '@/lib/financements/departs'
 import type { YearCtx } from './audits'
 
@@ -255,7 +255,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
     const lignes = lignesCotisation(famStudents.map((e: any) => ({
       ct:     classById.get(e.class_id)?.cotisation_types,
       ordre:  e.students?.created_at,
-      depart: e.status === 'withdrawn' ? departEleve.get(`${e.student_id}:${e.class_id}`) ?? { date: e.date_depart, regle: 'sans_ajustement' as const } : null,
+      depart: e.status === 'withdrawn' ? departEleve.get(`${e.student_id}:${e.class_id}`) ?? { date: e.date_depart, regle: REGLE_PAR_DEFAUT } : null,
     })), annee)
     const cotisations: any[] = []
     famStudents.forEach((e: any, i: number) => {
@@ -271,7 +271,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
     const famAdultes = adultsByParent.get(pid) ?? []
     const lignesAdultes = lignesCotisation(famAdultes.map((a: any) => ({
       ct:     classById.get(a.class_id)?.cotisation_types,
-      depart: a.status === 'withdrawn' ? departAdulte.get(`${a.parent_id}-${a.tutor_number}:${a.class_id}`) ?? { date: a.date_depart, regle: 'sans_ajustement' as const } : null,
+      depart: a.status === 'withdrawn' ? departAdulte.get(`${a.parent_id}-${a.tutor_number}:${a.class_id}`) ?? { date: a.date_depart, regle: REGLE_PAR_DEFAUT } : null,
     })), annee, { fratrie: false })
     famAdultes.forEach((a: any, i: number) => {
       const ct = classById.get(a.class_id)?.cotisation_types

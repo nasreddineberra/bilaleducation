@@ -127,12 +127,16 @@ export function lineTotal(ct: CotisationLike | null | undefined, discount = 0): 
 export type RegleAjustement = 'sans_ajustement' | 'due' | 'prorata' | 'cas_par_cas'
 export type DecisionAjustement = Exclude<RegleAjustement, 'cas_par_cas'>
 
+// L'ORDRE est celui de l'ecran (decision du 26/10) ; « Due en totalite » est
+// la regle par defaut d'un etablissement.
 export const LIBELLES_REGLE: Record<RegleAjustement, string> = {
-  sans_ajustement: 'Sans ajustement',
   due:             'Due en totalité',
   prorata:         'Au prorata',
   cas_par_cas:     'Au cas par cas',
+  sans_ajustement: 'Sans ajustement',
 }
+
+export const REGLE_PAR_DEFAUT: RegleAjustement = 'due'
 
 export interface AnneeLike {
   start_date?: string | null

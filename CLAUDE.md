@@ -429,8 +429,9 @@ financements, retention…), ecole de demonstration.
    adulte) d'un enfant AVEC donnees (notes reelles, absences, retards, bulletins archives : la liste qui bloque le
    retrait) : inscription `withdrawn` + `date_depart`, eleve inactif, une transaction (`declarer_depart_*`).
    Trace `mouvements_inscription` ecrite par la base (auteur compris admin, regle FIGEE). Reglage en tete de
-   Cotisations (`definir_regle_ajustement`) : Sans ajustement (defaut) / Due en totalite / Au prorata / Au cas par
-   cas, pour les DEPARTS seulement (une arrivee doit l'annee). Calcul unique `lignesCotisation` (`compute.ts`) +
+   Cotisations, encadre « Regle de cotisation pour depart en cours d'annee » (`definir_regle_ajustement`) : Due en
+   totalite (DEFAUT, `REGLE_PAR_DEFAUT`) / Au prorata / Au cas par cas / Sans ajustement, pour les DEPARTS
+   seulement (une arrivee doit l'annee). Calcul unique `lignesCotisation` (`compute.ts`) +
    chargeur `lib/financements/departs.ts` : prorata au mois commence depuis la rentree, frais d'inscription
    toujours dus, fratrie triee par anciennete de la fiche (un parti garde sa place). Au cas par cas : bouton
    « Decider » dans Reglements (`decider_mouvement`), signal dans l'audit Financements. Controles 21 et 22.

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import StudentDetail from '@/components/students/StudentDetail'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { LIBELLES_REGLE, type RegleAjustement } from '@/lib/financements/compute'
+import { LIBELLES_REGLE, REGLE_PAR_DEFAUT, type RegleAjustement } from '@/lib/financements/compute'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -165,7 +165,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
     depart = {
       classe:     (enCours.classes as any)?.name ?? '',
       aDonnees:   !!aDonnees,
-      regle:      LIBELLES_REGLE[((etab?.regle_ajustement ?? 'sans_ajustement') as RegleAjustement)],
+      regle:      LIBELLES_REGLE[((etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement)],
       rentree:    currentYear.start_date,
       fin:        currentYear.end_date,
       bulletinsManquants: periodesAnnee

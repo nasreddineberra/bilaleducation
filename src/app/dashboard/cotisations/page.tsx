@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import CotisationsClient from '@/components/cotisations/CotisationsClient'
-import type { RegleAjustement } from '@/lib/financements/compute'
+import { REGLE_PAR_DEFAUT, type RegleAjustement } from '@/lib/financements/compute'
 
 export default async function CotisationsPage() {
   const supabase = await createClient()
@@ -70,7 +70,7 @@ export default async function CotisationsPage() {
         allCotisationTypes={(allCotisationTypes ?? []) as any[]}
         allPresenceTypeRates={(allPresenceTypeRates ?? []) as any[]}
         reglage={{
-          regle:      (etab?.regle_ajustement ?? 'sans_ajustement') as RegleAjustement,
+          regle:      (etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement,
           modifieLe:  etab?.regle_ajustement_le ?? null,
           modifiePar: auteurRegle ? `${auteurRegle.last_name.toUpperCase()} ${auteurRegle.first_name}` : null,
         }}
