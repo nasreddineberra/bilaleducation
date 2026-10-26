@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { feeStatus, computeFamilyFinancials, lignesCotisation, moisProrata } from './compute.ts'
+import { feeStatus, computeFamilyFinancials, lignesCotisation, moisProrata, departsRetenus } from './compute.ts'
 
 /**
  * `feeStatus` EST LA SEULE REGLE DE CE MODULE DUPLIQUEE EN SQL.
@@ -177,5 +177,18 @@ describe('lignesCotisation — depart en cours d annee (26/10)', () => {
     const l = lignesCotisation([{ ct }, { ct }], annee, { fratrie: false })
     assert.equal(l[1].remise, 0)
     assert.equal(l[1].total, 320)
+  })
+})
+
+describe('departsRetenus : un enfant revenu ne compte qu une fois', () => {
+  const d = (id: string, date: string) => ({ id, date_depart: date })
+  const ids = (l: { id: string; date_depart: string }[]) => l.map(x => `${x.id}:${x.date_depart}`).sort()
+
+  test('parti puis reaffecte : le depart sort du calcul', () => {
+    assert.deepEqual(departsRetenus([d('a', '2026-10-26'), d('b', '2026-11-02')], x => x.id, new Set(['a'])).map(x => x.id), ['b'])
+  })
+
+  test('parti deux fois : seul le dernier depart compte', () => {
+    assert.deepEqual(ids(departsRetenus([d('a', '2026-10-26'), d('a', '2027-02-10')], x => x.id, new Set())), ['a:2027-02-10'])
   })
 })

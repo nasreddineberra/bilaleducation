@@ -226,6 +226,9 @@ export async function saveStudentEnrollments(
       class_id:        classId,
       status:          'active' as const,
       enrollment_date: today,
+      // Un enfant parti puis reaffecte a la meme classe : la ligne `withdrawn`
+      // redevient active, sa date de depart ne vaut plus.
+      date_depart:     null,
     }))
     const { error } = await supabase.from('enrollments').upsert(rows, { onConflict: 'student_id,class_id' })
     if (error) return { error: "Erreur lors de l'ajout des inscriptions." }
@@ -311,9 +314,11 @@ export async function saveParentEnrollments(
   if (toAdd.length > 0) {
     const rows = toAdd.map(id => {
       const { parent_id, tutor_number } = parseTutorId(id)
-      return { parent_id, class_id: classId, tutor_number, status: 'active' as const, enrollment_date: today }
+      return { parent_id, class_id: classId, tutor_number, status: 'active' as const, enrollment_date: today, date_depart: null }
     })
-    const { error } = await supabase.from('parent_class_enrollments').insert(rows)
+    // `upsert` : un adulte parti puis reinscrit au meme cours reactive sa ligne
+    // `withdrawn` (un simple ajout heurtait l'unicite parent/classe/tuteur).
+    const { error } = await supabase.from('parent_class_enrollments').upsert(rows, { onConflict: 'parent_id,class_id,tutor_number' })
     if (error) return { error: "Erreur lors de l'ajout des inscriptions." }
   }
 

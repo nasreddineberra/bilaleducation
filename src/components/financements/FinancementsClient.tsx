@@ -263,6 +263,21 @@ function CelluleCotisation({ montant, depart }: { montant: number; depart: Depar
   )
 }
 
+// Participant parti : nom et classe en rouge barre, la date en infobulle. Les
+// montants restent lisibles : ce que la regle retient entre dans le total.
+const CLASSE_PARTI = 'text-red-700 line-through'
+
+function NomParti({ depart, children }: { depart: Depart | null; children: React.ReactNode }) {
+  if (!depart) return <>{children}</>
+  return (
+    <Tooltip content={`Parti le ${fmtDate(depart.date)}`}>
+      <span tabIndex={0} className={clsx(CLASSE_PARTI, 'cursor-default outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded')}>
+        {children}
+      </span>
+    </Tooltip>
+  )
+}
+
 const departDe = (l: LigneCotisation, date: string | undefined): Depart | null =>
   date ? { date, regle: l.regle, mois: l.mois, cotisation: l.cotisation } : null
 
@@ -1023,13 +1038,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   {selectedParent.students.map(s => (
                     <tr key={s.id} className="border-b border-warm-50">
                       <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">
-                        {s.last_name.toUpperCase()} {s.first_name}
-                        {s.depart && <span className="ml-1.5"><Puce ton="orange">Parti le {fmtDate(s.depart.date)}</Puce></span>}
+                        <NomParti depart={s.depart}>{s.last_name.toUpperCase()} {s.first_name}</NomParti>
                       </td>
-                      <td className="px-2 py-1.5 text-xs text-secondary-600">
+                      <td className={clsx('px-2 py-1.5 text-xs', s.depart ? CLASSE_PARTI : 'text-secondary-600')}>
                         {s.class_tooltip ? (
                           <Tooltip content={<span className="whitespace-nowrap">{s.class_tooltip}</span>} maxWidth="max-w-none">
-                            <span className="cursor-default underline decoration-dotted underline-offset-2">
+                            <span className={clsx('cursor-default', !s.depart && 'underline decoration-dotted underline-offset-2')}>
                               {s.class_name}
                             </span>
                           </Tooltip>
@@ -1057,13 +1071,12 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       {selectedParent.adultLines.map(a => (
                         <tr key={a.id} className="border-b border-warm-50">
                           <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">
-                            {a.tutor_label}
-                            {a.depart && <span className="ml-1.5"><Puce ton="orange">Parti le {fmtDate(a.depart.date)}</Puce></span>}
+                            <NomParti depart={a.depart}>{a.tutor_label}</NomParti>
                           </td>
-                          <td className="px-2 py-1.5 text-xs text-secondary-600">
+                          <td className={clsx('px-2 py-1.5 text-xs', a.depart ? CLASSE_PARTI : 'text-secondary-600')}>
                             {a.class_tooltip ? (
                               <Tooltip content={<span className="whitespace-nowrap">{a.class_tooltip}</span>} maxWidth="max-w-none">
-                                <span className="cursor-default underline decoration-dotted underline-offset-2">
+                                <span className={clsx('cursor-default', !a.depart && 'underline decoration-dotted underline-offset-2')}>
                                   {a.class_name}
                                 </span>
                               </Tooltip>

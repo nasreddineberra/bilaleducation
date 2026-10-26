@@ -251,11 +251,14 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       .map(a => ({ type: a.adjustment_type, label: a.label, montant: Number(a.amount), date: a.adjustment_date }))
 
     // Lignes de cotisation (memes regles que le helper partage)
-    const famStudents = studentsByParent.get(pid) ?? []
+    // Un depart que `chargerDeparts` ecarte (enfant revenu, ou depart plus ancien
+    // qu'un autre) reste dans l'historique scolaire mais n'est pas facture.
+    const famStudents = (studentsByParent.get(pid) ?? [])
+      .filter((e: any) => e.status !== 'withdrawn' || departEleve.has(`${e.student_id}:${e.class_id}`))
     const lignes = lignesCotisation(famStudents.map((e: any) => ({
       ct:     classById.get(e.class_id)?.cotisation_types,
       ordre:  e.students?.created_at,
-      depart: e.status === 'withdrawn' ? departEleve.get(`${e.student_id}:${e.class_id}`) ?? { date: e.date_depart, regle: REGLE_PAR_DEFAUT } : null,
+      depart: e.status === 'withdrawn' ? departEleve.get(`${e.student_id}:${e.class_id}`)! : null,
     })), annee)
     const cotisations: any[] = []
     famStudents.forEach((e: any, i: number) => {
