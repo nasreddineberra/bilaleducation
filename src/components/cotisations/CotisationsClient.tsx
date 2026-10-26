@@ -54,6 +54,14 @@ interface Props {
 
 const REGLES = Object.keys(LIBELLES_REGLE) as RegleAjustement[]
 
+// Ce que chaque regle retient pour l'enfant PARTI (infobulle du switch).
+const INFOBULLES_REGLE: Record<RegleAjustement, string> = {
+  due:             'La cotisation de l’année reste due en entier, frais d’inscription compris.',
+  prorata:         'La cotisation est due de la rentrée jusqu’au mois du départ inclus. Les frais d’inscription restent dus.',
+  cas_par_cas:     'Vous choisissez la règle pour chaque départ, dans Règlements. En attendant, seuls les frais d’inscription sont dus.',
+  sans_ajustement: 'La cotisation n’est plus due après le départ. Seuls les frais d’inscription restent dus.',
+}
+
 type EditingRow = {
   id: string | null
   label: string
@@ -271,7 +279,7 @@ export default function CotisationsClient({
           <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <FiltreSwitch
               ariaLabel="Règle appliquée à un départ en cours d’année"
-              options={REGLES.map(r => ({ valeur: r, libelle: LIBELLES_REGLE[r] }))}
+              options={REGLES.map(r => ({ valeur: r, libelle: LIBELLES_REGLE[r], infobulle: INFOBULLES_REGLE[r] }))}
               actif={regle}
               onChange={v => setRegle(v as RegleAjustement)}
             />
