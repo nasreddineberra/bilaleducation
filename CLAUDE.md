@@ -441,7 +441,6 @@ financements, retention…), ecole de demonstration.
    `regle_modifiee_*`, controle 23).
    Signale : Reglements compte les cours adultes sans filtre d'annee (les stats filtrent).
 6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
-   `import_foyer` ne compte que les eleves au pre-controle ;
    sortie des 503 `any` ; `.card-flush`
    inutilisee (adopter ou supprimer).
 7. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur, accords « (s) »

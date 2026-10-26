@@ -9374,3 +9374,17 @@ Au prorata · Au cas par cas · Sans ajustement, et « Due en totalite » PAR DE
 - **Controle 23** : 5 cas (sans retroactivite, secretaire refusee, cas par cas, due avec regle initiale
   gardee et decision conservee, annee close / correction / autre ecole intactes). Vu ROUGE sans la migration,
   vert avec ; 21 et 22 restent verts.
+
+#### 26 octobre 2026 (soir, suite) — Import : la limite d'inscrits n'a plus qu'un juge
+
+- **Constat** (signale le 07/10) : `import_foyer` verifiait la limite en ne comptant que les eleves actifs ;
+  le declencheur `fn_guard_limite_inscrits` compte la base facturable (eleves + adultes) et refuse de toute
+  facon. Deux juges, deux messages : celui du pre-controle (SQL sans accents, adultes ignores, sans repere)
+  ou celui du declencheur, traduit par l'app (`messageLimiteInscrits`, repere `limite_inscrits`).
+- **Fait** : migration `import-foyer-sans-precontrole-limite.sql`, qui RAPIECE la definition reelle (comme
+  `add-medical-notes-to-import.sql`) : bloc et variables retires, LEVE si l'ancrage a bouge, sans effet si
+  rejouee. Fin de ligne de la source respectee (la fonction est en CRLF). Aucun code applicatif.
+- **Piege** : une expression PostgreSQL est paresseuse DANS SON ENSEMBLE si son premier quantificateur l'est
+  (`.*?`) ; le `\s*` final ne mangeait rien. Ancre par anticipation `(?=-- ── 1\. )`.
+- **Controle 24** : 3 cas (2 + 2 > 3 refuse AVEC repere, 2 + 1 = 3 accepte, adultes comptes). Vu ROUGE sans
+  la migration (le premier cas levait sans repere), vert avec.
