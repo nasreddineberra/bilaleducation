@@ -363,6 +363,9 @@ financements, retention…), ecole de demonstration.
    d'Express, appels sortants vers Supabase / push / SMTP seulement). Survoler la pastille de version de la
    console : aucun redeploiement utile tant que Vercel n'a pas publie 24.22.1 ; la version se lit au demarrage
    de la fonction. zod 4.6.7 verifie le 26/10 (fiches Utilisateur, Enseignant, Foyer).
+0 bis. **A LA REPRISE (arret du 26/10 au soir, tout pousse, aucune migration en attente)** : voir a l'ecran sur la
+   demo l'apercu « Appliquer aussi » (Cotisations), la connexion (logo) + Utilisateurs (etat 2FA) + un import
+   apres le retrait d'`anon`, et un toast accorde (« 1 email envoye sur 1 foyer »). Puis le point 6, un a un.
 1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
    (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Passe PAGE PAR
    PAGE en cours (18/10)** : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Regle : texte
