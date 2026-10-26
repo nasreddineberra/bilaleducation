@@ -353,11 +353,12 @@ sauvegarde locale automatisee, tests automatises (session, ordre,
 financements, retention…), ecole de demonstration.
 
 ### Reste a faire
-0. **A LA REPRISE (24/10) · Node2Shell (CVE-2026-111497)** : la production tournait en Node **24.21.0** le 23/10
-   au soir (correctif = **24.22.1**, Vercel le deploie lui-meme, WAF en attendant). Survoler la pastille de
-   version de la console : si < 24.22.1, relancer un deploiement (Vercel « Redeploy » ou commit vide), puis
-   verifier le reglage « Node.js Version » du projet. Poste de travail deja en 24.22.1. Verifier aussi qu'une
-   fiche Utilisateur / Enseignant / Foyer s'enregistre (zod 4.6.7).
+0. **A CHAQUE REPRISE · Node2Shell (CVE-2026-111497)** : projet en **24.x** (`engines` + reglage Vercel
+   « Node.js Version », verifie le 26/10). Le PATCH depend de Vercel seul : encore **24.21.0** le 26/10 apres un
+   « Redeploy » sans cache (correctif = **24.22.1**), pare-feu Vercel actif en attendant. Exposition faible (pas
+   d'Express, appels sortants vers Supabase / push / SMTP seulement). Survoler la pastille de version de la
+   console : aucun redeploiement utile tant que Vercel n'a pas publie 24.22.1 ; la version se lit au demarrage
+   de la fonction. Reste a verifier qu'une fiche Utilisateur / Enseignant / Foyer s'enregistre (zod 4.6.7).
 1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
    (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Passe PAGE PAR
    PAGE en cours (18/10)** : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Regle : texte
