@@ -10,7 +10,8 @@
 // inline et divergeait (reductions retranchees du percu au lieu du du).
 // Toute evolution passe par ICI.
 
-import { computeFamilyFinancials, siblingDiscounts, lineTotal, type FeeLike } from './compute'
+import { computeFamilyFinancials, lignesCotisation, type FeeLike } from './compute'
+import { chargerDeparts } from './departs'
 import type { FeeStatus } from '@/types/database'
 
 // Client Supabase serveur (type volontairement souple : evite d'importer le type
@@ -89,7 +90,7 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
       tutor1_last_name, tutor1_first_name,
       tutor2_last_name, tutor2_first_name,
       students!inner (
-        id, is_active,
+        id, is_active, created_at,
         enrollments!inner (
           status,
           classes!inner (
@@ -115,9 +116,17 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     .eq('status', 'active')
     .eq('classes.academic_year', currentYear.label)
 
-  // Parents adultes sans eleve
+  // Departs de l'annee (inscription `withdrawn`) : ils restent dans le calcul
+  // de leur foyer, selon la regle de l'ecole.
+  const departs = await chargerDeparts(supabase, currentYear)
+
+  // Parents adultes (ou partis) sans eleve actif
   const existingParentIds = new Set((parents ?? []).map((p: any) => p.id))
-  const adultParentIds = [...new Set((adultEnrollments ?? []).map((ae: any) => ae.parent_id))]
+  const adultParentIds = [...new Set([
+    ...(adultEnrollments ?? []).map((ae: any) => ae.parent_id),
+    ...departs.eleves.map(e => e.parent_id).filter((id): id is string => !!id),
+    ...departs.adultes.map(a => a.parent_id),
+  ])]
     .filter(id => !existingParentIds.has(id))
 
   let additionalParents: any[] = []
@@ -166,7 +175,7 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
     .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
 
   const adultByParent: Record<string, any[]> = {}
-  for (const ae of (adultEnrollments ?? []) as any[]) {
+  for (const ae of [...(adultEnrollments ?? []), ...departs.adultes] as any[]) {
     if (!adultByParent[ae.parent_id]) adultByParent[ae.parent_id] = []
     adultByParent[ae.parent_id].push(ae)
   }
@@ -184,27 +193,32 @@ export async function getFamilyFinancials(supabase: SB, currentYear: YearRef): P
   }
 
   for (const p of allParents as any[]) {
-    const students = p.students ?? []
-    const discounts = siblingDiscounts(
-      students.map((s: any) => (s.enrollments ?? [])[0]?.classes?.cotisation_types)
-    )
+    // Enfants partis : rattaches a leur foyer, avec `depart`.
+    const students = [...(p.students ?? []), ...departs.eleves.filter(e => e.parent_id === p.id)]
+    const lignes = lignesCotisation(students.map((s: any) => ({
+      ct:     (s.enrollments ?? [])[0]?.classes?.cotisation_types,
+      ordre:  s.created_at,
+      depart: s.depart,
+    })), currentYear)
 
     let subtotal = 0
     students.forEach((s: any, i: number) => {
       const ct = (s.enrollments ?? [])[0]?.classes?.cotisation_types
       if (!ct) return
-      const t = lineTotal(ct, discounts[i])
-      subtotal += t
-      addCotis(ct, t)
+      subtotal += lignes[i].total
+      addCotis(ct, lignes[i].total)
     })
 
-    for (const ae of (adultByParent[p.id] ?? [])) {
+    const adultes = adultByParent[p.id] ?? []
+    const lignesAdultes = lignesCotisation(adultes.map((ae: any) => ({
+      ct: ae.classes?.cotisation_types, depart: ae.depart,
+    })), currentYear, { fratrie: false })
+    adultes.forEach((ae: any, i: number) => {
       const ct = ae.classes?.cotisation_types
-      if (!ct) continue
-      const t = lineTotal(ct)
-      subtotal += t
-      addCotis(ct, t)
-    }
+      if (!ct) return
+      subtotal += lignesAdultes[i].total
+      addCotis(ct, lignesAdultes[i].total)
+    })
 
     // Sans inscription : plus de lignes d'ou recalculer, on reprend le sous-total
     // ENREGISTRE (le recalcul donnerait 0). Range a part dans « facture par

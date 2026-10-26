@@ -12,6 +12,7 @@ import StudentDocuments from './StudentDocuments'
 import StudentHistory from './StudentHistory'
 import type { Student } from '@/types/database'
 import { classInfoWithTeacher } from '@/components/dashboard/classInfo'
+import type { ContexteDepart } from './StudentScolarite'
 
 interface ParentOption {
   id: string
@@ -51,6 +52,8 @@ interface Props {
   history: any[]
   /** Fiche en lecture seule : l'ecriture de `students` n'est pas ouverte a ce role. */
   lectureSeule?: boolean
+  /** « Declarer un depart » : `null` si l'eleve n'est affecte a aucune classe cette annee. */
+  depart?: ContexteDepart | null
 }
 
 const TABS = [
@@ -66,7 +69,7 @@ type TabKey = typeof TABS[number]['key']
 export default function StudentDetail({
   student, parents, backHref, etablissementId,
   enrollments, periods, absencesFull, studentWarnings, bulletinArchives, mainTeachers, docTypeConfigs, studentDocuments, siblings, currentYearLabel, history,
-  lectureSeule = false,
+  lectureSeule = false, depart,
 }: Props) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
@@ -189,6 +192,8 @@ export default function StudentDetail({
         <div role="tabpanel" id="panel-scolarite" aria-labelledby="tab-scolarite">
           <StudentScolarite
             studentId={student.id}
+            studentName={`${student.last_name.toUpperCase()} ${student.first_name}`}
+            depart={depart ?? null}
             studentActive={!!student.is_active}
             enrollments={enrollments}
             periods={periods}

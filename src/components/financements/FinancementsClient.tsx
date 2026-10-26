@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { Trash2, Pencil, AlertTriangle, MessageSquareText } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
@@ -20,15 +21,16 @@ import { Puce, type Ton } from '@/components/dashboard/tdb'
 import { FloatInput, FloatSelect, FloatButton, SearchField } from '@/components/ui/FloatFields'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
-import { sendRelance, logAttestation, deleteFinancementCommunication, type FinancementCommunication } from '@/app/dashboard/financements/actions'
+import { sendRelance, logAttestation, deleteFinancementCommunication, deciderMouvement, type FinancementCommunication } from '@/app/dashboard/financements/actions'
 import { generateAttestationPdfBase64 } from './attestationPdf'
 import {
   // `feeStatus` n'est plus appele ICI : les quatre ecritures delegent le statut
   // a la base, qui le calcule dans la meme transaction. L'AFFICHAGE continue de
   // passer par lui, via `computeFamilyFinancials` — ecran et base partent donc
   // des memes lignes filles et du meme subtotal, ils ne peuvent pas diverger.
-  computeFamilyFinancials, siblingDiscounts, lineTotal,
-  type FamilyFinancials, type RecapDossier,
+  computeFamilyFinancials, lignesCotisation,
+  LIBELLES_REGLE, type RegleAjustement,
+  type FamilyFinancials, type RecapDossier, type AnneeLike, type LigneCotisation, type DecisionAjustement,
 } from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
@@ -45,6 +47,17 @@ interface StudentLine {
   registration_fee: number
   sibling_discount: number
   total: number
+  /** Renseigne pour un enfant PARTI en cours d'annee. */
+  depart: Depart | null
+}
+
+/** Depart en cours d'annee d'un participant, et ce que la regle en retient. */
+interface Depart {
+  date: string
+  regle: LigneCotisation['regle']
+  mois: LigneCotisation['mois']
+  /** Part de cotisation retenue (avant frais). */
+  cotisation: number
 }
 
 interface AdultLine {
@@ -58,6 +71,7 @@ interface AdultLine {
   cotisation_amount: number
   registration_fee: number
   total: number
+  depart: Depart | null
 }
 
 interface ParentOption {
@@ -76,7 +90,7 @@ interface ParentOption {
 
 
 interface Props {
-  currentYear: { id: string; label: string }
+  currentYear: { id: string; label: string } & AnneeLike
   parents: any[]
   adultEnrollments: any[]
   familyFees: any[]
@@ -118,9 +132,11 @@ interface Mouvement {
   student_id: string | null
   tutor_number: 1 | 2 | null
   sens: 'arrivee' | 'depart'
-  motif: 'affectation' | 'statut'
+  motif: 'affectation' | 'correction' | 'depart' | 'statut'
   survenu_le: string
   date_effet: string
+  regle: RegleAjustement
+  decision: DecisionAjustement | null
   classe_nom: string | null
   auteur_nom: string | null
   students: { last_name: string; first_name: string } | null
@@ -140,7 +156,9 @@ function nomMouvement(m: Mouvement): string {
 function libelleMouvement(m: Mouvement): string {
   const classe = m.classe_nom ?? 'classe supprimée'
   if (m.motif === 'statut') return `${m.sens === 'arrivee' ? 'Réactivé' : 'Rendu inactif'} · ${classe}`
-  const action = m.sens === 'arrivee' ? `Affecté à ${classe}` : `Retiré de ${classe}`
+  if (m.motif === 'depart') return `Parti de ${classe} le ${fmtDate(m.date_effet)}`
+  if (m.motif === 'correction') return `Retiré de ${classe} (correction)`
+  const action = `Affecté à ${classe}`
   // Une arrivee datee d'avant le geste (rentree, import) : on dit depuis quand.
   // `survenu_le` est en UTC : on compare au jour LOCAL du geste.
   const jourGeste = new Date(m.survenu_le).toLocaleDateString('fr-CA')
@@ -228,7 +246,27 @@ function buildClassTooltip(cls: any): string | null {
   return parts.length ? parts.join(' · ') : null
 }
 
-function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
+const libelleRegle = (r: LigneCotisation['regle']) =>
+  r === 'a_decider' ? 'À décider' : r ? LIBELLES_REGLE[r] : ''
+
+/** « Au prorata · 3/10 mois » : ce que la regle a retenu d'un depart. */
+const detailDepart = (d: Depart) =>
+  [libelleRegle(d.regle), d.mois && `${d.mois.retenus}/${d.mois.total} mois`].filter(Boolean).join(' · ')
+
+/** Cellule « Cotisation » : la part retenue d'un depart, la regle en infobulle. */
+function CelluleCotisation({ montant, depart }: { montant: number; depart: Depart | null }) {
+  if (!depart) return <>{fmtEur(montant)}</>
+  return (
+    <Tooltip content={<span className="whitespace-nowrap">{fmtEur(montant)} · {detailDepart(depart)}</span>} maxWidth="max-w-none">
+      <span className="cursor-default underline decoration-dotted underline-offset-2">{fmtEur(depart.cotisation)}</span>
+    </Tooltip>
+  )
+}
+
+const departDe = (l: LigneCotisation, date: string | undefined): Depart | null =>
+  date ? { date, regle: l.regle, mois: l.mois, cotisation: l.cotisation } : null
+
+function parseParents(raw: any[], adultEnrollments: any[], annee: AnneeLike): ParentOption[] {
   // Grouper les inscriptions adultes par parent_id
   const adultByParent: Record<string, any[]> = {}
   for (const ae of adultEnrollments) {
@@ -240,16 +278,18 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
   return raw.map(p => {
     const studentsRaw = p.students ?? []
 
-    // Remise fratrie : regle portee par le helper partage (source unique).
-    const discounts = siblingDiscounts(
-      studentsRaw.map((s: any) => (s.enrollments ?? [])[0]?.classes?.cotisation_types)
-    )
+    // Lignes (remise fratrie, departs) : calcul partage, source unique.
+    const lignes = lignesCotisation(studentsRaw.map((s: any) => ({
+      ct:     (s.enrollments ?? [])[0]?.classes?.cotisation_types,
+      ordre:  s.created_at,
+      depart: s.depart,
+    })), annee)
 
     const students: StudentLine[] = studentsRaw.map((s: any, i: number) => {
       const enrollment = (s.enrollments ?? [])[0]
       const cls = enrollment?.classes
       const ct = cls?.cotisation_types
-      const discount = discounts[i]
+      const l = lignes[i]
 
       const cotisation = ct?.amount ?? 0
       const regFee = ct?.registration_fee ?? 0
@@ -265,13 +305,17 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
         class_tooltip,
         cotisation_amount: cotisation,
         registration_fee: regFee,
-        sibling_discount: discount,
-        total: lineTotal(ct, discount),
+        sibling_discount: l.remise,
+        total: l.total,
+        depart: departDe(l, s.depart?.date),
       }
     })
     // Lignes adultes
     const parentAdultEnrollments = adultByParent[p.id] ?? []
-    const adultLines: AdultLine[] = parentAdultEnrollments.map((ae: any) => {
+    const lignesAdultes = lignesCotisation(parentAdultEnrollments.map((ae: any) => ({
+      ct: ae.classes?.cotisation_types, depart: ae.depart,
+    })), annee, { fratrie: false })
+    const adultLines: AdultLine[] = parentAdultEnrollments.map((ae: any, i: number) => {
       const cls = ae.classes
       const ct  = cls?.cotisation_types
       const cotisation = ct?.amount ?? 0
@@ -288,7 +332,8 @@ function parseParents(raw: any[], adultEnrollments: any[]): ParentOption[] {
         class_tooltip: buildClassTooltip(cls),
         cotisation_amount: cotisation,
         registration_fee: regFee,
-        total: cotisation + regFee,
+        total: lignesAdultes[i].total,
+        depart: departDe(lignesAdultes[i], ae.depart?.date),
       }
     })
 
@@ -322,7 +367,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
   const supabase = createClient()
   const toast = useToast()
 
-  const parentOptions = useMemo(() => parseParents(rawParents, adultEnrollments), [rawParents, adultEnrollments])
+  const parentOptions = useMemo(() => parseParents(rawParents, adultEnrollments, currentYear), [rawParents, adultEnrollments, currentYear])
 
   const [selectedParentId, setSelectedParentId] = useState<string>(initialParentId ?? '')
 
@@ -438,6 +483,28 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
     () => mouvements.filter(m => m.parent_id === selectedParentId),
     [mouvements, selectedParentId],
   )
+
+  // Au cas par cas : la decision de l'ecole sur un depart (RPC `decider_mouvement`).
+  // Le du se recalcule au rechargement de la page, depuis la decision enregistree.
+  const router = useRouter()
+  const [decisionCible, setDecisionCible] = useState<Mouvement | null>(null)
+  const [decisionChoix, setDecisionChoix] = useState<DecisionAjustement | ''>('')
+  const [decisionEnCours, setDecisionEnCours] = useState(false)
+  const [decisionErreur, setDecisionErreur] = useState<string | null>(null)
+  const ouvrirDecision = (m: Mouvement) => {
+    setDecisionCible(m); setDecisionChoix(m.decision ?? ''); setDecisionErreur(null)
+  }
+  const enregistrerDecision = async () => {
+    if (!decisionCible || !decisionChoix) return
+    setDecisionEnCours(true)
+    setDecisionErreur(null)
+    const res = await deciderMouvement(decisionCible.id, decisionChoix)
+    setDecisionEnCours(false)
+    if (res.error) { setDecisionErreur(res.error); return }
+    setDecisionCible(null)
+    toast.success('Décision enregistrée.')
+    router.refresh()
+  }
 
   // ── Créer/récupérer le family_fee ────────────────────────────────────────
 
@@ -955,7 +1022,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                   )}
                   {selectedParent.students.map(s => (
                     <tr key={s.id} className="border-b border-warm-50">
-                      <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{s.last_name.toUpperCase()} {s.first_name}</td>
+                      <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">
+                        {s.last_name.toUpperCase()} {s.first_name}
+                        {s.depart && <span className="ml-1.5"><Puce ton="orange">Parti le {fmtDate(s.depart.date)}</Puce></span>}
+                      </td>
                       <td className="px-2 py-1.5 text-xs text-secondary-600">
                         {s.class_tooltip ? (
                           <Tooltip content={<span className="whitespace-nowrap">{s.class_tooltip}</span>} maxWidth="max-w-none">
@@ -967,7 +1037,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                           <span className="cursor-default">{s.class_name}</span>
                         )}
                       </td>
-                      <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">{fmtEur(s.cotisation_amount)}</td>
+                      <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums"><CelluleCotisation montant={s.cotisation_amount} depart={s.depart} /></td>
                       <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">
                         {s.registration_fee > 0 ? fmtEur(s.registration_fee) : <span className="text-warm-700">·</span>}
                       </td>
@@ -986,7 +1056,10 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                       </tr>
                       {selectedParent.adultLines.map(a => (
                         <tr key={a.id} className="border-b border-warm-50">
-                          <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">{a.tutor_label}</td>
+                          <td className="px-2 py-1.5 text-xs font-medium text-secondary-800 whitespace-nowrap">
+                            {a.tutor_label}
+                            {a.depart && <span className="ml-1.5"><Puce ton="orange">Parti le {fmtDate(a.depart.date)}</Puce></span>}
+                          </td>
                           <td className="px-2 py-1.5 text-xs text-secondary-600">
                             {a.class_tooltip ? (
                               <Tooltip content={<span className="whitespace-nowrap">{a.class_tooltip}</span>} maxWidth="max-w-none">
@@ -998,7 +1071,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
                               <span className="cursor-default">{a.class_name}</span>
                             )}
                           </td>
-                          <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">{fmtEur(a.cotisation_amount)}</td>
+                          <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums"><CelluleCotisation montant={a.cotisation_amount} depart={a.depart} /></td>
                           <td className="px-2 py-1.5 text-xs text-secondary-700 text-right tabular-nums">
                             {a.registration_fee > 0 ? fmtEur(a.registration_fee) : <span className="text-warm-700">·</span>}
                           </td>
@@ -1031,15 +1104,33 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
               ) : (
                 <ul className="divide-y divide-warm-50 max-h-48 overflow-y-auto list-scroll" aria-label="Mouvements d'inscription">
                   {familyMouvements.map(m => {
-                    const texte = [nomMouvement(m), libelleMouvement(m), m.auteur_nom && `par ${m.auteur_nom}`]
-                      .filter(Boolean).join(' · ')
+                    // Un DEPART : ce que la regle en retient, d'apres la ligne du recapitulatif.
+                    const ligne = m.motif !== 'depart' ? null
+                      : m.student_id
+                        ? selectedParent.students.find(s => s.id === m.student_id && s.depart)
+                        : selectedParent.adultLines.find(a => a.id.startsWith(`adult-${m.parent_id}-${m.tutor_number}-`) && a.depart)
+                    const aDecider = m.motif === 'depart' && m.regle === 'cas_par_cas'
+                    const texte = [
+                      nomMouvement(m), libelleMouvement(m),
+                      ligne?.depart && `${detailDepart(ligne.depart)} · ${fmtEur(ligne.total)}`,
+                      m.auteur_nom && `par ${m.auteur_nom}`,
+                    ].filter(Boolean).join(' · ')
                     return (
                       <li key={m.id} className="px-3 py-1.5 flex items-center gap-2 text-xs">
                         <span className="text-warm-700 whitespace-nowrap tabular-nums">{fmtDateHeure(m.survenu_le)}</span>
                         <span className="shrink-0">
-                          <Puce ton={m.sens === 'arrivee' ? 'ok' : 'orange'}>{m.sens === 'arrivee' ? 'Arrivée' : 'Départ'}</Puce>
+                          <Puce ton={m.sens === 'arrivee' ? 'ok' : m.motif === 'correction' ? 'neutre' : 'orange'}>
+                            {m.sens === 'arrivee' ? 'Arrivée' : m.motif === 'correction' ? 'Correction' : 'Départ'}
+                          </Puce>
                         </span>
                         <TruncatedText text={texte} className="text-secondary-700" />
+                        {aDecider && (
+                          <span className="ml-auto shrink-0">
+                            <FloatButton type="button" size="mini" variant={m.decision ? 'edit' : 'submit'} onClick={() => ouvrirDecision(m)}>
+                              {m.decision ? 'Modifier' : 'Décider'}
+                            </FloatButton>
+                          </span>
+                        )}
                       </li>
                     )
                   })}
@@ -1369,6 +1460,35 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
           onClose={() => { setPaymentModalOpen(false); setEditingPayment(null) }}
           onSaved={handlePaymentSaved}
         />
+      )}
+
+      {decisionCible && (
+        <FormModal
+          title="Départ au cas par cas"
+          onClose={() => setDecisionCible(null)}
+          footer={<>
+            <div className="flex-1" />
+            <FloatButton variant="secondary" type="button" onClick={() => setDecisionCible(null)} disabled={decisionEnCours}>Annuler</FloatButton>
+            <FloatButton variant={decisionCible.decision ? 'edit' : 'submit'} type="button" onClick={enregistrerDecision} loading={decisionEnCours} disabled={!decisionChoix}>
+              Enregistrer
+            </FloatButton>
+          </>}
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-secondary-700">{nomMouvement(decisionCible)} · {libelleMouvement(decisionCible)}</p>
+            <FloatSelect
+              label="Règle appliquée à ce départ"
+              required
+              aria-required="true"
+              value={decisionChoix}
+              onChange={e => setDecisionChoix(e.target.value as DecisionAjustement)}
+            >
+              <option value="" disabled hidden></option>
+              {(['sans_ajustement', 'due', 'prorata'] as const).map(r => <option key={r} value={r}>{LIBELLES_REGLE[r]}</option>)}
+            </FloatSelect>
+            {decisionErreur && <p role="alert" className="text-xs text-red-700">{decisionErreur}</p>}
+          </div>
+        </FormModal>
       )}
 
       {/* Modale de choix des inscriptions a porter sur l'attestation.

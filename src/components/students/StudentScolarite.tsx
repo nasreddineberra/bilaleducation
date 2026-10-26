@@ -1,9 +1,15 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import PeriodeCell from '@/components/scolarite/PeriodeCell'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
+import FormModal from '@/components/ui/FormModal'
+import Tooltip from '@/components/ui/Tooltip'
+import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
+import { useToast } from '@/lib/toast-context'
+import { declarerDepartEleve } from '@/app/dashboard/students/actions'
 
 /**
  * SCOLARITÉ — un HISTORIQUE, année après année.
@@ -32,6 +38,7 @@ type EnrollmentRow = {
   class_id: string
   enrollment_date: string
   status: string
+  date_depart?: string | null
   classes: {
     id: string
     name: string
@@ -72,8 +79,26 @@ type WarningRow = {
   severity: string
 }
 
+/**
+ * Depart en cours d'annee, prepare par la page (`students/[id]/page.tsx`).
+ * Present seulement pour un eleve affecte a une classe de l'annee en cours.
+ */
+export interface ContexteDepart {
+  classe: string
+  /** Notes, absences ou bulletins : le retrait est bloque, le depart possible. */
+  aDonnees: boolean
+  /** Libelle de la regle de l'etablissement (« Au prorata »...). */
+  regle: string
+  rentree: string | null
+  fin: string | null
+  /** Periodes terminees sans bulletin archive (avertissement non bloquant). */
+  bulletinsManquants: string[]
+}
+
 interface Props {
   studentId: string
+  studentName: string
+  depart: ContexteDepart | null
   /** « Inscrit » = ACTIF dans cette application : l'etat vide ne peut pas
       affirmer qu'un apprenant desactive est inscrit. */
   studentActive: boolean
@@ -87,7 +112,7 @@ interface Props {
 const STATUS_LABEL: Record<string, string> = {
   active: 'Actif',
   completed: 'Terminé',
-  withdrawn: 'Retiré',
+  withdrawn: 'Parti',
 }
 
 // Pastilles d'etat de la charte : actif au vert de marque, termine ardoise, retire rouge.
@@ -109,8 +134,34 @@ const DAYS_FR: Record<string, string> = {
 // ─── Composant ────────────────────────────────────────────────────────────────
 
 export default function StudentScolarite({
-  studentActive, enrollments, periods, bulletinArchives, mainTeachers, warnings,
+  studentId, studentName, depart, studentActive, enrollments, periods, bulletinArchives, mainTeachers, warnings,
 }: Props) {
+  const router = useRouter()
+  const toast  = useToast()
+  const [departOuvert, setDepartOuvert] = useState(false)
+  const [dateDepart, setDateDepart]     = useState('')
+  const [departEnCours, setDepartEnCours] = useState(false)
+  const [departErreur, setDepartErreur]   = useState<string | null>(null)
+
+  const ouvrirDepart = () => {
+    // Aujourd'hui en date LOCALE (`fr-CA` rend AAAA-MM-JJ), jamais `toISOString`.
+    setDateDepart(new Date().toLocaleDateString('fr-CA'))
+    setDepartErreur(null)
+    setDepartOuvert(true)
+  }
+  const validerDepart = async () => {
+    setDepartEnCours(true)
+    setDepartErreur(null)
+    const res = await declarerDepartEleve(studentId, dateDepart)
+    setDepartEnCours(false)
+    if (res.error) { setDepartErreur(res.error); return }
+    setDepartOuvert(false)
+    toast.success('Départ enregistré.')
+    router.refresh()
+  }
+  const dateValide = !!dateDepart
+    && (!depart?.rentree || dateDepart >= depart.rentree)
+    && (!depart?.fin || dateDepart <= depart.fin)
 
   // Archives indexées par classe:période — la source unique de cet écran.
   const archiveMap = useMemo(() => {
@@ -214,12 +265,25 @@ export default function StudentScolarite({
           return (
             <section key={enrollment.id} className="card p-3 space-y-2">
 
-              {/* Bandeau : annee et statut */}
+              {/* Bandeau : annee et statut ; depart de l'annee en cours a droite */}
               <div className="encadre-titre gap-2">
                 <h2 className="text-xs font-bold uppercase tracking-widest">{year}</h2>
                 <Puce ton={STATUS_TON[enrollment.status] ?? 'neutre'}>
                   {STATUS_LABEL[enrollment.status] ?? enrollment.status}
                 </Puce>
+                {depart && enrollment.status === 'active' && cls.name === depart.classe && (
+                  <span className="ml-auto">
+                    {depart.aDonnees ? (
+                      <FloatButton type="button" variant="danger" size="mini" onClick={ouvrirDepart}>Déclarer un départ</FloatButton>
+                    ) : (
+                      <Tooltip content="Aucune note ni absence : retirez-le de sa classe depuis Affectations.">
+                        <span tabIndex={0} className="inline-flex outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded">
+                          <FloatButton type="button" variant="danger" size="mini" disabled>Déclarer un départ</FloatButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </span>
+                )}
               </div>
 
               {/* Classe et ses infos ; affectation et avertissements a droite */}
@@ -234,6 +298,7 @@ export default function StudentScolarite({
                       Dans cette application « inscrit » veut dire ACTIF : appeler
                       cette date « Inscrit le » melangeait les deux notions. */}
                   Affecté le {dateFr(enrollment.enrollment_date)}
+                  {enrollment.status === 'withdrawn' && enrollment.date_depart && <> · Parti le {dateFr(enrollment.date_depart)}</>}
                 </span>
               </div>
 
@@ -268,6 +333,42 @@ export default function StudentScolarite({
             </section>
           )
         })
+      )}
+
+      {departOuvert && depart && (
+        <FormModal
+          title={`Départ de ${studentName}`}
+          onClose={() => setDepartOuvert(false)}
+          footer={<>
+            <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
+            <div className="flex-1" />
+            <FloatButton variant="secondary" type="button" onClick={() => setDepartOuvert(false)} disabled={departEnCours}>Annuler</FloatButton>
+            <FloatButton variant="submit" type="button" onClick={validerDepart} loading={departEnCours} disabled={!dateValide}>Valider</FloatButton>
+          </>}
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-secondary-700">
+              Classe : <span className="font-semibold text-secondary-800">{depart.classe}</span>
+              {' · '}Règle de l’établissement : <span className="font-semibold text-secondary-800">{depart.regle}</span>
+            </p>
+            <FloatInput
+              label="Date de départ"
+              type="date"
+              required
+              aria-required="true"
+              min={depart.rentree ?? undefined}
+              max={depart.fin ?? undefined}
+              value={dateDepart}
+              onChange={e => setDateDepart(e.target.value)}
+            />
+            {depart.bulletinsManquants.length > 0 && (
+              <p className="text-xs text-amber-700">
+                Bulletin{depart.bulletinsManquants.length > 1 ? 's' : ''} non archivé{depart.bulletinsManquants.length > 1 ? 's' : ''} : {depart.bulletinsManquants.join(', ')}.
+              </p>
+            )}
+            {departErreur && <p role="alert" className="text-xs text-red-700">{departErreur}</p>}
+          </div>
+        </FormModal>
       )}
     </div>
   )

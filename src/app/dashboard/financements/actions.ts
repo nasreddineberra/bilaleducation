@@ -8,6 +8,7 @@ import { escapeHtml } from '@/lib/security/escape-html'
 import { coque, POLICE, C } from '@/lib/email/shell.mjs'
 import { FINANCE_ROLES } from '@/lib/financements/roles'
 import { logAudit } from '@/lib/audit'
+import { phraseRefus } from '@/lib/financements/depart-refus'
 
 export interface FinancementCommunication {
   id: string
@@ -225,5 +226,34 @@ export async function deleteFinancementCommunication(id: string): Promise<{ erro
     // qui a filtre — en pratique, la policy DELETE absente de la base.
     return { error: "Suppression refusée par la base : la policy de suppression n'est pas en place (migration add-financement-communications-delete.sql à jouer)." }
   }
+  return {}
+}
+
+// ─── Depart en cours d'annee ──────────────────────────────────────────────────
+// Les RPC portent elles-memes la garde de role et le cloisonnement
+// (`add-depart-en-cours-annee.sql`) ; la garde ici evite un aller-retour.
+// Leurs refus portent un code (`message`), traduit par `phraseRefus`.
+
+
+export async function deciderMouvement(
+  mouvementId: string,
+  decision: 'sans_ajustement' | 'due' | 'prorata',
+): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  if (roleError) return { error: roleError }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('decider_mouvement', { p_id: mouvementId, p_decision: decision })
+  if (error) return { error: phraseRefus(error, 'La décision n’a pas pu être enregistrée.') }
+  return {}
+}
+
+export async function definirRegleAjustement(
+  regle: 'sans_ajustement' | 'due' | 'prorata' | 'cas_par_cas',
+): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
+  if (roleError) return { error: roleError }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('definir_regle_ajustement', { p_regle: regle })
+  if (error) return { error: phraseRefus(error, 'Le réglage n’a pas pu être enregistré.') }
   return {}
 }

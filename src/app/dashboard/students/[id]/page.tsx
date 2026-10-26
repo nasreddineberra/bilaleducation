@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import StudentDetail from '@/components/students/StudentDetail'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { LIBELLES_REGLE, type RegleAjustement } from '@/lib/financements/compute'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -61,7 +62,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   // Données scolarité : inscriptions avec classe + année scolaire
   const { data: enrollments } = await supabase
     .from('enrollments')
-    .select('id, class_id, enrollment_date, status, classes(id, name, level, academic_year, day_of_week, start_time, end_time, cotisation_types(label))')
+    .select('id, class_id, enrollment_date, status, date_depart, classes(id, name, level, academic_year, day_of_week, start_time, end_time, cotisation_types(label))')
     .eq('student_id', id)
     .order('enrollment_date', { ascending: false })
 
@@ -140,10 +141,39 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
   // Année scolaire en cours (pour filtrer onglet Discipline)
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('label')
+    .select('label, start_date, end_date')
     .eq('is_current', true)
     .single()
   const currentYearLabel = currentYear?.label ?? ''
+
+  // « Declarer un depart » : seulement pour un eleve affecte cette annee, et
+  // seulement s'il a des donnees qui bloquent son retrait (meme regle que la
+  // base, `fn_eleve_a_donnees`). Sans donnees, le retrait se fait dans
+  // Affectations : le bouton est alors grise.
+  const enCours = (enrollments ?? []).find((e: any) => e.status === 'active' && e.classes?.academic_year === currentYearLabel)
+  let depart = null
+  if (enCours && !lectureSeule && currentYear) {
+    const [{ data: aDonnees }, { data: etab }] = await Promise.all([
+      supabase.rpc('fn_eleve_a_donnees', { p_student_id: id, p_class_id: enCours.class_id }),
+      supabase.from('etablissements').select('regle_ajustement').maybeSingle(),
+    ])
+    // Periodes TERMINEES (avant la periode en cours) sans bulletin archive :
+    // l'avertissement de la fenetre, non bloquant (decision du 26/10).
+    const periodesAnnee = ((periodRows ?? []) as any[]).filter(p => p.school_years?.label === currentYearLabel)
+    const rangCourant = periodesAnnee.find(p => p.is_current)?.order_index ?? -1
+    const archivees = new Set(((bulletinArchives ?? []) as any[]).filter(b => b.class_id === enCours.class_id).map(b => b.period_id))
+    depart = {
+      classe:     (enCours.classes as any)?.name ?? '',
+      aDonnees:   !!aDonnees,
+      regle:      LIBELLES_REGLE[((etab?.regle_ajustement ?? 'sans_ajustement') as RegleAjustement)],
+      rentree:    currentYear.start_date,
+      fin:        currentYear.end_date,
+      bulletinsManquants: periodesAnnee
+        .filter(p => p.order_index < rangCourant && !archivees.has(p.id))
+        .sort((a, b) => a.order_index - b.order_index)
+        .map(p => p.label as string),
+    }
+  }
 
   // Documents administratifs (onglet Documents)
   const [{ data: docTypeConfigs }, { data: studentDocs }, { data: history }] = await Promise.all([
@@ -181,6 +211,7 @@ export default async function EditStudentPage({ params, searchParams }: Props) {
         siblings={siblings as any[]}
         currentYearLabel={currentYearLabel}
         history={(history ?? []) as any[]}
+        depart={depart}
       />
 
     </div>

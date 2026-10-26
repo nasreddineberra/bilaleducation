@@ -4,6 +4,8 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { hrefRetour } from '@/lib/navigation/retour'
 import ParentDetail from '@/components/parents/ParentDetail'
+import { effectiveRole } from '@/lib/auth/effective-role'
+import { LIBELLES_REGLE, type RegleAjustement } from '@/lib/financements/compute'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -53,7 +55,20 @@ export default async function EditParentPage({ params, searchParams }: Props) {
   // « aucun cours archivé », alors que sa classe, ses notes et son assiduité
   // existent bel et bien. On construit donc la scolarité VIVANTE, une carte par
   // tuteur inscrit — un foyer peut en compter deux.
-  const adultCurrent = await buildAdultCurrent(supabase, id, parent)
+  // « Declarer un depart » : roles qui affectent (la RPC applique la meme garde).
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profil } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user?.id ?? '').single()
+  const peutDeclarer = ['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(effectiveRole(profil) ?? '')
+
+  const adultCurrent = await buildAdultCurrent(supabase, id, parent, peutDeclarer)
+  const { data: etab } = await supabase.from('etablissements').select('regle_ajustement').maybeSingle()
+  const contexteDepart = adultCurrent[0]
+    ? {
+        regle:   LIBELLES_REGLE[((etab?.regle_ajustement ?? 'sans_ajustement') as RegleAjustement)],
+        rentree: adultCurrent[0].rentree,
+        fin:     adultCurrent[0].fin,
+      }
+    : null
 
   // Tuteurs INSCRITS aux cours adultes mais AFFECTÉS À AUCUNE classe. Le cas est
   // exactement celui de l'apprenant sans classe, et il se nomme : un foyer peut
@@ -87,6 +102,7 @@ export default async function EditParentPage({ params, searchParams }: Props) {
         adultHistory={(adultHistory ?? []) as any[]}
         adultCurrent={adultCurrent}
         adultsNonAffectes={adultsNonAffectes}
+        contexteDepart={contexteDepart}
       />
 
     </div>
@@ -103,9 +119,9 @@ export default async function EditParentPage({ params, searchParams }: Props) {
  * classe au niveau de l'année, puis une colonne par période — moins la discipline,
  * qui n'a pas d'équivalent adulte (décision du 9 août).
  */
-async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
+async function buildAdultCurrent(supabase: any, parentId: string, parent: any, peutDeclarer = false) {
   const { data: year } = await supabase
-    .from('school_years').select('id, label, periods(id, label, order_index)')
+    .from('school_years').select('id, label, start_date, end_date, periods(id, label, order_index)')
     .eq('is_current', true).maybeSingle()
   if (!year) return []
 
@@ -113,8 +129,8 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
 
   const { data: enr } = await supabase
     .from('parent_class_enrollments')
-    .select('tutor_number, class_id, status, enrollment_date, classes!inner(id, name, level, day_of_week, start_time, end_time, academic_year, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
-    .eq('parent_id', parentId).eq('status', 'active')
+    .select('tutor_number, class_id, status, enrollment_date, date_depart, classes!inner(id, name, level, day_of_week, start_time, end_time, academic_year, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, teachers(civilite, first_name, last_name)))')
+    .eq('parent_id', parentId).in('status', ['active', 'withdrawn'])
     .eq('classes.academic_year', year.label)
 
   const inscriptions = (enr ?? []).filter((e: any) => e.classes?.cotisation_types?.is_adult)
@@ -127,6 +143,16 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
     .from('adult_bulletin_archives')
     .select('tutor_number, class_id, period_id, file_path, moyenne_generale, absences_count, absences_unjustified, retards_count')
     .eq('parent_id', parentId)
+
+  // Le depart n'est possible qu'avec des donnees (notes, bulletins) : sinon le
+  // retrait se fait dans Affectations (meme regle que la base).
+  const aDonnees = new Map<string, boolean>()
+  if (peutDeclarer) {
+    for (const e of inscriptions.filter((x: any) => x.status === 'active')) {
+      const { data } = await supabase.rpc('fn_adulte_a_donnees', { p_parent_id: parentId, p_tutor_number: e.tutor_number, p_class_id: e.class_id })
+      aDonnees.set(`${e.tutor_number}:${e.class_id}`, !!data)
+    }
+  }
 
   return inscriptions.map((e: any) => {
     const t2 = e.tutor_number === 2
@@ -171,6 +197,12 @@ async function buildAdultCurrent(supabase: any, parentId: string, parent: any) {
         ? `${DAY_FR[c.day_of_week] ?? c.day_of_week} ${c.start_time.slice(0, 5)}-${(c.end_time ?? '').slice(0, 5)}`
         : null,
       enrollment_date: e.enrollment_date,
+      date_depart: e.date_depart ?? null,
+      class_id: e.class_id,
+      // `null` : aucun bouton (role, ou deja parti) ; sinon actif / grise.
+      peutPartir: peutDeclarer && e.status === 'active' ? aDonnees.get(`${e.tutor_number}:${e.class_id}`) ?? false : null,
+      rentree: year.start_date ?? null,
+      fin: year.end_date ?? null,
       periods: colonnes,
     }
   })

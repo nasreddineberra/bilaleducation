@@ -423,14 +423,18 @@ financements, retention…), ecole de demonstration.
    laisse `auth.users` et Storage).
 5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-5 bis. **Ajustements en cours d'annee (26/10, lot 1 FAIT)** : table `mouvements_inscription` ecrite par la base
-   (declencheurs sur `enrollments`, `parent_class_enrollments`, `students.is_active`), auteur compris admin, regle de
-   l'etablissement FIGEE au mouvement (`etablissements.regle_ajustement`, defaut `sans_ajustement`), controle 21 ;
-   encadre « Informations sur mouvements » dans Reglements (lecture). **Lot 2** : reglage en tete de Cotisations
-   (bandeau « Ajustements en cours d'annee », `FiltreSwitch` Sans ajustement / Due en totalite / Au prorata / Au cas
-   par cas), calcul dans `compute.ts` (prorata au mois commence, frais d'inscription toujours dus, enfant parti garde
-   sa place dans la remise fratrie, transfert = meme jour), decisions « au cas par cas » (compte sans ajustement en
-   attendant, signale par l'audit Financements), regle appliquee seulement apres la rentree (`date_effet`).
+5 bis. **Ajustements en cours d'annee (FAIT 26/10, lots 1 et 2 ; reste l'inspection a l'ecran sur la demo)** :
+   deux gestes qui ne se recouvrent pas. CORRECTION = retrait dans Affectations d'un enfant SANS donnees
+   (inscription supprimee, aucun montant) ; DEPART = « Declarer un depart » (fiche eleve, fiche foyer pour un
+   adulte) d'un enfant AVEC donnees (notes reelles, absences, retards, bulletins archives : la liste qui bloque le
+   retrait) : inscription `withdrawn` + `date_depart`, eleve inactif, une transaction (`declarer_depart_*`).
+   Trace `mouvements_inscription` ecrite par la base (auteur compris admin, regle FIGEE). Reglage en tete de
+   Cotisations (`definir_regle_ajustement`) : Sans ajustement (defaut) / Due en totalite / Au prorata / Au cas par
+   cas, pour les DEPARTS seulement (une arrivee doit l'annee). Calcul unique `lignesCotisation` (`compute.ts`) +
+   chargeur `lib/financements/departs.ts` : prorata au mois commence depuis la rentree, frais d'inscription
+   toujours dus, fratrie triee par anciennete de la fiche (un parti garde sa place). Au cas par cas : bouton
+   « Decider » dans Reglements (`decider_mouvement`), signal dans l'audit Financements. Controles 21 et 22.
+   Signale : Reglements compte les cours adultes sans filtre d'annee (les stats filtrent).
 6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
    `import_foyer` ne compte que les eleves au pre-controle ;
    sortie des 503 `any` ; `.card-flush`

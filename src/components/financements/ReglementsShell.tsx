@@ -6,7 +6,7 @@ import FinancementsClient from './FinancementsClient'
 import ImpayesAnterieurs from './ImpayesAnterieurs'
 
 interface Props {
-  currentYear: { id: string; label: string }
+  currentYear: { id: string; label: string; start_date?: string | null; end_date?: string | null }
   parents: any[]
   adultEnrollments: any[]
   familyFees: any[]

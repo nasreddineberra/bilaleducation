@@ -8,7 +8,8 @@
 // les familles - ce qui etait possible tant qu'on refaisait le calcul.
 
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
-import { siblingDiscounts, lineTotal } from '@/lib/financements/compute'
+import { lignesCotisation } from '@/lib/financements/compute'
+import { chargerDeparts } from '@/lib/financements/departs'
 import type { YearCtx } from './audits'
 
 export interface ArchiveResult {
@@ -33,7 +34,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
   // 1. Classes de l'annee (+ cotisation pour libelle / remise fratrie / adulte)
   const { data: classes } = await supabase
     .from('classes')
-    .select('id, name, level, max_students, day_of_week, start_time, end_time, room_number, cotisation_type_id, cotisation_types:cotisation_type_id(label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type)')
+    .select('id, name, level, max_students, day_of_week, start_time, end_time, room_number, cotisation_type_id, cotisation_types:cotisation_type_id(id, label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type)')
     .eq('academic_year', ctx.yearLabel)
   const classList = (classes ?? []) as any[]
   const classById = new Map(classList.map(c => [c.id, c]))
@@ -42,17 +43,18 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
 
   if (classIds.length === 0) return { studentRows: [], familyRows: [], classRows: [] }
 
-  // 2. Eleves actifs inscrits + 3. Adultes + 4. Evals scored + 5. Notes + 6. Absences + 7. Bulletins
+  // 2. Eleves inscrits (actifs, ou PARTIS en cours d'annee : leur passage reste
+  // dans l'historique) + 3. Adultes + 4. Evals scored + 5. Notes + 6. Absences + 7. Bulletins
   const [
     { data: enr }, { data: pce }, { data: ba }, { data: aba },
-    fin,
+    fin, departs,
   ] = await Promise.all([
     supabase.from('enrollments')
-      .select('student_id, class_id, students:student_id(first_name, last_name, student_number, parent_id, is_active)')
-      .eq('status', 'active').in('class_id', classIds),
+      .select('student_id, class_id, status, date_depart, students:student_id(first_name, last_name, student_number, parent_id, is_active, created_at)')
+      .in('status', ['active', 'withdrawn']).in('class_id', classIds),
     supabase.from('parent_class_enrollments')
-      .select('parent_id, tutor_number, class_id, parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
-      .eq('status', 'active').in('class_id', classIds),
+      .select('parent_id, tutor_number, class_id, status, date_depart, parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
+      .in('status', ['active', 'withdrawn']).in('class_id', classIds),
     // LES CHIFFRES VIENNENT DES BULLETINS ARCHIVES, plus d'un recalcul.
     //
     // Depuis le 10 aout, la ligne d'archive porte la moyenne et l'assiduite
@@ -74,9 +76,13 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       .select('id, parent_id, tutor_number, period_id, file_path, moyenne_generale, absences_count, absences_unjustified')
       .in('period_id', ctx.periodIds),
     getFamilyFinancials(supabase, { id: ctx.yearId, label: ctx.yearLabel, start_date: ctx.startDate, end_date: ctx.endDate }),
+    chargerDeparts(supabase, { id: ctx.yearId, label: ctx.yearLabel }),
   ])
+  const annee = { start_date: ctx.startDate, end_date: ctx.endDate }
+  const departEleve = new Map(departs.eleves.map(d => [`${d.id}:${d.enrollments[0]?.class_id}`, d.depart]))
+  const departAdulte = new Map(departs.adultes.map(d => [`${d.parent_id}-${d.tutor_number}:${d.classes?.id}`, d.depart]))
 
-  const students = ((enr ?? []) as any[]).filter(e => e.students?.is_active)
+  const students = ((enr ?? []) as any[]).filter(e => e.status === 'withdrawn' || e.students?.is_active)
   const adults = ((pce ?? []) as any[]).filter(p => isAdultClass(classById.get(p.class_id)))
 
   /**
@@ -161,6 +167,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       total_due: fr?.totalDue ?? null,
       total_paid: fr?.totalPaid ?? null,
       bulletin_refs: bullByStudent.get(e.student_id) ?? [],
+      date_depart: e.status === 'withdrawn' ? e.date_depart : null,
     }
   })
 
@@ -192,6 +199,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       total_due: fr?.totalDue ?? null,
       total_paid: fr?.totalPaid ?? null,
       bulletin_refs: bullByAdult.get(key) ?? [],
+      date_depart: p.status === 'withdrawn' ? p.date_depart : null,
     }
   })
 
@@ -244,8 +252,11 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
 
     // Lignes de cotisation (memes regles que le helper partage)
     const famStudents = studentsByParent.get(pid) ?? []
-    const cotis = famStudents.map((e: any) => classById.get(e.class_id)?.cotisation_types)
-    const discounts = siblingDiscounts(cotis)
+    const lignes = lignesCotisation(famStudents.map((e: any) => ({
+      ct:     classById.get(e.class_id)?.cotisation_types,
+      ordre:  e.students?.created_at,
+      depart: e.status === 'withdrawn' ? departEleve.get(`${e.student_id}:${e.class_id}`) ?? { date: e.date_depart, regle: 'sans_ajustement' as const } : null,
+    })), annee)
     const cotisations: any[] = []
     famStudents.forEach((e: any, i: number) => {
       const ct = classById.get(e.class_id)?.cotisation_types
@@ -253,20 +264,27 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       cotisations.push({
         participant: `${e.students?.last_name ?? ''} ${e.students?.first_name ?? ''}`.trim(),
         cotisation_label: ct.label ?? null,
-        total: lineTotal(ct, discounts[i]),
+        total: lignes[i].total,
+        ...(e.status === 'withdrawn' ? { date_depart: e.date_depart, regle: lignes[i].regle } : {}),
       })
     })
-    for (const a of adultsByParent.get(pid) ?? []) {
+    const famAdultes = adultsByParent.get(pid) ?? []
+    const lignesAdultes = lignesCotisation(famAdultes.map((a: any) => ({
+      ct:     classById.get(a.class_id)?.cotisation_types,
+      depart: a.status === 'withdrawn' ? departAdulte.get(`${a.parent_id}-${a.tutor_number}:${a.class_id}`) ?? { date: a.date_depart, regle: 'sans_ajustement' as const } : null,
+    })), annee, { fratrie: false })
+    famAdultes.forEach((a: any, i: number) => {
       const ct = classById.get(a.class_id)?.cotisation_types
-      if (!ct) continue
+      if (!ct) return
       const last = a.tutor_number === 2 ? a.parents?.tutor2_last_name : a.parents?.tutor1_last_name
       const first = a.tutor_number === 2 ? a.parents?.tutor2_first_name : a.parents?.tutor1_first_name
       cotisations.push({
         participant: `${last ?? ''} ${first ?? ''}`.trim(),
         cotisation_label: ct.label ?? null,
-        total: lineTotal(ct),
+        total: lignesAdultes[i].total,
+        ...(a.status === 'withdrawn' ? { date_depart: a.date_depart, regle: lignesAdultes[i].regle } : {}),
       })
-    }
+    })
 
     return {
       etablissement_id: ctx.etablissementId,

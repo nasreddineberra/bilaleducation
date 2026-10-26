@@ -9304,3 +9304,38 @@ mouvement est trace**, date, heure, auteur.
   (depart, la table est exportee et effacee d'office) et 09 (demonstration) verts avec la migration.
 - Encadre « Informations sur mouvements » dans Reglements, en lecture, SANS regle ni montant tant que le calcul
   ne les applique pas (sinon il laisserait croire a un prorata).
+
+#### 26 octobre 2026 (suite) — Depart en cours d'annee (lot 2)
+
+**LE TROU QUE LA LECTURE DU CODE A REVELE** : un enfant qui a frequente sa classe ne pouvait pas partir. Le
+retrait est refuse des qu'il porte une note, une absence ou un bulletin (`fn_block_student_unenroll`), et
+« Rendre inactif » exige qu'il ne soit plus affecte. Le seul retrait possible etait donc celui d'une affectation
+faite PAR ERREUR. Le lot 2 tel que concu aurait applique la regle a des corrections (frais d'inscription factures
+pour une erreur de saisie) et n'aurait jamais vu un vrai depart. Arret, puis decision de l'utilisateur.
+
+**DEUX GESTES, UNE SEULE VOIE POUR CHAQUE CAS** (decision utilisateur) : CORRECTION (Affectations, enfant sans
+donnees, aucun montant) / DEPART (« Declarer un depart », possible SEULEMENT si l'enfant a les donnees qui bloquent
+le retrait ; bouton grise sinon). Le depart passe l'inscription en `withdrawn` (statut prevu en base, jamais
+utilise) avec sa date et rend l'eleve inactif, dans la meme transaction : AUCUN garde-fou n'est contourne, rien
+n'est supprime, et il n'existe aucun instant ou l'eleve serait inactif et encore affecte.
+- Bulletins : avertissement NON bloquant dans la fenetre si une periode terminee n'a pas son bulletin (« s'il part
+  avant les examens, on ne va pas lui demander de les passer ») ; l'audit Bulletins ne lit que les actifs, il ne
+  reclame donc rien a un enfant parti.
+- Historique : l'archive de cloture garde l'enfant parti (`student_year_history.date_depart`), la fiche eleve
+  affiche « Parti le ».
+
+**LE CALCUL, ENFIN UNIQUE** : `lignesCotisation` (`compute.ts`) remplace les trois assemblages (Reglements,
+`family-financials`, archive) qui appelaient chacun `siblingDiscounts` + `lineTotal`.
+- Ordre de la fratrie FIXE (anciennete de la fiche) : il dependait de l'ordre de lecture de la base. Mesure avant :
+  aucun foyer, dans aucune ecole, ne melange des cotisations aux remises differentes, aucun montant ne bouge.
+- L'archive ne lisait pas l'`id` des cotisations : la remise « meme type » y comptait tous les enfants comme un
+  seul type. Corrige au passage.
+- Le transfert n'a plus de cas particulier : avec des donnees, on ne change pas de classe ; sans donnees, c'est
+  une correction.
+
+**PREUVES** : controle 22 (12 cas) vu ROUGE (« a des donnees » neutralise : 2 KO) ; 21 adapte (« correction »),
+08 et 09 verts avec la migration ; 6 tests de calcul vus rouges (mois du depart retire : 3 echecs) ; build de
+production. Le controle 07 echoue AVANT la migration (jeu de donnees insuffisant) : sans rapport.
+
+**SIGNALE, NON TRAITE** : Reglements lit les cours adultes sans filtre d'annee, les statistiques filtrent ; sans
+effet tant qu'une seule annee existe.

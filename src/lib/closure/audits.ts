@@ -3,6 +3,7 @@
 // Les liens `href` renvoient vers le module pour corriger.
 
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
+import { chargerDeparts } from '@/lib/financements/departs'
 import { classInfoOf } from '@/components/dashboard/classInfo'
 // La REGLE DE PRESENTATION vit a part : un module feuille, sans alias `@/`,
 // donc eprouvable par `node --test` (ce fichier ne l'est pas, il interroge la base).
@@ -461,17 +462,30 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
   const sansDossier = fin.rows.filter(r => r.storedDue === null && r.totalDue > 0)
   const sansDossierIds = new Set(sansDossier.map(r => r.parentId))
 
+  // ── TROISIEME VOLET : les departs « au cas par cas » sans decision ───────
+  // En attendant la decision de l'ecole, le depart compte « sans ajustement »
+  // (frais seuls) : le du du foyer n'est donc pas encore celui qu'elle veut.
+  const departs = await chargerDeparts(supabase, { id: ctx.yearId, label: ctx.yearLabel })
+  const labelFoyer = new Map(fin.rows.map(r => [r.parentId, r.parentLabel]))
+  const aDecider = [
+    ...departs.eleves.filter(d => d.depart.regle === 'cas_par_cas' && !d.depart.decision)
+      .map(d => ({ parentId: d.parent_id ?? '', nom: `${d.last_name.toUpperCase()} ${d.first_name}` })),
+    ...departs.adultes.filter(d => d.depart.regle === 'cas_par_cas' && !d.depart.decision)
+      .map(d => ({ parentId: d.parent_id, nom: `tuteur ${d.tutor_number}` })),
+  ]
+
   const parts: string[] = []
   if (debtors.length > 0) parts.push(`${debtors.length} foyer(s) débiteur(s) · reste ${eur(fin.kpi.outstanding)}`)
   if (overpaid.length > 0) parts.push(`${overpaid.length} trop-perçu(s)`)
   if (perimes.length > 0)  parts.push(`${perimes.length} récapitulatif(s) à rafraîchir`)
   if (sansDossier.length > 0) parts.push(`${sansDossier.length} foyer(s) sans dossier ouvert`)
+  if (aDecider.length > 0) parts.push(`${aDecider.length} départ(s) à décider`)
 
   return {
     blocking: false,
     // Les perimes COMPTENT comme anomalies : c'est ce qui les rend reparables
     // depuis l'ecran, et ce qui empeche de cloturer sans les avoir vus.
-    anomalies: debtors.length + perimes.length,
+    anomalies: debtors.length + perimes.length + aDecider.length,
     aRafraichir: perimes.length,
     // « Corriger » MENE AU FOYER, pas au module. L'ecran accepte `?parent=`
     // depuis toujours (`reglements/page.tsx`), le lien ne s'en servait pas :
@@ -489,6 +503,11 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
           ? `reste ${eur(r.remaining)} · aucun dossier ouvert (l’archivage le couvre)`
           : `reste ${eur(r.remaining)}`,
         href: lienFoyer(r.parentId),
+      })),
+      ...aDecider.map(d => ({
+        label: labelFoyer.get(d.parentId) ?? d.nom,
+        detail: `départ de ${d.nom} au cas par cas · à décider`,
+        href: lienFoyer(d.parentId),
       })),
     ]),
     summary: parts.length === 0 ? 'Tous les foyers sont soldés.' : parts.join(' · ') + '.',

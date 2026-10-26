@@ -6,7 +6,7 @@
 -- SECRETAIRE (session simulee), comme a l'ecran Affectations :
 --   affectation a la rentree          -> 1 arrivee, date d'effet = rentree, regle figee
 --   mise a jour sans changement       -> rien
---   reglage passe a « prorata »       -> le retrait porte « prorata », date d'arrivee
+--   reglage passe a « prorata »       -> le retrait (correction) porte « prorata », date d'arrivee
 --   eleve rendu inactif puis reactive -> 1 depart puis 1 arrivee (motif statut)
 --   adulte affecte puis retire        -> 2 mouvements, tuteur et non eleve
 --   effacement d'ecole en cours       -> rien
@@ -93,7 +93,7 @@ BEGIN
   SELECT count(*) INTO n FROM mouvements_inscription WHERE etablissement_id = e;
   SELECT * INTO m FROM mouvements_inscription WHERE etablissement_id = e AND sens = 'depart' ORDER BY survenu_le DESC LIMIT 1;
   rapport := rapport || E'\n[' || CASE WHEN n = vu + 1 AND m.regle = 'prorata' AND m.date_arrivee = '2026-09-01'
-                                         AND m.date_effet = current_date AND m.motif = 'affectation'
+                                         AND m.date_effet = current_date AND m.motif = 'correction'
                                        THEN 'OK' ELSE 'KO' END
     || '] retrait (prorata)          ' || (n - vu) || ' mvt · ' || coalesce(m.regle, '?') || ' · arrivee ' || coalesce(m.date_arrivee::text, '?');
   IF NOT (n = vu + 1 AND m.regle = 'prorata' AND m.date_arrivee = '2026-09-01') THEN nb_ko := nb_ko + 1; END IF;

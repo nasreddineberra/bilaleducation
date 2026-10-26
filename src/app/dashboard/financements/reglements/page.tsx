@@ -5,6 +5,7 @@ import { isFinanceRole } from '@/lib/financements/roles'
 import { feeStatus } from '@/lib/financements/compute'
 import { AlertTriangle } from 'lucide-react'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { chargerDeparts } from '@/lib/financements/departs'
 
 export default async function FinancementsPage({ searchParams }: { searchParams: Promise<{ parent?: string }> }) {
   const { parent: initialParentId } = await searchParams
@@ -18,7 +19,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
   // Année en cours
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label')
+    .select('id, label, start_date, end_date')
     .eq('is_current', true)
     .single()
 
@@ -50,6 +51,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
         id,
         first_name,
         last_name,
+        created_at,
         is_active,
         enrollments!inner (
           id,
@@ -98,9 +100,17 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     `)
     .eq('status', 'active')
 
-  // Parents inscrits en cours adultes mais sans élève actif cette année
+  // Departs de l'annee (inscription `withdrawn`) : l'enfant ou l'adulte parti
+  // reste dans le calcul de son foyer, selon la regle de l'ecole.
+  const departs = await chargerDeparts(supabase, currentYear)
+
+  // Parents inscrits en cours adultes (ou partis) mais sans élève actif cette année
   const existingParentIds = new Set((parents ?? []).map((p: any) => p.id))
-  const adultParentIds = [...new Set((adultEnrollments ?? []).map((ae: any) => ae.parent_id))]
+  const adultParentIds = [...new Set([
+    ...(adultEnrollments ?? []).map((ae: any) => ae.parent_id),
+    ...departs.eleves.map(e => e.parent_id).filter((id): id is string => !!id),
+    ...departs.adultes.map(a => a.parent_id),
+  ])]
     .filter(id => !existingParentIds.has(id))
 
   let additionalParents: any[] = []
@@ -141,7 +151,12 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
     parentsSansInscription = (data ?? []).map(p => ({ ...p, students: [], sansInscription: true }))
   }
 
+  // Chaque enfant parti rejoint les eleves de son foyer (avec `depart`).
   const allParents = [...(parents ?? []), ...additionalParents, ...parentsSansInscription]
+    .map((p: any) => {
+      const partis = departs.eleves.filter(e => e.parent_id === p.id)
+      return partis.length ? { ...p, students: [...(p.students ?? []), ...partis] } : p
+    })
     .sort((a, b) => a.tutor1_last_name.localeCompare(b.tutor1_last_name) || a.tutor1_first_name.localeCompare(b.tutor1_first_name))
 
   // Historique des communications comptables (relance / attestation) de l'annee.
@@ -155,7 +170,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
   // par la base elle-meme (`add-mouvements-inscription.sql`). Lecture seule.
   const { data: mouvements } = await supabase
     .from('mouvements_inscription')
-    .select('id, parent_id, student_id, tutor_number, sens, motif, survenu_le, date_effet, classe_nom, auteur_nom, students:student_id(last_name, first_name), parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
+    .select('id, parent_id, student_id, tutor_number, class_id, sens, motif, survenu_le, date_effet, classe_nom, auteur_nom, regle, decision, students:student_id(last_name, first_name), parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
     .eq('school_year_id', currentYear.id)
     .order('survenu_le', { ascending: false })
 
@@ -224,7 +239,7 @@ export default async function FinancementsPage({ searchParams }: { searchParams:
       <ReglementsShell
         currentYear={currentYear}
         parents={allParents as any[]}
-        adultEnrollments={(adultEnrollments ?? []) as any[]}
+        adultEnrollments={[...(adultEnrollments ?? []), ...departs.adultes] as any[]}
         familyFees={(familyFees ?? []) as any[]}
         communications={(communications ?? []) as any[]}
         mouvements={(mouvements ?? []) as any[]}

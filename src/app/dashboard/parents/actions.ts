@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { phraseRefus } from '@/lib/financements/depart-refus'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { messageDoublon } from '@/lib/doublons'
@@ -528,5 +529,23 @@ export async function deleteParent(id: string): Promise<{ error?: string }> {
   if (!supprimes || supprimes.length === 0) {
     return { error: 'La suppression n\'a pas été autorisée.' }
   }
+  return {}
+}
+
+// Depart en cours d'annee d'un tuteur (cours adulte). Une seule transaction en
+// base (`declarer_depart_adulte`) : inscription en `withdrawn` avec sa date,
+// mouvement trace. La RPC refuse un tuteur SANS donnees (son retrait se fait
+// dans Affectations) et une date hors de l'annee.
+export async function declarerDepartAdulte(
+  parentId: string, tutorNumber: 1 | 2, classId: string, date: string,
+): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
+  if (roleError) return { error: roleError }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'Date de départ invalide.' }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('declarer_depart_adulte', {
+    p_parent_id: parentId, p_tutor_number: tutorNumber, p_class_id: classId, p_date: date,
+  })
+  if (error) return { error: phraseRefus(error, 'Le départ n’a pas pu être enregistré.') }
   return {}
 }

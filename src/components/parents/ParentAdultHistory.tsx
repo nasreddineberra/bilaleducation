@@ -1,9 +1,16 @@
 'use client'
 
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
 import PeriodeCell from '@/components/scolarite/PeriodeCell'
 import { Puce, type Ton } from '@/components/dashboard/tdb'
+import FormModal from '@/components/ui/FormModal'
+import Tooltip from '@/components/ui/Tooltip'
+import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
+import { useToast } from '@/lib/toast-context'
+import { declarerDepartAdulte } from '@/app/dashboard/parents/actions'
 
 interface AdultRow {
   id: string
@@ -52,6 +59,10 @@ interface CurrentRow {
   teacher_name: string | null
   schedule: string | null
   enrollment_date: string
+  date_depart: string | null
+  class_id: string
+  /** `null` : pas de bouton ; `false` : grise (aucune donnee) ; `true` : possible. */
+  peutPartir: boolean | null
   periods: {
     id: string
     label: string
@@ -65,7 +76,7 @@ interface CurrentRow {
   }[]
 }
 
-const STATUS_LABEL: Record<string, string> = { active: 'Actif', withdrawn: 'Retiré' }
+const STATUS_LABEL: Record<string, string> = { active: 'Actif', withdrawn: 'Parti' }
 const STATUS_TON: Record<string, Ton> = { active: 'ok', withdrawn: 'danger' }
 
 // « AAAA-MM-JJ » -> « JJ/MM/AAAA » par decoupage (pas de `new Date`, lu en UTC).
@@ -84,13 +95,43 @@ function Tuteur({ nom, numero }: { nom: string; numero: number | null }) {
 interface TuteurNonAffecte { tutor_number: number; last_name: string; first_name: string }
 
 export default function ParentAdultHistory({
-  rows, current = [], nonAffectes = [],
+  parentId, rows, current = [], nonAffectes = [], contexteDepart = null,
 }: {
+  parentId: string
   rows: AdultRow[]
   current?: CurrentRow[]
   nonAffectes?: TuteurNonAffecte[]
+  contexteDepart?: { regle: string; rentree: string | null; fin: string | null } | null
 }) {
   const supabase = createClient()
+  const router   = useRouter()
+  const toast    = useToast()
+
+  // Depart en cours d'annee d'un tuteur (RPC `declarer_depart_adulte`).
+  const [departCible, setDepartCible]     = useState<CurrentRow | null>(null)
+  const [dateDepart, setDateDepart]       = useState('')
+  const [departEnCours, setDepartEnCours] = useState(false)
+  const [departErreur, setDepartErreur]   = useState<string | null>(null)
+  const ouvrirDepart = (h: CurrentRow) => {
+    // Aujourd'hui en date LOCALE (`fr-CA` rend AAAA-MM-JJ), jamais `toISOString`.
+    setDateDepart(new Date().toLocaleDateString('fr-CA'))
+    setDepartErreur(null)
+    setDepartCible(h)
+  }
+  const validerDepart = async () => {
+    if (!departCible) return
+    setDepartEnCours(true)
+    setDepartErreur(null)
+    const res = await declarerDepartAdulte(parentId, departCible.tutor_number as 1 | 2, departCible.class_id, dateDepart)
+    setDepartEnCours(false)
+    if (res.error) { setDepartErreur(res.error); return }
+    setDepartCible(null)
+    toast.success('Départ enregistré.')
+    router.refresh()
+  }
+  const dateValide = !!dateDepart
+    && (!contexteDepart?.rentree || dateDepart >= contexteDepart.rentree)
+    && (!contexteDepart?.fin || dateDepart <= contexteDepart.fin)
   // Bucket privé : URL signée à la demande. Onglet ouvert AVANT l'await (popup), puis redirigé.
   const openBulletin = async (fp: string) => {
     const w = window.open('', '_blank')
@@ -147,10 +188,23 @@ export default function ParentAdultHistory({
         return (
           <section key={h.key} className="card p-3 space-y-2">
 
-            {/* Bandeau : annee et statut */}
+            {/* Bandeau : annee et statut ; depart a droite */}
             <div className="encadre-titre gap-2">
               <h2 className="text-xs font-bold uppercase tracking-widest">{h.year_label}</h2>
               <Puce ton={STATUS_TON[h.status] ?? 'neutre'}>{STATUS_LABEL[h.status] ?? h.status}</Puce>
+              {h.peutPartir !== null && contexteDepart && (
+                <span className="ml-auto">
+                  {h.peutPartir ? (
+                    <FloatButton type="button" variant="danger" size="mini" onClick={() => ouvrirDepart(h)}>Déclarer un départ</FloatButton>
+                  ) : (
+                    <Tooltip content="Aucune note ni bulletin : retirez-le de sa classe depuis Affectations.">
+                      <span tabIndex={0} className="inline-flex outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded">
+                        <FloatButton type="button" variant="danger" size="mini" disabled>Déclarer un départ</FloatButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </span>
+              )}
             </div>
 
             {/* Tuteur, classe et ses infos ; affectation a droite */}
@@ -162,7 +216,10 @@ export default function ParentAdultHistory({
                   {infosClasse && <> · {infosClasse}</>}
                 </span>
               </span>
-              <span>Affecté le {dateFr(h.enrollment_date)}</span>
+              <span>
+                Affecté le {dateFr(h.enrollment_date)}
+                {h.status === 'withdrawn' && h.date_depart && <> · Parti le {dateFr(h.date_depart)}</>}
+              </span>
             </div>
 
             {/* Les periodes en COLONNES : 2 semestres ou 3 trimestres. */}
@@ -256,6 +313,37 @@ export default function ParentAdultHistory({
           </section>
         )
       })}
+
+      {departCible && contexteDepart && (
+        <FormModal
+          title={`Départ de ${departCible.last_name} ${departCible.first_name}`}
+          onClose={() => setDepartCible(null)}
+          footer={<>
+            <span className="text-xs text-red-700"><span className="font-semibold">*</span> obligatoire</span>
+            <div className="flex-1" />
+            <FloatButton variant="secondary" type="button" onClick={() => setDepartCible(null)} disabled={departEnCours}>Annuler</FloatButton>
+            <FloatButton variant="submit" type="button" onClick={validerDepart} loading={departEnCours} disabled={!dateValide}>Valider</FloatButton>
+          </>}
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-secondary-700">
+              Classe : <span className="font-semibold text-secondary-800">{departCible.class_name}</span>
+              {' · '}Règle de l’établissement : <span className="font-semibold text-secondary-800">{contexteDepart.regle}</span>
+            </p>
+            <FloatInput
+              label="Date de départ"
+              type="date"
+              required
+              aria-required="true"
+              min={contexteDepart.rentree ?? undefined}
+              max={contexteDepart.fin ?? undefined}
+              value={dateDepart}
+              onChange={e => setDateDepart(e.target.value)}
+            />
+            {departErreur && <p role="alert" className="text-xs text-red-700">{departErreur}</p>}
+          </div>
+        </FormModal>
+      )}
     </div>
   )
 }

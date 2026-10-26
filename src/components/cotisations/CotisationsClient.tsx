@@ -13,6 +13,9 @@ import { FloatButton, FloatInput, SwitchOuiNon } from '@/components/ui/FloatFiel
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { LIBELLES_REGLE, type RegleAjustement } from '@/lib/financements/compute'
+import { definirRegleAjustement } from '@/app/dashboard/financements/actions'
 import type { CotisationType } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,7 +48,11 @@ interface Props {
   allYears: SchoolYear[]
   allCotisationTypes: any[]
   allPresenceTypeRates: any[]
+  /** Regle de l'etablissement pour un depart en cours d'annee, et sa derniere modification. */
+  reglage: { regle: RegleAjustement; modifieLe: string | null; modifiePar: string | null }
 }
+
+const REGLES = Object.keys(LIBELLES_REGLE) as RegleAjustement[]
 
 type EditingRow = {
   id: string | null
@@ -103,7 +110,7 @@ function InfoHint({ text }: { text: string }) {
 export default function CotisationsClient({
   currentYear, cotisationTypes: initial, classesWithoutCount,
   presenceTypes, presenceTypeRates: initialRates,
-  allYears, allCotisationTypes, allPresenceTypeRates,
+  allYears, allCotisationTypes, allPresenceTypeRates, reglage,
 }: Props) {
   const router   = useRouter()
   const toast    = useToast()
@@ -113,6 +120,17 @@ export default function CotisationsClient({
   const [editing, setEditing]                 = useState<EditingRow | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [saving, setSaving]                   = useState(false)
+  const [regle, setRegle]                     = useState<RegleAjustement>(reglage.regle)
+  const [regleEnCours, setRegleEnCours]       = useState(false)
+
+  const enregistrerRegle = async () => {
+    setRegleEnCours(true)
+    const res = await definirRegleAjustement(regle)
+    setRegleEnCours(false)
+    if (res.error) { toast.error(res.error); return }
+    toast.success('Réglage enregistré.')
+    router.refresh()
+  }
 
   const [rates, setRates]             = useState<Record<string, string>>(() =>
     Object.fromEntries(initialRates.map(r => [r.presence_type_id, Number(r.rate).toFixed(2)]))
@@ -241,6 +259,29 @@ export default function CotisationsClient({
 
   return (
     <div className="flex flex-col gap-4 lg:h-full min-h-0 lg:overflow-y-auto lg:pr-1">
+
+        {/* ── Ajustements en cours d'annee : regle appliquee a un DEPART ── */}
+        <div className="card p-0 overflow-hidden shrink-0">
+          <div className="encadre-titre m-0 justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-widest">Ajustements en cours d’année</h2>
+            <FloatButton type="button" variant="submit" size="mini" onClick={enregistrerRegle} loading={regleEnCours} disabled={regle === reglage.regle}>
+              Enregistrer
+            </FloatButton>
+          </div>
+          <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <FiltreSwitch
+              ariaLabel="Règle appliquée à un départ en cours d’année"
+              options={REGLES.map(r => ({ valeur: r, libelle: LIBELLES_REGLE[r] }))}
+              actif={regle}
+              onChange={v => setRegle(v as RegleAjustement)}
+            />
+            {reglage.modifieLe && (
+              <span className="text-xs text-warm-700">
+                Modifié le {new Date(reglage.modifieLe).toLocaleDateString('fr-FR')}{reglage.modifiePar ? ` par ${reglage.modifiePar}` : ''}
+              </span>
+            )}
+          </div>
+        </div>
 
         {/* ── Encadré 1 : Types de cotisations ── */}
         <div className="card p-0 overflow-hidden">

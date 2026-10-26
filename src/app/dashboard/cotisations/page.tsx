@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import CotisationsClient from '@/components/cotisations/CotisationsClient'
+import type { RegleAjustement } from '@/lib/financements/compute'
 
 export default async function CotisationsPage() {
   const supabase = await createClient()
@@ -18,6 +19,7 @@ export default async function CotisationsPage() {
     { data: allYears },
     { data: allCotisationTypes },
     { data: allPresenceTypeRates },
+    { data: etab },
   ] = await Promise.all([
     // Types de cotisation de l'année en cours
     currentYear
@@ -47,7 +49,14 @@ export default async function CotisationsPage() {
 
     // Tous les taux horaires (toutes années) avec label du type de présence
     supabase.from('presence_type_rates').select('school_year_id, rate, presence_types(label, color)'),
+
+    // Regle d'ajustement en cours d'annee (depart), et qui l'a modifiee
+    supabase.from('etablissements').select('regle_ajustement, regle_ajustement_le, regle_ajustement_par').maybeSingle(),
   ])
+
+  const { data: auteurRegle } = etab?.regle_ajustement_par
+    ? await supabase.from('profiles').select('last_name, first_name').eq('id', etab.regle_ajustement_par).maybeSingle()
+    : { data: null }
 
   return (
     <div className="h-full animate-fade-in">
@@ -60,6 +69,11 @@ export default async function CotisationsPage() {
         allYears={(allYears ?? []) as any[]}
         allCotisationTypes={(allCotisationTypes ?? []) as any[]}
         allPresenceTypeRates={(allPresenceTypeRates ?? []) as any[]}
+        reglage={{
+          regle:      (etab?.regle_ajustement ?? 'sans_ajustement') as RegleAjustement,
+          modifieLe:  etab?.regle_ajustement_le ?? null,
+          modifiePar: auteurRegle ? `${auteurRegle.last_name.toUpperCase()} ${auteurRegle.first_name}` : null,
+        }}
       />
     </div>
   )

@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { feeStatus, computeFamilyFinancials } from './compute.ts'
+import { feeStatus, computeFamilyFinancials, lignesCotisation, moisProrata } from './compute.ts'
 
 /**
  * `feeStatus` EST LA SEULE REGLE DE CE MODULE DUPLIQUEE EN SQL.
@@ -119,5 +119,63 @@ describe('computeFamilyFinancials — la regle comptable', () => {
     assert.equal(r.totalDue, 250)
     assert.equal(r.totalPaid, 0)
     assert.equal(r.status, 'pending')
+  })
+})
+
+describe('lignesCotisation — depart en cours d annee (26/10)', () => {
+  // Annee de septembre a juin : 10 mois.
+  const annee = { start_date: '2026-09-01', end_date: '2027-06-30' }
+  const ct = { id: 'a', amount: 300, registration_fee: 20, sibling_discount: 50 }
+
+  test('present : cotisation + frais, comme lineTotal', () => {
+    const [l] = lignesCotisation([{ ct }], annee)
+    assert.equal(l.total, 320)
+    assert.equal(l.regle, null)
+  })
+
+  test('les quatre regles sur un depart le 15 novembre', () => {
+    const dep = (regle: any, decision: any = null) =>
+      lignesCotisation([{ ct, depart: { date: '2026-11-15', regle, decision } }], annee)[0]
+    assert.equal(dep('sans_ajustement').total, 20)           // frais seuls
+    assert.equal(dep('due').total, 320)
+    const p = dep('prorata')
+    assert.deepEqual(p.mois, { retenus: 3, total: 10 })      // sept., oct., nov.
+    assert.equal(p.total, 110)                               // 300 * 3/10 + 20
+    assert.equal(dep('cas_par_cas').regle, 'a_decider')
+    assert.equal(dep('cas_par_cas').total, 20)               // compte sans ajustement en attendant
+    assert.equal(dep('cas_par_cas', 'due').total, 320)
+  })
+
+  test('mois commence : le 1er comme le 30 du mois comptent le mois', () => {
+    assert.deepEqual(moisProrata(annee, '2026-09-01'), { retenus: 1, total: 10 })
+    assert.deepEqual(moisProrata(annee, '2026-09-30'), { retenus: 1, total: 10 })
+    assert.deepEqual(moisProrata(annee, '2027-06-30'), { retenus: 10, total: 10 })
+    assert.equal(moisProrata({ start_date: null, end_date: null }, '2026-11-15'), null)
+  })
+
+  test('un enfant parti garde sa place : la remise des autres ne bouge pas', () => {
+    const aine   = { ct, ordre: '2024-01-01' }
+    const cadet  = { ct, ordre: '2025-01-01' }
+    const avant = lignesCotisation([cadet, aine], annee)
+    const apres = lignesCotisation([cadet, { ...aine, depart: { date: '2026-11-15', regle: 'due' as const } }], annee)
+    assert.equal(avant[0].remise, 50)                        // le cadet a la remise
+    assert.equal(apres[0].remise, 50)                        // et la garde apres le depart de l aine
+    assert.equal(apres[1].remise, 0)
+  })
+
+  test('prorata applique APRES la remise, frais entiers', () => {
+    const l = lignesCotisation([
+      { ct, ordre: '1' },
+      { ct, ordre: '2', depart: { date: '2026-10-10', regle: 'prorata' } },
+    ], annee)[1]
+    assert.equal(l.remise, 50)
+    assert.equal(l.cotisation, 50)                           // (300 - 50) * 2/10
+    assert.equal(l.total, 70)
+  })
+
+  test('adultes : jamais de remise fratrie', () => {
+    const l = lignesCotisation([{ ct }, { ct }], annee, { fratrie: false })
+    assert.equal(l[1].remise, 0)
+    assert.equal(l[1].total, 320)
   })
 })

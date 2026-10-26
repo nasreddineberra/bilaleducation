@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
+import { phraseRefus } from '@/lib/financements/depart-refus'
 
 export type StudentStatusRow = {
   id:           string
@@ -316,5 +317,19 @@ export async function setStudentActive(id: string, active: boolean): Promise<{ e
     entityId:    id,
     description: `${cible.last_name} ${cible.first_name} rendu${fem ? 'e' : ''} ${etat}`,
   })
+  return {}
+}
+
+// Depart en cours d'annee (fiche eleve). Une seule transaction en base
+// (`declarer_depart_eleve`) : inscription en `withdrawn` avec sa date, eleve
+// rendu inactif, mouvement trace. La RPC refuse un eleve SANS donnees (son
+// retrait se fait dans Affectations) et une date hors de l'annee.
+export async function declarerDepartEleve(studentId: string, date: string): Promise<{ error?: string }> {
+  const { error: roleError } = await requireRoleServer(['admin', 'direction', 'responsable_pedagogique', 'secretaire'])
+  if (roleError) return { error: roleError }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'Date de départ invalide.' }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('declarer_depart_eleve', { p_student_id: studentId, p_date: date })
+  if (error) return { error: phraseRefus(error, 'Le départ n’a pas pu être enregistré.') }
   return {}
 }
