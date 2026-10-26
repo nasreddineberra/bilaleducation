@@ -1,13 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import CotisationsClient from '@/components/cotisations/CotisationsClient'
 import { REGLE_PAR_DEFAUT, type RegleAjustement } from '@/lib/financements/compute'
+import { chargerApercuDeparts } from '@/lib/financements/departs'
 
 export default async function CotisationsPage() {
   const supabase = await createClient()
 
   const { data: currentYear } = await supabase
     .from('school_years')
-    .select('id, label')
+    .select('id, label, start_date, end_date')
     .eq('is_current', true)
     .maybeSingle()
 
@@ -58,6 +59,10 @@ export default async function CotisationsPage() {
     ? await supabase.from('profiles').select('last_name, first_name').eq('id', etab.regle_ajustement_par).maybeSingle()
     : { data: null }
 
+  // Departs deja declares : apercu des montants si la regle leur est appliquee
+  // (mouvements lus par les seuls roles financiers ; vide pour les autres).
+  const apercuDeparts = currentYear ? await chargerApercuDeparts(supabase, currentYear) : []
+
   return (
     <div className="h-full animate-fade-in">
       <CotisationsClient
@@ -73,6 +78,8 @@ export default async function CotisationsPage() {
           regle:      (etab?.regle_ajustement ?? REGLE_PAR_DEFAUT) as RegleAjustement,
           modifieLe:  etab?.regle_ajustement_le ?? null,
           modifiePar: auteurRegle ? `${auteurRegle.last_name.toUpperCase()} ${auteurRegle.first_name}` : null,
+          annee:      { start_date: currentYear?.start_date ?? null, end_date: currentYear?.end_date ?? null },
+          departs:    apercuDeparts,
         }}
       />
     </div>

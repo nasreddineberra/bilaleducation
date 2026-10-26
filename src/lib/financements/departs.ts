@@ -21,7 +21,7 @@
 // l'admin et la comptabilite) ; s'il manque, la regle par defaut s'applique
 // (`REGLE_PAR_DEFAUT`).
 
-import { REGLE_PAR_DEFAUT, departsRetenus, type DepartLike, type DecisionAjustement, type RegleAjustement } from './compute'
+import { REGLE_PAR_DEFAUT, departsRetenus, type DepartLike, type DecisionAjustement, type ParticipantLike, type RegleAjustement } from './compute'
 
 type SB = { from: (table: string) => any }
 
@@ -123,4 +123,73 @@ export async function chargerDeparts(
   }))
 
   return { eleves, adultes }
+}
+
+/**
+ * Apercu d'un changement de regle sur les departs DEJA declares (Cotisations).
+ *
+ * Pour chaque depart qui compte, les participants de son calcul (la fratrie d'un
+ * enfant, l'adulte seul) et sa place parmi eux : l'ecran recalcule sa ligne avec
+ * la regle candidate (`lignesCotisation`), sans aller-retour serveur.
+ */
+export interface ApercuDepart {
+  mouvementId: string
+  participant: string
+  fratrie: boolean
+  participants: ParticipantLike[]
+  index: number
+}
+
+export async function chargerApercuDeparts(
+  supabase: SB,
+  annee: { id: string; label: string },
+): Promise<ApercuDepart[]> {
+  const departs = await chargerDeparts(supabase, annee)
+  const parentIds = [...new Set([
+    ...departs.eleves.map(e => e.parent_id).filter((id): id is string => !!id),
+    ...departs.adultes.map(a => a.parent_id),
+  ])]
+  if (parentIds.length === 0) return []
+
+  const [{ data: freres }, { data: parents }] = await Promise.all([
+    supabase.from('students')
+      .select(`id, parent_id, created_at, enrollments!inner ( status, classes!inner ( academic_year, cotisation_types ( ${CT} ) ) )`)
+      .in('parent_id', parentIds)
+      .eq('is_active', true)
+      .eq('enrollments.status', 'active')
+      .eq('enrollments.classes.academic_year', annee.label),
+    supabase.from('parents')
+      .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name')
+      .in('id', parentIds),
+  ])
+  const parentPar = new Map(((parents ?? []) as any[]).map(p => [p.id, p]))
+
+  const apercu: ApercuDepart[] = []
+  for (const e of departs.eleves) {
+    if (!e.depart.mouvementId) continue
+    const famille = [
+      ...((freres ?? []) as any[]).filter(f => f.parent_id === e.parent_id).map(f => ({ id: f.id, ordre: f.created_at, ct: f.enrollments[0]?.classes?.cotisation_types, depart: null })),
+      ...departs.eleves.filter(d => d.parent_id === e.parent_id).map(d => ({ id: d.id, ordre: d.created_at, ct: d.enrollments[0]?.classes?.cotisation_types, depart: d.depart })),
+    ]
+    apercu.push({
+      mouvementId:  e.depart.mouvementId,
+      participant:  `${e.last_name.toUpperCase()} ${e.first_name}`,
+      fratrie:      true,
+      participants: famille.map(({ ordre, ct, depart }) => ({ ordre, ct, depart: depart && { date: depart.date, regle: depart.regle, decision: depart.decision } })),
+      index:        famille.findIndex(f => f.id === e.id && f.depart),
+    })
+  }
+  for (const a of departs.adultes) {
+    if (!a.depart.mouvementId) continue
+    const p = parentPar.get(a.parent_id)
+    const [nom, prenom] = a.tutor_number === 2 ? [p?.tutor2_last_name, p?.tutor2_first_name] : [p?.tutor1_last_name, p?.tutor1_first_name]
+    apercu.push({
+      mouvementId:  a.depart.mouvementId,
+      participant:  `${(nom ?? '').toUpperCase()} ${prenom ?? ''}`.trim(),
+      fratrie:      false,
+      participants: [{ ct: a.classes?.cotisation_types, depart: { date: a.depart.date, regle: a.depart.regle, decision: a.depart.decision } }],
+      index:        0,
+    })
+  }
+  return apercu.sort((x, y) => x.participant.localeCompare(y.participant))
 }

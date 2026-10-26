@@ -247,13 +247,16 @@ export async function deciderMouvement(
   return {}
 }
 
+// `retroactif` : les departs deja declares de l'annee en cours prennent aussi la
+// nouvelle regle (trace sur chaque depart, `regle-ajustement-retroactive.sql`).
 export async function definirRegleAjustement(
   regle: 'sans_ajustement' | 'due' | 'prorata' | 'cas_par_cas',
-): Promise<{ error?: string }> {
+  retroactif = false,
+): Promise<{ error?: string; misAJour?: number }> {
   const { error: roleError } = await requireRoleServer(FINANCE_ROLES)
   if (roleError) return { error: roleError }
   const supabase = await createClient()
-  const { error } = await supabase.rpc('definir_regle_ajustement', { p_regle: regle })
+  const { data, error } = await supabase.rpc('definir_regle_ajustement', { p_regle: regle, p_retroactif: retroactif })
   if (error) return { error: phraseRefus(error, 'Le réglage n’a pas pu être enregistré.') }
-  return {}
+  return { misAJour: Number(data ?? 0) }
 }

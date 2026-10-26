@@ -435,6 +435,10 @@ financements, retention…), ecole de demonstration.
    chargeur `lib/financements/departs.ts` : prorata au mois commence depuis la rentree, frais d'inscription
    toujours dus, fratrie triee par anciennete de la fiche (un parti garde sa place). Au cas par cas : bouton
    « Decider » dans Reglements (`decider_mouvement`), signal dans l'audit Financements. Controles 21 et 22.
+   Retour dans l'annee (eleve ou adulte reaffecte) : le depart ne compte plus, seul le DERNIER depart compte
+   (`departsRetenus`). Changer la regle propose de l'appliquer aux departs deja declares de l'annee en cours
+   (apercu des montants, `definir_regle_ajustement(p_regle, p_retroactif)`, trace `regle_initiale` /
+   `regle_modifiee_*`, controle 23).
    Signale : Reglements compte les cours adultes sans filtre d'annee (les stats filtrent).
 6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
    `import_foyer` ne compte que les eleves au pre-controle ;

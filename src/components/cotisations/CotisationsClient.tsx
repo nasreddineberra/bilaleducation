@@ -14,7 +14,8 @@ import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
-import { LIBELLES_REGLE, type RegleAjustement } from '@/lib/financements/compute'
+import { LIBELLES_REGLE, lignesCotisation, type AnneeLike, type RegleAjustement } from '@/lib/financements/compute'
+import type { ApercuDepart } from '@/lib/financements/departs'
 import { definirRegleAjustement } from '@/app/dashboard/financements/actions'
 import type { CotisationType } from '@/types/database'
 
@@ -49,7 +50,20 @@ interface Props {
   allCotisationTypes: any[]
   allPresenceTypeRates: any[]
   /** Regle de l'etablissement pour un depart en cours d'annee, et sa derniere modification. */
-  reglage: { regle: RegleAjustement; modifieLe: string | null; modifiePar: string | null }
+  reglage: {
+    regle: RegleAjustement; modifieLe: string | null; modifiePar: string | null
+    /** Bornes de l'annee en cours (prorata de l'apercu). */
+    annee: AnneeLike
+    /** Departs deja declares qui comptent, pour l'apercu d'un changement de regle. */
+    departs: ApercuDepart[]
+  }
+}
+
+/** Total de la ligne d'un depart si la regle `regle` lui est appliquee (decision conservee). */
+function totalDepartSous(d: ApercuDepart, annee: AnneeLike, regle?: RegleAjustement): number {
+  const participants = d.participants.map((p, i) =>
+    i === d.index && p.depart && regle ? { ...p, depart: { ...p.depart, regle } } : p)
+  return lignesCotisation(participants, annee, { fratrie: d.fratrie })[d.index]?.total ?? 0
 }
 
 const REGLES = Object.keys(LIBELLES_REGLE) as RegleAjustement[]
@@ -131,13 +145,24 @@ export default function CotisationsClient({
   const [regle, setRegle]                     = useState<RegleAjustement>(reglage.regle)
   const [regleEnCours, setRegleEnCours]       = useState(false)
 
-  const enregistrerRegle = async () => {
+  // Departs deja declares sous une AUTRE regle : l'ecole choisit de leur appliquer
+  // la nouvelle, ou non (modale d'apercu).
+  const departsTouches = reglage.departs.filter(d => d.participants[d.index]?.depart?.regle !== regle)
+  const [apercuOuvert, setApercuOuvert] = useState(false)
+
+  const enregistrerRegle = async (retroactif: boolean) => {
     setRegleEnCours(true)
-    const res = await definirRegleAjustement(regle)
+    const res = await definirRegleAjustement(regle, retroactif)
     setRegleEnCours(false)
     if (res.error) { toast.error(res.error); return }
-    toast.success('Réglage enregistré.')
+    setApercuOuvert(false)
+    const n = res.misAJour ?? 0
+    toast.success(n > 0 ? `Réglage enregistré, appliqué à ${n} départ${n > 1 ? 's' : ''}.` : 'Réglage enregistré.')
     router.refresh()
+  }
+  const cliquerEnregistrer = () => {
+    if (departsTouches.length > 0) setApercuOuvert(true)
+    else enregistrerRegle(false)
   }
 
   const [rates, setRates]             = useState<Record<string, string>>(() =>
@@ -272,7 +297,7 @@ export default function CotisationsClient({
         <div className="card p-0 overflow-hidden shrink-0">
           <div className="encadre-titre m-0 justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest">Règle de cotisation pour départ en cours d’année</h2>
-            <FloatButton type="button" variant="submit" size="mini" onClick={enregistrerRegle} loading={regleEnCours} disabled={regle === reglage.regle}>
+            <FloatButton type="button" variant="submit" size="mini" onClick={cliquerEnregistrer} loading={regleEnCours && !apercuOuvert} disabled={regle === reglage.regle}>
               Enregistrer
             </FloatButton>
           </div>
@@ -653,6 +678,41 @@ export default function CotisationsClient({
               <SwitchOuiNon seul label="Même type" checked={editing.sibling_discount_same_type} onChange={v => setEditing({ ...editing, sibling_discount_same_type: v })} />
               <InfoHint text="Réduction entre enfants du même type uniquement." />
             </div>
+          </div>
+        </FormModal>
+      )}
+
+      {apercuOuvert && (
+        <FormModal
+          title={`Règle « ${LIBELLES_REGLE[regle]} »`}
+          onClose={() => setApercuOuvert(false)}
+          maxWidth="max-w-lg"
+          footer={<>
+            <FloatButton variant="secondary" type="button" onClick={() => setApercuOuvert(false)} disabled={regleEnCours}>Annuler</FloatButton>
+            <div className="flex-1" />
+            <FloatButton variant="edit" type="button" onClick={() => enregistrerRegle(false)} disabled={regleEnCours}>Prochains départs seulement</FloatButton>
+            <FloatButton variant="submit" type="button" onClick={() => enregistrerRegle(true)} loading={regleEnCours}>Appliquer aussi</FloatButton>
+          </>}
+        >
+          <div className="space-y-2">
+            <p className="text-sm text-secondary-700">
+              {departsTouches.length} départ{departsTouches.length > 1 ? 's' : ''} déjà déclaré{departsTouches.length > 1 ? 's' : ''} cette année :
+            </p>
+            <ul className="liste max-h-64 overflow-y-auto list-scroll" aria-label="Départs déjà déclarés">
+              {departsTouches.map(d => {
+                const avant = totalDepartSous(d, reglage.annee)
+                const apres = totalDepartSous(d, reglage.annee, regle)
+                return (
+                  <li key={d.mouvementId} className="sans-survol px-2 py-1.5 flex items-center gap-2 text-xs">
+                    <span className="font-medium text-secondary-800">{d.participant}</span>
+                    <span className="text-warm-700">{LIBELLES_REGLE[d.participants[d.index].depart!.regle]}</span>
+                    <span className={clsx('ml-auto tabular-nums whitespace-nowrap', avant === apres ? 'text-warm-700' : 'font-semibold text-secondary-800')}>
+                      {fmtEur(avant)} → {fmtEur(apres)}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </FormModal>
       )}

@@ -9351,3 +9351,26 @@ Au prorata · Au cas par cas · Sans ajustement, et « Due en totalite » PAR DE
 - Code : `REGLE_PAR_DEFAUT` (`compute.ts`) remplace les replis ecrits en dur ; l'ordre de `LIBELLES_REGLE` est
   celui de l'ecran.
 - Controle 21 : attend `due` ; vu ROUGE sans la migration (1 KO), vert avec ; 22 vert.
+
+#### 26 octobre 2026 (soir) — Departs : retour dans l'annee, regle appliquee aux departs deja declares
+
+- **Affichage** (Reglements) : un parti n'a plus de pastille (elle deformait le tableau) ; nom et classe en
+  rouge barre, « Parti le … » en infobulle. Montants NON barres : ce que la regle retient entre dans le total.
+- **Retour** : un eleve ou un adulte reaffecte dans l'annee ne compte qu'une fois (sa classe active prend le
+  relais) ; parti plusieurs fois, seul le dernier depart compte. Regle pure `departsRetenus` (`compute.ts`,
+  testee, vue rouge), appliquee par `chargerDeparts` : Reglements, dossier financier, archivage, audit.
+  Un depart qui ne compte plus garde sa ligne de mouvement, sans montant ni « Decider ».
+- **Bugs trouves en verifiant le retour** : la reaffectation laissait `date_depart` (effacee desormais) ; un
+  adulte reinscrit au meme cours heurtait l'unicite (insert -> upsert). Sans eux, un enfant revenu dans une
+  autre classe etait facture deux fois.
+- **Regle modifiee en cours d'annee (option B de l'utilisateur)** : la regle restait figee sur chaque depart.
+  Desormais, si des departs de l'annee sont sous une autre regle, « Enregistrer » ouvre un apercu (participant,
+  regle actuelle, montant avant -> apres) : « Appliquer aussi » ou « Prochains departs seulement ».
+  Migration `regle-ajustement-retroactive.sql` : `definir_regle_ajustement(p_regle, p_retroactif)` (rend le
+  nombre de departs mis a jour ; annees closes jamais touchees), trace `regle_initiale` (gardee a la premiere
+  modification) + `regle_modifiee_par|_nom|_le`. Une decision au cas par cas est conservee (elle ne compte que
+  sous « Au cas par cas »). Option A (regle toujours vivante) ecartee : un paiement deja fait pouvait basculer
+  en trop percu sans que personne le voie.
+- **Controle 23** : 5 cas (sans retroactivite, secretaire refusee, cas par cas, due avec regle initiale
+  gardee et decision conservee, annee close / correction / autre ecole intactes). Vu ROUGE sans la migration,
+  vert avec ; 21 et 22 restent verts.
