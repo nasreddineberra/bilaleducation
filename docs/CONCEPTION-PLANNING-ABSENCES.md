@@ -65,6 +65,8 @@ Une séance d'un enseignant absent sans décision est **« Enseignant absent · 
 - **Séance annulée : jamais effacée de l'écran.** Toutes ses informations restent, fond gris, gros tampon
   « ANNULÉ » rouge au centre ; **réactivable** (une
   annulation par erreur se rattrape). Une séance VALIDÉE ne s'annule pas sans retirer d'abord la validation.
+- **Double confirmation** pour annuler ou supprimer une séance : récapitulatif complet (classe, date,
+  horaire, intitulé, enseignant, salle) et saisie de « ANNULATION » / « SUPPRESSION ».
 - **Menu « ⋯ »** (encadrement), une action absente quand elle ne s'applique pas :
   séance de la fiche classe : Annuler · Changer la salle · Ouvrir la fiche classe ;
   séance ponctuelle : Annuler · Changer la salle · Supprimer · Ouvrir la fiche classe ;

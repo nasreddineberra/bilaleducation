@@ -9620,3 +9620,7 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **27/10, salle** : sous l'intitule (classe, intitule, salle, enseignant, horaire). Creneau long : sa ligne ;
   creneau d'1 h ou moins : « Intitule · Salle » sur une ligne ; 5 creneaux et plus cote a cote : infobulle
   seulement. Texte plein (l'ancienne ligne a opacite 60 % tombait sous le contraste AA).
+- **27/10, double confirmation** (demande utilisateur) : annuler ou supprimer une seance ouvre
+  `ConfirmationSeance` : recapitulatif complet (classe, date en toutes lettres, horaire, intitule, enseignant,
+  salle) et saisie de « ANNULATION » / « SUPPRESSION » (casse et espaces ignores) qui seule debloque le bouton.
+  « Retour » au lieu d'« Annuler » a cote de « Annuler la seance ». Seance validee : refus AVANT la saisie.

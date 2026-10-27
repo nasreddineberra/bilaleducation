@@ -20,6 +20,7 @@ import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import DayColumn from './DayColumn'
 import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
+import ConfirmationSeance, { type ModeConfirmationSeance } from './ConfirmationSeance'
 import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { intituleCreneau } from '@/lib/edt/intitule'
@@ -1476,7 +1477,7 @@ export default function EmploiDuTempsClient({
     const slot = slots.find(s => s.id === slotId)
     if (!slot || slot.is_recurring || !slot.slot_date) return
     const libelle = libelleSeance(slotId, slot.slot_date)
-    const doDelete = async () => {
+    void (async () => {
       const echecLot = erreurEcritureLot(
         await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId),
         'Les modifications de la seance',
@@ -1494,14 +1495,7 @@ export default function EmploiDuTempsClient({
         description: `Suppression de la séance ponctuelle ${libelle} (${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)})`,
       })
       await refreshData()
-    }
-    setPendingConfirm({
-      title: 'Supprimer la séance',
-      message: `Supprimer définitivement la séance ponctuelle ${libelle} ?`,
-      variant: 'danger',
-      confirmLabel: 'Supprimer',
-      onConfirm: doDelete,
-    })
+    })()
   }, [supabase, slots, refreshData, toastError, libelleSeance])
 
   // ─── Actions ponctuelles sur UNE seance (conception 27/10, lot 2) ─────────
@@ -1520,7 +1514,7 @@ export default function EmploiDuTempsClient({
       toastError('Cette séance est validée : annulez d’abord la validation de présence.')
       return
     }
-    const doCancel = async () => {
+    void (async () => {
       const existing = exceptions.find(ex => ex.schedule_slot_id === slotId && ex.exception_date === date)
       if (existing) {
         const echec = erreurEcriture(
@@ -1539,15 +1533,22 @@ export default function EmploiDuTempsClient({
         description: `Annulation de la séance ${libelleSeance(slotId, date)}`,
       })
       await refreshData()
-    }
-    setPendingConfirm({
-      title: 'Annuler la séance',
-      message: `Annuler la séance ${libelleSeance(slotId, date)} ? Elle restera affichée « ANNULÉ » et pourra être réactivée.`,
-      variant: 'warning',
-      confirmLabel: 'Annuler la séance',
-      onConfirm: doCancel,
-    })
+    })()
   }, [supabase, exceptions, validations, refreshData, toastError, libelleSeance])
+
+  // Double confirmation (decision du 27/10) : recapitulatif complet de la seance
+  // et saisie d'un mot-cle (`ConfirmationSeance`) avant d'annuler ou de supprimer.
+  const [confirmSeance, setConfirmSeance] = useState<{ seance: ResolvedSlot; mode: ModeConfirmationSeance } | null>(null)
+  const demanderConfirmation = (seance: ResolvedSlot, mode: ModeConfirmationSeance) => {
+    setContextMenu(null)
+    // Annuler une seance VALIDEE compterait des heures pour une seance annulee :
+    // on le dit avant la saisie du mot-cle, pas apres.
+    if (mode === 'annuler' && validations.some(v => v.schedule_slot_id === seance.sourceSlotId && v.validation_date === seance.date)) {
+      toastError('Cette séance est validée : annulez d’abord la validation de présence.')
+      return
+    }
+    setConfirmSeance({ seance, mode })
+  }
 
   const handleReactivate = useCallback(async (slotId: string, date: string) => {
     setContextMenu(null)
@@ -2206,7 +2207,7 @@ export default function EmploiDuTempsClient({
                   </button>
                 ) : (
                   <>
-                    <button role="menuitem" autoFocus className={item} onClick={() => handleCancelForDate(s.sourceSlotId, s.date)}>
+                    <button role="menuitem" autoFocus className={item} onClick={() => demanderConfirmation(s, 'annuler')}>
                       Annuler cette séance
                     </button>
                     <button
@@ -2218,7 +2219,7 @@ export default function EmploiDuTempsClient({
                   </>
                 )}
                 {!s.isRecurring && (
-                  <button role="menuitem" className={danger} onClick={() => handleDeleteSlot(s.sourceSlotId)}>
+                  <button role="menuitem" className={danger} onClick={() => demanderConfirmation(s, 'supprimer')}>
                     Supprimer la séance
                   </button>
                 )}
@@ -2238,6 +2239,20 @@ export default function EmploiDuTempsClient({
       )}
 
       {/* ── Modal ─────────────────────────────────────────────────────── */}
+      {confirmSeance && (
+        <ConfirmationSeance
+          seance={confirmSeance.seance}
+          mode={confirmSeance.mode}
+          onCancel={() => setConfirmSeance(null)}
+          onConfirm={() => {
+            const { seance, mode } = confirmSeance
+            setConfirmSeance(null)
+            if (mode === 'annuler') handleCancelForDate(seance.sourceSlotId, seance.date)
+            else handleDeleteSlot(seance.sourceSlotId)
+          }}
+        />
+      )}
+
       {/* Salle d'UNE seance */}
       {salleSeance && (
         <FormModal
