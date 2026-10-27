@@ -96,7 +96,7 @@ export default function DayColumn({
         'relative border-l border-warm-100',
         fermeture ? 'bg-amber-50/40 cursor-default' : 'cursor-crosshair',
         // Jour actuel : vert de marque doux (essai du 27/10, l'ambre signale un avertissement).
-        isToday && !fermeture && 'bg-[var(--brand-tint)]',
+        isToday && !fermeture && 'bg-[var(--edt-jour)]',
       )}
       onClick={(e) => {
         if (fermeture) return

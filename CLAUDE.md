@@ -243,7 +243,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `--card-border`, `--card-shadow`, `--brand-surface` (`#0c5b51`) / `--brand-surface-2` /
   `--brand-accent` / `--brand-text|label|icon|muted`, `--brand-tint` / `--brand-line` / `--brand-focus`
   (fonds doux 8 %, bordures 30 %, halos 50 % ; accent en sombre), `--survol-ligne`, `--champ-verrou`,
-  `--logo-shadow`, `--silhouette-ink`, `--scroll-thumb`, `--edt-absent-hachure`. **Une ombre ou couleur
+  `--logo-shadow`, `--silhouette-ink`, `--scroll-thumb`, `--edt-absent-hachure`, `--edt-jour` (colonne du jour, 4 %).
+  **Une ombre ou couleur
   nouvelle = un jeton, jamais une valeur en dur dans une regle.**
 - **Theme clair / sombre** : choix par utilisateur (`profiles.theme`), `data-theme` sur `<html>`.
   Le sombre passe par un **pont** dans `globals.css` (selecteurs PLATS scopes

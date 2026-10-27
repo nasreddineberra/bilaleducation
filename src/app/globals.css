@@ -108,6 +108,7 @@
        melanges du vert de marque (de l'accent en theme sombre) avec du transparent,
        pour se poser sur n'importe quelle surface. */
     --brand-tint:  color-mix(in srgb, var(--brand-surface) 8%, transparent);   /* fonds doux, badges, selection */
+    --edt-jour:    color-mix(in srgb, var(--brand-surface) 4%, transparent);   /* colonne du jour actuel (EDT), plus pale que la teinte */
     --brand-line:  color-mix(in srgb, var(--brand-surface) 30%, transparent);  /* bordures */
     --brand-focus: color-mix(in srgb, var(--brand-surface) 50%, transparent);  /* halos de focus */
 
@@ -196,6 +197,7 @@
     --brand-muted:      #7a8e98;
     /* En sombre, la surface de marque est ardoise : les nuances partent de l'accent. */
     --brand-tint:  color-mix(in srgb, var(--brand-accent) 12%, transparent);
+    --edt-jour:    color-mix(in srgb, var(--brand-accent) 6%, transparent);
     --brand-line:  color-mix(in srgb, var(--brand-accent) 35%, transparent);
     --brand-focus: color-mix(in srgb, var(--brand-accent) 55%, transparent);
 

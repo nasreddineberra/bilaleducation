@@ -9660,3 +9660,5 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **27/10, nom dans la capsule** : « Mme BENSAID » (civilite + NOM, `nomCourtEnseignant`, une ligne quelle que
   soit la duree) ; infobulles et lecture vocale : « Mme BENSAID Yasmina » (`nomCompletEnseignant`). Civilite
   absente : NOM seul, jamais « M. » par defaut. Revient sur NOM / Prenom en deux lignes (29/09).
+- **27/10** : colonne du jour plus pale (demande utilisateur) : jeton `--edt-jour` (vert de marque 4 % ; 6 % de
+  l'accent en sombre), `--brand-tint` (8 %) restant celui des selections.
