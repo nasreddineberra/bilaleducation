@@ -877,9 +877,9 @@ export default function ClassForm({
                 )}
               </div>
 
-              {/* ── Remplacement en cours ── */}
+              {/* ── Remplacements de l'année (liste complète, en lecture : lots 3-4 de la conception) ── */}
               <div className="space-y-1.5 pt-3 border-t border-warm-100">
-                <h3 className="section-title">Remplacement en cours</h3>
+                <h3 className="section-title">Remplacements{currentYear ? ` · ${currentYear.label}` : ''}</h3>
 
                 {currentSub ? (() => {
                   const realIdx = assignments.indexOf(currentSub)
@@ -928,7 +928,7 @@ export default function ClassForm({
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-warm-700">Aucun remplacement en cours.</span>
+                    <span className="text-xs text-warm-700">Aucun remplacement.</span>
                     {hasActiveMain && (
                       <button type="button" onClick={openAddSub}
                         className="text-sm font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
