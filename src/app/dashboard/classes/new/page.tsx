@@ -43,6 +43,13 @@ export default async function NewClassPage() {
     )
   }
 
+  // Matieres d'un cours : unites d'enseignement du referentiel, dans leur ordre.
+  const { data: matieres } = await supabase
+    .from('unites_enseignement')
+    .select('id, nom_fr')
+    .order('order_index', { nullsFirst: false })
+    .order('nom_fr')
+
   const { data: cotisationTypes } = await supabase
     .from('cotisation_types')
     .select('*')
@@ -61,6 +68,7 @@ export default async function NewClassPage() {
       </Link>
 
       <ClassForm
+        matieres={matieres ?? []}
         schoolYears={schoolYears ?? []}
         teachers={teachers ?? []}
         cotisationTypes={(cotisationTypes ?? []) as any[]}

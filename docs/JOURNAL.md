@@ -9547,3 +9547,23 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   sortie des `any` (quand le type-check couvrira toutes les ecritures). Ecart note, non traite : la fiche classe
   prend 30 eleves par defaut, la base 25.
 - Bilan : type-check 0, lint 0 erreur (673 `any`), 145 tests, build OK. Registre 172/172.
+
+### 27/10 · Creneaux : matiere d'un cours, nom d'une activite
+
+- **Constat (test a l'ecran du lot 1)** : la fiche classe ignorait le type des creneaux (cours / activite) :
+  liste sans type, « Ajouter » creait TOUJOURS un cours. Or le type decide du code de presence ecrit a la
+  validation (Temps de presence). Et « Prof non affecte » disparaissait sur un creneau d'1 h (une condition le
+  masquait, contre le commentaire qui l'annoncait toujours visible).
+- **Demande utilisateur** : une classe peut avoir une matiere (= unite d'enseignement) sur un creneau et une
+  autre sur un autre ; une activite n'a pas de matiere mais peut etre nommee. Matiere et nom FACULTATIFS.
+- **Base** (`schedule-slots-matiere-libelle.sql`, controle 28, 10 cas) : `unite_enseignement_id` (RESTRICT),
+  `libelle` (60 car., jamais vide), CHECK « chacun sa place » selon `slot_type`, declencheur qui refuse une
+  matiere d'une autre ecole (une cle etrangere ne cloisonne pas).
+- **Ecrans** : fiche classe (colonnes Type et Intitule, modales avec Cours / Activite fige en modification,
+  Matiere ou Nom), EDT (memes champs dans la modale ; titre = matiere ou nom, sinon le type ; vues semaine,
+  mois, infobulle du jour), tableaux de bord (seances du jour). Source unique `lib/edt/intitule.ts` (testee).
+  Referentiel : une unite qui sert de matiere a des creneaux ne se supprime pas (comptee, toutes annees).
+- **« Prof non affecte »** : toujours affiche, sur deux lignes, bordure pointillee 2 px ROUGE (et non ambre :
+  l'ambre pointille signale deja une seance modifiee ; rouge = « Sans titulaire » de la fiche classe).
+- Hors perimetre, note : la matiere du cahier de texte reste « General » (V1) ; la relier a celle du creneau
+  serait l'etape suivante.

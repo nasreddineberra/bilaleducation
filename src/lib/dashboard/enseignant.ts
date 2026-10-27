@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { JourFerie, VacationPeriod } from '@/types/database'
+import { intitulePropre } from '@/lib/edt/intitule'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
@@ -113,7 +114,7 @@ export async function chargerDonneesEnseignant(
       .select('class_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, academic_year, cotisation_types(is_adult))')
       .eq('teacher_id', moi).eq('classes.academic_year', annee.label),
     supabase.from('schedule_slots')
-      .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
+      .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
       .eq('school_year_id', annee.id).eq('is_active', true),
     supabase.from('presence_types').select('code, label, is_absence').eq('school_year_id', annee.id),
     // `profile_id` explicite en plus de la RLS : un enseignant qui cumulerait
@@ -147,6 +148,7 @@ export async function chargerDonneesEnseignant(
   const slotsRaw = (slotsRes.data ?? []) as any[]
   const slots = slotsRaw as SlotSource[]
   const infoSlot = new Map(slotsRaw.map(s => [s.id, s]))
+  const intituleParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
   const types = (typesRes.data ?? []) as any[]
   const codesAbsence = new Set(types.filter(t => t.is_absence).map(t => String(t.code).toUpperCase()))
 
@@ -214,7 +216,7 @@ export async function chargerDonneesEnseignant(
     debut: s.debut,
     fin: s.fin,
     classe: infoSlot.get(s.slotId)?.classes?.name ?? mesClasses.get(s.classId)?.name ?? '',
-    cours: infoSlot.get(s.slotId)?.cours?.nom_fr ?? null,
+    cours: intituleParSlot.get(s.slotId) ?? null,
     statut: statutSeance(s, validees, aujourdhui, maintenant),
     remplacement: s.remplacement,
   })

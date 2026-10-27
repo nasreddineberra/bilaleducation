@@ -20,6 +20,7 @@ import MonthGrid from './MonthGrid'
 import SlotFormModal from './SlotFormModal'
 import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
+import { intituleCreneau } from '@/lib/edt/intitule'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -76,6 +77,9 @@ export interface SlotData {
   classes?: { name: string }
   teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
+  unite_enseignement_id: string | null
+  libelle: string | null
+  unites_enseignement?: { nom_fr: string } | null
   rooms?: { name: string } | null
 }
 
@@ -171,6 +175,9 @@ export interface ResolvedSlot {
   classes?: { name: string }
   teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
+  unite_enseignement_id: string | null
+  libelle: string | null
+  unites_enseignement?: { nom_fr: string } | null
   rooms?: { name: string } | null
 }
 
@@ -685,6 +692,9 @@ export default function EmploiDuTempsClient({
             ? teachers.find(t => t.id === exception.override_teacher_id) as any
             : slot.teachers,
           cours: slot.cours,
+          unites_enseignement: slot.unites_enseignement,
+          unite_enseignement_id: slot.unite_enseignement_id,
+          libelle: slot.libelle,
           rooms: exception.override_room_id
             ? rooms.find(r => r.id === exception.override_room_id) as any
             : slot.rooms,
@@ -710,6 +720,9 @@ export default function EmploiDuTempsClient({
           classes: slot.classes,
           teachers: slot.teachers,
           cours: slot.cours,
+          unites_enseignement: slot.unites_enseignement,
+          unite_enseignement_id: slot.unite_enseignement_id,
+          libelle: slot.libelle,
           rooms: slot.rooms,
         })
       }
@@ -740,6 +753,9 @@ export default function EmploiDuTempsClient({
         classes: slot.classes,
         teachers: slot.teachers,
         cours: slot.cours,
+        unites_enseignement: slot.unites_enseignement,
+        unite_enseignement_id: slot.unite_enseignement_id,
+        libelle: slot.libelle,
         rooms: slot.rooms,
       })
     }
@@ -814,6 +830,9 @@ export default function EmploiDuTempsClient({
               ? teachers.find(t => t.id === exception.override_teacher_id) as any
               : slot.teachers,
             cours: slot.cours,
+            unites_enseignement: slot.unites_enseignement,
+            unite_enseignement_id: slot.unite_enseignement_id,
+            libelle: slot.libelle,
             rooms: exception.override_room_id
               ? rooms.find(r => r.id === exception.override_room_id) as any
               : slot.rooms,
@@ -838,6 +857,9 @@ export default function EmploiDuTempsClient({
             classes: slot.classes,
             teachers: slot.teachers,
             cours: slot.cours,
+            unites_enseignement: slot.unites_enseignement,
+            unite_enseignement_id: slot.unite_enseignement_id,
+            libelle: slot.libelle,
             rooms: slot.rooms,
           })
         }
@@ -869,6 +891,9 @@ export default function EmploiDuTempsClient({
         classes: slot.classes,
         teachers: slot.teachers,
         cours: slot.cours,
+        unites_enseignement: slot.unites_enseignement,
+        unite_enseignement_id: slot.unite_enseignement_id,
+        libelle: slot.libelle,
         rooms: slot.rooms,
       })
     }
@@ -965,7 +990,7 @@ export default function EmploiDuTempsClient({
     const [{ data: freshSlots }, { data: freshExceptions }] = await Promise.all([
       supabase
         .from('schedule_slots')
-        .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), rooms(name)')
+        .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), unites_enseignement(nom_fr), rooms(name)')
         .eq('school_year_id', schoolYearId)
         .eq('is_active', true)
         .order('start_time'),
@@ -1177,6 +1202,8 @@ export default function EmploiDuTempsClient({
     class_id: string
     teacher_id: string
     cours_id: string | null
+    unite_enseignement_id: string | null
+    libelle: string | null
     room_id: string | null
     day_of_week: number | null
     slot_date: string | null
@@ -1197,6 +1224,9 @@ export default function EmploiDuTempsClient({
       class_id: data.class_id,
       teacher_id: data.teacher_id,
       cours_id: data.cours_id || null,
+      // Chacun sa place (CHECK en base) : matiere d'un cours, nom d'une activite.
+      unite_enseignement_id: data.slot_type === 'cours' ? (data.unite_enseignement_id || null) : null,
+      libelle: data.slot_type === 'activite' ? (data.libelle?.trim() || null) : null,
       room_id: data.room_id || null,
       is_recurring: data.is_recurring,
       day_of_week: data.is_recurring ? data.day_of_week : null,
@@ -2037,7 +2067,7 @@ export default function EmploiDuTempsClient({
                 minWidth: '100px',
               }}
             >
-              <span className="font-bold text-[10px] truncate">{draggedSlot.cours?.nom_fr ?? draggedSlot.slot_type}</span>
+              <span className="font-bold text-[10px] truncate">{intituleCreneau(draggedSlot)}</span>
               <span className="text-[9px] opacity-70">{draggedSlot.start_time.slice(0, 5)}-{draggedSlot.end_time.slice(0, 5)}</span>
             </div>
           )}
@@ -2200,6 +2230,7 @@ export default function EmploiDuTempsClient({
           classes={classes}
           teachers={teachers}
           rooms={rooms}
+          matieres={ueList}
           existingSlots={slots}
           vacations={vacations}
           onSave={handleSaveSlot}

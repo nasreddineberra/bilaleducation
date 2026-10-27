@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { JourFerie, VacationPeriod } from '@/types/database'
+import { intitulePropre } from '@/lib/edt/intitule'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import {
@@ -98,7 +99,7 @@ export async function chargerDonneesPedagogie(
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
-          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr)')
+          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr)')
           .eq('school_year_id', annee.id).eq('is_active', true)
       : Promise.resolve({ data: [] }),
     supabase.from('teachers').select('id, user_id, civilite, first_name, last_name'),
@@ -182,7 +183,7 @@ export async function chargerDonneesPedagogie(
   const exceptions = ((exceptionsRes as any).data ?? []) as ExceptionSource[]
   const validations = ((validationsRes as any).data ?? []) as any[]
   const validees = ensembleValidations(validations)
-  const coursParSlot = new Map(slotsRaw.map(s => [s.id, s.cours?.nom_fr ?? null]))
+  const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
   const cahier = ((cahierRes as any).data ?? []) as any[]
   const cahierDuJour = new Set(cahier.filter(j => j.session_date === aujourdhui).map(j => j.class_id))
 

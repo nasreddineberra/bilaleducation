@@ -71,7 +71,7 @@ export default async function EmploiDuTempsPage() {
   // Créneaux de l'année en cours
   const { data: slots } = await supabase
     .from('schedule_slots')
-    .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), rooms(name)')
+    .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), unites_enseignement(nom_fr), rooms(name)')
     .eq('school_year_id', currentYear.id)
     .eq('is_active', true)
     .order('start_time')

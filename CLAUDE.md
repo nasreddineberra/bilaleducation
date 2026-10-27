@@ -114,7 +114,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Notes / bulletins** : gabarits a date obligatoire (ordre `lib/evaluations/ordre.ts`), absences
   reportees de l'appel, bulletins PDF bilingues FR/AR archives avec chiffres figes.
 - **EDT** : grille 15 min (8 h-19 h, elargie au creneau le plus matinal), creneaux recurrents avec dates
-  d'effet, vacances et jours feries bloquants (`lib/school-year/jours-fermes.ts`).
+  d'effet, vacances et jours feries bloquants (`lib/school-year/jours-fermes.ts`). Creneau = cours (matiere
+  = unite d'enseignement, facultative) ou activite (nom facultatif) ; type FIGE apres creation (il decide du
+  code de presence) ; enseignant facultatif (« Prof non affecte », en rouge). Intitule : `lib/edt/intitule.ts`.
 - **Cahier de texte** : seances (internes) et devoirs (email aux familles par foyer). Modification :
   devoir avant la date de rendu, seance 7 j. Matiere forcee « General » en V1.
 - **Communications** : 1 email par foyer, CCI direction, Reply-To = contact de l'ecole, PJ 1 Mo.
@@ -196,7 +198,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (cle adulte `parentId-tutorNumber`), `tonCategorie()` (support),
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
-  `lib/students/photo.ts`.
+  `lib/students/photo.ts`, `lib/edt/intitule.ts`.
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { JourFerie, VacationPeriod } from '@/types/database'
+import { intitulePropre } from '@/lib/edt/intitule'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
@@ -79,7 +80,7 @@ export async function chargerDonneesSecretaire(
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
-          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr)')
+          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr)')
           .eq('school_year_id', annee.id).eq('is_active', true)
       : Promise.resolve({ data: [] }),
     supabase.from('teachers').select('id, user_id, is_active, civilite, first_name, last_name'),
@@ -178,7 +179,7 @@ export async function chargerDonneesSecretaire(
   // ── Journee en cours ───────────────────────────────────────────────────────
   const exceptions = ((exceptionsRes as any).data ?? []) as ExceptionSource[]
   const validees = ensembleValidations(((validationsRes as any).data ?? []) as any[])
-  const coursParSlot = new Map(slotsRaw.map(s => [s.id, s.cours?.nom_fr ?? null]))
+  const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
   const nomProf = (id: string | null) => nomEnseignantCivilite(teacherParId.get(id ?? ''))
   const seances: SeanceSecretaire[] = fermeAujourdhui
     ? []

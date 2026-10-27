@@ -8,6 +8,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 import { nomEnseignant } from '@/lib/teachers/nom'
 import { dureeMinutes } from '@/lib/edt/temps'
+import { intituleCreneau } from '@/lib/edt/intitule'
 
 // Couleurs définies dans globals.css (palette de marque, aplats opaques dans
 // les deux thèmes) — voir « Créneaux de l'emploi du temps ».
@@ -114,8 +115,8 @@ export default function SlotCapsule({
   // s'entend mieux qu'un intervalle. L'infobulle, elle, est LUE DES YEUX : une
   // information par ligne, sans ponctuation de liaison (demande du 03/10).
   // Les deux disent la même chose, elles ne se lisent pas de la même façon.
-  const libelleCours = slot.cours?.nom_fr
-    ?? slot.slot_type.charAt(0).toUpperCase() + slot.slot_type.slice(1)
+  // Matiere d'un cours, nom d'une activite, a defaut le type (`intituleCreneau`).
+  const libelleCours = intituleCreneau(slot)
 
   const infoLignes: string[] = [libelleCours]
   if (viewMode !== 'class' && slot.classes) infoLignes.push(slot.classes.name)
@@ -124,7 +125,7 @@ export default function SlotCapsule({
   infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
   if (validated) infoLignes.push('Présence validée')
 
-  const ariaParts = [slot.cours?.nom_fr ?? slot.slot_type]
+  const ariaParts = [libelleCours]
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
   if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
   if (slot.rooms) ariaParts.push(slot.rooms.name)
@@ -149,7 +150,9 @@ export default function SlotCapsule({
         // L'absence se marque par des HACHURES et non par une baisse d'opacite
         // (qui ferait tomber le contraste des libelles). Voir `.edt-slot-absent`.
         absent && 'edt-slot-absent',
-        noTeacher && 'border-dashed border-orange-400',
+        // Prof non affecte : rouge, comme « Sans titulaire » sur la fiche classe ;
+        // l'ambre en pointilles signale deja une seance MODIFIEE.
+        noTeacher && 'border-2 border-dashed border-red-400',
         !noTeacher && slot.isModified && MODIFIED_BORDER,
         isDragging && 'opacity-30 scale-95',
         isDraggableEnabled && 'cursor-grab active:cursor-grabbing',
@@ -182,7 +185,7 @@ export default function SlotCapsule({
               exception il ne resterait que l'horaire. */}
           {(!court || viewMode === 'class') && (
             <div className={clsx('font-bold leading-tight', minimal ? 'text-[9px] line-clamp-2' : 'text-[10px] truncate')}>
-              {slot.cours?.nom_fr ?? slot.slot_type}
+              {libelleCours}
             </div>
           )}
 
@@ -193,14 +196,18 @@ export default function SlotCapsule({
             </div>
           )}
 
-          {/* Enseignant (vues globale / classe) — « Prof non affecté » reste
-              affiché même en densité minimale : c'est une anomalie à voir. */}
-          {!court && viewMode !== 'teacher' && (
-            noTeacher ? (
-              <div className={clsx('leading-tight truncate text-orange-700 font-medium', minimal ? 'text-[8px]' : 'text-[9px]')}>
-                {minimal ? 'Sans prof' : 'Prof non affecté'}
-              </div>
-            ) : slot.teachers && !minimal ? (
+          {/* « Prof non affecté » reste affiché quelle que soit la place (créneau
+              court, densité minimale) : c'est une anomalie à voir. Deux lignes
+              plutôt qu'une coupure. */}
+          {viewMode !== 'teacher' && noTeacher && (
+            <div className={clsx('leading-tight line-clamp-2 text-red-700 font-bold', minimal ? 'text-[8px]' : 'text-[9px]')}>
+              Prof non affecté
+            </div>
+          )}
+
+          {/* Enseignant (vues globale / classe) */}
+          {!court && viewMode !== 'teacher' && !noTeacher && (
+            slot.teachers && !minimal ? (
               /* NOM et prénom sur DEUX lignes (demande du 29/09). Sur une seule,
                  la capsule est trop étroite : le `truncate` coupait « BELAÏD
                  Djamila » et emportait le prénom — c'est-à-dire exactement ce

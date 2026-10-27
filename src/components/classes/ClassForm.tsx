@@ -14,6 +14,8 @@ import FormModal from '@/components/ui/FormModal'
 import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
+import FiltreSwitch from '@/components/ui/FiltreSwitch'
+import { intitulePropre, LIBELLE_TYPE_CRENEAU, NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
 import { accord, pluriel } from '@/lib/texte/pluriel'
 
@@ -43,7 +45,15 @@ interface SlotRow {
   end_time: string
   effective_from: string | null
   effective_until: string | null
+  slot_type: TypeCreneau
+  unite_enseignement_id: string | null
+  libelle: string | null
 }
+
+type TypeCreneau = 'cours' | 'activite'
+
+/** Unite d'enseignement du referentiel : la matiere d'un cours. */
+interface MatiereOption { id: string; nom_fr: string }
 
 interface SlotDraft {
   id?:             string   // undefined = nouveau
@@ -52,6 +62,11 @@ interface SlotDraft {
   end_time:        string
   effective_from:  string
   effective_until: string   // '' = ouvert
+  // Le type se choisit a la creation puis ne change plus (il decide du code de
+  // presence des validations) ; matiere d'un cours, nom d'une activite : facultatifs.
+  slot_type:             TypeCreneau
+  unite_enseignement_id: string   // '' = aucune
+  libelle:               string
 }
 
 interface ClassFormProps {
@@ -64,6 +79,7 @@ interface ClassFormProps {
   backHref?: string
   currentSchoolYear?: { id: string; start_date: string | null; end_date: string | null; vacations: VacationPeriod[] } | null
   existingSlots?: SlotRow[]
+  matieres?: MatiereOption[]
   weekStartDay?: number   // 0=Dimanche, 1=Lundi, 6=Samedi
   workingDays?: number    // 5 ou 7
 }
@@ -111,6 +127,23 @@ function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+/** Intitule affiche d'un creneau en saisie (`intitulePropre`, matiere lue dans la liste). */
+function intituleBrouillon(s: SlotDraft, matieres: MatiereOption[]): string | null {
+  return intitulePropre({
+    slot_type: s.slot_type,
+    libelle: s.libelle,
+    unites_enseignement: matieres.find(m => m.id === s.unite_enseignement_id) ?? null,
+  })
+}
+
+/** Chacun sa place (CHECK en base) : matiere d'un cours, nom d'une activite. */
+function intituleEnBase(s: SlotDraft) {
+  return {
+    unite_enseignement_id: s.slot_type === 'cours' ? (s.unite_enseignement_id || null) : null,
+    libelle:               s.slot_type === 'activite' ? (s.libelle.trim() || null) : null,
+  }
+}
+
 function slotsOverlap(a: SlotDraft, b: SlotDraft): boolean {
   if (a.day_of_week !== b.day_of_week) return false
   // Dates qui se chevauchent
@@ -135,6 +168,7 @@ export default function ClassForm({
   backHref = '/dashboard/classes',
   currentSchoolYear,
   existingSlots = [],
+  matieres = [],
   weekStartDay = 1,
   workingDays = 5,
 }: ClassFormProps) {
@@ -164,6 +198,9 @@ export default function ClassForm({
     end_time:        (s.end_time    ?? '').slice(0, 5),
     effective_from:  (s.effective_from  ?? '').slice(0, 10),
     effective_until: (s.effective_until ?? '').slice(0, 10),
+    slot_type:             s.slot_type,
+    unite_enseignement_id: s.unite_enseignement_id ?? '',
+    libelle:               s.libelle ?? '',
   }))
   const [slots,          setSlots]          = useState<SlotDraft[]>(initialSlotDrafts)
   const [deletedSlotIds, setDeletedSlotIds] = useState<string[]>([])
@@ -599,6 +636,8 @@ export default function ClassForm({
           || slot.end_time       !== orig.end_time
           || slot.effective_from !== orig.effective_from
           || slot.effective_until !== orig.effective_until
+          || slot.unite_enseignement_id !== orig.unite_enseignement_id
+          || slot.libelle !== orig.libelle
         if (!changed) continue
         verifierEcriture(
           await supabase.from('schedule_slots').update({
@@ -607,6 +646,7 @@ export default function ClassForm({
             end_time:        slot.end_time,
             effective_from:  slot.effective_from  || null,
             effective_until: slot.effective_until || null,
+            ...intituleEnBase(slot),
           }).eq('id', slot.id!).select('id'),
           'Ce creneau',
         )
@@ -625,7 +665,8 @@ export default function ClassForm({
             slot_date:       null,
             start_time:      slot.start_time,
             end_time:        slot.end_time,
-            slot_type:       'cours',
+            slot_type:       slot.slot_type,
+            ...intituleEnBase(slot),
             room_id:         form.room_id || null,
             is_active:       true,
             effective_from:  slot.effective_from  || null,
@@ -972,6 +1013,8 @@ export default function ClassForm({
                 <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th className="list-th text-left">Jour</th>
                   <th className="list-th text-left">Horaire</th>
+                  <th className="list-th text-left">Type</th>
+                  <th className="list-th text-left">Intitulé</th>
                   <th className="list-th text-left">Du</th>
                   <th className="list-th text-left">Au</th>
                   <th className="list-th w-16" />
@@ -989,6 +1032,15 @@ export default function ClassForm({
                       </td>
                       <td className="list-td text-secondary-700 whitespace-nowrap tabular-nums">
                         {slot.start_time.slice(0, 5)}-{slot.end_time.slice(0, 5)}
+                      </td>
+                      <td className="list-td whitespace-nowrap">
+                        {/* Couleurs de categorie de l'emploi du temps */}
+                        <span className={clsx('inline-block rounded-full border px-2 py-px text-[10px] font-semibold', slot.slot_type === 'activite' ? 'edt-slot-activite' : 'edt-slot-cours')}>
+                          {LIBELLE_TYPE_CRENEAU[slot.slot_type]}
+                        </span>
+                      </td>
+                      <td className="list-td text-secondary-700">
+                        {intituleBrouillon(slot, matieres) ?? <span className="text-warm-700">·</span>}
                       </td>
                       <td className="list-td text-secondary-700 whitespace-nowrap tabular-nums">
                         {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">·</span>}
@@ -1042,6 +1094,7 @@ export default function ClassForm({
           initial={editingSlotIdx !== null ? slots[editingSlotIdx] : undefined}
           currentSchoolYear={currentSchoolYear}
           days={workingDayNames}
+          matieres={matieres}
           onSave={handleSaveSlot}
           onCancel={() => { setShowSlotForm(false); setEditingSlotIdx(null); setSlotOverlapErr(null) }}
         />
@@ -1143,6 +1196,7 @@ function SlotFormModal({
   initial,
   currentSchoolYear,
   days,
+  matieres,
   onSave,
   onCancel,
 }: {
@@ -1150,6 +1204,7 @@ function SlotFormModal({
   initial?: SlotDraft
   currentSchoolYear?: { start_date: string | null; end_date: string | null } | null
   days: string[]
+  matieres: MatiereOption[]
   onSave: (slot: SlotDraft) => void
   onCancel: () => void
 }) {
@@ -1162,6 +1217,9 @@ function SlotFormModal({
   const [endTime,        setEndTime]        = useState(initial?.end_time        ?? '')
   const [effectiveFrom,  setEffectiveFrom]  = useState(initial?.effective_from  ?? '')
   const [effectiveUntil, setEffectiveUntil] = useState(initial?.effective_until ?? '')
+  const [slotType,       setSlotType]       = useState<TypeCreneau>(initial?.slot_type ?? 'cours')
+  const [ueId,           setUeId]           = useState(initial?.unite_enseignement_id ?? '')
+  const [libelle,        setLibelle]        = useState(initial?.libelle ?? '')
   const [err,            setErr]            = useState<string | null>(null)
   // Pas de fermeture sur Echap (FormModal) : on saisit ici des dates d'effet,
   // une touche reflexe ne doit pas faire perdre la saisie.
@@ -1174,6 +1232,8 @@ function SlotFormModal({
     && endTime       === initial.end_time
     && effectiveFrom === initial.effective_from
     && effectiveUntil === initial.effective_until
+    && ueId === initial.unite_enseignement_id
+    && libelle.trim() === initial.libelle
 
   const canSave = !!dayOfWeek && !!startTime && !!endTime && endTime > startTime && !!effectiveFrom && !isUnchanged
 
@@ -1189,7 +1249,13 @@ function SlotFormModal({
       return
     }
     setErr(null)
-    onSave({ id: initial?.id, day_of_week: dayOfWeek, start_time: startTime, end_time: endTime, effective_from: effectiveFrom, effective_until: effectiveUntil })
+    onSave({
+      id: initial?.id, day_of_week: dayOfWeek, start_time: startTime, end_time: endTime,
+      effective_from: effectiveFrom, effective_until: effectiveUntil,
+      slot_type: slotType,
+      unite_enseignement_id: slotType === 'cours' ? ueId : '',
+      libelle: slotType === 'activite' ? libelle.trim() : '',
+    })
   }
 
   return (
@@ -1205,6 +1271,39 @@ function SlotFormModal({
       </>}
     >
           {err && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
+
+          {/* Type : choisi a la creation, fige ensuite (comme dans l'emploi du temps). */}
+          <div>
+            <span className="text-xs font-semibold text-warm-700 uppercase tracking-wide">Type</span>
+            <div className="mt-1">
+              {initial ? (
+                <span className="inline-block px-3 py-1.5 rounded-lg text-xs font-medium border border-warm-200 bg-[var(--champ-verrou)] text-warm-400 cursor-default">
+                  {LIBELLE_TYPE_CRENEAU[slotType]}
+                </span>
+              ) : (
+                <FiltreSwitch
+                  ariaLabel="Type de créneau"
+                  actif={slotType}
+                  onChange={v => setSlotType(v as TypeCreneau)}
+                  options={[{ valeur: 'cours', libelle: 'Cours' }, { valeur: 'activite', libelle: 'Activité' }]}
+                />
+              )}
+            </div>
+          </div>
+
+          {slotType === 'cours' ? (
+            <FloatSelect label="Matière" value={ueId} onChange={e => setUeId(e.target.value)}>
+              <option value=""></option>
+              {matieres.map(m => <option key={m.id} value={m.id}>{m.nom_fr}</option>)}
+            </FloatSelect>
+          ) : (
+            <FloatInput
+              label="Nom de l'activité"
+              value={libelle}
+              maxLength={NOM_ACTIVITE_MAX}
+              onChange={e => setLibelle(e.target.value)}
+            />
+          )}
 
           <div className="grid grid-cols-3 gap-3">
             <FloatSelect label="Jour" required value={dayOfWeek} onChange={e => setDayOfWeek(e.target.value)}>

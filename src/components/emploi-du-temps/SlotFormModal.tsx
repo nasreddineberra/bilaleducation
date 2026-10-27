@@ -6,12 +6,15 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
+import { NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
 
 interface SlotData {
   id: string
   class_id: string
   teacher_id: string
   cours_id: string | null
+  unite_enseignement_id?: string | null
+  libelle?: string | null
   room_id: string | null
   is_recurring: boolean
   day_of_week: number | null
@@ -77,6 +80,8 @@ interface Props {
   classes: ClassData[]
   teachers: TeacherData[]
   rooms: RoomData[]
+  /** Unites d'enseignement du referentiel, dans leur ordre : matiere d'un cours. */
+  matieres: { id: string; nom_fr: string }[]
   existingSlots: SlotData[]
   vacations?: { start_date: string; end_date: string; label: string }[]
   onSave: (data: {
@@ -84,6 +89,8 @@ interface Props {
     class_id: string
     teacher_id: string
     cours_id: string | null
+    unite_enseignement_id: string | null
+    libelle: string | null
     room_id: string | null
     day_of_week: number | null
     slot_date: string | null
@@ -107,7 +114,7 @@ interface Props {
 
 export default function SlotFormModal({
   slot, editMode, editDate, prefillDay, prefillTime, prefillDate, prefillClassId, prefillTeacherId,
-  weekDayDates, classes, teachers, rooms, existingSlots, vacations = [], onSave, onSaveException, onClose,
+  weekDayDates, classes, teachers, rooms, matieres, existingSlots, vacations = [], onSave, onSaveException, onClose,
 }: Props) {
   const isEditingThisOnly = editMode === 'this_only' && !!editDate && !!slot
 
@@ -118,6 +125,9 @@ export default function SlotFormModal({
   const [teacherId, setTeacherId] = useState(slot?.teacher_id ?? (prefillTeacherId || initialMainTeacherId || ''))
   const [roomId, setRoomId] = useState(slot?.room_id ?? initialClass?.room_id ?? '')
   const [slotType, setSlotType] = useState(slot?.slot_type ?? 'cours')
+  // Facultatifs : matiere d'un cours, nom d'une activite (chacun a sa place).
+  const [ueId, setUeId] = useState(slot?.unite_enseignement_id ?? '')
+  const [libelle, setLibelle] = useState(slot?.libelle ?? '')
   const [startTime, setStartTime] = useState(slot?.start_time?.slice(0, 5) ?? prefillTime ?? '')
   const [endTime, setEndTime] = useState(slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''))
   const [saving, setSaving] = useState(false)
@@ -141,6 +151,8 @@ export default function SlotFormModal({
     teacherId: slot?.teacher_id ?? (prefillTeacherId || initialMainTeacherId || ''),
     roomId: slot?.room_id ?? initialClass?.room_id ?? '',
     slotType: slot?.slot_type ?? 'cours',
+    ueId: slot?.unite_enseignement_id ?? '',
+    libelle: slot?.libelle ?? '',
     startTime: slot?.start_time?.slice(0, 5) ?? prefillTime ?? '',
     endTime: slot?.end_time?.slice(0, 5) ?? (prefillTime ? addHour(prefillTime) : ''),
     dayOfWeek: slot?.day_of_week ?? prefillDay ?? '',
@@ -153,6 +165,8 @@ export default function SlotFormModal({
     teacherId !== initVals.teacherId ||
     roomId !== initVals.roomId ||
     slotType !== initVals.slotType ||
+    ueId !== initVals.ueId ||
+    libelle.trim() !== initVals.libelle ||
     startTime !== initVals.startTime ||
     endTime !== initVals.endTime ||
     dayOfWeek !== initVals.dayOfWeek ||
@@ -277,6 +291,8 @@ export default function SlotFormModal({
           class_id: classId,
           teacher_id: teacherId,
           cours_id: null,
+          unite_enseignement_id: slotType === 'cours' ? (ueId || null) : null,
+          libelle: slotType === 'activite' ? (libelle.trim() || null) : null,
           room_id: roomId || null,
           day_of_week: isRecurring && dayOfWeek !== '' ? dayOfWeek : null,
           slot_date: isRecurring ? null : slotDate,
@@ -375,6 +391,22 @@ export default function SlotFormModal({
           </div>
         </div>
       </div>
+
+      {/* Intitule : matiere d'un cours, nom d'une activite. Pas sur UNE seance
+          (une exception ne porte que l'horaire, l'enseignant et la salle). */}
+      {!isEditingThisOnly && (slotType === 'cours' ? (
+        <FloatSelect label="Matière" value={ueId} onChange={e => setUeId(e.target.value)}>
+          <option value=""></option>
+          {matieres.map(m => <option key={m.id} value={m.id}>{m.nom_fr}</option>)}
+        </FloatSelect>
+      ) : (
+        <FloatInput
+          label="Nom de l'activité"
+          value={libelle}
+          maxLength={NOM_ACTIVITE_MAX}
+          onChange={e => setLibelle(e.target.value)}
+        />
+      ))}
 
       {/* Class */}
       {!isEditingThisOnly && (

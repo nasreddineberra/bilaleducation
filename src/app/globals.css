@@ -943,7 +943,7 @@
 
    Tout est enveloppé dans `:where()` pour une spécificité NULLE : la capsule
    reçoit par ailleurs des bordures d'alerte en utilitaires Tailwind
-   (`border-orange-400` prof non affecté, `border-amber-400` modifié) qui, à
+   (`border-red-400` prof non affecté, `border-amber-400` modifié) qui, à
    poids égal, perdraient contre ces règles simplement parce qu'elles sont
    émises plus haut dans le fichier. À spécificité nulle, l'alerte l'emporte
    toujours, et l'ordre clair → sombre reste décidé entre ces règles seules. */

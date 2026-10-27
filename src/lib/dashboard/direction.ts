@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FeeStatus, JourFerie, VacationPeriod } from '@/types/database'
+import { intitulePropre } from '@/lib/edt/intitule'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
@@ -122,7 +123,7 @@ export async function chargerDonneesDirection(
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
-          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr)')
+          .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr)')
           .eq('school_year_id', annee.id).eq('is_active', true)
       : Promise.resolve({ data: [] }),
     supabase.from('teachers').select('id, user_id, civilite, first_name, last_name'),
@@ -203,7 +204,7 @@ export async function chargerDonneesDirection(
   const validations = ((validationsRes as any).data ?? []) as any[]
   const validees = ensembleValidations(validations)
   const nomClasse = new Map(classesList.map(c => [c.id, c.name]))
-  const coursParSlot = new Map(slotsRaw.map(s => [s.id, s.cours?.nom_fr ?? null]))
+  const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
 
   const seances: SeanceAffichee[] = fermeAujourdhui
     ? []

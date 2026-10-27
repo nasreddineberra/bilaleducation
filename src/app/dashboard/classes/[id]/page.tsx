@@ -54,6 +54,13 @@ export default async function EditClassPage({ params }: Props) {
       .single(),
   ])
 
+  // Matieres d'un cours : unites d'enseignement du referentiel, dans leur ordre.
+  const { data: matieres } = await supabase
+    .from('unites_enseignement')
+    .select('id, nom_fr')
+    .order('order_index', { nullsFirst: false })
+    .order('nom_fr')
+
   const { data: cotisationTypes } = currentYearRow
     ? await supabase
         .from('cotisation_types')
@@ -66,7 +73,7 @@ export default async function EditClassPage({ params }: Props) {
   const { data: existingSlots } = currentYearRow
     ? await supabase
         .from('schedule_slots')
-        .select('id, day_of_week, start_time, end_time, effective_from, effective_until')
+        .select('id, day_of_week, start_time, end_time, effective_from, effective_until, slot_type, unite_enseignement_id, libelle')
         .eq('class_id', id)
         .eq('school_year_id', currentYearRow.id)
         .eq('is_recurring', true)
@@ -107,6 +114,7 @@ export default async function EditClassPage({ params }: Props) {
         rooms={(rooms ?? []) as any[]}
         currentSchoolYear={currentYearRow as any}
         existingSlots={(existingSlots ?? []) as any[]}
+        matieres={matieres ?? []}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}
       />

@@ -3,6 +3,7 @@
 import { clsx } from 'clsx'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 import { nomEnseignant } from '@/lib/teachers/nom'
+import { intituleCreneau } from '@/lib/edt/intitule'
 import Tooltip from '@/components/ui/Tooltip'
 
 type ViewMode = 'global' | 'class' | 'teacher'
@@ -171,8 +172,6 @@ export default function MonthGrid({
 
 // ─── Infobulle d'un jour : toutes les seances, une par ligne ────────────────
 
-const TYPE_LABELS: Record<string, string> = { cours: 'Cours', activite: 'Activité' }
-
 function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedSlot[]; viewMode: ViewMode }) {
   const titre = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
   return (
@@ -182,9 +181,9 @@ function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedS
         {slots.map(slot => {
           const parts = [
             `${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`,
-            slot.cours?.nom_fr ?? TYPE_LABELS[slot.slot_type] ?? slot.slot_type,
+            intituleCreneau(slot),
             viewMode !== 'class' ? slot.classes?.name : null,
-            viewMode !== 'teacher' && slot.teachers ? nomEnseignant(slot.teachers) : null,
+            viewMode !== 'teacher' ? (slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
             slot.rooms?.name,
           ].filter(Boolean)
           return (
@@ -220,9 +219,9 @@ function MonthSlotCapsule({
 }) {
   const colorClass = SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours
 
-  const ariaParts = [slot.start_time.slice(0, 5), slot.cours?.nom_fr ?? slot.slot_type]
+  const ariaParts = [slot.start_time.slice(0, 5), intituleCreneau(slot)]
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
-  if (viewMode !== 'teacher' && slot.teachers) ariaParts.push(nomEnseignant(slot.teachers))
+  if (viewMode !== 'teacher') ariaParts.push(slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : '') : 'Prof non affecté')
   const ariaLabel = ariaParts.filter(Boolean).join(', ')
 
   return (
@@ -259,14 +258,17 @@ function MonthSlotCapsule({
         {slot.start_time.slice(0, 5)}
       </span>
       <span className="text-[9px] leading-tight ml-0.5">
-        {slot.cours?.nom_fr ?? slot.slot_type}
+        {intituleCreneau(slot)}
       </span>
       {viewMode !== 'class' && slot.classes && (
         <span className="text-[8px] opacity-70 ml-0.5">
           {slot.classes.name}
         </span>
       )}
-      {viewMode !== 'teacher' && slot.teachers && (
+      {viewMode !== 'teacher' && !slot.teacher_id && (
+        <span className="text-[8px] font-bold text-red-700 ml-0.5">Prof non affecté</span>
+      )}
+      {viewMode !== 'teacher' && slot.teacher_id && slot.teachers && (
         <span className="text-[8px] opacity-60 ml-0.5">
           {nomEnseignant(slot.teachers)}
         </span>

@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
+import { pluriel } from '@/lib/texte/pluriel'
 import { SearchField, FloatInput, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -717,12 +718,30 @@ export default function ReferentielColonnes({
     if (aSupprimer.nature === 'ue') {
       const nMod = lstModules.filter(m => m.unite_enseignement_id === aSupprimer.id).length
       const nCrs = lstCours.filter(c => c.unite_enseignement_id === aSupprimer.id).length
-      const restes = [
-        nMod > 0 ? `${nMod} module${nMod > 1 ? 's' : ''}` : null,
-        nCrs > 0 ? `${nCrs} cours` : null,
-      ].filter(Boolean).join(' et ')
-      pret(restes ? `Cette unité contient encore ${restes}. Videz-la d'abord.` : null)
-      return
+      // Une unite est aussi la MATIERE de creneaux de l'emploi du temps, toutes
+      // annees confondues (cle en RESTRICT : la base refuserait).
+      ;(async () => {
+        const { count, error } = await createClient()
+          .from('schedule_slots')
+          .select('id', { count: 'exact', head: true })
+          .eq('unite_enseignement_id', aSupprimer.id)
+        // Comptage impossible (`count` nul, avec ou sans erreur) : on bloque
+        // plutot que de prendre une panne pour « aucun creneau ».
+        if (error || count === null) {
+          pret("Impossible de vérifier les créneaux qui utilisent cette unité. Réessayez.")
+          return
+        }
+        const restes = [
+          nMod > 0 ? pluriel(nMod, 'module') : null,
+          nCrs > 0 ? pluriel(nCrs, 'cours', 'cours') : null,
+        ].filter(Boolean).join(' et ')
+        pret(
+          restes ? `Cette unité contient encore ${restes}. Videz-la d'abord.`
+            : count > 0 ? `Cette unité est la matière de ${pluriel(count, 'créneau', 'créneaux')} de l'emploi du temps. Changez-la d'abord.`
+            : null,
+        )
+      })()
+      return () => { annule = true }
     }
 
     // Un cours : ses gabarits vivent ailleurs, il faut aller les compter.

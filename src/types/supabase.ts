@@ -3488,12 +3488,14 @@ export type Database = {
           id: string
           is_active: boolean
           is_recurring: boolean
+          libelle: string | null
           room_id: string | null
           school_year_id: string
           slot_date: string | null
           slot_type: "cours" | "activite"
           start_time: string
           teacher_id: string | null
+          unite_enseignement_id: string | null
           updated_at: string
         }
         Insert: {
@@ -3509,12 +3511,14 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_recurring?: boolean
+          libelle?: string | null
           room_id?: string | null
           school_year_id: string
           slot_date?: string | null
           slot_type?: "cours" | "activite"
           start_time: string
           teacher_id?: string | null
+          unite_enseignement_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -3530,12 +3534,14 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_recurring?: boolean
+          libelle?: string | null
           room_id?: string | null
           school_year_id?: string
           slot_date?: string | null
           slot_type?: "cours" | "activite"
           start_time?: string
           teacher_id?: string | null
+          unite_enseignement_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3579,6 +3585,13 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_slots_unite_enseignement_id_fkey"
+            columns: ["unite_enseignement_id"]
+            isOneToOne: false
+            referencedRelation: "unites_enseignement"
             referencedColumns: ["id"]
           },
         ]
