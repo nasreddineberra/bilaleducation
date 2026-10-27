@@ -62,7 +62,8 @@ Une séance d'un enseignant absent sans décision est **« Enseignant absent · 
   page Absences).
 - **Retire** : modifier / supprimer la série, changer l'horaire ou l'enseignant d'une séance, glisser-déposer,
   créer un créneau récurrent. Un cours décalé = annuler la séance + ajouter une séance ponctuelle.
-- **Séance annulée : jamais effacée de l'écran.** Grisée, « ANNULÉ », intitulé barré ; **réactivable** (une
+- **Séance annulée : jamais effacée de l'écran.** Toutes ses informations restent, fond gris, gros tampon
+  « ANNULÉ » rouge au centre ; **réactivable** (une
   annulation par erreur se rattrape). Une séance VALIDÉE ne s'annule pas sans retirer d'abord la validation.
 - **Menu « ⋯ »** (encadrement), une action absente quand elle ne s'applique pas :
   séance de la fiche classe : Annuler · Changer la salle · Ouvrir la fiche classe ;

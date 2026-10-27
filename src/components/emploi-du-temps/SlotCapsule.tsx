@@ -58,10 +58,11 @@ export default function SlotCapsule({
     disabled: !isDraggableEnabled,
   })
 
-  // Seance ANNULEE : affichee grisee « ANNULÉ » (reactivable depuis le menu),
-  // sans enseignant, sans validation ni marqueur d'absence.
+  // Seance ANNULEE : toutes ses informations restent, sur fond gris, avec un gros
+  // « ANNULÉ » au centre (demande du 27/10) ; ni validation ni marqueur d'absence.
+  // Reactivable depuis le menu.
   const annulee = !!slot.annulee
-  const noTeacher = !slot.teacher_id && !annulee
+  const noTeacher = !slot.teacher_id
 
   // Densité : la capsule perd des lignes à mesure qu'elle rétrécit, au lieu de
   // les tronquer toutes à deux caractères. Le détail reste accessible en
@@ -162,7 +163,7 @@ export default function SlotCapsule({
         absent && 'edt-slot-absent',
         // Prof non affecte : rouge, comme « Sans titulaire » sur la fiche classe ;
         // l'ambre en pointilles signale deja une seance MODIFIEE.
-        noTeacher && 'border-2 border-dashed border-red-400',
+        noTeacher && !annulee && 'border-2 border-dashed border-red-400',
         !noTeacher && !annulee && slot.isModified && MODIFIED_BORDER,
         isDragging && 'opacity-30 scale-95',
         isDraggableEnabled && 'cursor-grab active:cursor-grabbing',
@@ -193,12 +194,6 @@ export default function SlotCapsule({
           {/* ORDRE (demande du 27/10) : classe, intitule, enseignant, horaire —
               quelle que soit la duree. La classe est masquee en vue classe
               (redondante), l'enseignant en vue enseignant. */}
-          {annulee && (
-            <div className={clsx('font-bold leading-tight tracking-wide', minimal ? 'text-[8px]' : 'text-[9px]')}>
-              ANNULÉ
-            </div>
-          )}
-
           {viewMode !== 'class' && slot.classes && (
             <div className={clsx('font-bold leading-tight truncate', minimal ? 'text-[9px]' : 'text-[10px]')}>
               {slot.classes.name}
@@ -206,7 +201,7 @@ export default function SlotCapsule({
           )}
 
           {/* Intitule : matiere d'un cours, nom d'une activite, sinon le type. */}
-          <div className={clsx('leading-tight', annulee && 'line-through', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+          <div className={clsx('leading-tight', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
             {libelleCours}
           </div>
 
@@ -224,7 +219,7 @@ export default function SlotCapsule({
               `truncate` emportait le prénom). Créneau court : une seule ligne,
               sinon cinq lignes ne tiennent pas dans une heure ; le nom complet
               reste dans l'infobulle. */}
-          {viewMode !== 'teacher' && !noTeacher && !annulee && slot.teachers && !minimal && (
+          {viewMode !== 'teacher' && !noTeacher && slot.teachers && !minimal && (
             court ? (
               <div className="text-[9px] leading-tight font-bold truncate">
                 {nomEnseignant(slot.teachers)}
@@ -274,6 +269,19 @@ export default function SlotCapsule({
           )}
         </div>
       </Tooltip>
+
+      {/* Tampon « ANNULÉ » au centre, par-dessus les informations ; son propre fond
+          gris le garde lisible sur une seance courte ou il chevauche une ligne. */}
+      {annulee && (
+        <div aria-hidden className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className={clsx(
+            'rounded px-1.5 bg-[var(--champ-verrou)] font-extrabold tracking-widest text-red-700',
+            minimal ? 'text-[10px]' : 'text-sm',
+          )}>
+            ANNULÉ
+          </span>
+        </div>
+      )}
 
       {/* Validation impossible : la personne est absente ce demi-jour */}
       {marqueurAbsence && (

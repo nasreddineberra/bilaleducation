@@ -2178,11 +2178,17 @@ export default function EmploiDuTempsClient({
             }
           }}
         >
-          {/* En-tête : contexte (date du créneau) */}
+          {/* En-tête : la séance visée — classe · date · horaire (réel ce jour-là). */}
           <div className="px-2.5 py-1.5 mb-1 border-b border-warm-100 text-xs text-warm-700">
-            Créneau · <span className="font-medium text-warm-700 capitalize">
-              {new Date(contextMenu.slot.date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })}
-            </span>
+            {contextMenu.slot.classes?.name && (
+              <><span className="font-bold text-secondary-800">{contextMenu.slot.classes.name}</span> · </>
+            )}
+            {(() => {
+              const jour = new Date(contextMenu.slot.date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })
+              return jour.charAt(0).toUpperCase() + jour.slice(1)
+            })()}
+            {' · '}
+            <span className="tabular-nums">{contextMenu.slot.start_time.slice(0, 5)}-{contextMenu.slot.end_time.slice(0, 5)}</span>
           </div>
 
           {/* Menu selon la seance (conception 27/10, lot 2) : la STRUCTURE se gere

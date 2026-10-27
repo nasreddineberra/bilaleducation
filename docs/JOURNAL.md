@@ -9614,3 +9614,6 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   Le glisser-deposer etait deja inactif (`isDndActive = false`).
 - Reste du code d'edition dans `SlotFormModal` (modes « toute la serie » / « cette seance ») : inatteignable,
   retire au lot 5 (nettoyage).
+- **27/10, retour a l'ecran** : la seance annulee garde TOUTES ses informations (classe, intitule non barre,
+  enseignant, horaire), fond gris, gros tampon « ANNULÉ » rouge au centre (fond gris propre pour rester
+  lisible sur une seance d'1 h). Vue mois inchangee (« ANNULÉ » devant l'heure).
