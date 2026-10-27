@@ -35,7 +35,8 @@ interface ClassRow {
   name: string
   level: string
   academic_year: string
-  room_number: string | null
+  /** Salle DEDIEE a la classe (« meme salle pour tous les creneaux »), sinon rien. */
+  rooms: { name: string } | null
   max_students: number
   day_of_week: string | null
   start_time: string | null
@@ -249,7 +250,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
                       {cls.level || <span className="text-warm-700">·</span>}
                     </td>
                     <td className="list-td text-secondary-600">
-                      {cls.room_number || <span className="text-warm-700">·</span>}
+                      {cls.rooms?.name || <span className="text-warm-700">·</span>}
                     </td>
                     <td className="list-td text-secondary-600 whitespace-nowrap">
                       {cls.day_of_week ? (

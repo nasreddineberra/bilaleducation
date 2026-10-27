@@ -34,7 +34,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
   // 1. Classes de l'annee (+ cotisation pour libelle / remise fratrie / adulte)
   const { data: classes } = await supabase
     .from('classes')
-    .select('id, name, level, max_students, day_of_week, start_time, end_time, room_number, cotisation_type_id, cotisation_types:cotisation_type_id(id, label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type)')
+    .select('id, name, level, max_students, day_of_week, start_time, end_time, rooms:room_id(name), cotisation_type_id, cotisation_types:cotisation_type_id(id, label, is_adult, amount, registration_fee, sibling_discount, sibling_discount_same_type)')
     .eq('academic_year', ctx.yearLabel)
   const classList = (classes ?? []) as any[]
   const classById = new Map(classList.map(c => [c.id, c]))
@@ -334,7 +334,8 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
     let creneaux = ((slots ?? []) as any[]).filter(sl => sl.class_id === c.id).map(sl => ({
       jour: sl.day_of_week != null ? (JOUR_NUM[sl.day_of_week] ?? null) : null,
       debut: heure(sl.start_time), fin: heure(sl.end_time),
-      salle: sl.rooms?.name ?? null,
+      // Salle deduite (lib/edt/seance.ts) : celle de la classe si elle en a une, sinon celle du creneau.
+      salle: c.rooms?.name ?? sl.rooms?.name ?? null,
       du: sl.effective_from ?? null, au: sl.effective_until ?? null,
     })).sort(parDates)
     // Sans creneau d'emploi du temps : le creneau de reference porte par la classe.
@@ -342,7 +343,7 @@ export async function generateArchive(supabase: any, ctx: YearCtx): Promise<Arch
       creneaux = [{
         jour: c.day_of_week ? (JOUR_NOM[c.day_of_week] ?? c.day_of_week) : null,
         debut: heure(c.start_time), fin: heure(c.end_time),
-        salle: c.room_number ?? null, du: null, au: null,
+        salle: c.rooms?.name ?? null, du: null, au: null,
       }]
     }
 

@@ -509,9 +509,8 @@ export default function ClassForm({
         level:         form.level.trim(),
         teaching_mode: form.teaching_mode,
         academic_year: currentYear?.label ?? null,
-        room_number:   salleUnique && form.room_id
-          ? (rooms.find(r => r.id === form.room_id)?.name ?? null)
-          : (salleUnique ? (form.room_number.trim() || null) : null),
+        // `room_number` (copie du nom) n'est plus ecrit : on lit la salle rattachee.
+        room_number:   null,
         room_id:       salleUnique ? (form.room_id || null) : null,
         max_students:  parseInt(form.max_students, 10) || 30,
         description:   form.description.trim() || null,

@@ -29,7 +29,6 @@ interface ClassRow {
   day_of_week:  string | null
   start_time:   string | null
   end_time:     string | null
-  room_number:  string | null
   class_teachers: ClassTeacherRow[]
   cotisation_types: { label: string; is_adult: boolean } | null
 }

@@ -9644,3 +9644,7 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   `room_number = '101'` (copie du nom, conservee quand « Oui » restait sans salle) : la liste l'affichait, la
   fiche rouvrait en « Non ». Texte efface en base (demo, demande utilisateur). Cause de fond (`room_number`,
   copie lue par la liste des classes, Affectations, archive) : correction proposee, en attente.
+- **27/10, `room_number` abandonne** : la liste des classes affiche la salle DEDIEE a la classe (relation
+  `room_id`), sinon « · » (decision utilisateur) ; l'archive du passage d'annee fige la salle deduite (classe,
+  sinon creneau) ; Affectations ne lisait la copie que pour rien (retiree). La fiche classe ecrit desormais
+  `room_number = NULL` (copies perimees videes a l'enregistrement) ; colonne supprimee au lot 5.
