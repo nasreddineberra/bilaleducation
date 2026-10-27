@@ -200,10 +200,19 @@ export default function SlotCapsule({
             </div>
           )}
 
-          {/* Intitule : matiere d'un cours, nom d'une activite, sinon le type. */}
+          {/* Intitule : matiere d'un cours, nom d'une activite, sinon le type. Sur un
+              creneau court, la salle le rejoint sur la meme ligne (place). */}
           <div className={clsx('leading-tight', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-            {libelleCours}
+            {libelleCours}{court && !minimal && slot.rooms ? ` · ${slot.rooms.name}` : ''}
           </div>
+
+          {/* Salle sous l'intitule (demande du 27/10), sa propre ligne sur un creneau
+              long ; seulement en infobulle quand 5 creneaux et plus se partagent la colonne. */}
+          {slot.rooms && !court && !minimal && (
+            <div className="text-[9px] leading-tight truncate">
+              {slot.rooms.name}
+            </div>
+          )}
 
           {/* « Prof non affecté » reste affiché quelle que soit la place (créneau
               court, densité minimale) : c'est une anomalie à voir. Deux lignes
@@ -232,13 +241,6 @@ export default function SlotCapsule({
                 )}
               </div>
             )
-          )}
-
-          {/* Salle — première ligne sacrifiée quand la place manque */}
-          {slot.rooms && !dense && !court && (
-            <div className="text-[9px] leading-tight truncate opacity-60">
-              {slot.rooms.name}
-            </div>
           )}
 
           {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
