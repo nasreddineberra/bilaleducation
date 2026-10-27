@@ -9662,3 +9662,8 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   absente : NOM seul, jamais « M. » par defaut. Revient sur NOM / Prenom en deux lignes (29/09).
 - **27/10** : colonne du jour plus pale (demande utilisateur) : jeton `--edt-jour` (vert de marque 4 % ; 6 % de
   l'accent en sombre), `--brand-tint` (8 %) restant celui des selections.
+
+### 27/10 au soir · Arret
+
+Tout est pousse, aucune migration en attente. Reprise : section 8 de CLAUDE.md (lot 3 « Absences enseignants »
+a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en essai, a faire voir).

@@ -365,10 +365,22 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
    pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
    redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
-1. **A la reprise (arret du 26/10 au soir, tout pousse, aucune migration en attente)** : voir a l'ecran sur la
-   demo l'apercu « Appliquer aussi » (Cotisations), la connexion (logo) + Utilisateurs (etat 2FA) + un import
-   apres le retrait d'`anon`, un toast accorde (« 1 email envoye sur 1 foyer »), la console refondue et les
-   departs en cours d'annee. Puis le point 4, un a un.
+1. **A la reprise (arret du 27/10 au soir, tout pousse, aucune migration en attente)** :
+   - **Chantier Planning / absences** (`docs/CONCEPTION-PLANNING-ABSENCES.md`) : lots 1 et 2 FAITS + corrections
+     EDT du 27/10 (seance annulee visible et reactivable, double confirmation ANNULATION / SUPPRESSION, salle
+     unique de classe ou par creneau, salles libres, « Salle 101 », « Mme NOM », colonne du jour `--edt-jour`
+     en ESSAI). D'abord : faire voir a l'ecran les dernieres corrections EDT (colonne du jour, seances annulees).
+   - **Lot 3 · Absences enseignants, A CONFIRMER avant de coder** (l'utilisateur a dit « go avec tes
+     preconisations » sans repondre point par point) : 4 choix par seance (Remplacee par / Annulee / A decider
+     par defaut / Assuree) ; heures du remplacant a la VALIDATION de la seance (plus a la saisie) ; seance
+     reactivee apres email -> proposer d'en prevenir les familles (case decochee) ; limite matin / apres-midi
+     a 12:00 (proposee, non tranchee). Decoupage propose : 3a base + regle, 3b page + EDT + Temps de presence
+     ne propose plus l'absence d'enseignant, 3c emails. Puis lot 4 (Temps de presence, encadre Remplacements
+     de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
+     de `SlotFormModal`, remplacants `class_teachers`).
+   - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
+   - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
+     a relier un jour a celle du creneau.
 2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
    prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
    conservees). Jour J : essai dans son etablissement -> lever la borne, remplir la facturation, retirer
@@ -378,7 +390,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
-   (673 au 27/10, dont 147 dans `lib/dashboard` et 87 dans `lib/closure`) : lot 1 FAIT (clients Supabase
+   (~669 au 27/10, dont ~147 dans `lib/dashboard` et 87 dans `lib/closure`) : lot 1 FAIT (clients Supabase
    types, `src/types/supabase.ts` genere), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
    defaut jamais NULL (quand toutes les ecritures seront typees).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
