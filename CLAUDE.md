@@ -5,12 +5,14 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 (`ecole.bilaleducation.fr`), **un deploiement et une base uniques** (multi-tenant).
 
 - **Etat** : v1.0 en mise en production. Plan de suivi : `MISE_EN_PRODUCTION.md`.
-- **Journal complet** (le POURQUOI de chaque decision) : `docs/JOURNAL.md`. Les nouvelles entrees
-  s'y ajoutent EN FIN de fichier ; ce fichier-ci ne garde que l'essentiel.
+- **Journal complet** (le POURQUOI de chaque decision, l'historique des chantiers) : `docs/JOURNAL.md`
+  (700 Ko : chercher par Grep, jamais le lire en entier). Les nouvelles entrees s'y ajoutent EN FIN de
+  fichier ; ce fichier-ci ne garde que les regles et ce qui reste a faire.
 - **Methode de travail** : ne rien modifier sans accord. Presenter le plan, attendre « go » ou
   « ok » (une preference exprimee n'est pas un go). Commit seulement sur « commit + push ».
 - **Ne jamais utiliser ECOLE BILAL pour des tests destructifs** (ecole reelle). Ne jamais faire
-  d'essais sur le compte de l'utilisateur pendant qu'il utilise le site.
+  d'essais sur le compte de l'utilisateur pendant qu'il utilise le site. Pas de serveur local : les
+  essais se font sur le site deploye (ecole de demonstration).
 - **Fichiers `.xlsx` et enregistrements d'ecran a la racine : jamais commites** (donnees reelles).
 
 ---
@@ -20,12 +22,12 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 - **Next.js 16.4.2** (App Router + Turbopack), **React 19.2**, TypeScript. **Node.js 24.x** fixe par `engines`
   (version executee visible dans la console, infobulle de la pastille de version).
 - **Supabase** (PostgreSQL + RLS + Auth + Storage), projet en Europe.
-- **Vercel**, fonctions epinglees en **`cdg1`** (`vercel.json`) — en `iad1` chaque requete
+- **Vercel**, fonctions epinglees en **`cdg1`** (`vercel.json`) : en `iad1` chaque requete
   traversait l'Atlantique.
 - **Tailwind CSS 3** (`darkMode: ['selector', '[data-theme="dark"]']`).
 - TipTap 3 (editeur riche), jsPDF 4 + autoTable (PDF), Recharts 3 (statistiques), dnd-kit,
   nodemailer 10 (SMTP par ecole), web-push, date-fns, DOMPurify, `read-excel-file` (import),
-  `fflate` (export ZIP), lucide-react.
+  `fflate` (export ZIP), lucide-react, zod 4.
 - **Sanitisation** : `src/lib/security/sanitize.ts` isomorphe (window natif au navigateur, jsdom
   au SSR via `require` paresseux). **jsdom epingle en 26.1.0** : Vercel lance les fonctions avec
   `--no-experimental-require-module`, jsdom >= 27.4 ne s'y charge plus. jsdom exclu du bundle
@@ -34,9 +36,8 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
   Aucune dependance reseau au build. `public/fonts/NotoSansArabic-*.ttf` sert au PDF (jsPDF).
 
 ```bash
-npm run dev          # http://localhost:3000
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~515 avertissements (any)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~500 avertissements (any)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -60,7 +61,7 @@ src/proxy.ts            # middleware : tenant, session, 2FA, abonnement
 supabase/migrations/    # migrations (README.md = procedure)
 supabase/controles/     # scripts de controle rejouables (bloc DO a exception volontaire)
 supabase/email-templates/  # gabarits auth Supabase, generes par build.mjs (ne pas editer les .html)
-scripts/                # sauvegarde, migrations-etat, generateurs (logos, gabarit d'import)
+scripts/                # sauvegarde, migrations-etat, generateurs (logos, gabarit d'import, pont console)
 docs/JOURNAL.md         # journal de developpement complet
 ```
 
@@ -79,9 +80,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Ecran Utilisateurs** = comptes SANS fiche metier (direction, comptable, secretaire, resp. pedago).
   Enseignant -> fiche enseignant (compte + profil + `teachers` atomique) ; parent -> fiche parents.
 - **Enseignant** : ses classes (`teaches_class`, fenetre `effective_from/until`), ses eleves
-  (`teaches_student`), sa propre ligne `teachers`. Lit l'EDT de toute l'ecole (document collectif,
-  decision du 29/09) mais l'ecran ne lui montre que SON planning (+ classes qu'il remplace). Ne
-  communique que les devoirs. Valide ses propres seances.
+  (`teaches_student`), sa propre ligne `teachers`. Lit l'EDT de toute l'ecole (document collectif)
+  mais l'ecran ne lui montre que SON planning (+ classes qu'il remplace). Ne communique que les
+  devoirs. Valide ses propres seances.
 - **Remplacant** : ligne `class_teachers` `is_main_teacher = false` + dates. Voit le cahier de texte
   7 j avant sa prise de poste (RLS), voit et valide les seances de la classe pendant sa periode
   (heures a son nom, `replaced_profile_id` = titulaire). Le titulaire remplace ne valide plus.
@@ -96,97 +97,66 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **2FA (TOTP)** obligatoire pour tout le staff (`app_metadata.role` dans le jeton), et pour la console.
 - Matrices RLS detaillees : `pg_policies` fait foi (jamais un fichier du depot).
 
-## 4. Fonctionnalites par module
+## 4. Modules (regles metier qui ne se lisent pas d'un coup d'oeil dans le code)
 
-**Principal**
-- **Tableau de bord** : 6 variantes par role (stats, recouvrement, a traiter, effectifs eleves +
-  adultes, rappel de bascule de periode, raccourcis).
-- **Notifications** : cloche in-app (messages internes), push.
-- **Temps de presence** : saisie des heures/absences du staff par type de presence (codes 3 car.,
-  types RESERVES absence/cours/activite lies a l'EDT), demi-journees d'absence, remplacements,
-  recaps mensuel/annuel en modales + export PDF, couts selon role. Saisie reservee aux gestionnaires.
-- **Mon compte** : identite, email (admin/direction), mot de passe, 2FA, theme, releve de temps.
-
-**Vie scolaire**
-- **Apprenants** : liste (classe, discipline, cartes filtres), fiche a onglets (identite, scolarite
-  = archives des bulletins, discipline, documents), statuts en lot, suppression d'une fiche VIERGE
-  seulement (sinon « Rendre inactif »).
-- **Parents (foyers)** : 2 tuteurs, situation familiale, cours adultes par tuteur, onglet Scolarite
-  adulte. Email du tuteur 1 obligatoire (NOT NULL en base).
-- **Importation** (admin/direction) : `.xlsx` (gabarit `public/gabarit-import-apprenants.xlsx`),
-  lecture et rapprochement dans le navigateur, `import_foyer()` atomique par foyer, notes medicales.
-- **Affectations** apprenants et adultes (clic, une classe active par eleve et par annee).
-- **Feuille d'appel** apprenants et adultes (trombinoscope, justificatifs prives, vue « toutes les
-  classes » pour l'encadrement, feuille vierge et impression PDF).
-
-**Pedagogie**
-- **Gabarits d'evaluation** (date obligatoire, ordre UE/modules/evaluations par classe et periode),
-  **Saisie des notes** (absences reportees de l'appel, garde anti-perte), **Bulletins** (PDF
-  bilingue FR/AR, appreciations, archivage avec chiffres figes).
-- **Emploi du temps** : vues jour / semaine / mois, grille 15 min (8 h-19 h, s'elargit au creneau le
-  plus matinal), creneaux recurrents avec dates d'effet, menu « ... », validation de presence,
-  vacances et jours feries bloquants, marquage des absences et remplacements.
-- **Cahier de texte** : seances (internes) et devoirs (email aux familles par foyer) separes, en
-  modales ; modification/suppression avec fenetre (devoir : avant la date de rendu ; seance : 7 j).
-  Matiere forcee « General » en V1.
-
-**Gestion**
-- **Communications** : Parents (par classe, choisis, actifs, tous les contacts) et Equipe (email /
-  notification / les deux), 1 email par foyer, CCI direction, Reply-To = contact de l'ecole,
-  signature auto, PJ 1 Mo, historique « Messages envoyes » (perimetre en RLS).
-- **Financements** : Reglements (plan de travail familles, paiements, reductions, echeances, relance
-  par email, attestation PDF totale ou partielle, journal comptable), Statistiques (Recharts),
-  Situation financiere (depenses/revenus, justificatifs prives). Calcul unique
-  `src/lib/financements/compute.ts` ; ecritures d'argent atomiques (4 RPC).
-- **Support technique** (admin/direction) : demandes ecrites en base AVANT l'email, historique.
-
-**Cloture**
-- **Passage d'annee** (admin/direction) : 6 audits relancables a volonte (Auditer / Reinitialiser,
-  ordre alphabetique, liens « Corriger » vers les fiches), cloture apres la date de fin + 6 audits
-  sans anomalie bloquante, archivage, purge (seul point de non-retour). Etat porte par
-  `school_years` (`closed_at`, `archived_at`, `purged_at`).
-
-**Parametres**
-- Annees scolaires (periodes, periode en cours, vacances + jours feries, verrouillage des annees non
-  courantes), Classes (titulaire, remplacements, historique, creneaux), Referentiel des cours
-  (3 colonnes UE / modules / cours, FR + AR, suppression du vide seulement), Enseignants (documents,
-  assiduite), Utilisateurs, Cotisations et taux, Types de presence, Ressources, Journal d'activite,
-  Etablissement (identite, logo, documents requis, **Messagerie SMTP** + procedure integree).
-
-**Console editeur (`superadmin.bilaleducation.fr`)**
-- Liste des ecoles (inscrits / limite, derniere connexion), Sante, Facturation (releve mensuel
-  pg_cron, tarif fige par releve), Demandes de support, Interventions.
-- Fiche ecole : informations + facturation, acces et abonnement (activation, echeance, limite
-  d'inscrits), mise en service (checklist), comptes, notes internes, depart d'une ecole (export ZIP
-  puis effacement RGPD, fiche conservee et reouvrable).
-- **Ecole de demonstration** (`est_demo`, slug `demonstration`) : donnees fictives cosmopolites,
-  7 comptes `@demonstration.invalid`, bouton « Reinitialiser » (contenu date depuis le jour).
-
-**Abonnement** : echeance = jour inclus (coupure le lendemain 0 h Paris, `lib/tenant/abonnement.ts`).
-La base coupe aussi (18/10) : `current_etablissement_id()` rend NULL pour une ecole inactive ou
-expiree (meme regle en SQL), sauf pour l'editeur en intervention. Toute policy doit donc porter l'ecole
-via cette fonction, jamais via une sous-requete `profiles` (controle 16).
-**Limite d'inscrits** = base facturable (eleves actifs + adultes inscrits), controlee en base.
+- **Tableau de bord** : une variante par role, une page sans defilement.
+- **Temps de presence** : codes 3 car. ; types RESERVES absence/cours/activite lies a l'EDT ; saisie
+  reservee aux gestionnaires ; couts selon le role.
+- **Apprenants** : suppression d'une fiche VIERGE seulement (sinon « Rendre inactif »).
+- **Parents (foyers)** : 2 tuteurs, cours adultes par tuteur. Email du tuteur 1 obligatoire (NOT NULL).
+- **Importation** (admin/direction) : `.xlsx` (gabarit `public/gabarit-import-apprenants.xlsx`), lecture
+  dans le navigateur, `import_foyer()` atomique par foyer.
+- **Affectations** : une classe active par eleve et par annee. **Correction** = retrait d'un enfant SANS
+  donnees (inscription supprimee) ; **Depart** = « Declarer un depart » d'un enfant AVEC donnees
+  (`declarer_depart_*` : `withdrawn` + `date_depart`, eleve inactif, trace `mouvements_inscription`
+  ecrite par la base). Un retour dans l'annee annule le depart ; seul le DERNIER depart compte.
+- **Notes / bulletins** : gabarits a date obligatoire (ordre `lib/evaluations/ordre.ts`), absences
+  reportees de l'appel, bulletins PDF bilingues FR/AR archives avec chiffres figes.
+- **EDT** : grille 15 min (8 h-19 h, elargie au creneau le plus matinal), creneaux recurrents avec dates
+  d'effet, vacances et jours feries bloquants (`lib/school-year/jours-fermes.ts`).
+- **Cahier de texte** : seances (internes) et devoirs (email aux familles par foyer). Modification :
+  devoir avant la date de rendu, seance 7 j. Matiere forcee « General » en V1.
+- **Communications** : 1 email par foyer, CCI direction, Reply-To = contact de l'ecole, PJ 1 Mo.
+- **Financements** : calcul unique `lib/financements/compute.ts` (`lignesCotisation`) ; ecritures
+  d'argent atomiques (4 RPC). **Regle de depart** (encadre en tete de Cotisations,
+  `definir_regle_ajustement(p_regle, p_retroactif)`) : Due en totalite (DEFAUT) / Au prorata (mois
+  commence depuis la rentree, frais d'inscription toujours dus) / Au cas par cas (« Decider » dans
+  Reglements) / Sans ajustement ; une arrivee doit l'annee ; departs charges par
+  `lib/financements/departs.ts`. Controles 21 a 23.
+- **Support** : demande ecrite en base AVANT l'email.
+- **Passage d'annee** (admin/direction) : 6 audits relancables, cloture apres la date de fin sans
+  anomalie bloquante, archivage, purge (seul point de non-retour). Etat porte par `school_years`
+  (`closed_at`, `archived_at`, `purged_at`).
+- **Console editeur** : ecoles, Sante (`lib/tenant/sante.ts` : 1 signal = a surveiller, 2+ = critique,
+  demo jamais), Facturation (releve mensuel pg_cron, tarif fige), Support, Interventions, recherche
+  Ctrl+K. Depart d'une ecole : export ZIP OBLIGATOIRE puis effacement RGPD, fiche reouvrable.
+- **Ecole de demonstration** (`est_demo`, slug `demonstration`) : donnees fictives, 7 comptes
+  `@demonstration.invalid`, « Reinitialiser » (recree aussi les comptes disparus ; leur 2FA est alors
+  a reenroler). « Intervenir » grise tant qu'elle n'est pas reinitialisee. JAMAIS de donnees reelles.
+- **Abonnement** : echeance = jour inclus (coupure le lendemain 0 h Paris, `lib/tenant/abonnement.ts`).
+  La base coupe aussi : `current_etablissement_id()` rend NULL pour une ecole inactive ou expiree, sauf
+  pour l'editeur en intervention. Toute policy porte donc l'ecole via cette fonction, jamais via une
+  sous-requete `profiles` (controle 16). **Limite d'inscrits** = eleves actifs + adultes inscrits,
+  controlee en base (seul juge).
+- `clean-all-data.sql` NE DOIT JAMAIS servir tel quel (vide le registre des migrations et les tables
+  editeur, laisse `auth.users` et Storage).
 
 ## 5. Conventions et architecture
 
 - **Multi-tenant** : tenant = sous-domaine (`x-etablissement-id` pose par le middleware, a preferer a
   une requete `profiles`). `app_metadata = { role, etablissement_id }` dans le jeton (middleware
-  seulement ; l'autorite reste `profiles`).
+  seulement ; l'autorite reste `profiles`). Jamais une ecole nommee dans une regle ou une procedure.
 - **RLS** : chaque policy porte le **tenant ET le role** (le cloisonnement ne remplace pas le role).
   `current_etablissement_id()` et `get_user_role()` (STABLE, `search_path` fixe). Gardes de RPC
   SECURITY DEFINER en `coalesce(get_user_role(), '')`. `FOR ALL` = les 4 commandes. Policies
   permissives s'ADDITIONNENT. Recursion entre policies -> fonction SECURITY DEFINER.
 - **Tables sensibles « serveur uniquement »** (RLS sans policy + REVOKE) : `etablissement_smtp`,
   `etablissement_notes`, `etablissement_facturation`, `releves_facturation`, `support_interventions`,
-  `migrations_appliquees`.
-  Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp` (secret).
+  `migrations_appliquees`. Jamais de policy de lecture ; pas de trigger d'audit sur `etablissement_smtp`.
 - **Journal d'activite** : trigger `fn_audit_log()` (lit `auth.uid()`) + `logAudit` (colonne
   `description`). Tables ecrites avec le **client SESSION** ; client admin reserve aux comptes `auth`.
-  Une ligne porte l'ecole et le `user_id` de l'appelant (policy) ; nom et email reecrits depuis
-  `profiles` (`fn_audit_logs_auteur`).
-  **Les comptes `admin` et l'editeur (`super_admin`) ne sont JAMAIS traces** (16/10) : declencheur
-  `BEFORE INSERT` sur `audit_logs` (`fn_audit_logs_sans_editeur`), controle 10.
+  Nom et email reecrits depuis `profiles` (`fn_audit_logs_auteur`). **Les comptes `admin` et
+  l'editeur ne sont JAMAIS traces** (`fn_audit_logs_sans_editeur`, controle 10).
 - **Adultes** : classe adulte = `cotisation_types.is_adult`. Participants =
   `parent_class_enrollments` (cle `parentId-tutorNumber`), tables miroir `adult_grades`,
   `adult_bulletin_appreciations`, `adult_bulletin_archives`, `adult_homework_status`,
@@ -194,9 +164,9 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Fichiers** : buckets prives + URL signee (60 s), chemins `{etablissement_id}/...`, plafonds de
   taille et types MIME. Jamais `getPublicUrl` sauf logos. Supprimer **la ligne d'abord, le fichier
   ensuite**. Le SQL ne touche jamais `storage.objects`.
-- **PDF et fichiers s'AFFICHENT dans un nouvel onglet** (20/10), jamais d'enregistrement force :
-  `lib/pdf/ouvrir.ts` (`ouvrirOngletPdf` AU CLIC avant tout `await`, `afficherPdf` pour un jsPDF,
-  `ouvrirDansOnglet` pour une URL signee). Jamais `doc.save()` ni `a.download` (sauf `.xlsx` / ZIP).
+- **PDF et fichiers s'AFFICHENT dans un nouvel onglet** : `lib/pdf/ouvrir.ts` (`ouvrirOngletPdf` AU
+  CLIC avant tout `await`, `afficherPdf` pour un jsPDF, `ouvrirDansOnglet` pour une URL signee).
+  Jamais `doc.save()` ni `a.download` (sauf `.xlsx` / ZIP).
 - **Emails** : SMTP par ecole (`etablissement_smtp`), `From` = adresse du compte SMTP (SPF/DKIM),
   nom de l'ecole en nom d'affichage, `Reply-To` = contact de l'ecole (auteur pour l'equipe).
   Coque unique `src/lib/email/shell.mjs` (marque EDITEUR pour auth/securite/support, marque ECOLE
@@ -211,52 +181,67 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - **Doublons** : enseignants (nom+prenom), apprenants (nom+prenom+date de naissance), tuteurs (une
   personne une seule fois par ecole), insensibles a la casse et aux accents (`norm_name` en base,
   `normalizeNom` / `sameName` cote app, `lib/doublons.ts` pour les messages).
-- **Sources uniques** (ne jamais recopier) : `lib/financements/compute.ts`, `lib/auth/role-labels` (libelles + `tonRole`),
-  `lib/teachers/nom`, `lib/school-year/jours-fermes.ts`, `lib/parents/situation-familiale.ts`,
-  `lib/temps-presence/*`, `lib/evaluations/ordre.ts`, `lib/closure/ordre.ts`, `lib/mobile.ts`,
-  `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`, `lib/tenant/*`, `lib/pdf/ouvrir.ts`,
+- **Sources uniques** (ne jamais recopier) : `lib/financements/compute.ts`, `lib/auth/role-labels`
+  (libelles + `tonRole`), `lib/teachers/nom`, `lib/school-year/jours-fermes.ts`,
+  `lib/parents/situation-familiale.ts`, `lib/temps-presence/*`, `lib/evaluations/ordre.ts`,
+  `lib/closure/ordre.ts`, `lib/mobile.ts`, `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`,
+  `lib/tenant/*`, `lib/pdf/ouvrir.ts`, `lib/cahier-texte/commun.ts`, `tonCategorie()` (support),
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
   restrictive -> code d'abord.** Tester en transaction annulee + controle (bloc DO a exception
   volontaire). Delimiteurs nommes (`$fn$`). Apres `REVOKE ... FROM public`, revoquer aussi `anon`.
-  Depuis le 26/10 une fonction NOUVELLE n'est plus executable par PUBLIC ni `anon` (defauts changes,
-  controle 25) : l'octroyer explicitement a `authenticated` reste la regle ; a `anon` seulement si une page
-  publique en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
+  Une fonction NOUVELLE n'est executable ni par PUBLIC ni par `anon` (defauts changes le 26/10,
+  controle 25) : l'octroyer explicitement a `authenticated` ; a `anon` seulement si une page publique
+  en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
 
 ## 6. Charte graphique
 
 ### Couleurs (tailwind.config.ts)
 | Palette | Base | Role |
 |---|---|---|
-| `primary` (turquoise) | `#18aa99` (500) | EN COURS DE RETRAIT (18/10) : remplace page par page par le vert de marque |
+| `primary` (turquoise) | `#18aa99` (500) | RETIRE de l'interface : ne plus l'utiliser (vert de marque a la place) ; reste dans la palette dataviz |
 | `secondary` (ardoise) | `#507583` (500) | textes forts (`secondary-800` = encre `#1f2e35`) |
 | `amber` (orange dore) | `#ffa200` (500) | avertissements (ambre `-700` en texte) |
 | `warm` (beige) | `#b6a798` (500) | neutres, fonds, bordures |
 | `red` (Tailwind) | | erreurs, suppression, danger |
 | `violet` | | categorie « adulte » (pastille) |
+- **Vert de marque** (etats compris) : texte `text-[var(--brand-surface)] dark:text-[var(--brand-accent)]` ;
+  plein `bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)]` (+ `dark:text-[var(--brand-surface-2)]`
+  sur texte blanc) ; fond doux `--brand-tint` ; bordure `--brand-line` ; halo `--brand-focus` (sur
+  sidebar / header : `--brand-accent`). Pastilles d'etat = `Puce` / `ton-*` (`components/dashboard/tdb.tsx`).
 - **Aucune couleur nouvelle sans go** : reutiliser palettes et jetons existants. Pas de `green`
-  pour un etat (-> `primary`), pas de `success`/`danger` (palettes supprimees), pas de bleu hors
-  charte. Couleurs de CATEGORIE (emerald « activite » EDT, vert « Lecon ») a distinguer des ETATS.
+  pour un etat, pas de `success`/`danger` (palettes supprimees), pas de bleu hors charte. Couleurs de
+  CATEGORIE (emerald « activite » EDT, vert « Lecon ») a distinguer des ETATS.
 - **Texte lisible = `text-warm-700`** (5,04:1). `warm-400` uniquement pour un etat inactif /
   verrouille. Jamais `warm-300/400/500/600` pour du texte.
 - **Jetons de theme** (`globals.css`, `:root` + `[data-theme="dark"]`) : `--surface-page`,
   `--surface-card`, `--surface-sunken`, `--ink`, `--ink-muted`, `--line`, `--line-strong`,
   `--card-border`, `--card-shadow`, `--brand-surface` (`#0c5b51`) / `--brand-surface-2` /
-  `--brand-accent` / `--brand-text|label|icon|muted`, **`--brand-tint` / `--brand-line` / `--brand-focus`**
-  (fonds doux 8 %, bordures 30 %, halos 50 % ; accent en sombre), `--logo-shadow`, `--silhouette-ink`,
-  `--scroll-thumb`, `--edt-absent-hachure`. **Une ombre ou couleur nouvelle = un jeton, jamais une
-  valeur en dur dans une regle.**
+  `--brand-accent` / `--brand-text|label|icon|muted`, `--brand-tint` / `--brand-line` / `--brand-focus`
+  (fonds doux 8 %, bordures 30 %, halos 50 % ; accent en sombre), `--survol-ligne`, `--champ-verrou`,
+  `--logo-shadow`, `--silhouette-ink`, `--scroll-thumb`, `--edt-absent-hachure`. **Une ombre ou couleur
+  nouvelle = un jeton, jamais une valeur en dur dans une regle.**
 - **Theme clair / sombre** : choix par utilisateur (`profiles.theme`), `data-theme` sur `<html>`.
   Le sombre passe par un **pont** dans `globals.css` (selecteurs PLATS scopes
-  `:is(#main-content, [role="dialog"], [role="menu"])`) qui remappe les classes Tailwind ; tout nouveau composant
-  hors `#main-content` (portail, toast) doit etre couvert. `bg-[#ffffff]` = blanc force (plaque de
-  logo), `bg-white` est remappe.
+  `:is(#main-content, [role="dialog"], [role="menu"])`) qui remappe les classes Tailwind ; tout nouveau
+  composant hors `#main-content` (portail, toast) doit etre couvert. `bg-[#ffffff]` = blanc force
+  (plaque de logo), `bg-white` est remappe.
 - **Graphiques** : palette dataviz validee (clair `#18aa99 · #cc8200 · #2a78d6 · #e87ba4 · #4a3aa7`,
   sombre `#18aa99 · #cc8200 · #2a78d6 · #d9628f · #7d6bd0`), couleur liee a l'entite et non au rang.
 - **Editeur riche** : 6 couleurs d'encre >= 5:1 (Encre `#1f2e35`, Marque `#0c5b51`, Bleu `#1d5aa8`,
   Violet `#4a3aa7`, Rouge `#b3261e`, Orange `#a35c00`).
+
+### Console editeur (palette propre)
+- **Graphite `#16181d` + citron vert `#c8f169`**. `data-espace="console"` sur `<html>` (script de
+  `app/layout.tsx`, theme clair impose) ; bloc `:root[data-espace="console"]` de `globals.css` qui
+  redefinit `--brand-*`, les neutres, `--etat-*` et ajoute `--console-*`. L'ecole n'est jamais touchee.
+- Citron vert JAMAIS en indicateur sur blanc (l'actif y est graphite) ; **tout bouton citron vert a une
+  bordure** (`--console-accent-trait`) ; `FloatButton submit` = citron vert via `bouton-principal` ;
+  `.mono` = police a chasse fixe du systeme. Pas de titre de page (l'onglet suffit).
+- Pont des beiges `warm-*` vers les gris console : bloc genere en fin de `globals.css` par
+  `scripts/generer-pont-console.cjs`, **a relancer si une classe `warm-*` nouvelle apparait**.
 
 ### Typographie
 - **Inter** (latin), **Noto Sans Arabic** (`font-arabic`, `dir="rtl"` sur les champs AR, sans gras).
@@ -265,54 +250,56 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
   `.section-title` (titre d'encadre) ; `tabular-nums` pour les chiffres.
 
 ### Classes et composants partages
-- **`.card`** (fond carte, bordure `--card-border`, `rounded-lg`, `p-6`). Tableau de liste =
-  **`card p-0`** (jamais `card` seul). `.list-scroll` (scrollbar fine fond clair), `.sidebar-scroll`,
-  `.h-ecran` (100dvh avec repli), `.logo-relief`, `.animate-fade-in`, `.nom-vague` (connexion).
+- Page modele : `/dashboard/test-design` (a GARDER).
+- **Listes** : `.liste` / `.liste-entete` / `.ligne-active` (sans cadre, en-tete teinte, barre des actifs).
+  **Le survol est integre a `.liste`** (`--survol-ligne`) : aucun `hover:` sur une ligne ; `.sans-survol`
+  pour un total, un intertitre, un message vide ou un fond d'ETAT. L'ancien cadre `card p-0` ne sert plus
+  aux nouvelles listes (il en reste quelques-uns).
+- **`.card`** (fond carte, bordure `--card-border`, `rounded-lg`, `p-6`). `.encadre-titre` (bandeau en
+  degrade des encadres de fiche, hauteur fixe). `.list-scroll`, `.sidebar-scroll`, `.h-ecran` (100dvh avec
+  repli), `.logo-relief`, `.animate-fade-in`, `.nom-vague` (connexion).
 - **Champs** (`ui/FloatFields.tsx`) : `FloatInput`, `FloatSelect`, `FloatTextarea`,
   `FloatCheckbox` (`card` / `danger-card` / `switch` / `compact`), `FloatPhoneInput`.
-  Libelle flottant, `*` automatique si `required`. Props : `compact`, `locked` (pas `disabled`,
-  ecrase), **`bordure`** (libelle sur le trait du cadre) = **style par defaut** ; `bordure={false}` seulement
-  sur les ecrans de connexion.
+  Libelle flottant, `*` automatique si `required`. Props : `compact`, `locked` (pas `disabled`),
+  **`bordure`** = **style par defaut** ; `bordure={false}` seulement sur les ecrans de connexion.
   `FloatSelect` : `wrapperClassName` (souvent `w-fit`), valeur jamais vide si une option doit
-  s'afficher (sentinelle `__all__`).
-- **Boutons** (`FloatButton`) : `submit` (surface de marque — Valider/Enregistrer), `edit`
-  (contour de marque — Modifier), `secondary` (Annuler), `danger` (Supprimer), `primary`, `brand`.
+  s'afficher (sentinelle `__all__`). Choix oui / non = `SwitchOuiNon` (option `seul`).
+- **Filtres de liste** : `FiltreSwitch` (switch segmente, compteur optionnel, periodes aussi) ; toute carte
+  ou pilule qui FILTRE une liste devient un `FiltreSwitch` (`ListStatCard` ne reste qu'a l'existant).
+- **Boutons** (`FloatButton`) : `submit` (surface de marque, Valider/Enregistrer), `edit`
+  (contour de marque, Modifier), `secondary` (Annuler), `danger` (Supprimer), `primary`, `brand`.
   `size="normal" | "mini"`, `loading`, `href` (rend un lien). En formulaire :
   `variant={isEditing ? 'edit' : 'submit'}`. Les classes `.btn-*` sont abandonnees.
-- **Modales** : `FormModal` (saisie, portail), `ConfirmModal` (confirmation, recap via `children`).
-  Toujours **portalisees dans `<body>`** (`animate-fade-in` capture le `fixed`).
-- **Refonte du 15/10** : `.liste` / `.liste-entete` / `.ligne-active` (listes sans cadre, en-tete teinte,
-  barre des actifs ; **survol des lignes integre a `.liste`**, jeton `--survol-ligne`, aucun `hover:` sur une
-  ligne ; `.sans-survol` pour un total, un intertitre, un message vide ou un fond d'ETAT qui garde son
-  propre survol ; tableau hors `.liste` = `hover:bg-warm-100` provisoire jusqu'a sa refonte), `FiltreSwitch` (filtres de liste en switch segmente), `.encadre-titre` (bandeau en
-  degrade estompe des encadres de fiche, hauteur fixe), `Onglets` + `classeOnglet` (soulignement anime),
-  `SwitchOuiNon` (choix binaire, option `seul`), jeton `--champ-verrou`. Le **vert de marque**
-  (`--brand-surface`, sombre : `--brand-accent`) remplace le turquoise au fil des pages.
-- **Autres** : `Tooltip` (jamais `title=`), `TruncatedText` (infobulle si coupe), `SearchField`
-  (2 caracteres minimum), `ListStatCard` (cartes stat cliquables = filtres), `RaisonBloquee`
-  (raison d'un bouton grise, sur telephone), `Cliquable`, `RouteSkeleton` (chargements), `Toast`
-  (`useToast`), `OtpInput` (2FA 6 cases), `PasswordChecklist`, `RichTextEditor`.
+- **Modales** : `FormModal` (saisie), `ConfirmModal` (confirmation, recap via `children` ; jamais
+  « Confirmer / Annuler » en ligne). Toujours **portalisees dans `<body>`** (`animate-fade-in` capture le `fixed`).
+- **Autres** : `Onglets` + `classeOnglet`, `Tooltip` (jamais `title=`), `TruncatedText`, `SearchField`
+  (2 caracteres minimum), `RaisonBloquee` (raison d'un bouton grise, sur telephone), `Cliquable`,
+  `RouteSkeleton`, `Toast` (`useToast`), `OtpInput` (2FA 6 cases), `PasswordChecklist`, `RichTextEditor`.
 
 ### Regles d'interface
 - **NOM avant Prenom** partout (`Civilite NOM Prenom` pour un enseignant).
 - **Aucun tiret long** (`—` ni `–`) : separateur `·`, plages `09:00-12:00`.
 - **Aucune icone sur un bouton a libelle** (pas de `+`) ; icone seule = `Tooltip` + `aria-label`.
 - **Pas de `<h1>` de titre de page** (DashboardNav le rend). Pas de texte explicatif oisif. Pas d'emoji.
-- **Lignes de liste cliquables** vers la fiche (`stopPropagation` sur nom/actions).
+  Etats vides d'une phrase.
+- **Lignes de liste cliquables** vers la fiche (`stopPropagation` sur nom/actions) ; actions de ligne
+  toujours visibles.
 - **Apres enregistrement : retour a l'origine** (liste par defaut, `?from=` pour audit/parents),
   avec les filtres de la liste conserves (URL ou `sessionStorage`).
 - **Selects demarrent vides** (placeholder `disabled hidden`), obligatoires si pertinent.
 - **Modales de SAISIE** : fermeture X / Annuler seulement (ni fond ni Echap). Echap autorise sur
   une modale de confirmation.
-- **Masquer** ce qui n'est jamais possible pour ce role ; **griser** (avec infobulle) ce qui l'est
-  dans d'autres circonstances.
-- **Ecrans sans barre de defilement de page** quand c'est possible (encadres resserres,
-  listes bornees en hauteur).
+- **Masquer** ce qui n'est jamais possible pour ce role ; **griser** (`--champ-verrou` / `warm-400`,
+  avec infobulle) ce qui l'est dans d'autres circonstances.
+- **Ecrans sans barre de defilement de page** quand c'est possible : un element elastique absorbe la
+  hauteur, listes bornees.
 - **Accessibilite** : onglets ARIA + deep-link `?tab=`, `role="alert"` sur les erreurs, `aria-pressed`
   sur les bascules, focus visible, contraste AA (4,5:1 petit texte).
 - **Mobile** : sous 1024 px la sidebar devient un tiroir ; sous 768 px seuls 7 menus restent
   (Tableau de bord, Notifications, Temps de presence, Feuilles d'appel, EDT, Cahier de texte,
   Support). Liens des tableaux de bord vers les ecrans exclus neutralises (`Cliquable`).
+- **Refonte = la structure, pas seulement les couleurs** : verifier bandeaux, listes, modales,
+  confirmations, actions visibles. Methode : l'utilisateur inspecte, je propose, « go », commit + push.
 
 ## 7. Pieges a connaitre (une ligne chacun, details dans le journal)
 
@@ -325,7 +312,7 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - Declencheur generique : jamais `OLD.col`/`NEW.col` par nom (`to_jsonb(...)->>'col'`) ;
   l'eprouver sur une table SANS la colonne.
 - Une colonne NOT NULL sans defaut peut etre remplie par un declencheur `BEFORE INSERT`.
-- Fichier `'use server'` : n exporte que des fonctions async (sinon 500).
+- Fichier `'use server'` : n'exporte que des fonctions async (sinon 500).
 - Jamais jsdom en import statique dans un module atteignable par un Client Component.
 - Pipeline PostCSS sans nesting : CSS **plat** ; toujours **verifier le CSS SERVI**
   (`.next/static/chunks/*.css`) ; `hover:` sans `dark:hover:` deborde sur le sombre ; variantes
@@ -339,118 +326,39 @@ via cette fonction, jamais via une sous-requete `profiles` (controle 16).
 - `exhaustive-deps` signale la ligne du tableau de dependances, pas celle du hook.
 - Apostrophes, backslashes et backticks cassent les scripts en ligne : passer par un fichier.
 - Un controle qui ne mesure rien annonce « 0 » : verifier qu'il a lu quelque chose, et le voir
-  ROUGE avant de le croire vert.
+  ROUGE avant de le croire vert. Un `catch` silencieux peut cacher une panne : verifier en base.
 - Apres un deploiement, un onglet ouvert peut lever « An unexpected response was received from the
   server » (client perime) : banniere « nouvelle version » (`/api/version`), Ctrl+F5.
 - `auth.admin.listUsers()` ne rend pas `factors` : utiliser `getUserById()`.
 - Un joker TLS couvre UN niveau : jamais de `www.` sur un sous-domaine d'ecole.
 - Une `NEXT_PUBLIC_*` se verifie en production dans le bundle servi.
 
-## 8. Taches
+## 8. Reste a faire
 
-### Fait (v1)
-Tous les modules ci-dessus, audites (accessibilite, charte, theme sombre, mobile), RLS reprise sur
-toutes les tables (role + tenant), audit des ecritures silencieuses, multi-etablissement,
-console editeur, messagerie d'ecole eprouvee en reel, authentification eprouvee en reel, import reel
-(103 foyers / 176 apprenants), tableau de bord refondu par role (une page sans defilement),
-sauvegarde locale automatisee, tests automatises (session, ordre,
-financements, retention…), ecole de demonstration.
+Tous les modules sont faits et audites (accessibilite, charte, theme sombre, mobile, RLS role + tenant,
+ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console. Historique : journal.
 
-### Reste a faire
 0. **A CHAQUE REPRISE · Node2Shell (CVE-2026-111497)** : projet en **24.x** (`engines` + reglage Vercel
-   « Node.js Version », verifie le 26/10). Le PATCH depend de Vercel seul : encore **24.21.0** le 26/10 apres un
-   « Redeploy » sans cache (correctif = **24.22.1**), pare-feu Vercel actif en attendant. Exposition faible (pas
-   d'Express, appels sortants vers Supabase / push / SMTP seulement). Survoler la pastille de version de la
-   console : aucun redeploiement utile tant que Vercel n'a pas publie 24.22.1 ; la version se lit au demarrage
-   de la fonction. zod 4.6.7 verifie le 26/10 (fiches Utilisateur, Enseignant, Foyer).
-0 bis. **A LA REPRISE (arret du 26/10 au soir, tout pousse, aucune migration en attente)** : voir a l'ecran sur la
+   « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 26/10,
+   pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
+   redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
+1. **A la reprise (arret du 26/10 au soir, tout pousse, aucune migration en attente)** : voir a l'ecran sur la
    demo l'apercu « Appliquer aussi » (Cotisations), la connexion (logo) + Utilisateurs (etat 2FA) + un import
-   apres le retrait d'`anon`, et un toast accorde (« 1 email envoye sur 1 foyer »). Puis le point 6, un a un.
-1. **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
-   (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). **Passe PAGE PAR
-   PAGE en cours (18/10)** : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Regle : texte
-   `text-[var(--brand-surface)] dark:text-[var(--brand-accent)]` ; plein `bg-[var(--brand-surface)]
-   dark:bg-[var(--brand-accent)]` (+ `dark:text-[var(--brand-surface-2)]` sur texte blanc) ; fond doux
-   `--brand-tint` ; bordure `--brand-line` ; halo `--brand-focus` ; sur sidebar / header, halo
-   `--brand-accent`. Pastilles d'etat = `Puce` (`components/dashboard/tdb.tsx`). Carte ou pilules qui
-   FILTRENT une liste -> `FiltreSwitch` (compteur optionnel ; periodes aussi). Confirmations en
-   `ConfirmModal`, saisies en `FormModal`, actions de ligne toujours visibles. Script de conversion :
-   `scratchpad/marque.py` (a recreer si besoin, regle ci-dessus).
-   **Etat au 21/10 au soir : refonte faite sur TOUTES les pages de l'ecole** (Principal, Vie scolaire,
-   Pedagogie, Gestion, Cloture, Parametres, Mon compte, barre laterale). **Reste : la console editeur (point 2).**
-   Regles appliquees partout (memoire `refonte-structure-pas-couleurs`) : listes en `.liste` SANS `card p-0`
-   (survol integre, `--survol-ligne`, `.sans-survol`, `.ligne-active`) ; bandeaux `.encadre-titre` ; saisies
-   en `FormModal`, confirmations en `ConfirmModal` (jamais « Confirmer / Annuler » en ligne) ; actions de ligne
-   visibles ; `Puce` / `ton-*` pour les etats ; `Float*` et `SwitchOuiNon` pour les champs et choix oui / non ;
-   etats vides d'une phrase ; grise = `--champ-verrou` / `warm-400` ; page sans defilement = un element
-   elastique absorbe la hauteur. Graphiques : palette dataviz validee CONSERVEE (option A, 21/10).
-   Sources uniques ajoutees le 21/10 : `tonRole()` (role-labels), `tonCategorie()` (support),
-   `cahier-texte/commun.ts` (types de devoir, dates locales).
-   Methode : l'utilisateur inspecte une page, je propose, il valide (« go »), puis commit + push.
-2. **Console editeur, refonte visuelle (FAITE, 23/10 ; reste l'inspection a l'ecran)** : palette PROPRE a la console, **graphite `#16181d`
-   + citron vert `#c8f169`**. Maquettes : https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ (Serie 3, G/H/I).
-   **Socle** : `data-espace="console"` sur `<html>` (script de `app/layout.tsx`, theme clair impose) ; bloc
-   `:root[data-espace="console"]` de `globals.css` qui redefinit `--brand-*`, les neutres, `--etat-*` et ajoute
-   `--console-*`. L'ecole n'est jamais touchee. Regles : citron vert JAMAIS en indicateur sur blanc (l'actif
-   y est graphite) ; **tout bouton citron vert a une bordure** (`--console-accent-trait`) ; `FloatButton submit`
-   = citron vert via la classe `bouton-principal` ; `.mono` = police a chasse fixe du systeme.
-   **Fait** : connexion minimale (`MarqueConsole` : logo + « Bilal Education » + pastille, AUCUNE information pour
-   un visiteur, message d'echec unique) ; `ConsoleBarre` (bande graphite : BILAL EDUCATION, pastille, recherche
-   globale `RechercheConsole` Ctrl+K, nom, version, deconnexion ; puis `Onglets navigation`) ; liste des
-   etablissements (colonnes Etablissement, Sante, Domaine, Inscrits en jauge, Utilisateurs, Echeance, Derniere
-   connexion, Etat ; `FiltreSwitch` Tous / A surveiller / Echeance / Inactifs ; accords au MASCULIN) ; page Sante
-   (switch Tous / A surveiller) ; signaux de sante en source unique `lib/tenant/sante.ts` (1 signal = a
-   surveiller, 2+ = critique, demo jamais a surveiller) ; fiche etablissement sans turquoise, retour en grande
-   icone, sans defilement ; titres de page retires (l'onglet suffit).
-   **Fait le 23/10** : pont des beiges `warm-*` vers les gris console (bloc genere en fin de `globals.css`,
-   `scripts/generer-pont-console.cjs`, a relancer si une classe warm-* nouvelle apparait) ; ecrans 2FA a la
-   maquette I (`CoqueConsoleAuth`, `OtpInput variante="console"`, sans version ni carte) ; Facturation (vue
-   « Tous » par defaut, demonstration exclue), Support, colonne Interventions et creation d'ecole au format
-   `.liste` / fiche ; recherche des COMPTES dans Ctrl+K (action serveur `recherche-actions.ts`, 8 max, ni parents
-   ni editeurs, compte mis en evidence sur la fiche via `?compte=`). Fonctions deja presentes : historique editeur
-   (colonne « Console editeur » de la fiche), etat 2FA dans Utilisateurs, filtres de la liste.
-3. **Ecole de demonstration** : FAIT (23/10). 2FA des comptes enrolee, ordre des Gabarits verifie, DEPART teste
-   (export, effacement, reouverture, « Reinitialiser », releve en base avant / apres : concluant, autres ecoles
-   intactes). Trois correctifs en sont sortis : « Effacer » exige un export (+ question « ZIP enregistre ? ») ;
-   la remise a zero recree les comptes disparus ; « Intervenir » grise tant que la demo n'est pas reinitialisee.
-   Apres un depart, la 2FA des comptes recrees est a reenroler.
-4. **Essai d'un prospect** (deux facons) :
-   - **ecole de demonstration** : donnees fictives, partagees, effacees a chaque « Reinitialiser » ; acces par
-     « Ouvrir un acces prospect ». JAMAIS de donnees reelles.
-   - **son propre etablissement** : cree depuis la console, borne par une **echeance** et/ou une **limite
-     d'eleves** ; ses donnees sont conservees.
-   **Passage en service d'un etablissement (Jour J)** :
-   - essai fait dans SON etablissement : rien n'est efface. On leve la borne (echeance ou limite), on remplit la
-     facturation, et on retire seulement les eventuelles saisies d'essai qu'il designe (relevees en base, liste
-     validee avant suppression) ;
-   - essai fait dans la demonstration, ou pas d'essai : on cree son etablissement depuis la console (directeur
-     initial), il part de zero ou importe ses eleves (`.xlsx`) ;
-   - s'il ne signe pas : depart (export, puis effacement).
-   `clean-all-data.sql` NE DOIT JAMAIS servir tel quel (vide le registre des migrations et les tables editeur,
-   laisse `auth.users` et Storage).
-5. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
+   apres le retrait d'`anon`, un toast accorde (« 1 email envoye sur 1 foyer »), la console refondue et les
+   departs en cours d'annee. Puis le point 4, un a un.
+2. **Essai d'un prospect et passage en service** : essai dans la demonstration (« Ouvrir un acces
+   prospect ») ou dans SON etablissement (borne par une echeance et/ou une limite d'eleves, donnees
+   conservees). Jour J : essai dans son etablissement -> lever la borne, remplir la facturation, retirer
+   seulement les saisies d'essai qu'il designe (liste validee avant suppression) ; sinon creation depuis la
+   console puis import `.xlsx` ; s'il ne signe pas -> depart (export, puis effacement).
+3. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
-5 bis. **Ajustements en cours d'annee (FAIT 26/10, lots 1 et 2 ; reste l'inspection a l'ecran sur la demo)** :
-   deux gestes qui ne se recouvrent pas. CORRECTION = retrait dans Affectations d'un enfant SANS donnees
-   (inscription supprimee, aucun montant) ; DEPART = « Declarer un depart » (fiche eleve, fiche foyer pour un
-   adulte) d'un enfant AVEC donnees (notes reelles, absences, retards, bulletins archives : la liste qui bloque le
-   retrait) : inscription `withdrawn` + `date_depart`, eleve inactif, une transaction (`declarer_depart_*`).
-   Trace `mouvements_inscription` ecrite par la base (auteur compris admin, regle FIGEE). Reglage en tete de
-   Cotisations, encadre « Regle de cotisation pour depart en cours d'annee » (`definir_regle_ajustement`) : Due en
-   totalite (DEFAUT, `REGLE_PAR_DEFAUT`) / Au prorata / Au cas par cas / Sans ajustement, pour les DEPARTS
-   seulement (une arrivee doit l'annee). Calcul unique `lignesCotisation` (`compute.ts`) +
-   chargeur `lib/financements/departs.ts` : prorata au mois commence depuis la rentree, frais d'inscription
-   toujours dus, fratrie triee par anciennete de la fiche (un parti garde sa place). Au cas par cas : bouton
-   « Decider » dans Reglements (`decider_mouvement`), signal dans l'audit Financements. Controles 21 et 22.
-   Retour dans l'annee (eleve ou adulte reaffecte) : le depart ne compte plus, seul le DERNIER depart compte
-   (`departsRetenus`). Changer la regle propose de l'appliquer aux departs deja declares de l'annee en cours
-   (apercu des montants, `definir_regle_ajustement(p_regle, p_retroactif)`, trace `regle_initiale` /
-   `regle_modifiee_*`, controle 23).
-6. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit` (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ;
-   sortie des 503 `any` ; accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon
-   d'apprenant) ; `anon` garde tous les droits de TABLE (defaut Supabase, la RLS seule protege).
-7. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
-8. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
+4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
+   (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des ~500 `any` ;
+   accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon d'apprenant) ; `anon` garde
+   tous les droits de TABLE (defaut Supabase, la RLS seule protege).
+5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
+6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).
 
 <!-- BEGIN:nextjs-agent-rules -->

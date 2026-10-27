@@ -9427,3 +9427,32 @@ Au prorata · Au cas par cas · Sans ajustement, et « Due en totalite » PAR DE
 - **Reglements** : les cours adultes sont bornes a l'annee en cours, comme le dossier financier. Aucun
   montant n'etait faux (5 inscriptions, toutes 2026-2027), mais apres le passage d'annee la cotisation de l'an
   passe se serait ajoutee au du de l'annee nouvelle dans Reglements, pas dans les statistiques.
+
+#### 27 octobre 2026 — CLAUDE.md allege : historique des chantiers verse ici
+
+CLAUDE.md ne garde que les regles et ce qui reste a faire ; le detail des chantiers termines (section 8 au
+26/10) est conserve ci-dessous. Les regles durables (vert de marque, palette de la console) sont passees dans
+la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
+
+- **Refonte de l'interface** (15/10, page modele `/dashboard/test-design`, a GARDER) : lots 1 a 6 faits
+  (champs `bordure`, recherche, en-tete en biais, listes, intitules d'encadres, onglets). Passe PAGE PAR PAGE
+  (18/10) : turquoise -> vert de marque, ETATS COMPRIS (decision utilisateur). Script de conversion :
+  `scratchpad/marque.py` (a recreer si besoin). Etat au 21/10 au soir : refonte faite sur TOUTES les pages de
+  l'ecole (Principal, Vie scolaire, Pedagogie, Gestion, Cloture, Parametres, Mon compte, barre laterale).
+  Graphiques : palette dataviz validee CONSERVEE (option A, 21/10).
+- **Console editeur, refonte visuelle** (FAITE 23/10) : maquettes https://claude.ai/artifact/EyGde84W1YpvXcxpo31kdJ
+  (Serie 3, G/H/I). Connexion minimale (`MarqueConsole` : logo + « Bilal Education » + pastille, AUCUNE
+  information pour un visiteur, message d'echec unique) ; `ConsoleBarre` (bande graphite : BILAL EDUCATION,
+  pastille, recherche globale `RechercheConsole` Ctrl+K, nom, version, deconnexion ; puis `Onglets navigation`) ;
+  liste des etablissements (colonnes Etablissement, Sante, Domaine, Inscrits en jauge, Utilisateurs, Echeance,
+  Derniere connexion, Etat ; `FiltreSwitch` Tous / A surveiller / Echeance / Inactifs ; accords au MASCULIN) ;
+  page Sante (switch Tous / A surveiller) ; fiche etablissement sans turquoise, retour en grande icone, sans
+  defilement. Le 23/10 : pont des beiges ; ecrans 2FA a la maquette I (`CoqueConsoleAuth`,
+  `OtpInput variante="console"`, sans version ni carte) ; Facturation (vue « Tous » par defaut, demonstration
+  exclue), Support, colonne Interventions et creation d'ecole au format `.liste` / fiche ; recherche des
+  COMPTES dans Ctrl+K (`recherche-actions.ts`, 8 max, ni parents ni editeurs, compte mis en evidence via
+  `?compte=`).
+- **Ecole de demonstration** (FAIT 23/10) : 2FA des comptes enrolee, ordre des Gabarits verifie, DEPART teste
+  (export, effacement, reouverture, « Reinitialiser », releve en base avant / apres : concluant, autres ecoles
+  intactes).
+- **Ajustements en cours d'annee** (FAIT 26/10, lots 1 et 2) : detail dans les entrees du 26/10 ci-dessus.
