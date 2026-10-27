@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ExternalLink, Loader2, X, Upload, Camera, Trash2, User } from 'lucide-react'
+import { ExternalLink, Loader2, X, User } from 'lucide-react'
 import { clsx } from 'clsx'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -18,6 +18,8 @@ import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
 import { BUCKET_PHOTOS, TAILLE_MAX_PHOTO, signerPhotos } from '@/lib/students/photo'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
+import FormModal from '@/components/ui/FormModal'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 import type { Student, Parent } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -783,6 +785,12 @@ interface PhotoFieldProps {
   onChange: (url: string | null) => void
 }
 
+/** Actions texte du bloc photo (Importer, Webcam) : vert de marque, sans icone. */
+const BOUTON_PHOTO =
+  'text-xs font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:underline ' +
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded ' +
+  'disabled:text-warm-400 disabled:no-underline'
+
 async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   const image = new window.Image()
   image.crossOrigin = 'anonymous'
@@ -888,6 +896,11 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
     setZoom(1)
   }
 
+  const fermerRecadrage = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
+  }
+
   const closeWebcam = () => {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
@@ -957,49 +970,27 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors disabled:opacity-40"
+            className={BOUTON_PHOTO}
           >
-            <Upload size={11} />
             Importer
           </button>
           <button
             type="button"
             onClick={startWebcam}
             disabled={isUploading}
-            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 transition-colors disabled:opacity-40"
+            className={BOUTON_PHOTO}
           >
-            <Camera size={11} />
             Webcam
           </button>
-          {photoUrl && !confirmDelete && (
+          {photoUrl && (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
               disabled={isUploading}
-              className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-40"
+              className="text-xs font-medium text-red-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] rounded disabled:text-warm-400 disabled:no-underline"
             >
-              <Trash2 size={11} />
               Supprimer
             </button>
-          )}
-          {confirmDelete && (
-            <div className="flex flex-col gap-1 items-start">
-              <button
-                type="button"
-                onClick={() => { setConfirmDelete(false); handleDelete() }}
-                disabled={isUploading}
-                className="text-xs font-semibold text-red-600 hover:text-red-800 transition-colors disabled:opacity-40"
-              >
-                Confirmer ?
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="text-xs text-warm-700 hover:text-secondary-700 transition-colors"
-              >
-                Annuler
-              </button>
-            </div>
           )}
         </div>
 
@@ -1021,25 +1012,19 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
 
       {/* Modale recadrage */}
       {cropSrc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Recadrer la photo"
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
-          >
-            <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-secondary-800">Recadrer la photo</h3>
-              <button
-                type="button"
-                onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
-                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="relative w-full" style={{ height: 320 }}>
+        <FormModal
+          title="Recadrer la photo"
+          maxWidth="max-w-sm"
+          onClose={fermerRecadrage}
+          footer={
+            <>
+              <FloatButton type="button" variant="secondary" onClick={fermerRecadrage}>Annuler</FloatButton>
+              <FloatButton type="button" variant="submit" onClick={handleCropConfirm} loading={isUploading}>Valider</FloatButton>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <div className="relative w-full rounded-lg overflow-hidden" style={{ height: 320 }}>
               <Cropper
                 image={cropSrc}
                 crop={crop}
@@ -1050,78 +1035,52 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
                 onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
               />
             </div>
-            <div className="px-4 py-3 flex flex-col gap-3">
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.05}
-                value={zoom}
-                onChange={e => setZoom(Number(e.target.value))}
-                className="w-full accent-amber-500"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null) }}
-                  className="btn btn-secondary text-sm py-1.5 px-3"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCropConfirm}
-                  disabled={isUploading}
-                  className="btn btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
-                >
-                  {isUploading ? 'Envoi…' : 'Valider'}
-                </button>
-              </div>
-            </div>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.05}
+              value={zoom}
+              onChange={e => setZoom(Number(e.target.value))}
+              aria-label="Zoom"
+              className="w-full accent-[var(--brand-surface)] dark:accent-[var(--brand-accent)]"
+            />
           </div>
-        </div>
+        </FormModal>
       )}
 
       {/* Modale webcam */}
       {showWebcam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Capture webcam"
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
-          >
-            <div className="px-4 py-3 border-b border-warm-100 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-secondary-800">Capture webcam</h3>
-              <button
-                type="button"
-                onClick={closeWebcam}
-                className="p-1.5 text-warm-700 hover:text-secondary-700 hover:bg-warm-100 rounded-lg transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="p-4 flex flex-col items-center gap-3">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full rounded-lg bg-black"
-                style={{ maxHeight: 280 }}
-              />
-              <button
-                type="button"
-                onClick={captureWebcam}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                <Camera size={15} />
-                Capturer
-              </button>
-            </div>
-          </div>
-        </div>
+        <FormModal
+          title="Capture webcam"
+          maxWidth="max-w-sm"
+          onClose={closeWebcam}
+          footer={
+            <>
+              <FloatButton type="button" variant="secondary" onClick={closeWebcam}>Annuler</FloatButton>
+              <FloatButton type="button" variant="submit" onClick={captureWebcam}>Capturer</FloatButton>
+            </>
+          }
+        >
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full rounded-lg bg-black"
+            style={{ maxHeight: 280 }}
+          />
+        </FormModal>
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Supprimer la photo ?"
+          confirmLabel="Supprimer"
+          variant="danger"
+          onConfirm={() => { setConfirmDelete(false); handleDelete() }}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </>
   )

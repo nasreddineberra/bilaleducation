@@ -1002,10 +1002,12 @@ function buildEntries(classStudents: StudentRow[], existingAbsences: Absence[], 
 
 // ─── Carte photo trombinoscope ──────────────────────────────────────────────
 
-function StudentPhoto({ student, size = 'md' }: { student: StudentRow; size?: 'sm' | 'md' }) {
-  const dim = size === 'sm' ? 'w-10 h-[53px]' : 'w-[78px] h-[104px]'
+// Remplit le cadre qui la contient (la carte fixe la taille, au 3:4 du recadrage) :
+// une taille propre plus grande que le cadre n'en montrait que le coin haut gauche.
+function StudentPhoto({ student }: { student: StudentRow }) {
+  const dim = 'w-full h-full'
   if (student.photo_url) {
-    return <Image src={student.photo_url} alt="" width={size === 'sm' ? 40 : 78} height={size === 'sm' ? 53 : 104} className={clsx(dim, 'object-cover rounded-md')} unoptimized />
+    return <Image src={student.photo_url} alt="" width={78} height={104} className={clsx(dim, 'object-cover rounded-md')} unoptimized />
   }
   if (student.gender === 'male') return <MaleAvatar className={clsx(dim, 'rounded-md')} />
   if (student.gender === 'female') return <FemaleAvatar className={clsx(dim, 'rounded-md')} />
@@ -1475,7 +1477,7 @@ function SaisieModal({
                   >
                     {/* Photo */}
                     <div className="w-[60px] h-[80px] rounded-md overflow-hidden flex-shrink-0">
-                      <StudentPhoto student={s} size="md" />
+                      <StudentPhoto student={s} />
                     </div>
                     {/* Nom */}
                     <p className="text-[10px] font-semibold text-secondary-800 text-center leading-tight mt-1 line-clamp-2">
