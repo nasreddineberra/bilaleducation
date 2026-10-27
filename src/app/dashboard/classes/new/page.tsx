@@ -24,7 +24,7 @@ export default async function NewClassPage() {
       .single(),
     supabase
       .from('rooms')
-      .select('id, name, capacity')
+      .select('id, name, capacity, room_type')
       .eq('is_available', true)
       .in('room_type', ['salle_cours', 'salle_informatique', 'salle_sport', 'autre'])
       .order('name'),

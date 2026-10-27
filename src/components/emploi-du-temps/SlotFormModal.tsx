@@ -81,7 +81,8 @@ interface Props {
   weekDayDates: Record<number, string>
   classes: ClassData[]
   teachers: TeacherData[]
-  rooms: RoomData[]
+  /** Salles de cours libres sur un creneau (date, debut, fin, seance exclue, salle actuelle). */
+  sallesPour: (date: string, debut: string, fin: string, exclureSlotId?: string | null, salleActuelle?: string | null) => RoomData[]
   /** Unites d'enseignement du referentiel, dans leur ordre : matiere d'un cours. */
   matieres: { id: string; nom_fr: string }[]
   existingSlots: SlotData[]
@@ -116,7 +117,7 @@ interface Props {
 
 export default function SlotFormModal({
   slot, editMode, editDate, prefillDay, prefillTime, prefillDate, prefillClassId, prefillTeacherId,
-  weekDayDates, classes, teachers, rooms, matieres, existingSlots, vacations = [], onSave, onSaveException, onClose,
+  weekDayDates, classes, teachers, sallesPour, matieres, existingSlots, vacations = [], onSave, onSaveException, onClose,
 }: Props) {
   const isEditingThisOnly = editMode === 'this_only' && !!editDate && !!slot
   const enseignantRequis = isEditingThisOnly && !!slot?.teacher_id
@@ -451,7 +452,7 @@ export default function SlotFormModal({
         onChange={e => setRoomId(e.target.value)}
       >
         <option value=""></option>
-        {rooms.map(r => (
+        {sallesPour(isRecurring ? '' : slotDate, startTime, endTime, slot?.id, roomId || null).map(r => (
           <option key={r.id} value={r.id}>
             {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
           </option>

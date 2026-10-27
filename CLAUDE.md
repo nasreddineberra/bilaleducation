@@ -201,7 +201,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
   `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (titulaire actuel = principal
-  sans date de fin), `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
+  sans date de fin), `lib/edt/salles.ts` (salles de cours libres pour une seance),
+  `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
   titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via

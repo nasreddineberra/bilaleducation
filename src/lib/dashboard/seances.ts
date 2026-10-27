@@ -34,6 +34,7 @@ export interface SlotSource {
   effective_from: string | null
   effective_until: string | null
   is_active: boolean
+  room_id?: string | null
 }
 
 export interface ExceptionSource {
@@ -43,6 +44,7 @@ export interface ExceptionSource {
   override_start_time: string | null
   override_end_time: string | null
   override_teacher_id: string | null
+  override_room_id?: string | null
 }
 
 export interface ValidationSource {
@@ -65,6 +67,8 @@ export interface Seance {
   titulaireId: string | null
   remplacement: boolean
   annulee: boolean
+  /** Salle reellement utilisee ce jour-la (changee pour cette seance, sinon celle du creneau). */
+  roomId: string | null
 }
 
 function jourSemaine(date: string): number {
@@ -115,6 +119,7 @@ export function seancesDuJour(
         titulaireId: qui.titulaireId,
         remplacement: qui.remplacement,
         annulee: qui.annulee,
+        roomId: ex?.override_room_id ?? s.room_id ?? null,
       }
     })
     .sort((a, b) => a.debut.localeCompare(b.debut) || a.fin.localeCompare(b.fin))

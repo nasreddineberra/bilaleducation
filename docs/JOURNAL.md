@@ -9624,3 +9624,9 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   `ConfirmationSeance` : recapitulatif complet (classe, date en toutes lettres, horaire, intitule, enseignant,
   salle) et saisie de « ANNULATION » / « SUPPRESSION » (casse et espaces ignores) qui seule debloque le bouton.
   « Retour » au lieu d'« Annuler » a cote de « Annuler la seance ». Seance validee : refus AVANT la saisie.
+- **27/10, salles proposees** (demande utilisateur) : pour UNE seance (« Changer la salle », « Nouvelle seance
+  ponctuelle »), seules les salles de COURS libres sur ce creneau a cette date (`lib/edt/salles.ts`, testee :
+  autre seance non annulee, salle changee pour la seance comprise, horaire qui chevauche ; la seance elle-meme
+  exclue ; la salle actuelle reste proposee). Fiche classe (salle par defaut, valable toute l'annee) : filtre
+  « salles de cours » seulement, pas de controle de disponibilite (chantier a part). `seancesDuJour` rend
+  desormais la salle reelle de chaque seance (`roomId`).

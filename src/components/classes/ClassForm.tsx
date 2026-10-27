@@ -36,6 +36,7 @@ interface RoomOption {
   id: string
   name: string
   capacity: number | null
+  room_type?: string
 }
 
 interface SlotRow {
@@ -737,7 +738,9 @@ export default function ClassForm({
               }}
             >
               <option value="" />
-              {rooms.map(r => (
+              {/* Salles de COURS seulement (decision du 27/10) ; la salle deja
+                  rattachee reste proposee pour s'afficher. */}
+              {rooms.filter(r => r.room_type === 'salle_cours' || r.id === form.room_id).map(r => (
                 <option key={r.id} value={r.id}>
                   {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
                 </option>

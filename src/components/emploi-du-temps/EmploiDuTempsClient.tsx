@@ -26,6 +26,7 @@ import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { intituleCreneau } from '@/lib/edt/intitule'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
 import { indexTitulaires, affectationsDesClasses, enseignantDeSeance } from '@/lib/edt/seance'
+import { sallesLibres } from '@/lib/edt/salles'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export interface SlotData {
   color: string | null
   effective_from: string | null
   effective_until: string | null
+  is_active: boolean
   classes?: { name: string }
   teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
@@ -1577,6 +1579,16 @@ export default function EmploiDuTempsClient({
   // Salle d'UNE seance : seance ponctuelle = sa propre ligne ; seance d'une serie =
   // une exception (`override_room_id`), retiree si elle ne change plus rien.
   const [salleSeance, setSalleSeance] = useState<{ resolved: ResolvedSlot; roomId: string } | null>(null)
+  // Salles proposees pour une seance : salles de COURS libres sur ce creneau (lib/edt/salles.ts).
+  const sallesPour = useCallback(
+    (date: string, debut: string, fin: string, exclureSlotId?: string | null, salleActuelle?: string | null) =>
+      sallesLibres(rooms, slots, exceptions, date, debut, fin, { exclureSlotId, salleActuelle }),
+    [rooms, slots, exceptions],
+  )
+  const sallesSeance = salleSeance
+    ? sallesPour(salleSeance.resolved.date, salleSeance.resolved.start_time, salleSeance.resolved.end_time,
+        salleSeance.resolved.sourceSlotId, salleSeance.resolved.room_id)
+    : null
   const handleChangeRoom = useCallback(async (resolved: ResolvedSlot, roomId: string) => {
     const slot = slots.find(s => s.id === resolved.sourceSlotId)
     if (!slot) return
@@ -2254,7 +2266,7 @@ export default function EmploiDuTempsClient({
       )}
 
       {/* Salle d'UNE seance */}
-      {salleSeance && (
+      {salleSeance && sallesSeance && (
         <FormModal
           title={`Salle · ${libelleSeance(salleSeance.resolved.sourceSlotId, salleSeance.resolved.date)}`}
           onClose={() => setSalleSeance(null)}
@@ -2276,10 +2288,13 @@ export default function EmploiDuTempsClient({
             onChange={e => setSalleSeance({ ...salleSeance, roomId: e.target.value })}
           >
             <option value=""></option>
-            {rooms.map(r => (
+            {sallesSeance.map(r => (
               <option key={r.id} value={r.id}>{r.name}{r.capacity ? ` (${r.capacity} places)` : ''}</option>
             ))}
           </FloatSelect>
+          {!sallesSeance.some(r => r.id !== salleSeance.resolved.room_id) && (
+            <p className="text-xs text-warm-700">Aucune salle de cours libre sur ce créneau.</p>
+          )}
         </FormModal>
       )}
 
@@ -2297,7 +2312,7 @@ export default function EmploiDuTempsClient({
           weekDayDates={weekDayDates}
           classes={classes}
           teachers={teachers}
-          rooms={rooms}
+          sallesPour={sallesPour}
           matieres={ueList}
           existingSlots={slots}
           vacations={vacations}
