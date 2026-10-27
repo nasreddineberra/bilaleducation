@@ -8,7 +8,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 import { nomEnseignant } from '@/lib/teachers/nom'
 import { dureeMinutes } from '@/lib/edt/temps'
-import { intituleCreneau } from '@/lib/edt/intitule'
+import { intituleCreneau, libelleSalle } from '@/lib/edt/intitule'
 
 // Couleurs définies dans globals.css (palette de marque, aplats opaques dans
 // les deux thèmes) — voir « Créneaux de l'emploi du temps ».
@@ -127,7 +127,7 @@ export default function SlotCapsule({
   infoLignes.push(libelleCours)
   if (annulee) infoLignes.unshift('Séance annulée')
   if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
-  if (slot.rooms) infoLignes.push(slot.rooms.name)
+  if (slot.rooms) infoLignes.push(libelleSalle(slot.rooms.name))
   infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
   if (validated) infoLignes.push('Présence validée')
 
@@ -136,7 +136,7 @@ export default function SlotCapsule({
   ariaParts.push(libelleCours)
   if (annulee) ariaParts.unshift('séance annulée')
   if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
-  if (slot.rooms) ariaParts.push(slot.rooms.name)
+  if (slot.rooms) ariaParts.push(libelleSalle(slot.rooms.name))
   ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
   if (validated) ariaParts.push('présence validée')
   const ariaLabel = ariaParts.filter(Boolean).join(', ')
@@ -203,14 +203,14 @@ export default function SlotCapsule({
           {/* Intitule : matiere d'un cours, nom d'une activite, sinon le type. Sur un
               creneau court, la salle le rejoint sur la meme ligne (place). */}
           <div className={clsx('leading-tight', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-            {libelleCours}{court && !minimal && slot.rooms ? ` · ${slot.rooms.name}` : ''}
+            {libelleCours}{court && !minimal && slot.rooms ? ` · ${libelleSalle(slot.rooms.name)}` : ''}
           </div>
 
           {/* Salle sous l'intitule (demande du 27/10), sa propre ligne sur un creneau
               long ; seulement en infobulle quand 5 creneaux et plus se partagent la colonne. */}
           {slot.rooms && !court && !minimal && (
             <div className="text-[9px] leading-tight truncate">
-              {slot.rooms.name}
+              {libelleSalle(slot.rooms.name)}
             </div>
           )}
 

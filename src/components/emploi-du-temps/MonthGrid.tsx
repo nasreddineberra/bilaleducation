@@ -3,7 +3,7 @@
 import { clsx } from 'clsx'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
 import { nomEnseignant } from '@/lib/teachers/nom'
-import { intituleCreneau } from '@/lib/edt/intitule'
+import { intituleCreneau, libelleSalle } from '@/lib/edt/intitule'
 import Tooltip from '@/components/ui/Tooltip'
 
 type ViewMode = 'global' | 'class' | 'teacher'
@@ -185,7 +185,7 @@ function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedS
             viewMode !== 'class' ? slot.classes?.name : null,
             intituleCreneau(slot),
             viewMode !== 'teacher' && !slot.annulee ? (slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
-            slot.rooms?.name,
+            slot.rooms?.name ? libelleSalle(slot.rooms.name) : null,
           ].filter(Boolean)
           return (
             <li key={slot.id} className="flex items-center gap-1.5 whitespace-nowrap tabular-nums">

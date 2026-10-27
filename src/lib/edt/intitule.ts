@@ -31,3 +31,8 @@ export function intitulePropre(s: CreneauIntitule): string | null {
 export function intituleCreneau(s: CreneauIntitule): string {
   return intitulePropre(s) ?? LIBELLE_TYPE_CRENEAU[s.slot_type] ?? s.slot_type
 }
+
+/** Nom de salle affiche : « Salle 101 » ; un nom qui commence deja par « Salle » reste tel quel. */
+export function libelleSalle(nom: string): string {
+  return /^salle\b/i.test(nom.trim()) ? nom.trim() : `Salle ${nom.trim()}`
+}

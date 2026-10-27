@@ -9651,3 +9651,6 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **27/10, confirmation** : la phrase de rappel est retiree ; la consigne « Saisissez ANNULATION pour
   confirmer. » (mot-cle en gras) prend sa place en texte, le champ n'a plus de libelle visible
   (`FloatInput libelleMasque` : libelle lu par les lecteurs d'ecran seulement, sans encoche dans le cadre).
+- **27/10** : la salle d'une seance s'affiche « Salle 101 » (`libelleSalle`, testee ; un nom commencant deja par
+  « Salle » n'est pas double) : capsule, infobulles, lecture vocale, vue mois. Recapitulatif de confirmation
+  inchange (sa ligne s'intitule deja « Salle »).
