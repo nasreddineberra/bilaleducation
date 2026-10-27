@@ -39,7 +39,8 @@ export default async function ClassesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <ClassesClient classes={classes ?? []} />
+      {/* `max_students` : defaut de la colonne (25), jamais NULL en base */}
+      <ClassesClient classes={(classes ?? []).map(c => ({ ...c, max_students: c.max_students ?? 25 }))} />
     </div>
   )
 }

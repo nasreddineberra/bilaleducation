@@ -125,8 +125,9 @@ export default function EtablissementForm({ etablissement }: EtablissementFormPr
         telephone:      form.telephone.trim() || null,
         contact:        form.contact.trim()   || null,
         logo_url:       logoUrl,
-        week_start_day: weekStartDay,
-        working_days:   workingDays,
+        // Valeurs des selects = celles des CHECK (-1 = non choisi, refuse par `isValid`).
+        week_start_day: weekStartDay as NonNullable<Etablissement['week_start_day']>,
+        working_days:   workingDays as NonNullable<Etablissement['working_days']>,
       }
 
       const supabase = createClient()

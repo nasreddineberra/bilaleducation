@@ -441,7 +441,7 @@ export async function deleteUser(id: string): Promise<{ error?: string }> {
     entityType:  'profiles',
     entityId:    id,
     description: `Suppression du compte ${target.last_name} ${target.first_name} (${target.email})`,
-    oldData:     target as Record<string, unknown>,
+    oldData:     target,
   })
 
   // Le profil part en cascade avec le compte auth (profiles.id → auth.users).

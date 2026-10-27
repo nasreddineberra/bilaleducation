@@ -2,8 +2,13 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AuditLogsClient from '@/components/audit-logs/AuditLogsClient'
 import { effectiveRole, isSupportSession } from '@/lib/auth/effective-role'
+import type { AuditAction } from '@/types/database'
 
 const PAGE_SIZE = 20
+
+const ACTIONS: readonly AuditAction[] = ['INSERT', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT']
+/** Filtre venu de l'URL : une valeur hors liste est ignoree. */
+const estAction = (v: string): v is AuditAction => (ACTIONS as readonly string[]).includes(v)
 
 export default async function LogsPage({
   searchParams,
@@ -74,7 +79,7 @@ export default async function LogsPage({
 
   if (userFilter) query = query.eq('user_id', userFilter)
   if (entityFilter) query = query.eq('entity_type', entityFilter)
-  if (actionFilter) query = query.eq('action', actionFilter)
+  if (actionFilter && estAction(actionFilter)) query = query.eq('action', actionFilter)
   if (dateFrom) query = query.gte('created_at', `${dateFrom}T00:00:00`)
   if (dateTo) query = query.lte('created_at', `${dateTo}T23:59:59`)
 
@@ -88,7 +93,7 @@ export default async function LogsPage({
   const { data: logs, count } = await query
 
   // Roles des utilisateurs
-  const userIds = [...new Set((logs ?? []).map(l => l.user_id).filter(Boolean))]
+  const userIds = [...new Set((logs ?? []).map(l => l.user_id).filter((id): id is string => !!id))]
   const userRoles: Record<string, string> = {}
   if (userIds.length > 0) {
     const { data: profiles } = await supabase

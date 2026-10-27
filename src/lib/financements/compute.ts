@@ -7,7 +7,7 @@
 //
 // Isomorphe (aucune dependance serveur) : importable en Server ET Client Component.
 
-import type { FeeStatus } from '@/types/database'
+import type { FeeAdjustment, FeeInstallment, FeeStatus } from '@/types/database'
 
 export interface CotisationLike {
   id?: string | null
@@ -48,6 +48,14 @@ export interface RecapDossier {
   total_paid: number
   status: FeeStatus
 }
+
+/**
+ * Rendus des quatre fonctions d'argent (`fin_*`, jsonb) : la ligne ecrite,
+ * s'il y en a une, et le recapitulatif recalcule dans la meme transaction.
+ */
+export interface RetourReduction { reduction: FeeAdjustment; recap: RecapDossier }
+export interface RetourPaiement { paiement: FeeInstallment; recap: RecapDossier }
+export interface RetourSuppression { recap: RecapDossier }
 
 /**
  * Statut d'un dossier a partir du percu et du du.

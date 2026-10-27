@@ -9,6 +9,8 @@ import { clsx } from 'clsx'
 import type { UniteEnseignement, CoursModule, Cours, Period, EvalTypeConfig } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
+import { lireCleAdulte } from '@/lib/parents/participant'
+import type { TablesInsert } from '@/types/supabase'
 import { verifierEcriture } from '@/lib/supabase/ecriture'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
@@ -501,13 +503,11 @@ export default function BulletinsClient({
           retards_count:        data.retardCount,
         }
 
-        let insertPayload: Record<string, unknown>
+        let insertPayload: TablesInsert<'adult_bulletin_archives'> | TablesInsert<'bulletin_archives'>
         if (isAdultClass) {
-          const sep = student.student_id.lastIndexOf('-')
           insertPayload = {
             etablissement_id: etablissementId,
-            parent_id:    student.student_id.slice(0, sep),
-            tutor_number: parseInt(student.student_id.slice(sep + 1), 10),
+            ...lireCleAdulte(student.student_id),
             class_id: selectedClassId, period_id: selectedPeriodId,
             file_path: filePath,
             ...chiffres,
@@ -600,10 +600,10 @@ export default function BulletinsClient({
           .eq('class_id', selectedClassId)
           .eq('period_id', selectedPeriodId)
         if (isAdultClass) {
-          const sep = studentId.lastIndexOf('-')
+          const { parent_id, tutor_number } = lireCleAdulte(studentId)
           suppression = suppression
-            .eq('parent_id', studentId.slice(0, sep))
-            .eq('tutor_number', parseInt(studentId.slice(sep + 1), 10))
+            .eq('parent_id', parent_id)
+            .eq('tutor_number', tutor_number)
         } else {
           suppression = suppression.eq('student_id', studentId)
         }
@@ -613,14 +613,12 @@ export default function BulletinsClient({
         return
       }
 
-      let payload: Record<string, unknown>
+      let payload: TablesInsert<'adult_bulletin_appreciations'> | TablesInsert<'bulletin_appreciations'>
       let conflict: string
       if (isAdultClass) {
-        const sep = studentId.lastIndexOf('-')
         payload = {
           etablissement_id: etablissementId,
-          parent_id:    studentId.slice(0, sep),
-          tutor_number: parseInt(studentId.slice(sep + 1), 10),
+          ...lireCleAdulte(studentId),
           class_id: selectedClassId, period_id: selectedPeriodId, appreciation: text,
         }
         conflict = 'parent_id,tutor_number,class_id,period_id'

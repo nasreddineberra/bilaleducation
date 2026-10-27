@@ -68,7 +68,7 @@ interface ClassFormProps {
   workingDays?: number    // 5 ou 7
 }
 
-type TeachingMode = 'single' | 'multi' | ''
+type TeachingMode = 'single' | 'multi'
 
 type FormData = {
   name:               string
@@ -466,10 +466,13 @@ export default function ClassForm({
       )
       if (assignments.length > 0) {
         const rows = assignments
-          .filter(a => a.teacher_id || a.subject) // ignorer les lignes vides
+          // Une affectation sans enseignant n'a pas de sens (colonne NOT NULL) :
+          // une ligne qui n'a qu'une matiere faisait echouer TOUT l'enregistrement,
+          // apres l'effacement des affectations existantes.
+          .filter(a => a.teacher_id)
           .map(a => ({
             class_id:        classId,
-            teacher_id:      a.teacher_id || null,
+            teacher_id:      a.teacher_id,
             is_main_teacher: a.is_main_teacher,
             subject:         a.subject || null,
             effective_from:  a.effective_from || null,

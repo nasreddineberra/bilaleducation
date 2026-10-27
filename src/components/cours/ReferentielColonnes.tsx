@@ -507,9 +507,9 @@ export default function ReferentielColonnes({
   const [aSupprimer, setASupprimer] = useState<{ nature: Nature; id: string; nom: string } | null>(null)
   const router = useRouter()
 
-  const TABLE: Record<Nature, string> = {
+  const TABLE = {
     ue: 'unites_enseignement', module: 'cours_modules', cours: 'cours',
-  }
+  } as const satisfies Record<Nature, string>
 
   /**
    * Écriture d'une création ou d'une modification.
@@ -532,19 +532,26 @@ export default function ReferentielColonnes({
     const rangSuivant = (fratrie: { order_index: number | null }[]) =>
       fratrie.reduce((max, x) => Math.max(max, (x.order_index ?? -1) + 1), 0)
 
+    // Un module ou un cours s'ajoute TOUJOURS sous l'unite selectionnee.
+    const ueId = sel.ueId
+    if (!saisie.item && saisie.nature !== 'ue' && !ueId) return "Sélectionnez d'abord une unité."
+
     const req = saisie.item
       ? supabase.from(TABLE[saisie.nature]).update(champs).eq('id', saisie.item.id).select('id')
-      : supabase.from(TABLE[saisie.nature]).insert({
-          ...champs,
-          ...(saisie.nature === 'ue'
-            ? { etablissement_id: etablissementId, order_index: rangSuivant(lstUes) }
-            : saisie.nature === 'module'
-              ? {
-                  unite_enseignement_id: sel.ueId,
-                  order_index: rangSuivant(lstModules.filter(m => m.unite_enseignement_id === sel.ueId)),
-                }
-              : { unite_enseignement_id: sel.ueId, module_id: saisie.parent?.nature === 'module' ? sel.moduleId : null }),
-        }).select('id')
+      : saisie.nature === 'ue'
+        ? supabase.from('unites_enseignement')
+            .insert({ ...champs, etablissement_id: etablissementId, order_index: rangSuivant(lstUes) }).select('id')
+        : saisie.nature === 'module'
+          ? supabase.from('cours_modules').insert({
+              ...champs,
+              unite_enseignement_id: ueId!,
+              order_index: rangSuivant(lstModules.filter(m => m.unite_enseignement_id === ueId)),
+            }).select('id')
+          : supabase.from('cours').insert({
+              ...champs,
+              unite_enseignement_id: ueId!,
+              module_id: saisie.parent?.nature === 'module' ? sel.moduleId : null,
+            }).select('id')
 
     const { data, error } = await req
     if (error) return error.message

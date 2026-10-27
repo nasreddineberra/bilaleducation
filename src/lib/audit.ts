@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { EtatLigne } from '@/types/json'
 
 /**
  * Insère un audit log descriptif (non-bloquant).
@@ -11,8 +12,8 @@ export async function logAudit(
     entityType: string
     entityId?: string | null
     description: string
-    oldData?: Record<string, unknown> | null
-    newData?: Record<string, unknown> | null
+    oldData?: EtatLigne | null
+    newData?: EtatLigne | null
     /**
      * Établissement concerné, quand ce n'est pas celui de l'auteur.
      *

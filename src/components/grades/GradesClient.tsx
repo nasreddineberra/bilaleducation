@@ -8,6 +8,7 @@ import {
 import { clsx } from 'clsx'
 import { refLabel, refTooltip } from '@/components/cours/refLabel'
 import { createClient } from '@/lib/supabase/client'
+import { lireCleAdulte } from '@/lib/parents/participant'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
@@ -353,20 +354,15 @@ export default function GradesClient({
 
     if (isAdultClass) {
       // Clé participant composite « parentId-tutorNumber » → colonnes adult_grades.
-      const cle = (pid: string) => {
-        const sep = pid.lastIndexOf('-')
-        return { parent_id: pid.slice(0, sep), tutor_number: parseInt(pid.slice(sep + 1), 10) }
-      }
+      const cle = lireCleAdulte
       for (const pid of videIds) {
         const { error: errDel } = await supabase.from('adult_grades').delete()
           .eq('evaluation_id', selectedEvalId).eq('parent_id', cle(pid).parent_id).eq('tutor_number', cle(pid).tutor_number)
         if (errDel) { setError(errDel.message); setSaving(false); return }
       }
       const upserts = pleinIds.map(pid => {
-        const sep = pid.lastIndexOf('-')
         return {
-          parent_id:        pid.slice(0, sep),
-          tutor_number:     parseInt(pid.slice(sep + 1), 10),
+          ...lireCleAdulte(pid),
           evaluation_id:    selectedEvalId,
           etablissement_id: etablissementId,
           ...gradedMeta,

@@ -6,13 +6,13 @@ import Link from 'next/link'
 import { Pencil, Trash2, LogOut, Camera, GraduationCap } from 'lucide-react'
 import { clsx } from 'clsx'
 import { createClient } from '@/lib/supabase/client'
-import { studentRepository } from '@/lib/database/students'
+import { studentRepository, type EnfantDuFoyer } from '@/lib/database/students'
 import { deleteParent, getParentDeleteDeps } from '@/app/dashboard/parents/actions'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import { suffixeFiche } from '@/lib/navigation/retour'
 import { libelleSituation } from '@/lib/parents/situation-familiale'
-import type { Parent, Student } from '@/types/database'
+import type { Parent } from '@/types/database'
 
 interface ParentsTableProps {
   parents: Parent[]
@@ -52,7 +52,7 @@ export default function ParentsTable({ parents, enfantsParFoyer, canDelete = fal
   // donc aussi.
   const hrefApprenant = (id: string) => `/dashboard/students/${id}${suffixeFiche(sp, 'parents')}`
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  type StudentWithEnrollment = Student & { enrollment_class?: string | null; enrollment_teacher?: string | null }
+  type StudentWithEnrollment = EnfantDuFoyer & { enrollment_class?: string | null; enrollment_teacher?: string | null }
   const [childrenMap, setChildrenMap] = useState<Record<string, StudentWithEnrollment[]>>({})
   const [loadingChildrenId, setLoadingChildrenId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Parent | null>(null)

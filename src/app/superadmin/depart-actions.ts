@@ -30,6 +30,12 @@ const LOT_SUPPRESSION = 100
 
 type Fichier = { bucket: string; nom: string }
 
+/** Rendu de `exporter_etablissement`. */
+interface Export { tables: Record<string, Record<string, unknown>[]>; fichiers: Fichier[] }
+
+/** Rendu de `effacer_etablissement` : `fichiers` = la LISTE a l'effacement reel, leur NOMBRE en simulation. */
+interface Effacement<F> { reel: boolean; lignes: Record<string, number>; comptes: number; fichiers: F }
+
 /**
  * Un export de l'ecole existe-t-il ? (ZIP depose dans `exports-ecoles/<id>/`).
  * Condition de l'effacement (23/10) : on n'efface pas une ecole dont les
@@ -93,13 +99,13 @@ export async function exporterEcole(etablissementId: string): Promise<{
   const { data: ecole } = await admin.from('etablissements').select('nom, slug').eq('id', etablissementId).maybeSingle()
   if (!ecole) return { error: 'Établissement introuvable.' }
 
-  const { data, error } = await admin.rpc('exporter_etablissement', { p_id: etablissementId })
+  const { data: brut, error } = await admin.rpc('exporter_etablissement', { p_id: etablissementId })
+  const data = brut as Export | null
   if (error || !data) {
     console.error('[depart] export:', error)
     return { error: `Export impossible : ${error?.message ?? 'réponse vide'}` }
   }
-  const tables = data.tables as Record<string, Record<string, unknown>[]>
-  const fichiers = data.fichiers as Fichier[]
+  const { tables, fichiers } = data
 
   const zip: Record<string, Uint8Array> = {}
   const comptes: Record<string, number> = {}
@@ -162,9 +168,10 @@ export async function simulerEffacement(etablissementId: string, slug: string): 
   const { error: refus } = await requireEditor()
   if (refus) return { error: refus }
 
-  const { data, error } = await createAdminClient().rpc('effacer_etablissement', {
+  const { data: brut, error } = await createAdminClient().rpc('effacer_etablissement', {
     p_id: etablissementId, p_slug: slug, p_reel: false, p_auteur: null,
   })
+  const data = brut as Effacement<number> | null
   if (error || !data) return { error: error?.message ?? 'Simulation impossible.' }
   return { lignes: data.lignes, comptes: data.comptes, fichiers: data.fichiers }
 }
@@ -177,9 +184,10 @@ export async function effacerEcole(etablissementId: string, slugSaisi: string): 
   if (!(await aUnExport(etablissementId))) return { error: "Exportez d'abord les données de l'école." }
 
   const admin = createAdminClient()
-  const { data, error } = await admin.rpc('effacer_etablissement', {
+  const { data: brut, error } = await admin.rpc('effacer_etablissement', {
     p_id: etablissementId, p_slug: slugSaisi.trim(), p_reel: true, p_auteur: userId ?? null,
   })
+  const data = brut as Effacement<Fichier[] | null> | null
   if (error || !data) {
     console.error('[depart] effacement:', error)
     return { error: error?.message ?? 'Effacement impossible.' }
@@ -188,7 +196,7 @@ export async function effacerEcole(etablissementId: string, slugSaisi: string): 
   // Les fichiers APRES la base : l'inverse laisserait, sur un echec de la base,
   // une ecole intacte privee de ses documents. Ici un echec ne laisse que des
   // fichiers orphelins, sous un dossier que plus rien ne reference.
-  const fichiers = (data.fichiers ?? []) as Fichier[]
+  const fichiers = data.fichiers ?? []
   const parBucket = new Map<string, string[]>()
   for (const f of fichiers) parBucket.set(f.bucket, [...(parBucket.get(f.bucket) ?? []), f.nom])
   let effaces = 0
@@ -209,7 +217,7 @@ export async function effacerEcole(etablissementId: string, slugSaisi: string): 
   }
   if (echecs.length) console.error('[depart] fichiers non effaces (%s) :', etablissementId, echecs)
 
-  const lignes = Object.values(data.lignes as Record<string, number>).reduce((a, b) => a + b, 0)
+  const lignes = Object.values(data.lignes).reduce((a, b) => a + b, 0)
   await tracerActionEditeur(await createClient(), {
     etablissementId,
     description: `Effacement des données · ${lignes} ligne${lignes > 1 ? 's' : ''}, ${data.comptes} compte${data.comptes > 1 ? 's' : ''}, ${effaces} fichier${effaces > 1 ? 's' : ''}`,

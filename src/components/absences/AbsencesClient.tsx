@@ -8,6 +8,7 @@ import { ChevronRight, ChevronDown, AlertTriangle, X, Trash2, Check } from 'luci
 import { createClient } from '@/lib/supabase/client'
 import { ouvrirOngletPdf, afficherPdf, fermerOngletPdf, ouvrirDansOnglet } from '@/lib/pdf/ouvrir'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
+import { lireCleAdulte } from '@/lib/parents/participant'
 import { useToast } from '@/lib/toast-context'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import type { VacationPeriod, JourFerie } from '@/types/database'
@@ -100,10 +101,8 @@ export function tableAppel(mode: ModeAppel) {
  * On coupe au DERNIER tiret : un uuid en contient déjà quatre, un `split('-')`
  * naïf le mettrait en pièces. Même règle que la notation des adultes.
  */
-export function colonnesParticipant(mode: ModeAppel, cle: string): Record<string, unknown> {
-  if (mode === 'students') return { student_id: cle }
-  const i = cle.lastIndexOf('-')
-  return { parent_id: cle.slice(0, i), tutor_number: Number(cle.slice(i + 1)) }
+export function colonnesParticipant(mode: ModeAppel, cle: string) {
+  return mode === 'students' ? { student_id: cle } : lireCleAdulte(cle)
 }
 
 /** Ligne de base → forme unifiée attendue par l'écran (`student_id` = la clé). */

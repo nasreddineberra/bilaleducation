@@ -130,7 +130,8 @@ export async function chargerAssiduite(sb: Sb, profileId: string | null): Promis
     .eq('is_current', true)
     .maybeSingle()
 
-  if (!profileId || !annee) {
+  // Annee sans bornes : aucun mois a couvrir.
+  if (!profileId || !annee?.start_date || !annee.end_date) {
     return { ...VIDE, hasAccount: !!profileId, yearLabel: annee?.label ?? null }
   }
 

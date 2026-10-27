@@ -60,7 +60,7 @@ export async function deletePresenceType(id: string): Promise<{ error?: string }
     entityType:  'presence_types',
     entityId:    id,
     description: `Suppression du type de présence ${type.code} · ${type.label}`,
-    oldData:     type as Record<string, unknown>,
+    oldData:     type,
   })
 
   const { error: rateError } = await supabase

@@ -384,6 +384,8 @@ export async function updateSubscription(
  * Vérifié côté serveur : le formulaire ne protège de rien.
  */
 const ROLES_TENANT = ['direction'] as const
+const estRoleTenant = (role: string): role is (typeof ROLES_TENANT)[number] =>
+  (ROLES_TENANT as readonly string[]).includes(role)
 
 export async function createTenantUser(
   etablissementId: string,
@@ -400,7 +402,7 @@ export async function createTenantUser(
   const effacee = await refuserSiEffacee(etablissementId)
   if (effacee) return { error: effacee }
 
-  if (!(ROLES_TENANT as readonly string[]).includes(data.role)) {
+  if (!estRoleTenant(data.role)) {
     return { error: 'Ce rôle ne peut pas être attribué depuis la console.' }
   }
 
@@ -522,7 +524,8 @@ export async function updateTenantUser(
   const { error: roleError } = await requireEditor()
   if (roleError) return { error: roleError }
 
-  if (data.role !== undefined && !(ROLES_TENANT as readonly string[]).includes(data.role)) {
+  const { role, is_active } = data
+  if (role !== undefined && !estRoleTenant(role)) {
     return { error: 'Ce rôle ne peut pas être attribué depuis la console.' }
   }
 
@@ -534,7 +537,7 @@ export async function updateTenantUser(
   // seule barrière.
   const { data: modifie, error } = await supabase
     .from('profiles')
-    .update(data)
+    .update({ role, is_active })
     .eq('id', profileId)
     .eq('etablissement_id', etablissementId)
     .select('id, role, is_active, last_name, first_name')

@@ -5,6 +5,7 @@ import { requireRoleServer } from '@/lib/auth/requireRoleServer'
 import { logAudit } from '@/lib/audit'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { pluriel } from '@/lib/texte/pluriel'
+import { lireCleAdulte } from '@/lib/parents/participant'
 
 const ROLES_AFFECTATION = ['admin', 'direction', 'responsable_pedagogique', 'secretaire'] as const
 
@@ -112,7 +113,7 @@ async function diagnostiquerTuteurs(supabase: Client, classId: string, keys: str
   const out = new Map<string, DiagRetrait>()
   if (keys.length === 0) return out
   const wanted = new Set(keys)
-  const parentIds = [...new Set(keys.map(k => parseTutorId(k).parent_id))]
+  const parentIds = [...new Set(keys.map(k => lireCleAdulte(k).parent_id))]
 
   const { data: ps } = await supabase.from('parents')
     .select('id, tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name').in('id', parentIds)
@@ -120,7 +121,7 @@ async function diagnostiquerTuteurs(supabase: Client, classId: string, keys: str
   const get = (k: string): DiagRetrait => {
     let d = out.get(k)
     if (!d) {
-      const { parent_id, tutor_number } = parseTutorId(k)
+      const { parent_id, tutor_number } = lireCleAdulte(k)
       const p: any = pmap.get(parent_id)
       const nom = !p ? k : tutor_number === 2 ? `${p.tutor2_last_name} ${p.tutor2_first_name}` : `${p.tutor1_last_name} ${p.tutor1_first_name}`
       d = { nom, notes: 0, evaluations: 0, absences: 0, retards: 0, archives: [], appreciations: [] }
@@ -249,10 +250,6 @@ export async function saveStudentEnrollments(
 
 // ─── Affectation des adultes (tuteurs) ────────────────────────────────────────
 // Les identifiants sont composites : `${parent_id}-${tutor_number}`. Table parent_class_enrollments.
-function parseTutorId(id: string): { parent_id: string; tutor_number: number } {
-  const sep = id.lastIndexOf('-')
-  return { parent_id: id.slice(0, sep), tutor_number: parseInt(id.slice(sep + 1), 10) }
-}
 
 export async function saveParentEnrollments(
   classId: string,
@@ -279,7 +276,7 @@ export async function saveParentEnrollments(
         return { confirmation: avecAppr.map(([, d]) => ({ nom: d.nom, periodes: d.appreciations })) }
       }
       for (const [k] of avecAppr) {
-        const { parent_id, tutor_number } = parseTutorId(k)
+        const { parent_id, tutor_number } = lireCleAdulte(k)
         const echec = erreurEcriture(
           await supabase.from('adult_bulletin_appreciations').delete()
             .eq('class_id', classId).eq('parent_id', parent_id).eq('tutor_number', tutor_number).select('id'),
@@ -296,7 +293,7 @@ export async function saveParentEnrollments(
     }
 
     for (const id of toRemove) {
-      const { parent_id, tutor_number } = parseTutorId(id)
+      const { parent_id, tutor_number } = lireCleAdulte(id)
       const echec = erreurEcriture(
         await supabase
           .from('parent_class_enrollments')
@@ -313,7 +310,7 @@ export async function saveParentEnrollments(
 
   if (toAdd.length > 0) {
     const rows = toAdd.map(id => {
-      const { parent_id, tutor_number } = parseTutorId(id)
+      const { parent_id, tutor_number } = lireCleAdulte(id)
       return { parent_id, class_id: classId, tutor_number, status: 'active' as const, enrollment_date: today, date_depart: null }
     })
     // `upsert` : un adulte parti puis reinscrit au meme cours reactive sa ligne

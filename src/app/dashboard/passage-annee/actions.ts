@@ -11,6 +11,7 @@ import { runAuditFor, type YearCtx, type AuditResult } from '@/lib/closure/audit
 import { generateArchive } from '@/lib/closure/archive'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { accord, pluriel } from '@/lib/texte/pluriel'
+import type { Json } from '@/types/supabase'
 
 /**
  * PASSAGE D'ANNÉE — actions serveur.
@@ -117,7 +118,7 @@ export async function runAudit(yearId: string, stepKey: string): Promise<{ error
       school_year_id: yearId,
       step_key: stepKey,
       anomalies_count: result.anomalies,
-      recap_json: result as unknown as Record<string, unknown>,
+      recap_json: result as unknown as Json,
       audited_at: new Date().toISOString(),
       audited_by: user?.id ?? null,
     }, { onConflict: 'school_year_id,step_key' }).select('step_key'),
@@ -220,7 +221,7 @@ export async function closeYear(yearId: string): Promise<{ error?: string; bloqu
         school_year_id: yearId,
         step_key: step.key,
         anomalies_count: result.anomalies,
-        recap_json: result as unknown as Record<string, unknown>,
+        recap_json: result as unknown as Json,
         audited_at: now,
         audited_by: user?.id ?? null,
       }, { onConflict: 'school_year_id,step_key' }).select('step_key'),
@@ -420,6 +421,19 @@ export async function setPurgeIntent(yearId: string, intent: 'purge' | 'keep'): 
   return {}
 }
 
+/** Bilan rendu par `purge_school_year` (jsonb_build_object). */
+interface BilanPurge {
+  label: string
+  notes: number
+  absences: number
+  fees_paid: number
+  messages: number
+  notifications: number
+  relances: number
+  fichiers: string[] | null
+  already_purged: boolean
+}
+
 /**
  * PURGE (DESTRUCTIF, sans retour) : supprime les lignes transactionnelles d'une
  * année archivée et NON courante — foyers soldés uniquement. Confirmation par
@@ -438,8 +452,9 @@ export async function purgeYear(yearId: string, typedLabel: string): Promise<{ e
   if (!year.archived_at) return { error: 'Année non archivée : purge interdite.' }
   if (typedLabel.trim() !== year.label) return { error: 'Le libellé saisi ne correspond pas à l’année.' }
 
-  const { data, error } = await supabase.rpc('purge_school_year', { p_year_id: yearId })
+  const { data: brut, error } = await supabase.rpc('purge_school_year', { p_year_id: yearId })
   if (error) return { error: error.message }
+  const data = brut as BilanPurge | null
 
   // Pieces jointes des messages purges : la base a rendu leurs chemins, le SQL
   // ne touchant jamais au stockage. Les lignes sont deja parties (la ligne
@@ -563,7 +578,7 @@ export async function rafraichirRecapitulatifs(
     school_year_id: yearId,
     step_key: 'financements',
     anomalies_count: result.anomalies,
-    recap_json: result as unknown as Record<string, unknown>,
+    recap_json: result as unknown as Json,
     audited_at: new Date().toISOString(),
     audited_by: user?.id ?? null,
   }, { onConflict: 'school_year_id,step_key' })

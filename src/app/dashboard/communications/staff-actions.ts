@@ -161,7 +161,7 @@ export async function sendStaffMessage(payload: SendStaffMessagePayload): Promis
       announcement_id: announcement.id,
       profile_id:      r.id,
       email:           r.email,
-      email_status:    wantsEmail ? 'pending' : 'skipped',
+      email_status:    wantsEmail ? 'pending' as const : 'skipped' as const,
     }))
   )
 

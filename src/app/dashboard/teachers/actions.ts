@@ -245,7 +245,7 @@ function aujourdhuiLocal(): string {
 
 async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof createClient>>, teacherId: string): Promise<DepsEnseignant | null> {
   const today = aujourdhuiLocal()
-  const compte = (table: string, col: string) =>
+  const compte = (table: 'class_teachers' | 'schedule_slots' | 'schedule_exceptions' | 'evaluations' | 'grades' | 'class_journal' | 'homework', col: string) =>
     supabase.from(table).select('id', { count: 'exact', head: true }).eq(col, teacherId)
   const r = await Promise.all([
     // « en cours ou a venir » : sans date de fin, ou fin >= aujourd'hui (fin INCLUSE)

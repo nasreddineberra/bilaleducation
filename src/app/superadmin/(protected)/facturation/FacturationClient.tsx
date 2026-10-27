@@ -17,7 +17,7 @@ export interface Releve {
   forfait:          number | null
 }
 
-interface Annee { label: string; start_date: string; end_date: string }
+interface Annee { label: string; start_date: string | null; end_date: string | null }
 
 const MOIS = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 const EUR  = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 })
@@ -62,7 +62,7 @@ export default function FacturationClient({ ecoles, ecoleId, releves, annees, en
     const prec    = i > 0 ? chrono[i - 1] : null
     const basePrec    = prec ? prec.eleves_actifs + prec.adultes_inscrits : null
     const montantPrec = prec ? montantMensuel(basePrec!, prec.prix_inscrit, prec.forfait) : null
-    const annee = annees.find(a => a.start_date <= r.mois && r.mois <= a.end_date)?.label ?? 'Hors année scolaire'
+    const annee = annees.find(a => a.start_date && a.end_date && a.start_date <= r.mois && r.mois <= a.end_date)?.label ?? 'Hors année scolaire'
     return {
       r, base, montant, annee,
       ecartBase:    basePrec === null ? null : base - basePrec,

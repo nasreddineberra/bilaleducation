@@ -26,7 +26,7 @@ async function garde(request: Request): Promise<
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
+  if (!profile?.etablissement_id || !['admin', 'direction'].includes(effectiveRole(profile) ?? '')) {
     return { erreur: NextResponse.json({ error: 'Acces refuse' }, { status: 403 }) }
   }
 

@@ -21,7 +21,7 @@ import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, Swi
 import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import type { Student, Parent } from '@/types/database'
+import type { Student, Parent, Gender } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ParentOption {
@@ -294,7 +294,8 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         last_name:               form.last_name.trim(),
         first_name:              form.first_name.trim(),
         date_of_birth:           form.date_of_birth,
-        gender:                  form.gender || null,
+        // Valeurs du select = celles du CHECK de `students.gender`.
+        gender:                  (form.gender || null) as Gender | null,
         enrollment_date:         form.enrollment_date,
         parent_id:               form.parent_id || null,
         is_active:               form.is_active,

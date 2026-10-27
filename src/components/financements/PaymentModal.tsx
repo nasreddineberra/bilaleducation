@@ -6,7 +6,7 @@ import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatField
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import FormModal from '@/components/ui/FormModal'
 import type { FeeInstallment, FeePaymentMethod, PaymentReference } from '@/types/database'
-import type { RecapDossier } from '@/lib/financements/compute'
+import type { RecapDossier, RetourPaiement } from '@/lib/financements/compute'
 
 // Principales banques (chèques), triées alphabétiquement, + « Autre » pour saisie libre.
 const BANKS = [
@@ -208,7 +208,7 @@ export default function PaymentModal({
           amount_paid:        parsedAmount,
           paid_date:          paidDate,
           payment_method:     safeMethod,
-          payment_reference:  Object.keys(reference).length ? reference : null,
+          payment_reference:  Object.keys(reference).length ? { ...reference } : null,
           receipt_number:     receipt.trim() || null,
           status:             'paid',
           notes:              notes.trim() || null,
@@ -220,7 +220,8 @@ export default function PaymentModal({
       // oubliant le comptable + envoi fire-and-forget silencieux). Remplacé par
       // l'attestation de paiement, envoyée quand le règlement est soldé (lot 2).
       setSaving(false)
-      onSaved(res.paiement as FeeInstallment, res.recap as RecapDossier)
+      const { paiement, recap } = res as unknown as RetourPaiement
+      onSaved(paiement, recap)
     } catch (e: any) {
       setError(e.message ?? 'Erreur lors de l\'enregistrement.')
       setSaving(false)

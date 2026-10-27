@@ -156,7 +156,7 @@ export default function ResourcesClient({ initialRooms, initialMaterials, etabli
     const echec = erreurEcriture(res, 'Cette salle')
     if (echec) { setRoomError(echec); setConfirmDeleteRoom(null); return }
     setRooms(prev => prev.filter(r => r.id !== id))
-    setMaterials(prev => prev.map(m => m.room_id === id ? { ...m, room_id: undefined, rooms: null } : m))
+    setMaterials(prev => prev.map(m => m.room_id === id ? { ...m, room_id: null, rooms: null } : m))
     setConfirmDeleteRoom(null)
   }, [supabase])
 

@@ -1,3 +1,4 @@
+import type { Database } from '@/types/supabase'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { sessionCookieDomain } from '@/lib/session-config'
@@ -8,7 +9,7 @@ export async function createClient() {
   // sous-domaines, sinon le passage console → école déconnecte.
   const domain = sessionCookieDomain()
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {

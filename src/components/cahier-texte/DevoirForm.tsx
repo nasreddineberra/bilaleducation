@@ -7,6 +7,7 @@ import { useToast } from '@/lib/toast-context'
 import { modifierDevoir } from '@/app/dashboard/cahier-texte/actions'
 import { FloatInput, FloatSelect, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
+import type { TypeDevoir } from '@/components/cahier-texte/commun'
 
 const RichTextEditor = lazy(() => import('@/components/ui/RichTextEditor'))
 
@@ -47,7 +48,7 @@ export default function DevoirForm({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
   const [subject, setSubject] = useState<string>(initialSubject)
   const [title, setTitle] = useState(initialData?.title ?? '')
-  const [type, setType] = useState<string>(initialData?.homework_type ?? 'exercice')
+  const [type, setType] = useState<TypeDevoir>(initialData?.homework_type ?? 'exercice')
   const [dueDate, setDueDate] = useState(initialData?.due_date ?? '')
   const [descriptionHtml, setDescriptionHtml] = useState(initialData?.description_html ?? '')
 
@@ -135,7 +136,7 @@ export default function DevoirForm({
               En Secondaire, réactiver un select alimenté par les matières de la classe. */}
           <LockedField label="Matière" value="Général" />
 
-          <FloatSelect label="Type" required value={type} onChange={e => setType(e.target.value)}>
+          <FloatSelect label="Type" required value={type} onChange={e => setType(e.target.value as TypeDevoir)}>
             <option value="exercice">Exercice</option>
             <option value="lecon">Leçon à apprendre</option>
             <option value="expose">Exposé</option>

@@ -22,7 +22,7 @@ interface TeacherInfo {
 
 interface ClassTeacherRow {
   teacher_id: string
-  is_main_teacher: boolean
+  is_main_teacher: boolean | null   // NULL lu comme le defaut de la colonne : false
   subject: string | null
   effective_from: string | null
   effective_until: string | null

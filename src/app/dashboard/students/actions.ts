@@ -105,7 +105,7 @@ export async function getStudentsForStatusModal(): Promise<{
       className:    info?.name ?? null,
       classTooltip: info?.tooltip || null,
       enrolled:     !!info,
-      is_active:    s.is_active,
+      is_active:    s.is_active ?? true,   // defaut de la colonne (jamais NULL en base)
     }
   })
   return { yearLabel, students: rows }
@@ -249,7 +249,7 @@ export async function deleteStudent(id: string): Promise<{ error?: string }> {
     entityType:  'students',
     entityId:    id,
     description: `Suppression de l'apprenant ${cible.last_name} ${cible.first_name} (${cible.student_number})`,
-    oldData:     cible as Record<string, unknown>,
+    oldData:     cible,
   })
 
   // `.select()` : une suppression écartée par la RLS ne lève PAS d'erreur,

@@ -407,14 +407,16 @@ export async function reinitialiserEcoleDemo(etablissementId: string): Promise<{
   }
   await appliquerComptes(admin, etablissementId)
 
-  const { data, error } = await admin.rpc('reinitialiser_ecole_demo', { p_id: etablissementId })
+  const { data: brut, error } = await admin.rpc('reinitialiser_ecole_demo', { p_id: etablissementId })
+  // `fn_demo_peupler` (dont `annee`) + les fichiers a retirer.
+  const data = brut as { annee: string; fichiers: Fichier[] | null } | null
   if (error || !data) {
     console.error('[demo] remise a zero:', error)
     return { error: error?.message ?? 'Remise à zéro impossible.' }
   }
   // Apres la base : sur un echec de la base, rien n'est perdu ; ici un echec ne
   // laisse que des fichiers orphelins.
-  const fichiers = await effacerFichiers(admin, (data.fichiers ?? []) as Fichier[])
+  const fichiers = await effacerFichiers(admin, data.fichiers ?? [])
   const logo = await poserLogoDemo(admin, etablissementId)
 
   await tracerActionEditeur(await createClient(), {

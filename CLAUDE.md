@@ -37,10 +37,11 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~680 avertissements (any)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~675 avertissements (any)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
+npm run types-db     # types de la base -> src/types/supabase.ts (A RELANCER apres toute migration)
 node scripts/migrations-etat.mjs   # ecart depot / registre des migrations
 ```
 
@@ -146,6 +147,11 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Multi-tenant** : tenant = sous-domaine (`x-etablissement-id` pose par le middleware, a preferer a
   une requete `profiles`). `app_metadata = { role, etablissement_id }` dans le jeton (middleware
   seulement ; l'autorite reste `profiles`). Jamais une ecole nommee dans une regle ou une procedure.
+- **Types de la base** : clients Supabase types (`createClient<Database>`). `src/types/supabase.ts` est
+  GENERE (`npm run types-db`, jamais edite) : CHECK `IN (...)` lus en unions, `etablissement_id` facultatif
+  a l'insertion des tables a declencheur `set_etablissement_id`, parametres SQL acceptant NULL. Forme des
+  colonnes jsonb : `src/types/json.ts` (`ColonnesJson`, a tenir a jour). `src/types/database.ts` DERIVE
+  des types generes (aucune copie a la main). Rendu jsonb d'une RPC : type declare + `as unknown as`.
 - **RLS** : chaque policy porte le **tenant ET le role** (le cloisonnement ne remplace pas le role).
   `current_etablissement_id()` et `get_user_role()` (STABLE, `search_path` fixe). Gardes de RPC
   SECURITY DEFINER en `coalesce(get_user_role(), '')`. `FOR ALL` = les 4 commandes. Policies
@@ -186,7 +192,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (libelles + `tonRole`), `lib/teachers/nom`, `lib/school-year/jours-fermes.ts`,
   `lib/parents/situation-familiale.ts`, `lib/temps-presence/*`, `lib/evaluations/ordre.ts`,
   `lib/closure/ordre.ts`, `lib/mobile.ts`, `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`,
-  `lib/tenant/*`, `lib/pdf/ouvrir.ts`, `lib/cahier-texte/commun.ts`, `tonCategorie()` (support),
+  `lib/tenant/*`, `lib/pdf/ouvrir.ts`, `components/cahier-texte/commun.ts`, `lib/parents/participant.ts`
+  (cle adulte `parentId-tutorNumber`), `tonCategorie()` (support),
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
   `lib/students/photo.ts`.
@@ -195,6 +202,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
   restrictive -> code d'abord.** Tester en transaction annulee + controle (bloc DO a exception
   volontaire). Delimiteurs nommes (`$fn$`). Apres `REVOKE ... FROM public`, revoquer aussi `anon`.
+  **Apres une migration de structure : `npm run types-db` puis `npm run type-check`** (jeton
+  `SUPABASE_TYPES_TOKEN` de `.env.local`, permission Database = Read, a recreer a expiration).
   Une fonction NOUVELLE n'est executable ni par PUBLIC ni par `anon` (defauts changes le 26/10,
   controle 25) : l'octroyer explicitement a `authenticated` ; a `anon` seulement si une page publique
   en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
@@ -361,7 +370,9 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
-   (676 dans 101 fichiers au 27/10, dont 147 dans `lib/dashboard` et 87 dans `lib/closure`).
+   (673 au 27/10, dont 147 dans `lib/dashboard` et 87 dans `lib/closure`) : lot 1 FAIT (clients Supabase
+   types, `src/types/supabase.ts` genere), suite par dossier ; puis rendre NOT NULL les 57 colonnes a
+   defaut jamais NULL (quand toutes les ecritures seront typees).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).

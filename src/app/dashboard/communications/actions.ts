@@ -315,7 +315,7 @@ export async function sendParentMessage(
       announcement_id: announcement.id,
       parent_id:       r.parentId,
       email:           r.emails.join(', '),
-      email_status:    r.emails.length > 0 ? 'pending' : 'skipped',
+      email_status:    r.emails.length > 0 ? 'pending' as const : 'skipped' as const,
     }))
   )
 

@@ -20,15 +20,23 @@ import type { Student } from '@/types/database'
  * les pages pour les lectures. NE PAS rouvrir ce fichier pour y remettre une
  * ecriture — elle irait dans une server action.
  */
+const COLONNES = 'id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, has_pai, exit_authorization, media_authorization, etablissement_id, created_at, updated_at' as const
+
+/** Ce que rend `getByParent` : les colonnes lues, pas la fiche entiere. */
+export type EnfantDuFoyer = Pick<Student,
+  'id' | 'student_number' | 'last_name' | 'first_name' | 'date_of_birth' | 'gender' | 'photo_url' | 'parent_id'
+  | 'is_active' | 'enrollment_date' | 'has_pai' | 'exit_authorization' | 'media_authorization' | 'etablissement_id'
+  | 'created_at' | 'updated_at'>
+
 export const studentRepository = {
   /**
    * Recuperer les enfants d'une fiche parents (fratrie incluse).
    */
-  async getByParent(parentId: string, activeOnly = false): Promise<Student[]> {
+  async getByParent(parentId: string, activeOnly = false): Promise<EnfantDuFoyer[]> {
     const supabase = createClient()
     const query = supabase
       .from('students')
-      .select('id, student_number, last_name, first_name, date_of_birth, gender, photo_url, parent_id, is_active, enrollment_date, has_pai, exit_authorization, media_authorization, etablissement_id, created_at, updated_at')
+      .select(COLONNES)
       .eq('parent_id', parentId)
       .order('last_name')
 

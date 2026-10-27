@@ -30,7 +30,7 @@ import {
   // des memes lignes filles et du meme subtotal, ils ne peuvent pas diverger.
   computeFamilyFinancials, lignesCotisation,
   LIBELLES_REGLE, type RegleAjustement,
-  type FamilyFinancials, type RecapDossier, type AnneeLike, type LigneCotisation, type DecisionAjustement,
+  type FamilyFinancials, type RecapDossier, type RetourReduction, type RetourSuppression, type AnneeLike, type LigneCotisation, type DecisionAjustement,
 } from '@/lib/financements/compute'
 import type { FeeAdjustment, FeeInstallment, FeeStatus, AdjustmentType } from '@/types/database'
 
@@ -594,8 +594,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
 
       // Les chiffres affiches viennent desormais de la BASE, pas d'un calcul
       // parallele cote navigateur : les deux ne peuvent plus diverger.
-      const data = res.reduction
-      const recap = res.recap
+      const { reduction: data, recap } = res as unknown as RetourReduction
 
       setFamilyFees(prev => prev.map(f =>
         f.id === feeId
@@ -624,7 +623,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         p_subtotal:      subtotal,
       })
       if (err) throw err
-      const recap = res.recap
+      const { recap } = res as unknown as RetourSuppression
 
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id
@@ -685,7 +684,7 @@ export default function FinancementsClient({ currentYear, parents: rawParents, a
         p_subtotal:   subtotal,
       })
       if (err) throw err
-      const recap = res.recap
+      const { recap } = res as unknown as RetourSuppression
 
       setFamilyFees(prev => prev.map(f =>
         f.id === currentFee.id

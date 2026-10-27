@@ -14,6 +14,7 @@ import FormModal from '@/components/ui/FormModal'
 import { Puce } from '@/components/dashboard/tdb'
 import type { SchoolYear, EvalTypeConfig, PeriodType, DiagnosticOption, VacationPeriod, JourFerie } from '@/types/database'
 import { parseDiagnosticOption } from '@/types/database'
+import type { TablesInsert } from '@/types/supabase'
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -567,7 +568,7 @@ export default function SchoolYearForm({ schoolYear, etablissementId, weekStartD
         'Les types évaluation',
       )
       if (form.eval_types.length > 0) {
-        const evalInserts = form.eval_types.map(type => ({
+        const evalInserts = form.eval_types.map((type): TablesInsert<'eval_type_configs'> => ({
           school_year_id:     yearId,
           eval_type:          type === 'scored_10' || type === 'scored_20' ? 'scored' : type,
           is_active:          true,

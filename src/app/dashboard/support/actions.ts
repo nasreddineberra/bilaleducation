@@ -18,6 +18,8 @@ import {
   SUPPORT_ATTACHMENT_TYPES,
   categoryLabel,
   impactLabel,
+  type SupportCategory,
+  type SupportImpact,
 } from '@/lib/support/categories'
 
 /**
@@ -59,21 +61,24 @@ export async function sendSupportRequest(formData: FormData): Promise<SupportReq
   // confort, ils ne protègent rien — une server action est appelable
   // directement.
 
-  const category = String(formData.get('category') ?? '')
+  const categoryBrut = String(formData.get('category') ?? '')
   const impactBrut = String(formData.get('impact') ?? '')
   const subject = String(formData.get('subject') ?? '').trim()
   const message = String(formData.get('message') ?? '').trim()
 
-  if (!SUPPORT_CATEGORIES.some(c => c.value === category)) {
+  const estCategorie = (v: string): v is SupportCategory => SUPPORT_CATEGORIES.some(c => c.value === v)
+  const estImpact = (v: string): v is SupportImpact => SUPPORT_IMPACTS.some(i => i.value === v)
+  if (!estCategorie(categoryBrut)) {
     return { error: 'Choisissez la nature de votre demande.' }
   }
+  const category = categoryBrut
 
   // L'impact n'a de sens que sur un incident — et la base le refuse ailleurs.
   // On le neutralise plutôt que de rejeter : le formulaire masque le champ au
   // changement de nature, une valeur résiduelle serait une maladresse, pas une
   // tentative.
   const impact =
-    category === 'incident' && SUPPORT_IMPACTS.some(i => i.value === impactBrut)
+    category === 'incident' && estImpact(impactBrut)
       ? impactBrut
       : null
 

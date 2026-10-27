@@ -34,12 +34,16 @@ export async function POST(req: NextRequest) {
       .select('etablissement_id')
       .eq('id', user.id)
       .single()
+    // Un compte sans ecole (editeur) n'a pas de notifications d'ecole.
+    if (!profile?.etablissement_id) {
+      return NextResponse.json({ error: 'Aucun établissement rattaché.' }, { status: 403 })
+    }
 
     const { error } = await supabase
       .from('push_subscriptions')
       .upsert({
         user_id: user.id,
-        etablissement_id: profile?.etablissement_id,
+        etablissement_id: profile.etablissement_id,
         endpoint,
         p256dh: keys.p256dh,
         auth_key: keys.auth,

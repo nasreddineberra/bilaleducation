@@ -81,7 +81,7 @@ export default async function EditClassPage({ params }: Props) {
     teacher_name:    ct.teachers
       ? `${(ct.teachers as any).last_name} ${(ct.teachers as any).first_name}`
       : ct.teacher_id,
-    is_main_teacher: ct.is_main_teacher,
+    is_main_teacher: ct.is_main_teacher ?? false,   // defaut de la colonne (jamais NULL en base)
     subject:         ct.subject ?? '',
     effective_from:  (ct as any).effective_from ?? null,
     effective_until: (ct as any).effective_until ?? null,

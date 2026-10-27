@@ -9,6 +9,7 @@ import { marqueEcole } from '@/lib/email/marque-ecole'
 import { coque, tableauInfos, POLICE, C } from '@/lib/email/shell.mjs'
 import { formatJourLongFr } from '@/lib/dates'
 import { sanitize } from '@/lib/security/sanitize'
+import type { TypeDevoir } from '@/components/cahier-texte/commun'
 
 /**
  * Suppression d'un devoir et d'une séance du cahier de texte.
@@ -251,11 +252,11 @@ export async function modifierDevoir(
   id: string,
   payload: {
     class_id: string
-    teacher_id: string | null
+    teacher_id: string
     subject: string
     title: string
     description_html: string
-    homework_type: string
+    homework_type: TypeDevoir
     due_date: string
   },
 ): Promise<Resultat> {
@@ -474,7 +475,7 @@ export async function modifierSeance(
   id: string,
   payload: {
     class_id: string
-    teacher_id: string | null
+    teacher_id: string
     subject: string | null
     session_date: string
     title: string

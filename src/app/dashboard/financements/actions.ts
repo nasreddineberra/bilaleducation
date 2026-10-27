@@ -208,7 +208,7 @@ export async function deleteFinancementCommunication(id: string): Promise<{ erro
     entityType:  'financement_communications',
     entityId:    id,
     description: `Suppression d'une ${row.type} du journal comptable : « ${row.subject} »`,
-    oldData:     row as Record<string, unknown>,
+    oldData:     row,
   })
 
   // `.select()` : une suppression filtree par la RLS ne renvoie PAS d'erreur,

@@ -13,69 +13,16 @@ import { logAudit } from '@/lib/audit'
 import { classInfoOf } from '@/components/dashboard/classInfo'
 import { CreateParentSchema, UpdateParentSchema, validateInput } from '@/lib/validation/schemas'
 import { pluriel } from '@/lib/texte/pluriel'
+import type { TablesInsert } from '@/types/supabase'
 
-// ─── Types strictes pour les payloads ─────────────────────────────────────────
+// ─── Payloads : les colonnes de `parents`, moins celles que pose le serveur ───
 
-export interface CreateParentPayload {
-  // Tuteur 1
-  tutor1_first_name?: string
-  tutor1_last_name?: string
-  tutor1_email?: string
-  tutor1_phone?: string | null
-  tutor1_relationship?: string | null
-  tutor1_address?: string | null
-  tutor1_city?: string | null
-  tutor1_postal_code?: string | null
-  tutor1_profession?: string | null
-  tutor1_adult_courses?: boolean
-  // Tuteur 2
-  tutor2_first_name?: string | null
-  tutor2_last_name?: string | null
-  tutor2_email?: string | null
-  tutor2_phone?: string | null
-  tutor2_relationship?: string | null
-  tutor2_address?: string | null
-  tutor2_city?: string | null
-  tutor2_postal_code?: string | null
-  tutor2_profession?: string | null
-  tutor2_adult_courses?: boolean
-  // Famille
-  situation_familiale?: string | null
-  type_garde?: string | null
-  // Métadonnées
-  notes?: string | null
-  student_ids?: string[]
-  // Champs gérés automatiquement (NON injectables)
-  // etablissement_id, tutor1_user_id, tutor2_user_id, created_at
-}
+type ColonnesParent = Omit<TablesInsert<'parents'>,
+  'id' | 'etablissement_id' | 'user_id' | 'tutor1_user_id' | 'tutor2_user_id' | 'created_at' | 'updated_at'>
 
-export interface UpdateParentPayload {
-  // Mêmes champs que CreateParentPayload, sauf ceux gérés automatiquement
-  tutor1_first_name?: string
-  tutor1_last_name?: string
-  tutor1_email?: string | null
-  tutor1_phone?: string | null
-  tutor1_relationship?: string | null
-  tutor1_address?: string | null
-  tutor1_city?: string | null
-  tutor1_postal_code?: string | null
-  tutor1_profession?: string | null
-  tutor1_adult_courses?: boolean
-  tutor2_first_name?: string | null
-  tutor2_last_name?: string | null
-  tutor2_email?: string | null
-  tutor2_phone?: string | null
-  tutor2_relationship?: string | null
-  tutor2_address?: string | null
-  tutor2_city?: string | null
-  tutor2_postal_code?: string | null
-  tutor2_profession?: string | null
-  tutor2_adult_courses?: boolean
-  situation_familiale?: string | null
-  type_garde?: string | null
-  notes?: string | null
-  // is_active est géré séparément — ne pas autoriser via ce endpoint
-}
+export type CreateParentPayload = ColonnesParent
+// is_active est géré séparément — ne pas autoriser via ce endpoint
+export type UpdateParentPayload = Partial<ColonnesParent>
 
 // Champs interdits à l'injection
 const FORBIDDEN_FIELDS = [
@@ -90,18 +37,17 @@ const ALLOWED_FIELDS: (keyof CreateParentPayload)[] = [
   'tutor2_first_name', 'tutor2_last_name', 'tutor2_email', 'tutor2_phone',
   'tutor2_relationship', 'tutor2_address', 'tutor2_city', 'tutor2_postal_code',
   'tutor2_profession', 'tutor2_adult_courses',
-  'situation_familiale', 'type_garde', 'notes', 'student_ids',
+  'situation_familiale', 'type_garde', 'notes',
 ]
 
-function sanitizeParentPayload(payload: Record<string, any>): CreateParentPayload {
-  const clean: CreateParentPayload = {}
+/** Ne garde que les champs autorises ; leur forme a ete verifiee par zod en amont. */
+function sanitizeParentPayload(payload: Record<string, unknown>): UpdateParentPayload {
+  const clean: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(payload)) {
     if (FORBIDDEN_FIELDS.includes(key)) continue
-    if ((ALLOWED_FIELDS as string[]).includes(key)) {
-      (clean as any)[key] = value
-    }
+    if ((ALLOWED_FIELDS as string[]).includes(key)) clean[key] = value
   }
-  return clean
+  return clean as UpdateParentPayload
 }
 
 function generateTempPassword(): string {
@@ -138,8 +84,8 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
 
   const supabase = createAdminClient()
   const accounts: TutorAccountResult[] = []
-  const cleanPayload = sanitizeParentPayload(payload)
-  const parentData: Record<string, any> = { ...cleanPayload, etablissement_id: etablissementId }
+  const cleanPayload = sanitizeParentPayload(payload) as CreateParentPayload
+  const parentData: TablesInsert<'parents'> = { ...cleanPayload, etablissement_id: etablissementId }
 
   // Créer compte tuteur 1 si email présent
   if (CREATE_PARENT_ACCOUNTS && payload.tutor1_email) {
@@ -192,9 +138,8 @@ export async function createParentWithAccounts(payload: CreateParentPayload): Pr
 
   if (parentError) {
     // Nettoyage des comptes créés avec Promise.allSettled
-    const createdUserIds = ['tutor1_user_id', 'tutor2_user_id']
-      .map(k => parentData[k])
-      .filter(Boolean) as string[]
+    const createdUserIds = [parentData.tutor1_user_id, parentData.tutor2_user_id]
+      .filter((id): id is string => !!id)
 
     const cleanupPromises = createdUserIds.map(userId =>
       cleanupTutorAccount(supabase, userId)
@@ -229,8 +174,7 @@ export async function updateParentRecord(
   const supabase = await createClient()
 
   // Sanitize payload pour empêcher l'injection de champs interdits
-  const rawPayload = payload as Record<string, unknown>
-  const cleanPayload = sanitizeParentPayload(rawPayload) as UpdateParentPayload
+  const cleanPayload = sanitizeParentPayload(payload)
 
   // Garde : on ne peut pas DÉCOCHER « Inscrit aux cours adultes » d'un tuteur
   // encore inscrit a une classe adulte (retirer d'abord de la classe → qui a
@@ -238,7 +182,7 @@ export async function updateParentRecord(
   if (cleanPayload.tutor1_adult_courses === false || cleanPayload.tutor2_adult_courses === false) {
     const { data: current } = await supabase
       .from('parents').select('tutor1_adult_courses, tutor2_adult_courses').eq('id', parentId).single()
-    const check: number[] = []
+    const check: (1 | 2)[] = []
     if (current?.tutor1_adult_courses && cleanPayload.tutor1_adult_courses === false) check.push(1)
     if (current?.tutor2_adult_courses && cleanPayload.tutor2_adult_courses === false) check.push(2)
     if (check.length > 0) {
@@ -518,7 +462,7 @@ export async function deleteParent(id: string): Promise<{ error?: string }> {
     entityType:  'parents',
     entityId:    id,
     description: `Suppression du foyer ${cible.tutor1_last_name} ${cible.tutor1_first_name}`,
-    oldData:     cible as Record<string, unknown>,
+    oldData:     cible,
   })
 
   // `.select()` : une suppression écartée par la RLS ne lève pas d'erreur,

@@ -9516,3 +9516,34 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   doublon d'apprenant. Hors masculin / feminin, une TOURNURE NEUTRE (« Date de naissance », « Absence enregistree
   pour ... »), jamais « (e) ». Base au 27/10 : 124 garcons, 112 filles, aucun genre vide.
 - **`any` mesures** : 676 dans 101 fichiers (et non ~500), 147 dans `lib/dashboard`, 87 dans `lib/closure`.
+
+### 27/10 · Sortie des `any`, lot 1 : la base typee
+
+- **Pourquoi** : `any` coupe la verification du compilateur ; aucun cout a l'execution (types effaces). Premier
+  lot : typer les clients Supabase avec la structure REELLE de la base, pour que chaque requete sache ce qu'elle
+  rend et qu'une colonne renommee casse le type-check plutot qu'un ecran.
+- **Generateur `npm run types-db`** (`scripts/generer-types-db.mjs`) : API de gestion Supabase (jeton
+  `SUPABASE_TYPES_TOKEN`, permission Database = Read, ~90 j ; le jeton de sauvegarde n'a pas `database_read`),
+  puis quatre complements lus en base par psql, chacun avec un garde-fou qui n'ecrit rien si le compte ne tombe
+  pas juste : parametres de fonctions `| null` (PostgreSQL ne sait pas les declarer NOT NULL) ; `etablissement_id`
+  facultatif a l'insertion des 19 tables a declencheur `set_etablissement_id` ; 67 CHECK `IN (...)` en unions
+  (dont `tutor_number: 1 | 2`) ; colonnes jsonb a forme connue depuis `src/types/json.ts`.
+- **`src/types/database.ts` derive** des types generes. Ecarts trouves dans l'ancienne copie a la main :
+  `students.gender` a aussi `non_specified`, `teacher_documents.category` a aussi `cv`, et des dizaines de
+  colonnes declarees obligatoires que la base accepte vides. 30 types morts retires.
+- **119 erreurs au branchement**, toutes traitees. Vrais defauts trouves :
+  - creneaux SANS enseignant : decides le 11/10 (titulaire facultatif, EDT « Prof non affecte ») mais
+    `schedule_slots.teacher_id` etait reste NOT NULL : retirer le titulaire d'une classe a creneaux, ou creer des
+    creneaux sans titulaire, echouait. Migration `schedule-slots-enseignant-facultatif.sql` (decision utilisateur A) ;
+  - fiche classe : une affectation avec matiere mais sans enseignant faisait echouer TOUT l'enregistrement apres
+    l'effacement des affectations : ignoree ;
+  - abonnement push d'un compte sans ecole : 500 -> refus clair ; `student_ids` aurait casse la creation d'un
+    foyer (jamais envoye, retire) ; date d'embauche ou bornes d'annee absentes gerees (aucune en base).
+- **Sources uniques ajoutees** : `lib/parents/participant.ts` (cle adulte `parentId-tutorNumber`, 6 decoupages a
+  la main remplaces, testee) ; types des rendus jsonb des RPC d'argent (`RetourReduction`, `RetourPaiement`,
+  `RetourSuppression` dans `compute.ts`), de la purge, de l'export et de l'effacement d'ecole.
+- **Colonnes a defaut acceptant NULL** : 57, aucune n'en contient (sauf `evaluations.max_score`, ou NULL a un
+  sens). Decision utilisateur A : NULL lu comme le defaut aux 3 endroits concernes ; NOT NULL en base APRES la
+  sortie des `any` (quand le type-check couvrira toutes les ecritures). Ecart note, non traite : la fiche classe
+  prend 30 eleves par defaut, la base 25.
+- Bilan : type-check 0, lint 0 erreur (673 `any`), 145 tests, build OK. Registre 172/172.
