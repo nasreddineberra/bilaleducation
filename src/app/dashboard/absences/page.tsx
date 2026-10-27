@@ -4,6 +4,7 @@ import AbsencesClient from '@/components/absences/AbsencesClient'
 import { AlertTriangle } from 'lucide-react'
 import type { Period, Absence } from '@/types/database'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { signerPhotos } from '@/lib/students/photo'
 
 type ClassRow = {
   id: string
@@ -182,6 +183,10 @@ export default async function AbsencesPage() {
       .sort((a, b) =>
         a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)
       )
+
+    // Le trombinoscope recoit l'adresse SIGNEE, pas le chemin (bucket prive).
+    const photos = await signerPhotos(supabase, students.map(s => s.photo_url))
+    students = students.map(s => ({ ...s, photo_url: s.photo_url ? photos.get(s.photo_url) ?? null : null }))
   }
 
   // 5. Absences existantes

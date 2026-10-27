@@ -15,6 +15,7 @@ import { suffixeLateral } from '@/lib/navigation/retour'
 import { sameName } from '@/lib/normalize-name'
 import { messageDoublon } from '@/lib/doublons'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
+import { BUCKET_PHOTOS, TAILLE_MAX_PHOTO, signerPhotos } from '@/lib/students/photo'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import type { Student, Parent } from '@/types/database'
@@ -821,10 +822,21 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
   const [isUploading,        setIsUploading]        = useState(false)
   const [uploadError,        setUploadError]        = useState<string | null>(null)
   const [confirmDelete,      setConfirmDelete]      = useState(false)
+  // `photoUrl` est le CHEMIN du fichier (bucket prive) ; l'apercu est son adresse signee.
+  const [apercu,             setApercu]             = useState<string | null>(null)
 
   useEffect(() => {
     if (studentId) photoId.current = studentId
   }, [studentId])
+
+  useEffect(() => {
+    let actif = true
+    if (!photoUrl) { setApercu(null); return }
+    signerPhotos(createClient(), [photoUrl]).then(adresses => {
+      if (actif) setApercu(adresses.get(photoUrl) ?? null)
+    })
+    return () => { actif = false }
+  }, [photoUrl])
 
   useEffect(() => {
     if (showWebcam && videoRef.current && streamRef.current) {
@@ -888,18 +900,21 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
     setIsUploading(true)
     try {
       const blob = await getCroppedImg(cropSrc, croppedAreaPixels)
-      if (blob.size > 1_048_576) {
-        setUploadError('Photo trop grande après compression (> 1 Mo). Essayez une autre image.')
+      if (blob.size > TAILLE_MAX_PHOTO) {
+        setUploadError('Photo trop grande après compression (> 500 Ko). Essayez une autre image.')
         return
       }
       const supabase = createClient()
       const path = `${etablissementId}/${photoId.current}.jpg`
       const { error } = await supabase.storage
-        .from('student-photos')
+        .from(BUCKET_PHOTOS)
         .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
       if (error) throw error
-      const { data: { publicUrl } } = supabase.storage.from('student-photos').getPublicUrl(path)
-      onChange(`${publicUrl}?t=${Date.now()}`)
+      // Meme chemin qu'avant en cas de remplacement : on resigne ici, l'effet
+      // sur `photoUrl` ne se redeclencherait pas.
+      const adresses = await signerPhotos(supabase, [path])
+      setApercu(adresses.get(path) ?? null)
+      onChange(path)
       setCropSrc(null)
     } catch (err: any) {
       setUploadError(err?.message ?? "Erreur lors de l'upload. Veuillez réessayer.")
@@ -914,7 +929,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
     try {
       const supabase = createClient()
       const path = `${etablissementId}/${photoId.current}.jpg`
-      await supabase.storage.from('student-photos').remove([path])
+      await supabase.storage.from(BUCKET_PHOTOS).remove([path])
       onChange(null)
     } catch (err) {
       console.error('[StudentForm] Erreur lors de la suppression de la photo:', err)
@@ -929,8 +944,8 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
       <div className="flex flex-col items-center gap-1 flex-shrink-0">
         {/* Vignette 3:4 */}
         <div className="w-[78px] h-[104px] rounded-lg overflow-hidden border border-warm-200 bg-warm-100 flex items-center justify-center flex-shrink-0">
-          {photoUrl ? (
-            <Image src={photoUrl} alt="Photo élève" width={78} height={104} className="w-full h-full object-cover" unoptimized />
+          {apercu ? (
+            <Image src={apercu} alt="Photo élève" width={78} height={104} className="w-full h-full object-cover" unoptimized />
           ) : (
             <User size={32} className="text-warm-700" />
           )}

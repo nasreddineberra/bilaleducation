@@ -9477,3 +9477,23 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **Effet** : une requete anonyme rend « permission denied » au lieu d'un resultat vide.
 - **Vu en route, non traite** : bucket `student-photos` PUBLIC et `getPublicUrl` dans `StudentForm` (contraire
   a la regle « jamais d'URL publique sauf logos ») ; 0 photo stockee, donc rien d'expose aujourd'hui.
+
+#### 27 octobre 2026 — Photos d'eleves : bucket prive, et la fonction reparee
+
+- **Constat** : bucket `student-photos` PUBLIC (adresse permanente lisible par quiconque la connait) et AUCUNE
+  policy sur `storage.objects` pour lui : l'envoi depuis la fiche etait REFUSE a tous les roles. D'ou 0 photo,
+  donc rien d'expose. Le controle 27, joue avant la migration, l'a montre : 9 KO, personne ne lisait ni n'ecrivait.
+- **Migration `secure-student-photos.sql`** (jouee le 27/10) : bucket prive, **500 Ko** (decision utilisateur),
+  JPEG seul. Droits calques sur `students` : lecture admin / direction / comptable / resp. pedagogique /
+  secretaire, enseignant pour SES eleves ; ecriture admin / direction / resp. pedagogique / secretaire.
+  L'identifiant du fichier n'est pas toujours l'eleve (photo prise AVANT la creation de la fiche) : l'enseignant
+  lit le fichier qu'une fiche visible pour lui reference (`students.photo_url = name`, RLS de `students`).
+- **Code** : `photo_url` porte le CHEMIN ; `lib/students/photo.ts` (bucket, 500 Ko, `signerPhotos`). Trombinoscope :
+  adresses signees cote serveur en un appel (`createSignedUrls`). Fiche : signature avec la session du navigateur,
+  resignee apres un remplacement (meme chemin, l'effet ne se redeclencherait pas). **Validite 1 h** (decision
+  utilisateur) : une liste reaffichee casserait une adresse de 60 s.
+- **Controle 27** : bucket, 9 identites reelles (dont l'editeur rattache et une direction d'une autre ecole),
+  anonyme. Rouge avant (9 KO), vert apres (0 KO). Registre 171 / 171.
+- **Piege repaye** : la ligne d'enregistrement prise en ligne 2 de `--ligne` (le commentaire) au lieu de la 3 ;
+  la migration est passee sans s'enregistrer, fichier corrige puis rejoue (idempotent).
+- **Signale, non traite** : « Supprimer » la photo efface le fichier AVANT l'enregistrement de la fiche.

@@ -162,7 +162,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `adult_bulletin_appreciations`, `adult_bulletin_archives`, `adult_homework_status`,
   `adult_absences`. Jamais un adulte dans une table liee a `students`.
 - **Fichiers** : buckets prives + URL signee (60 s), chemins `{etablissement_id}/...`, plafonds de
-  taille et types MIME. Jamais `getPublicUrl` sauf logos. Supprimer **la ligne d'abord, le fichier
+  taille et types MIME. Jamais `getPublicUrl` sauf logos. Photos d'eleves : `students.photo_url` = CHEMIN,
+  adresse signee 1 h a l'affichage (`lib/students/photo.ts`, exception justifiee : liste reaffichee), 500 Ko. Supprimer **la ligne d'abord, le fichier
   ensuite**. Le SQL ne touche jamais `storage.objects`.
 - **PDF et fichiers s'AFFICHENT dans un nouvel onglet** : `lib/pdf/ouvrir.ts` (`ouvrirOngletPdf` AU
   CLIC avant tout `await`, `afficherPdf` pour un jsPDF, `ouvrirDansOnglet` pour une URL signee).
@@ -358,8 +359,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des ~500 `any` ;
-   accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon d'apprenant) ; bucket
-   `student-photos` PUBLIC + `getPublicUrl` (`StudentForm`), 0 photo au 27/10 : a passer en prive + URL signee.
+   accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon d'apprenant) ; « Supprimer » la
+   photo efface le FICHIER avant l'enregistrement de la fiche (fiche abandonnee = chemin orphelin).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).
