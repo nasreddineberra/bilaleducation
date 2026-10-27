@@ -114,7 +114,7 @@ export default function MonthGrid({
                       className={clsx(
                         'text-[11px] leading-none font-medium',
                         isToday
-                          ? 'bg-amber-700 text-white rounded-full w-5 h-5 flex items-center justify-center'
+                          ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)] rounded-full w-5 h-5 flex items-center justify-center'
                           : isCurrentMonth ? 'text-warm-700' : 'text-warm-700',
                       )}
                     >

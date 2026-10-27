@@ -2015,7 +2015,8 @@ export default function EmploiDuTempsClient({
                   key={d}
                   className={clsx(
                     'flex items-center justify-between gap-1 border-l border-warm-100 px-1 py-1.5',
-                    d === todayDow ? 'bg-amber-50/50' : ''
+                    // Jour actuel : vert de marque (l'ambre de la charte signale un avertissement).
+                    d === todayDow ? 'bg-[var(--brand-tint)]' : ''
                   )}
                 >
                   <button
@@ -2027,7 +2028,7 @@ export default function EmploiDuTempsClient({
                   </button>
                   <span className={clsx(
                     'min-w-0 truncate text-center text-sm font-semibold uppercase tracking-wide',
-                    d === todayDow ? 'text-amber-700' : 'text-warm-700'
+                    d === todayDow ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-bold' : 'text-warm-700'
                   )}>
                     {DAY_LABELS[d]}
                     <span className="text-xs font-medium opacity-80 ml-1">{dayDatesDisplay[d]}</span>
@@ -2050,7 +2051,7 @@ export default function EmploiDuTempsClient({
                   'p-2 text-center text-sm font-semibold uppercase tracking-wide border-l border-warm-100 transition-colors cursor-pointer',
                   selectedDay === d
                     ? 'bg-[var(--brand-surface)] text-white dark:bg-[var(--brand-accent)] dark:text-[var(--brand-surface-2)]'
-                    : d === todayDow ? 'text-amber-700 bg-amber-50/50 hover:bg-amber-50' : 'text-warm-700 hover:bg-warm-50'
+                    : d === todayDow ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)] font-bold bg-[var(--brand-tint)]' : 'text-warm-700 hover:bg-warm-50'
                 )}
               >
                 {selectedDay !== null ? DAY_LABELS[d] : DAY_LABELS_SHORT[d]}

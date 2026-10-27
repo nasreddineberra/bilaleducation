@@ -9654,3 +9654,6 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **27/10** : la salle d'une seance s'affiche « Salle 101 » (`libelleSalle`, testee ; un nom commencant deja par
   « Salle » n'est pas double) : capsule, infobulles, lecture vocale, vue mois. Recapitulatif de confirmation
   inchange (sa ligne s'intitule deja « Salle »).
+- **27/10, jour actuel (essai)** : l'ambre (avertissement dans la charte) remplace par le vert de marque :
+  fond de colonne `--brand-tint` (8 %), en-tete en vert de marque gras, vue mois rond vert plein. Essai demande
+  par l'utilisateur ; reserve exprimee : le gris d'une seance annulee est proche de ce fond.
