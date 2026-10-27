@@ -9630,3 +9630,11 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   exclue ; la salle actuelle reste proposee). Fiche classe (salle par defaut, valable toute l'annee) : filtre
   « salles de cours » seulement, pas de controle de disponibilite (chantier a part). `seancesDuJour` rend
   desormais la salle reelle de chaque seance (`roomId`).
+- **27/10, salle d'une seance** : la fiche classe RECOPIAIT la salle de la classe sur chaque creneau a sa
+  creation ; changer la salle de la classe ensuite ne touchait pas les creneaux (classe ADULTES : salle 101,
+  creneau sans salle). Decision utilisateur : choix dans la fiche classe, « Meme salle pour tous les creneaux »
+  (salle de la classe) ou salle creneau par creneau (champ Salle dans la modale du creneau, colonne Salle).
+  Deduit de la classe (salle renseignee = unique), sans migration. Passage unique -> par creneau : chaque
+  creneau part de l'ancienne salle ; inverse : confirmation, salles des creneaux effacees. Salle d'une seance
+  DEDUITE (`salleDeSeance`, testee) dans l'EDT et le calcul des salles libres : seance, ponctuelle, classe,
+  creneau. Plus de copie a la creation d'un creneau en salle unique.

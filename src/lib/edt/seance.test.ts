@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { indexTitulaires, enseignantDeSeance } from './seance.ts'
+import { indexTitulaires, enseignantDeSeance, salleDeSeance } from './seance.ts'
 
 const aff = (teacher_id: string, from: string | null, until: string | null, is_main_teacher = true) =>
   ({ class_id: 'c', teacher_id, is_main_teacher, effective_from: from, effective_until: until })
@@ -34,4 +34,14 @@ test('seance : annulee, remplacee, titulaire, prof non affecte', () => {
     { annulee: false, teacherId: 'tit', titulaireId: 'tit', remplacement: false })
   assert.deepEqual(enseignantDeSeance('autre', '2026-10-01', null, t),
     { annulee: false, teacherId: null, titulaireId: null, remplacement: false })
+})
+
+test('salle d\'une seance : seance, ponctuelle, classe, creneau', () => {
+  const serie = { is_recurring: true, room_id: 'copie' }
+  assert.equal(salleDeSeance(serie, { override_room_id: 'jour' }, 'classe'), 'jour')
+  assert.equal(salleDeSeance(serie, null, 'classe'), 'classe')
+  assert.equal(salleDeSeance(serie, null, null), 'copie')
+  assert.equal(salleDeSeance({ is_recurring: false, room_id: 'sienne' }, null, 'classe'), 'sienne')
+  assert.equal(salleDeSeance({ is_recurring: false, room_id: null }, null, 'classe'), 'classe')
+  assert.equal(salleDeSeance({ is_recurring: true, room_id: null }, null, null), null)
 })

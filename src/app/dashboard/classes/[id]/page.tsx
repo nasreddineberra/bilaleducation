@@ -73,7 +73,7 @@ export default async function EditClassPage({ params }: Props) {
   const { data: existingSlots } = currentYearRow
     ? await supabase
         .from('schedule_slots')
-        .select('id, day_of_week, start_time, end_time, effective_from, effective_until, slot_type, unite_enseignement_id, libelle')
+        .select('id, day_of_week, start_time, end_time, effective_from, effective_until, slot_type, unite_enseignement_id, libelle, room_id')
         .eq('class_id', id)
         .eq('school_year_id', currentYearRow.id)
         .eq('is_recurring', true)

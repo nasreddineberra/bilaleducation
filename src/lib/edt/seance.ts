@@ -85,3 +85,22 @@ export function affectationsDesClasses(
 ): AffectationSource[] {
   return classes.flatMap(c => (c.class_teachers ?? []).map(ct => ({ ...ct, class_id: c.id })))
 }
+
+/**
+ * SALLE D'UNE SEANCE (decision du 27/10) — deduite, jamais recopiee :
+ *   1. salle changee pour CETTE seance (`override_room_id`) ;
+ *   2. seance PONCTUELLE : sa propre salle, choisie a sa creation ;
+ *   3. salle de la CLASSE si elle en a une (« meme salle pour tous les creneaux ») ;
+ *   4. sinon salle du CRENEAU (salle choisie creneau par creneau).
+ * Une salle de classe renseignee prime donc sur une ancienne copie restee sur
+ * un creneau de serie.
+ */
+export function salleDeSeance(
+  slot: { is_recurring: boolean; room_id?: string | null },
+  exception: { override_room_id?: string | null } | null | undefined,
+  salleDeLaClasse: string | null | undefined,
+): string | null {
+  if (exception?.override_room_id) return exception.override_room_id
+  if (!slot.is_recurring) return slot.room_id ?? salleDeLaClasse ?? null
+  return salleDeLaClasse ?? slot.room_id ?? null
+}

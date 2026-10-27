@@ -51,7 +51,10 @@ Une séance d'un enseignant absent sans décision est **« Enseignant absent · 
 
 ## 4. Fiche classe
 
-- Gère : créneaux de la semaine, titulaire.
+- Gère : créneaux de la semaine, titulaire, salle.
+- **Salle** : « Même salle pour tous les créneaux » (salle de la classe) OU salle choisie créneau par créneau.
+  Salle d'une séance DÉDUITE (`salleDeSeance`) : changée pour cette séance, sinon séance ponctuelle (la
+  sienne), sinon salle de la classe, sinon salle du créneau. Jamais recopiée.
 - Ne gère plus aucun remplacement ; encadré **« Remplacements »** en LECTURE (créneaux remplacés ou
   annulés, en cours et à venir), lien vers l'absence.
 

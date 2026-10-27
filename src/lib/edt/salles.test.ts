@@ -35,3 +35,9 @@ test('seance annulee ou seance elle-meme : la salle est libre ; salle actuelle t
 test('salle changee pour CETTE seance : c\'est elle qui est occupee', () => {
   assert.deepEqual(ids(sallesLibres(salles, [slot({})], [ex({ override_room_id: 'r2' })], SAMEDI, '10:00', '11:00')), ['r1'])
 })
+
+test('salle de la classe : occupee par ses seances de serie', () => {
+  const s = slot({ room_id: null })
+  const salleDeClasse = (c: string) => (c === 'c' ? 'r2' : null)
+  assert.deepEqual(ids(sallesLibres(salles, [s], [], SAMEDI, '10:00', '11:00', { salleDeClasse })), ['r1'])
+})

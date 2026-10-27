@@ -25,7 +25,7 @@ import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { intituleCreneau } from '@/lib/edt/intitule'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
-import { indexTitulaires, affectationsDesClasses, enseignantDeSeance } from '@/lib/edt/seance'
+import { indexTitulaires, affectationsDesClasses, enseignantDeSeance, salleDeSeance } from '@/lib/edt/seance'
 import { sallesLibres } from '@/lib/edt/salles'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -656,6 +656,22 @@ export default function EmploiDuTempsClient({
       enseignantDeSeance(slot.class_id, date, exception, titulaireDe),
     [titulaireDe],
   )
+  // ── Salle d'une seance : DEDUITE (lib/edt/seance.ts, `salleDeSeance`) ──
+  const salleDeClasse = useMemo(() => {
+    const parClasse = new Map(classes.map(c => [c.id, c.room_id ?? null]))
+    return (classId: string) => parClasse.get(classId) ?? null
+  }, [classes])
+  const salleDe = useCallback(
+    (slot: SlotData, exception: ExceptionData | null | undefined) =>
+      salleDeSeance(slot, exception, salleDeClasse(slot.class_id)),
+    [salleDeClasse],
+  )
+  const salleAffichee = useCallback((slot: SlotData, exception: ExceptionData | null | undefined) => {
+    const id = salleDe(slot, exception)
+    if (!id) return null
+    return rooms.find(r => r.id === id) ?? (id === slot.room_id ? slot.rooms ?? null : null)
+  }, [salleDe, rooms])
+
   // Noms : la liste des enseignants, completee par ceux lus dans les affectations
   // (un remplacant ne lit pas toujours la fiche du titulaire).
   const enseignantParId = useMemo(() => {
@@ -706,7 +722,7 @@ export default function EmploiDuTempsClient({
           class_id: slot.class_id,
           teacher_id: quiAssure(slot, date, exception).teacherId,
           cours_id: slot.cours_id,
-          room_id: exception.override_room_id ?? slot.room_id,
+          room_id: salleDe(slot, exception),
           start_time: exception.override_start_time ?? slot.start_time,
           end_time: exception.override_end_time ?? slot.end_time,
           slot_type: slot.slot_type,
@@ -718,9 +734,7 @@ export default function EmploiDuTempsClient({
           unites_enseignement: slot.unites_enseignement,
           unite_enseignement_id: slot.unite_enseignement_id,
           libelle: slot.libelle,
-          rooms: exception.override_room_id
-            ? rooms.find(r => r.id === exception.override_room_id) as any
-            : slot.rooms,
+          rooms: salleAffichee(slot, exception),
         })
       } else {
         // Normal recurring
@@ -737,7 +751,7 @@ export default function EmploiDuTempsClient({
           class_id: slot.class_id,
           teacher_id: quiAssure(slot, date, null).teacherId,
           cours_id: slot.cours_id,
-          room_id: slot.room_id,
+          room_id: salleDe(slot, exception),
           start_time: slot.start_time,
           end_time: slot.end_time,
           slot_type: slot.slot_type,
@@ -749,7 +763,7 @@ export default function EmploiDuTempsClient({
           unites_enseignement: slot.unites_enseignement,
           unite_enseignement_id: slot.unite_enseignement_id,
           libelle: slot.libelle,
-          rooms: slot.rooms,
+          rooms: salleAffichee(slot, exception),
         })
       }
     }
@@ -774,7 +788,7 @@ export default function EmploiDuTempsClient({
         class_id: slot.class_id,
         teacher_id: quiAssure(slot, slot.slot_date, null).teacherId,
         cours_id: slot.cours_id,
-        room_id: slot.room_id,
+        room_id: salleDe(slot, exPonctuelle),
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
@@ -786,12 +800,12 @@ export default function EmploiDuTempsClient({
         unites_enseignement: slot.unites_enseignement,
         unite_enseignement_id: slot.unite_enseignement_id,
         libelle: slot.libelle,
-        rooms: slot.rooms,
+        rooms: salleAffichee(slot, exPonctuelle),
       })
     }
 
     return result
-  }, [slots, exceptions, weekDayDates, rooms, isSchoolDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId])
+  }, [slots, exceptions, weekDayDates, isSchoolDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId, salleDe, salleAffichee])
 
   // ─── Month-scoped resolved slots ─────────────────────────────────────────
 
@@ -847,7 +861,7 @@ export default function EmploiDuTempsClient({
             class_id: slot.class_id,
             teacher_id: quiAssure(slot, date, exception).teacherId,
             cours_id: slot.cours_id,
-            room_id: exception.override_room_id ?? slot.room_id,
+            room_id: salleDe(slot, exception),
             start_time: exception.override_start_time ?? slot.start_time,
             end_time: exception.override_end_time ?? slot.end_time,
             slot_type: slot.slot_type,
@@ -859,9 +873,7 @@ export default function EmploiDuTempsClient({
             unites_enseignement: slot.unites_enseignement,
             unite_enseignement_id: slot.unite_enseignement_id,
             libelle: slot.libelle,
-            rooms: exception.override_room_id
-              ? rooms.find(r => r.id === exception.override_room_id) as any
-              : slot.rooms,
+            rooms: salleAffichee(slot, exception),
           })
         } else {
           result.push({
@@ -877,7 +889,7 @@ export default function EmploiDuTempsClient({
             class_id: slot.class_id,
             teacher_id: quiAssure(slot, date, null).teacherId,
             cours_id: slot.cours_id,
-            room_id: slot.room_id,
+            room_id: salleDe(slot, exception),
             start_time: slot.start_time,
             end_time: slot.end_time,
             slot_type: slot.slot_type,
@@ -889,7 +901,7 @@ export default function EmploiDuTempsClient({
             unites_enseignement: slot.unites_enseignement,
             unite_enseignement_id: slot.unite_enseignement_id,
             libelle: slot.libelle,
-            rooms: slot.rooms,
+            rooms: salleAffichee(slot, exception),
           })
         }
       }
@@ -915,7 +927,7 @@ export default function EmploiDuTempsClient({
         class_id: slot.class_id,
         teacher_id: quiAssure(slot, slot.slot_date, null).teacherId,
         cours_id: slot.cours_id,
-        room_id: slot.room_id,
+        room_id: salleDe(slot, exPonctuelle),
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
@@ -927,12 +939,12 @@ export default function EmploiDuTempsClient({
         unites_enseignement: slot.unites_enseignement,
         unite_enseignement_id: slot.unite_enseignement_id,
         libelle: slot.libelle,
-        rooms: slot.rooms,
+        rooms: salleAffichee(slot, exPonctuelle),
       })
     }
 
     return result
-  }, [viewType, currentMonth, slots, exceptions, rooms, isSchoolDay, weekStartDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId])
+  }, [viewType, currentMonth, slots, exceptions, isSchoolDay, weekStartDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId, salleDe, salleAffichee])
 
   // Filter month slots by view mode
   const filteredMonthSlots = useMemo(() => {
@@ -1417,7 +1429,7 @@ export default function EmploiDuTempsClient({
       data.start_time !== slot.start_time.slice(0, 5) ||
       data.end_time !== slot.end_time.slice(0, 5) ||
       (data.teacher_id ?? null) !== titulaireDe(slot.class_id, data.exception_date) ||
-      (data.room_id ?? null) !== (slot.room_id ?? null)
+      (data.room_id ?? null) !== salleDe(slot, null)
 
     if (!needsOverride) {
       setModalOpen(false)
@@ -1436,7 +1448,7 @@ export default function EmploiDuTempsClient({
       override_start_time: data.start_time !== slot.start_time.slice(0, 5) ? data.start_time : null,
       override_end_time: data.end_time !== slot.end_time.slice(0, 5) ? data.end_time : null,
       override_teacher_id: (data.teacher_id ?? null) !== titulaireDe(slot.class_id, data.exception_date) ? data.teacher_id : null,
-      override_room_id: (data.room_id ?? null) !== (slot.room_id ?? null) ? data.room_id : null,
+      override_room_id: (data.room_id ?? null) !== salleDe(slot, null) ? data.room_id : null,
     }
 
     if (existing) {
@@ -1464,7 +1476,7 @@ export default function EmploiDuTempsClient({
     setEditingSlot(null)
     setEditMode(null)
     setEditDate(null)
-  }, [supabase, slots, exceptions, refreshData, toastError, titulaireDe])
+  }, [supabase, slots, exceptions, refreshData, toastError, titulaireDe, salleDe])
 
   const libelleSeance = useCallback((slotId: string, date: string) => {
     const slot = slots.find(s => s.id === slotId)
@@ -1582,8 +1594,8 @@ export default function EmploiDuTempsClient({
   // Salles proposees pour une seance : salles de COURS libres sur ce creneau (lib/edt/salles.ts).
   const sallesPour = useCallback(
     (date: string, debut: string, fin: string, exclureSlotId?: string | null, salleActuelle?: string | null) =>
-      sallesLibres(rooms, slots, exceptions, date, debut, fin, { exclureSlotId, salleActuelle }),
-    [rooms, slots, exceptions],
+      sallesLibres(rooms, slots, exceptions, date, debut, fin, { exclureSlotId, salleActuelle, salleDeClasse }),
+    [rooms, slots, exceptions, salleDeClasse],
   )
   const sallesSeance = salleSeance
     ? sallesPour(salleSeance.resolved.date, salleSeance.resolved.start_time, salleSeance.resolved.end_time,
@@ -1601,7 +1613,8 @@ export default function EmploiDuTempsClient({
       )
     } else {
       const existing = exceptions.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === resolved.date)
-      const override = nouvelle === (slot.room_id ?? null) ? null : nouvelle
+      // Salle de la seance sans changement ponctuel : celle de la classe ou du creneau.
+      const override = nouvelle === salleDe(slot, null) ? null : nouvelle
       if (existing) {
         const vide = !override && !existing.override_start_time && !existing.override_end_time && !existing.override_teacher_id
         echec = erreurEcriture(
@@ -1627,7 +1640,7 @@ export default function EmploiDuTempsClient({
     setSalleSeance(null)
     toastSuccess('Salle modifiée pour cette séance.')
     await refreshData()
-  }, [supabase, slots, exceptions, rooms, refreshData, toastError, toastSuccess, libelleSeance])
+  }, [supabase, slots, exceptions, rooms, refreshData, toastError, toastSuccess, libelleSeance, salleDe])
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
 

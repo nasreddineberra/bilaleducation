@@ -17,7 +17,7 @@
  * Dates en `AAAA-MM-JJ`, heures en `HH:MM` : la comparaison de chaines est exacte.
  */
 
-import { enseignantDeSeance, type TitulaireDe } from '../edt/seance.ts'
+import { enseignantDeSeance, salleDeSeance, type TitulaireDe } from '../edt/seance.ts'
 
 export type { TitulaireDe }
 
@@ -102,6 +102,8 @@ export function seancesDuJour(
   exceptions: ExceptionSource[],
   titulaireDe: TitulaireDe,
   date: string,
+  /** Salle de la classe (« meme salle pour tous les creneaux »), pour la salle de la seance. */
+  salleDeClasse: (classId: string) => string | null = () => null,
 ): Seance[] {
   return slots
     .filter(s => aLieuCeJour(s, date))
@@ -119,7 +121,7 @@ export function seancesDuJour(
         titulaireId: qui.titulaireId,
         remplacement: qui.remplacement,
         annulee: qui.annulee,
-        roomId: ex?.override_room_id ?? s.room_id ?? null,
+        roomId: salleDeSeance(s, ex, salleDeClasse(s.class_id)),
       }
     })
     .sort((a, b) => a.debut.localeCompare(b.debut) || a.fin.localeCompare(b.fin))

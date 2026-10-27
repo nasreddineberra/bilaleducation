@@ -13,7 +13,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import { Puce } from '@/components/dashboard/tdb'
 import Tooltip from '@/components/ui/Tooltip'
-import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
+import { FloatInput, FloatSelect, FloatTextarea, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { intitulePropre, LIBELLE_TYPE_CRENEAU, NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
 import type { Class, SchoolYear, Teacher, CotisationType, VacationPeriod } from '@/types/database'
@@ -49,6 +49,7 @@ interface SlotRow {
   slot_type: TypeCreneau
   unite_enseignement_id: string | null
   libelle: string | null
+  room_id: string | null
 }
 
 type TypeCreneau = 'cours' | 'activite'
@@ -68,6 +69,7 @@ interface SlotDraft {
   slot_type:             TypeCreneau
   unite_enseignement_id: string   // '' = aucune
   libelle:               string
+  room_id:               string   // salle du creneau ('' = aucune), si la classe n'a pas de salle unique
 }
 
 interface ClassFormProps {
@@ -177,6 +179,11 @@ export default function ClassForm({
   const router    = useRouter()
   const toast     = useToast()
   const isEditing = !!cls
+  // SALLE (decision du 27/10) : « meme salle pour tous les creneaux » (salle de la
+  // classe) ou salle choisie creneau par creneau. Deduit de la classe : une salle
+  // de classe renseignee = salle unique. L'EDT en deduit la salle de chaque seance.
+  const [salleUnique, setSalleUnique] = useState(!cls || !!cls.room_id)
+  const salleUniqueInitiale = useRef(salleUnique)
 
   const currentYear = schoolYears.find(y => y.is_current) ?? schoolYears[0]
 
@@ -202,6 +209,7 @@ export default function ClassForm({
     slot_type:             s.slot_type,
     unite_enseignement_id: s.unite_enseignement_id ?? '',
     libelle:               s.libelle ?? '',
+    room_id:               s.room_id ?? '',
   }))
   const [slots,          setSlots]          = useState<SlotDraft[]>(initialSlotDrafts)
   const [deletedSlotIds, setDeletedSlotIds] = useState<string[]>([])
@@ -379,6 +387,31 @@ export default function ClassForm({
     setEditRow(null)
   }
 
+  // ── Salle : unique ou par creneau ─────────────────────────────────────────
+  const changerModeSalle = (unique: boolean) => {
+    if (unique === salleUnique) return
+    if (!unique) {
+      // Unique -> par creneau : chaque creneau part de l'ancienne salle de la classe.
+      setSlots(prev => prev.map(s => (s.room_id ? s : { ...s, room_id: form.room_id })))
+      set('room_id', '')
+      setSalleUnique(false)
+      return
+    }
+    const avecSalle = slots.filter(s => s.room_id).length
+    const appliquer = () => {
+      setSlots(prev => prev.map(s => ({ ...s, room_id: '' })))
+      setSalleUnique(true)
+    }
+    if (avecSalle === 0) { appliquer(); return }
+    setPendingConfirm({
+      title: 'Même salle pour tous les créneaux',
+      message: `Les salles choisies pour ${pluriel(avecSalle, 'créneau', 'créneaux')} seront remplacées par la salle de la classe.`,
+      variant: 'warning',
+      onConfirm: appliquer,
+    })
+  }
+  const sallesDeCours = rooms.filter(r => r.room_type === 'salle_cours')
+
   // ── Slot handlers ─────────────────────────────────────────────────────────
   const handleSaveSlot = (draft: SlotDraft) => {
     const others = editingSlotIdx !== null
@@ -437,6 +470,7 @@ export default function ClassForm({
     && JSON.stringify(assignments) === initialAssignStr.current
     && JSON.stringify(slots) === initialSlotsStr.current
     && deletedSlotIds.length === 0
+    && salleUnique === salleUniqueInitiale.current
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -471,10 +505,10 @@ export default function ClassForm({
         level:         form.level.trim(),
         teaching_mode: form.teaching_mode,
         academic_year: currentYear?.label ?? null,
-        room_number:   form.room_id
+        room_number:   salleUnique && form.room_id
           ? (rooms.find(r => r.id === form.room_id)?.name ?? null)
-          : (form.room_number.trim() || null),
-        room_id:       form.room_id || null,
+          : (salleUnique ? (form.room_number.trim() || null) : null),
+        room_id:       salleUnique ? (form.room_id || null) : null,
         max_students:  parseInt(form.max_students, 10) || 30,
         description:   form.description.trim() || null,
         cotisation_type_id: form.cotisation_type_id || null,
@@ -639,6 +673,7 @@ export default function ClassForm({
           || slot.effective_until !== orig.effective_until
           || slot.unite_enseignement_id !== orig.unite_enseignement_id
           || slot.libelle !== orig.libelle
+          || slot.room_id !== orig.room_id
         if (!changed) continue
         verifierEcriture(
           await supabase.from('schedule_slots').update({
@@ -648,6 +683,7 @@ export default function ClassForm({
             effective_from:  slot.effective_from  || null,
             effective_until: slot.effective_until || null,
             ...intituleEnBase(slot),
+            room_id:         salleUnique ? null : (slot.room_id || null),
           }).eq('id', slot.id!).select('id'),
           'Ce creneau',
         )
@@ -668,7 +704,8 @@ export default function ClassForm({
             end_time:        slot.end_time,
             slot_type:       slot.slot_type,
             ...intituleEnBase(slot),
-            room_id:         form.room_id || null,
+            // Salle unique : portee par la classe (deduite) ; sinon celle du creneau.
+            room_id:         salleUnique ? null : (slot.room_id || null),
             is_active:       true,
             effective_from:  slot.effective_from  || null,
             effective_until: slot.effective_until || null,
@@ -723,9 +760,11 @@ export default function ClassForm({
             onChange={() => {}}
           />
 
+          <SwitchOuiNon label="Même salle pour tous les créneaux" checked={salleUnique} onChange={changerModeSalle} />
+
           <div className="grid grid-cols-2 gap-3">
-            <FloatSelect
-              label="Salle"
+            {salleUnique && <FloatSelect
+              label="Salle de la classe"
               value={form.room_id}
               onChange={e => {
                 const roomId = e.target.value
@@ -745,7 +784,7 @@ export default function ClassForm({
                   {r.name}{r.capacity ? ` (${r.capacity} places)` : ''}
                 </option>
               ))}
-            </FloatSelect>
+            </FloatSelect>}
             <FloatInput
               label="Capacité max"
               type="number"
@@ -1018,6 +1057,7 @@ export default function ClassForm({
                   <th className="list-th text-left">Horaire</th>
                   <th className="list-th text-left">Type</th>
                   <th className="list-th text-left">Intitulé</th>
+                  {!salleUnique && <th className="list-th text-left">Salle</th>}
                   <th className="list-th text-left">Du</th>
                   <th className="list-th text-left">Au</th>
                   <th className="list-th w-16" />
@@ -1045,6 +1085,11 @@ export default function ClassForm({
                       <td className="list-td text-secondary-700">
                         {intituleBrouillon(slot, matieres) ?? <span className="text-warm-700">·</span>}
                       </td>
+                      {!salleUnique && (
+                        <td className="list-td text-secondary-700 whitespace-nowrap">
+                          {rooms.find(r => r.id === slot.room_id)?.name ?? <span className="text-warm-700">·</span>}
+                        </td>
+                      )}
                       <td className="list-td text-secondary-700 whitespace-nowrap tabular-nums">
                         {slot.effective_from ? fmtDate(slot.effective_from) : <span className="text-warm-700">·</span>}
                       </td>
@@ -1098,6 +1143,7 @@ export default function ClassForm({
           currentSchoolYear={currentSchoolYear}
           days={workingDayNames}
           matieres={matieres}
+          salles={salleUnique ? null : sallesDeCours}
           onSave={handleSaveSlot}
           onCancel={() => { setShowSlotForm(false); setEditingSlotIdx(null); setSlotOverlapErr(null) }}
         />
@@ -1200,6 +1246,7 @@ function SlotFormModal({
   currentSchoolYear,
   days,
   matieres,
+  salles,
   onSave,
   onCancel,
 }: {
@@ -1208,6 +1255,8 @@ function SlotFormModal({
   currentSchoolYear?: { start_date: string | null; end_date: string | null } | null
   days: string[]
   matieres: MatiereOption[]
+  /** Salles de cours, quand la salle se choisit creneau par creneau ; `null` = salle unique de la classe. */
+  salles: RoomOption[] | null
   onSave: (slot: SlotDraft) => void
   onCancel: () => void
 }) {
@@ -1223,6 +1272,7 @@ function SlotFormModal({
   const [slotType,       setSlotType]       = useState<TypeCreneau>(initial?.slot_type ?? 'cours')
   const [ueId,           setUeId]           = useState(initial?.unite_enseignement_id ?? '')
   const [libelle,        setLibelle]        = useState(initial?.libelle ?? '')
+  const [roomId,         setRoomId]         = useState(initial?.room_id ?? '')
   const [err,            setErr]            = useState<string | null>(null)
   // Pas de fermeture sur Echap (FormModal) : on saisit ici des dates d'effet,
   // une touche reflexe ne doit pas faire perdre la saisie.
@@ -1237,6 +1287,7 @@ function SlotFormModal({
     && effectiveUntil === initial.effective_until
     && ueId === initial.unite_enseignement_id
     && libelle.trim() === initial.libelle
+    && roomId === initial.room_id
 
   const canSave = !!dayOfWeek && !!startTime && !!endTime && endTime > startTime && !!effectiveFrom && !isUnchanged
 
@@ -1258,6 +1309,7 @@ function SlotFormModal({
       slot_type: slotType,
       unite_enseignement_id: slotType === 'cours' ? ueId : '',
       libelle: slotType === 'activite' ? libelle.trim() : '',
+      room_id: salles ? roomId : '',
     })
   }
 
@@ -1306,6 +1358,15 @@ function SlotFormModal({
               maxLength={NOM_ACTIVITE_MAX}
               onChange={e => setLibelle(e.target.value)}
             />
+          )}
+
+          {salles && (
+            <FloatSelect label="Salle" value={roomId} onChange={e => setRoomId(e.target.value)}>
+              <option value=""></option>
+              {salles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}{r.capacity ? ` (${r.capacity} places)` : ''}</option>
+              ))}
+            </FloatSelect>
           )}
 
           <div className="grid grid-cols-3 gap-3">
