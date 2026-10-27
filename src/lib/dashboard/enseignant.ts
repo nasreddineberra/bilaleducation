@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
+import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
@@ -111,7 +112,7 @@ export async function chargerDonneesEnseignant(
     supabase.from('school_years').select('vacations, jours_feries').eq('id', annee.id).maybeSingle(),
     supabase.from('etablissements').select('week_start_day').maybeSingle(),
     supabase.from('class_teachers')
-      .select('class_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, academic_year, cotisation_types(is_adult))')
+      .select('class_id, teacher_id, is_main_teacher, effective_from, effective_until, classes!inner(id, name, academic_year, cotisation_types(is_adult))')
       .eq('teacher_id', moi).eq('classes.academic_year', annee.label),
     supabase.from('schedule_slots')
       .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active, cours(nom_fr), libelle, unites_enseignement(nom_fr), rooms(name), classes(name, cotisation_types(is_adult)))')
@@ -132,6 +133,9 @@ export async function chargerDonneesEnseignant(
   const estFerme = (d: string) => fermeLabel(d) !== null
 
   // Mes classes AUJOURD'HUI (titulaire ou remplacant, fenetre d'effet).
+  // Qui assure une seance : DEDUIT de mes affectations de titulaire (lib/edt/seance.ts),
+  // jamais lu sur le creneau. Mes remplacements arrivent par les seances (override).
+  const titulaireDe = indexTitulaires((ctRes.data ?? []) as AffectationSource[])
   const affectations = ((ctRes.data ?? []) as any[]).filter(ct =>
     (!ct.effective_from || ct.effective_from <= aujourdhui) && (!ct.effective_until || ct.effective_until >= aujourdhui))
   const mesClasses = new Map<string, { name: string; titulaire: boolean; adulte: boolean }>()
@@ -207,7 +211,7 @@ export async function chargerDonneesEnseignant(
       && (!a.start_time || !a.end_time || (a.start_time.slice(0, 5) < fin && a.end_time.slice(0, 5) > debut)))
 
   const miennes = (date: string): Seance[] =>
-    estFerme(date) ? [] : seancesDuJour(slots, exceptions, date).filter(s => s.teacherId === moi)
+    estFerme(date) ? [] : seancesDuJour(slots, exceptions, titulaireDe, date).filter(s => s.teacherId === moi)
 
   const versAffichage = (s: Seance): SeanceEnseignant => ({
     id: `${s.slotId}|${s.date}`,
@@ -221,7 +225,7 @@ export async function chargerDonneesEnseignant(
     remplacement: s.remplacement,
   })
 
-  const aValider = seancesAValider(slots, exceptions, validations, duValider, aujourdhui, maintenant, estFerme, jeSuisAbsent)
+  const aValider = seancesAValider(slots, exceptions, titulaireDe, validations, duValider, aujourdhui, maintenant, estFerme, jeSuisAbsent)
     .filter(s => s.teacherId === moi)
 
   // Prochaine seance : la premiere non annulee qui n'est pas terminee.
@@ -287,7 +291,7 @@ export async function chargerDonneesEnseignant(
   const classes = classIds.map(id => {
     const c = mesClasses.get(id)!
     const t = c.adulte ? null : tauxAssiduite(
-      slots.filter(s => s.class_id === id), exceptions, { [id]: effectif[id] ?? 0 },
+      slots.filter(s => s.class_id === id), exceptions, titulaireDe, { [id]: effectif[id] ?? 0 },
       absMois.filter(a => a.class_id === id), debutMois, aujourdhui, maintenant, estFerme)
     return {
       id, name: c.name, titulaire: c.titulaire, adulte: c.adulte, effectif: effectif[id] ?? 0,

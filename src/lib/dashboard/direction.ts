@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { FeeStatus, JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
+import { indexTitulaires, affectationsDesClasses } from '@/lib/edt/seance'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
@@ -119,7 +120,7 @@ export async function chargerDonneesDirection(
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', debutMois).lt('enrollment_date', finMois),
     supabase.from('parent_class_enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', debutMois).lt('enrollment_date', finMois),
     annee
-      ? supabase.from('classes').select('id, name, max_students, day_of_week, start_time, end_time, cotisation_types(is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
+      ? supabase.from('classes').select('id, name, max_students, day_of_week, start_time, end_time, cotisation_types(is_adult), class_teachers(teacher_id, is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
@@ -148,6 +149,8 @@ export async function chargerDonneesDirection(
   const fermeAujourdhui = jourFerme(aujourdhui, vacations, feries)
 
   const classesList = ((classesRes as any).data ?? []) as any[]
+  // Qui assure une seance : DEDUIT des titulaires (lib/edt/seance.ts), jamais lu sur le creneau.
+  const titulaireDe = indexTitulaires(affectationsDesClasses(classesList))
   const classIds = classesList.map(c => c.id)
   const slotsRaw = ((slotsRes as any).data ?? []) as any[]
   const slots = slotsRaw as SlotSource[]
@@ -208,7 +211,7 @@ export async function chargerDonneesDirection(
 
   const seances: SeanceAffichee[] = fermeAujourdhui
     ? []
-    : seancesDuJour(slots, exceptions, aujourdhui).map(s => ({
+    : seancesDuJour(slots, exceptions, titulaireDe, aujourdhui).map(s => ({
         id: s.slotId,
         debut: s.debut,
         fin: s.fin,
@@ -230,13 +233,13 @@ export async function chargerDonneesDirection(
       a.profile_id === profil && a.entry_date === date
       && (!a.start_time || !a.end_time || (a.start_time.slice(0, 5) < fin && a.end_time.slice(0, 5) > debut)))
   }
-  const aValider = seancesAValider(slots, exceptions, validations, duValider, aujourdhui, maintenant, estFerme, estAbsent)
+  const aValider = seancesAValider(slots, exceptions, titulaireDe, validations, duValider, aujourdhui, maintenant, estFerme, estAbsent)
 
   // ── Assiduite du mois (eleves : classes non adultes) ───────────────────────
   const effectifEleves: Record<string, number> = {}
   for (const c of classesList) if (!c.cotisation_types?.is_adult) effectifEleves[c.id] = parClasseEleves[c.id] ?? 0
   const absMois = ((absMoisRes as any).data ?? null) as any[] | null
-  const assiduite = tauxAssiduite(slots, exceptions, effectifEleves, absMois ?? [], debutMois, aujourdhui, maintenant, estFerme)
+  const assiduite = tauxAssiduite(slots, exceptions, titulaireDe, effectifEleves, absMois ?? [], debutMois, aujourdhui, maintenant, estFerme)
 
   // ── Tendance 30 jours ──────────────────────────────────────────────────────
   const parJour: Record<string, { justified: number; unjustified: number }> = {}

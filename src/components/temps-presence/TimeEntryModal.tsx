@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
+import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
@@ -43,6 +44,8 @@ interface Props {
   /** Creneaux de l'annee : un remplacant se designe PAR CRENEAU. */
   slots?: CreneauSource[]
   exceptions?: ExceptionSource[]
+  /** Affectations des classes : qui est titulaire, a quelle date. */
+  affectations?: AffectationSource[]
   classesById?: Record<string, string>
   teachers?: TeacherRef[]
 }
@@ -73,7 +76,8 @@ interface TeacherRef {
 }
 
 export default function TimeEntryModal({ date, entry, currentUserId, canManage, staffList, presenceTypes, existingEntries, onClose, onSaved, vacations = [], feries = [],
-  slots = [], exceptions = [], classesById = {}, teachers = [] }: Props) {
+  slots = [], exceptions = [], affectations = [], classesById = {}, teachers = [] }: Props) {
+  const titulaireDe = useMemo(() => indexTitulaires(affectations), [affectations])
   const supabase = createClient()
   const isEdit = !!entry
 
@@ -142,7 +146,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   const aCoursCeJour = (profilId: string) => {
     const tid = teachers.find(t => t.user_id === profilId)?.id
     if (!tid) return false
-    return creneauxDuJour(slots, exceptions, tid, date).some(cr => cr.slotType === 'cours')
+    return creneauxDuJour(slots, exceptions, titulaireDe, tid, date).some(cr => cr.slotType === 'cours')
   }
 
   const selectableStaff = isAbsence ? staffList.filter(m => aCoursCeJour(m.id)) : staffList
@@ -153,7 +157,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // de classe propages a l'emploi du temps, elles se saisissent directement ici.
   const teacherIdDuProfil = teachers.find(t => t.user_id === profileId)?.id ?? ''
 
-  const creneauxDuJourPersonne = creneauxDuJour(slots, exceptions, teacherIdDuProfil, date)
+  const creneauxDuJourPersonne = creneauxDuJour(slots, exceptions, titulaireDe, teacherIdDuProfil, date)
     .filter(cr => cr.slotType === 'cours')
 
   // Ceux effectivement manques : eux seuls appellent un remplacant.
@@ -171,7 +175,7 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
     //    enseignant en train d'assurer sa propre classe au meme moment.
     const tid = teachers.find(t => t.user_id === profilId)?.id
     if (tid) {
-      const sesCours = creneauxDuJour(slots, exceptions, tid, date)
+      const sesCours = creneauxDuJour(slots, exceptions, titulaireDe, tid, date)
       if (sesCours.some(c => cr.startTime < c.endTime && cr.endTime > c.startTime)) {
         return 'a déjà cours'
       }

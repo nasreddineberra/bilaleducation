@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
+import { indexTitulaires, affectationsDesClasses } from '@/lib/edt/seance'
 import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
@@ -76,7 +77,7 @@ export async function chargerDonneesSecretaire(
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', debutMois).lt('enrollment_date', finMois),
     supabase.from('parent_class_enrollments').select('id', { count: 'exact', head: true }).gte('enrollment_date', debutMois).lt('enrollment_date', finMois),
     annee
-      ? supabase.from('classes').select('id, name, max_students, day_of_week, start_time, end_time, cotisation_types(is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
+      ? supabase.from('classes').select('id, name, max_students, day_of_week, start_time, end_time, cotisation_types(is_adult), class_teachers(teacher_id, is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
@@ -110,6 +111,8 @@ export async function chargerDonneesSecretaire(
   const fermeAujourdhui = jourFerme(aujourdhui, vacations, feries)
 
   const classesList = ((classesRes as any).data ?? []) as any[]
+  // Qui assure une seance : DEDUIT des titulaires (lib/edt/seance.ts), jamais lu sur le creneau.
+  const titulaireDe = indexTitulaires(affectationsDesClasses(classesList))
   const nomClasse = new Map(classesList.map(c => [c.id as string, c.name as string]))
   const slotsRaw = ((slotsRes as any).data ?? []) as any[]
   const slots = slotsRaw as SlotSource[]
@@ -183,7 +186,7 @@ export async function chargerDonneesSecretaire(
   const nomProf = (id: string | null) => nomEnseignantCivilite(teacherParId.get(id ?? ''))
   const seances: SeanceSecretaire[] = fermeAujourdhui
     ? []
-    : seancesDuJour(slots, exceptions, aujourdhui).map(s => ({
+    : seancesDuJour(slots, exceptions, titulaireDe, aujourdhui).map(s => ({
         id: s.slotId,
         debut: s.debut,
         fin: s.fin,

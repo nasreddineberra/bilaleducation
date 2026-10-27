@@ -20,12 +20,16 @@
  *
  * Les dates circulent en `AAAA-MM-JJ` : la comparaison lexicographique de ce
  * format est exacte et evite le piege des fuseaux.
+ *
+ * Le titulaire d'un creneau est DEDUIT a la date (`lib/edt/seance.ts`), jamais
+ * lu sur le creneau : la copie s'y perimait au depart d'un titulaire.
  */
+import type { TitulaireDe } from './seance.ts'
+
 
 export interface CreneauSource {
   id: string
   class_id: string
-  teacher_id: string
   day_of_week: number | null
   start_time: string
   end_time: string
@@ -77,6 +81,7 @@ function jourSemaine(date: string): number {
 export function creneauxDuJour(
   slots: CreneauSource[],
   exceptions: ExceptionSource[],
+  titulaireDe: TitulaireDe,
   titulaireId: string,
   date: string,
 ): CreneauDuJour[] {
@@ -87,7 +92,7 @@ export function creneauxDuJour(
   return slots
     .filter(s => {
       if (!s.is_active) return false
-      if (s.teacher_id !== titulaireId) return false
+      if (titulaireDe(s.class_id, date) !== titulaireId) return false
 
       if (s.is_recurring) {
         if (s.day_of_week !== jour) return false
@@ -111,8 +116,8 @@ export function creneauxDuJour(
       return {
         slotId: s.id,
         classId: s.class_id,
-        titulaireId: s.teacher_id,
-        teacherId: ex?.override_teacher_id ?? s.teacher_id,
+        titulaireId,
+        teacherId: ex?.override_teacher_id ?? titulaireId,
         startTime: s.start_time.slice(0, 5),
         endTime: s.end_time.slice(0, 5),
         slotType: s.slot_type,

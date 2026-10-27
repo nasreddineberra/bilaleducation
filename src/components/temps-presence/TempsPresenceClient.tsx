@@ -9,6 +9,7 @@ import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
+import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { fmtDuration, findPresenceType } from '@/lib/temps-presence/format'
 import TimeEntryModal from './TimeEntryModal'
@@ -75,6 +76,8 @@ interface Props {
   /** Creneaux de l'annee : la modale designe un remplacant par creneau. */
   slots?: CreneauSource[]
   exceptions?: ExceptionSource[]
+  /** Affectations des classes : qui est titulaire, a quelle date. */
+  affectations?: AffectationSource[]
   classesById?: Record<string, string>
   teachers?: { id: string; user_id: string | null; first_name: string; last_name: string; civilite?: string | null }[]
   vacations?: VacationPeriod[]
@@ -240,7 +243,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
-  slots = [], exceptions = [], classesById = {}, teachers = [],
+  slots = [], exceptions = [], affectations = [], classesById = {}, teachers = [],
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
@@ -442,7 +445,7 @@ export default function TempsPresenceClient({
     if (supprimee && findPresenceType(presenceTypes, supprimee.entry_type)?.is_absence) {
       const teacherId = teachers.find(t => t.user_id === supprimee.profile_id)?.id
       if (teacherId) {
-        const sesCreneaux = creneauxDuJour(slots, exceptions, teacherId, supprimee.entry_date)
+        const sesCreneaux = creneauxDuJour(slots, exceptions, indexTitulaires(affectations), teacherId, supprimee.entry_date)
         const aRetirer = sesCreneaux.filter(cr => cr.remplacantId).map(cr => cr.slotId)
         if (aRetirer.length) {
           const echecRempl = erreurEcritureLot(
@@ -1036,6 +1039,7 @@ export default function TempsPresenceClient({
         <TimeEntryModal
           slots={slots}
           exceptions={exceptions}
+          affectations={affectations}
           classesById={classesById}
           teachers={teachers}
           vacations={vacations}

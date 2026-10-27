@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import TempsPresenceClient from '@/components/temps-presence/TempsPresenceClient'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { affectationsDesClasses } from '@/lib/edt/seance'
 
 export default async function TempsPresencePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: initialMonth } = await searchParams
@@ -62,9 +63,13 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     : { data: [] }
 
   const { data: classes } = currentYear
-    ? await supabase.from('classes').select('id, name').eq('academic_year', currentYear.label)
+    ? await supabase.from('classes')
+        .select('id, name, class_teachers(teacher_id, is_main_teacher, effective_from, effective_until)')
+        .eq('academic_year', currentYear.label)
     : { data: [] }
   const classesById = Object.fromEntries((classes ?? []).map(c => [c.id, c.name]))
+  // Titulaires dates : le titulaire d'un creneau est DEDUIT (lib/edt/seance.ts).
+  const affectations = affectationsDesClasses(classes ?? [])
 
   // `teachers.id` et non `profile_id` : c'est ce que portent `schedule_slots`
   // et `schedule_exceptions`. Le lien vers le compte passe par `user_id`.
@@ -120,6 +125,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         presenceTypes={(presenceTypes ?? []) as any[]}
         slots={(slots ?? []) as never[]}
         exceptions={(exceptions ?? []) as never[]}
+        affectations={affectations}
         classesById={classesById}
         teachers={(teachers ?? []) as never[]}
         vacations={(currentYear?.vacations as never[]) ?? []}

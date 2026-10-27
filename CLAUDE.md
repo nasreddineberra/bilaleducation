@@ -113,6 +113,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   ecrite par la base). Un retour dans l'annee annule le depart ; seul le DERNIER depart compte.
 - **Notes / bulletins** : gabarits a date obligatoire (ordre `lib/evaluations/ordre.ts`), absences
   reportees de l'appel, bulletins PDF bilingues FR/AR archives avec chiffres figes.
+- **Planning, absences, presence** : chantier en cours, conception validee
+  `docs/CONCEPTION-PLANNING-ABSENCES.md` (une information = un ecran qui l'ecrit ; lot 1 fait).
 - **EDT** : grille 15 min (8 h-19 h, elargie au creneau le plus matinal), creneaux recurrents avec dates
   d'effet, vacances et jours feries bloquants (`lib/school-year/jours-fermes.ts`). Creneau = cours (matiere
   = unite d'enseignement, facultative) ou activite (nom facultatif) ; type FIGE apres creation (il decide du
@@ -199,7 +201,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
   `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (titulaire actuel = principal
-  sans date de fin).
+  sans date de fin), `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
+  titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;

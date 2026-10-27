@@ -22,6 +22,7 @@ import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { intituleCreneau } from '@/lib/edt/intitule'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
+import { indexTitulaires, affectationsDesClasses, enseignantDeSeance } from '@/lib/edt/seance'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -640,6 +641,22 @@ export default function EmploiDuTempsClient({
 
   // Chevauchement d'HORAIRES, comme la garde en base. La demi-journee est
   // abandonnee : une absence de 9h a 10h ne bloquait plus toute la matinee.
+  // ── Qui assure une seance : DEDUIT (lib/edt/seance.ts), jamais lu sur le creneau ──
+  const titulaireDe = useMemo(() => indexTitulaires(affectationsDesClasses(classes)), [classes])
+  const quiAssure = useCallback(
+    (slot: SlotData, date: string, exception: ExceptionData | null) =>
+      enseignantDeSeance(slot.class_id, date, exception, titulaireDe),
+    [titulaireDe],
+  )
+  // Noms : la liste des enseignants, completee par ceux lus dans les affectations
+  // (un remplacant ne lit pas toujours la fiche du titulaire).
+  const enseignantParId = useMemo(() => {
+    const parId = new Map<string, { first_name: string; last_name: string; civilite?: string }>()
+    for (const c of classes) for (const ct of c.class_teachers ?? []) if (ct.teachers) parId.set(ct.teacher_id, ct.teachers)
+    for (const t of teachers) parId.set(t.id, t)
+    return (id: string | null) => (id ? parId.get(id) : undefined)
+  }, [classes, teachers])
+
   const enseignantAbsent = useCallback((teacherId: string | null, date: string, start: string, fin: string) => {
     if (!teacherId) return false
     const plages = absenceParEnseignant.get(`${teacherId}|${date}`)
@@ -681,18 +698,16 @@ export default function EmploiDuTempsClient({
           date,
           dayOfWeek: slot.day_of_week,
           class_id: slot.class_id,
-          teacher_id: exception.override_teacher_id ?? slot.teacher_id,
+          teacher_id: quiAssure(slot, date, exception).teacherId,
           cours_id: slot.cours_id,
           room_id: exception.override_room_id ?? slot.room_id,
           start_time: exception.override_start_time ?? slot.start_time,
           end_time: exception.override_end_time ?? slot.end_time,
           slot_type: slot.slot_type,
-          teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time, slot.end_time),
+          teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
           color: slot.color,
           classes: slot.classes,
-          teachers: exception.override_teacher_id
-            ? teachers.find(t => t.id === exception.override_teacher_id) as any
-            : slot.teachers,
+          teachers: enseignantParId(quiAssure(slot, date, exception).teacherId),
           cours: slot.cours,
           unites_enseignement: slot.unites_enseignement,
           unite_enseignement_id: slot.unite_enseignement_id,
@@ -711,16 +726,16 @@ export default function EmploiDuTempsClient({
           date,
           dayOfWeek: slot.day_of_week,
           class_id: slot.class_id,
-          teacher_id: slot.teacher_id,
+          teacher_id: quiAssure(slot, date, null).teacherId,
           cours_id: slot.cours_id,
           room_id: slot.room_id,
           start_time: slot.start_time,
           end_time: slot.end_time,
           slot_type: slot.slot_type,
-          teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
+          teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
           color: slot.color,
           classes: slot.classes,
-          teachers: slot.teachers,
+          teachers: enseignantParId(quiAssure(slot, date, null).teacherId),
           cours: slot.cours,
           unites_enseignement: slot.unites_enseignement,
           unite_enseignement_id: slot.unite_enseignement_id,
@@ -744,16 +759,16 @@ export default function EmploiDuTempsClient({
         date: slot.slot_date,
         dayOfWeek: d.getDay(),
         class_id: slot.class_id,
-        teacher_id: slot.teacher_id,
+        teacher_id: quiAssure(slot, slot.slot_date, null).teacherId,
         cours_id: slot.cours_id,
         room_id: slot.room_id,
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
-        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
+        teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, slot.slot_date), slot.slot_date, slot.start_time, slot.end_time),
         color: slot.color,
         classes: slot.classes,
-        teachers: slot.teachers,
+        teachers: enseignantParId(quiAssure(slot, slot.slot_date, null).teacherId),
         cours: slot.cours,
         unites_enseignement: slot.unites_enseignement,
         unite_enseignement_id: slot.unite_enseignement_id,
@@ -763,7 +778,7 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [slots, exceptions, weekDayDates, teachers, rooms, isSchoolDay, enseignantAbsent])
+  }, [slots, exceptions, weekDayDates, rooms, isSchoolDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId])
 
   // ─── Month-scoped resolved slots ─────────────────────────────────────────
 
@@ -819,18 +834,16 @@ export default function EmploiDuTempsClient({
             date,
             dayOfWeek: slot.day_of_week,
             class_id: slot.class_id,
-            teacher_id: exception.override_teacher_id ?? slot.teacher_id,
+            teacher_id: quiAssure(slot, date, exception).teacherId,
             cours_id: slot.cours_id,
             room_id: exception.override_room_id ?? slot.room_id,
             start_time: exception.override_start_time ?? slot.start_time,
             end_time: exception.override_end_time ?? slot.end_time,
             slot_type: slot.slot_type,
-            teacherAbsent: enseignantAbsent(slot.teacher_id, date, slot.start_time, slot.end_time),
+            teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
             color: slot.color,
             classes: slot.classes,
-            teachers: exception.override_teacher_id
-              ? teachers.find(t => t.id === exception.override_teacher_id) as any
-              : slot.teachers,
+            teachers: enseignantParId(quiAssure(slot, date, exception).teacherId),
             cours: slot.cours,
             unites_enseignement: slot.unites_enseignement,
             unite_enseignement_id: slot.unite_enseignement_id,
@@ -848,16 +861,16 @@ export default function EmploiDuTempsClient({
             date,
             dayOfWeek: slot.day_of_week,
             class_id: slot.class_id,
-            teacher_id: slot.teacher_id,
+            teacher_id: quiAssure(slot, date, null).teacherId,
             cours_id: slot.cours_id,
             room_id: slot.room_id,
             start_time: slot.start_time,
             end_time: slot.end_time,
             slot_type: slot.slot_type,
-            teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
+            teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
             color: slot.color,
             classes: slot.classes,
-            teachers: slot.teachers,
+            teachers: enseignantParId(quiAssure(slot, date, null).teacherId),
             cours: slot.cours,
             unites_enseignement: slot.unites_enseignement,
             unite_enseignement_id: slot.unite_enseignement_id,
@@ -882,16 +895,16 @@ export default function EmploiDuTempsClient({
         date: slot.slot_date,
         dayOfWeek: d.getDay(),
         class_id: slot.class_id,
-        teacher_id: slot.teacher_id,
+        teacher_id: quiAssure(slot, slot.slot_date, null).teacherId,
         cours_id: slot.cours_id,
         room_id: slot.room_id,
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
-        teacherAbsent: enseignantAbsent(slot.teacher_id, slot.slot_date!, slot.start_time, slot.end_time),
+        teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, slot.slot_date), slot.slot_date, slot.start_time, slot.end_time),
         color: slot.color,
         classes: slot.classes,
-        teachers: slot.teachers,
+        teachers: enseignantParId(quiAssure(slot, slot.slot_date, null).teacherId),
         cours: slot.cours,
         unites_enseignement: slot.unites_enseignement,
         unite_enseignement_id: slot.unite_enseignement_id,
@@ -901,7 +914,7 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [viewType, currentMonth, slots, exceptions, teachers, rooms, isSchoolDay, weekStartDay, enseignantAbsent])
+  }, [viewType, currentMonth, slots, exceptions, rooms, isSchoolDay, weekStartDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId])
 
   // Filter month slots by view mode
   const filteredMonthSlots = useMemo(() => {
@@ -1385,7 +1398,7 @@ export default function EmploiDuTempsClient({
     const needsOverride =
       data.start_time !== slot.start_time.slice(0, 5) ||
       data.end_time !== slot.end_time.slice(0, 5) ||
-      (data.teacher_id ?? null) !== (slot.teacher_id ?? null) ||
+      (data.teacher_id ?? null) !== titulaireDe(slot.class_id, data.exception_date) ||
       (data.room_id ?? null) !== (slot.room_id ?? null)
 
     if (!needsOverride) {
@@ -1404,7 +1417,7 @@ export default function EmploiDuTempsClient({
       exception_type: 'modified' as const,
       override_start_time: data.start_time !== slot.start_time.slice(0, 5) ? data.start_time : null,
       override_end_time: data.end_time !== slot.end_time.slice(0, 5) ? data.end_time : null,
-      override_teacher_id: (data.teacher_id ?? null) !== (slot.teacher_id ?? null) ? data.teacher_id : null,
+      override_teacher_id: (data.teacher_id ?? null) !== titulaireDe(slot.class_id, data.exception_date) ? data.teacher_id : null,
       override_room_id: (data.room_id ?? null) !== (slot.room_id ?? null) ? data.room_id : null,
     }
 
@@ -1433,7 +1446,7 @@ export default function EmploiDuTempsClient({
     setEditingSlot(null)
     setEditMode(null)
     setEditDate(null)
-  }, [supabase, slots, exceptions, refreshData, toastError])
+  }, [supabase, slots, exceptions, refreshData, toastError, titulaireDe])
 
   const handleDeleteSlot = useCallback(async (slotId: string, pivotDate?: string) => {
     const slot = slots.find(s => s.id === slotId)

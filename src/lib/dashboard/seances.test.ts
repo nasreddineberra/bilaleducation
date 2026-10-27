@@ -2,8 +2,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant, seancesSousAbsence,
-  type SlotSource, type ExceptionSource,
+  type SlotSource, type ExceptionSource, type TitulaireDe,
 } from './seances.ts'
+
+// Titulaire de toutes les classes : t1 (la regle elle-meme est eprouvee dans
+// lib/edt/seance.test.ts).
+const TIT: TitulaireDe = () => 't1'
 
 // 2026-10-17 est un samedi (day_of_week = 6).
 const SAMEDI = '2026-10-17'
@@ -34,7 +38,7 @@ test('seancesDuJour : jour, fenetre d effet, inactif, ponctuel', () => {
     slot({ id: 'e', day_of_week: 3 }),
     slot({ id: 'f', is_recurring: false, day_of_week: null, slot_date: SAMEDI, start_time: '08:00:00' }),
   ]
-  assert.deepEqual(seancesDuJour(slots, [], SAMEDI).map(s => s.slotId), ['f', 'a'])
+  assert.deepEqual(seancesDuJour(slots, [], TIT, SAMEDI).map(s => s.slotId), ['f', 'a'])
 })
 
 test('seancesDuJour : annulation, remplacement, horaire modifie', () => {
@@ -43,7 +47,7 @@ test('seancesDuJour : annulation, remplacement, horaire modifie', () => {
     ex({ schedule_slot_id: 's1', exception_type: 'cancelled' }),
     ex({ schedule_slot_id: 's2', override_teacher_id: 't9', override_start_time: '11:15:00' }),
   ]
-  const [a, b] = seancesDuJour(slots, exceptions, SAMEDI)
+  const [a, b] = seancesDuJour(slots, exceptions, TIT, SAMEDI)
   assert.equal(a.annulee, true)
   assert.equal(a.remplacement, false)
   assert.equal(b.remplacement, true)
@@ -53,7 +57,7 @@ test('seancesDuJour : annulation, remplacement, horaire modifie', () => {
 })
 
 test('statutSeance selon l heure et la validation', () => {
-  const [s] = seancesDuJour([slot({})], [], SAMEDI)
+  const [s] = seancesDuJour([slot({})], [], TIT, SAMEDI)
   const vides = new Set<string>()
   assert.equal(statutSeance(s, vides, SAMEDI, '08:00'), 'a_venir')
   assert.equal(statutSeance(s, vides, SAMEDI, '09:30'), 'en_cours')
@@ -68,14 +72,14 @@ test('seancesAValider exclut jours fermes, validees, annulees, absents', () => {
   // Samedis du 3, 10 et 17 octobre.
   const validations = [{ schedule_slot_id: 's1', validation_date: '2026-10-03' }]
   const ferme = (d: string) => d === '2026-10-10'
-  const tous = seancesAValider(slots, [], validations, '2026-10-01', SAMEDI, '12:00', ferme)
+  const tous = seancesAValider(slots, [], TIT, validations, '2026-10-01', SAMEDI, '12:00', ferme)
   assert.deepEqual(tous.map(s => s.date), ['2026-10-17'])
 
   const absent = (t: string | null, d: string) => t === 't1' && d === SAMEDI
-  assert.equal(seancesAValider(slots, [], validations, '2026-10-01', SAMEDI, '12:00', ferme, absent).length, 0)
+  assert.equal(seancesAValider(slots, [], TIT, validations, '2026-10-01', SAMEDI, '12:00', ferme, absent).length, 0)
 
   const annule = [ex({ exception_type: 'cancelled' })]
-  assert.equal(seancesAValider(slots, annule, validations, '2026-10-01', SAMEDI, '12:00', ferme).length, 0)
+  assert.equal(seancesAValider(slots, annule, TIT, validations, '2026-10-01', SAMEDI, '12:00', ferme).length, 0)
 })
 
 test('tauxAssiduite : un jour de classe par classe, absences dedoublonnees', () => {
@@ -87,13 +91,13 @@ test('tauxAssiduite : un jour de classe par classe, absences dedoublonnees', () 
     { student_id: 'e2', class_id: 'c1', absence_date: '2026-10-17' },
     { student_id: 'e3', class_id: 'c1', absence_date: '2026-10-16' }, // pas un jour de classe
   ]
-  const r = tauxAssiduite(slots, [], { c1: 10 }, absences, '2026-10-05', SAMEDI, '12:00', () => false)
+  const r = tauxAssiduite(slots, [], TIT, { c1: 10 }, absences, '2026-10-05', SAMEDI, '12:00', () => false)
   assert.deepEqual(r, { taux: 90, attendues: 20, absences: 2 })
 })
 
 test('tauxAssiduite : null sans cours, seance pas commencee ignoree', () => {
-  assert.equal(tauxAssiduite([slot({})], [], { c1: 10 }, [], SAMEDI, SAMEDI, '08:00', () => false), null)
-  assert.equal(tauxAssiduite([slot({})], [], {}, [], SAMEDI, SAMEDI, '12:00', () => false), null)
+  assert.equal(tauxAssiduite([slot({})], [], TIT, { c1: 10 }, [], SAMEDI, SAMEDI, '08:00', () => false), null)
+  assert.equal(tauxAssiduite([slot({})], [], TIT, {}, [], SAMEDI, SAMEDI, '12:00', () => false), null)
 })
 
 test('seancesSousAbsence : a remplacer, remplacee, annulee et jour ferme exclus', () => {
@@ -107,7 +111,10 @@ test('seancesSousAbsence : a remplacer, remplacee, annulee et jour ferme exclus'
     { schedule_slot_id: 'c', exception_date: SAMEDI, exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null },
   ]
   const absents = new Set(['t1', 't2'])
-  const r = seancesSousAbsence(slots, ex, SAMEDI, SAMEDI, () => false, t => absents.has(t ?? ''))
+  // Titulaire DEDUIT de la classe (et non lu sur le creneau) : c2 a pour titulaire t2.
+  const titulaires: Record<string, string> = { c1: 't1', c2: 't2', c3: 't1' }
+  const TIT: TitulaireDe = classe => titulaires[classe] ?? null
+  const r = seancesSousAbsence(slots, ex, TIT, SAMEDI, SAMEDI, () => false, t => absents.has(t ?? ''))
   assert.deepEqual(r.map(x => [x.seance.slotId, x.statut, x.absentId]), [['a', 'a_remplacer', 't1'], ['b', 'remplacee', 't2']])
-  assert.equal(seancesSousAbsence(slots, ex, SAMEDI, SAMEDI, () => true, t => absents.has(t ?? '')).length, 0)
+  assert.equal(seancesSousAbsence(slots, ex, TIT, SAMEDI, SAMEDI, () => true, t => absents.has(t ?? '')).length, 0)
 })

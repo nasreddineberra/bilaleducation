@@ -9579,3 +9579,21 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   Enseignant FACULTATIF dans la modale (creneau « Prof non affecte »), sauf pour modifier une seule seance
   d'un creneau qui en a un. Valider un creneau sans enseignant : refus explicite (avant : message trompeur
   « pas de compte utilisateur »).
+
+### 27/10 · Planning et absences : conception validee, lot 1 (qui assure une seance)
+
+- **Constat utilisateur** : on pouvait modifier un creneau de partout (fiche classe, EDT serie / seance /
+  glisser, Temps de presence) ; quatre facons de dire qui enseigne. Conception redigee et validee :
+  `docs/CONCEPTION-PLANNING-ABSENCES.md` (une information = un seul ecran qui l'ecrit ; page « Absences
+  enseignants » seul chemin des remplacements ; EDT en lecture + actions ponctuelles ; « annulee » et « Prof
+  non affecte » distincts ; familles prevenues d'une annulation ; demi-journee ; enseignant voit ses absences).
+  Mesure : ecole reelle sans aucun creneau, demo 7 : moment ideal pour changer de modele.
+- **Lot 1** : regle unique `lib/edt/seance.ts` (`indexTitulaires`, `enseignantDeSeance`, testee) : l'enseignant
+  d'une seance est DEDUIT a sa date (annulee, remplacant de la seance, titulaire EN POSTE ce jour-la, sinon
+  personne), plus lu sur `schedule_slots.teacher_id`. Branchee sur l'EDT (6 resolutions semaine / mois),
+  les 4 tableaux de bord (`seances.ts`), Temps de presence (`creneauxDuJour`) et l'enregistrement d'une seance
+  modifiee. Effet visible : les seances PASSEES d'une classe dont le titulaire est parti portent son nom
+  (historiquement juste). Les ecritures de `teacher_id` (report depuis la fiche classe) restent : lot 5.
+- **Defaut trouve** : sur une seance recurrente non modifiee, l'absence de l'enseignant etait cherchee a
+  `slot.slot_date` (vide pour un recurrent) : jamais detectee (ni hachures ni refus de validation). Corrige
+  (date de la seance).

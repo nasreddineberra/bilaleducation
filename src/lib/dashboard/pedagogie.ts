@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { JourFerie, VacationPeriod } from '@/types/database'
 import { intitulePropre } from '@/lib/edt/intitule'
+import { indexTitulaires, affectationsDesClasses } from '@/lib/edt/seance'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import {
@@ -95,7 +96,7 @@ export async function chargerDonneesPedagogie(
   ] = await Promise.all([
     annee ? supabase.from('school_years').select('vacations, jours_feries').eq('id', annee.id).maybeSingle() : Promise.resolve({ data: null }),
     annee
-      ? supabase.from('classes').select('id, name, cotisation_types(is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
+      ? supabase.from('classes').select('id, name, cotisation_types(is_adult), class_teachers(teacher_id, is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))').eq('academic_year', annee.label).order('name')
       : Promise.resolve({ data: [] }),
     annee
       ? supabase.from('schedule_slots')
@@ -128,6 +129,8 @@ export async function chargerDonneesPedagogie(
   const fermeAujourdhui = jourFerme(aujourdhui, vacations, feries)
 
   const classesList = ((classesRes as any).data ?? []) as any[]
+  // Qui assure une seance : DEDUIT des titulaires (lib/edt/seance.ts), jamais lu sur le creneau.
+  const titulaireDe = indexTitulaires(affectationsDesClasses(classesList))
   const classIds = classesList.map(c => c.id)
   const nomClasse = new Map(classesList.map(c => [c.id as string, c.name as string]))
   const slotsRaw = ((slotsRes as any).data ?? []) as any[]
@@ -189,7 +192,7 @@ export async function chargerDonneesPedagogie(
 
   const seances: SeancePedago[] = fermeAujourdhui
     ? []
-    : seancesDuJour(slots, exceptions, aujourdhui).map(s => ({
+    : seancesDuJour(slots, exceptions, titulaireDe, aujourdhui).map(s => ({
         id: s.slotId,
         debut: s.debut,
         fin: s.fin,
@@ -203,13 +206,13 @@ export async function chargerDonneesPedagogie(
         cahier: cahierDuJour.has(s.classId),
       }))
 
-  const aValider = seancesAValider(slots, exceptions, validations, duValider, aujourdhui, maintenant, estFerme, estAbsent)
+  const aValider = seancesAValider(slots, exceptions, titulaireDe, validations, duValider, aujourdhui, maintenant, estFerme, estAbsent)
 
   // ── Assiduite du mois (eleves : classes non adultes) ───────────────────────
   const effectifEleves: Record<string, number> = {}
   for (const c of classesList) if (!c.cotisation_types?.is_adult) effectifEleves[c.id] = parClasseEleves[c.id] ?? 0
   const absMois = ((absMoisRes as any).data ?? null) as any[] | null
-  const assiduite = tauxAssiduite(slots, exceptions, effectifEleves, absMois ?? [], debutMois, aujourdhui, maintenant, estFerme)
+  const assiduite = tauxAssiduite(slots, exceptions, titulaireDe, effectifEleves, absMois ?? [], debutMois, aujourdhui, maintenant, estFerme)
   const parJour: Record<string, number> = {}
   for (const a of (((absTendanceRes as any).data ?? []) as any[])) {
     const k = String(a.absence_date).slice(0, 10)
@@ -272,14 +275,14 @@ export async function chargerDonneesPedagogie(
   const ontEuCours = new Set<string>()
   for (let d = il14j; d <= aujourdhui; d = jourSuivant(d)) {
     if (estFerme(d)) continue
-    for (const s of seancesDuJour(slots, exceptions, d)) {
+    for (const s of seancesDuJour(slots, exceptions, titulaireDe, d)) {
       if (!s.annulee && (d < aujourdhui || s.debut <= maintenant)) ontEuCours.add(s.classId)
     }
   }
   const classesSansCahier = [...ontEuCours].filter(id => !cahierRecent.has(id)).length
 
   // Equipe : seances des 7 prochains jours touchees par une absence.
-  const sousAbsence = seancesSousAbsence(slots, exceptions, aujourdhui, dans7j, estFerme, estAbsent)
+  const sousAbsence = seancesSousAbsence(slots, exceptions, titulaireDe, aujourdhui, dans7j, estFerme, estAbsent)
   const parAbsence = new Map<string, DonneesPedagogie['equipe'][number] & { _classes: Set<string> }>()
   for (const { seance: s, statut, absentId } of sousAbsence) {
     const k = `${absentId}|${s.date}|${statut}`

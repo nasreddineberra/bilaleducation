@@ -9,10 +9,17 @@
  * garde que la question posee — pour TOUTES les classes, la ou l'autre suit un
  * seul enseignant.
  *
- * Module PUR, sans import : les jours fermes et les absences du personnel sont
- * passes en fonctions, ce qui le rend eprouvable par `node --test`.
+ * Module PUR (seul import : la regle « qui assure la seance », pure elle aussi) :
+ * les jours fermes, les absences du personnel et les titulaires sont passes en
+ * fonctions, ce qui le rend eprouvable par `node --test`.
+ * L'enseignant d'une seance est DEDUIT (`lib/edt/seance.ts`), jamais lu sur le
+ * creneau.
  * Dates en `AAAA-MM-JJ`, heures en `HH:MM` : la comparaison de chaines est exacte.
  */
+
+import { enseignantDeSeance, type TitulaireDe } from '../edt/seance.ts'
+
+export type { TitulaireDe }
 
 export interface SlotSource {
   id: string
@@ -89,14 +96,14 @@ function aLieuCeJour(s: SlotSource, date: string): boolean {
 export function seancesDuJour(
   slots: SlotSource[],
   exceptions: ExceptionSource[],
+  titulaireDe: TitulaireDe,
   date: string,
 ): Seance[] {
   return slots
     .filter(s => aLieuCeJour(s, date))
     .map(s => {
       const ex = exceptions.find(e => e.schedule_slot_id === s.id && e.exception_date === date)
-      const annulee = ex?.exception_type === 'cancelled'
-      const remplacant = !annulee ? ex?.override_teacher_id ?? null : null
+      const qui = enseignantDeSeance(s.class_id, date, ex, titulaireDe)
       return {
         slotId: s.id,
         classId: s.class_id,
@@ -104,10 +111,10 @@ export function seancesDuJour(
         debut: (ex?.override_start_time ?? s.start_time).slice(0, 5),
         fin: (ex?.override_end_time ?? s.end_time).slice(0, 5),
         slotType: s.slot_type,
-        teacherId: remplacant ?? s.teacher_id,
-        titulaireId: s.teacher_id,
-        remplacement: !!remplacant && remplacant !== s.teacher_id,
-        annulee,
+        teacherId: qui.teacherId,
+        titulaireId: qui.titulaireId,
+        remplacement: qui.remplacement,
+        annulee: qui.annulee,
       }
     })
     .sort((a, b) => a.debut.localeCompare(b.debut) || a.fin.localeCompare(b.fin))
@@ -149,6 +156,7 @@ export function ensembleValidations(validations: ValidationSource[]): Set<string
 export function seancesAValider(
   slots: SlotSource[],
   exceptions: ExceptionSource[],
+  titulaireDe: TitulaireDe,
   validations: ValidationSource[],
   du: string,
   aujourdhui: string,
@@ -160,7 +168,7 @@ export function seancesAValider(
   const resultat: Seance[] = []
   for (let date = du; date <= aujourdhui; date = jourSuivant(date)) {
     if (estFerme(date)) continue
-    for (const s of seancesDuJour(slots, exceptions, date)) {
+    for (const s of seancesDuJour(slots, exceptions, titulaireDe, date)) {
       if (statutSeance(s, validees, aujourdhui, maintenant) !== 'a_valider') continue
       if (estAbsent(s.teacherId, date, s.debut, s.fin)) continue
       resultat.push(s)
@@ -184,6 +192,7 @@ export function seancesAValider(
 export function tauxAssiduite(
   slots: SlotSource[],
   exceptions: ExceptionSource[],
+  titulaireDe: TitulaireDe,
   effectifParClasse: Record<string, number>,
   absences: { student_id: string; class_id: string; absence_date: string }[],
   du: string,
@@ -194,7 +203,7 @@ export function tauxAssiduite(
   const joursDeClasse = new Set<string>()
   for (let date = du; date <= aujourdhui; date = jourSuivant(date)) {
     if (estFerme(date)) continue
-    for (const s of seancesDuJour(slots, exceptions, date)) {
+    for (const s of seancesDuJour(slots, exceptions, titulaireDe, date)) {
       if (s.annulee || !(s.classId in effectifParClasse)) continue
       if (date === aujourdhui && s.debut > maintenant) continue
       joursDeClasse.add(`${s.classId}|${date}`)
@@ -229,6 +238,7 @@ export function tauxAssiduite(
 export function seancesSousAbsence(
   slots: SlotSource[],
   exceptions: ExceptionSource[],
+  titulaireDe: TitulaireDe,
   du: string,
   au: string,
   estFerme: (date: string) => boolean,
@@ -237,7 +247,7 @@ export function seancesSousAbsence(
   const resultat: { seance: Seance; statut: 'a_remplacer' | 'remplacee'; absentId: string }[] = []
   for (let date = du; date <= au; date = jourSuivant(date)) {
     if (estFerme(date)) continue
-    for (const s of seancesDuJour(slots, exceptions, date)) {
+    for (const s of seancesDuJour(slots, exceptions, titulaireDe, date)) {
       if (s.annulee) continue
       if (s.teacherId && estAbsent(s.teacherId, date, s.debut, s.fin)) {
         resultat.push({ seance: s, statut: 'a_remplacer', absentId: s.teacherId })
