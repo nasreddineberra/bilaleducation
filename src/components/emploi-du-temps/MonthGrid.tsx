@@ -2,7 +2,7 @@
 
 import { clsx } from 'clsx'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
-import { nomEnseignant } from '@/lib/teachers/nom'
+import { nomCourtEnseignant, nomCompletEnseignant } from '@/lib/teachers/nom'
 import { intituleCreneau, libelleSalle } from '@/lib/edt/intitule'
 import Tooltip from '@/components/ui/Tooltip'
 
@@ -184,7 +184,7 @@ function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedS
             slot.annulee ? 'ANNULÉ' : null,
             viewMode !== 'class' ? slot.classes?.name : null,
             intituleCreneau(slot),
-            viewMode !== 'teacher' && !slot.annulee ? (slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
+            viewMode !== 'teacher' && !slot.annulee ? (slot.teacher_id ? (slot.teachers ? nomCompletEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
             slot.rooms?.name ? libelleSalle(slot.rooms.name) : null,
           ].filter(Boolean)
           return (
@@ -224,7 +224,7 @@ function MonthSlotCapsule({
   if (slot.annulee) ariaParts.unshift('séance annulée')
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
   ariaParts.push(intituleCreneau(slot))
-  if (viewMode !== 'teacher') ariaParts.push(slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : '') : 'Prof non affecté')
+  if (viewMode !== 'teacher') ariaParts.push(slot.teacher_id ? (slot.teachers ? nomCompletEnseignant(slot.teachers) : '') : 'Prof non affecté')
   const ariaLabel = ariaParts.filter(Boolean).join(', ')
 
   return (
@@ -277,7 +277,7 @@ function MonthSlotCapsule({
       )}
       {viewMode !== 'teacher' && slot.teacher_id && slot.teachers && !slot.annulee && (
         <span className="text-[8px] font-bold ml-0.5">
-          {nomEnseignant(slot.teachers)}
+          {nomCourtEnseignant(slot.teachers)}
         </span>
       )}
     </div>

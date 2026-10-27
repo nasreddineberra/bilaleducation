@@ -21,6 +21,12 @@
  * ou la nommer dans une phrase : sélecteurs, messages de confirmation,
  * courriers. C'est la forme arrêtée le 18 juillet.
  *
+ * `nomCourtEnseignant` — Civilité NOM, sans prénom. Pour la CAPSULE de l'emploi
+ * du temps (décision du 27/10, qui revient sur `nomEnseignant` à cet endroit) :
+ * une ligne, quelle que soit la durée du créneau. Le nom complet reste dans
+ * l'infobulle, ce qui lève l'ambiguïté de deux homonymes. Civilité absente ou
+ * non reconnue : le NOM seul (jamais « M. » par défaut).
+ *
  * ── CIVILITÉ ───────────────────────────────────────────────────────────────
  *
  * La colonne est libre en base ; seul « Mme » est reconnu, tout le reste
@@ -39,6 +45,19 @@ type Personne = {
 export function nomEnseignant(p: Personne): string {
   if (!p) return ''
   return `${p.last_name} ${p.first_name}`.trim()
+}
+
+/** Civilité NOM (sans prénom), ou NOM seul sans civilité reconnue. Chaîne vide si absente. */
+export function nomCourtEnseignant(p: Personne): string {
+  if (!p) return ''
+  const civ = p.civilite === 'Mme' || p.civilite === 'M.' ? p.civilite : null
+  return civ ? `${civ} ${p.last_name}`.trim() : p.last_name.trim()
+}
+
+/** Civilité NOM Prénom, ou NOM Prénom sans civilité reconnue (infobulles de l'EDT). */
+export function nomCompletEnseignant(p: Personne): string {
+  if (!p) return ''
+  return `${nomCourtEnseignant(p)} ${p.first_name}`.trim()
 }
 
 /** Civilité NOM Prénom. Chaîne vide si la personne est absente. */

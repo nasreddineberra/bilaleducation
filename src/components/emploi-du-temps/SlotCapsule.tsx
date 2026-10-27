@@ -6,7 +6,7 @@ import { Check, CalendarDays, MoreVertical, Ban } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
-import { nomEnseignant } from '@/lib/teachers/nom'
+import { nomEnseignant, nomCourtEnseignant, nomCompletEnseignant as nomComplet } from '@/lib/teachers/nom'
 import { dureeMinutes } from '@/lib/edt/temps'
 import { intituleCreneau, libelleSalle } from '@/lib/edt/intitule'
 
@@ -126,7 +126,7 @@ export default function SlotCapsule({
   if (viewMode !== 'class' && slot.classes) infoLignes.push(slot.classes.name)
   infoLignes.push(libelleCours)
   if (annulee) infoLignes.unshift('Séance annulée')
-  if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
+  if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomComplet(slot.teachers))
   if (slot.rooms) infoLignes.push(libelleSalle(slot.rooms.name))
   infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
   if (validated) infoLignes.push('Présence validée')
@@ -135,7 +135,7 @@ export default function SlotCapsule({
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
   ariaParts.push(libelleCours)
   if (annulee) ariaParts.unshift('séance annulée')
-  if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
+  if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomComplet(slot.teachers))
   if (slot.rooms) ariaParts.push(libelleSalle(slot.rooms.name))
   ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
   if (validated) ariaParts.push('présence validée')
@@ -223,24 +223,13 @@ export default function SlotCapsule({
             </div>
           )}
 
-          {/* Enseignant (vues globale / classe), en gras. Créneau long : NOM et
-              prénom sur DEUX lignes (demande du 29/09 : sur une seule, le
-              `truncate` emportait le prénom). Créneau court : une seule ligne,
-              sinon cinq lignes ne tiennent pas dans une heure ; le nom complet
-              reste dans l'infobulle. */}
+          {/* Enseignant (vues globale / classe), en gras : « Mme NOM » sur une ligne,
+              quelle que soit la duree (decision du 27/10). Le nom complet, prenom
+              compris, reste dans l'infobulle. */}
           {viewMode !== 'teacher' && !noTeacher && slot.teachers && !minimal && (
-            court ? (
-              <div className="text-[9px] leading-tight font-bold truncate">
-                {nomEnseignant(slot.teachers)}
-              </div>
-            ) : (
-              <div className="text-[9px] leading-tight font-bold">
-                <div className="truncate">{slot.teachers.last_name}</div>
-                {slot.teachers.first_name && (
-                  <div className="truncate">{slot.teachers.first_name}</div>
-                )}
-              </div>
-            )
+            <div className="text-[9px] leading-tight font-bold truncate">
+              {nomCourtEnseignant(slot.teachers)}
+            </div>
           )}
 
           {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
