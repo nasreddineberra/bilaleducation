@@ -8,6 +8,7 @@ import { checkCsrf } from '@/lib/security/csrf'
 import { logger } from '@/lib/logger'
 import { coque, p } from '@/lib/email/shell.mjs'
 import { marqueEcole } from '@/lib/email/marque-ecole'
+import { accordGenre } from '@/lib/texte/genre'
 
 export async function POST(req: NextRequest) {
   // Protection CSRF
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
       // Récupérer les infos de l'élève et de la classe
       const { data: student } = await supabase
         .from('students')
-        .select('first_name, last_name')
+        .select('first_name, last_name, gender')
         .eq('id', studentId)
         .eq('etablissement_id', etablissementId)   // le service-role ignore la RLS
         .maybeSingle()
@@ -73,7 +74,6 @@ export async function POST(req: NextRequest) {
 
       for (const entry of entries) {
         const isRetard = entry.absence_type === 'retard'
-        const typeLabel = isRetard ? 'en retard' : 'absent(e)'
         const typeNotif = isRetard ? 'retard' as const : 'absence' as const
         const dateFormatted = formatJourLongFr(entry.absence_date)
 
@@ -81,7 +81,11 @@ export async function POST(req: NextRequest) {
           ? `Retard de ${student.last_name} ${student.first_name}`
           : `Absence de ${student.last_name} ${student.first_name}`
 
-        const body = `${student.last_name} ${student.first_name} a été marqué(e) ${typeLabel} le ${dateFormatted}${className ? ` · Classe ${className}` : ''}.`
+        const nom = `${student.last_name} ${student.first_name}`
+        const quoi = isRetard
+          ? accordGenre(student.gender, `${nom} a été marqué en retard`, `${nom} a été marquée en retard`, `Retard enregistré pour ${nom}`)
+          : accordGenre(student.gender, `${nom} a été marqué absent`, `${nom} a été marquée absente`, `Absence enregistrée pour ${nom}`)
+        const body = `${quoi} le ${dateFormatted}${className ? ` · Classe ${className}` : ''}.`
 
         const ecole = await marqueEcole(supabase, etablissementId)
 

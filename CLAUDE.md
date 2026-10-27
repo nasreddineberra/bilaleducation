@@ -37,7 +37,7 @@ Application de gestion scolaire (ecoles du soir / week-end : enfants ET cours ad
 
 ```bash
 npm run build
-npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~500 avertissements (any)
+npm run lint         # ESLint 9 (eslint.config.mjs) : 0 erreur ; ~680 avertissements (any)
 npm run type-check
 npm test             # node --test natif, 0 dependance (src/**/*.test.ts, scripts/**/*.test.mjs)
 npm run sauvegarde   # sauvegarde locale complete (scripts/sauvegarder.mjs)
@@ -187,7 +187,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/parents/situation-familiale.ts`, `lib/temps-presence/*`, `lib/evaluations/ordre.ts`,
   `lib/closure/ordre.ts`, `lib/mobile.ts`, `lib/navigation/retour.ts`, `lib/supabase/ecriture.ts`,
   `lib/tenant/*`, `lib/pdf/ouvrir.ts`, `lib/cahier-texte/commun.ts`, `tonCategorie()` (support),
-  `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche).
+  `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
+  `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
+  `lib/students/photo.ts`.
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;
@@ -358,9 +360,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
 3. **Messagerie** : DMARC `p=none` -> `quarantine` -> `reject` quand les rapports sont propres ;
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
-   (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des ~500 `any` ;
-   accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon d'apprenant) ; « Supprimer » la
-   photo efface le FICHIER avant l'enregistrement de la fiche (fiche abandonnee = chemin orphelin).
+   (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des `any`
+   (676 dans 101 fichiers au 27/10, dont 147 dans `lib/dashboard` et 87 dans `lib/closure`).
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).

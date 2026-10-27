@@ -12,6 +12,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { Puce } from '@/components/dashboard/tdb'
 import { saveStudentEnrollments, verifierRetraitEleve } from '@/app/dashboard/affectation/actions'
+import { accordGenre } from '@/lib/texte/genre'
 
 // 20 lignes par page (choix utilisateur) : la mise en page est resserree pour
 // qu'elles tiennent sans barre de defilement (gap-2, pas de marge sous les bandeaux).
@@ -123,7 +124,7 @@ function StudentTooltip({ student, top, left }: { student: StudentRow; top: numb
         <span className="block border-t border-white/10 mb-2" />
         {/* Naissance + âge */}
         <span className="block text-secondary-300">
-          Né(e) le <span className="text-white font-medium">{fmtDate(student.date_of_birth)}</span>
+          {accordGenre(student.gender, 'Né le', 'Née le', 'Date de naissance')} <span className="text-white font-medium">{fmtDate(student.date_of_birth)}</span>
           <span className="ml-1 text-secondary-400">({calcAge(student.date_of_birth)} ans)</span>
         </span>
         {/* PAI */}

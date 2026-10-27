@@ -17,6 +17,16 @@ export const VALIDITE_PHOTO = 3600
 /** 500 Ko (decision du 27/10), meme borne que `file_size_limit` du bucket. */
 export const TAILLE_MAX_PHOTO = 512_000
 
+/**
+ * Retire un fichier photo. A n'appeler que sur un fichier qu'AUCUNE fiche ne
+ * reference plus (la ligne d'abord, le fichier ensuite). Un echec n'interrompt
+ * rien : il laisse un fichier orphelin, prive, efface avec l'ecole.
+ */
+export async function retirerPhoto(supabase: SupabaseClient, chemin: string): Promise<void> {
+  const { error } = await supabase.storage.from(BUCKET_PHOTOS).remove([chemin])
+  if (error) console.error('[photo] fichier non retire :', chemin, error.message)
+}
+
 /** Adresses signees des chemins donnes (les vides sont ignores), par chemin. */
 export async function signerPhotos(
   supabase: SupabaseClient,

@@ -9497,3 +9497,22 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **Piege repaye** : la ligne d'enregistrement prise en ligne 2 de `--ligne` (le commentaire) au lieu de la 3 ;
   la migration est passee sans s'enregistrer, fichier corrige puis rejoue (idempotent).
 - **Signale, non traite** : « Supprimer » la photo efface le fichier AVANT l'enregistrement de la fiche.
+
+#### 27 octobre 2026 — Trombinoscope, modales photo, cycle de vie du fichier, accords en genre
+
+- **Trombinoscope** : la photo avait une taille propre (78 x 104) dans un cadre de 60 x 80 a `overflow-hidden` :
+  seul le coin haut gauche se voyait (silhouettes coupees aussi). Elle remplit desormais son cadre.
+- **Modales photo** : recadrage et webcam en `FormModal`, `FloatButton`, zoom au vert de marque ; bloc photo sans
+  icones, vert de marque, suppression en `ConfirmModal`.
+- **Fichier photo : rien avant Valider / Modifier** (decision utilisateur) : ajout, remplacement et suppression
+  ne sont que de la SAISIE. L'image recadree reste en memoire (apercu local) ; « Supprimer » vide la vignette.
+  Au clic : envoi du fichier (neuf, jamais sur place), puis la fiche ; si la fiche echoue, le fichier envoye est
+  retire (catch) ; si elle reussit, l'ANCIEN fichier part ensuite (la ligne d'abord). Quitter la page, Annuler,
+  fermer l'onglet : rien n'a ete envoye. Seul orphelin possible : une coupure entre l'envoi et la fiche.
+  Une premiere version (envoi au recadrage, nettoyage sur Annuler) laissait un fichier si l'on quittait la page
+  autrement : refusee.
+- **Accords en genre** : source unique `lib/texte/genre.ts` (`accordGenre(genre, masculin, feminin, neutre)`,
+  testee). « Ne(e) le » (Affectations), notification d'absence (« marquee absente », « marque en retard »),
+  doublon d'apprenant. Hors masculin / feminin, une TOURNURE NEUTRE (« Date de naissance », « Absence enregistree
+  pour ... »), jamais « (e) ». Base au 27/10 : 124 garcons, 112 filles, aucun genre vide.
+- **`any` mesures** : 676 dans 101 fichiers (et non ~500), 147 dans `lib/dashboard`, 87 dans `lib/closure`.

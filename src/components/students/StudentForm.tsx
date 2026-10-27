@@ -15,7 +15,8 @@ import { suffixeLateral } from '@/lib/navigation/retour'
 import { sameName } from '@/lib/normalize-name'
 import { messageDoublon } from '@/lib/doublons'
 import { messageLimiteInscrits } from '@/lib/tenant/limite-inscrits'
-import { BUCKET_PHOTOS, TAILLE_MAX_PHOTO, signerPhotos } from '@/lib/students/photo'
+import { BUCKET_PHOTOS, TAILLE_MAX_PHOTO, signerPhotos, retirerPhoto } from '@/lib/students/photo'
+import { accordGenre } from '@/lib/texte/genre'
 import { FloatInput, FloatSelect, FloatTextarea, FloatCheckbox, FloatButton, SwitchOuiNon } from '@/components/ui/FloatFields'
 import Tooltip from '@/components/ui/Tooltip'
 import FormModal from '@/components/ui/FormModal'
@@ -142,7 +143,11 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   const originalNumber  = useRef(student?.student_number ?? defaultStudentNumber ?? '')
   const initialForm     = useRef<FormData>({ ...form })
 
+  // Photo : `photoUrl` = chemin enregistre conserve (null si supprime dans la
+  // saisie) ; `nouvellePhoto` = image recadree, gardee EN MEMOIRE. Rien ne part
+  // en base avant le clic sur Valider / Modifier (decision du 27/10).
   const [photoUrl,       setPhotoUrl]       = useState<string | null>(student?.photo_url ?? null)
+  const [nouvellePhoto,  setNouvellePhoto]  = useState<Blob | null>(null)
   // Déterminer le tuteur source initial en comparant le contact d'urgence
   const detectInitialTutorSource = (): 'tutor1' | 'tutor2' => {
     if (!student?.parent_id || !student?.emergency_contact_phone) return 'tutor1'
@@ -202,7 +207,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
   // En modification : bouton grisé si aucune valeur changée
   const isUnchanged = isEditing && (Object.keys(form) as (keyof FormData)[]).every(
     k => form[k] === initialForm.current[k]
-  ) && photoUrl === (student?.photo_url ?? null) && tutorSource === initialTutorSource.current
+  ) && photoUrl === (student?.photo_url ?? null) && !nouvellePhoto && tutorSource === initialTutorSource.current
 
   // Parent sélectionné
   const parentData = form.parent_id
@@ -238,6 +243,8 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
     if (!isFormValid) return
 
     setIsSubmitting(true)
+    // Fichier envoye par CE clic : a retirer si la fiche n'est pas enregistree.
+    let photoEnvoyee: string | null = null
     try {
       // ── Doublon : NOM + PRENOM + DATE DE NAISSANCE ────────────────────
       //
@@ -253,15 +260,33 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       const supabase = createClient()
       const { data: memeNaissance } = await supabase
         .from('students')
-        .select('id, last_name, first_name')
+        .select('id, last_name, first_name, gender')
         .eq('date_of_birth', form.date_of_birth)
       const duplicate = memeNaissance?.find(s =>
         s.id !== student?.id && sameName(s, { last_name: form.last_name, first_name: form.first_name })
       )
       if (duplicate) {
-        toast.error(`${duplicate.last_name} ${duplicate.first_name}, né(e) le ${new Date(form.date_of_birth + 'T00:00').toLocaleDateString('fr-FR')}, est déjà enregistré(e).`)
+        const nom = `${duplicate.last_name} ${duplicate.first_name}`
+        const naissance = new Date(form.date_of_birth + 'T00:00').toLocaleDateString('fr-FR')
+        toast.error(accordGenre(duplicate.gender,
+          `${nom}, né le ${naissance}, est déjà enregistré.`,
+          `${nom}, née le ${naissance}, est déjà enregistrée.`,
+          `Une fiche existe déjà pour ${nom}, date de naissance ${naissance}.`))
         setIsSubmitting(false)
         return
+      }
+
+      // La nouvelle photo part ICI, juste avant la fiche, dans un fichier neuf.
+      // Si la fiche echoue, elle est retiree (catch) : la fiche garde son etat.
+      let cheminPhoto = photoUrl
+      if (nouvellePhoto) {
+        const chemin = `${etablissementId}/${crypto.randomUUID()}.jpg`
+        const { error: errPhoto } = await supabase.storage
+          .from(BUCKET_PHOTOS)
+          .upload(chemin, nouvellePhoto, { contentType: 'image/jpeg' })
+        if (errPhoto) throw new Error('PHOTO_REFUSEE')
+        photoEnvoyee = chemin
+        cheminPhoto  = chemin
       }
 
       const payload = {
@@ -284,7 +309,7 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         media_authorization:     form.media_authorization,
         has_pai:                 form.has_pai,
         pai_notes:               clean(form.pai_notes),
-        photo_url:               photoUrl,
+        photo_url:               cheminPhoto,
       }
 
       // `.select('id')` OBLIGATOIRE : une ecriture ecartee par la RLS ne leve
@@ -302,9 +327,18 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
         if (!data || data.length === 0) throw new Error('ECRITURE_REFUSEE')
       }
 
+      // La ligne d'abord, le fichier ensuite : l'ancienne photo ne part qu'une
+      // fois la fiche enregistree sans elle. Un echec laisse un fichier orphelin
+      // (prive, efface avec l'ecole), jamais une fiche qui pointe dans le vide.
+      const photoEnregistree = student?.photo_url ?? null
+      if (photoEnregistree && photoEnregistree !== cheminPhoto) {
+        await retirerPhoto(supabase, photoEnregistree)
+      }
+
       router.push(backHref)
       router.refresh()
     } catch (err: any) {
+      if (photoEnvoyee) await retirerPhoto(createClient(), photoEnvoyee)
       // Le controle ci-dessus a deja ecarte le doublon d'identite ; on peut
       // encore arriver ici si deux saisies aboutissent en meme temps. L'index
       // tranche alors, et il faut dire LEQUEL des deux 23505 s'est produit :
@@ -312,7 +346,9 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
       // afficherait « ce numero est deja utilise » sur un doublon de personne.
       const doublon = messageDoublon(err)
       const limite  = messageLimiteInscrits(err)
-      if (err?.message === 'ECRITURE_REFUSEE') {
+      if (err?.message === 'PHOTO_REFUSEE') {
+        toast.error("La photo n'a pas pu être enregistrée. La fiche n'a pas été modifiée.")
+      } else if (err?.message === 'ECRITURE_REFUSEE') {
         toast.error("Votre role ne permet pas de modifier cette fiche.")
       } else if (doublon) {
         toast.error(doublon)
@@ -396,9 +432,9 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
             {etablissementId && (
               <PhotoField
                 photoUrl={photoUrl}
-                studentId={student?.id ?? null}
-                etablissementId={etablissementId}
-                onChange={setPhotoUrl}
+                nouvellePhoto={nouvellePhoto}
+                onNouvellePhoto={setNouvellePhoto}
+                onSupprimer={() => { setNouvellePhoto(null); setPhotoUrl(null) }}
               />
             )}
             <div className="flex-1 space-y-2">
@@ -778,11 +814,15 @@ export default function StudentForm({ student, parents, defaultStudentNumber, ba
 
 // ─── PhotoField ───────────────────────────────────────────────────────────────
 
+// Le champ ne touche JAMAIS la base : il ne fait que preparer la saisie. Le
+// fichier part au clic sur Valider / Modifier (handleSubmit).
 interface PhotoFieldProps {
+  /** Chemin enregistre conserve (null s'il a ete supprime dans la saisie). */
   photoUrl: string | null
-  studentId: string | null
-  etablissementId: string
-  onChange: (url: string | null) => void
+  /** Image recadree en memoire, pas encore envoyee. */
+  nouvellePhoto: Blob | null
+  onNouvellePhoto: (photo: Blob) => void
+  onSupprimer: () => void
 }
 
 /** Actions texte du bloc photo (Importer, Webcam) : vert de marque, sans icone. */
@@ -816,11 +856,10 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
   })
 }
 
-function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFieldProps) {
+function PhotoField({ photoUrl, nouvellePhoto, onNouvellePhoto, onSupprimer }: PhotoFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef     = useRef<HTMLVideoElement>(null)
   const streamRef    = useRef<MediaStream | null>(null)
-  const photoId      = useRef<string>(studentId ?? crypto.randomUUID())
 
   const [cropSrc,            setCropSrc]            = useState<string | null>(null)
   const [crop,               setCrop]               = useState({ x: 0, y: 0 })
@@ -830,21 +869,23 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
   const [isUploading,        setIsUploading]        = useState(false)
   const [uploadError,        setUploadError]        = useState<string | null>(null)
   const [confirmDelete,      setConfirmDelete]      = useState(false)
-  // `photoUrl` est le CHEMIN du fichier (bucket prive) ; l'apercu est son adresse signee.
+  // Apercu : l'image en memoire si une nouvelle photo attend l'enregistrement,
+  // sinon l'adresse signee du fichier enregistre (bucket prive).
   const [apercu,             setApercu]             = useState<string | null>(null)
 
   useEffect(() => {
-    if (studentId) photoId.current = studentId
-  }, [studentId])
-
-  useEffect(() => {
+    if (nouvellePhoto) {
+      const local = URL.createObjectURL(nouvellePhoto)
+      setApercu(local)
+      return () => URL.revokeObjectURL(local)
+    }
     let actif = true
     if (!photoUrl) { setApercu(null); return }
     signerPhotos(createClient(), [photoUrl]).then(adresses => {
       if (actif) setApercu(adresses.get(photoUrl) ?? null)
     })
     return () => { actif = false }
-  }, [photoUrl])
+  }, [photoUrl, nouvellePhoto])
 
   useEffect(() => {
     if (showWebcam && videoRef.current && streamRef.current) {
@@ -917,39 +958,18 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
         setUploadError('Photo trop grande après compression (> 500 Ko). Essayez une autre image.')
         return
       }
-      const supabase = createClient()
-      const path = `${etablissementId}/${photoId.current}.jpg`
-      const { error } = await supabase.storage
-        .from(BUCKET_PHOTOS)
-        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
-      if (error) throw error
-      // Meme chemin qu'avant en cas de remplacement : on resigne ici, l'effet
-      // sur `photoUrl` ne se redeclencherait pas.
-      const adresses = await signerPhotos(supabase, [path])
-      setApercu(adresses.get(path) ?? null)
-      onChange(path)
-      setCropSrc(null)
+      onNouvellePhoto(blob)
+      fermerRecadrage()
     } catch (err: any) {
-      setUploadError(err?.message ?? "Erreur lors de l'upload. Veuillez réessayer.")
+      setUploadError(err?.message ?? 'Image illisible. Essayez une autre image.')
     } finally {
       setIsUploading(false)
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     setUploadError(null)
-    setIsUploading(true)
-    try {
-      const supabase = createClient()
-      const path = `${etablissementId}/${photoId.current}.jpg`
-      await supabase.storage.from(BUCKET_PHOTOS).remove([path])
-      onChange(null)
-    } catch (err) {
-      console.error('[StudentForm] Erreur lors de la suppression de la photo:', err)
-      setUploadError('Erreur lors de la suppression.')
-    } finally {
-      setIsUploading(false)
-    }
+    onSupprimer()
   }
 
   return (
@@ -982,7 +1002,7 @@ function PhotoField({ photoUrl, studentId, etablissementId, onChange }: PhotoFie
           >
             Webcam
           </button>
-          {photoUrl && (
+          {(photoUrl || nouvellePhoto) && (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
