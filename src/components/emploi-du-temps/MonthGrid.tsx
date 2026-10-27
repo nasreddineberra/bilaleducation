@@ -181,9 +181,10 @@ function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedS
         {slots.map(slot => {
           const parts = [
             `${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`,
+            slot.annulee ? 'ANNULÉ' : null,
             viewMode !== 'class' ? slot.classes?.name : null,
             intituleCreneau(slot),
-            viewMode !== 'teacher' ? (slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
+            viewMode !== 'teacher' && !slot.annulee ? (slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
             slot.rooms?.name,
           ].filter(Boolean)
           return (
@@ -220,6 +221,7 @@ function MonthSlotCapsule({
   const colorClass = SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours
 
   const ariaParts = [slot.start_time.slice(0, 5)]
+  if (slot.annulee) ariaParts.unshift('séance annulée')
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
   ariaParts.push(intituleCreneau(slot))
   if (viewMode !== 'teacher') ariaParts.push(slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : '') : 'Prof non affecté')
@@ -233,6 +235,8 @@ function MonthSlotCapsule({
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
         menuActive && 'ring-2 ring-secondary-600 relative z-10',
         colorClass,
+        // Annulee : grise neutre, prime sur la couleur de categorie (`:where`).
+        slot.annulee && 'bg-[var(--champ-verrou)] text-warm-700',
       )}
       onClick={(e) => {
         e.stopPropagation()
@@ -255,6 +259,7 @@ function MonthSlotCapsule({
         },
       } : {})}
     >
+      {slot.annulee && <span className="text-[8px] font-bold tracking-wide mr-0.5">ANNULÉ</span>}
       <span className="text-[9px] font-semibold leading-tight">
         {slot.start_time.slice(0, 5)}
       </span>
@@ -264,13 +269,13 @@ function MonthSlotCapsule({
           {slot.classes.name}
         </span>
       )}
-      <span className="text-[9px] leading-tight ml-0.5">
+      <span className={clsx('text-[9px] leading-tight ml-0.5', slot.annulee && 'line-through')}>
         {intituleCreneau(slot)}
       </span>
-      {viewMode !== 'teacher' && !slot.teacher_id && (
+      {viewMode !== 'teacher' && !slot.teacher_id && !slot.annulee && (
         <span className="text-[8px] font-bold text-red-700 ml-0.5">Prof non affecté</span>
       )}
-      {viewMode !== 'teacher' && slot.teacher_id && slot.teachers && (
+      {viewMode !== 'teacher' && slot.teacher_id && slot.teachers && !slot.annulee && (
         <span className="text-[8px] font-bold ml-0.5">
           {nomEnseignant(slot.teachers)}
         </span>

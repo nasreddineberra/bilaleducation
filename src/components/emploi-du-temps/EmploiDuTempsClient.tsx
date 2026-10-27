@@ -2,16 +2,18 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { clsx } from 'clsx'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
-import { ChevronLeft, ChevronRight, RotateCcw, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { logAudit } from '@/lib/audit'
 import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import { useToast } from '@/lib/toast-context'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { FloatSelect, FloatButton } from '@/components/ui/FloatFields'
@@ -172,6 +174,8 @@ export interface ResolvedSlot {
   end_time: string
   slot_type: string
   color: string | null
+  /** Seance annulee : affichee grisee (« ANNULÉ »), sans validation, reactivable. */
+  annulee?: boolean
   /** L'enseignant du creneau est absent sur cette demi-journee : pas de validation. */
   teacherAbsent?: boolean
   classes?: { name: string }
@@ -309,6 +313,7 @@ export default function EmploiDuTempsClient({
   // Les METHODES sont stables (useCallback dans le fournisseur), l'objet ne l'est
   // pas : il change a chaque notification. On depend des methodes.
   const { success: toastSuccess, error: toastError } = useToast()
+  const router = useRouter()
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; title?: string; variant?: 'danger' | 'warning'; confirmLabel?: string; onConfirm: () => void } | null>(null)
 
   // Id (teachers.id) de l'enseignant connecté — resolu depuis son compte (user_id),
@@ -685,8 +690,6 @@ export default function EmploiDuTempsClient({
         ex => ex.schedule_slot_id === slot.id && ex.exception_date === date
       )
 
-      if (exception?.exception_type === 'cancelled') continue // Don't show
-
       if (exception?.exception_type === 'modified') {
         // Show with overrides
         result.push({
@@ -723,6 +726,9 @@ export default function EmploiDuTempsClient({
           sourceSlotId: slot.id,
           isRecurring: true,
           isModified: false,
+          // Annulee : AFFICHEE (grisee, « ANNULÉ »), reactivable depuis le menu.
+          annulee: exception?.exception_type === 'cancelled',
+          exceptionId: exception?.id,
           date,
           dayOfWeek: slot.day_of_week,
           class_id: slot.class_id,
@@ -750,12 +756,16 @@ export default function EmploiDuTempsClient({
       if (slot.is_recurring || !slot.slot_date) continue
       if (!weekDates.includes(slot.slot_date)) continue
 
-      const d = new Date(slot.slot_date)
+      const d = new Date(slot.slot_date + 'T00:00:00')
+
+      const exPonctuelle = exceptions.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === slot.slot_date)
       result.push({
         id: slot.id,
         sourceSlotId: slot.id,
         isRecurring: false,
         isModified: false,
+        annulee: exPonctuelle?.exception_type === 'cancelled',
+        exceptionId: exPonctuelle?.id,
         date: slot.slot_date,
         dayOfWeek: d.getDay(),
         class_id: slot.class_id,
@@ -822,8 +832,6 @@ export default function EmploiDuTempsClient({
           ex => ex.schedule_slot_id === slot.id && ex.exception_date === date
         )
 
-        if (exception?.exception_type === 'cancelled') continue
-
         if (exception?.exception_type === 'modified') {
           result.push({
             id: `${slot.id}-${date}`,
@@ -858,6 +866,9 @@ export default function EmploiDuTempsClient({
             sourceSlotId: slot.id,
             isRecurring: true,
             isModified: false,
+            // Annulee : AFFICHEE (grisee, « ANNULÉ »), reactivable depuis le menu.
+            annulee: exception?.exception_type === 'cancelled',
+            exceptionId: exception?.id,
             date,
             dayOfWeek: slot.day_of_week,
             class_id: slot.class_id,
@@ -887,11 +898,15 @@ export default function EmploiDuTempsClient({
       if (!allDates.includes(slot.slot_date)) continue
 
       const d = new Date(slot.slot_date + 'T00:00:00')
+
+      const exPonctuelle = exceptions.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === slot.slot_date)
       result.push({
         id: slot.id,
         sourceSlotId: slot.id,
         isRecurring: false,
         isModified: false,
+        annulee: exPonctuelle?.exception_type === 'cancelled',
+        exceptionId: exPonctuelle?.id,
         date: slot.slot_date,
         dayOfWeek: d.getDay(),
         class_id: slot.class_id,
@@ -1448,106 +1463,158 @@ export default function EmploiDuTempsClient({
     setEditDate(null)
   }, [supabase, slots, exceptions, refreshData, toastError, titulaireDe])
 
-  const handleDeleteSlot = useCallback(async (slotId: string, pivotDate?: string) => {
+  const libelleSeance = useCallback((slotId: string, date: string) => {
     const slot = slots.find(s => s.id === slotId)
-    if (!slot) return
+    const cls = classesRef.current.find(c => c.id === slot?.class_id)
+    return `${cls?.name ?? 'classe'} du ${new Date(date + 'T00:00:00').toLocaleDateString('fr-FR')}`
+  }, [slots])
 
-    const className = slot.classes?.name ?? 'la classe'
-    // Date pivot : date du créneau (EDT) ou aujourd'hui (ClassForm)
-    const pivot = pivotDate ?? formatDate(new Date())
-    const isInSchoolYear = schoolYearStartDate && schoolYearEndDate
-      && pivot >= schoolYearStartDate && pivot <= schoolYearEndDate
-
+  // Suppression : seance PONCTUELLE seulement (creee dans l'EDT). Une serie se
+  // gere dans la fiche classe ; une seance de serie s'annule, elle ne se supprime pas.
+  const handleDeleteSlot = useCallback((slotId: string) => {
+    setContextMenu(null)
+    const slot = slots.find(s => s.id === slotId)
+    if (!slot || slot.is_recurring || !slot.slot_date) return
+    const libelle = libelleSeance(slotId, slot.slot_date)
     const doDelete = async () => {
-      if (slot.is_recurring && isInSchoolYear) {
-        const pivotD = new Date(pivot + 'T00:00:00')
-        pivotD.setDate(pivotD.getDate() - 1)
-        const dayBefore = formatDate(pivotD)
-        const echec = erreurEcriture(
-          await supabase.from('schedule_slots').update({ effective_until: dayBefore }).eq('id', slotId).select('id'),
-          'Ce creneau',
-        )
-        if (echec) { toastError(echec); return }
-        const echecLot1 = erreurEcritureLot(
-          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId).gte('exception_date', pivot),
-          'Les exceptions du creneau',
-        )
-        if (echecLot1) { toastError(echecLot1); return }
-      } else {
-        const echecLot2 = erreurEcritureLot(
-          await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId),
-          'Les exceptions du creneau',
-        )
-        if (echecLot2) { toastError(echecLot2); return }
-        const echec = erreurEcriture(
-          await supabase.from('schedule_slots').delete().eq('id', slotId).select('id'),
-          'Ce creneau',
-        )
-        if (echec) { toastError(echec); return }
-      }
-
-      // La fiche classe ne se vide QU APRES la suppression reussie : l'inverse
-      // laissait une classe sans horaire au-dessus d'un creneau toujours vivant.
-      if (slot.is_recurring) {
-        const echecClasse = erreurEcriture(
-          await supabase.from('classes').update({ day_of_week: null, start_time: null, end_time: null }).eq('id', slot.class_id).select('id'),
-          'Le planning de la fiche classe',
-        )
-        if (echecClasse) { toastError(echecClasse); return }
-      }
-
-      const dayLabel = slot.day_of_week !== null ? DAY_LABELS[slot.day_of_week] : ''
-      const pivotInfo = isInSchoolYear ? `, à partir du ${new Date(pivot + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''
+      const echecLot = erreurEcritureLot(
+        await supabase.from('schedule_exceptions').delete().eq('schedule_slot_id', slotId),
+        'Les modifications de la seance',
+      )
+      if (echecLot) { toastError(echecLot); return }
+      const echec = erreurEcriture(
+        await supabase.from('schedule_slots').delete().eq('id', slotId).select('id'),
+        'Cette seance',
+      )
+      if (echec) { toastError(echec); return }
       logAudit(supabase, {
         action: 'DELETE',
         entityType: 'schedule_slots',
         entityId: slotId,
-        description: `Suppression créneau EDT pour ${className} (${dayLabel} ${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)})${pivotInfo}. Fiche classe réinitialisée.`,
+        description: `Suppression de la séance ponctuelle ${libelle} (${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)})`,
       })
-
       await refreshData()
     }
+    setPendingConfirm({
+      title: 'Supprimer la séance',
+      message: `Supprimer définitivement la séance ponctuelle ${libelle} ?`,
+      variant: 'danger',
+      confirmLabel: 'Supprimer',
+      onConfirm: doDelete,
+    })
+  }, [supabase, slots, refreshData, toastError, libelleSeance])
 
-    const message = slot.is_recurring && isInSchoolYear
-      ? `Supprimer tous les créneaux à partir de cette date ?\n\nLe planning passé de ${className} sera conservé. La fiche classe sera réinitialisée.`
-      : `Supprimer tous les créneaux définitivement ?\n\nCela va également réinitialiser le planning (jour/horaires) de la fiche ${className}.`
+  // ─── Actions ponctuelles sur UNE seance (conception 27/10, lot 2) ─────────
+  //
+  // L'EDT n'edite plus la structure (fiche classe) : il annule, reactive, change
+  // la salle d'une seance, et supprime une seance PONCTUELLE (creee ici).
+  // Annuler garde les autres modifications de la seance (salle) : reactiver la
+  // rend telle qu'elle etait.
 
-    setPendingConfirm({ message, variant: 'danger', confirmLabel: 'Supprimer', onConfirm: doDelete })
-  }, [supabase, slots, schoolYearStartDate, schoolYearEndDate, refreshData, toastError])
 
-  const handleCancelForDate = useCallback(async (slotId: string, date: string) => {
-    const existing = exceptions.find(
-      ex => ex.schedule_slot_id === slotId && ex.exception_date === date
-    )
-
-    if (existing) {
-      const echec = erreurEcriture(
-        await supabase.from('schedule_exceptions')
-          .update({ exception_type: 'cancelled', override_start_time: null, override_end_time: null, override_teacher_id: null, override_room_id: null })
-          .eq('id', existing.id)
-          .select('id'),
-        'Cette annulation',
-      )
-      if (echec) { toastError(echec); return }
-    } else {
-      const { error } = await supabase.from('schedule_exceptions')
-        .insert({ schedule_slot_id: slotId, exception_date: date, exception_type: 'cancelled' })
-      if (error) { toastError('Erreur : ' + error.message); return }
+  const handleCancelForDate = useCallback((slotId: string, date: string) => {
+    setContextMenu(null)
+    // Une seance validee a eu lieu : ses heures sont comptees. L'annuler sans
+    // retirer la validation compterait des heures pour une seance « annulée ».
+    if (validations.some(v => v.schedule_slot_id === slotId && v.validation_date === date)) {
+      toastError('Cette séance est validée : annulez d’abord la validation de présence.')
+      return
     }
+    const doCancel = async () => {
+      const existing = exceptions.find(ex => ex.schedule_slot_id === slotId && ex.exception_date === date)
+      if (existing) {
+        const echec = erreurEcriture(
+          await supabase.from('schedule_exceptions').update({ exception_type: 'cancelled' }).eq('id', existing.id).select('id'),
+          'Cette annulation',
+        )
+        if (echec) { toastError(echec); return }
+      } else {
+        const { error } = await supabase.from('schedule_exceptions')
+          .insert({ schedule_slot_id: slotId, exception_date: date, exception_type: 'cancelled' })
+        if (error) { toastError('Erreur : ' + error.message); return }
+      }
+      logAudit(supabase, {
+        action: 'UPDATE',
+        entityType: 'schedule_exceptions',
+        description: `Annulation de la séance ${libelleSeance(slotId, date)}`,
+      })
+      await refreshData()
+    }
+    setPendingConfirm({
+      title: 'Annuler la séance',
+      message: `Annuler la séance ${libelleSeance(slotId, date)} ? Elle restera affichée « ANNULÉ » et pourra être réactivée.`,
+      variant: 'warning',
+      confirmLabel: 'Annuler la séance',
+      onConfirm: doCancel,
+    })
+  }, [supabase, exceptions, validations, refreshData, toastError, libelleSeance])
 
-    // Log détaillé
-    const slot = slots.find(s => s.id === slotId)
-    const cls = classesRef.current.find(c => c.id === slot?.class_id)
-    const dateStr = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR')
+  const handleReactivate = useCallback(async (slotId: string, date: string) => {
+    setContextMenu(null)
+    const existing = exceptions.find(ex => ex.schedule_slot_id === slotId && ex.exception_date === date)
+    if (!existing || existing.exception_type !== 'cancelled') return
+    // Une salle changee avant l'annulation est rendue a la seance ; sinon la
+    // ligne d'exception n'a plus de raison d'etre.
+    const resteModifiee = !!(existing.override_room_id || existing.override_start_time
+      || existing.override_end_time || existing.override_teacher_id)
+    const echec = erreurEcriture(
+      resteModifiee
+        ? await supabase.from('schedule_exceptions').update({ exception_type: 'modified' }).eq('id', existing.id).select('id')
+        : await supabase.from('schedule_exceptions').delete().eq('id', existing.id).select('id'),
+      'Cette réactivation',
+    )
+    if (echec) { toastError(echec); return }
     logAudit(supabase, {
       action: 'UPDATE',
       entityType: 'schedule_exceptions',
-      description: `Annulation créneau ${cls?.name ?? 'classe'} du ${dateStr}`,
+      description: `Réactivation de la séance ${libelleSeance(slotId, date)}`,
     })
-
+    toastSuccess('Séance réactivée.')
     await refreshData()
-    setContextMenu(null)
-  }, [supabase, slots, exceptions, refreshData, toastError])
+  }, [supabase, exceptions, refreshData, toastError, toastSuccess, libelleSeance])
+
+  // Salle d'UNE seance : seance ponctuelle = sa propre ligne ; seance d'une serie =
+  // une exception (`override_room_id`), retiree si elle ne change plus rien.
+  const [salleSeance, setSalleSeance] = useState<{ resolved: ResolvedSlot; roomId: string } | null>(null)
+  const handleChangeRoom = useCallback(async (resolved: ResolvedSlot, roomId: string) => {
+    const slot = slots.find(s => s.id === resolved.sourceSlotId)
+    if (!slot) return
+    const nouvelle = roomId || null
+    let echec: string | null = null
+    if (!slot.is_recurring) {
+      echec = erreurEcriture(
+        await supabase.from('schedule_slots').update({ room_id: nouvelle }).eq('id', slot.id).select('id'),
+        'Cette séance',
+      )
+    } else {
+      const existing = exceptions.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === resolved.date)
+      const override = nouvelle === (slot.room_id ?? null) ? null : nouvelle
+      if (existing) {
+        const vide = !override && !existing.override_start_time && !existing.override_end_time && !existing.override_teacher_id
+        echec = erreurEcriture(
+          vide && existing.exception_type === 'modified'
+            ? await supabase.from('schedule_exceptions').delete().eq('id', existing.id).select('id')
+            : await supabase.from('schedule_exceptions').update({ override_room_id: override }).eq('id', existing.id).select('id'),
+          'Cette séance',
+        )
+      } else if (override) {
+        const { error } = await supabase.from('schedule_exceptions').insert({
+          schedule_slot_id: slot.id, exception_date: resolved.date, exception_type: 'modified', override_room_id: override,
+        })
+        if (error) echec = 'Erreur : ' + error.message
+      }
+    }
+    if (echec) { toastError(echec); return }
+    const salle = rooms.find(r => r.id === nouvelle)?.name ?? 'aucune salle'
+    logAudit(supabase, {
+      action: 'UPDATE',
+      entityType: 'schedule_exceptions',
+      description: `Salle de la séance ${libelleSeance(slot.id, resolved.date)} : ${salle}`,
+    })
+    setSalleSeance(null)
+    toastSuccess('Salle modifiée pour cette séance.')
+    await refreshData()
+  }, [supabase, slots, exceptions, rooms, refreshData, toastError, toastSuccess, libelleSeance])
 
   // ─── Drag & Drop ──────────────────────────────────────────────────────────
 
@@ -1701,26 +1768,6 @@ export default function EmploiDuTempsClient({
     setModalOpen(true)
   }
 
-  const openEditAll = (resolved: ResolvedSlot) => {
-    const source = slots.find(s => s.id === resolved.sourceSlotId)
-    if (!source) return
-    setEditingSlot(source)
-    setEditMode('all')
-    setEditDate(resolved.date)
-    setModalOpen(true)
-    setContextMenu(null)
-  }
-
-  const openEditThisOnly = (resolved: ResolvedSlot) => {
-    const source = slots.find(s => s.id === resolved.sourceSlotId)
-    if (!source) return
-    setEditingSlot(source)
-    setEditMode('this_only')
-    setEditDate(resolved.date)
-    setModalOpen(true)
-    setContextMenu(null)
-  }
-
   // Context menu for right-click on recurring slot
   const handleSlotContextMenu = (e: React.MouseEvent, resolved: ResolvedSlot) => {
     if (!canEdit) return
@@ -1747,23 +1794,9 @@ export default function EmploiDuTempsClient({
     })
   }
 
-  const handleSlotClick = (resolved: ResolvedSlot) => {
-    if (!canEdit) return
-    if (resolved.isRecurring) {
-      // For recurring: show context menu options inline
-      // Actually open edit all by default, context menu for other options
-      openEditAll(resolved)
-    } else {
-      // For ponctual: direct edit
-      const source = slots.find(s => s.id === resolved.sourceSlotId)
-      if (source) {
-        setEditingSlot(source)
-        setEditMode('all')
-        setEditDate(null)
-        setModalOpen(true)
-      }
-    }
-  }
+  // Clic sur une seance : plus d'edition dans l'EDT (structure = fiche classe).
+  // Les actions passent par le menu « ⋯ » (`handleSlotContextMenu` / `handleSlotKeyMenu`).
+  const handleSlotClick = () => {}
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -2152,89 +2185,83 @@ export default function EmploiDuTempsClient({
             </span>
           </div>
 
-          {contextMenu.slot.isRecurring ? (
-            <>
-              {/* Cette occurrence */}
-              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-700 uppercase tracking-wider">Ce créneau</p>
-              <button
-                role="menuitem"
-                autoFocus
-                aria-label="Modifier ce créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none"
-                onClick={() => openEditThisOnly(contextMenu.slot)}
-              >
-                <Pencil size={14} className="text-warm-700 flex-shrink-0" />
-                Modifier
-              </button>
-              <button
-                role="menuitem"
-                aria-label="Supprimer ce créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
-                onClick={() => { handleCancelForDate(contextMenu.slot.sourceSlotId, contextMenu.slot.date) }}
-              >
-                <Trash2 size={14} className="flex-shrink-0" />
-                Supprimer
-              </button>
-
-              <div className="border-t border-warm-100 my-1" />
-
-              {/* Toute la série récurrente */}
-              <p className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold text-warm-700 uppercase tracking-wider">Toute la série</p>
-              <button
-                role="menuitem"
-                aria-label="Modifier toute la série"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none"
-                onClick={() => openEditAll(contextMenu.slot)}
-              >
-                <Pencil size={14} className="text-warm-700 flex-shrink-0" />
-                Modifier
-              </button>
-              <button
-                role="menuitem"
-                aria-label="Supprimer toute la série"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
-                onClick={() => {
-                  handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
-                  setContextMenu(null)
-                }}
-              >
-                <Trash2 size={14} className="flex-shrink-0" />
-                Supprimer
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Créneau ponctuel : édition / suppression directes */}
-              <button
-                role="menuitem"
-                autoFocus
-                aria-label="Modifier le créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none"
-                onClick={() => openEditAll(contextMenu.slot)}
-              >
-                <Pencil size={14} className="text-warm-700 flex-shrink-0" />
-                Modifier
-              </button>
-              <button
-                role="menuitem"
-                aria-label="Supprimer le créneau"
-                className="flex items-center gap-2 w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none"
-                onClick={() => {
-                  handleDeleteSlot(contextMenu.slot.sourceSlotId, contextMenu.slot.date)
-                  setContextMenu(null)
-                }}
-              >
-                <Trash2 size={14} className="flex-shrink-0" />
-                Supprimer
-              </button>
-            </>
-          )}
+          {/* Menu selon la seance (conception 27/10, lot 2) : la STRUCTURE se gere
+              dans la fiche classe ; ici, des actions sur CETTE seance seulement.
+              Une action qui ne s'applique pas a la seance n'est pas proposee. */}
+          {(() => {
+            const s = contextMenu.slot
+            const item = 'w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-warm-700 hover:bg-warm-100 focus:bg-warm-100 focus:outline-none'
+            const danger = 'w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none'
+            return (
+              <>
+                {s.annulee ? (
+                  <button role="menuitem" autoFocus className={item} onClick={() => handleReactivate(s.sourceSlotId, s.date)}>
+                    Réactiver la séance
+                  </button>
+                ) : (
+                  <>
+                    <button role="menuitem" autoFocus className={item} onClick={() => handleCancelForDate(s.sourceSlotId, s.date)}>
+                      Annuler cette séance
+                    </button>
+                    <button
+                      role="menuitem" className={item}
+                      onClick={() => { setSalleSeance({ resolved: s, roomId: s.room_id ?? '' }); setContextMenu(null) }}
+                    >
+                      Changer la salle
+                    </button>
+                  </>
+                )}
+                {!s.isRecurring && (
+                  <button role="menuitem" className={danger} onClick={() => handleDeleteSlot(s.sourceSlotId)}>
+                    Supprimer la séance
+                  </button>
+                )}
+                <div className="border-t border-warm-100 my-1" />
+                <button
+                  role="menuitem" className={item}
+                  onClick={() => { setContextMenu(null); router.push(`/dashboard/classes/${s.class_id}`) }}
+                >
+                  Ouvrir la fiche classe
+                </button>
+              </>
+            )
+          })()}
         </div>
         </>,
         document.body
       )}
 
       {/* ── Modal ─────────────────────────────────────────────────────── */}
+      {/* Salle d'UNE seance */}
+      {salleSeance && (
+        <FormModal
+          title={`Salle · ${libelleSeance(salleSeance.resolved.sourceSlotId, salleSeance.resolved.date)}`}
+          onClose={() => setSalleSeance(null)}
+          footer={<>
+            <div className="flex-1" />
+            <FloatButton type="button" variant="secondary" onClick={() => setSalleSeance(null)}>Annuler</FloatButton>
+            <FloatButton
+              type="button" variant="edit"
+              disabled={salleSeance.roomId === (salleSeance.resolved.room_id ?? '')}
+              onClick={() => handleChangeRoom(salleSeance.resolved, salleSeance.roomId)}
+            >
+              Modifier
+            </FloatButton>
+          </>}
+        >
+          <FloatSelect
+            label="Salle"
+            value={salleSeance.roomId}
+            onChange={e => setSalleSeance({ ...salleSeance, roomId: e.target.value })}
+          >
+            <option value=""></option>
+            {rooms.map(r => (
+              <option key={r.id} value={r.id}>{r.name}{r.capacity ? ` (${r.capacity} places)` : ''}</option>
+            ))}
+          </FloatSelect>
+        </FormModal>
+      )}
+
       {modalOpen && (
         <SlotFormModal
           key={`${editingSlot?.id ?? 'new'}-${prefillDate}-${prefillDay}-${prefillTime}`}

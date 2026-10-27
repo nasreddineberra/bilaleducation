@@ -114,7 +114,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 - **Notes / bulletins** : gabarits a date obligatoire (ordre `lib/evaluations/ordre.ts`), absences
   reportees de l'appel, bulletins PDF bilingues FR/AR archives avec chiffres figes.
 - **Planning, absences, presence** : chantier en cours, conception validee
-  `docs/CONCEPTION-PLANNING-ABSENCES.md` (une information = un ecran qui l'ecrit ; lot 1 fait).
+  `docs/CONCEPTION-PLANNING-ABSENCES.md` (une information = un ecran qui l'ecrit ; lots 1 et 2 faits).
 - **EDT** : grille 15 min (8 h-19 h, elargie au creneau le plus matinal), creneaux recurrents avec dates
   d'effet, vacances et jours feries bloquants (`lib/school-year/jours-fermes.ts`). Creneau = cours (matiere
   = unite d'enseignement, facultative) ou activite (nom facultatif) ; type FIGE apres creation (il decide du

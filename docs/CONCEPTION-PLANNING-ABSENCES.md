@@ -62,6 +62,13 @@ Une séance d'un enseignant absent sans décision est **« Enseignant absent · 
   page Absences).
 - **Retire** : modifier / supprimer la série, changer l'horaire ou l'enseignant d'une séance, glisser-déposer,
   créer un créneau récurrent. Un cours décalé = annuler la séance + ajouter une séance ponctuelle.
+- **Séance annulée : jamais effacée de l'écran.** Grisée, « ANNULÉ », intitulé barré ; **réactivable** (une
+  annulation par erreur se rattrape). Une séance VALIDÉE ne s'annule pas sans retirer d'abord la validation.
+- **Menu « ⋯ »** (encadrement), une action absente quand elle ne s'applique pas :
+  séance de la fiche classe : Annuler · Changer la salle · Ouvrir la fiche classe ;
+  séance ponctuelle : Annuler · Changer la salle · Supprimer · Ouvrir la fiche classe ;
+  séance annulée : Réactiver · (Supprimer si ponctuelle) · Ouvrir la fiche classe.
+  La validation reste sur le bouton ✓ de la séance. L'enseignant n'a pas de menu.
 
 ## 6. Temps de présence
 
@@ -71,9 +78,9 @@ Une séance d'un enseignant absent sans décision est **« Enseignant absent · 
 
 ## 7. Lots
 
-1. **Règle unique « qui assure la séance »** (testée), branchée en lecture sur l'EDT et les tableaux de bord.
-2. **EDT simplifié** : retrait des modifications de série, d'horaire, d'enseignant et du glisser-déposer ;
-   ajout ponctuel, annulation, salle conservés.
+1. **Règle unique « qui assure la séance »** (FAIT 27/10), branchée en lecture sur l'EDT et les tableaux de bord.
+2. **EDT simplifié** (FAIT 27/10) : retrait des modifications de série, d'horaire, d'enseignant ; ajout
+   ponctuel, annulation (visible, réactivable), salle conservés.
 3. **Absences enseignants** : page, table des absences, décision par séance, emails aux familles.
 4. **Temps de présence** branché sur les absences et les annulations ; fiche classe (encadré Remplacements)
    et fiche enseignant (absences) en lecture.

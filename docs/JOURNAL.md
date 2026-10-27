@@ -9597,3 +9597,20 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 - **Defaut trouve** : sur une seance recurrente non modifiee, l'absence de l'enseignant etait cherchee a
   `slot.slot_date` (vide pour un recurrent) : jamais detectee (ni hachures ni refus de validation). Corrige
   (date de la seance).
+
+### 27/10 · Planning, lot 2 : l'EDT ne modifie plus la structure
+
+- **Menu « ⋯ »** d'une seance (encadrement), action ABSENTE quand elle ne s'applique pas (decision
+  utilisateur, apres avoir envisage du grise) : seance de serie -> Annuler, Changer la salle, Ouvrir la fiche
+  classe ; ponctuelle -> + Supprimer ; annulee -> Reactiver (+ Supprimer si ponctuelle), Ouvrir la fiche classe.
+- **Annulee = visible** (demande utilisateur) : grisee (jeton `--champ-verrou`), « ANNULÉ », intitule barre,
+  sans enseignant ni validation ; reactivable. L'annulation garde la salle changee (reactiver la rend telle
+  qu'elle etait). Une seance VALIDEE ne s'annule pas (heures comptees pour une seance annulee).
+  Une seance ponctuelle annulee etait auparavant AFFICHEE comme normale (exception ignoree) : corrige.
+- **Salle d'une seance** : ponctuelle -> sa ligne ; de serie -> exception `override_room_id`, retiree si
+  elle ne change plus rien.
+- **Retire** : Modifier (une seance, toute la serie, une ponctuelle), Supprimer toute la serie, clic
+  d'edition. Creation dans l'EDT = seance PONCTUELLE seulement, sans champ Enseignant (deduit du titulaire).
+  Le glisser-deposer etait deja inactif (`isDndActive = false`).
+- Reste du code d'edition dans `SlotFormModal` (modes « toute la serie » / « cette seance ») : inatteignable,
+  retire au lot 5 (nettoyage).

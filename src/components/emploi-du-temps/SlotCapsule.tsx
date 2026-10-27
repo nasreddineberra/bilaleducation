@@ -58,7 +58,10 @@ export default function SlotCapsule({
     disabled: !isDraggableEnabled,
   })
 
-  const noTeacher = !slot.teacher_id
+  // Seance ANNULEE : affichee grisee « ANNULÉ » (reactivable depuis le menu),
+  // sans enseignant, sans validation ni marqueur d'absence.
+  const annulee = !!slot.annulee
+  const noTeacher = !slot.teacher_id && !annulee
 
   // Densité : la capsule perd des lignes à mesure qu'elle rétrécit, au lieu de
   // les tronquer toutes à deux caractères. Le détail reste accessible en
@@ -91,7 +94,7 @@ export default function SlotCapsule({
   )
   // Validation : le personnel gestionnaire (canEdit) peut valider tout créneau ;
   // un enseignant ne peut valider que SON propre créneau.
-  const showValidation = (canEdit || (isTeacher && isOwnSlot)) && canValidate && slot.slot_type !== 'pause'
+  const showValidation = !annulee && (canEdit || (isTeacher && isOwnSlot)) && canValidate && slot.slot_type !== 'pause'
 
   // ENSEIGNANT ABSENT : le creneau reste VISIBLE — il a bien lieu, et son
   // titulaire doit savoir ce qu'il manque — mais la validation est refusee.
@@ -99,7 +102,7 @@ export default function SlotCapsule({
   // qui disparait se lit comme un defaut, une marque qui explique se lit comme
   // une regle. La base refuse de toute facon l'ecriture
   // (`guard-presence-absence-exclusivity`) ; ceci l'annonce AVANT le clic.
-  const absent = !!slot.teacherAbsent
+  const absent = !annulee && !!slot.teacherAbsent
 
   // LE BADGE D'ABSENCE N'EST PAS UN CONTROLE DE VALIDATION, c'est un MARQUEUR
   // D'ETAT — il ne depend donc pas de `canValidate`, la garde de date qui
@@ -121,6 +124,7 @@ export default function SlotCapsule({
   const infoLignes: string[] = []
   if (viewMode !== 'class' && slot.classes) infoLignes.push(slot.classes.name)
   infoLignes.push(libelleCours)
+  if (annulee) infoLignes.unshift('Séance annulée')
   if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
   if (slot.rooms) infoLignes.push(slot.rooms.name)
   infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
@@ -129,6 +133,7 @@ export default function SlotCapsule({
   const ariaParts: string[] = []
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
   ariaParts.push(libelleCours)
+  if (annulee) ariaParts.unshift('séance annulée')
   if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
   if (slot.rooms) ariaParts.push(slot.rooms.name)
   ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
@@ -149,13 +154,16 @@ export default function SlotCapsule({
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] focus-visible:ring-offset-1',
         menuActive && 'ring-2 ring-secondary-600 ring-offset-1 shadow-lg',
         colorClass,
+        // Grise neutre (jeton du champ verrouille) : prime sur la couleur de
+        // categorie, posee a specificite nulle (`:where`).
+        annulee && 'bg-[var(--champ-verrou)] border-warm-300 text-warm-700',
         // L'absence se marque par des HACHURES et non par une baisse d'opacite
         // (qui ferait tomber le contraste des libelles). Voir `.edt-slot-absent`.
         absent && 'edt-slot-absent',
         // Prof non affecte : rouge, comme « Sans titulaire » sur la fiche classe ;
         // l'ambre en pointilles signale deja une seance MODIFIEE.
         noTeacher && 'border-2 border-dashed border-red-400',
-        !noTeacher && slot.isModified && MODIFIED_BORDER,
+        !noTeacher && !annulee && slot.isModified && MODIFIED_BORDER,
         isDragging && 'opacity-30 scale-95',
         isDraggableEnabled && 'cursor-grab active:cursor-grabbing',
         !isDraggableEnabled && 'cursor-default',
@@ -173,18 +181,24 @@ export default function SlotCapsule({
           survol. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
           contenu ne remplirait pas la capsule. */}
       <Tooltip
-        content={(dense || court) && !((remplaceParNom || (remplacementDe && slot.teachers)) && slot.slot_type !== 'pause') ? (
+        content={(dense || court || annulee) && !((remplaceParNom || (remplacementDe && slot.teachers)) && slot.slot_type !== 'pause') ? (
           <span className="flex flex-col gap-0.5 text-left">
             {infoLignes.map((l, i) => <span key={i}>{l}</span>)}
           </span>
         ) : ''}
-        className={clsx('h-full w-full align-bottom', !dense && !court && 'pointer-events-none')}
+        className={clsx('h-full w-full align-bottom', !dense && !court && !annulee && 'pointer-events-none')}
         maxWidth="max-w-none"
       >
         <div className={clsx('h-full flex flex-col overflow-hidden', minimal ? 'px-1 py-0.5' : 'px-1.5 py-0.5')}>
           {/* ORDRE (demande du 27/10) : classe, intitule, enseignant, horaire —
               quelle que soit la duree. La classe est masquee en vue classe
               (redondante), l'enseignant en vue enseignant. */}
+          {annulee && (
+            <div className={clsx('font-bold leading-tight tracking-wide', minimal ? 'text-[8px]' : 'text-[9px]')}>
+              ANNULÉ
+            </div>
+          )}
+
           {viewMode !== 'class' && slot.classes && (
             <div className={clsx('font-bold leading-tight truncate', minimal ? 'text-[9px]' : 'text-[10px]')}>
               {slot.classes.name}
@@ -192,7 +206,7 @@ export default function SlotCapsule({
           )}
 
           {/* Intitule : matiere d'un cours, nom d'une activite, sinon le type. */}
-          <div className={clsx('leading-tight', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+          <div className={clsx('leading-tight', annulee && 'line-through', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
             {libelleCours}
           </div>
 
@@ -210,7 +224,7 @@ export default function SlotCapsule({
               `truncate` emportait le prénom). Créneau court : une seule ligne,
               sinon cinq lignes ne tiennent pas dans une heure ; le nom complet
               reste dans l'infobulle. */}
-          {viewMode !== 'teacher' && !noTeacher && slot.teachers && !minimal && (
+          {viewMode !== 'teacher' && !noTeacher && !annulee && slot.teachers && !minimal && (
             court ? (
               <div className="text-[9px] leading-tight font-bold truncate">
                 {nomEnseignant(slot.teachers)}
@@ -234,7 +248,7 @@ export default function SlotCapsule({
 
           {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
               et AVANT l'horaire pour rester visible meme quand la capsule est courte. */}
-          {remplaceParNom && slot.slot_type !== 'pause' && (
+          {remplaceParNom && !annulee && slot.slot_type !== 'pause' && (
             <Tooltip content={`Remplacé par ${remplaceParNom} sur cette séance : la présence est validée par le remplaçant.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
               <div className={clsx('leading-tight font-bold text-red-700', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
                 Remplacé par {remplaceParNom}
@@ -242,7 +256,7 @@ export default function SlotCapsule({
             </Tooltip>
           )}
 
-          {remplacementDe && slot.teachers && slot.slot_type !== 'pause' && (
+          {remplacementDe && !annulee && slot.teachers && slot.slot_type !== 'pause' && (
             <Tooltip content={`Remplacement de ${nomEnseignant(slot.teachers)} : vous assurez sa séance et validez votre présence à sa place.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
               <div className={clsx('leading-tight font-bold text-red-700', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
                 Remplacement de {nomEnseignant(slot.teachers)}

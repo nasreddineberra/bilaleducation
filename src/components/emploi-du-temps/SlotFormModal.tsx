@@ -145,7 +145,9 @@ export default function SlotFormModal({
   // Recurring vs Ponctuel (null = pas encore choisi)
   const isEditingAll = editMode === 'all' && !!slot
   const isEditMode = !!slot
-  const [isRecurring, setIsRecurring] = useState<boolean | null>(slot ? slot.is_recurring : null)
+  // Creation dans l'EDT = seance PONCTUELLE seulement (conception 27/10) : une
+  // serie se cree dans la fiche classe.
+  const [isRecurring] = useState<boolean | null>(slot ? slot.is_recurring : false)
   const [dayOfWeek, setDayOfWeek] = useState<number | ''>(slot?.day_of_week ?? prefillDay ?? '')
   const [slotDate, setSlotDate] = useState<string>(
     slot?.slot_date ?? prefillDate ?? (prefillDay !== null && prefillDay !== undefined ? (weekDayDates[prefillDay] ?? '') : '')
@@ -298,7 +300,8 @@ export default function SlotFormModal({
         await onSave({
           id: slot?.id,
           class_id: classId,
-          teacher_id: teacherId || null,
+          // Seance creee ici : enseignant deduit du titulaire, rien a recopier.
+          teacher_id: isEditMode ? (teacherId || null) : null,
           cours_id: null,
           unite_enseignement_id: slotType === 'cours' ? (ueId || null) : null,
           libelle: slotType === 'activite' ? (libelle.trim() || null) : null,
@@ -338,7 +341,7 @@ export default function SlotFormModal({
 
   const modalTitle = isEditingThisOnly
     ? `Modifier le ${new Date(editDate! + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} uniquement`
-    : slot ? 'Modifier le créneau' : 'Nouveau créneau'
+    : slot ? 'Modifier le créneau' : 'Nouvelle séance ponctuelle'
 
   const typeLabel = SLOT_TYPES.find(st => st.value === slotType)?.label ?? 'Cours'
   const frequenceLabel = isEditingThisOnly ? 'Exception ponctuelle' : isRecurring ? 'Récurrent' : 'Ponctuel'
@@ -382,21 +385,9 @@ export default function SlotFormModal({
           </div>
         </div>
         <div>
-          <span className={LIBELLE_CHOIX}>Fréquence{!isEditMode && <span className="text-red-700"> *</span>}</span>
+          <span className={LIBELLE_CHOIX}>Fréquence</span>
           <div className="mt-1">
-            {isEditMode ? (
-              <ValeurVerrouillee>{frequenceLabel}</ValeurVerrouillee>
-            ) : (
-              <FiltreSwitch
-                ariaLabel="Fréquence"
-                actif={isRecurring === null ? '' : isRecurring ? 'recurrent' : 'ponctuel'}
-                onChange={v => setIsRecurring(v === 'recurrent')}
-                options={[
-                  { valeur: 'ponctuel',  libelle: 'Ponctuel' },
-                  { valeur: 'recurrent', libelle: 'Récurrent' },
-                ]}
-              />
-            )}
+            <ValeurVerrouillee>{frequenceLabel}</ValeurVerrouillee>
           </div>
         </div>
       </div>
@@ -439,8 +430,9 @@ export default function SlotFormModal({
         </FloatSelect>
       )}
 
-      {/* Teacher */}
-      <FloatSelect
+      {/* Enseignant : seulement en modification d'une seance existante. A la
+          creation, il est DEDUIT du titulaire en poste (lib/edt/seance.ts). */}
+      {isEditMode && <FloatSelect
         label="Enseignant"
         required={enseignantRequis}
         value={teacherId}
@@ -450,7 +442,7 @@ export default function SlotFormModal({
         {teachers.map(t => (
           <option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>
         ))}
-      </FloatSelect>
+      </FloatSelect>}
 
       {/* Room */}
       <FloatSelect
