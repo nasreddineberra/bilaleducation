@@ -9638,3 +9638,9 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   creneau part de l'ancienne salle ; inverse : confirmation, salles des creneaux effacees. Salle d'une seance
   DEDUITE (`salleDeSeance`, testee) dans l'EDT et le calcul des salles libres : seance, ponctuelle, classe,
   creneau. Plus de copie a la creation d'un creneau en salle unique.
+- **27/10** : en mode « meme salle », la salle de la classe est OBLIGATOIRE (le mode se deduit de sa
+  presence) ; classe nouvelle : mode « creneau par creneau » par defaut (decision utilisateur).
+- **27/10, salle 101 fantome (demo)** : classe ADULTES sans salle rattachee (`room_id` vide) mais texte
+  `room_number = '101'` (copie du nom, conservee quand « Oui » restait sans salle) : la liste l'affichait, la
+  fiche rouvrait en « Non ». Texte efface en base (demo, demande utilisateur). Cause de fond (`room_number`,
+  copie lue par la liste des classes, Affectations, archive) : correction proposee, en attente.

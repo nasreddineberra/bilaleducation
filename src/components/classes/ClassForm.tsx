@@ -182,7 +182,8 @@ export default function ClassForm({
   // SALLE (decision du 27/10) : « meme salle pour tous les creneaux » (salle de la
   // classe) ou salle choisie creneau par creneau. Deduit de la classe : une salle
   // de classe renseignee = salle unique. L'EDT en deduit la salle de chaque seance.
-  const [salleUnique, setSalleUnique] = useState(!cls || !!cls.room_id)
+  // Classe nouvelle : salle creneau par creneau par defaut (decision du 27/10).
+  const [salleUnique, setSalleUnique] = useState(!!cls?.room_id)
   const salleUniqueInitiale = useRef(salleUnique)
 
   const currentYear = schoolYears.find(y => y.is_current) ?? schoolYears[0]
@@ -459,7 +460,10 @@ export default function ClassForm({
   const vCotisation  = !form.cotisation_type_id
   const selectedRoom = rooms.find(r => r.id === form.room_id)
   const vCapacity    = !!(selectedRoom?.capacity && parseInt(form.max_students, 10) > selectedRoom.capacity)
-  const isFormValid  = !vName && !vCotisation && !vCapacity
+  // Salle unique : obligatoire (le mode se deduit de sa presence ; vide, la fiche
+  // rouvrirait « creneau par creneau »).
+  const vSalle       = salleUnique && !form.room_id
+  const isFormValid  = !vName && !vCotisation && !vCapacity && !vSalle
   const invalid = (field: string, bad: boolean) => touched.has(field) && bad
   const touch = (field: string) => setTouched(prev => new Set([...prev, field]))
   const set = (field: keyof FormData, value: string) =>
@@ -765,7 +769,10 @@ export default function ClassForm({
           <div className="grid grid-cols-2 gap-3">
             {salleUnique && <FloatSelect
               label="Salle de la classe"
+              required
               value={form.room_id}
+              onBlur={() => touch('room_id')}
+              error={invalid('room_id', vSalle) ? 'La salle est obligatoire.' : undefined}
               onChange={e => {
                 const roomId = e.target.value
                 set('room_id', roomId)
