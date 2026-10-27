@@ -198,7 +198,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   (cle adulte `parentId-tutorNumber`), `tonCategorie()` (support),
   `lib/texte/pluriel.ts` (`pluriel` / `accord` : jamais « (s) » dans un texte affiche),
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
-  `lib/students/photo.ts`, `lib/edt/intitule.ts`.
+  `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (titulaire actuel = principal
+  sans date de fin).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
   `SELECT enregistrer_migration('<fichier>','<sha>');` (empreinte via
   `node scripts/migrations-etat.mjs --ligne <fichier>`). **Additive -> migration d'abord ;

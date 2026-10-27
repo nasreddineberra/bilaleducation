@@ -6,12 +6,13 @@ import ConfirmModal from '@/components/ui/ConfirmModal'
 import FormModal from '@/components/ui/FormModal'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 import { NOM_ACTIVITE_MAX } from '@/lib/edt/intitule'
 
 interface SlotData {
   id: string
   class_id: string
-  teacher_id: string
+  teacher_id: string | null
   cours_id: string | null
   unite_enseignement_id?: string | null
   libelle?: string | null
@@ -34,6 +35,7 @@ interface ClassData {
   class_teachers: {
     teacher_id: string
     is_main_teacher: boolean
+    effective_until?: string | null
     teachers: { id: string; first_name: string; last_name: string; civilite?: string }
   }[]
 }
@@ -87,7 +89,7 @@ interface Props {
   onSave: (data: {
     id?: string
     class_id: string
-    teacher_id: string
+    teacher_id: string | null
     cours_id: string | null
     unite_enseignement_id: string | null
     libelle: string | null
@@ -106,7 +108,7 @@ interface Props {
     exception_date: string
     start_time: string
     end_time: string
-    teacher_id: string
+    teacher_id: string | null
     room_id: string | null
   }) => void
   onClose: () => void
@@ -117,12 +119,16 @@ export default function SlotFormModal({
   weekDayDates, classes, teachers, rooms, matieres, existingSlots, vacations = [], onSave, onSaveException, onClose,
 }: Props) {
   const isEditingThisOnly = editMode === 'this_only' && !!editDate && !!slot
+  const enseignantRequis = isEditingThisOnly && !!slot?.teacher_id
 
   const initialClass = classes.find(c => c.id === (slot?.class_id ?? prefillClassId))
-  const initialMainTeacherId = initialClass?.class_teachers?.find(ct => ct.is_main_teacher)?.teachers?.id
+  const initialMainTeacherId = titulaireActuel(initialClass?.class_teachers)?.teachers?.id
 
   const [classId, setClassId] = useState(slot?.class_id ?? prefillClassId ?? '')
-  const [teacherId, setTeacherId] = useState(slot?.teacher_id ?? (prefillTeacherId || initialMainTeacherId || ''))
+  // Creneau existant : SON enseignant, aucun s'il n'en a pas (« Prof non affecté ») ;
+  // jamais le titulaire de la classe en remplacement d'un vide.
+  const initialTeacherId = slot ? (slot.teacher_id ?? '') : (prefillTeacherId || initialMainTeacherId || '')
+  const [teacherId, setTeacherId] = useState(initialTeacherId)
   const [roomId, setRoomId] = useState(slot?.room_id ?? initialClass?.room_id ?? '')
   const [slotType, setSlotType] = useState(slot?.slot_type ?? 'cours')
   // Facultatifs : matiere d'un cours, nom d'une activite (chacun a sa place).
@@ -148,7 +154,7 @@ export default function SlotFormModal({
   // Track initial values for change detection in edit mode
   const initVals = useMemo(() => ({
     classId: slot?.class_id ?? prefillClassId ?? '',
-    teacherId: slot?.teacher_id ?? (prefillTeacherId || initialMainTeacherId || ''),
+    teacherId: initialTeacherId,
     roomId: slot?.room_id ?? initialClass?.room_id ?? '',
     slotType: slot?.slot_type ?? 'cours',
     ueId: slot?.unite_enseignement_id ?? '',
@@ -179,7 +185,7 @@ export default function SlotFormModal({
   useEffect(() => {
     if (!selectedClass || slot) return
     if (selectedClass.room_id) setRoomId(selectedClass.room_id)
-    const mainT = selectedClass.class_teachers?.find(ct => ct.is_main_teacher)
+    const mainT = titulaireActuel(selectedClass.class_teachers)
     if (mainT?.teachers?.id) setTeacherId(mainT.teachers.id)
   }, [classId, selectedClass, slot])
 
@@ -202,14 +208,17 @@ export default function SlotFormModal({
 
   const isValid = useMemo(() => {
     if (isRecurring === null) return false
-    if (!classId || !teacherId) return false
+    if (!classId) return false
+    // Enseignant facultatif (creneau « Prof non affecté »), sauf pour modifier UNE
+    // seance d'un creneau qui en a un : une exception sans enseignant garderait le sien.
+    if (enseignantRequis && !teacherId) return false
     if (!startTime || !endTime) return false
     if (startTime >= endTime) return false
     if (isRecurring && dayOfWeek === '') return false
     if (!isRecurring && !slotDate) return false
     if (dateInVacation) return false
     return true
-  }, [classId, teacherId, startTime, endTime, isRecurring, slotDate, dayOfWeek, dateInVacation])
+  }, [classId, teacherId, enseignantRequis, startTime, endTime, isRecurring, slotDate, dayOfWeek, dateInVacation])
 
   // Conflict detection
   const conflicts = useMemo(() => {
@@ -282,14 +291,14 @@ export default function SlotFormModal({
           exception_date: editDate!,
           start_time: startTime,
           end_time: endTime,
-          teacher_id: teacherId,
+          teacher_id: teacherId || null,
           room_id: roomId || null,
         })
       } else {
         await onSave({
           id: slot?.id,
           class_id: classId,
-          teacher_id: teacherId,
+          teacher_id: teacherId || null,
           cours_id: null,
           unite_enseignement_id: slotType === 'cours' ? (ueId || null) : null,
           libelle: slotType === 'activite' ? (libelle.trim() || null) : null,
@@ -418,7 +427,7 @@ export default function SlotFormModal({
         >
           <option value=""></option>
           {classes.map(c => {
-            const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
+            const mainT = titulaireActuel(c.class_teachers)
             const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
             const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
             return (
@@ -433,7 +442,7 @@ export default function SlotFormModal({
       {/* Teacher */}
       <FloatSelect
         label="Enseignant"
-        required
+        required={enseignantRequis}
         value={teacherId}
         onChange={e => setTeacherId(e.target.value)}
       >

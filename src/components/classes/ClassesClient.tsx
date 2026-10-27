@@ -12,6 +12,7 @@ import { FloatButton, FloatInput, SearchField } from '@/components/ui/FloatField
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 import Tooltip from '@/components/ui/Tooltip'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,7 +215,7 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
             <tbody className="divide-y divide-warm-50">
               {filtered.map(cls => {
                 const teachers      = cls.class_teachers ?? []
-                const titulaire     = teachers.find(t => t.is_main_teacher && !t.effective_until)
+                const titulaire     = titulaireActuel(teachers)
                 const remplacements = teachers
                   .filter(t => !t.is_main_teacher)
                   .sort((a, b) => (b.effective_from ?? '').localeCompare(a.effective_from ?? ''))

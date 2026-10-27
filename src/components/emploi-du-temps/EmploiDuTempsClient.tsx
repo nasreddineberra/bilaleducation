@@ -21,6 +21,7 @@ import SlotFormModal from './SlotFormModal'
 import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { intituleCreneau } from '@/lib/edt/intitule'
+import { titulaireActuel } from '@/lib/teachers/titulaire'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'jui
 export interface SlotData {
   id: string
   class_id: string
-  teacher_id: string
+  teacher_id: string | null   // NULL = « Prof non affecté »
   cours_id: string | null
   room_id: string | null
   is_recurring: boolean
@@ -163,7 +164,7 @@ export interface ResolvedSlot {
   date: string // YYYY-MM-DD of the actual day
   dayOfWeek: number
   class_id: string
-  teacher_id: string
+  teacher_id: string | null   // NULL = « Prof non affecté »
   cours_id: string | null
   room_id: string | null
   start_time: string
@@ -639,7 +640,8 @@ export default function EmploiDuTempsClient({
 
   // Chevauchement d'HORAIRES, comme la garde en base. La demi-journee est
   // abandonnee : une absence de 9h a 10h ne bloquait plus toute la matinee.
-  const enseignantAbsent = useCallback((teacherId: string, date: string, start: string, fin: string) => {
+  const enseignantAbsent = useCallback((teacherId: string | null, date: string, start: string, fin: string) => {
+    if (!teacherId) return false
     const plages = absenceParEnseignant.get(`${teacherId}|${date}`)
     if (!plages) return false
     return plages.some(p => start < p.fin && fin > p.debut)
@@ -1200,7 +1202,7 @@ export default function EmploiDuTempsClient({
   const handleSaveSlot = useCallback(async (data: {
     id?: string
     class_id: string
-    teacher_id: string
+    teacher_id: string | null
     cours_id: string | null
     unite_enseignement_id: string | null
     libelle: string | null
@@ -1374,7 +1376,7 @@ export default function EmploiDuTempsClient({
     exception_date: string
     start_time: string
     end_time: string
-    teacher_id: string
+    teacher_id: string | null
     room_id: string | null
   }) => {
     const slot = slots.find(s => s.id === data.schedule_slot_id)
@@ -1383,7 +1385,7 @@ export default function EmploiDuTempsClient({
     const needsOverride =
       data.start_time !== slot.start_time.slice(0, 5) ||
       data.end_time !== slot.end_time.slice(0, 5) ||
-      data.teacher_id !== slot.teacher_id ||
+      (data.teacher_id ?? null) !== (slot.teacher_id ?? null) ||
       (data.room_id ?? null) !== (slot.room_id ?? null)
 
     if (!needsOverride) {
@@ -1402,7 +1404,7 @@ export default function EmploiDuTempsClient({
       exception_type: 'modified' as const,
       override_start_time: data.start_time !== slot.start_time.slice(0, 5) ? data.start_time : null,
       override_end_time: data.end_time !== slot.end_time.slice(0, 5) ? data.end_time : null,
-      override_teacher_id: data.teacher_id !== slot.teacher_id ? data.teacher_id : null,
+      override_teacher_id: (data.teacher_id ?? null) !== (slot.teacher_id ?? null) ? data.teacher_id : null,
       override_room_id: (data.room_id ?? null) !== (slot.room_id ?? null) ? data.room_id : null,
     }
 
@@ -1570,7 +1572,12 @@ export default function EmploiDuTempsClient({
       return
     }
 
-    const titulaireProfileId = teacherProfileMap[resolved.teacher_id]
+    // Creneau « Prof non affecté » : personne dont enregistrer la presence.
+    if (!resolved.teacher_id && !jeRemplace) {
+      toastError("Aucun enseignant n'est affecté à ce créneau : sa présence ne peut pas être validée.")
+      return
+    }
+    const titulaireProfileId = resolved.teacher_id ? teacherProfileMap[resolved.teacher_id] : undefined
     const teacherProfileId = jeRemplace ? currentUserId : titulaireProfileId
 
     const doValidate = async () => {
@@ -1782,7 +1789,7 @@ export default function EmploiDuTempsClient({
           >
             <option value="" disabled hidden></option>
             {classes.map(c => {
-              const mainT = c.class_teachers?.find(ct => ct.is_main_teacher)
+              const mainT = titulaireActuel(c.class_teachers)
               const teacher = mainT?.teachers ? nomEnseignantCivilite(mainT.teachers) : ''
               const infoParts = [teacher, c.cotisation_types?.label].filter(Boolean)
               return (

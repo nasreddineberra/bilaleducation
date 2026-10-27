@@ -9567,3 +9567,15 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   l'ambre pointille signale deja une seance modifiee ; rouge = « Sans titulaire » de la fiche classe).
 - Hors perimetre, note : la matiere du cahier de texte reste « General » (V1) ; la relier a celle du creneau
   serait l'etape suivante.
+
+### 27/10 · EDT : l'ancien titulaire proposait encore ses creneaux
+
+- **Constat utilisateur** : « Modifier ce creneau uniquement » sur un creneau « Prof non affecte » proposait
+  l'ANCIEN titulaire (retire le 27/10). Deux causes : la modale remplacait un enseignant vide par le titulaire
+  de la classe (`slot.teacher_id ?? titulaire`) ; et l'EDT prenait le premier `is_main_teacher`, meme clos,
+  alors que la fiche classe et la liste ne comptent que celui sans date de fin.
+- **Correctif** : source unique `lib/teachers/titulaire.ts` (`titulaireActuel`) pour l'EDT (modale, libelle
+  du selecteur de classe) et la liste des classes ; un creneau existant garde SON enseignant, ou aucun.
+  Enseignant FACULTATIF dans la modale (creneau « Prof non affecte »), sauf pour modifier une seule seance
+  d'un creneau qui en a un. Valider un creneau sans enseignant : refus explicite (avant : message trompeur
+  « pas de compte utilisateur »).
