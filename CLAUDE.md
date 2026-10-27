@@ -195,6 +195,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   Une fonction NOUVELLE n'est executable ni par PUBLIC ni par `anon` (defauts changes le 26/10,
   controle 25) : l'octroyer explicitement a `authenticated` ; a `anon` seulement si une page publique
   en a besoin (une regle d'acces qui l'appelle ferait sinon lever les requetes anonymes).
+  Depuis le 27/10 `anon` n'a AUCUN droit de table ni de sequence dans `public`, nouvelles comprises
+  (controle 26) : une page publique lit par la cle serveur, jamais en anonyme. Une nouvelle table
+  active TOUJOURS la RLS (le controle 26 le verifie aussi).
 
 ## 6. Charte graphique
 
@@ -339,7 +342,7 @@ Tous les modules sont faits et audites (accessibilite, charte, theme sombre, mob
 ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console. Historique : journal.
 
 0. **A CHAQUE REPRISE · Node2Shell (CVE-2026-111497)** : projet en **24.x** (`engines` + reglage Vercel
-   « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 26/10,
+   « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
    pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
    redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
 1. **A la reprise (arret du 26/10 au soir, tout pousse, aucune migration en attente)** : voir a l'ecran sur la
@@ -355,8 +358,8 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    montee en charge progressive ; service transactionnel a envisager a 200-300 foyers.
 4. **Signale, non traite** : `description` des lignes manuelles du journal reste libre ; avis `npm audit`
    (brace-expansion, braces) ; email aux familles a la MODIFICATION d'un devoir ; sortie des ~500 `any` ;
-   accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon d'apprenant) ; `anon` garde
-   tous les droits de TABLE (defaut Supabase, la RLS seule protege).
+   accords en GENRE « (e) » (« Ne(e) le », notification d'absence, doublon d'apprenant) ; bucket
+   `student-photos` PUBLIC + `getPublicUrl` (`StudentForm`), 0 photo au 27/10 : a passer en prive + URL signee.
 5. **Passes de fin de V1** : plan de test, tracabilite globale, valeurs en dur.
 6. **Secondaire (multi-professeurs, matieres)** : abandonne en V1, code conserve (palette de
    matieres, `isDndActive = false`, matiere « General »).

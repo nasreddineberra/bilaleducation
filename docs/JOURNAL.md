@@ -9456,3 +9456,24 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   (export, effacement, reouverture, « Reinitialiser », releve en base avant / apres : concluant, autres ecoles
   intactes).
 - **Ajustements en cours d'annee** (FAIT 26/10, lots 1 et 2) : detail dans les entrees du 26/10 ci-dessus.
+
+#### 27 octobre 2026 — Tables : plus aucun droit pour `anon`
+
+- **Mesure d'abord** (lecture seule) : 70 tables, toutes sous RLS, aucune vue qui la contourne. `anon` avait
+  les 7 droits sur 61 tables, mais un anonyme simule voyait **0 ligne sur 1 051** (total recoupe : 235 eleves,
+  134 foyers) ; les 8 tables de l'editeur lui etaient deja fermees. Les 109 policies qui le concernent exigent
+  toutes l'ecole ou le compte, NULL pour lui.
+- **Le vrai trou etait l'avenir** : les privileges par defaut de `postgres` ouvraient a `anon` toute table et
+  sequence NOUVELLE. Une table creee sans RLS aurait ete lisible et modifiable depuis Internet.
+- **Inventaire du code** : aucune lecture anonyme (middleware et `/api/public/etablissement` par la cle
+  serveur, autres parcours connectes). Fonctions executables par `anon` : regles d'acces (DEFINER) et
+  declencheurs, sans besoin de droit de table.
+- **Migration `revoke-anon-tables.sql`** (jouee le 27/10) : `REVOKE ALL` tables et sequences de `public`,
+  privileges par defaut de `postgres` retires a `anon`. Ceux de `supabase_admin` ne sont pas modifiables
+  (« permission denied to change default privileges », essai en transaction annulee).
+- **Controle 26** (`26-anon-tables.sql`) : RLS sur toute table, aucun droit `anon`, `authenticated` intact,
+  table nouvelle fermee, lecture anonyme refusee. VU ROUGE avant (3 KO), vert apres (0 KO). Controle 25
+  toujours vert, registre 170 / 170.
+- **Effet** : une requete anonyme rend « permission denied » au lieu d'un resultat vide.
+- **Vu en route, non traite** : bucket `student-photos` PUBLIC et `getPublicUrl` dans `StudentForm` (contraire
+  a la regle « jamais d'URL publique sauf logos ») ; 0 photo stockee, donc rien d'expose aujourd'hui.
