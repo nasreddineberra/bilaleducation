@@ -118,15 +118,17 @@ export default function SlotCapsule({
   // Matiere d'un cours, nom d'une activite, a defaut le type (`intituleCreneau`).
   const libelleCours = intituleCreneau(slot)
 
-  const infoLignes: string[] = [libelleCours]
+  const infoLignes: string[] = []
   if (viewMode !== 'class' && slot.classes) infoLignes.push(slot.classes.name)
+  infoLignes.push(libelleCours)
   if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
   if (slot.rooms) infoLignes.push(slot.rooms.name)
   infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
   if (validated) infoLignes.push('Présence validée')
 
-  const ariaParts = [libelleCours]
+  const ariaParts: string[] = []
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
+  ariaParts.push(libelleCours)
   if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomEnseignant(slot.teachers))
   if (slot.rooms) ariaParts.push(slot.rooms.name)
   ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
@@ -180,21 +182,19 @@ export default function SlotCapsule({
         maxWidth="max-w-none"
       >
         <div className={clsx('h-full flex flex-col overflow-hidden', minimal ? 'px-1 py-0.5' : 'px-1.5 py-0.5')}>
-          {/* Cours (ou type de créneau) — retiré sur un créneau court, SAUF en
-              vue classe : la classe y est masquée car redondante, et sans cette
-              exception il ne resterait que l'horaire. */}
-          {(!court || viewMode === 'class') && (
-            <div className={clsx('font-bold leading-tight', minimal ? 'text-[9px] line-clamp-2' : 'text-[10px] truncate')}>
-              {libelleCours}
-            </div>
-          )}
-
-          {/* Classe (vues globale / enseignant) */}
+          {/* ORDRE (demande du 27/10) : classe, intitule, enseignant, horaire —
+              quelle que soit la duree. La classe est masquee en vue classe
+              (redondante), l'enseignant en vue enseignant. */}
           {viewMode !== 'class' && slot.classes && (
-            <div className={clsx('font-medium leading-tight truncate opacity-80', minimal ? 'text-[8px]' : 'text-[9px]')}>
+            <div className={clsx('font-bold leading-tight truncate', minimal ? 'text-[9px]' : 'text-[10px]')}>
               {slot.classes.name}
             </div>
           )}
+
+          {/* Intitule : matiere d'un cours, nom d'une activite, sinon le type. */}
+          <div className={clsx('leading-tight', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+            {libelleCours}
+          </div>
 
           {/* « Prof non affecté » reste affiché quelle que soit la place (créneau
               court, densité minimale) : c'est une anomalie à voir. Deux lignes
@@ -205,22 +205,24 @@ export default function SlotCapsule({
             </div>
           )}
 
-          {/* Enseignant (vues globale / classe) */}
-          {!court && viewMode !== 'teacher' && !noTeacher && (
-            slot.teachers && !minimal ? (
-              /* NOM et prénom sur DEUX lignes (demande du 29/09). Sur une seule,
-                 la capsule est trop étroite : le `truncate` coupait « BELAÏD
-                 Djamila » et emportait le prénom — c'est-à-dire exactement ce
-                 qu'on venait d'ajouter en retirant la civilité. Chaque ligne
-                 garde son `truncate` pour un nom composé très long.
-                 L'étiquette d'accessibilité, elle, reste sur une ligne. */
-              <div className="text-[9px] leading-tight opacity-70">
+          {/* Enseignant (vues globale / classe), en gras. Créneau long : NOM et
+              prénom sur DEUX lignes (demande du 29/09 : sur une seule, le
+              `truncate` emportait le prénom). Créneau court : une seule ligne,
+              sinon cinq lignes ne tiennent pas dans une heure ; le nom complet
+              reste dans l'infobulle. */}
+          {viewMode !== 'teacher' && !noTeacher && slot.teachers && !minimal && (
+            court ? (
+              <div className="text-[9px] leading-tight font-bold truncate">
+                {nomEnseignant(slot.teachers)}
+              </div>
+            ) : (
+              <div className="text-[9px] leading-tight font-bold">
                 <div className="truncate">{slot.teachers.last_name}</div>
                 {slot.teachers.first_name && (
                   <div className="truncate">{slot.teachers.first_name}</div>
                 )}
               </div>
-            ) : null
+            )
           )}
 
           {/* Salle — première ligne sacrifiée quand la place manque */}

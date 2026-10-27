@@ -181,8 +181,8 @@ function SeancesDuJour({ date, slots, viewMode }: { date: Date; slots: ResolvedS
         {slots.map(slot => {
           const parts = [
             `${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`,
-            intituleCreneau(slot),
             viewMode !== 'class' ? slot.classes?.name : null,
+            intituleCreneau(slot),
             viewMode !== 'teacher' ? (slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : null) : 'Prof non affecté') : null,
             slot.rooms?.name,
           ].filter(Boolean)
@@ -219,8 +219,9 @@ function MonthSlotCapsule({
 }) {
   const colorClass = SLOT_COLORS[slot.slot_type] ?? SLOT_COLORS.cours
 
-  const ariaParts = [slot.start_time.slice(0, 5), intituleCreneau(slot)]
+  const ariaParts = [slot.start_time.slice(0, 5)]
   if (viewMode !== 'class' && slot.classes) ariaParts.push(slot.classes.name)
+  ariaParts.push(intituleCreneau(slot))
   if (viewMode !== 'teacher') ariaParts.push(slot.teacher_id ? (slot.teachers ? nomEnseignant(slot.teachers) : '') : 'Prof non affecté')
   const ariaLabel = ariaParts.filter(Boolean).join(', ')
 
@@ -257,19 +258,20 @@ function MonthSlotCapsule({
       <span className="text-[9px] font-semibold leading-tight">
         {slot.start_time.slice(0, 5)}
       </span>
-      <span className="text-[9px] leading-tight ml-0.5">
-        {intituleCreneau(slot)}
-      </span>
+      {/* Meme ordre que la semaine : classe, intitule, enseignant. */}
       {viewMode !== 'class' && slot.classes && (
-        <span className="text-[8px] opacity-70 ml-0.5">
+        <span className="text-[9px] font-bold ml-0.5">
           {slot.classes.name}
         </span>
       )}
+      <span className="text-[9px] leading-tight ml-0.5">
+        {intituleCreneau(slot)}
+      </span>
       {viewMode !== 'teacher' && !slot.teacher_id && (
         <span className="text-[8px] font-bold text-red-700 ml-0.5">Prof non affecté</span>
       )}
       {viewMode !== 'teacher' && slot.teacher_id && slot.teachers && (
-        <span className="text-[8px] opacity-60 ml-0.5">
+        <span className="text-[8px] font-bold ml-0.5">
           {nomEnseignant(slot.teachers)}
         </span>
       )}
