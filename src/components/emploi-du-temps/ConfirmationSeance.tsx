@@ -18,13 +18,11 @@ const MODES = {
     titre: 'Annuler la séance',
     motCle: 'ANNULATION',
     bouton: 'Annuler la séance',
-    rappel: 'Elle restera affichée « ANNULÉ » et pourra être réactivée.',
   },
   supprimer: {
     titre: 'Supprimer la séance',
     motCle: 'SUPPRESSION',
     bouton: 'Supprimer la séance',
-    rappel: 'Cette séance ponctuelle sera supprimée définitivement.',
   },
 } as const
 
@@ -67,9 +65,10 @@ export default function ConfirmationSeance({ seance, mode, onConfirm, onCancel }
             </div>
           ))}
         </dl>
-        <p className="text-sm text-warm-700">{m.rappel}</p>
+        <p className="text-sm text-warm-700">Saisissez <strong className="text-secondary-800">{m.motCle}</strong> pour confirmer.</p>
         <FloatInput
           label={`Saisissez ${m.motCle} pour confirmer`}
+          libelleMasque
           value={saisie}
           onChange={e => setSaisie(e.target.value)}
           autoComplete="off"

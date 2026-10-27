@@ -9648,3 +9648,6 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
   `room_id`), sinon « · » (decision utilisateur) ; l'archive du passage d'annee fige la salle deduite (classe,
   sinon creneau) ; Affectations ne lisait la copie que pour rien (retiree). La fiche classe ecrit desormais
   `room_number = NULL` (copies perimees videes a l'enregistrement) ; colonne supprimee au lot 5.
+- **27/10, confirmation** : la phrase de rappel est retiree ; la consigne « Saisissez ANNULATION pour
+  confirmer. » (mot-cle en gras) prend sa place en texte, le champ n'a plus de libelle visible
+  (`FloatInput libelleMasque` : libelle lu par les lecteurs d'ecran seulement, sans encoche dans le cadre).

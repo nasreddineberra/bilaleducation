@@ -30,9 +30,12 @@ export interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElem
   compact?:  boolean
   /** Libelle sur le trait du cadre (voir « Variante bordure »). */
   bordure?:  boolean
+  /** Libelle lu par les lecteurs d'ecran seulement : la consigne est deja ecrite
+   *  au-dessus du champ (ex. saisie d'un mot-cle de confirmation). */
+  libelleMasque?: boolean
 }
 
-export function FloatInput({ label, required, error, locked, compact, bordure = true, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
+export function FloatInput({ label, required, error, locked, compact, bordure = true, libelleMasque = false, className, type, onFocus, onBlur, ...props }: FloatInputProps) {
   const isDate = type === 'date'
   // Pour les champs date : afficher type="text" quand vide et non focusé
   // afin de masquer le placeholder navigateur (jj/mm/aaaa)
@@ -63,7 +66,7 @@ export function FloatInput({ label, required, error, locked, compact, bordure = 
           className ?? '',
         ].join(' ')}
       />
-      <label className={[
+      <label className={libelleMasque ? 'sr-only' : [
         'absolute transition-all duration-200 pointer-events-none select-none origin-left',
         bordure ? (locked ? BORDURE_LABEL_VERROU : BORDURE_LABEL) : 'left-3',
         bordure ? 'top-1.5 text-xs' : compact ? 'top-2.5 text-xs' : 'top-3.5 text-sm',
