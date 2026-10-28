@@ -35,11 +35,23 @@ const PHRASES_REFUS: Record<string, string> = {
   ABSENCE_DECISION:          'Décision invalide.',
   ABSENCE_REMPLACANT:        'Le remplaçant doit être un membre actif de l’équipe, autre que l’absent.',
   ABSENCE_REMPLACANT_OCCUPE: 'Ce remplaçant est déjà pris sur cet horaire.',
+  // Validation d'une seance (`valider_seance`, `retirer_validation_seance`).
+  VALIDATION_REFUSEE:         'Vous ne validez que les séances que vous assurez.',
+  VALIDATION_SEANCE:          'Cette séance n’existe pas à cette date.',
+  VALIDATION_FUTURE:          'Une séance à venir ne se valide pas.',
+  VALIDATION_DEJA:            'Cette séance est déjà validée.',
+  VALIDATION_ANNULEE:         'Une séance annulée ne se valide pas.',
+  VALIDATION_A_DECIDER:       'L’enseignant est absent et rien n’est décidé pour cette séance : réglez d’abord l’absence.',
+  VALIDATION_SANS_ENSEIGNANT: 'Personne n’assure cette séance, ou l’enseignant n’a pas de compte : sa présence ne peut pas être validée.',
+  VALIDATION_TYPE:            'Aucun type de présence n’est associé à ce type de séance : configurez-le dans Paramètres, Types de présence.',
+  VALIDATION_INTROUVABLE:     'Cette séance n’est pas validée.',
 }
 
 /** Phrase d'un refus, suivie de la seance en cause (« CE1 · 04/11/2026 · 14:00-16:00 »). */
 export function phraseRefusAbsence(error: { message?: string; details?: string | null }, defaut: string): string {
   const phrase = PHRASES_REFUS[error.message ?? '']
-  if (!phrase) return defaut
+  // Refus d'une autre garde de la base, deja redige en phrase (chevauchement de
+  // saisies d'heures) : il dit mieux que le message par defaut.
+  if (!phrase) return error.message && /\s/.test(error.message) ? error.message : defaut
   return error.details ? `${phrase} (${error.details})` : phrase
 }

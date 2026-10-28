@@ -4909,6 +4909,7 @@ export type Database = {
         Returns: undefined
       }
       fn_releve_facturation: { Args: never; Returns: number }
+      fn_remplace_classe: { Args: { p_class_id: string | null }; Returns: boolean }
       fn_role_remplacant: { Args: { p_role: string | null }; Returns: boolean }
       fn_seance_a_lieu: {
         Args: { p_date: string | null; p_slot_id: string | null }
@@ -4954,6 +4955,10 @@ export type Database = {
           slot_id: string
         }[]
       }
+      retirer_validation_seance: {
+        Args: { p_date: string | null; p_slot_id: string | null }
+        Returns: undefined
+      }
       set_teacher_profile_active: {
         Args: { p_active: boolean | null; p_teacher_id: string | null }
         Returns: undefined
@@ -4965,6 +4970,10 @@ export type Database = {
       teaches_class: { Args: { p_class_id: string | null }; Returns: boolean }
       teaches_parent: { Args: { p_parent_id: string | null }; Returns: boolean }
       teaches_student: { Args: { p_student_id: string | null }; Returns: boolean }
+      valider_seance: {
+        Args: { p_date: string | null; p_slot_id: string | null }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import CahierTexteClient from '@/components/cahier-texte/CahierTexteClient'
 import { AlertTriangle } from 'lucide-react'
 import { effectiveRole } from '@/lib/auth/effective-role'
+import { horodatageParis } from '@/lib/dates'
 
 export default async function CahierTextePage() {
   const supabase = await createClient()
@@ -35,7 +36,7 @@ export default async function CahierTextePage() {
 
   const { data: teacher } = await supabase
     .from('teachers')
-    .select('id')
+    .select('id, civilite, first_name, last_name')
     .eq('user_id', userId)
     .single()
 
@@ -72,13 +73,32 @@ export default async function CahierTextePage() {
     classes = (data ?? []) as any[]
     classIds = classes.map((c: any) => c.id)
 
-  } else if (role === 'enseignant' && teacherAssignments.length > 0) {
-    classIds = [...new Set(teacherAssignments.filter(inReadWindow).map(a => a.class_id))]
-    const { data } = await supabase
-      .from('classes')
-      .select(classSelect)
-      .in('id', classIds)
-      .order('name')
+  } else if (role === 'enseignant' && teacher) {
+    // Classes ou il REMPLACE une seance (absence d'un collegue, lot 3) : de 7 jours
+    // avant la seance a 7 jours apres, comme la RLS (`fn_remplace_classe`).
+    const aujourdhui = horodatageParis(new Date()).slice(0, 10)
+    const decale = (jours: number) => {
+      const [y, m, d] = aujourdhui.split('-').map(Number)
+      const x = new Date(y, m - 1, d + jours)
+      return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+    }
+    const { data: remplacements } = await supabase
+      .from('absences_enseignants_seances')
+      .select('schedule_slots!inner(class_id)')
+      .eq('decision', 'remplacee')
+      .eq('remplacant_profile_id', userId)
+      .gte('seance_date', decale(-7))
+      .lte('seance_date', decale(7))
+    const classesRemplacees = (remplacements ?? []).map(r => r.schedule_slots.class_id)
+
+    classIds = [...new Set([...teacherAssignments.filter(inReadWindow).map(a => a.class_id), ...classesRemplacees])]
+    const { data } = classIds.length
+      ? await supabase
+          .from('classes')
+          .select(classSelect)
+          .in('id', classIds)
+          .order('name')
+      : { data: [] }
     classes = (data ?? []) as any[]
 
   } else if (role === 'parent') {
@@ -176,6 +196,7 @@ export default async function CahierTextePage() {
         allTeachers={allTeachers}
         allAssignments={allAssignments}
         etablissementId={etablissementId}
+        moi={teacher ?? null}
       />
     </div>
   )

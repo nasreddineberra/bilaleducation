@@ -23,6 +23,9 @@ interface Props {
   allTeachers: { id: string; first_name: string; last_name: string }[]
   allAssignments: { class_id: string; teacher_id: string; is_main_teacher: boolean; subject: string | null }[]
   etablissementId: string
+  /** Fiche enseignant du connecte : auteur de ce qu'il ecrit quand il REMPLACE une
+   *  seance de la classe (absence d'un collegue, lot 3) sans y etre affecte. */
+  moi?: { id: string; civilite?: string | null; first_name: string; last_name: string } | null
 }
 
 // Carte d'une seance / d'un devoir : bouton, survol par la bordure de marque
@@ -52,7 +55,7 @@ const ALL_CLASSES = '__all__'
 export default function CahierTexteClient({
   role, classes, journalEntries, homeworkEntries,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matiere forcee « General » en V1 (11/07), machinerie du Secondaire conservee
-  teacherId, teacherAssignments, allTeachers, allAssignments, etablissementId,
+  teacherId, teacherAssignments, allTeachers, allAssignments, etablissementId, moi = null,
 }: Props) {
   const [tab, setTab] = useState<'journal' | 'devoirs'>('journal')
   const [search, setSearch] = useState('')
@@ -104,9 +107,12 @@ export default function CahierTexteClient({
   const mainTeacherLabel = mainCT?.teachers ? teacherName(mainCT.teachers) : ''
   // Auteur d'une création = enseignant CONNECTÉ s'il est affecté à la classe
   // (titulaire OU remplaçant), sinon le titulaire (cas d'un staff qui crée pour le compte de).
+  // Un enseignant qui remplace une séance d'absence n'est pas affecté à la classe :
+  // il reste l'auteur (la base n'accepte que lui).
   const meCT = teacherId ? (selectedClass?.class_teachers?.find(ct => ct.teachers?.id === teacherId) ?? null) : null
-  const authorId = meCT?.teachers?.id ?? mainTeacherId
-  const authorLabel = meCT?.teachers ? teacherName(meCT.teachers) : mainTeacherLabel
+  const moiAuteur = !meCT && role === 'enseignant' ? moi : null
+  const authorId = meCT?.teachers?.id ?? moiAuteur?.id ?? mainTeacherId
+  const authorLabel = meCT?.teachers ? teacherName(meCT.teachers) : moiAuteur ? teacherName(moiAuteur) : mainTeacherLabel
   const classSubjects = useMemo(
     () => [...new Set(((selectedClass?.class_teachers ?? []).map(ct => ct.subject).filter(Boolean) as string[]))].sort(),
     [selectedClass]

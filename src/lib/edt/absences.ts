@@ -43,6 +43,24 @@ export function chevaucheAbsence(date: string, debut: string, fin: string, absen
   return seanceDebut < horodatage(absence.fin) && seanceFin > horodatage(absence.debut)
 }
 
+/** Une absence d'enseignant (`teachers.id`), telle que la lit l'EDT. */
+export interface AbsenceEnseignant extends PeriodeAbsence {
+  id: string
+  teacher_id: string
+}
+
+/** L'absence de `teacherId` qui touche la seance, s'il y en a une. */
+export function absenceDeSeance(
+  absences: AbsenceEnseignant[],
+  teacherId: string | null,
+  date: string,
+  debut: string,
+  fin: string,
+): AbsenceEnseignant | undefined {
+  if (!teacherId) return undefined
+  return absences.find(a => a.teacher_id === teacherId && chevaucheAbsence(date, debut, fin, a))
+}
+
 /** Les jours couverts par l'absence, du jour de debut au jour de fin compris. */
 export function joursDeLAbsence(absence: PeriodeAbsence): string[] {
   const premier = horodatage(absence.debut).slice(0, 10)

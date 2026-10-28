@@ -7,6 +7,7 @@ import type { JourFerme } from '@/lib/school-year/jours-fermes'
 import { timeToMinutes } from '@/lib/edt/temps'
 import SlotCapsule from './SlotCapsule'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
+import { nomCourtEnseignant } from '@/lib/teachers/nom'
 
 type ViewMode = 'global' | 'class' | 'teacher'
 
@@ -22,12 +23,8 @@ interface Props {
   viewMode: ViewMode
   isTeacher: boolean
   currentTeacherId?: string
-  /** « J'enseigne cette classe ce jour-la » — titulaire OU remplacant. Voir
-   *  `jEnseigneCetteClasse` dans `EmploiDuTempsClient`. */
-  jEnseigneCetteClasse?: (classId?: string | null, date?: string | null) => boolean
-  /** Qui couvre cette classe ce jour-la, hors l'enseignant du creneau. */
-  remplacantDeLaClasse?: (classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => string | null
-  remplacementActif?: (classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => boolean
+  /** Compte connecte (`profiles.id`) : un remplacant d'absence est un compte. */
+  currentUserId?: string
   isValidated: (sourceSlotId: string, slotDate: string) => boolean
   onValidate: (slot: ResolvedSlot) => void
   onCancelValidation: (sourceSlotId: string, slotDate: string) => void
@@ -62,7 +59,7 @@ function DropZone({ id, topPct, heightPct }: { id: string; topPct: number; heigh
 
 export default function DayColumn({
   day, dateStr, slots, startHour, endHour, isToday, canValidate, canEdit, viewMode,
-  isTeacher, currentTeacherId, jEnseigneCetteClasse, remplacantDeLaClasse, remplacementActif, fermeture, isValidated, onValidate, onCancelValidation,
+  isTeacher, currentTeacherId, currentUserId, fermeture, isValidated, onValidate, onCancelValidation,
   onClickSlot, onContextMenuSlot, onKeyMenuSlot, activeMenuSlotId, onClickEmpty, onDeleteSlot, droppable = false,
 }: Props) {
   const totalMinutes = (endHour - startHour) * 60
@@ -186,33 +183,18 @@ export default function DayColumn({
               isToday={isToday}
               canValidate={canValidate}
               isTeacher={isTeacher}
-              // Le creneau d'un remplacement porte encore le TITULAIRE : sans
-              // la seconde branche, le remplacant n'aurait pas le ✓ sur l'heure
-              // qu'il assure, et elle ne serait comptee pour personne.
-              // Le TITULAIRE ne valide plus sa seance quand un remplacant couvre la
-              // date : l'heure est assuree (et comptee) par le remplacant. Sans
-              // cette exclusion, les deux pouvaient la valider.
-              // « Mon creneau » : le titulaire seulement s'il n'est pas remplace ; le
-              // remplacant (affectation qui couvre la date, sur un creneau qui n'est
-              // pas le sien). La seconde branche valait aussi pour le TITULAIRE (sa
-              // propre affectation couvre la date) : la coche restait affichee.
-              isOwnSlot={(!!currentTeacherId && slot.teacher_id === currentTeacherId
-                          && !remplacementActif?.(slot.class_id, dateStr, slot.teacher_id))
-                         || (slot.teacher_id !== currentTeacherId
-                             && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true)}
-              // Le REMPLACANT voit de qui il prend la suite (le creneau porte le titulaire).
-              remplacementDe={!!slot.teacher_id && slot.teacher_id !== currentTeacherId
-                && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true}
-              // Message rouge dans la seance : visible de tous SAUF du remplacant lui-meme.
-              remplaceParNom={!!slot.teacher_id
-                && remplacementActif?.(slot.class_id, dateStr, slot.teacher_id) === true
-                && !(slot.teacher_id !== currentTeacherId && jEnseigneCetteClasse?.(slot.class_id, dateStr) === true)
-                ? (remplacantDeLaClasse?.(slot.class_id, dateStr, slot.teacher_id) ?? 'un remplaçant')
-                : null}
-              // Calcule ici seulement quand il sert : la capsule n'en a besoin
-              // que si l'enseignant du creneau est absent.
-              remplacantNom={slot.teacherAbsent
-                ? remplacantDeLaClasse?.(slot.class_id, dateStr, slot.teacher_id) ?? null
+              // REMPLACEMENT D'UNE ABSENCE (lot 3, 28/10) : la seance est au
+              // remplacant designe par l'absence (un compte, fiche enseignant ou
+              // non), pas au titulaire ; le titulaire remplace ne valide plus.
+              // Un titulaire absent sans decision ne valide pas non plus.
+              isOwnSlot={slot.remplacant
+                ? slot.remplacant.profileId === currentUserId
+                : !!currentTeacherId && slot.teacher_id === currentTeacherId && !slot.aDecider}
+              // Le REMPLACANT voit de qui il prend la suite.
+              remplacementDe={!!slot.remplacant && slot.remplacant.profileId === currentUserId}
+              // « Remplacé par » : visible de tous SAUF du remplacant lui-meme.
+              remplaceParNom={slot.remplacant && slot.remplacant.profileId !== currentUserId
+                ? (slot.remplacant.personne ? nomCourtEnseignant(slot.remplacant.personne) : 'un remplaçant')
                 : null}
               validated={isValidated(slot.sourceSlotId, dateStr)}
               draggable={droppable}

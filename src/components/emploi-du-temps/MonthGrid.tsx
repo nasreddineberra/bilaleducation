@@ -272,13 +272,19 @@ function MonthSlotCapsule({
       <span className={clsx('text-[9px] leading-tight ml-0.5', slot.annulee && 'line-through')}>
         {intituleCreneau(slot)}
       </span>
-      {viewMode !== 'teacher' && !slot.teacher_id && !slot.annulee && (
+      {viewMode !== 'teacher' && !slot.teacher_id && !slot.remplacant && !slot.annulee && (
         <span className="text-[8px] font-bold text-red-700 ml-0.5">Prof non affecté</span>
       )}
-      {viewMode !== 'teacher' && slot.teacher_id && slot.teachers && !slot.annulee && (
-        <span className="text-[8px] font-bold ml-0.5">
-          {nomCourtEnseignant(slot.teachers)}
-        </span>
+      {/* Remplacement d'une absence : celui qui assure la seance. */}
+      {viewMode !== 'teacher' && !slot.annulee && (slot.remplacant
+        ? <span className="text-[8px] font-bold text-red-700 ml-0.5">rempl. {slot.remplacant.personne ? nomCourtEnseignant(slot.remplacant.personne) : ''}</span>
+        : slot.teacher_id && slot.teachers && (
+          <span className="text-[8px] font-bold ml-0.5">
+            {nomCourtEnseignant(slot.teachers)}
+          </span>
+        ))}
+      {slot.aDecider && !slot.annulee && (
+        <span className="text-[8px] font-bold text-amber-700 ml-0.5">absent</span>
       )}
     </div>
   )

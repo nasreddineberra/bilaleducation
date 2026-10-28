@@ -91,13 +91,8 @@ export default async function EmploiDuTempsPage() {
     for (const s of creneaux) if (s.teacher_id && !s.teachers) s.teachers = parId.get(s.teacher_id) ?? null
   }
 
-  // Types de présence RÉSERVÉS de l'année : correspondance slot_type ('cours'/'activite')
-  // → code réel du type (ex. 'CRS'/'ACT') écrit dans staff_time_entries à la validation.
-  const { data: reservedPresenceTypes } = await supabase
-    .from('presence_types')
-    .select('code, reserved_kind')
-    .eq('school_year_id', currentYear.id)
-    .not('reserved_kind', 'is', null)
+  // Le type de presence ecrit a la validation (code reserve du type de seance)
+  // est choisi par la base (`valider_seance`) : plus rien a charger ici.
 
   // Exceptions — limitées aux créneaux de l'année en cours (évite le sur-fetch)
   const slotIds = (slots ?? []).map((s: { id: string }) => s.id)
@@ -135,39 +130,44 @@ export default async function EmploiDuTempsPage() {
     .from('schedule_validations')
     .select('id, schedule_slot_id, profile_id, validation_date, time_entry_id')
 
-  // ── Absences du personnel ────────────────────────────────────────────────
+  // ── Absences d'enseignant et leurs decisions (lot 3) ─────────────────────
   //
-  // L'emploi du temps ignorait totalement le temps de presence : un enseignant
-  // marque absent voyait son creneau ET son bouton de validation. Il pouvait
-  // donc valider un cours qu'il n'avait pas assure — la base le refuse
-  // desormais (`guard-presence-absence-exclusivity`), mais un refus qui tombe
-  // APRES le clic est une mauvaise reponse. On charge donc les absences pour
-  // l'annoncer AVANT.
-  //
-  // Bornees a l'annee : quelques lignes, et la vue ne sort jamais de cette
-  // fenetre. Les codes d'absence sont lus depuis `presence_types` plutot
-  // qu'ecrits en dur — le code d'un type est parametrable par etablissement.
-  const { data: typesAbsence } = await supabase
-    .from('presence_types')
-    .select('code')
-    .eq('school_year_id', currentYear.id)
-    .eq('is_absence', true)
+  // Seul chemin des absences et des remplacements : la page Absences
+  // enseignants. L'EDT les LIT pour annoncer AVANT le clic ce que la base
+  // refuserait (seance « a decider ») et pour dire qui assure une seance.
+  // La RLS rend toutes les absences a l'encadrement, ses propres absences a
+  // l'enseignant ; les decisions (sans motif) a tout le personnel.
+  const { data: absencesEnseignants } = await supabase
+    .from('absences_enseignants')
+    .select('id, teacher_id, debut, fin')
+    .gte('fin', `${currentYear.start_date ?? '1970-01-01'}T00:00`)
+    .lte('debut', `${currentYear.end_date ?? '2999-12-31'}T23:59`)
 
-  const codesAbsence = (typesAbsence ?? []).map(t => t.code)
-
-  const { data: absences } = codesAbsence.length
+  const { data: decisions } = slotIds.length > 0
     ? await supabase
-        .from('staff_time_entries')
-        .select('profile_id, entry_date, start_time, end_time')
-        .in('entry_type', codesAbsence)
-        .gte('entry_date', currentYear.start_date)
-        .lte('entry_date', currentYear.end_date)
+        .from('absences_enseignants_seances')
+        .select('absence_id, schedule_slot_id, seance_date, decision, remplacant_profile_id')
+        .in('schedule_slot_id', slotIds)
     : { data: [] }
+
+  // Noms des remplacants : un enseignant ne lit pas le profil d'un collegue
+  // (RLS). Completes cote serveur pour les SEULS comptes deja lus dans les
+  // decisions (donc de l'ecole), comme les noms d'enseignants plus haut.
+  const idsRemplacants = [...new Set((decisions ?? []).map(d => d.remplacant_profile_id).filter((id): id is string => !!id))]
+  const { data: profilsRemplacants } = idsRemplacants.length > 0
+    ? await createAdminClient()
+        .from('profiles')
+        .select('id, first_name, last_name, civilite')
+        .in('id', idsRemplacants)
+    : { data: [] }
+  const nomsProfils = Object.fromEntries((profilsRemplacants ?? []).map(p => [p.id, p]))
 
   return (
     <div className="h-full animate-fade-in">
       <EmploiDuTempsClient
-        absences={(absences ?? []) as never[]}
+        absencesEnseignants={absencesEnseignants ?? []}
+        decisions={decisions ?? []}
+        nomsProfils={nomsProfils}
         currentUserId={userId}
         currentUserName={`${profile?.last_name ?? ''} ${profile?.first_name ?? ''}`}
         role={role}
@@ -181,7 +181,6 @@ export default async function EmploiDuTempsPage() {
         coursList={(coursList ?? []) as any[]}
         ueList={(ueList ?? []) as any[]}
         todayValidations={(todayValidations ?? []) as any[]}
-        reservedPresenceTypes={(reservedPresenceTypes ?? []) as any[]}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}
         schoolYearStartDate={currentYear.start_date ?? null}

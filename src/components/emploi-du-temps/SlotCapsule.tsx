@@ -29,8 +29,6 @@ interface Props {
   canValidate: boolean
   isTeacher: boolean
   isOwnSlot?: boolean
-  /** Qui couvre la classe ce jour-la, quand l'enseignant du creneau est absent. */
-  remplacantNom?: string | null
   /** Le titulaire est remplace sur cette seance : nom du remplacant (message rouge). */
   remplaceParNom?: string | null
   /** Le connecte est le REMPLACANT sur cette seance : affiche le titulaire remplace. */
@@ -49,7 +47,7 @@ interface Props {
 }
 
 export default function SlotCapsule({
-  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplacantNom = null, remplaceParNom = null, remplacementDe = false,
+  slot, style, viewMode, canEdit, canValidate, isTeacher, isOwnSlot = false, remplaceParNom = null, remplacementDe = false,
   validated, groupSize = 1, draggable: isDraggableEnabled = false, menuActive = false, onValidate, onCancelValidation, onContextMenu, onKeyMenu,
 }: Props) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -62,7 +60,9 @@ export default function SlotCapsule({
   // « ANNULÉ » au centre (demande du 27/10) ; ni validation ni marqueur d'absence.
   // Reactivable depuis le menu.
   const annulee = !!slot.annulee
-  const noTeacher = !slot.teacher_id
+  // Un remplacant d'absence sans fiche enseignant assure la seance : ce n'est
+  // pas un « Prof non affecté ».
+  const noTeacher = !slot.teacher_id && !slot.remplacant
 
   // Densité : la capsule perd des lignes à mesure qu'elle rétrécit, au lieu de
   // les tronquer toutes à deux caractères. Le détail reste accessible en
@@ -97,13 +97,13 @@ export default function SlotCapsule({
   // un enseignant ne peut valider que SON propre créneau.
   const showValidation = !annulee && (canEdit || (isTeacher && isOwnSlot)) && canValidate && slot.slot_type !== 'pause'
 
-  // ENSEIGNANT ABSENT : le creneau reste VISIBLE — il a bien lieu, et son
-  // titulaire doit savoir ce qu'il manque — mais la validation est refusee.
-  // On la remplace par une marque inerte plutot que de la retirer : un bouton
-  // qui disparait se lit comme un defaut, une marque qui explique se lit comme
-  // une regle. La base refuse de toute facon l'ecriture
-  // (`guard-presence-absence-exclusivity`) ; ceci l'annonce AVANT le clic.
-  const absent = !annulee && !!slot.teacherAbsent
+  // ENSEIGNANT ABSENT, RIEN DE DECIDE (lot 3) : le creneau reste VISIBLE — il
+  // a bien lieu, et son titulaire doit savoir ce qu'il manque — mais la
+  // validation est refusee. On la remplace par une marque inerte plutot que de
+  // la retirer : un bouton qui disparait se lit comme un defaut, une marque qui
+  // explique se lit comme une regle. La base refuse de toute facon
+  // (`valider_seance`) ; ceci l'annonce AVANT le clic.
+  const absent = !annulee && !!slot.aDecider
 
   // LE BADGE D'ABSENCE N'EST PAS UN CONTROLE DE VALIDATION, c'est un MARQUEUR
   // D'ETAT — il ne depend donc pas de `canValidate`, la garde de date qui
@@ -232,6 +232,13 @@ export default function SlotCapsule({
             </div>
           )}
 
+          {/* Absent, rien de decide : en ambre (a surveiller), avant l'horaire. */}
+          {absent && slot.slot_type !== 'pause' && (
+            <div className={clsx('leading-tight font-bold text-amber-700 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
+              Absent · à décider
+            </div>
+          )}
+
           {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
               et AVANT l'horaire pour rester visible meme quand la capsule est courte. */}
           {remplaceParNom && !annulee && slot.slot_type !== 'pause' && (
@@ -277,14 +284,10 @@ export default function SlotCapsule({
       {/* Validation impossible : la personne est absente ce demi-jour */}
       {marqueurAbsence && (
         <div className="absolute bottom-1 right-1" onClick={e => e.stopPropagation()}>
-          <Tooltip content={remplacantNom
-            ? `Absent ce jour · remplacé par ${remplacantNom}. La présence ne peut pas être validée.`
-            : 'Absent ce jour, et AUCUN remplaçant déclaré. La présence ne peut pas être validée.'}>
+          <Tooltip content="Enseignant absent, rien n’est décidé pour cette séance (Absences enseignants). La présence ne peut pas être validée.">
             <span
               role="img"
-              aria-label={remplacantNom
-                ? `Présence non validable, absence enregistrée, remplacé par ${remplacantNom} : ${ariaLabel}`
-                : `Présence non validable, absence enregistrée, aucun remplaçant déclaré : ${ariaLabel}`}
+              aria-label={`Présence non validable, enseignant absent, séance à décider : ${ariaLabel}`}
               className="w-[15px] h-[15px] rounded border border-red-300 bg-red-50 text-red-500 flex items-center justify-center cursor-not-allowed"
             >
               <Ban size={10} strokeWidth={2.5} />

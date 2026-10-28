@@ -9728,3 +9728,27 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   classe, a reconfirmer avant 3b-2). `horodatageParis` ajoute a `lib/dates.ts` ; `Personne` (`lib/teachers/nom`)
   accepte une civilite NULL.
 - L'EDT ne lit pas encore les decisions (3b-2) : seule la demonstration a des creneaux.
+
+### 28/10 · Planning, lot 3b-2a : validation par la base, EDT et cahier de texte
+
+- **Accords de l'utilisateur** : cahier de texte du remplacant de 7 j avant a 7 j apres la seance ; retrait de
+  l'ajout de remplacant de la fiche classe (3b-2c). 3b-2 decoupe en trois livraisons (a : base + EDT + cahier,
+  b : tableaux de bord, c : fiche classe et refus de suppression).
+- **Migration `absences-enseignants-validation.sql`** : `valider_seance(creneau, date)` decide qui recoit l'heure
+  (remplacant de la decision, sinon titulaire en poste ; ancien `override_teacher_id` honore jusqu'au lot 5),
+  refuse annulee / a decider / future / deja validee / sans enseignant, ecrit l'heure (`is_replacement`,
+  `replaced_profile_id`) et la validation d'un coup ; encadrement pour tous, enseignant pour ce qu'il assure.
+  `retirer_validation_seance` efface les deux. `fn_remplace_classe` + 6 policies permissives (cahier de texte,
+  devoirs, statuts) pour l'enseignant qui remplace une seance de la classe. Controle 31 (17 essais, dates
+  relatives a CURRENT_DATE), vu rouge sur une copie qui laissait le cahier ouvert.
+- **Regle commune** : `enseignantDeSeance` rend `remplacantProfileId` (remplacant sans fiche = ni titulaire ni
+  « Prof non affecte ») ; `fusionnerDecisions` fond les decisions dans les exceptions (annulee = cancelled,
+  remplacee = type `remplacement` sauf exception existante, salle conservee, `par_absence`, `absence_id`).
+- **EDT** : lit `absences_enseignants` + decisions (noms des remplacants par la cle serveur, ids deja lus) ; plus
+  les absences de Temps de presence ni les remplacants `class_teachers` (`jEnseigneCetteClasse`,
+  `remplacementActif`, `remplacantDeLaClasse` retires). Capsule : « Remplace par », « Remplacement de » pour le
+  remplacant (qui a le bouton), « Absent · a decider » en ambre + marque sans validation ; vue mois « rempl. » et
+  « absent ». Menu d'une seance touchee : « Regler l'absence » (ouvre la fiche, meme decision) et « Changer la
+  salle », plus d'annulation EDT. Validation et retrait par les RPC ; type de presence choisi par la base.
+- **Cahier de texte** : la page ajoute aux classes de l'enseignant celles ou il remplace une seance (meme fenetre
+  que la RLS) ; il est l'auteur de ce qu'il ecrit (`moi`), plus le titulaire.

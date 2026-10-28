@@ -25,7 +25,9 @@ import SubjectPalette, { type PaletteSubject } from './SubjectPalette'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { intituleCreneau } from '@/lib/edt/intitule'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
-import { indexTitulaires, affectationsDesClasses, enseignantDeSeance, salleDeSeance } from '@/lib/edt/seance'
+import { indexTitulaires, affectationsDesClasses, enseignantDeSeance, fusionnerDecisions, salleDeSeance, type DecisionSeance } from '@/lib/edt/seance'
+import { absenceDeSeance, type AbsenceEnseignant } from '@/lib/edt/absences'
+import { phraseRefusAbsence } from '@/lib/absences-enseignants/libelles'
 import { sallesLibres } from '@/lib/edt/salles'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -100,6 +102,18 @@ export interface ExceptionData {
   override_teacher_id: string | null
   override_room_id: string | null
 }
+
+/** Exception telle que la lit la resolution : decisions d'absence fondues (`fusionnerDecisions`). */
+type ExceptionVue = ExceptionData & { override_profile_id?: string | null; par_absence?: boolean; absence_id?: string }
+
+/** L'exception qui decide de l'enseignant : une seance annulee garde, a l'affichage, son enseignant. */
+const exceptionActive = (e: ExceptionVue | undefined): ExceptionVue | null =>
+  e && e.exception_type !== 'cancelled' ? e : null
+
+/** Enseignant AFFICHE sur la capsule : le titulaire quand un remplacant d'absence assure
+ *  la seance (il est annonce a part, « Remplacé par »), sinon celui qui assure. */
+const enseignantAffiche = (q: { teacherId: string | null; titulaireId: string | null; remplacantProfileId: string | null }) =>
+  q.remplacantProfileId ? q.titulaireId : q.teacherId
 
 interface ClassData {
   id: string
@@ -179,8 +193,14 @@ export interface ResolvedSlot {
   color: string | null
   /** Seance annulee : affichee grisee (« ANNULÉ »), sans validation, reactivable. */
   annulee?: boolean
-  /** L'enseignant du creneau est absent sur cette demi-journee : pas de validation. */
-  teacherAbsent?: boolean
+  /** Annulee POUR UNE ABSENCE d'enseignant : se regle depuis l'absence, pas depuis l'EDT. */
+  parAbsence?: boolean
+  /** Absence d'enseignant qui touche la seance (menu « Régler l'absence »). */
+  absenceId?: string | null
+  /** Titulaire absent et rien de decide : ni validation, ni remplacant. */
+  aDecider?: boolean
+  /** Remplacant designe par l'absence (un compte, fiche enseignant ou non). */
+  remplacant?: { profileId: string; personne: { first_name: string; last_name: string; civilite?: string | null } | null } | null
   classes?: { name: string }
   teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
@@ -206,8 +226,6 @@ interface Props {
   coursList: CoursData[]
   ueList: UEData[]
   todayValidations: ValidationData[]
-  /** Types de presence reserves de l'annee : correspondance slot_type → code reel. */
-  reservedPresenceTypes?: { code: string; reserved_kind: string }[]
   weekStartDay?: number  // 0=Dimanche, 1=Lundi, 6=Samedi
   workingDays?: number   // 5=Lun-Ven, 7=Lun-Dim
   schoolYearStartDate?: string | null  // YYYY-MM-DD
@@ -215,16 +233,16 @@ interface Props {
   vacations?: { start_date: string; end_date: string; label: string }[]
   /** Jours feries de l'annee : une journee fermee au meme titre qu'une vacance. */
   feries?: { date: string; label: string }[]
-  /** Absences du personnel, pour interdire la validation d'un cours non assure. */
-  absences?: { profile_id: string; entry_date: string; start_time: string | null; end_time: string | null }[]
+  /** Absences d'enseignant (lot 3) : toutes celles de l'ecole pour l'encadrement, les
+   *  siennes pour l'enseignant (RLS). */
+  absencesEnseignants?: AbsenceEnseignant[]
+  /** Decisions d'absence des seances de l'annee (remplacee / annulee). */
+  decisions?: DecisionSeance[]
+  /** Noms des remplacants (`profiles.id`), fiche enseignant ou non. */
+  nomsProfils?: Record<string, { first_name: string; last_name: string; civilite?: string | null }>
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function timeToMinutes(t: string): number {
-  const [h, m] = t.split(':').map(Number)
-  return h * 60 + m
-}
 
 // Jour de la classe = string DB (monday…) — DAY_LABELS est indexe par nombre.
 const DAY_STR_LABELS: Record<string, string> = {
@@ -300,10 +318,10 @@ export default function EmploiDuTempsClient({
   currentUserId, role, canEdit, schoolYearId,
   classes, teachers, slots: initialSlots, exceptions: initialExceptions,
   rooms, coursList, ueList, todayValidations: initialValidations,
-  reservedPresenceTypes = [],
   weekStartDay = 1,
   workingDays = 5,
-  schoolYearStartDate, schoolYearEndDate, vacations = [], feries = [], absences = [],
+  schoolYearStartDate, schoolYearEndDate, vacations = [], feries = [],
+  absencesEnseignants = [], decisions = [], nomsProfils = {},
 }: Props) {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -344,80 +362,12 @@ export default function EmploiDuTempsClient({
    * ni absence, ni montant — rien que le personnel ne sache deja.
    *
    * CE MASQUAGE A CREE UN TROU, referme le 6 octobre : un remplacant ne voyait
-   * plus ses creneaux de remplacement. Voir `jEnseigneCetteClasse`.
+   * plus ses creneaux de remplacement. Depuis le lot 3 (28/10), les seances
+   * qu'il remplace viennent des decisions d'absence (`remplacant` de la seance) :
+   * voir `profilVu`.
    */
   const estEnseignant = role === 'enseignant'
 
-  /**
-   * « J'enseigne cette classe CE JOUR-LA » — titulaire OU remplacant.
-   *
-   * ── LE TROU QUE CECI REFERME (06/10) ──────────────────────────────────────
-   *
-   * Declarer un remplacant cree une ligne `class_teachers` avec
-   * `is_main_teacher = false`. La cascade vers `schedule_slots` ne se declenche
-   * QUE si le TITULAIRE change (`ClassForm`) : les creneaux gardent donc
-   * l'identifiant du titulaire. Avant le 5 octobre, le remplacant basculait en
-   * « Par classe » pour voir le planning ; le masquage des bascules lui a retire
-   * ce recours, et ses heures de remplacement ont disparu de son ecran.
-   *
-   * ── AUCUNE FENETRE, AUCUNE CONSTANTE ──────────────────────────────────────
-   *
-   * Les DATES DE L'AFFECTATION decident, a la date affichee. On n'a PAS repris
-   * les 7 jours du cahier de texte : la-bas c'est une fenetre de SECURITE, qui
-   * borne l'acces au contenu pedagogique d'un collegue. Un emploi du temps ne
-   * porte aucun contenu — recopier le nombre sans sa raison aurait invente une
-   * restriction que la base n'a pas.
-   */
-  const mesAffectations = useMemo(() => {
-    if (!ownTeacherId) return [] as { classId: string; from: string | null; until: string | null }[]
-    return classes.flatMap(c =>
-      (c.class_teachers ?? [])
-        .filter(ct => ct.teacher_id === ownTeacherId)
-        .map(ct => ({ classId: c.id, from: ct.effective_from ?? null, until: ct.effective_until ?? null })),
-    )
-  }, [classes, ownTeacherId])
-
-  /**
-   * Qui couvre cette classe ce jour-la, AUTRE que l'enseignant du creneau.
-   *
-   * Sert au titulaire ABSENT : sa capsule porte son propre nom, et rien ne lui
-   * disait si la classe etait couverte — ni par qui. `ClassForm` garantit un
-   * seul remplacant par periode (garde anti-chevauchement du 13 juillet), on
-   * rend donc le premier trouve.
-   */
-  const remplacantDeLaClasse = useCallback((classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => {
-    if (!classId || !date) return null
-    const cls = classes.find(c => c.id === classId)
-    const ct = (cls?.class_teachers ?? []).find(a =>
-      a.teacher_id !== exclureTeacherId
-      && (!a.effective_from  || a.effective_from  <= date)
-      && (!a.effective_until || a.effective_until >= date))
-    return ct?.teachers ? nomEnseignantCivilite(ct.teachers) : null
-  }, [classes])
-
-  /**
-   * Un AUTRE enseignant couvre-t-il la classe a cette date ? Repond sans lire le
-   * NOM : un enseignant ne lit que SA propre ligne `teachers` (RLS), donc le nom
-   * du remplacant lui revient vide et `remplacantDeLaClasse` rendrait `null`
-   * comme s'il n'y avait personne — le titulaire remplace validait alors quand meme.
-   */
-  const remplacementActif = useCallback((classId?: string | null, date?: string | null, exclureTeacherId?: string | null) => {
-    if (!classId || !date) return false
-    const cls = classes.find(c => c.id === classId)
-    return (cls?.class_teachers ?? []).some(a =>
-      a.teacher_id !== exclureTeacherId
-      && (!a.effective_from  || a.effective_from  <= date)
-      && (!a.effective_until || a.effective_until >= date))
-  }, [classes])
-
-  const jEnseigneCetteClasse = useCallback((classId?: string | null, date?: string | null) => {
-    if (!classId || !date) return false
-    // Comparaison de chaines `AAAA-MM-JJ` : exacte, et sans objet `Date`, donc
-    // sans fuseau (piege paye plusieurs fois dans ce projet).
-    return mesAffectations.some(a => a.classId === classId
-      && (!a.from  || a.from  <= date)
-      && (!a.until || a.until >= date))
-  }, [mesAffectations])
 
   const [slots, setSlots] = useState<SlotData[]>(initialSlots)
   const [exceptions, setExceptions] = useState<ExceptionData[]>(initialExceptions)
@@ -626,33 +576,22 @@ export default function EmploiDuTempsClient({
     return true
   }, [schoolYearStartDate, schoolYearEndDate, getVacationLabel])
 
-  // Absences indexees par ENSEIGNANT (teachers.id) et non par profil : c'est
-  // `teacher_id` que porte un creneau. Le meme piege que le 10 juillet, ou le
-  // filtre « par enseignant » comparait un id de profil a un id d'enseignant
-  // et ne matchait jamais.
-  const absenceParEnseignant = useMemo(() => {
-    const profilVersEnseignant = new Map(
-      teachers.filter(t => t.user_id).map(t => [t.user_id as string, t.id]),
-    )
-    // `${teacherId}|${date}` → plages horaires d'absence de ce jour.
-    const m = new Map<string, { debut: string; fin: string }[]>()
-    for (const a of absences) {
-      const tid = profilVersEnseignant.get(a.profile_id)
-      if (!tid || !a.start_time || !a.end_time) continue
-      const cle = `${tid}|${a.entry_date}`
-      const plages = m.get(cle) ?? []
-      plages.push({ debut: a.start_time.slice(0, 5), fin: a.end_time.slice(0, 5) })
-      m.set(cle, plages)
-    }
-    return m
-  }, [absences, teachers])
+  // Decisions d'absence FONDUES dans les exceptions (lib/edt/seance.ts) : la
+  // resolution les lit comme le reste. `exceptions` reste ce que l'EDT ECRIT
+  // (annulation, salle) ; les decisions s'ecrivent depuis la page Absences.
+  const enseignantDuProfil = useMemo(() => {
+    const m = new Map(teachers.filter(t => t.user_id).map(t => [t.user_id as string, t.id]))
+    return (profileId: string) => m.get(profileId) ?? null
+  }, [teachers])
+  const exceptionsVues = useMemo(
+    () => fusionnerDecisions(exceptions as ExceptionVue[], decisions, enseignantDuProfil),
+    [exceptions, decisions, enseignantDuProfil],
+  )
 
-  // Chevauchement d'HORAIRES, comme la garde en base. La demi-journee est
-  // abandonnee : une absence de 9h a 10h ne bloquait plus toute la matinee.
   // ── Qui assure une seance : DEDUIT (lib/edt/seance.ts), jamais lu sur le creneau ──
   const titulaireDe = useMemo(() => indexTitulaires(affectationsDesClasses(classes)), [classes])
   const quiAssure = useCallback(
-    (slot: SlotData, date: string, exception: ExceptionData | null) =>
+    (slot: SlotData, date: string, exception: ExceptionVue | null) =>
       enseignantDeSeance(slot.class_id, date, exception, titulaireDe),
     [titulaireDe],
   )
@@ -681,12 +620,23 @@ export default function EmploiDuTempsClient({
     return (id: string | null) => (id ? parId.get(id) : undefined)
   }, [classes, teachers])
 
-  const enseignantAbsent = useCallback((teacherId: string | null, date: string, start: string, fin: string) => {
-    if (!teacherId) return false
-    const plages = absenceParEnseignant.get(`${teacherId}|${date}`)
-    if (!plages) return false
-    return plages.some(p => start < p.fin && fin > p.debut)
-  }, [absenceParEnseignant])
+  // Etat d'absence d'une seance (lot 3) : decision (remplacee / annulee), ou
+  // « a decider » quand le titulaire est absent et que rien n'est decide.
+  const infosAbsence = useCallback((slot: SlotData, date: string, debut: string, fin: string, exception: ExceptionVue | null | undefined) => {
+    if (exception?.par_absence) {
+      const p = exception.override_profile_id ?? null
+      return {
+        parAbsence: true,
+        absenceId: exception.absence_id ?? null,
+        aDecider: false,
+        remplacant: p ? { profileId: p, personne: nomsProfils[p] ?? null } : null,
+      }
+    }
+    const absence = exception?.exception_type === 'cancelled'
+      ? undefined
+      : absenceDeSeance(absencesEnseignants, titulaireDe(slot.class_id, date), date, debut, fin)
+    return { parAbsence: false, absenceId: absence?.id ?? null, aDecider: !!absence, remplacant: null }
+  }, [absencesEnseignants, nomsProfils, titulaireDe])
 
   const resolvedSlots = useMemo(() => {
     const result: ResolvedSlot[] = []
@@ -705,7 +655,7 @@ export default function EmploiDuTempsClient({
       if (!isSchoolDay(date)) continue
 
       // Check for exception on this date
-      const exception = exceptions.find(
+      const exception = exceptionsVues.find(
         ex => ex.schedule_slot_id === slot.id && ex.exception_date === date
       )
 
@@ -720,16 +670,16 @@ export default function EmploiDuTempsClient({
           date,
           dayOfWeek: slot.day_of_week,
           class_id: slot.class_id,
-          teacher_id: quiAssure(slot, date, exception).teacherId,
+          teacher_id: enseignantAffiche(quiAssure(slot, date, exception)),
           cours_id: slot.cours_id,
           room_id: salleDe(slot, exception),
           start_time: exception.override_start_time ?? slot.start_time,
           end_time: exception.override_end_time ?? slot.end_time,
           slot_type: slot.slot_type,
-          teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
+          ...infosAbsence(slot, date, slot.start_time, slot.end_time, exception),
           color: slot.color,
           classes: slot.classes,
-          teachers: enseignantParId(quiAssure(slot, date, exception).teacherId),
+          teachers: enseignantParId(enseignantAffiche(quiAssure(slot, date, exception))),
           cours: slot.cours,
           unites_enseignement: slot.unites_enseignement,
           unite_enseignement_id: slot.unite_enseignement_id,
@@ -749,16 +699,16 @@ export default function EmploiDuTempsClient({
           date,
           dayOfWeek: slot.day_of_week,
           class_id: slot.class_id,
-          teacher_id: quiAssure(slot, date, null).teacherId,
+          teacher_id: enseignantAffiche(quiAssure(slot, date, exceptionActive(exception))),
           cours_id: slot.cours_id,
           room_id: salleDe(slot, exception),
           start_time: slot.start_time,
           end_time: slot.end_time,
           slot_type: slot.slot_type,
-          teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
+          ...infosAbsence(slot, date, slot.start_time, slot.end_time, exception),
           color: slot.color,
           classes: slot.classes,
-          teachers: enseignantParId(quiAssure(slot, date, null).teacherId),
+          teachers: enseignantParId(enseignantAffiche(quiAssure(slot, date, exceptionActive(exception)))),
           cours: slot.cours,
           unites_enseignement: slot.unites_enseignement,
           unite_enseignement_id: slot.unite_enseignement_id,
@@ -775,7 +725,7 @@ export default function EmploiDuTempsClient({
 
       const d = new Date(slot.slot_date + 'T00:00:00')
 
-      const exPonctuelle = exceptions.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === slot.slot_date)
+      const exPonctuelle = exceptionsVues.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === slot.slot_date)
       result.push({
         id: slot.id,
         sourceSlotId: slot.id,
@@ -786,16 +736,16 @@ export default function EmploiDuTempsClient({
         date: slot.slot_date,
         dayOfWeek: d.getDay(),
         class_id: slot.class_id,
-        teacher_id: quiAssure(slot, slot.slot_date, null).teacherId,
+        teacher_id: enseignantAffiche(quiAssure(slot, slot.slot_date, exceptionActive(exPonctuelle))),
         cours_id: slot.cours_id,
         room_id: salleDe(slot, exPonctuelle),
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
-        teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, slot.slot_date), slot.slot_date, slot.start_time, slot.end_time),
+        ...infosAbsence(slot, slot.slot_date, slot.start_time, slot.end_time, exPonctuelle),
         color: slot.color,
         classes: slot.classes,
-        teachers: enseignantParId(quiAssure(slot, slot.slot_date, null).teacherId),
+        teachers: enseignantParId(enseignantAffiche(quiAssure(slot, slot.slot_date, exceptionActive(exPonctuelle)))),
         cours: slot.cours,
         unites_enseignement: slot.unites_enseignement,
         unite_enseignement_id: slot.unite_enseignement_id,
@@ -805,7 +755,7 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [slots, exceptions, weekDayDates, isSchoolDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId, salleDe, salleAffichee])
+  }, [slots, exceptionsVues, weekDayDates, isSchoolDay, infosAbsence, quiAssure, enseignantParId, salleDe, salleAffichee])
 
   // ─── Month-scoped resolved slots ─────────────────────────────────────────
 
@@ -845,7 +795,7 @@ export default function EmploiDuTempsClient({
         if (!isSlotEffective(slot, date)) continue
         if (!isSchoolDay(date)) continue
 
-        const exception = exceptions.find(
+        const exception = exceptionsVues.find(
           ex => ex.schedule_slot_id === slot.id && ex.exception_date === date
         )
 
@@ -859,16 +809,16 @@ export default function EmploiDuTempsClient({
             date,
             dayOfWeek: slot.day_of_week,
             class_id: slot.class_id,
-            teacher_id: quiAssure(slot, date, exception).teacherId,
+            teacher_id: enseignantAffiche(quiAssure(slot, date, exception)),
             cours_id: slot.cours_id,
             room_id: salleDe(slot, exception),
             start_time: exception.override_start_time ?? slot.start_time,
             end_time: exception.override_end_time ?? slot.end_time,
             slot_type: slot.slot_type,
-            teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
+            ...infosAbsence(slot, date, slot.start_time, slot.end_time, exception),
             color: slot.color,
             classes: slot.classes,
-            teachers: enseignantParId(quiAssure(slot, date, exception).teacherId),
+            teachers: enseignantParId(enseignantAffiche(quiAssure(slot, date, exception))),
             cours: slot.cours,
             unites_enseignement: slot.unites_enseignement,
             unite_enseignement_id: slot.unite_enseignement_id,
@@ -887,16 +837,16 @@ export default function EmploiDuTempsClient({
             date,
             dayOfWeek: slot.day_of_week,
             class_id: slot.class_id,
-            teacher_id: quiAssure(slot, date, null).teacherId,
+            teacher_id: enseignantAffiche(quiAssure(slot, date, exceptionActive(exception))),
             cours_id: slot.cours_id,
             room_id: salleDe(slot, exception),
             start_time: slot.start_time,
             end_time: slot.end_time,
             slot_type: slot.slot_type,
-            teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, date), date, slot.start_time, slot.end_time),
+            ...infosAbsence(slot, date, slot.start_time, slot.end_time, exception),
             color: slot.color,
             classes: slot.classes,
-            teachers: enseignantParId(quiAssure(slot, date, null).teacherId),
+            teachers: enseignantParId(enseignantAffiche(quiAssure(slot, date, exceptionActive(exception)))),
             cours: slot.cours,
             unites_enseignement: slot.unites_enseignement,
             unite_enseignement_id: slot.unite_enseignement_id,
@@ -914,7 +864,7 @@ export default function EmploiDuTempsClient({
 
       const d = new Date(slot.slot_date + 'T00:00:00')
 
-      const exPonctuelle = exceptions.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === slot.slot_date)
+      const exPonctuelle = exceptionsVues.find(ex => ex.schedule_slot_id === slot.id && ex.exception_date === slot.slot_date)
       result.push({
         id: slot.id,
         sourceSlotId: slot.id,
@@ -925,16 +875,16 @@ export default function EmploiDuTempsClient({
         date: slot.slot_date,
         dayOfWeek: d.getDay(),
         class_id: slot.class_id,
-        teacher_id: quiAssure(slot, slot.slot_date, null).teacherId,
+        teacher_id: enseignantAffiche(quiAssure(slot, slot.slot_date, exceptionActive(exPonctuelle))),
         cours_id: slot.cours_id,
         room_id: salleDe(slot, exPonctuelle),
         start_time: slot.start_time,
         end_time: slot.end_time,
         slot_type: slot.slot_type,
-        teacherAbsent: enseignantAbsent(titulaireDe(slot.class_id, slot.slot_date), slot.slot_date, slot.start_time, slot.end_time),
+        ...infosAbsence(slot, slot.slot_date, slot.start_time, slot.end_time, exPonctuelle),
         color: slot.color,
         classes: slot.classes,
-        teachers: enseignantParId(quiAssure(slot, slot.slot_date, null).teacherId),
+        teachers: enseignantParId(enseignantAffiche(quiAssure(slot, slot.slot_date, exceptionActive(exPonctuelle)))),
         cours: slot.cours,
         unites_enseignement: slot.unites_enseignement,
         unite_enseignement_id: slot.unite_enseignement_id,
@@ -944,7 +894,11 @@ export default function EmploiDuTempsClient({
     }
 
     return result
-  }, [viewType, currentMonth, slots, exceptions, isSchoolDay, weekStartDay, enseignantAbsent, quiAssure, titulaireDe, enseignantParId, salleDe, salleAffichee])
+  }, [viewType, currentMonth, slots, exceptionsVues, isSchoolDay, weekStartDay, infosAbsence, quiAssure, enseignantParId, salleDe, salleAffichee])
+
+  // Compte dont on regarde le planning (vue par enseignant) : les seances qu'il
+  // REMPLACE (decision d'absence) y entrent, quelle que soit la classe.
+  const profilVu = estEnseignant ? currentUserId : (teacherProfileMap[selectedTeacherId] ?? '')
 
   // Filter month slots by view mode
   const filteredMonthSlots = useMemo(() => {
@@ -955,15 +909,12 @@ export default function EmploiDuTempsClient({
     // rend TOUS les creneaux de l'ecole. L'encadrement le voit (sa liste est la, il
     // n'a rien choisi) ; l'enseignant, dont la liste est masquee, croirait lire le sien.
     if (viewMode === 'teacher' && (selectedTeacherId || estEnseignant)) {
-      // `jEnseigneCetteClasse` n'est consulte QUE pour l'enseignant connecte :
-      // quand l'encadrement consulte le planning d'un collegue, y ajouter « mes
-      // classes » melangerait deux personnes dans la meme vue.
       return resolvedMonthSlots.filter(s =>
         s.teacher_id === selectedTeacherId
-        || (estEnseignant && jEnseigneCetteClasse(s.class_id, s.date)))
+        || (!!profilVu && s.remplacant?.profileId === profilVu))
     }
     return resolvedMonthSlots
-  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant, jEnseigneCetteClasse])
+  }, [resolvedMonthSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant, profilVu])
 
   // ─── Computed ─────────────────────────────────────────────────────────────
 
@@ -1011,13 +962,13 @@ export default function EmploiDuTempsClient({
     }
     // Meme garde que la vue mois : un id vide ne doit pas ouvrir tout l'etablissement.
     if (viewMode === 'teacher' && (selectedTeacherId || estEnseignant)) {
-      // Voir la vue mois : ses creneaux, PLUS les classes qu'il couvre ce jour-la.
+      // Voir la vue mois : ses creneaux, PLUS les seances qu'il remplace.
       return resolvedSlots.filter(s =>
         s.teacher_id === selectedTeacherId
-        || (estEnseignant && jEnseigneCetteClasse(s.class_id, s.date)))
+        || (!!profilVu && s.remplacant?.profileId === profilVu))
     }
     return resolvedSlots
-  }, [resolvedSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant, jEnseigneCetteClasse])
+  }, [resolvedSlots, viewMode, selectedClassId, selectedTeacherId, estEnseignant, profilVu])
 
   // Group by day
   const slotsByDay = useMemo(() => {
@@ -1646,112 +1597,39 @@ export default function EmploiDuTempsClient({
 
   // ─── Validation présence ──────────────────────────────────────────────────
 
+  // ── QUI RECOIT L'HEURE : LA BASE LE DECIDE (lot 3b-2a, 28/10) ──────────
+  //
+  // `valider_seance` credite le remplacant designe par l'absence (fiche
+  // enseignant ou non), sinon le titulaire en poste ; elle refuse une seance
+  // annulee, « a decider », future ou deja validee, et ecrit l'heure et la
+  // validation d'un coup. L'encadrement valide pour n'importe qui ; un
+  // enseignant, seulement ce qu'il assure. Le message ne fait que l'annoncer.
   const handleValidate = useCallback(async (resolved: ResolvedSlot) => {
-    const teacherName = nomEnseignantCivilite(resolved.teachers) || 'cet enseignant'
     const slotDate = resolved.date
     const [y, m, d] = slotDate.split('-')
     const dateLabel = `${d}/${m}/${y}`
-
-    // ── QUI EST CREDITE DE L'HEURE : CELUI QUI L'A FAITE ────────────────────
-    //
-    // Un remplacant valide un creneau qui porte encore le TITULAIRE (declarer un
-    // remplacant ne touche pas `schedule_slots` — seule une cascade de titulaire
-    // le fait). Sans cette distinction, l'heure serait creditee a l'ABSENT.
-    //
-    // La base l'aurait refusee de toute facon : depuis le 10 juillet, un
-    // enseignant n'ecrit que `profile_id = auth.uid()`. Le defaut n'aurait donc
-    // pas ete silencieux — mais il aurait ete bloquant.
-    //
-    // `replaced_profile_id` n'est pas invente pour l'occasion : c'est la colonne
-    // par laquelle le module Temps de presence exprime un remplacement depuis le
-    // 14 juillet. Le recapitulatif sait deja la lire.
-    const jeRemplace = estEnseignant
-      && !!ownTeacherId
-      && resolved.teacher_id !== ownTeacherId
-      && jEnseigneCetteClasse(resolved.class_id, slotDate)
-
-    // Garde cote logique (l'affichage du bouton est deja ferme) : le titulaire
-    // dont un remplacant couvre la date ne valide pas, la base ne le refuserait pas.
-    if (estEnseignant && !!ownTeacherId && resolved.teacher_id === ownTeacherId
-        && remplacementActif(resolved.class_id, slotDate, resolved.teacher_id)) {
-      toastError('Un remplaçant assure cette séance : lui seul peut la valider.')
+    const horaire = `${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}`
+    if (resolved.aDecider) {
+      toastError('L’enseignant est absent et rien n’est décidé pour cette séance : réglez d’abord l’absence.')
       return
     }
-
-    // Creneau « Prof non affecté » : personne dont enregistrer la presence.
-    if (!resolved.teacher_id && !jeRemplace) {
-      toastError("Aucun enseignant n'est affecté à ce créneau : sa présence ne peut pas être validée.")
-      return
-    }
-    const titulaireProfileId = resolved.teacher_id ? teacherProfileMap[resolved.teacher_id] : undefined
-    const teacherProfileId = jeRemplace ? currentUserId : titulaireProfileId
-
-    const doValidate = async () => {
-    if (!teacherProfileId) {
-      // Cas defensif : une fiche enseignant creee via le formulaire a toujours un compte
-      // (createTeacherWithAccount). Il n'existe AUCUN ecran pour rattacher un compte a une
-      // fiche existante → ne pas renvoyer l'utilisateur vers une fonction inexistante.
-      toastError(`${teacherName} n'a pas de compte utilisateur : sa présence ne peut pas être enregistrée. Contactez l'administrateur.`)
-      return
-    }
-
-    // Le type de creneau ('cours'/'activite') n'est PAS un code de type de presence.
-    // On resout le type reserve correspondant pour ecrire son VRAI code (ex. 'CRS'),
-    // sinon l'heure serait comptee mais invisible dans le recap Temps de presence.
-    const entryType = reservedPresenceTypes.find(t => t.reserved_kind === resolved.slot_type)?.code
-    if (!entryType) {
-      toastError(
-        `Aucun type de presence n'est associe aux creneaux « ${resolved.slot_type} » pour cette annee. `
-        + 'Configurez-le dans Parametres → Types de presence.',
-      )
-      return
-    }
-
-    const durationMin = timeToMinutes(resolved.end_time) - timeToMinutes(resolved.start_time)
-
-    const { data: timeEntry, error: teErr } = await supabase
-      .from('staff_time_entries')
-      .insert({
-        profile_id: teacherProfileId,
-        entry_date: slotDate,
-        entry_type: entryType,
-        start_time: resolved.start_time,
-        end_time: resolved.end_time,
-        duration_minutes: durationMin,
-        // Renseigne UNIQUEMENT en remplacement : sur une seance ordinaire, il n'y
-        // a personne a remplacer, et une valeur posee la rendrait le recapitulatif
-        // faux.
-        replaced_profile_id: jeRemplace ? (titulaireProfileId ?? null) : null,
-        recorded_by: currentUserId,
-      })
-      .select('id')
-      .single()
-
-    if (teErr) { toastError('Erreur : ' + teErr.message); return }
-
-    const { data: val, error: valErr } = await supabase
-      .from('schedule_validations')
-      .insert({
-        schedule_slot_id: resolved.sourceSlotId,
-        profile_id: teacherProfileId,
-        validation_date: slotDate,
-        time_entry_id: timeEntry?.id ?? null,
-      })
-      .select('*')
-      .single()
-
-    if (valErr) { toastError('Erreur : ' + valErr.message); return }
-    if (val) setValidations(prev => [...prev, val as any])
-    }
-
+    const titulaire = nomEnseignantCivilite(resolved.teachers) || 'l’enseignant'
+    const r = resolved.remplacant
+    const message = !r
+      ? `Valider la presence de ${titulaire} le ${dateLabel} (${horaire}) ?`
+      : r.profileId === currentUserId
+        ? `Valider VOTRE presence en remplacement de ${titulaire} le ${dateLabel} (${horaire}) ?`
+        : `Valider la presence de ${r.personne ? nomEnseignantCivilite(r.personne) : 'son remplaçant'} en remplacement de ${titulaire} le ${dateLabel} (${horaire}) ?`
     setPendingConfirm({
-      message: jeRemplace
-        ? `Valider VOTRE presence en remplacement de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`
-        : `Valider la presence de ${teacherName} le ${dateLabel} (${resolved.start_time.slice(0, 5)}-${resolved.end_time.slice(0, 5)}) ?`,
+      message,
       confirmLabel: 'Valider',
-      onConfirm: doValidate,
+      onConfirm: async () => {
+        const { data, error } = await supabase.rpc('valider_seance', { p_slot_id: resolved.sourceSlotId, p_date: slotDate })
+        if (error) { toastError(phraseRefusAbsence(error, 'La présence n’a pas pu être validée.')); return }
+        setValidations(prev => [...prev, data as ValidationData])
+      },
     })
-  }, [supabase, currentUserId, teacherProfileMap, reservedPresenceTypes, toastError, estEnseignant, ownTeacherId, jEnseigneCetteClasse, remplacementActif])
+  }, [supabase, currentUserId, toastError])
 
   const handleCancelValidation = useCallback(async (sourceSlotId: string, slotDate: string) => {
     const v = validations.find(v => v.schedule_slot_id === sourceSlotId && v.validation_date === slotDate)
@@ -1761,18 +1639,9 @@ export default function EmploiDuTempsClient({
       variant: 'danger',
       confirmLabel: 'Annuler la validation',
       onConfirm: async () => {
-        if (v.time_entry_id) {
-          const echecHeure = erreurEcriture(
-            await supabase.from('staff_time_entries').delete().eq('id', v.time_entry_id).select('id'),
-            'Le pointage de cette heure',
-          )
-          if (echecHeure) { toastError(echecHeure); return }
-        }
-        const echec = erreurEcriture(
-          await supabase.from('schedule_validations').delete().eq('id', v.id).select('id'),
-          'Cette validation',
-        )
-        if (echec) { toastError(echec); return }
+        // L'heure et la validation partent ensemble (`retirer_validation_seance`).
+        const { error } = await supabase.rpc('retirer_validation_seance', { p_slot_id: sourceSlotId, p_date: slotDate })
+        if (error) { toastError(phraseRefusAbsence(error, 'La validation n’a pas pu être retirée.')); return }
         setValidations(prev => prev.filter(x => x.id !== v.id))
       },
     })
@@ -2098,9 +1967,7 @@ export default function EmploiDuTempsClient({
                   viewMode={viewMode}
                   isTeacher={role === 'enseignant'}
                   currentTeacherId={ownTeacherId}
-                  jEnseigneCetteClasse={jEnseigneCetteClasse}
-                  remplacantDeLaClasse={remplacantDeLaClasse}
-                  remplacementActif={remplacementActif}
+                  currentUserId={currentUserId}
                   fermeture={fermeture}
                   droppable={isDndActive}
                   isValidated={(sourceSlotId, slotDate) => isValidated(sourceSlotId, slotDate)}
@@ -2227,7 +2094,27 @@ export default function EmploiDuTempsClient({
             const danger = 'w-full text-left px-2.5 py-1.5 text-sm rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none'
             return (
               <>
-                {s.annulee ? (
+                {/* Seance touchee par une absence d'enseignant : elle se regle depuis
+                    l'absence (meme decision que la page), jamais par l'annulation
+                    de l'EDT. Une seule voie pour une seance. */}
+                {s.absenceId ? (
+                  <>
+                    <button
+                      role="menuitem" autoFocus className={item}
+                      onClick={() => { setContextMenu(null); router.push(`/dashboard/absences-enseignants/${s.absenceId}`) }}
+                    >
+                      Régler l’absence
+                    </button>
+                    {!s.annulee && (
+                      <button
+                        role="menuitem" className={item}
+                        onClick={() => { setSalleSeance({ resolved: s, roomId: s.room_id ?? '' }); setContextMenu(null) }}
+                      >
+                        Changer la salle
+                      </button>
+                    )}
+                  </>
+                ) : s.annulee ? (
                   <button role="menuitem" autoFocus className={item} onClick={() => handleReactivate(s.sourceSlotId, s.date)}>
                     Réactiver la séance
                   </button>

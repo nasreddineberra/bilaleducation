@@ -386,12 +386,13 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      decision par seance), `remplacants_possibles` (migration `absences-enseignants-remplacants.sql`, controle 30 ;
      compte `admin` ecarte des remplacants, signale a l'utilisateur), Temps de presence ne propose plus l'absence ni
      « En remplacement de ». L'enseignant voit SES absences en lecture (choix par defaut, « go » sans reponse).
-     **Suite : 3b-2** EDT (decisions lues, « a decider » en ambre, menu « Regler l'absence »), validation par RPC
-     (`valider_seance` : heures au remplacant, encadrement valide pour un remplacant sans fiche), tableaux de bord
-     (alerte de la saisie au dernier jour), cahier de texte du remplacant, fiche classe sans ajout de remplacant,
-     suppression de fiche / compte bloquee par RESTRICT a expliquer. **A RECONFIRMER avant 3b-2** : acces du
-     remplacant au cahier de texte de 7 j avant a 7 j apres ; retrait de l'ajout de remplacant de la fiche classe.
-     Puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
+     **3b-2a FAIT** (28/10) : validation par la base (`valider_seance` / `retirer_validation_seance`, migration
+     `absences-enseignants-validation.sql`, controle 31), EDT branche sur les decisions (`fusionnerDecisions` de
+     `lib/edt/seance.ts`, « Absent · a decider » en ambre, menu « Regler l'absence » -> fiche de l'absence),
+     cahier de texte du remplacant (7 j avant a 7 j apres, accordes le 28/10). **Suite : 3b-2b** tableaux de bord
+     (decisions fondues, absences lues dans `absences_enseignants` au lieu de `staff_time_entries`, alerte de la
+     saisie au dernier jour) ; **3b-2c** fiche classe sans ajout de remplacant (accorde le 28/10), suppression de
+     fiche / compte bloquee par RESTRICT a expliquer. Puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
      de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
