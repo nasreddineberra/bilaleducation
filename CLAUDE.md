@@ -404,7 +404,10 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      suppression et au raccourcissement de l'absence. **A voir a l'ecran** (demonstration, messagerie configuree) :
      annulation annoncee puis retablissement, hauteur de « A traiter » (direction), en-tete des tableaux de bord,
      bouton plein ecran, « Ajouter » grise de Temps de presence, capsule EDT (infobulle unique, « Remplacée par »
-     accorde, etats centres). **Prochain : PLAN du lot 4 a presenter** (Temps de presence relie aux absences, encadre
+     accorde, etats centres). **A corriger (signale le 28/10)** : infobulle de la case de validation de la
+     capsule EDT (`SlotCapsule.tsx`) toujours « Valider ma présence » (et son `aria-label`), meme pour la
+     direction qui valide la seance d'un enseignant : libelle selon que la seance est la sienne ou non
+     (ex. « Valider la séance »), idem « Annuler la validation ». **Prochain : PLAN du lot 4 a presenter** (Temps de presence relie aux absences, encadre
      Remplacements de la fiche classe en lecture, absences sur la fiche enseignant) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
