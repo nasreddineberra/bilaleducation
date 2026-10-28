@@ -7,6 +7,7 @@ import { compterBaseFacturable } from '@/lib/tenant/base-facturable'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { seanceDeClasse } from '@/components/dashboard/classInfo'
+import { chargerAbsencesFenetre, chargerAlerteAbsences, type AlerteAbsences } from '@/lib/absences-enseignants/tableau-de-bord'
 import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
   type SlotSource, type ExceptionSource, type StatutSeance,
@@ -75,6 +76,8 @@ export interface DonneesDirection {
     seancesAValider: number
     evaluationsSansNote: number
     fichesIncompletes: number | null
+    /** Absences d'enseignant en cours ou a venir, et leurs seances a decider (lot 3). */
+    absencesEnseignants: AlerteAbsences | null
   }
   classes: { name: string; enrolled: number; max: number; adulte: boolean; professeur: string; seance: string }[]
 }
@@ -109,7 +112,7 @@ export async function chargerDonneesDirection(
   const [
     anneeComplete, etab, inscrits, financials,
     nouveauxEleves, nouveauxAdultes,
-    classesRes, slotsRes, teachersRes, typesAbsRes,
+    classesRes, slotsRes, teachersRes,
     absMoisRes, absTendanceRes, absNonJustAnRes, absPeriodeRes,
     evalsPeriodeRes, docConfigsRes,
   ] = await Promise.all([
@@ -128,7 +131,6 @@ export async function chargerDonneesDirection(
           .eq('school_year_id', annee.id).eq('is_active', true)
       : Promise.resolve({ data: [] }),
     supabase.from('teachers').select('id, user_id, civilite, first_name, last_name'),
-    annee ? supabase.from('presence_types').select('code').eq('school_year_id', annee.id).eq('is_absence', true) : Promise.resolve({ data: [] }),
     supabase.from('absences').select('student_id, class_id, absence_date, is_justified').neq('absence_type', 'retard').gte('absence_date', debutMois).lt('absence_date', finMois),
     supabase.from('absences').select('absence_date, is_justified').neq('absence_type', 'retard').gte('absence_date', il30j).lte('absence_date', aujourdhui),
     annee?.start_date && annee?.end_date
@@ -157,14 +159,13 @@ export async function chargerDonneesDirection(
   const slotIds = slots.map(s => s.id)
   const teachers = ((teachersRes as any).data ?? []) as any[]
   const teacherParId = new Map(teachers.map(t => [t.id, t]))
-  const codesAbsence = (((typesAbsRes as any).data ?? []) as any[]).map(t => t.code)
 
   // ── Vague 2 : ce qui depend des classes, creneaux et evaluations ───────────
   const evalsPeriode = ((evalsPeriodeRes as any).data ?? []) as any[]
   const evalIds = evalsPeriode.map(e => e.id)
   const docKeys = (((docConfigsRes as any).data ?? []) as any[]).map(d => d.doc_key)
 
-  const [eleves, adultes, exceptionsRes, validationsRes, absStaffRes, notesRes, notesAdultesRes, elevesActifs, docsRes] = await Promise.all([
+  const [eleves, adultes, exceptionsRes, validationsRes, absEns, notesRes, notesAdultesRes, elevesActifs, docsRes] = await Promise.all([
     classIds.length ? supabase.from('enrollments').select('class_id').eq('status', 'active').in('class_id', classIds) : Promise.resolve({ data: [] }),
     classIds.length ? supabase.from('parent_class_enrollments').select('class_id').eq('status', 'active').in('class_id', classIds) : Promise.resolve({ data: [] }),
     slotIds.length
@@ -173,9 +174,8 @@ export async function chargerDonneesDirection(
     slotIds.length
       ? supabase.from('schedule_validations').select('schedule_slot_id, validation_date').in('schedule_slot_id', slotIds).gte('validation_date', duValider)
       : Promise.resolve({ data: [] }),
-    codesAbsence.length
-      ? supabase.from('staff_time_entries').select('profile_id, entry_date, start_time, end_time').in('entry_type', codesAbsence).gte('entry_date', duValider).lte('entry_date', aujourdhui)
-      : Promise.resolve({ data: [] }),
+    // Absences d'enseignant et leurs decisions (lot 3), plus Temps de presence.
+    chargerAbsencesFenetre(supabase, slotIds, duExceptions, aujourdhui),
     evalIds.length ? supabase.from('grades').select('evaluation_id').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
     evalIds.length ? supabase.from('adult_grades').select('evaluation_id').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
     docKeys.length ? supabase.from('students').select('id').eq('is_active', true) : Promise.resolve({ data: [] }),
@@ -203,7 +203,10 @@ export async function chargerDonneesDirection(
   }))
 
   // ── Seances ────────────────────────────────────────────────────────────────
-  const exceptions = ((exceptionsRes as any).data ?? []) as ExceptionSource[]
+  // Decisions d'absence fondues : une seance remplacee ou annulee pour absence
+  // se lit comme le reste (lib/edt/seance.ts).
+  const enseignantDuProfil = (p: string) => teachers.find(t => t.user_id === p)?.id ?? null
+  const exceptions = absEns.fusionner(((exceptionsRes as any).data ?? []) as ExceptionSource[], enseignantDuProfil)
   const validations = ((validationsRes as any).data ?? []) as any[]
   const validees = ensembleValidations(validations)
   const nomClasse = new Map(classesList.map(c => [c.id, c.name]))
@@ -217,23 +220,17 @@ export async function chargerDonneesDirection(
         fin: s.fin,
         classe: nomClasse.get(s.classId) ?? '',
         cours: coursParSlot.get(s.slotId) ?? null,
-        enseignant: nomEnseignantCivilite(teacherParId.get(s.teacherId ?? '')),
+        enseignant: nomEnseignantCivilite(teacherParId.get(s.teacherId ?? '')) || absEns.nomRemplacant(s.remplacantProfileId),
         titulaire: s.remplacement ? nomEnseignantCivilite(teacherParId.get(s.titulaireId ?? '')) : null,
         effectif: effectif(s.classId),
         statut: statutSeance(s, validees, aujourdhui, maintenant),
         remplacement: s.remplacement,
       }))
 
-  const absencesStaff = ((absStaffRes as any).data ?? []) as any[]
-  const profilParTeacher = new Map(teachers.map(t => [t.id, t.user_id]))
-  const estAbsent = (teacherId: string | null, date: string, debut: string, fin: string) => {
-    const profil = teacherId ? profilParTeacher.get(teacherId) : null
-    if (!profil) return false
-    return absencesStaff.some(a =>
-      a.profile_id === profil && a.entry_date === date
-      && (!a.start_time || !a.end_time || (a.start_time.slice(0, 5) < fin && a.end_time.slice(0, 5) > debut)))
-  }
-  const aValider = seancesAValider(slots, exceptions, titulaireDe, validations, duValider, aujourdhui, maintenant, estFerme, estAbsent)
+  // Une seance dont le titulaire est absent sans decision ne se valide pas : la
+  // compter la rendrait eternelle.
+  const aValider = seancesAValider(slots, exceptions, titulaireDe, validations, duValider, aujourdhui, maintenant, estFerme, absEns.estAbsent)
+  const absencesEnseignants = await chargerAlerteAbsences(supabase, slots, titulaireDe, estFerme, `${aujourdhui}T${maintenant}`)
 
   // ── Assiduite du mois (eleves : classes non adultes) ───────────────────────
   const effectifEleves: Record<string, number> = {}
@@ -324,6 +321,7 @@ export async function chargerDonneesDirection(
       seancesAValider: aValider.length,
       evaluationsSansNote,
       fichesIncompletes,
+      absencesEnseignants,
     },
     classes,
   }

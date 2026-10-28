@@ -21,7 +21,7 @@ interface UtilisateursTableProps {
   twoFactorUserIds?: string[]
 }
 
-type DeleteDeps = { finance: number; scolarite: number; presence: number; rattachement: number }
+type DeleteDeps = { finance: number; scolarite: number; presence: number; rattachement: number; remplacements: number }
 
 // Roles dont le compte NE se supprime PAS depuis cet ecran :
 //  - admin / super_admin : comptes structurants ;
@@ -75,7 +75,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
     router.refresh()
   }
 
-  const blocking = deps ? deps.finance + deps.scolarite + deps.presence + deps.rattachement : 0
+  const blocking = deps ? deps.finance + deps.scolarite + deps.presence + deps.rattachement + deps.remplacements : 0
   const hasBlocking = blocking > 0
 
   if (profiles.length === 0) {
@@ -240,6 +240,9 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
                 )}
                 {deps.rattachement > 0 && (
                   <li>compte rattaché à une <strong>fiche parents</strong></li>
+                )}
+                {deps.remplacements > 0 && (
+                  <li><strong>{deps.remplacements}</strong> séance{deps.remplacements > 1 ? 's' : ''} remplacée{deps.remplacements > 1 ? 's' : ''} (absences d’enseignant)</li>
                 )}
               </ul>
               <p className="text-xs text-warm-700">

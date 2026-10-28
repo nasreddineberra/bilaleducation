@@ -9,7 +9,7 @@ import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { PenLine, FileText, CheckCheck, CalendarDays } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import TruncatedText from '@/components/ui/TruncatedText'
-import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, Puce, Vide } from './tdb'
+import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneAbsencesEnseignants, LigneSeance, Puce, Vide } from './tdb'
 import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
@@ -181,7 +181,7 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
             <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Séances à valider · 30 jours" n={d.aTraiter.seancesAValider} ton="attente" />
             <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations passées sans note" n={d.aTraiter.evaluationsSansNote} ton="info" />
             <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations aux notes incomplètes" n={d.aTraiter.evaluationsIncompletes} ton="attente" />
-            <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Absences d’enseignant non remplacées · 7 jours" n={d.aTraiter.absencesNonRemplacees} ton="danger" />
+            <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />
             <LigneATraiter href={lien('/dashboard/cahier-texte', true)} label="Classes sans séance au cahier de texte · 14 jours" n={d.aTraiter.classesSansCahier} ton="orange" />
             <LigneATraiter href={lien('/dashboard/evaluations')} label="Classes sans évaluation sur la période" n={d.aTraiter.classesSansEvaluation} ton="info" />
             <LigneATraiter href={lien('/dashboard/notifications', true)} label="Notifications non lues" n={headerProps.unreadNotifs} ton="ok" />
@@ -230,7 +230,7 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
           )}
         </Encadre>
 
-        <Encadre titre="Équipe · 7 jours" className="lg:h-[236px]" lien={{ href: lien('/dashboard/temps-presence', true), label: 'Temps de présence' }}>
+        <Encadre titre="Équipe · 7 jours" className="lg:h-[236px]" lien={{ href: lien('/dashboard/absences-enseignants'), label: 'Absences enseignants' }}>
           {d.equipe.length === 0 ? (
             <Vide>Aucune absence d’enseignant prévue.</Vide>
           ) : (
@@ -245,7 +245,7 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
                   </div>
                   {e.statut === 'remplacee'
                     ? <Puce ton="ok">Remplacement assuré</Puce>
-                    : <Puce ton="danger">À remplacer</Puce>}
+                    : <Puce ton="attente">À décider</Puce>}
                 </div>
               ))}
             </div>

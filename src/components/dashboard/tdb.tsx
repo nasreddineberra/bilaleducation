@@ -113,6 +113,28 @@ export function LigneATraiter({ href, label, n, ton }: {
   )
 }
 
+/**
+ * Alerte des absences d'enseignant (lot 3, decision du 28/10) : de la saisie de
+ * l'absence a son dernier jour. Le compteur dit combien d'absences sont en cours
+ * ou a venir ; en ambre, avec le nombre de seances, tant qu'il en reste a decider.
+ */
+export function LigneAbsencesEnseignants({ href, alerte }: {
+  href: string | null
+  alerte: { nbAbsences: number; nbADecider: number } | null
+}) {
+  const aDecider = alerte?.nbADecider ?? 0
+  return (
+    <LigneATraiter
+      href={href}
+      label={aDecider > 0
+        ? `Absences d’enseignant · ${aDecider} ${aDecider > 1 ? 'séances' : 'séance'} à décider`
+        : 'Absences d’enseignant en cours ou à venir'}
+      n={alerte ? alerte.nbAbsences : null}
+      ton={aDecider > 0 ? 'attente' : 'neutre'}
+    />
+  )
+}
+
 /** Compteur en carte blanche : icone teintee, libelle, chiffre, action. */
 export function CarteCompteur({ icone: Icone, ton, label, valeur, lien }: {
   icone: LucideIcon

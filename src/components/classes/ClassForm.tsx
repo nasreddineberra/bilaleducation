@@ -3,6 +3,7 @@
 import { normalizeNom } from '@/lib/normalize-name'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Trash2, BookOpen, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -230,12 +231,6 @@ export default function ClassForm({
   const [assignments,  setAssignments]  = useState<AssignmentData[]>(initialAssignments)
   const [showAddRow,   setShowAddRow]   = useState(false)
   const [addTeacherId, setAddTeacherId] = useState('')
-  // Remplaçant (affectation temporaire, is_main_teacher = false)
-  const [showAddSub,   setShowAddSub]   = useState(false)
-  const [subTeacherId, setSubTeacherId] = useState('')
-  const [subFrom,      setSubFrom]      = useState('')
-  const [subUntil,     setSubUntil]     = useState('')
-  const [subErr,       setSubErr]       = useState<string | null>(null)
   const [titulaireFrom, setTitulaireFrom] = useState('')
   const [editRow,       setEditRow]       = useState<{ idx: number; from: string; until: string } | null>(null)
   const [pendingAssignAction, setPendingAssignAction] = useState<{
@@ -318,49 +313,11 @@ export default function ClassForm({
     })
   }
 
-  // ── Remplaçant : affectation temporaire (is_main_teacher = false) ──────────
-  const openAddSub = () => {
-    setSubTeacherId('')
-    setSubFrom(todayISO())
-    setSubUntil('')
-    setSubErr(null)
-    setShowAddSub(true)
-  }
-  // Chevauchement de deux périodes (null = borne ouverte)
-  const periodsOverlap = (aFrom: string | null, aUntil: string | null, bFrom: string | null, bUntil: string | null) => {
-    const af = aFrom || '0000-01-01', au = aUntil || '9999-12-31'
-    const bf = bFrom || '0000-01-01', bu = bUntil || '9999-12-31'
-    return af <= bu && bf <= au
-  }
-  const addSubstitute = () => {
-    const teacher = teachers.find(t => t.id === subTeacherId)
-    if (!teacher || !subFrom) return
-    if (subUntil && subUntil < subFrom) {
-      setSubErr('La date de fin doit être postérieure à la date de début.')
-      return
-    }
-    // Un seul remplaçant à la fois : refuser le chevauchement avec un remplaçant existant.
-    const conflict = assignments.find(a =>
-      !a.is_main_teacher && periodsOverlap(subFrom, subUntil || null, a.effective_from, a.effective_until)
-    )
-    if (conflict) {
-      setSubErr(`Un remplaçant (${conflict.teacher_name}) couvre déjà cette période. Terminez-le d'abord ou ajustez les dates.`)
-      return
-    }
-    setSubErr(null)
-    setAssignments(prev => [
-      ...prev,
-      {
-        teacher_id:      subTeacherId,
-        teacher_name:    `${teacher.last_name} ${teacher.first_name}`,
-        is_main_teacher: false,
-        subject:         '',
-        effective_from:  subFrom || null,
-        effective_until: subUntil || null,   // null = remplacement ouvert (retour inconnu)
-      },
-    ])
-    setShowAddSub(false)
-  }
+  // ── Remplaçants ─────────────────────────────────────────────────────────────
+  // Ils ne se DECLARENT plus ici (lot 3b-2c, 28/10) : la page « Absences
+  // enseignants » est le seul chemin des remplacements. Les remplacants deja
+  // enregistres dans `class_teachers` restent affiches (terminer, corriger,
+  // retirer) jusqu'au nettoyage du lot 5.
   // Terminer un remplacement (retour de l'enseignant) : pose effective_until,
   // conserve la ligne → bascule en historique. Réutilise la modale de clôture.
   const openEndSub = (realIdx: number) => {
@@ -957,31 +914,15 @@ export default function ClassForm({
                       </span>
                     </div>
                   )
-                })() : showAddSub ? (
-                  <div className="bg-warm-50 border border-warm-200 rounded-xl p-3 space-y-3">
-                    <FloatSelect label="Enseignant" value={subTeacherId} onChange={e => setSubTeacherId(e.target.value)}>
-                      <option value="" />
-                      {availableTeachers.map(t => (<option key={t.id} value={t.id}>{t.last_name} {t.first_name}</option>))}
-                    </FloatSelect>
-                    <div className="grid grid-cols-2 gap-2">
-                      <FloatInput label="Du" type="date" value={subFrom} onChange={e => setSubFrom(e.target.value)} />
-                      <FloatInput label="Au" type="date" value={subUntil} onChange={e => setSubUntil(e.target.value)} />
-                    </div>
-                    <p className="text-[11px] text-warm-700">Laisser « Au » vide si la date de retour n'est pas connue (remplacement ouvert).</p>
-                    {subErr && <p role="alert" className="text-xs text-red-700">{subErr}</p>}
-                    <div className="flex gap-2 justify-end pt-1">
-                      <FloatButton type="button" variant="secondary" onClick={() => setShowAddSub(false)}>Annuler</FloatButton>
-                      <FloatButton type="button" variant="submit" onClick={addSubstitute} disabled={!subTeacherId || !subFrom}>Valider</FloatButton>
-                    </div>
-                  </div>
-                ) : (
+                })() : (
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-warm-700">Aucun remplacement.</span>
+                    {/* Un remplacement se declare par l'absence du titulaire (lot 3). */}
                     {hasActiveMain && (
-                      <button type="button" onClick={openAddSub}
+                      <Link href="/dashboard/absences-enseignants"
                         className="text-sm font-medium text-[var(--brand-surface)] dark:text-[var(--brand-accent)] hover:text-[var(--brand-surface-2)] dark:hover:text-[var(--brand-accent)] transition-colors rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
-                        Déclarer un remplacement
-                      </button>
+                        Absences enseignants
+                      </Link>
                     )}
                   </div>
                 )}

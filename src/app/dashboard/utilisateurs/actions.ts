@@ -359,7 +359,7 @@ export async function sendPasswordReset(email: string): Promise<{ error?: string
  *  peut exporter que des fonctions async — un `export interface` y provoque un
  *  500 sur toute modification (piege deja rencontre sur ce module). */
 export async function getUserDeleteDeps(id: string): Promise<{
-  finance: number; scolarite: number; presence: number; rattachement: number
+  finance: number; scolarite: number; presence: number; rattachement: number; remplacements: number
 }> {
   const supabase = await createClient()
   const head = { count: 'exact' as const, head: true }
@@ -371,6 +371,7 @@ export async function getUserDeleteDeps(id: string): Promise<{
     absences, appreciations, archives,
     timeEntries,
     parentsT1, parentsT2,
+    remplacements,
   ] = await Promise.all([
     supabase.from('fee_installments').select('id', head).eq('recorded_by', id),
     supabase.from('fee_adjustments').select('id', head).eq('recorded_by', id),
@@ -382,6 +383,8 @@ export async function getUserDeleteDeps(id: string): Promise<{
     supabase.from('staff_time_entries').select('id', head).eq('profile_id', id),
     supabase.from('parents').select('id', head).eq('tutor1_user_id', id),
     supabase.from('parents').select('id', head).eq('tutor2_user_id', id),
+    // Seances remplacees (absences d'enseignant, lot 3) : la base les garde (RESTRICT).
+    supabase.from('absences_enseignants_seances').select('id', head).eq('remplacant_profile_id', id),
   ])
 
   const n = (r: { count: number | null }) => r.count ?? 0
@@ -390,6 +393,7 @@ export async function getUserDeleteDeps(id: string): Promise<{
     scolarite:    n(absences) + n(appreciations) + n(archives),
     presence:     n(timeEntries),
     rattachement: n(parentsT1) + n(parentsT2),
+    remplacements: n(remplacements),
   }
 }
 
@@ -431,7 +435,7 @@ export async function deleteUser(id: string): Promise<{ error?: string }> {
   // Re-controle serveur : l'ecran a deja compte, mais lui seul ne protege pas
   // d'une donnee creee entre-temps ni d'un appel hors interface.
   const deps = await getUserDeleteDeps(id)
-  if (deps.finance + deps.scolarite + deps.presence + deps.rattachement > 0) {
+  if (deps.finance + deps.scolarite + deps.presence + deps.rattachement + deps.remplacements > 0) {
     return { error: 'Des données sont rattachées à ce compte. Rendez-le inactif plutôt que de le supprimer.' }
   }
 

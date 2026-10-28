@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import { Users, Wallet, CheckCheck, CalendarDays, AlertTriangle } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
-import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneSeance, RemplissageClasses, Vide } from './tdb'
+import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneAbsencesEnseignants, LigneSeance, RemplissageClasses, Vide } from './tdb'
 import { SERIES, INK, VizTooltip, VizLegend, fmtEur } from './viz'
 import { HistoEncaissements, RepartitionFamilles } from './finances-tdb'
 import { pluriel } from '@/lib/texte/pluriel'
@@ -172,6 +172,7 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
             <LigneATraiter href={lien('/dashboard/financements/reglements')} label="Familles sans aucun paiement" n={d.aTraiter.famillesSansPaiement} ton="orange" />
             <LigneATraiter href={lien('/dashboard/absences', true)} label="Absences non justifiées" n={d.aTraiter.absencesNonJustifiees} ton="danger" />
             <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Séances à valider · 30 jours" n={d.aTraiter.seancesAValider} ton="attente" />
+            <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />
             <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations passées sans note" n={d.aTraiter.evaluationsSansNote} ton="info" />
             {/* Masquee tant qu'aucun document n'est declare obligatoire : un
                 « 0 » laisserait croire que les dossiers sont complets. */}

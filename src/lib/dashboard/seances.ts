@@ -45,6 +45,8 @@ export interface ExceptionSource {
   override_end_time: string | null
   override_teacher_id: string | null
   override_room_id?: string | null
+  /** Remplacant d'une absence (`fusionnerDecisions`). */
+  override_profile_id?: string | null
 }
 
 export interface ValidationSource {
@@ -66,6 +68,8 @@ export interface Seance {
   /** Titulaire du creneau. */
   titulaireId: string | null
   remplacement: boolean
+  /** Remplacant designe par une absence (`profiles.id`), fiche enseignant ou non. */
+  remplacantProfileId: string | null
   annulee: boolean
   /** Salle reellement utilisee ce jour-la (changee pour cette seance, sinon celle du creneau). */
   roomId: string | null
@@ -120,6 +124,7 @@ export function seancesDuJour(
         teacherId: qui.teacherId,
         titulaireId: qui.titulaireId,
         remplacement: qui.remplacement,
+        remplacantProfileId: qui.remplacantProfileId,
         annulee: qui.annulee,
         roomId: salleDeSeance(s, ex, salleDeClasse(s.class_id)),
       }

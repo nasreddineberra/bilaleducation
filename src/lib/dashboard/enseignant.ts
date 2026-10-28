@@ -7,6 +7,7 @@ import {
   seancesDuJour, statutSeance, seancesAValider, tauxAssiduite, ensembleValidations, jourSuivant,
   type SlotSource, type ExceptionSource, type StatutSeance, type Seance,
 } from './seances'
+import { chargerAbsencesFenetre } from '@/lib/absences-enseignants/tableau-de-bord'
 import { moyenneSur20, avancementSaisie, type AvancementSaisie, type NoteSaisie } from './notes'
 import type { AnneeRef } from './direction'
 
@@ -158,7 +159,7 @@ export async function chargerDonneesEnseignant(
 
   // ── Vague 2 ────────────────────────────────────────────────────────────────
   const surMesClasses = classIds.length > 0
-  const [exRes, valRes, inscrRes, adultesRes, absRes, evalsRes, devoirsRes] = await Promise.all([
+  const [exRes, valRes, inscrRes, adultesRes, absRes, evalsRes, devoirsRes, absEns] = await Promise.all([
     slots.length
       ? supabase.from('schedule_exceptions')
           .select('schedule_slot_id, exception_date, exception_type, override_start_time, override_end_time, override_teacher_id')
@@ -182,9 +183,14 @@ export async function chargerDonneesEnseignant(
     surMesClasses
       ? supabase.from('homework').select('id, title, due_date, class_id').in('class_id', classIds).gte('due_date', aujourdhui).order('due_date').limit(4)
       : Promise.resolve({ data: [] }),
+    // Mes absences (RLS : les siennes seulement) et les decisions d'absence (lot 3) :
+    // les seances que je remplace sont les miennes, celles ou l'on me remplace non.
+    chargerAbsencesFenetre(supabase, slots.map(s => s.id), du, au),
   ])
 
-  const exceptions = (exRes.data ?? []) as ExceptionSource[]
+  // Je ne lis que MA fiche enseignant : un remplacant designe par son compte n'est
+  // moi que si c'est mon compte.
+  const exceptions = absEns.fusionner((exRes.data ?? []) as ExceptionSource[], p => (p === userId ? moi : null))
   const validations = (valRes.data ?? []) as any[]
   const validees = ensembleValidations(validations)
   const evals = (evalsRes.data ?? []) as any[]
@@ -205,10 +211,8 @@ export async function chargerDonneesEnseignant(
   for (const r of [...inscriptions, ...((adultesRes.data ?? []) as any[])]) effectif[r.class_id] = (effectif[r.class_id] ?? 0) + 1
 
   // ── Mes seances ────────────────────────────────────────────────────────────
-  const absencesMoi = ((heuresRes.data ?? []) as any[]).filter(e => codesAbsence.has(String(e.entry_type).toUpperCase()))
-  const jeSuisAbsent = (_t: string | null, date: string, debut: string, fin: string) =>
-    absencesMoi.some(a => a.entry_date === date
-      && (!a.start_time || !a.end_time || (a.start_time.slice(0, 5) < fin && a.end_time.slice(0, 5) > debut)))
+  // Absent sans decision : la seance ne se valide pas, ne la compter « a valider » la rendrait eternelle.
+  const jeSuisAbsent = absEns.estAbsent
 
   const miennes = (date: string): Seance[] =>
     estFerme(date) ? [] : seancesDuJour(slots, exceptions, titulaireDe, date).filter(s => s.teacherId === moi)

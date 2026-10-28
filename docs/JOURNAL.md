@@ -9752,3 +9752,21 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   salle », plus d'annulation EDT. Validation et retrait par les RPC ; type de presence choisi par la base.
 - **Cahier de texte** : la page ajoute aux classes de l'enseignant celles ou il remplace une seance (meme fenetre
   que la RLS) ; il est l'auteur de ce qu'il ecrit (`moi`), plus le titulaire.
+
+### 28/10 · Planning, lots 3b-2b et 3b-2c : tableaux de bord, fiche classe, Temps de presence
+
+- **Temps de presence (demande utilisateur)** : les types RESERVES cours et activite ne se saisissent plus (une
+  heure de seance nait de l'EDT et de sa validation). Constat en passant : la liste proposait Modifier / Supprimer
+  sur ces heures ; supprimer laissait la seance « validee » sans heure (FK `time_entry_id` ON DELETE SET NULL).
+  Boutons retires, icone + infobulle « Heure validée dans l'emploi du temps » (texte choisi par l'utilisateur).
+  Fermer aussi l'ecriture directe en base (RLS) : au lot 5.
+- **3b-2b** : `lib/absences-enseignants/tableau-de-bord.ts` (`chargerAbsencesFenetre` : absences + decisions de
+  la fenetre, `estAbsent`, `fusionner`, noms des remplacants sans fiche ; `chargerAlerteAbsences` : absences pas
+  finies et seances a decider via `seancesTouchees`). Les 4 tableaux de bord ne lisent plus les absences de Temps
+  de presence ; `Seance` porte `remplacantProfileId`. Alerte `LigneAbsencesEnseignants` dans « A traiter »
+  (direction / admin, resp. pedago a la place de « non remplacees », secretaire) : compteur = absences en cours ou
+  a venir, libelle « N seances a decider » en ambre tant qu'il en reste. Encadre « Equipe » du resp. pedago :
+  « A decider » (ambre) / « Remplacement assure », lien vers Absences enseignants.
+- **3b-2c** : fiche classe sans declaration de remplacant (lien « Absences enseignants » ; les remplacants
+  `class_teachers` existants restent affiches jusqu'au lot 5) ; refus de suppression d'une fiche enseignant ou
+  d'un compte : absences declarees et seances remplacees comptees et nommees dans les modales.

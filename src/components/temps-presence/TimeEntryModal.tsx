@@ -51,7 +51,8 @@ interface Props {
  * « Absences enseignants », seul chemin des absences et des remplacements
  * (docs/CONCEPTION-PLANNING-ABSENCES.md) ; les heures d'un remplacant viennent
  * de la VALIDATION de la seance dans l'emploi du temps. Le type absence n'est
- * donc plus propose, ni la case « En remplacement de ». Pour le reste du
+ * donc plus propose, ni la case « En remplacement de », ni les types cours et
+ * activite (une heure de seance se valide dans l'EDT). Pour le reste du
  * personnel, ne pas travailler un jour ne se declare pas : on ne saisit pas
  * d'heures.
  *
@@ -68,8 +69,11 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // coute rien.
   const fermeture = jourFerme(date, vacations, feries)
 
-  // Les types d'absence ne se saisissent plus ici (voir l'en-tete).
-  const typesSaisissables = presenceTypes.filter(pt => !pt.is_absence)
+  // Ne se saisissent plus ici (voir l'en-tete) : l'absence, et les heures de
+  // COURS et d'ACTIVITE, nees d'une seance de l'EDT et de sa validation
+  // (decision du 28/10). Restent les types libres de l'ecole.
+  const typesSaisissables = presenceTypes.filter(pt =>
+    !pt.is_absence && pt.reserved_kind !== 'cours' && pt.reserved_kind !== 'activite')
   const defaultType = entry?.entry_type ?? ''
 
   const [profileId, setProfileId] = useState(entry?.profile_id ?? (canManage ? '' : currentUserId))

@@ -9,6 +9,7 @@ import { seanceDeClasse } from '@/components/dashboard/classInfo'
 import { seancesDuJour, statutSeance, ensembleValidations, type SlotSource, type ExceptionSource } from './seances'
 import type { AnneeRef, SeanceAffichee } from './direction'
 import type { ClasseRemplissage } from '@/components/dashboard/tdb'
+import { chargerAbsencesFenetre, chargerAlerteAbsences, type AlerteAbsences } from '@/lib/absences-enseignants/tableau-de-bord'
 
 /**
  * DONNEES DU TABLEAU DE BORD SECRETAIRE.
@@ -40,6 +41,8 @@ export interface DonneesSecretaire {
   aTraiter: {
     fichesIncompletes: number | null
     enseignantsSansCompte: number | null
+    /** Absences d'enseignant en cours ou a venir, et leurs seances a decider (lot 3). */
+    absencesEnseignants: AlerteAbsences | null
   }
   derniersInscrits: { cle: string; id: string | null; nom: string; numero: string | null; date: string; classe: string | null; adulte: boolean }[]
   classes: ClasseRemplissage[]
@@ -123,7 +126,7 @@ export async function chargerDonneesSecretaire(
   const eleves = ((elevesRes as any).error ? null : ((elevesRes as any).data ?? [])) as any[] | null
 
   // ── Vague 2 ────────────────────────────────────────────────────────────────
-  const [exceptionsRes, validationsRes, docsRes] = await Promise.all([
+  const [exceptionsRes, validationsRes, docsRes, absEns] = await Promise.all([
     slotIds.length
       ? supabase.from('schedule_exceptions').select('schedule_slot_id, exception_date, exception_type, override_start_time, override_end_time, override_teacher_id').in('schedule_slot_id', slotIds).eq('exception_date', aujourdhui)
       : Promise.resolve({ data: [] }),
@@ -131,6 +134,8 @@ export async function chargerDonneesSecretaire(
       ? supabase.from('schedule_validations').select('schedule_slot_id, validation_date').in('schedule_slot_id', slotIds).eq('validation_date', aujourdhui)
       : Promise.resolve({ data: [] }),
     docKeys.length ? supabase.from('student_documents').select('student_id, doc_type_key').in('doc_type_key', docKeys) : Promise.resolve({ data: [] }),
+    // Decisions d'absence du jour (lot 3) : qui assure les seances d'aujourd'hui.
+    chargerAbsencesFenetre(supabase, slotIds, aujourdhui, aujourdhui),
   ])
 
   // ── Effectifs et classe active de chaque eleve ─────────────────────────────
@@ -180,7 +185,8 @@ export async function chargerDonneesSecretaire(
   for (const a of absJour) if (a.absence_type !== 'retard') absentsParClasse[a.class_id] = (absentsParClasse[a.class_id] ?? 0) + 1
 
   // ── Journee en cours ───────────────────────────────────────────────────────
-  const exceptions = ((exceptionsRes as any).data ?? []) as ExceptionSource[]
+  const enseignantDuProfil = (p: string) => teachers.find(t => t.user_id === p)?.id ?? null
+  const exceptions = absEns.fusionner(((exceptionsRes as any).data ?? []) as ExceptionSource[], enseignantDuProfil)
   const validees = ensembleValidations(((validationsRes as any).data ?? []) as any[])
   const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
   const nomProf = (id: string | null) => nomEnseignantCivilite(teacherParId.get(id ?? ''))
@@ -192,7 +198,7 @@ export async function chargerDonneesSecretaire(
         fin: s.fin,
         classe: nomClasse.get(s.classId) ?? '',
         cours: coursParSlot.get(s.slotId) ?? null,
-        enseignant: nomProf(s.teacherId),
+        enseignant: nomProf(s.teacherId) || absEns.nomRemplacant(s.remplacantProfileId),
         titulaire: s.remplacement ? nomProf(s.titulaireId) : null,
         effectif: effectif[s.classId] ?? 0,
         statut: statutSeance(s, validees, aujourdhui, maintenant),
@@ -252,6 +258,8 @@ export async function chargerDonneesSecretaire(
     aTraiter: {
       fichesIncompletes,
       enseignantsSansCompte: (teachersRes as any).error ? null : teachers.filter(t => t.is_active && !t.user_id).length,
+      absencesEnseignants: await chargerAlerteAbsences(supabase, slots, titulaireDe,
+        d => jourFerme(d, vacations, feries) !== null, `${aujourdhui}T${maintenant}`),
     },
     derniersInscrits,
     classes,

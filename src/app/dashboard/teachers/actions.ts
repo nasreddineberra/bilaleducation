@@ -233,9 +233,11 @@ export async function setTeacherActive(
 // la fiche, donc les ignorer détruirait en silence ce que l'enseignant a rédigé.
 // NON BLOQUANT : les affectations TERMINÉES (historique). Elles disparaissent avec la
 // fiche ; la modale l'annonce (`historique`).
+// Absences et remplacements (lot 3) : BLOQUANTS aussi, la base les garde (RESTRICT)
+// pour l'historique des seances.
 type DepsEnseignant = {
   classes: number; historique: number; edt: number; evaluations: number
-  grades: number; seances: number; devoirs: number
+  grades: number; seances: number; devoirs: number; absences: number; remplacements: number
 }
 
 function aujourdhuiLocal(): string {
@@ -245,8 +247,10 @@ function aujourdhuiLocal(): string {
 
 async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof createClient>>, teacherId: string): Promise<DepsEnseignant | null> {
   const today = aujourdhuiLocal()
-  const compte = (table: 'class_teachers' | 'schedule_slots' | 'schedule_exceptions' | 'evaluations' | 'grades' | 'class_journal' | 'homework', col: string) =>
+  const compte = (table: 'class_teachers' | 'schedule_slots' | 'schedule_exceptions' | 'evaluations' | 'grades' | 'class_journal' | 'homework' | 'absences_enseignants', col: string) =>
     supabase.from(table).select('id', { count: 'exact', head: true }).eq(col, teacherId)
+  // Remplacements assures : ils portent le COMPTE de l'enseignant, pas sa fiche.
+  const { data: fiche } = await supabase.from('teachers').select('user_id').eq('id', teacherId).maybeSingle()
   const r = await Promise.all([
     // « en cours ou a venir » : sans date de fin, ou fin >= aujourd'hui (fin INCLUSE)
     compte('class_teachers', 'teacher_id').or(`effective_until.is.null,effective_until.gte.${today}`),
@@ -257,16 +261,20 @@ async function compterDependancesEnseignant(supabase: Awaited<ReturnType<typeof 
     compte('grades', 'graded_by'),
     compte('class_journal', 'teacher_id'),
     compte('homework', 'teacher_id'),
+    compte('absences_enseignants', 'teacher_id'),
+    fiche?.user_id
+      ? supabase.from('absences_enseignants_seances').select('id', { count: 'exact', head: true }).eq('remplacant_profile_id', fiche.user_id)
+      : Promise.resolve({ count: 0 }),
   ])
   // Un comptage `head` impossible rend `count: null` SANS erreur : on refuse de
   // conclure plutot que de prendre une panne pour « aucune donnee ».
   if (r.some(x => x.count === null)) return null
-  const [classes, historique, slots, exceptions, evaluations, grades, seances, devoirs] = r.map(x => x.count as number)
-  return { classes, historique, edt: slots + exceptions, evaluations, grades, seances, devoirs }
+  const [classes, historique, slots, exceptions, evaluations, grades, seances, devoirs, absences, remplacements] = r.map(x => x.count as number)
+  return { classes, historique, edt: slots + exceptions, evaluations, grades, seances, devoirs, absences, remplacements }
 }
 
 const dependancesBloquantes = (d: DepsEnseignant) =>
-  d.classes + d.edt + d.evaluations + d.grades + d.seances + d.devoirs
+  d.classes + d.edt + d.evaluations + d.grades + d.seances + d.devoirs + d.absences + d.remplacements
 
 // Pour la modale de la liste.
 export async function getTeacherDeleteDeps(teacherId: string): Promise<{ error?: string; deps?: DepsEnseignant }> {

@@ -10,6 +10,7 @@ import {
 } from './seances'
 import { moyenneSur20, avancementSaisie, type AvancementSaisie, type NoteSaisie } from './notes'
 import type { AnneeRef, SeanceAffichee } from './direction'
+import { chargerAbsencesFenetre, chargerAlerteAbsences, type AlerteAbsences } from '@/lib/absences-enseignants/tableau-de-bord'
 
 /**
  * DONNEES DU TABLEAU DE BORD RESPONSABLE PEDAGOGIQUE.
@@ -43,7 +44,8 @@ export interface DonneesPedagogie {
     seancesAValider: number
     evaluationsSansNote: number | null
     evaluationsIncompletes: number | null
-    absencesNonRemplacees: number
+    /** Absences d'enseignant en cours ou a venir, et leurs seances a decider (lot 3). */
+    absencesEnseignants: AlerteAbsences | null
     classesSansCahier: number
     classesSansEvaluation: number | null
   }
@@ -53,7 +55,7 @@ export interface DonneesPedagogie {
     moyennes: { id: string; nom: string; classe: string; moyenne: number }[]
   }
   evaluations: { id: string; titre: string; classe: string; date: string; jours: number }[]
-  equipe: { cle: string; enseignant: string; date: string; classes: string; statut: 'a_remplacer' | 'remplacee'; remplacant: string | null }[]
+  equipe: { cle: string; enseignant: string; date: string; classes: string; statut: 'a_decider' | 'remplacee'; remplacant: string | null }[]
 }
 
 const cle = (d: Date) =>
@@ -90,7 +92,7 @@ export async function chargerDonneesPedagogie(
 
   // ── Vague 1 ────────────────────────────────────────────────────────────────
   const [
-    anneeRes, classesRes, slotsRes, teachersRes, typesAbsRes,
+    anneeRes, classesRes, slotsRes, teachersRes,
     absMoisRes, absTendanceRes, absPeriodeRes, evalsPeriodeRes, evalsAVenirRes, cahierRes,
     archivesRes, archivesAdRes, apprRes, apprAdRes,
   ] = await Promise.all([
@@ -104,7 +106,6 @@ export async function chargerDonneesPedagogie(
           .eq('school_year_id', annee.id).eq('is_active', true)
       : Promise.resolve({ data: [] }),
     supabase.from('teachers').select('id, user_id, civilite, first_name, last_name'),
-    annee ? supabase.from('presence_types').select('code').eq('school_year_id', annee.id).eq('is_absence', true) : Promise.resolve({ data: [] }),
     supabase.from('absences').select('student_id, class_id, absence_date, is_justified').neq('absence_type', 'retard').gte('absence_date', debutMois).lte('absence_date', aujourdhui),
     supabase.from('absences').select('absence_date').neq('absence_type', 'retard').gte('absence_date', il30j).lte('absence_date', aujourdhui),
     periodeId
@@ -138,12 +139,11 @@ export async function chargerDonneesPedagogie(
   const slotIds = slots.map(s => s.id)
   const teachers = ((teachersRes as any).data ?? []) as any[]
   const teacherParId = new Map(teachers.map(t => [t.id, t]))
-  const codesAbsence = (((typesAbsRes as any).data ?? []) as any[]).map(t => t.code)
   const evalsPeriode = ((evalsPeriodeRes as any).data ?? []) as any[]
   const evalIds = evalsPeriode.map(e => e.id)
 
   // ── Vague 2 ────────────────────────────────────────────────────────────────
-  const [elevesRes, adultesRes, exceptionsRes, validationsRes, absStaffRes, notesRes, notesAdRes] = await Promise.all([
+  const [elevesRes, adultesRes, exceptionsRes, validationsRes, absEns, notesRes, notesAdRes] = await Promise.all([
     classIds.length
       ? supabase.from('enrollments').select('student_id, class_id, students:student_id(first_name, last_name)').eq('status', 'active').in('class_id', classIds)
       : Promise.resolve({ data: [] }),
@@ -154,9 +154,8 @@ export async function chargerDonneesPedagogie(
     slotIds.length
       ? supabase.from('schedule_validations').select('schedule_slot_id, validation_date').in('schedule_slot_id', slotIds).gte('validation_date', duValider)
       : Promise.resolve({ data: [] }),
-    codesAbsence.length
-      ? supabase.from('staff_time_entries').select('profile_id, entry_date, start_time, end_time').in('entry_type', codesAbsence).gte('entry_date', duValider).lte('entry_date', dans7j)
-      : Promise.resolve({ data: [] }),
+    // Absences d'enseignant et leurs decisions (lot 3), plus Temps de presence.
+    chargerAbsencesFenetre(supabase, slotIds, duExceptions, dans7j),
     evalIds.length ? supabase.from('grades').select('evaluation_id, student_id, score, comment, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
     evalIds.length ? supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, comment, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
   ])
@@ -170,20 +169,17 @@ export async function chargerDonneesPedagogie(
   for (const r of adultes) parClasseAdultes[r.class_id] = (parClasseAdultes[r.class_id] ?? 0) + 1
   const effectif = (id: string) => (parClasseEleves[id] ?? 0) + (parClasseAdultes[id] ?? 0)
 
-  // ── Absences du personnel ──────────────────────────────────────────────────
-  const absencesStaff = ((absStaffRes as any).data ?? []) as any[]
-  const profilParTeacher = new Map(teachers.map(t => [t.id, t.user_id]))
-  const estAbsent = (teacherId: string | null, date: string, debut: string, fin: string) => {
-    const profil = teacherId ? profilParTeacher.get(teacherId) : null
-    if (!profil) return false
-    return absencesStaff.some(a =>
-      a.profile_id === profil && a.entry_date === date
-      && (!a.start_time || !a.end_time || (a.start_time.slice(0, 5) < fin && a.end_time.slice(0, 5) > debut)))
-  }
+  // ── Absences d'enseignant (lot 3) ──────────────────────────────────────────
+  const estAbsent = absEns.estAbsent
   const nomProf = (id: string | null) => nomEnseignantCivilite(teacherParId.get(id ?? ''))
+  // Celui qui assure : sa fiche enseignant, sinon le remplacant designe par l'absence.
+  const nomAssure = (s: { teacherId: string | null; remplacantProfileId: string | null }) =>
+    nomProf(s.teacherId) || absEns.nomRemplacant(s.remplacantProfileId)
 
   // ── Seances du jour, avec l'etat du cahier de texte ────────────────────────
-  const exceptions = ((exceptionsRes as any).data ?? []) as ExceptionSource[]
+  // Decisions d'absence fondues (lib/edt/seance.ts).
+  const enseignantDuProfil = (p: string) => teachers.find(t => t.user_id === p)?.id ?? null
+  const exceptions = absEns.fusionner(((exceptionsRes as any).data ?? []) as ExceptionSource[], enseignantDuProfil)
   const validations = ((validationsRes as any).data ?? []) as any[]
   const validees = ensembleValidations(validations)
   const coursParSlot = new Map(slotsRaw.map(s => [s.id, intitulePropre(s)]))
@@ -198,7 +194,7 @@ export async function chargerDonneesPedagogie(
         fin: s.fin,
         classe: nomClasse.get(s.classId) ?? '',
         cours: coursParSlot.get(s.slotId) ?? null,
-        enseignant: nomProf(s.teacherId),
+        enseignant: nomAssure(s),
         titulaire: s.remplacement ? nomProf(s.titulaireId) : null,
         effectif: effectif(s.classId),
         statut: statutSeance(s, validees, aujourdhui, maintenant),
@@ -282,20 +278,23 @@ export async function chargerDonneesPedagogie(
   const classesSansCahier = [...ontEuCours].filter(id => !cahierRecent.has(id)).length
 
   // Equipe : seances des 7 prochains jours touchees par une absence.
+  // `a_remplacer` de `seancesSousAbsence` = l'absent n'est ni remplace ni excuse
+  // de sa seance : elle est « a decider » (lot 3).
   const sousAbsence = seancesSousAbsence(slots, exceptions, titulaireDe, aujourdhui, dans7j, estFerme, estAbsent)
   const parAbsence = new Map<string, DonneesPedagogie['equipe'][number] & { _classes: Set<string> }>()
   for (const { seance: s, statut, absentId } of sousAbsence) {
-    const k = `${absentId}|${s.date}|${statut}`
+    const etat = statut === 'a_remplacer' ? 'a_decider' as const : 'remplacee' as const
+    const k = `${absentId}|${s.date}|${etat}`
     const e = parAbsence.get(k) ?? {
-      cle: k, enseignant: nomProf(absentId), date: s.date, classes: '', statut,
-      remplacant: statut === 'remplacee' ? nomProf(s.teacherId) : null, _classes: new Set<string>(),
+      cle: k, enseignant: nomProf(absentId), date: s.date, classes: '', statut: etat,
+      remplacant: etat === 'remplacee' ? nomAssure(s) : null, _classes: new Set<string>(),
     }
     e._classes.add(nomClasse.get(s.classId) ?? '')
     parAbsence.set(k, e)
   }
   const equipe = [...parAbsence.values()]
     .map(({ _classes, ...e }) => ({ ...e, classes: [..._classes].filter(Boolean).join(', ') }))
-    .sort((a, b) => a.date.localeCompare(b.date) || (a.statut === b.statut ? 0 : a.statut === 'a_remplacer' ? -1 : 1))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.statut === b.statut ? 0 : a.statut === 'a_decider' ? -1 : 1))
 
   // ── Eleves a suivre ────────────────────────────────────────────────────────
   const parEleve = new Map<string, { nom: string; classe: string; nb: number }>()
@@ -342,7 +341,7 @@ export async function chargerDonneesPedagogie(
       seancesAValider: aValider.length,
       evaluationsSansNote: saisie ? saisie.passeesSansNote : null,
       evaluationsIncompletes: saisie ? saisie.incompletes : null,
-      absencesNonRemplacees: sousAbsence.filter(x => x.statut === 'a_remplacer').length,
+      absencesEnseignants: await chargerAlerteAbsences(supabase, slots, titulaireDe, estFerme, `${aujourdhui}T${maintenant}`),
       classesSansCahier,
       classesSansEvaluation: periodeId ? classesList.filter(c => !evalsPeriode.some(e => e.class_id === c.id)).length : null,
     },

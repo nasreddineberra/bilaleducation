@@ -389,10 +389,13 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      **3b-2a FAIT** (28/10) : validation par la base (`valider_seance` / `retirer_validation_seance`, migration
      `absences-enseignants-validation.sql`, controle 31), EDT branche sur les decisions (`fusionnerDecisions` de
      `lib/edt/seance.ts`, « Absent · a decider » en ambre, menu « Regler l'absence » -> fiche de l'absence),
-     cahier de texte du remplacant (7 j avant a 7 j apres, accordes le 28/10). **Suite : 3b-2b** tableaux de bord
-     (decisions fondues, absences lues dans `absences_enseignants` au lieu de `staff_time_entries`, alerte de la
-     saisie au dernier jour) ; **3b-2c** fiche classe sans ajout de remplacant (accorde le 28/10), suppression de
-     fiche / compte bloquee par RESTRICT a expliquer. Puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
+     cahier de texte du remplacant (7 j avant a 7 j apres, accordes le 28/10). **3b-2b FAIT** : tableaux de bord
+     sur `absences_enseignants` + decisions (`lib/absences-enseignants/tableau-de-bord.ts`), alerte « Absences
+     d'enseignant » dans « A traiter » (direction, resp. pedago, secretaire). **3b-2c FAIT** : fiche classe sans
+     declaration de remplacant, absences et remplacements comptes dans les refus de suppression (fiche, compte).
+     Temps de presence : types cours / activite plus saisissables, heures nees de l'EDT sans Modifier / Supprimer.
+     **A voir a l'ecran** : hauteur de « A traiter » (direction : une ligne de plus, page sans defilement).
+     Puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
      de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.

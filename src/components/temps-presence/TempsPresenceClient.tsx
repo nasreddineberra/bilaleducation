@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, CalendarCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
@@ -910,8 +910,12 @@ export default function TempsPresenceClient({
                       const label = pt?.label ?? e.entry_type
                       const isAbs = pt?.is_absence ?? false
                       const targetIsTeacher = staffMap[e.profile_id]?.role === 'enseignant'
-                      const canEdit = canWriteAll
-                        || (isRespPedago && (targetIsTeacher || e.profile_id === currentUserId))
+                      // Heure de COURS ou d'ACTIVITE : nee d'une seance de l'EDT et de sa
+                      // validation (decision du 28/10). Elle ne se modifie ni ne se
+                      // supprime ici : la retirer laisserait la seance « validee » sans heure.
+                      const issueDeLEdt = pt?.reserved_kind === 'cours' || pt?.reserved_kind === 'activite'
+                      const canEdit = !issueDeLEdt && (canWriteAll
+                        || (isRespPedago && (targetIsTeacher || e.profile_id === currentUserId)))
                       return (
                         // `flex-wrap` : TOUS les elements de cette ligne portent
                         // `shrink-0` (libelle, horaire, duree, actions) — elle ne
@@ -964,6 +968,13 @@ export default function TempsPresenceClient({
                                 </button>
                               </Tooltip>
                             </span>
+                          )}
+                          {issueDeLEdt && (
+                            <Tooltip content="Heure validée dans l’emploi du temps" className="ml-auto flex-shrink-0">
+                              <span role="img" aria-label="Heure validée dans l’emploi du temps" className="p-1 inline-flex text-warm-700">
+                                <CalendarCheck size={12} />
+                              </span>
+                            </Tooltip>
                           )}
                         </div>
                       )

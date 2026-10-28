@@ -7,7 +7,7 @@ import type { DonneesSecretaire } from '@/lib/dashboard/secretaire'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { Users, UserX, FileWarning, CalendarX } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
-import { Tuile, JaugeTuile, Encadre, LigneATraiter, LigneSeance, RemplissageClasses, Puce, Vide } from './tdb'
+import { Tuile, JaugeTuile, Encadre, LigneATraiter, LigneAbsencesEnseignants, LigneSeance, RemplissageClasses, Puce, Vide } from './tdb'
 import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
@@ -137,6 +137,7 @@ export default function DashboardSecretaire({ donnees: d, ...headerProps }: Prop
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
             <LigneATraiter href={lien('/dashboard/affectation')} label="Élèves sans classe" n={sansClasse} ton="orange" />
             <LigneATraiter href={lien('/dashboard/absences', true)} label="Absences sans justificatif · 30 jours" n={a30 ? a30.nonJustifiees : null} ton="danger" />
+            <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />
             {/* Masquee tant qu'aucun document n'est declare obligatoire : un
                 « 0 » laisserait croire que les dossiers sont complets. */}
             {d.aTraiter.fichesIncompletes !== null && (
