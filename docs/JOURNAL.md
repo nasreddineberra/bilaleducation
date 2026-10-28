@@ -9705,3 +9705,26 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - **Controle 29** : 35 essais (cas limites, refus, effets, droits par role) ; vu ROUGE (7 KO) sur une copie
   faussee (comparaisons larges), vert sur la vraie, avant et apres application. `lib/edt/absences.ts`
   (`chevaucheAbsence`, `joursDeLAbsence`, `seancesTouchees` sur `creneauxDuJour`), 6 tests. Types regeneres.
+
+### 28/10 · Planning, lot 3b-1 : page Absences enseignants
+
+- **Remarque de l'utilisateur** : la modale d'ajout de Temps de presence ne doit plus saisir l'absence. Constat :
+  elle ne servait QU'AUX enseignants (le premier select ne proposait que ceux ayant cours), avec creneaux manques,
+  remplacant par creneau et heures du remplacant ecrites aussitot. Tout est retire (type absence filtre, case « En
+  remplacement de » retiree) ; une saisie existante qui porte un remplacement le garde a la modification.
+  Aucune saisie en base (ni absence, ni remplacement) : rien a reprendre.
+- **Migration `absences-enseignants-remplacants.sql`** : `remplacants_possibles(absence, seances)` rend, par
+  seance, les membres admissibles et la raison de ceux qui sont pris (`fn_membre_occupe`, la regle de la base) ;
+  `fn_role_remplacant` partagee avec `decider_seances_absence`, retouchee par ancrage. Compte `admin` ecarte des
+  remplacants (il ne pointe pas son temps : ses heures n'apparaitraient nulle part), ecart signale. Controle 30
+  (9 essais), vu rouge (2 KO) sur une copie qui admettait l'admin.
+- **Page** `/dashboard/absences-enseignants` (menu Gestion) : liste (`FiltreSwitch` en cours et a venir / passees /
+  toutes, memorise ; pastille « N a decider »), modale de declaration (« Journee entiere » = 00:00 / 23:59, par
+  defaut), fiche `[id]` (seances groupees par creneau de la semaine, decision par seance, « meme decision » par
+  creneau et pour toutes, membres pris grises avec la raison, seance validee verrouillee, enregistrement d'un
+  coup). Refus `ABSENCE_*` traduits (`lib/absences-enseignants/libelles.ts`), seances touchees calculees une fois
+  par page (`lib/absences-enseignants/contexte.ts` sur `seancesTouchees`). Enseignant : ses absences en lecture
+  (recommandation retenue sur un « go » sans reponse aux questions ; questions 2 et 3, cahier de texte et fiche
+  classe, a reconfirmer avant 3b-2). `horodatageParis` ajoute a `lib/dates.ts` ; `Personne` (`lib/teachers/nom`)
+  accepte une civilite NULL.
+- L'EDT ne lit pas encore les decisions (3b-2) : seule la demonstration a des creneaux.

@@ -67,7 +67,6 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         .select('id, name, class_teachers(teacher_id, is_main_teacher, effective_from, effective_until)')
         .eq('academic_year', currentYear.label)
     : { data: [] }
-  const classesById = Object.fromEntries((classes ?? []).map(c => [c.id, c.name]))
   // Titulaires dates : le titulaire d'un creneau est DEDUIT (lib/edt/seance.ts).
   const affectations = affectationsDesClasses(classes ?? [])
 
@@ -126,7 +125,6 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         slots={(slots ?? []) as never[]}
         exceptions={(exceptions ?? []) as never[]}
         affectations={affectations}
-        classesById={classesById}
         teachers={(teachers ?? []) as never[]}
         vacations={(currentYear?.vacations as never[]) ?? []}
         feries={(currentYear?.jours_feries as never[]) ?? []}

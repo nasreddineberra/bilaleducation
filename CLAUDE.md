@@ -382,10 +382,16 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      qu'il reste des seances a decider) ; motif conge / maladie / personnel / formation / autre ; remplacement long
      = meme page (« meme decision pour tous »), acces du remplacant au cahier de texte 7 j avant a porter.
      **3a FAIT** (migration `add-absences-enseignants.sql` appliquee, controle 29, `lib/edt/absences.ts`).
-     **Suite : 3b** page Absences enseignants + EDT + Temps de presence ne propose plus l'absence d'enseignant
-     + validation par l'encadrement pour un remplacant sans fiche + raccourci « Journee entiere » (a proposer)
-     + messages des codes `ABSENCE_*` + suppression de fiche / compte bloquee par RESTRICT a expliquer ;
-     puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
+     **3b-1 FAIT** (28/10) : page Absences enseignants (liste, declaration avec « Journee entiere », fiche avec
+     decision par seance), `remplacants_possibles` (migration `absences-enseignants-remplacants.sql`, controle 30 ;
+     compte `admin` ecarte des remplacants, signale a l'utilisateur), Temps de presence ne propose plus l'absence ni
+     « En remplacement de ». L'enseignant voit SES absences en lecture (choix par defaut, « go » sans reponse).
+     **Suite : 3b-2** EDT (decisions lues, « a decider » en ambre, menu « Regler l'absence »), validation par RPC
+     (`valider_seance` : heures au remplacant, encadrement valide pour un remplacant sans fiche), tableaux de bord
+     (alerte de la saisie au dernier jour), cahier de texte du remplacant, fiche classe sans ajout de remplacant,
+     suppression de fiche / compte bloquee par RESTRICT a expliquer. **A RECONFIRMER avant 3b-2** : acces du
+     remplacant au cahier de texte de 7 j avant a 7 j apres ; retrait de l'ajout de remplacant de la fiche classe.
+     Puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
      de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.

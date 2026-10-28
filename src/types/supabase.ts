@@ -4909,6 +4909,7 @@ export type Database = {
         Returns: undefined
       }
       fn_releve_facturation: { Args: never; Returns: number }
+      fn_role_remplacant: { Args: { p_role: string | null }; Returns: boolean }
       fn_seance_a_lieu: {
         Args: { p_date: string | null; p_slot_id: string | null }
         Returns: boolean
@@ -4944,6 +4945,15 @@ export type Database = {
       norm_name: { Args: { txt: string | null }; Returns: string }
       purge_school_year: { Args: { p_year_id: string | null }; Returns: Json }
       reinitialiser_ecole_demo: { Args: { p_id: string | null }; Returns: Json }
+      remplacants_possibles: {
+        Args: { p_absence_id: string | null; p_seances: Json | null }
+        Returns: {
+          occupe: string
+          profile_id: string
+          seance_date: string
+          slot_id: string
+        }[]
+      }
       set_teacher_profile_active: {
         Args: { p_active: boolean | null; p_teacher_id: string | null }
         Returns: undefined

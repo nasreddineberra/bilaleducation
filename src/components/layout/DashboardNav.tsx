@@ -39,6 +39,7 @@ const EXACT_TITLES: Record<string, string> = {
   '/dashboard/communications/staff':  'Message à l’équipe',
   '/dashboard/notifications':      'Notifications',
   '/dashboard/temps-presence':     'Temps de présence',
+  '/dashboard/absences-enseignants': 'Absences enseignants',
   '/dashboard/financements':              'Situation financière actuelle',
   '/dashboard/financements/reglements':  'Règlements',
   '/dashboard/financements/vue-globale': 'Statistiques sur règlements',
@@ -125,6 +126,10 @@ function getBreadcrumbs(pathname: string): Crumb[] {
   if (/^\/dashboard\/cahier-texte\//.test(pathname))
     return [{ label: 'Cahier de texte' }, { label: 'Séance' }]
 
+  // Absences enseignants
+  if (/^\/dashboard\/absences-enseignants\//.test(pathname))
+    return [{ label: 'Absences enseignants' }, { label: 'Absence' }]
+
   // Communications
   if (/^\/dashboard\/communications\/new/.test(pathname))
     return [{ label: 'Communications' }, { label: 'Message aux parents' }]
@@ -203,6 +208,7 @@ function getPageTitle(pathname: string): string {
   if (/^\/dashboard\/notifications\//.test(pathname))  return 'Notification'
   if (/^\/dashboard\/classes\//.test(pathname))        return 'Fiche classe'
   if (/^\/dashboard\/annee-scolaire\//.test(pathname)) return 'Année scolaire'
+  if (/^\/dashboard\/absences-enseignants\//.test(pathname)) return 'Absence'
   return 'Tableau de bord'
 }
 

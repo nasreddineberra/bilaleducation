@@ -42,6 +42,15 @@ export function heureParis(instant: Date): string {
   })
 }
 
+/** « 2026-11-04T14:05 » — l'horodatage mural à Paris, comparable en chaîne
+ *  (absences d'enseignant, `lib/edt/absences.ts`). */
+export function horodatageParis(instant: Date): string {
+  return instant.toLocaleString('sv-SE', {
+    timeZone: FUSEAU, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).replace(' ', 'T')
+}
+
 /** « jeudi 7 août 2026 » — pour les emails et les en-têtes. */
 export function formatJourLongFr(date: string | Date): string {
   return new Date(date).toLocaleDateString('fr-FR', {

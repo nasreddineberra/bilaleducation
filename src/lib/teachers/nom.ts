@@ -38,7 +38,7 @@
 type Personne = {
   first_name: string
   last_name:  string
-  civilite?:  string
+  civilite?:  string | null
 } | null | undefined
 
 /** NOM Prénom, sans civilité. Chaîne vide si la personne est absente. */

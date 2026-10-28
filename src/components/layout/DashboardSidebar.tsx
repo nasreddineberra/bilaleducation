@@ -43,6 +43,7 @@ import {
   Boxes,
   ScrollText,
   CalendarCheck,
+  UserX,
   History,
   X,
 } from 'lucide-react'
@@ -333,6 +334,14 @@ const navItems: NavItem[] = [
     roles: ['admin', 'direction', 'secretaire', 'responsable_pedagogique', 'comptable', 'enseignant'],
   },
   {
+    // Absences enseignants (lot 3) : seul chemin des absences d'enseignant et des
+    // remplacements. L'enseignant y voit SES absences, en lecture.
+    name:  'Absences enseignants',
+    href:  '/dashboard/absences-enseignants',
+    icon:  UserX,
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'enseignant'],
+  },
+  {
     name:  'Communications',
     icon:  MessageSquare,
     // `enseignant` reintroduit le 01/10 : il n'ECRIT toujours pas (ni aux
@@ -496,6 +505,7 @@ const SECTION_OF: Record<string, string> = {
   'Emploi du temps':    'Pédagogie',
   'Cahier de texte':    'Pédagogie',
   'Classes archivées':  'Pédagogie',
+  'Absences enseignants': 'Gestion',
   'Communications':     'Gestion',
   'Financements':       'Gestion',
   'Audits & Passage d\'année': 'Clôture',

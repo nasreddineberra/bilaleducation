@@ -78,7 +78,6 @@ interface Props {
   exceptions?: ExceptionSource[]
   /** Affectations des classes : qui est titulaire, a quelle date. */
   affectations?: AffectationSource[]
-  classesById?: Record<string, string>
   teachers?: { id: string; user_id: string | null; first_name: string; last_name: string; civilite?: string | null }[]
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
@@ -243,7 +242,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
-  slots = [], exceptions = [], affectations = [], classesById = {}, teachers = [],
+  slots = [], exceptions = [], affectations = [], teachers = [],
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
@@ -1037,11 +1036,6 @@ export default function TempsPresenceClient({
       {/* ── Modal ────────────────────────────────────────────────────── */}
       {modalOpen && (
         <TimeEntryModal
-          slots={slots}
-          exceptions={exceptions}
-          affectations={affectations}
-          classesById={classesById}
-          teachers={teachers}
           vacations={vacations}
           feries={feries}
           date={selectedDay}
