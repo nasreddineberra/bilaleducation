@@ -9794,3 +9794,9 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - **Plein ecran** (demande du 28/10) : `components/layout/BoutonPleinEcran.tsx`, partie blanche de la barre du haut a
   gauche de la coupe en biais, ordinateur seulement (`lg`), masque si le navigateur n'offre pas le plein ecran ;
   icone qui suit `fullscreenchange` (Echap compris). Ecoles seulement (la console a sa propre barre).
+- **EDT, capsule** (remarques du 28/10) : une seule infobulle par capsule, toutes tailles, toutes les informations
+  (etat compris) ; les libelles d'etat n'en portent plus (une bulle vide s'ouvrait au survol du libelle rouge).
+  Accord sur la civilite du titulaire (`genreCivilite` dans `lib/teachers/nom.ts` + `accordGenre`) : « Remplacé /
+  Remplacée par », neutre « Remplacement : » ; « Absent / Absente / Absence · à décider ». Chez le remplacant,
+  « Remplacement de Mme NOM ». Libelles d'etat centres en hauteur entre les informations et l'horaire (ambre compris,
+  preconisation acceptee par « go »). « Prof non affecté » ne s'ecrit plus sous le tampon « ANNULÉ » (reste en infobulle).

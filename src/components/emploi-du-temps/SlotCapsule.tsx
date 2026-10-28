@@ -6,7 +6,8 @@ import { Check, CalendarDays, MoreVertical, Ban } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import Tooltip from '@/components/ui/Tooltip'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
-import { nomEnseignant, nomCourtEnseignant, nomCompletEnseignant as nomComplet } from '@/lib/teachers/nom'
+import { nomCourtEnseignant, nomCompletEnseignant as nomComplet, genreCivilite } from '@/lib/teachers/nom'
+import { accordGenre } from '@/lib/texte/genre'
 import { dureeMinutes } from '@/lib/edt/temps'
 import { intituleCreneau, libelleSalle } from '@/lib/edt/intitule'
 
@@ -68,7 +69,6 @@ export default function SlotCapsule({
   // les tronquer toutes à deux caractères. Le détail reste accessible en
   // infobulle (et dans l'`aria-label`, inchangé).
   //   1-2 créneaux : tout        3-4 : sans salle ni horaire        5+ : nom seul
-  const dense   = groupSize >= 3
   const minimal = groupSize >= 5
 
   // ── ET LE MÊME RAISONNEMENT EN HAUTEUR ────────────────────────────────
@@ -122,6 +122,21 @@ export default function SlotCapsule({
   // Matiere d'un cours, nom d'une activite, a defaut le type (`intituleCreneau`).
   const libelleCours = intituleCreneau(slot)
 
+  // ETAT DE LA SEANCE (28/10) : un libelle centre en hauteur dans la capsule, et
+  // repris dans l'infobulle unique. Accord sur la civilite du titulaire.
+  const genreTitulaire = genreCivilite(slot.teachers?.civilite)
+  const pasDePause = slot.slot_type !== 'pause'
+  const etat: { texte: string; ton: 'rouge' | 'ambre' } | null =
+    annulee || !pasDePause ? null
+    : noTeacher && viewMode !== 'teacher' ? { texte: 'Prof non affecté', ton: 'rouge' }
+    : absent ? { texte: `${accordGenre(genreTitulaire, 'Absent', 'Absente', 'Absence')} · à décider`, ton: 'ambre' }
+    : remplaceParNom ? {
+        texte: accordGenre(genreTitulaire, `Remplacé par ${remplaceParNom}`, `Remplacée par ${remplaceParNom}`, `Remplacement : ${remplaceParNom}`),
+        ton: 'rouge',
+      }
+    : remplacementDe && slot.teachers ? { texte: `Remplacement de ${nomCourtEnseignant(slot.teachers)}`, ton: 'rouge' }
+    : null
+
   const infoLignes: string[] = []
   if (viewMode !== 'class' && slot.classes) infoLignes.push(slot.classes.name)
   infoLignes.push(libelleCours)
@@ -129,6 +144,7 @@ export default function SlotCapsule({
   if (viewMode !== 'teacher') infoLignes.push(noTeacher ? 'Prof non affecté' : nomComplet(slot.teachers))
   if (slot.rooms) infoLignes.push(libelleSalle(slot.rooms.name))
   infoLignes.push(`${slot.start_time.slice(0, 5)}-${slot.end_time.slice(0, 5)}`)
+  if (etat && etat.texte !== 'Prof non affecté') infoLignes.push(etat.texte)
   if (validated) infoLignes.push('Présence validée')
 
   const ariaParts: string[] = []
@@ -138,6 +154,7 @@ export default function SlotCapsule({
   if (viewMode !== 'teacher') ariaParts.push(noTeacher ? 'Prof non affecté' : nomComplet(slot.teachers))
   if (slot.rooms) ariaParts.push(libelleSalle(slot.rooms.name))
   ariaParts.push(`de ${slot.start_time.slice(0, 5)} à ${slot.end_time.slice(0, 5)}`)
+  if (etat && etat.texte !== 'Prof non affecté') ariaParts.push(etat.texte)
   if (validated) ariaParts.push('présence validée')
   const ariaLabel = ariaParts.filter(Boolean).join(', ')
 
@@ -176,18 +193,17 @@ export default function SlotCapsule({
       aria-label={ariaLabel}
       {...(isDraggableEnabled ? { ...listeners, ...attributes } : {})}
     >
-      {/* Quand le libellé rouge de remplacement est affiché, il porte SA propre
-          infobulle : celle de la capsule est coupée pour ne pas en ouvrir deux.
-          En densité réduite, le détail retiré de la capsule reste accessible au
-          survol. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
+      {/* UNE SEULE INFOBULLE (28/10) : toutes les informations de la seance, sur
+          toute la capsule et quelle que soit sa taille ; les libelles d'etat n'en
+          portent plus. Le wrapper du Tooltip est `inline-flex` : sans `w-full` le
           contenu ne remplirait pas la capsule. */}
       <Tooltip
-        content={(dense || court || annulee) && !((remplaceParNom || (remplacementDe && slot.teachers)) && slot.slot_type !== 'pause') ? (
+        content={
           <span className="flex flex-col gap-0.5 text-left">
             {infoLignes.map((l, i) => <span key={i}>{l}</span>)}
           </span>
-        ) : ''}
-        className={clsx('h-full w-full align-bottom', !dense && !court && !annulee && 'pointer-events-none')}
+        }
+        className="h-full w-full align-bottom"
         maxWidth="max-w-none"
       >
         <div className={clsx('h-full flex flex-col overflow-hidden', minimal ? 'px-1 py-0.5' : 'px-1.5 py-0.5')}>
@@ -214,15 +230,6 @@ export default function SlotCapsule({
             </div>
           )}
 
-          {/* « Prof non affecté » reste affiché quelle que soit la place (créneau
-              court, densité minimale) : c'est une anomalie à voir. Deux lignes
-              plutôt qu'une coupure. */}
-          {viewMode !== 'teacher' && noTeacher && (
-            <div className={clsx('leading-tight line-clamp-2 text-red-700 font-bold', minimal ? 'text-[8px]' : 'text-[9px]')}>
-              Prof non affecté
-            </div>
-          )}
-
           {/* Enseignant (vues globale / classe), en gras : « Mme NOM » sur une ligne,
               quelle que soit la duree (decision du 27/10). Le nom complet, prenom
               compris, reste dans l'infobulle. */}
@@ -232,29 +239,19 @@ export default function SlotCapsule({
             </div>
           )}
 
-          {/* Absent, rien de decide : en ambre (a surveiller), avant l'horaire. */}
-          {absent && slot.slot_type !== 'pause' && (
-            <div className={clsx('leading-tight font-bold text-amber-700 mt-auto', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-              Absent · à décider
+          {/* Etat (Prof non affecte, absent a decider, remplacement) : centre en
+              hauteur dans l'espace libre entre les informations et l'horaire, AVANT
+              l'horaire pour rester visible meme quand la capsule est courte. Deux
+              lignes plutot qu'une coupure ; « Prof non affecté » s'affiche quelle
+              que soit la place, c'est une anomalie a voir. */}
+          {etat && (
+            <div className="flex-1 min-h-0 flex items-center">
+              <div className={clsx('leading-tight font-bold line-clamp-2 min-w-0',
+                etat.ton === 'rouge' ? 'text-red-700' : 'text-amber-700',
+                minimal ? 'text-[8px]' : 'text-[9px]')}>
+                {etat.texte}
+              </div>
             </div>
-          )}
-
-          {/* Titulaire remplace : l'heure est assuree par quelqu'un d'autre. En rouge,
-              et AVANT l'horaire pour rester visible meme quand la capsule est courte. */}
-          {remplaceParNom && !annulee && slot.slot_type !== 'pause' && (
-            <Tooltip content={`Remplacé par ${remplaceParNom} sur cette séance : la présence est validée par le remplaçant.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
-              <div className={clsx('leading-tight font-bold text-red-700', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-                Remplacé par {remplaceParNom}
-              </div>
-            </Tooltip>
-          )}
-
-          {remplacementDe && !annulee && slot.teachers && slot.slot_type !== 'pause' && (
-            <Tooltip content={`Remplacement de ${nomEnseignant(slot.teachers)} : vous assurez sa séance et validez votre présence à sa place.`} className="pointer-events-auto mt-auto min-w-0 max-w-full">
-              <div className={clsx('leading-tight font-bold text-red-700', minimal ? 'text-[8px] line-clamp-2' : 'text-[9px] truncate')}>
-                Remplacement de {nomEnseignant(slot.teachers)}
-              </div>
-            </Tooltip>
           )}
 
           {/* Horaire — même police que la ligne titre. Retiré en densité minimale :

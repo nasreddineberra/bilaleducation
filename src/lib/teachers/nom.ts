@@ -60,6 +60,11 @@ export function nomCompletEnseignant(p: Personne): string {
   return `${nomCourtEnseignant(p)} ${p.first_name}`.trim()
 }
 
+/** Genre lu de la civilite, pour `accordGenre` (lib/texte/genre) : `null` hors M. / Mme. */
+export function genreCivilite(civilite: string | null | undefined): 'male' | 'female' | null {
+  return civilite === 'M.' ? 'male' : civilite === 'Mme' ? 'female' : null
+}
+
 /** Civilité NOM Prénom. Chaîne vide si la personne est absente. */
 export function nomEnseignantCivilite(p: Personne): string {
   if (!p) return ''
