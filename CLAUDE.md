@@ -372,7 +372,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
    pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
    redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
-1. **A la reprise** :
+1. **A la reprise (arret du 28/10 au soir, tout pousse, aucune migration en attente)** :
    - **Chantier Planning / absences** (`docs/CONCEPTION-PLANNING-ABSENCES.md`) : lots 1 et 2 FAITS + corrections
      EDT du 27/10, vues et validees a l'ecran le 28/10 (colonne du jour `--edt-jour` gardee). Saisies de
      confirmation (mot-cle, nom, slug) : `ui/SaisieConfirmation` partout (28/10, sans collage, espace entre
@@ -403,8 +403,9 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      cochee (grisee sans messagerie), seances a venir seulement, ni motif ni nom de l'absent ; aussi a la
      suppression et au raccourcissement de l'absence. **A voir a l'ecran** (demonstration, messagerie configuree) :
      annulation annoncee puis retablissement, hauteur de « A traiter » (direction), en-tete des tableaux de bord,
-     bouton plein ecran, « Ajouter » grise de Temps de presence. Puis lot 4 (Temps de presence, encadre Remplacements
-     de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
+     bouton plein ecran, « Ajouter » grise de Temps de presence, capsule EDT (infobulle unique, « Remplacée par »
+     accorde, etats centres). **Prochain : PLAN du lot 4 a presenter** (Temps de presence relie aux absences, encadre
+     Remplacements de la fiche classe en lecture, absences sur la fiche enseignant) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
