@@ -9680,3 +9680,28 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   jamais doublee, retiree a la fin en quittant le champ, une espace finale bloque le bouton). Regle pure
   `lib/texte/saisie-confirmation.ts` (testee) : casse ignoree, accents compris. Placeholder qui affichait la
   reponse (classe, utilisateur) retire. `FloatInputProps` declare `ref` (prop en React 19).
+
+### 28/10 · Planning, lot 3a : absences enseignants, la base
+
+- **Decisions de l'utilisateur (point par point, 28/10)** : 3 decisions par seance (Remplacee par / Annulee /
+  A decider par defaut ; « Assuree » ecartee) ; absence en date + HEURE exactes, bornes comprises (les
+  demi-journees proposees sont abandonnees a sa demande) ; declarent l'encadrement et la secretaire ; remplacant =
+  tout membre de l'equipe ; heures du remplacant a la VALIDATION ; familles prevenues d'une annulation (case
+  cochee) et d'un retablissement apres email (case cochee aussi, contre ma proposition decochee) ; seance validee
+  intouchable ; alerte de la saisie au dernier jour d'absence ; motif conge / maladie / personnel / formation /
+  autre ; remplacement long par la meme page ; remplacant occupe et absences qui se chevauchent : refuses.
+- **Migration `add-absences-enseignants.sql`** (additive, jouee par l'utilisateur) : `absences_enseignants`
+  (`debut` / `fin` en `timestamp` local, `motif`) et `absences_enseignants_seances` (une ligne par seance DECIDEE,
+  « a decider » = aucune ligne ; `remplacant_profile_id` vers `profiles` : un remplacant n'a pas forcement de fiche
+  enseignant, d'ou une colonne nouvelle plutot que `schedule_exceptions.override_teacher_id`, qui pointe vers
+  `teachers` et partira au lot 5 ; `familles_prevenues_le` pour 3c). Lecture : encadrement + secretaire, enseignant
+  pour SES absences ; decisions lues par les roles de l'EDT (sans motif), comptable exclu des absences. Aucune
+  policy d'ecriture : 3 fonctions (`enregistrer_absence_enseignant`, `supprimer_absence_enseignant`,
+  `decider_seances_absence`, tout ou rien), refus codes `ABSENCE_*` avec HINT et DETAIL (seance en cause).
+  Regles internes `fn_seance_a_lieu`, `fn_titulaire_de` (memes regles que `lib/edt/seance.ts`), `fn_membre_occupe`.
+  Choix pris sans avoir ete soumis (signales a l'utilisateur) : fiche enseignant ou compte lies a une absence en
+  RESTRICT ; enseignant d'une absence fige ; seance deja annulee dans l'EDT sans decision d'absence ; absence
+  declaree apres coup sur une seance que l'absent a validee refusee.
+- **Controle 29** : 35 essais (cas limites, refus, effets, droits par role) ; vu ROUGE (7 KO) sur une copie
+  faussee (comparaisons larges), vert sur la vraie, avant et apres application. `lib/edt/absences.ts`
+  (`chevaucheAbsence`, `joursDeLAbsence`, `seancesTouchees` sur `creneauxDuJour`), 6 tests. Types regeneres.

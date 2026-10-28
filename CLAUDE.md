@@ -202,6 +202,7 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/texte/genre.ts` (`accordGenre` : jamais « (e) », tournure neutre hors masculin / feminin),
   `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (titulaire actuel = principal
   sans date de fin), `lib/edt/salles.ts` (salles de cours libres pour une seance),
+  `lib/edt/absences.ts` (seances touchees par une absence d'enseignant ; meme regle que la base, controle 29),
   `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
   titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
@@ -372,12 +373,19 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      EDT du 27/10, vues et validees a l'ecran le 28/10 (colonne du jour `--edt-jour` gardee). Saisies de
      confirmation (mot-cle, nom, slug) : `ui/SaisieConfirmation` partout (28/10, sans collage, espace entre
      deux mots seulement).
-   - **Lot 3 · Absences enseignants, RIEN N'EST DECIDE** (le « go avec tes preconisations » visait un autre
-     sujet) : faire trancher chaque point par l'utilisateur avant de coder. Propositions : 4 choix par seance (Remplacee par / Annulee / A decider
-     par defaut / Assuree) ; heures du remplacant a la VALIDATION de la seance (plus a la saisie) ; seance
-     reactivee apres email -> proposer d'en prevenir les familles (case decochee) ; limite matin / apres-midi
-     a 12:00 (proposee, non tranchee). Decoupage propose : 3a base + regle, 3b page + EDT + Temps de presence
-     ne propose plus l'absence d'enseignant, 3c emails. Puis lot 4 (Temps de presence, encadre Remplacements
+   - **Lot 3 · Absences enseignants, decisions du 28/10** : absence en date + HEURE exactes (bornes comprises,
+     seance touchee des qu'elle chevauche) ; 3 decisions (Remplacee par / Annulee / A decider par defaut = aucune
+     ligne) ; declarent encadrement + secretaire ; remplacant = tout membre actif de l'equipe, jamais occupe sur
+     l'horaire (refus) ; deux absences du meme enseignant ne se chevauchent pas ; heures du remplacant a la
+     VALIDATION ; familles prevenues d'une annulation (case cochee) ET d'un retablissement apres email (cochee) ;
+     seance validee intouchable ; alerte tableau de bord encadrement de la saisie au dernier jour (ambre tant
+     qu'il reste des seances a decider) ; motif conge / maladie / personnel / formation / autre ; remplacement long
+     = meme page (« meme decision pour tous »), acces du remplacant au cahier de texte 7 j avant a porter.
+     **3a FAIT** (migration `add-absences-enseignants.sql` appliquee, controle 29, `lib/edt/absences.ts`).
+     **Suite : 3b** page Absences enseignants + EDT + Temps de presence ne propose plus l'absence d'enseignant
+     + validation par l'encadrement pour un remplacant sans fiche + raccourci « Journee entiere » (a proposer)
+     + messages des codes `ABSENCE_*` + suppression de fiche / compte bloquee par RESTRICT a expliquer ;
+     puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
      de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.

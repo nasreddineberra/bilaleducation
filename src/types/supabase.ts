@@ -1,5 +1,5 @@
 // FICHIER GENERE par `npm run types-db` (scripts/generer-types-db.mjs) : ne pas editer.
-// Structure du schema public du projet Supabase, le 2026-10-27.
+// Structure du schema public du projet Supabase, le 2026-10-28.
 
 import type { ColonnesJson } from './json'
 
@@ -105,6 +105,139 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      absences_enseignants: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          debut: string
+          etablissement_id: string
+          fin: string
+          id: string
+          motif: "conge" | "maladie" | "personnel" | "formation" | "autre"
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          debut: string
+          etablissement_id?: string
+          fin: string
+          id?: string
+          motif: "conge" | "maladie" | "personnel" | "formation" | "autre"
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          debut?: string
+          etablissement_id?: string
+          fin?: string
+          id?: string
+          motif?: "conge" | "maladie" | "personnel" | "formation" | "autre"
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absences_enseignants_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absences_enseignants_etablissement_id_fkey"
+            columns: ["etablissement_id"]
+            isOneToOne: false
+            referencedRelation: "etablissements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absences_enseignants_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      absences_enseignants_seances: {
+        Row: {
+          absence_id: string
+          decide_le: string
+          decide_par: string | null
+          decision: "remplacee" | "annulee"
+          etablissement_id: string
+          familles_prevenues_le: string | null
+          id: string
+          remplacant_profile_id: string | null
+          schedule_slot_id: string
+          seance_date: string
+        }
+        Insert: {
+          absence_id: string
+          decide_le?: string
+          decide_par?: string | null
+          decision: "remplacee" | "annulee"
+          etablissement_id?: string
+          familles_prevenues_le?: string | null
+          id?: string
+          remplacant_profile_id?: string | null
+          schedule_slot_id: string
+          seance_date: string
+        }
+        Update: {
+          absence_id?: string
+          decide_le?: string
+          decide_par?: string | null
+          decision?: "remplacee" | "annulee"
+          etablissement_id?: string
+          familles_prevenues_le?: string | null
+          id?: string
+          remplacant_profile_id?: string | null
+          schedule_slot_id?: string
+          seance_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "absences_enseignants_seances_absence_id_fkey"
+            columns: ["absence_id"]
+            isOneToOne: false
+            referencedRelation: "absences_enseignants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absences_enseignants_seances_decide_par_fkey"
+            columns: ["decide_par"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absences_enseignants_seances_etablissement_id_fkey"
+            columns: ["etablissement_id"]
+            isOneToOne: false
+            referencedRelation: "etablissements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absences_enseignants_seances_remplacant_profile_id_fkey"
+            columns: ["remplacant_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "absences_enseignants_seances_schedule_slot_id_fkey"
+            columns: ["schedule_slot_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_slots"
             referencedColumns: ["id"]
           },
         ]
@@ -4625,6 +4758,10 @@ export type Database = {
         Args: { p_decision: string | null; p_id: string | null }
         Returns: undefined
       }
+      decider_seances_absence: {
+        Args: { p_absence_id: string | null; p_decisions: Json | null }
+        Returns: Json
+      }
       declarer_depart_adulte: {
         Args: {
           p_class_id: string | null
@@ -4651,6 +4788,16 @@ export type Database = {
           p_slug: string | null
         }
         Returns: Json
+      }
+      enregistrer_absence_enseignant: {
+        Args: {
+          p_debut: string | null
+          p_fin: string | null
+          p_id: string | null
+          p_motif: string | null
+          p_teacher_id: string | null
+        }
+        Returns: string
       }
       enregistrer_migration: {
         Args: {
@@ -4696,6 +4843,11 @@ export type Database = {
         Args: { p_adjustment_id: string | null; p_subtotal: number | null }
         Returns: Json
       }
+      fn_absences_garde: { Args: never; Returns: string }
+      fn_absences_verifier_non_validees: {
+        Args: { p_ids: string[] | null }
+        Returns: undefined
+      }
       fn_adulte_a_donnees: {
         Args: {
           p_class_id: string | null
@@ -4733,6 +4885,16 @@ export type Database = {
         Returns: undefined
       }
       fn_expirer_interventions_support: { Args: never; Returns: number }
+      fn_membre_occupe: {
+        Args: {
+          p_date: string | null
+          p_debut: string | null
+          p_exclure_slot: string | null
+          p_fin: string | null
+          p_profile_id: string | null
+        }
+        Returns: string
+      }
       fn_mouvement_inscrire: {
         Args: {
           p_class_id: string | null
@@ -4747,6 +4909,14 @@ export type Database = {
         Returns: undefined
       }
       fn_releve_facturation: { Args: never; Returns: number }
+      fn_seance_a_lieu: {
+        Args: { p_date: string | null; p_slot_id: string | null }
+        Returns: boolean
+      }
+      fn_titulaire_de: {
+        Args: { p_class_id: string | null; p_date: string | null }
+        Returns: string
+      }
       get_etablissements_sante: {
         Args: never
         Returns: {
@@ -4776,6 +4946,10 @@ export type Database = {
       reinitialiser_ecole_demo: { Args: { p_id: string | null }; Returns: Json }
       set_teacher_profile_active: {
         Args: { p_active: boolean | null; p_teacher_id: string | null }
+        Returns: undefined
+      }
+      supprimer_absence_enseignant: {
+        Args: { p_id: string | null }
         Returns: undefined
       }
       teaches_class: { Args: { p_class_id: string | null }; Returns: boolean }
