@@ -9667,3 +9667,16 @@ la section 6 de CLAUDE.md, les regles metier des departs dans sa section 4.
 
 Tout est pousse, aucune migration en attente. Reprise : section 8 de CLAUDE.md (lot 3 « Absences enseignants »
 a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en essai, a faire voir).
+
+### 28/10 · Reprise
+
+- **28/10, verification a l'ecran** : corrections EDT du 27/10 validees (colonne du jour `--edt-jour` gardee,
+  seance annulee visible et reactivable). Precision de l'utilisateur : le « go avec tes preconisations » ne
+  portait PAS sur le lot 3 ; ses points restent tous a trancher.
+- **28/10, saisies de confirmation** : le mot-cle ANNULATION se collait et acceptait des espaces. Les 4 saisies
+  (EDT ANNULATION / SUPPRESSION, nom de la classe, nom du compte utilisateur, slug de l'ecole dans la console)
+  passent par `ui/SaisieConfirmation` : collage, depot et texte du correcteur refuses (`paste`, `drop`,
+  `beforeinput` natif), espace acceptee seulement entre deux mots (choix de l'utilisateur : jamais au debut,
+  jamais doublee, retiree a la fin en quittant le champ, une espace finale bloque le bouton). Regle pure
+  `lib/texte/saisie-confirmation.ts` (testee) : casse ignoree, accents compris. Placeholder qui affichait la
+  reponse (classe, utilisateur) retire. `FloatInputProps` declare `ref` (prop en React 19).

@@ -8,9 +8,11 @@ import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
 import { clsx } from 'clsx'
-import { FloatButton, FloatInput, SearchField } from '@/components/ui/FloatFields'
+import { FloatButton, SearchField } from '@/components/ui/FloatFields'
 import FiltreSwitch from '@/components/ui/FiltreSwitch'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import SaisieConfirmation from '@/components/ui/SaisieConfirmation'
+import { saisieConforme } from '@/lib/texte/saisie-confirmation'
 import Tooltip from '@/components/ui/Tooltip'
 import { titulaireActuel } from '@/lib/teachers/titulaire'
 
@@ -366,17 +368,16 @@ export default function ClassesClient({ classes }: ClassesClientProps) {
           onCancel={closeDeleteModal}
           confirmLabel={isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
           confirmColor="red"
-          confirmDisabled={deleteNameInput.trim().toLowerCase() !== deleteTarget.name.trim().toLowerCase() || isDeleting}
+          confirmDisabled={!saisieConforme(deleteNameInput, deleteTarget.name) || isDeleting}
         >
           <div className="space-y-3">
             <p className="text-sm text-secondary-700">
               Saisissez le nom de la classe <strong>{deleteTarget.name}</strong> pour confirmer la suppression :
             </p>
-            <FloatInput
+            <SaisieConfirmation
               label="Nom de la classe"
-              value={deleteNameInput}
-              onChange={e => setDeleteNameInput(e.target.value)}
-              placeholder={deleteTarget.name}
+              valeur={deleteNameInput}
+              onChange={setDeleteNameInput}
               autoFocus
             />
             {deleteError && (

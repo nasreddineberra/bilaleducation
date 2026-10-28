@@ -33,6 +33,8 @@ export interface FloatInputProps extends React.InputHTMLAttributes<HTMLInputElem
   /** Libelle lu par les lecteurs d'ecran seulement : la consigne est deja ecrite
    *  au-dessus du champ (ex. saisie d'un mot-cle de confirmation). */
   libelleMasque?: boolean
+  /** React 19 : `ref` est une prop, transmise a l'`<input>` par `...props`. */
+  ref?: React.Ref<HTMLInputElement>
 }
 
 export function FloatInput({ label, required, error, locked, compact, bordure = true, libelleMasque = false, className, type, onFocus, onBlur, ...props }: FloatInputProps) {

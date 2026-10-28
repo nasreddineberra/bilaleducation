@@ -297,7 +297,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   « Confirmer / Annuler » en ligne). Toujours **portalisees dans `<body>`** (`animate-fade-in` capture le `fixed`).
 - **Autres** : `Onglets` + `classeOnglet`, `Tooltip` (jamais `title=`), `TruncatedText`, `SearchField`
   (2 caracteres minimum), `RaisonBloquee` (raison d'un bouton grise, sur telephone), `Cliquable`,
-  `RouteSkeleton`, `Toast` (`useToast`), `OtpInput` (2FA 6 cases), `PasswordChecklist`, `RichTextEditor`.
+  `RouteSkeleton`, `Toast` (`useToast`), `OtpInput` (2FA 6 cases), `PasswordChecklist`, `RichTextEditor`,
+  `SaisieConfirmation` (texte a retaper avant une action grave : collage refuse, espace entre deux mots
+  seulement, juge par `saisieConforme` de `lib/texte/saisie-confirmation.ts` ; jamais un `FloatInput` nu).
 
 ### Regles d'interface
 - **NOM avant Prenom** partout (`Civilite NOM Prenom` pour un enseignant).
@@ -365,13 +367,13 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
    « Node.js Version »). Le correctif (**24.22.1**) depend de Vercel seul : encore **24.21.0** le 27/10,
    pare-feu Vercel actif en attendant. Survoler la pastille de version de la console ; aucun
    redeploiement utile tant que Vercel n'a pas publie 24.22.1 (la version se lit au demarrage de la fonction).
-1. **A la reprise (arret du 27/10 au soir, tout pousse, aucune migration en attente)** :
+1. **A la reprise** :
    - **Chantier Planning / absences** (`docs/CONCEPTION-PLANNING-ABSENCES.md`) : lots 1 et 2 FAITS + corrections
-     EDT du 27/10 (seance annulee visible et reactivable, double confirmation ANNULATION / SUPPRESSION, salle
-     unique de classe ou par creneau, salles libres, « Salle 101 », « Mme NOM », colonne du jour `--edt-jour`
-     en ESSAI). D'abord : faire voir a l'ecran les dernieres corrections EDT (colonne du jour, seances annulees).
-   - **Lot 3 · Absences enseignants, A CONFIRMER avant de coder** (l'utilisateur a dit « go avec tes
-     preconisations » sans repondre point par point) : 4 choix par seance (Remplacee par / Annulee / A decider
+     EDT du 27/10, vues et validees a l'ecran le 28/10 (colonne du jour `--edt-jour` gardee). Saisies de
+     confirmation (mot-cle, nom, slug) : `ui/SaisieConfirmation` partout (28/10, sans collage, espace entre
+     deux mots seulement).
+   - **Lot 3 · Absences enseignants, RIEN N'EST DECIDE** (le « go avec tes preconisations » visait un autre
+     sujet) : faire trancher chaque point par l'utilisateur avant de coder. Propositions : 4 choix par seance (Remplacee par / Annulee / A decider
      par defaut / Assuree) ; heures du remplacant a la VALIDATION de la seance (plus a la saisie) ; seance
      reactivee apres email -> proposer d'en prevenir les familles (case decochee) ; limite matin / apres-midi
      a 12:00 (proposee, non tranchee). Decoupage propose : 3a base + regle, 3b page + EDT + Temps de presence

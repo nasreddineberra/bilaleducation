@@ -7,7 +7,8 @@ import { Pencil, Trash2, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { clsx } from 'clsx'
 import Tooltip from '@/components/ui/Tooltip'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { FloatInput } from '@/components/ui/FloatFields'
+import SaisieConfirmation from '@/components/ui/SaisieConfirmation'
+import { saisieConforme } from '@/lib/texte/saisie-confirmation'
 import { deleteUser, getUserDeleteDeps, toggleActive } from '@/app/dashboard/utilisateurs/actions'
 import type { Profile, UserRole } from '@/types/database'
 import { libelleRole, tonRole } from '@/lib/auth/role-labels'
@@ -263,7 +264,7 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
           confirmColor="red"
           confirmDisabled={
             isProcessing ||
-            nameInput.trim().toLowerCase() !== deleteTarget.last_name.trim().toLowerCase()
+            !saisieConforme(nameInput, deleteTarget.last_name)
           }
           onConfirm={confirmDelete}
           onCancel={closeModal}
@@ -273,12 +274,10 @@ export default function UtilisateursTable({ profiles, twoFactorUserIds = [] }: U
               Saisissez le nom <strong>{deleteTarget.last_name}</strong> pour confirmer la
               suppression définitive de ce compte :
             </p>
-            <FloatInput
+            <SaisieConfirmation
               label="Nom"
-              value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-              placeholder={deleteTarget.last_name}
-              aria-label={`Saisir le nom ${deleteTarget.last_name} pour confirmer`}
+              valeur={nameInput}
+              onChange={setNameInput}
               autoFocus
             />
           </div>

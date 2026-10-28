@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import ConfirmModal from '@/components/ui/ConfirmModal'
-import { FloatInput } from '@/components/ui/FloatFields'
+import SaisieConfirmation from '@/components/ui/SaisieConfirmation'
+import { saisieConforme } from '@/lib/texte/saisie-confirmation'
 import { intituleCreneau } from '@/lib/edt/intitule'
 import { nomEnseignant } from '@/lib/teachers/nom'
 import type { ResolvedSlot } from './EmploiDuTempsClient'
@@ -11,7 +12,7 @@ import type { ResolvedSlot } from './EmploiDuTempsClient'
  * Confirmation d'une action sur UNE seance (decision du 27/10) : le recapitulatif
  * complet de la seance, puis la saisie d'un mot-cle (« ANNULATION »,
  * « SUPPRESSION ») qui seul debloque le bouton — double confirmation, la seance
- * visee est relue avant d'agir. Casse et espaces autour ignores.
+ * visee est relue avant d'agir. Saisie tapee, sans collage (ui/SaisieConfirmation).
  */
 const MODES = {
   annuler: {
@@ -52,7 +53,7 @@ export default function ConfirmationSeance({ seance, mode, onConfirm, onCancel }
       variant="danger"
       confirmLabel={m.bouton}
       cancelLabel="Retour"
-      confirmDisabled={saisie.trim().toUpperCase() !== m.motCle}
+      confirmDisabled={!saisieConforme(saisie, m.motCle)}
       onConfirm={onConfirm}
       onCancel={onCancel}
     >
@@ -66,12 +67,11 @@ export default function ConfirmationSeance({ seance, mode, onConfirm, onCancel }
           ))}
         </dl>
         <p className="text-sm text-warm-700">Saisissez <strong className="text-secondary-800">{m.motCle}</strong> pour confirmer.</p>
-        <FloatInput
+        <SaisieConfirmation
           label={`Saisissez ${m.motCle} pour confirmer`}
           libelleMasque
-          value={saisie}
-          onChange={e => setSaisie(e.target.value)}
-          autoComplete="off"
+          valeur={saisie}
+          onChange={setSaisie}
           autoFocus
         />
       </div>

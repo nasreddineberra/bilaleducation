@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { FloatButton, FloatInput } from '@/components/ui/FloatFields'
+import { FloatButton } from '@/components/ui/FloatFields'
+import SaisieConfirmation from '@/components/ui/SaisieConfirmation'
+import { saisieConforme } from '@/lib/texte/saisie-confirmation'
 import FormModal from '@/components/ui/FormModal'
 import Tooltip from '@/components/ui/Tooltip'
 import { useToast } from '@/lib/toast-context'
@@ -129,7 +131,7 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
                 type="button"
                 variant="danger"
                 loading={effacement}
-                disabled={!simulation || saisie.trim() !== slug || effacement}
+                disabled={!simulation || !saisieConforme(saisie, slug) || effacement}
                 onClick={effacer}
               >
                 Effacer définitivement
@@ -163,11 +165,10 @@ export default function DepartEcole({ etablissementId, slug, nom, actif }: {
                 <p className="text-xs text-amber-700 font-medium">
                   L&apos;effacement est définitif. La fiche reste et pourra être rouverte, mais vide.
                 </p>
-                <FloatInput
+                <SaisieConfirmation
                   label={`Saisissez « ${slug} » pour confirmer`}
-                  value={saisie}
-                  onChange={e => setSaisie(e.target.value)}
-                  autoComplete="off"
+                  valeur={saisie}
+                  onChange={setSaisie}
                 />
               </>
             )}
