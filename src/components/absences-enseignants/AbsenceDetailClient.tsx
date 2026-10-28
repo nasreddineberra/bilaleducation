@@ -9,9 +9,11 @@ import { Puce } from '@/components/dashboard/tdb'
 import { useToast } from '@/lib/toast-context'
 import { libelleMotif, type Decision } from '@/lib/absences-enseignants/libelles'
 import { pluriel } from '@/lib/texte/pluriel'
+import { horodatageParis } from '@/lib/dates'
 import { deciderSeances, supprimerAbsence } from '@/app/dashboard/absences-enseignants/actions'
 import AbsenceFormModal, { type AbsenceSaisie } from './AbsenceFormModal'
 import { periodeAbsence } from './periode'
+import CasePrevenir from './CasePrevenir'
 
 /**
  * FICHE D'UNE ABSENCE (lot 3b-1) : les seances touchees, groupees par creneau
@@ -21,6 +23,12 @@ import { periodeAbsence } from './periode'
  * l'horaire sont grises avec la raison, donnee par la base
  * (`remplacants_possibles`) ; une seance validee est verrouillee.
  * Tout part d'un coup a l'enregistrement (`decider_seances_absence`, tout ou rien).
+ *
+ * FAMILLES (lot 3c) : une seance A VENIR qui passe a « Annulee », ou une seance
+ * annoncee annulee qui ne l'est plus, ouvre une confirmation avec la case
+ * « Prevenir les familles par email », cochee (grisee sans messagerie). Meme
+ * case a la suppression de l'absence et quand une modification de la periode
+ * rend ordinaires des seances annoncees annulees.
  */
 
 export interface SeanceFiche {
@@ -32,6 +40,8 @@ export interface SeanceFiche {
   decision: Decision
   remplacant: string | null
   validee: boolean
+  /** Date de l'email aux familles d'une seance annulee, sinon `null`. */
+  prevenuesLe: string | null
   /** Membres admissibles -> raison s'il est pris sur l'horaire, `null` s'il est libre. */
   occupes: Record<string, string | null>
 }
@@ -54,16 +64,22 @@ function jourLong(date: string): string {
 function jourSemaine(date: string): string {
   return new Date(date + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long' })
 }
+function jourCourt(instant: string): string {
+  return new Date(instant).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit' })
+}
+const aVenir = (s: SeanceFiche) => `${s.date}T${s.debut}` > horodatageParis(new Date())
+const annoncee = (s: SeanceFiche) => s.decision === 'annulee' && !!s.prevenuesLe
 
-export default function AbsenceDetailClient({ absence, enseignant, seances, membres, peutGerer }: {
+export default function AbsenceDetailClient({ absence, enseignant, seances, membres, peutGerer, messagerie }: {
   absence: AbsenceSaisie
   enseignant: string
   seances: SeanceFiche[]
   membres: Membre[]
   peutGerer: boolean
+  messagerie: boolean
 }) {
   const router = useRouter()
-  const { error: toastError, success: toastSuccess } = useToast()
+  const { error: toastError, success: toastSuccess, warning: toastWarning } = useToast()
   const initial = useMemo(() => Object.fromEntries(seances.map(s => [cle(s), valeurDe(s)])), [seances])
   const [choix, setChoix] = useState<Record<string, string>>(initial)
   // Donnees rafraichies apres enregistrement : on repart de la base.
@@ -72,6 +88,11 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
   const [edition, setEdition] = useState(false)
   const [confirmeSuppression, setConfirmeSuppression] = useState(false)
   const [suppression, setSuppression] = useState(false)
+  // Confirmation des emails aux familles avant d'enregistrer les decisions.
+  const [confirmeEnvoi, setConfirmeEnvoi] = useState(false)
+  const [prevenirAnnulees, setPrevenirAnnulees] = useState(true)
+  const [prevenirMaintenues, setPrevenirMaintenues] = useState(true)
+  const [prevenirSuppression, setPrevenirSuppression] = useState(true)
 
   const membreParId = useMemo(() => new Map(membres.map(m => [m.id, m])), [membres])
   // Membres admissibles : la base rend la meme liste pour chaque seance.
@@ -89,6 +110,11 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
 
   const modifiees = seances.filter(s => !s.validee && choix[cle(s)] !== initial[cle(s)])
   const nbADecider = seances.filter(s => choix[cle(s)] === 'a_decider').length
+  // A annoncer : a venir, annulee maintenant, sans annonce deja faite.
+  const aAnnoncer = modifiees.filter(s => aVenir(s) && choix[cle(s)] === 'annulee' && !annoncee(s))
+  // A dire maintenues : annoncees annulees, a venir, qui ne le sont plus.
+  const aMaintenir = modifiees.filter(s => aVenir(s) && annoncee(s) && choix[cle(s)] !== 'annulee')
+  const annonceesAVenir = seances.filter(s => aVenir(s) && annoncee(s))
 
   const appliquer = (cibles: SeanceFiche[], valeur: string) => {
     if (!valeur) return
@@ -133,6 +159,12 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
     </>
   }
 
+  const demanderEnregistrement = () => {
+    if (aAnnoncer.length || aMaintenir.length) {
+      setPrevenirAnnulees(true); setPrevenirMaintenues(true); setConfirmeEnvoi(true)
+    } else enregistrer()
+  }
+
   const enregistrer = async () => {
     setSaving(true)
     const r = await deciderSeances(absence.id, modifiees.map(s => {
@@ -140,19 +172,25 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
       return v.startsWith('r:')
         ? { slotId: s.slotId, date: s.date, decision: 'remplacee' as const, remplacant: v.slice(2) }
         : { slotId: s.slotId, date: s.date, decision: v as Decision, remplacant: null }
-    }))
+    }), {
+      annulees: messagerie && aAnnoncer.length > 0 && prevenirAnnulees,
+      maintenues: messagerie && aMaintenir.length > 0 && prevenirMaintenues,
+    })
     setSaving(false)
+    setConfirmeEnvoi(false)
     if (r.error) { toastError(r.error); return }
     toastSuccess(`${pluriel(modifiees.length, 'décision')} ${modifiees.length > 1 ? 'enregistrées' : 'enregistrée'}.`)
+    if (r.avertissement) toastWarning(r.avertissement)
     router.refresh()
   }
 
   const supprimer = async () => {
     setSuppression(true)
-    const r = await supprimerAbsence(absence.id)
+    const r = await supprimerAbsence(absence.id, messagerie && annonceesAVenir.length > 0 && prevenirSuppression)
     setSuppression(false)
     if (r.error) { toastError(r.error); setConfirmeSuppression(false); return }
     toastSuccess('Absence supprimée.')
+    if (r.avertissement) toastWarning(r.avertissement)
     router.push('/dashboard/absences-enseignants')
   }
 
@@ -173,7 +211,7 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
           <h2 className="text-xs font-bold uppercase tracking-widest truncate">Absence</h2>
           <div className="flex items-center gap-2 shrink-0">
             {peutGerer && <>
-              <FloatButton size="mini" variant="danger" type="button" onClick={() => setConfirmeSuppression(true)}>Supprimer</FloatButton>
+              <FloatButton size="mini" variant="danger" type="button" onClick={() => { setPrevenirSuppression(true); setConfirmeSuppression(true) }}>Supprimer</FloatButton>
               <FloatButton size="mini" variant="edit" type="button" onClick={() => setEdition(true)}>Modifier</FloatButton>
             </>}
             <FloatButton size="mini" variant="secondary" href="/dashboard/absences-enseignants">Retour à la liste</FloatButton>
@@ -211,7 +249,7 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
                   {options(seances)}
                 </FloatSelect>
               )}
-              <FloatButton size="mini" variant="submit" type="button" onClick={enregistrer}
+              <FloatButton size="mini" variant="submit" type="button" onClick={demanderEnregistrement}
                 loading={saving} disabled={modifiees.length === 0}>
                 Enregistrer
               </FloatButton>
@@ -251,6 +289,9 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
                           <tr key={cle(s)} className="sans-survol">
                             <td className="list-td whitespace-nowrap text-secondary-800">{jourLong(s.date)}</td>
                             <td className="list-td whitespace-nowrap text-warm-700 tabular-nums">{s.debut}-{s.fin}</td>
+                            <td className="list-td whitespace-nowrap text-warm-700">
+                              {annoncee(s) && <>Familles prévenues le {jourCourt(s.prevenuesLe!)}</>}
+                            </td>
                             <td className="list-td w-80">
                               {peutGerer && !s.validee ? (
                                 <FloatSelect
@@ -288,6 +329,8 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
         <AbsenceFormModal
           absence={absence}
           enseignants={[{ id: absence.teacherId, nom: enseignant }]}
+          annoncees={annonceesAVenir}
+          messagerie={messagerie}
           onClose={() => setEdition(false)}
         />
       )}
@@ -306,6 +349,57 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
             <p className="font-medium text-secondary-800">{enseignant}</p>
             <p className="text-warm-700 tabular-nums">{periodeAbsence(absence.debut, absence.fin)} · {libelleMotif(absence.motif)}</p>
             <p className="text-warm-700">Ses séances redeviennent des séances ordinaires, assurées par le titulaire.</p>
+            {annonceesAVenir.length > 0 && (
+              <div className="pt-2">
+                <CasePrevenir
+                  label={annonceesAVenir.length > 1
+                    ? `Prévenir les familles que les ${annonceesAVenir.length} séances annoncées annulées ont bien lieu`
+                    : 'Prévenir les familles que la séance annoncée annulée a bien lieu'}
+                  coche={prevenirSuppression}
+                  onChange={setPrevenirSuppression}
+                  messagerie={messagerie}
+                />
+              </div>
+            )}
+          </div>
+        </ConfirmModal>
+      )}
+
+      {confirmeEnvoi && (
+        <ConfirmModal
+          title="Prévenir les familles"
+          confirmLabel={saving ? 'Enregistrement…' : 'Enregistrer'}
+          confirmDisabled={saving}
+          onConfirm={enregistrer}
+          onCancel={() => setConfirmeEnvoi(false)}
+        >
+          <div className="space-y-3 text-sm">
+            {aAnnoncer.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="font-medium text-secondary-800">
+                  {aAnnoncer.length > 1 ? `${aAnnoncer.length} séances annulées` : 'Séance annulée'}
+                </p>
+                <ul className="text-warm-700 tabular-nums">
+                  {aAnnoncer.map(s => <li key={cle(s)}>{s.classe} · {jourLong(s.date)} · {s.debut}-{s.fin}</li>)}
+                </ul>
+                <CasePrevenir label="Prévenir les familles par email" coche={prevenirAnnulees}
+                  onChange={setPrevenirAnnulees} messagerie={messagerie} />
+              </div>
+            )}
+            {aMaintenir.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="font-medium text-secondary-800">
+                  {aMaintenir.length > 1
+                    ? `${aMaintenir.length} séances annoncées annulées ont bien lieu`
+                    : 'La séance annoncée annulée a bien lieu'}
+                </p>
+                <ul className="text-warm-700 tabular-nums">
+                  {aMaintenir.map(s => <li key={cle(s)}>{s.classe} · {jourLong(s.date)} · {s.debut}-{s.fin}</li>)}
+                </ul>
+                <CasePrevenir label="Prévenir les familles par email" coche={prevenirMaintenues}
+                  onChange={setPrevenirMaintenues} messagerie={messagerie} />
+              </div>
+            )}
           </div>
         </ConfirmModal>
       )}

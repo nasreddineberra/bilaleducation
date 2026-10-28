@@ -766,27 +766,6 @@
 .ton-orange       { color: var(--etat-orange);       background: color-mix(in srgb, #f97316 16%, transparent); }
 .ton-neutre       { color: var(--ink-muted);         background: var(--jauge-fond); }
 
-/* Raccourcis en pilule, a droite du bonjour. */
-.raccourci {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.25rem;
-  padding: 0 0.875rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--brand-surface);
-  background: var(--surface-card);
-  border: 1px solid color-mix(in srgb, var(--brand-surface) 22%, transparent);
-  transition: background-color .15s, color .15s;
-  outline: none;
-}
-.raccourci:hover { background: color-mix(in srgb, var(--brand-surface) 8%, var(--surface-card)); }
-.raccourci:focus-visible { box-shadow: 0 0 0 2px var(--brand-surface); }
-:root[data-theme="dark"] .raccourci { color: var(--brand-accent); border-color: color-mix(in srgb, var(--brand-accent) 30%, transparent); }
-:root[data-theme="dark"] .raccourci:hover { background: color-mix(in srgb, var(--brand-accent) 10%, var(--surface-card)); }
-:root[data-theme="dark"] .raccourci:focus-visible { box-shadow: 0 0 0 2px var(--brand-accent); }
-
 /* Lien d'encadre (« Voir tout ») au vert de marque. */
 .lien-tdb {
   font-size: 0.75rem;

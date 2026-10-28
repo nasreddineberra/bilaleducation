@@ -2905,7 +2905,7 @@ export type Database = {
           read_at: string | null
           student_id: string | null
           title: string
-          type: "absence" | "retard" | "payment" | "announcement" | "homework"
+          type: "absence" | "retard" | "payment" | "announcement" | "homework" | "seance"
         }
         Insert: {
           body: string
@@ -2920,7 +2920,7 @@ export type Database = {
           read_at?: string | null
           student_id?: string | null
           title: string
-          type: "absence" | "retard" | "payment" | "announcement" | "homework"
+          type: "absence" | "retard" | "payment" | "announcement" | "homework" | "seance"
         }
         Update: {
           body?: string
@@ -2935,7 +2935,7 @@ export type Database = {
           read_at?: string | null
           student_id?: string | null
           title?: string
-          type?: "absence" | "retard" | "payment" | "announcement" | "homework"
+          type?: "absence" | "retard" | "payment" | "announcement" | "homework" | "seance"
         }
         Relationships: [
           {
@@ -4943,6 +4943,10 @@ export type Database = {
         Returns: Json
       }
       is_admin: { Args: never; Returns: boolean }
+      marquer_familles_prevenues: {
+        Args: { p_absence_id: string | null; p_seances: Json | null }
+        Returns: number
+      }
       norm_name: { Args: { txt: string | null }; Returns: string }
       purge_school_year: { Args: { p_year_id: string | null }; Returns: Json }
       reinitialiser_ecole_demo: { Args: { p_id: string | null }; Returns: Json }

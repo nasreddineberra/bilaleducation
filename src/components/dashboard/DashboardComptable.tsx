@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
-import type { Raccourci } from '@/lib/mobile'
 import type { DonneesComptable } from '@/lib/dashboard/comptable'
 import { Wallet, Hourglass, Banknote, Scale } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
@@ -22,14 +21,6 @@ interface Props {
   recentNotifs: any[]
   donnees: DonneesComptable
 }
-
-// Aucun ecran de Financements n'est propose sur telephone : pas de `mobile`.
-const RACCOURCIS: Raccourci[] = [
-  { href: '/dashboard/financements/reglements', label: 'Règlements' },
-  { href: '/dashboard/financements/vue-globale', label: 'Statistiques' },
-  { href: '/dashboard/financements', label: 'Situation financière' },
-  { href: '/dashboard/cotisations', label: 'Cotisations' },
-]
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
@@ -64,9 +55,6 @@ export default function DashboardComptable({ donnees: d, ...headerProps }: Props
           headerProps.yearLabel ? `année ${headerProps.yearLabel}` : null,
           f ? pluriel(f.familles, 'famille') : null,
         ].filter(Boolean).join(' · ')}
-        actions={petitEcran ? undefined : RACCOURCIS.map(r => (
-          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
-        ))}
       />
 
       {/* ── 4 tuiles ── */}

@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
-import type { Raccourci } from '@/lib/mobile'
 import type { DonneesEnseignant, SeanceEnseignant } from '@/lib/dashboard/enseignant'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { fmtDuration } from '@/lib/temps-presence/format'
@@ -23,14 +22,6 @@ interface Props {
   recentNotifs: any[]
   donnees: DonneesEnseignant
 }
-
-// `mobile` : meme drapeau que la barre laterale. Un raccourci vers un ecran
-// masque serait offrir en tete de page ce que le menu refuse.
-const RACCOURCIS: Raccourci[] = [
-  { href: '/dashboard/absences', label: "Feuille d'appel", mobile: true },
-  { href: '/dashboard/grades', label: 'Saisie des notes' },
-  { href: '/dashboard/cahier-texte', label: 'Cahier de texte', mobile: true },
-]
 
 const STATUT: Record<SeanceEnseignant['statut'], { label: string; ton: Ton } | null> = {
   validee:   { label: 'Validée', ton: 'ok' },
@@ -60,9 +51,6 @@ export default function DashboardEnseignant({ donnees: d, ...headerProps }: Prop
       <DashboardHeader
         {...headerProps}
         sousTitre={sousTitre}
-        actions={RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
-          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
-        ))}
       />
 
       {d.sansFiche && (

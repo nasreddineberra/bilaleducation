@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
-import type { Raccourci } from '@/lib/mobile'
 import type { DonneesDirection } from '@/lib/dashboard/direction'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import {
@@ -29,15 +28,6 @@ interface Props {
   /** Rappel de bascule de période, ou null s'il n'y a rien à signaler. */
   periodHint: { message: string; missing: boolean } | null
 }
-
-// `mobile` : meme drapeau que la barre laterale. Les ecrans masques sur
-// telephone ne sont pas proposes en raccourci.
-const RACCOURCIS: Raccourci[] = [
-  { href: '/dashboard/students/new', label: 'Nouvel élève' },
-  { href: '/dashboard/communications/new', label: 'Nouveau message' },
-  { href: '/dashboard/grades', label: 'Saisie des notes' },
-  { href: '/dashboard/absences', label: "Feuille d'appel", mobile: true },
-]
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
@@ -71,9 +61,6 @@ export default function DashboardAdmin({ donnees: d, periodHint, ...headerProps 
           headerProps.periodLabel ? expandPeriodLabel(headerProps.periodLabel) : null,
           d.fermeture ? `école fermée (${d.fermeture})` : null,
         ].filter(Boolean).join(' · ')}
-        actions={RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
-          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
-        ))}
       />
 
       {/* ── 4 tuiles ── */}

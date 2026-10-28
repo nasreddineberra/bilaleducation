@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
-import type { Raccourci } from '@/lib/mobile'
 import type { DonneesSecretaire } from '@/lib/dashboard/secretaire'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { Users, UserX, FileWarning, CalendarX } from 'lucide-react'
@@ -21,14 +20,6 @@ interface Props {
   recentNotifs: any[]
   donnees: DonneesSecretaire
 }
-
-// `mobile` : meme drapeau que la barre laterale.
-const RACCOURCIS: Raccourci[] = [
-  { href: '/dashboard/students/new', label: 'Nouvel apprenant' },
-  { href: '/dashboard/affectation', label: 'Affectations' },
-  { href: '/dashboard/absences', label: "Feuilles d'appel", mobile: true },
-  { href: '/dashboard/parents', label: 'Parents' },
-]
 
 const dateCourte = (d: string) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '')
 const lienNom = 'block font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]'
@@ -54,9 +45,6 @@ export default function DashboardSecretaire({ donnees: d, ...headerProps }: Prop
           headerProps.periodLabel ? expandPeriodLabel(headerProps.periodLabel) : null,
           d.fermeture ? `école fermée (${d.fermeture})` : tenues.length ? `${pluriel(tenues.length, 'séance')} aujourd’hui` : null,
         ].filter(Boolean).join(' · ')}
-        actions={RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
-          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
-        ))}
       />
 
       {/* ── 4 tuiles ── */}

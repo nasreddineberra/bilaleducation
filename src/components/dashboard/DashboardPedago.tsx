@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
-import type { Raccourci } from '@/lib/mobile'
 import type { DonneesPedagogie } from '@/lib/dashboard/pedagogie'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { PenLine, FileText, CheckCheck, CalendarDays } from 'lucide-react'
@@ -23,14 +22,6 @@ interface Props {
   recentNotifs: any[]
   donnees: DonneesPedagogie
 }
-
-// `mobile` : meme drapeau que la barre laterale.
-const RACCOURCIS: Raccourci[] = [
-  { href: '/dashboard/evaluations', label: 'Gabarits' },
-  { href: '/dashboard/grades', label: 'Saisie des notes' },
-  { href: '/dashboard/bulletins', label: 'Bulletins' },
-  { href: '/dashboard/emploi-du-temps', label: 'Emploi du temps', mobile: true },
-]
 
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
@@ -65,9 +56,6 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
           headerProps.periodLabel ? expandPeriodLabel(headerProps.periodLabel) : null,
           d.fermeture ? `école fermée (${d.fermeture})` : null,
         ].filter(Boolean).join(' · ')}
-        actions={RACCOURCIS.filter(r => !petitEcran || r.mobile).map(r => (
-          <Link key={r.href} href={r.href} className="raccourci">{r.label}</Link>
-        ))}
       />
 
       {/* ── 4 tuiles ── */}

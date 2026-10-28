@@ -4,6 +4,7 @@ import { effectiveRole } from '@/lib/auth/effective-role'
 import { chargerContexteSeances } from '@/lib/absences-enseignants/contexte'
 import { nomEnseignant, nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { libelleRole } from '@/lib/auth/role-labels'
+import { hasSmtpConfig } from '@/lib/email'
 import AbsenceDetailClient, { type SeanceFiche, type Membre } from '@/components/absences-enseignants/AbsenceDetailClient'
 
 // Fiche d'une absence : les seances touchees et leur decision (lot 3b-1).
@@ -24,7 +25,7 @@ export default async function AbsenceEnseignantPage({ params }: { params: Promis
   // La RLS ne rend a l'enseignant que SES absences : une autre donne une fiche introuvable.
   const { data: absence } = await supabase
     .from('absences_enseignants')
-    .select('id, teacher_id, debut, fin, motif, teachers(civilite, first_name, last_name)')
+    .select('id, etablissement_id, teacher_id, debut, fin, motif, teachers(civilite, first_name, last_name)')
     .eq('id', id)
     .maybeSingle()
   if (!absence) notFound()
@@ -37,7 +38,7 @@ export default async function AbsenceEnseignantPage({ params }: { params: Promis
   const slotIds = [...new Set(touchees.map(s => s.slotId))]
   const { data: decisions } = await supabase
     .from('absences_enseignants_seances')
-    .select('schedule_slot_id, seance_date, decision, remplacant_profile_id')
+    .select('schedule_slot_id, seance_date, decision, remplacant_profile_id, familles_prevenues_le')
     .eq('absence_id', id)
   const { data: validations } = slotIds.length
     ? await supabase
@@ -90,6 +91,7 @@ export default async function AbsenceEnseignantPage({ params }: { params: Promis
       decision: d ? (d.decision as 'annulee' | 'remplacee') : 'a_decider',
       remplacant: d?.remplacant_profile_id ?? null,
       validee: validees.has(cle(s.slotId, s.date)),
+      prevenuesLe: d?.familles_prevenues_le ?? null,
       occupes: occupations[cle(s.slotId, s.date)] ?? {},
     }
   })
@@ -102,6 +104,7 @@ export default async function AbsenceEnseignantPage({ params }: { params: Promis
         seances={seances}
         membres={membres}
         peutGerer={peutGerer}
+        messagerie={peutGerer && await hasSmtpConfig(absence.etablissement_id)}
       />
     </div>
   )

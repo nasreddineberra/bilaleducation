@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
+import { estTypeSaisissable } from '@/lib/temps-presence/saisie'
 import type { VacationPeriod, JourFerie } from '@/types/database'
 import { FloatInput, FloatSelect, FloatTextarea, FloatButton } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
@@ -69,11 +70,9 @@ export default function TimeEntryModal({ date, entry, currentUserId, canManage, 
   // coute rien.
   const fermeture = jourFerme(date, vacations, feries)
 
-  // Ne se saisissent plus ici (voir l'en-tete) : l'absence, et les heures de
-  // COURS et d'ACTIVITE, nees d'une seance de l'EDT et de sa validation
-  // (decision du 28/10). Restent les types libres de l'ecole.
-  const typesSaisissables = presenceTypes.filter(pt =>
-    !pt.is_absence && pt.reserved_kind !== 'cours' && pt.reserved_kind !== 'activite')
+  // Ne se saisissent plus ici : l'absence, le cours et l'activite (regle unique
+  // `lib/temps-presence/saisie`). Restent les types libres de l'ecole.
+  const typesSaisissables = presenceTypes.filter(estTypeSaisissable)
   const defaultType = entry?.entry_type ?? ''
 
   const [profileId, setProfileId] = useState(entry?.profile_id ?? (canManage ? '' : currentUserId))

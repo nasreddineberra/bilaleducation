@@ -27,12 +27,10 @@ function formatDate(d: string | null): string {
 }
 
 export default function DashboardHeader({
-  firstName, roleLabel, unreadNotifs, recentNotifs, sousTitre, actions, masquerNotifs,
+  firstName, roleLabel, unreadNotifs, recentNotifs, sousTitre, masquerNotifs,
 }: Props & {
   /** Remplace « role · date » quand la variante a mieux a dire. */
   sousTitre?: string
-  /** Raccourcis a droite du bonjour (refonte du 16/10). */
-  actions?: React.ReactNode
   /** La variante affiche deja les non lues ailleurs (ligne « A traiter »). */
   masquerNotifs?: boolean
 }) {
@@ -42,19 +40,16 @@ export default function DashboardHeader({
 
   return (
     <div className="space-y-4">
-      {/* Bandeau bienvenue */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-2xl font-extrabold tracking-tight text-secondary-800">
-            Bonjour, {firstName}
-          </h2>
-          <p className="text-warm-700 mt-1 text-sm first-letter:uppercase">
-            {sousTitre ?? `${roleLabel} · ${today}`}
-          </p>
-        </div>
-        {/* Masques sur telephone (23/10) : le tiroir donne deja ces ecrans, et
-            les raccourcis repoussaient les cartes sous la ligne de flottaison. */}
-        {actions && <div className="hidden md:flex flex-wrap gap-2">{actions}</div>}
+      {/* Bandeau bienvenue : le bonjour a gauche, la date et la periode a
+          droite (28/10, a la place des raccourcis : la barre laterale donne
+          deja ces ecrans). Faute de place, la date passe sous le bonjour. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="min-w-0 text-2xl font-extrabold tracking-tight text-secondary-800">
+          Bonjour, {firstName}
+        </h2>
+        <p className="text-warm-700 text-sm first-letter:uppercase">
+          {sousTitre ?? `${roleLabel} · ${today}`}
+        </p>
       </div>
 
       {/* Notifications recentes */}

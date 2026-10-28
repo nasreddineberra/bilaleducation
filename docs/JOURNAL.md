@@ -9770,3 +9770,27 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
 - **3b-2c** : fiche classe sans declaration de remplacant (lien « Absences enseignants » ; les remplacants
   `class_teachers` existants restent affiches jusqu'au lot 5) ; refus de suppression d'une fiche enseignant ou
   d'un compte : absences declarees et seances remplacees comptees et nommees dans les modales.
+
+- **Temps de presence, « Ajouter » grise** : le bouton ne se grisait que sans AUCUN type ; la demonstration n'a que
+  cours, activite et absence, aucun saisissable. Regle unique `lib/temps-presence/saisie.ts` (`estTypeSaisissable`,
+  absence comprise, signale par l'utilisateur), partagee avec la modale. Infobulle « Aucun type de présence à
+  saisir : cours et activités viennent de l'emploi du temps », sans bandeau (une ecole peut le vouloir ainsi).
+- **Tableaux de bord, en-tete** (demande du 28/10) : raccourcis retires des 5 variantes (et la classe `.raccourci`,
+  le type `Raccourci` de `lib/mobile.ts`, devenus morts) ; date et periode a droite du bonjour, sous lui faute de place.
+- **3c, familles prevenues** : migration `absences-enseignants-familles.sql` (type de notification `seance`,
+  `marquer_familles_prevenues` sur les seules seances ANNULEES, `decider_seances_absence` rapiecee par ancrage :
+  une seance qui n'est plus annulee perd sa date d'annonce, une re-annulation repart par email). Controle 32
+  (15 essais ; vu rouge sans la migration, 11 KO, et sans le rapiecage, 1 KO « date effacee »). Cote app :
+  `lib/absences-enseignants/familles.ts` (1 email par foyer ET par classe listant ses seances, a venir seulement,
+  ni motif ni nom de l'absent, valeurs echappees ; « prevenue » = au moins un email parti pour sa classe),
+  `destinatairesDeLaClasse` extrait du cahier de texte vers `lib/email/destinataires-classe.ts` (2e usage).
+  Actions : ce qui etait annonce est lu AVANT l'ecriture (la ligne peut disparaitre : suppression, periode
+  raccourcie), l'envoi suit, un echec revient en avertissement. Fiche : confirmation « Prévenir les familles »
+  (case cochee, `CasePrevenir`, grisee sans messagerie), « Familles prévenues le JJ/MM » ; meme case a la
+  suppression et dans le formulaire quand la nouvelle periode rend ordinaires des seances annoncees
+  (`chevaucheAbsence`, meme regle que la base). Choix tenus (preconisations acceptees par « go ») : pas de CCI
+  direction, aucun email pour une seance remplacee. Hors perimetre : une annulation directe dans l'EDT ne previent
+  personne.
+- **Plein ecran** (demande du 28/10) : `components/layout/BoutonPleinEcran.tsx`, partie blanche de la barre du haut a
+  gauche de la coupe en biais, ordinateur seulement (`lg`), masque si le navigateur n'offre pas le plein ecran ;
+  icone qui suit `fullscreenchange` (Echap compris). Ecoles seulement (la console a sa propre barre).

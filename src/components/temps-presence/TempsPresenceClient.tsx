@@ -12,6 +12,7 @@ import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/
 import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { fmtDuration, findPresenceType } from '@/lib/temps-presence/format'
+import { estTypeSaisissable } from '@/lib/temps-presence/saisie'
 import TimeEntryModal from './TimeEntryModal'
 import Tooltip from '@/components/ui/Tooltip'
 import TruncatedText from '@/components/ui/TruncatedText'
@@ -287,12 +288,18 @@ export default function TempsPresenceClient({
   // Garde : sans annee scolaire OU sans type de presence configure, la saisie est
   // impossible (la modale n'aurait aucun type a choisir) → on bloque + on informe.
   const noTypes = presenceTypes.length === 0
-  const canAdd = !!schoolYearId && !noTypes
+  // Types configures, mais aucun qui se saisisse a la main (absence, cours et
+  // activite viennent d'ailleurs) : bouton grise, sans le bandeau d'alerte.
+  const aucunSaisissable = !presenceTypes.some(estTypeSaisissable)
+  const canAdd = !!schoolYearId && !aucunSaisissable
   const addBlockReason = !schoolYearId
     ? 'Aucune année scolaire en cours'
     : noTypes
       ? 'Aucun type de présence configuré pour cette année'
       : null
+  const raisonAjoutGrise = addBlockReason ?? (aucunSaisissable
+    ? 'Aucun type de présence à saisir : cours et activités viennent de l’emploi du temps'
+    : null)
 
   // Staff map for quick lookup
   const staffMap = useMemo(() => {
@@ -872,7 +879,7 @@ export default function TempsPresenceClient({
                 Le grisage, lui, reste pour les gestionnaires quand l annee ou les
                 types manquent : cet etat-la est temporaire. */}
             {canManage && (
-            <Tooltip content={addBlockReason ?? 'Ajouter une saisie'}>
+            <Tooltip content={raisonAjoutGrise ?? 'Ajouter une saisie'}>
               <FloatButton
                 variant="submit"
                 size="mini"

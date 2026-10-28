@@ -77,6 +77,7 @@ const AUTO_TYPE_LABELS: Record<string, { label: string; ton: Ton }> = {
   payment:      { label: 'Paiement', ton: 'ok' },
   announcement: { label: 'Annonce',  ton: 'info' },
   homework:     { label: 'Devoir',   ton: 'remplacement' },
+  seance:       { label: 'Séance',   ton: 'attente' },
 }
 
 // Carte d'une notification : survol par la bordure de marque (l'ombre

@@ -100,7 +100,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 
 ## 4. Modules (regles metier qui ne se lisent pas d'un coup d'oeil dans le code)
 
-- **Tableau de bord** : une variante par role, une page sans defilement.
+- **Tableau de bord** : une variante par role, une page sans defilement. En-tete : bonjour a gauche, date et
+  periode a droite, plus de raccourcis (28/10). Plein ecran : icone de la barre du haut, ordinateur seulement.
 - **Temps de presence** : codes 3 car. ; types RESERVES absence/cours/activite lies a l'EDT ; saisie
   reservee aux gestionnaires ; couts selon le role.
 - **Apprenants** : suppression d'une fiche VIERGE seulement (sinon « Rendre inactif »).
@@ -203,6 +204,9 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
   `lib/students/photo.ts`, `lib/edt/intitule.ts`, `lib/teachers/titulaire.ts` (titulaire actuel = principal
   sans date de fin), `lib/edt/salles.ts` (salles de cours libres pour une seance),
   `lib/edt/absences.ts` (seances touchees par une absence d'enseignant ; meme regle que la base, controle 29),
+  `lib/absences-enseignants/familles.ts` (emails seance annulee / maintenue, 1 par foyer et par classe),
+  `lib/email/destinataires-classe.ts` (foyers d'une classe : devoirs, seances), `lib/temps-presence/saisie.ts`
+  (`estTypeSaisissable` : ni absence, ni cours, ni activite),
   `lib/edt/seance.ts` (QUI ASSURE une seance, deduit a la date : annulee, remplacant,
   titulaire en poste, sinon « Prof non affecte » ; jamais `schedule_slots.teacher_id`).
 - **Migrations** (`supabase/migrations/README.md`) : derniere ligne
@@ -394,8 +398,12 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      d'enseignant » dans « A traiter » (direction, resp. pedago, secretaire). **3b-2c FAIT** : fiche classe sans
      declaration de remplacant, absences et remplacements comptes dans les refus de suppression (fiche, compte).
      Temps de presence : types cours / activite plus saisissables, heures nees de l'EDT sans Modifier / Supprimer.
-     **A voir a l'ecran** : hauteur de « A traiter » (direction : une ligne de plus, page sans defilement).
-     Puis **3c** emails. Puis lot 4 (Temps de presence, encadre Remplacements
+     **3c FAIT** (28/10) : emails aux familles (migration `absences-enseignants-familles.sql`, controle 32 ;
+     `marquer_familles_prevenues`, type de notification « seance ») : confirmation avant d'enregistrer, case
+     cochee (grisee sans messagerie), seances a venir seulement, ni motif ni nom de l'absent ; aussi a la
+     suppression et au raccourcissement de l'absence. **A voir a l'ecran** (demonstration, messagerie configuree) :
+     annulation annoncee puis retablissement, hauteur de « A traiter » (direction), en-tete des tableaux de bord,
+     bouton plein ecran, « Ajouter » grise de Temps de presence. Puis lot 4 (Temps de presence, encadre Remplacements
      de la fiche classe en lecture) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
      de `SlotFormModal`, remplacants `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.

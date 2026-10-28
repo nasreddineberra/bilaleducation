@@ -43,17 +43,3 @@ export const SEUIL_CADRE_PX = 1024
 
 /** Meme bascule que la variante Tailwind `lg`, exprimee pour `matchMedia`. */
 export const REQUETE_CADRE = `(max-width: ${SEUIL_CADRE_PX - 1}px)`
-
-/**
- * Un raccourci de tableau de bord. `mobile` absent = masque sous le seuil.
- *
- * TYPE EXPLICITE ET NON INFERE : une liste dont AUCUNE entree ne porte le
- * drapeau (le tableau de bord pedagogique, dont les quatre destinations sont
- * fermees sur telephone) verrait TypeScript refuser le filtre. Et l inference
- * tomberait a nouveau le jour ou l on retire le dernier `mobile` d une autre.
- */
-export type Raccourci = {
-  href:    string
-  label:   string
-  mobile?: boolean
-}

@@ -7,6 +7,9 @@ import { FloatButton, FloatCheckbox, FloatInput, FloatSelect } from '@/component
 import { MOTIFS } from '@/lib/absences-enseignants/libelles'
 import { horodatageParis } from '@/lib/dates'
 import { enregistrerAbsence } from '@/app/dashboard/absences-enseignants/actions'
+import { chevaucheAbsence } from '@/lib/edt/absences'
+import { useToast } from '@/lib/toast-context'
+import CasePrevenir from './CasePrevenir'
 
 /**
  * Declarer ou modifier une absence d'enseignant (decision du 28/10) : du
@@ -27,12 +30,16 @@ export interface AbsenceSaisie {
 const DEBUT_JOURNEE = '00:00'
 const FIN_JOURNEE = '23:59'
 
-export default function AbsenceFormModal({ absence, enseignants, onClose }: {
+export default function AbsenceFormModal({ absence, enseignants, onClose, annoncees = [], messagerie = false }: {
   absence: AbsenceSaisie | null
   enseignants: { id: string; nom: string }[]
   onClose: () => void
+  /** Seances a venir annoncees annulees aux familles (modification). */
+  annoncees?: { date: string; debut: string; fin: string }[]
+  messagerie?: boolean
 }) {
   const router = useRouter()
+  const { warning: toastWarning } = useToast()
   const isEdit = !!absence
   const aujourdhui = horodatageParis(new Date()).slice(0, 10)
 
@@ -53,13 +60,21 @@ export default function AbsenceFormModal({ absence, enseignants, onClose }: {
   const periodeValide = !!dateDebut && !!dateFin && fin > debut
   const isDirty = !isEdit || debut !== absence.debut || fin !== absence.fin || motif !== absence.motif
   const canSave = isDirty && !!teacherId && !!motif && periodeValide
+  // Seances annoncees annulees qui sortiraient de la nouvelle periode : elles
+  // redeviennent ordinaires (meme regle que la base, `chevaucheAbsence`).
+  const sortantes = isEdit && periodeValide
+    ? annoncees.filter(s => !chevaucheAbsence(s.date, s.debut, s.fin, { debut, fin }))
+    : []
+  const [prevenir, setPrevenir] = useState(true)
 
   const handleSave = async () => {
     setSaving(true)
     setError(null)
-    const r = await enregistrerAbsence({ id: absence?.id ?? null, teacherId, debut, fin, motif })
+    const r = await enregistrerAbsence({ id: absence?.id ?? null, teacherId, debut, fin, motif },
+      messagerie && sortantes.length > 0 && prevenir)
     setSaving(false)
     if (r.error || !r.id) { setError(r.error ?? 'L’absence n’a pas pu être enregistrée.'); return }
+    if (r.avertissement) toastWarning(r.avertissement)
     onClose()
     if (isEdit) router.refresh()
     else router.push(`/dashboard/absences-enseignants/${r.id}`)
@@ -122,6 +137,17 @@ export default function AbsenceFormModal({ absence, enseignants, onClose }: {
           <option value="" disabled hidden />
           {MOTIFS.map(m => <option key={m.valeur} value={m.valeur}>{m.libelle}</option>)}
         </FloatSelect>
+
+        {sortantes.length > 0 && (
+          <CasePrevenir
+            label={sortantes.length > 1
+              ? `Prévenir les familles que les ${sortantes.length} séances annoncées annulées, hors de la nouvelle période, ont bien lieu`
+              : 'Prévenir les familles que la séance annoncée annulée, hors de la nouvelle période, a bien lieu'}
+            coche={prevenir}
+            onChange={setPrevenir}
+            messagerie={messagerie}
+          />
+        )}
 
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       </div>
