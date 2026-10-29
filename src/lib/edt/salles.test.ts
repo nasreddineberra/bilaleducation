@@ -11,7 +11,7 @@ const salles = [
   { id: 'reu', name: 'Réunion', room_type: 'salle_reunion' },
 ]
 const slot = (o: Partial<SlotSource>): SlotSource => ({
-  id: 'a', class_id: 'c', teacher_id: null, day_of_week: 6, start_time: '09:00:00', end_time: '12:00:00',
+  id: 'a', class_id: 'c', day_of_week: 6, start_time: '09:00:00', end_time: '12:00:00',
   slot_type: 'cours', is_recurring: true, slot_date: null, effective_from: null, effective_until: null,
   is_active: true, room_id: 'r1', ...o,
 })

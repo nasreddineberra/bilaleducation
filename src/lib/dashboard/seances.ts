@@ -24,7 +24,6 @@ export type { TitulaireDe }
 export interface SlotSource {
   id: string
   class_id: string
-  teacher_id: string | null
   day_of_week: number | null
   start_time: string
   end_time: string

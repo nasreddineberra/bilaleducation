@@ -13,7 +13,7 @@ const TIT: TitulaireDe = () => 't1'
 const SAMEDI = '2026-10-17'
 
 const slot = (o: Partial<SlotSource>): SlotSource => ({
-  id: 's1', class_id: 'c1', teacher_id: 't1', day_of_week: 6,
+  id: 's1', class_id: 'c1', day_of_week: 6,
   start_time: '09:00:00', end_time: '10:30:00', slot_type: 'cours',
   is_recurring: true, slot_date: null, effective_from: null, effective_until: null, is_active: true,
   ...o,
@@ -102,9 +102,9 @@ test('tauxAssiduite : null sans cours, seance pas commencee ignoree', () => {
 
 test('seancesSousAbsence : a remplacer, remplacee, annulee et jour ferme exclus', () => {
   const slots = [
-    slot({ id: 'a', teacher_id: 't1' }),
-    slot({ id: 'b', class_id: 'c2', teacher_id: 't2' }),
-    slot({ id: 'c', class_id: 'c3', teacher_id: 't1' }),
+    slot({ id: 'a' }),
+    slot({ id: 'b', class_id: 'c2' }),
+    slot({ id: 'c', class_id: 'c3' }),
   ]
   const ex: ExceptionSource[] = [
     { schedule_slot_id: 'b', exception_date: SAMEDI, exception_type: 'replacement', remplacant_teacher_id: 't3' },

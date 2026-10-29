@@ -70,7 +70,6 @@ const MONTH_NAMES = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'jui
 export interface SlotData {
   id: string
   class_id: string
-  teacher_id: string | null   // NULL = « Prof non affecté »
   cours_id: string | null
   room_id: string | null
   is_recurring: boolean
@@ -84,7 +83,6 @@ export interface SlotData {
   effective_until: string | null
   is_active: boolean
   classes?: { name: string }
-  teachers?: { first_name: string; last_name: string; civilite?: string }
   cours?: { nom_fr: string } | null
   unite_enseignement_id: string | null
   libelle: string | null
@@ -981,7 +979,7 @@ export default function EmploiDuTempsClient({
     const [{ data: freshSlots }, { data: freshExceptions }] = await Promise.all([
       supabase
         .from('schedule_slots')
-        .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), unites_enseignement(nom_fr), rooms(name)')
+        .select('*, classes(name), cours(nom_fr), unites_enseignement(nom_fr), rooms(name)')
         .eq('school_year_id', schoolYearId)
         .eq('is_active', true)
         .order('start_time'),

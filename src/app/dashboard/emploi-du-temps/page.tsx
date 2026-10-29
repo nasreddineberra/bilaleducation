@@ -71,25 +71,10 @@ export default async function EmploiDuTempsPage() {
   // Créneaux de l'année en cours
   const { data: slots } = await supabase
     .from('schedule_slots')
-    .select('*, classes(name), teachers(first_name, last_name, civilite), cours(nom_fr), unites_enseignement(nom_fr), rooms(name)')
+    .select('*, classes(name), cours(nom_fr), unites_enseignement(nom_fr), rooms(name)')
     .eq('school_year_id', currentYear.id)
     .eq('is_active', true)
     .order('start_time')
-
-  // Meme raison que ci-dessus : le remplacant ne lit pas la ligne `teachers` du
-  // titulaire, donc `slot.teachers` lui revient vide. On le complete pour
-  // afficher « Remplacement de NOM Prenom » (ids deja lus dans les creneaux).
-  type CreneauNom = { teacher_id: string | null; teachers: unknown }
-  const creneaux = (slots ?? []) as unknown as CreneauNom[]
-  const sansNom = [...new Set(creneaux.filter(s => s.teacher_id && !s.teachers).map(s => s.teacher_id as string))]
-  if (sansNom.length > 0) {
-    const { data: noms } = await createAdminClient()
-      .from('teachers')
-      .select('id, first_name, last_name, civilite')
-      .in('id', sansNom)
-    const parId = new Map((noms ?? []).map(t => [t.id, t]))
-    for (const s of creneaux) if (s.teacher_id && !s.teachers) s.teachers = parId.get(s.teacher_id) ?? null
-  }
 
   // Le type de presence ecrit a la validation (code reserve du type de seance)
   // est choisi par la base (`valider_seance`) : plus rien a charger ici.
