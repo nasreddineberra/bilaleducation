@@ -86,6 +86,19 @@ interface ClassFormProps {
   matieres?: MatiereOption[]
   weekStartDay?: number   // 0=Dimanche, 1=Lundi, 6=Samedi
   workingDays?: number    // 5 ou 7
+  /** Seances remplacees ou annulees (Absences enseignants), du jour et a venir. */
+  seancesRemplacees?: SeanceRemplacee[]
+}
+
+export interface SeanceRemplacee {
+  absenceId: string
+  slotId: string
+  date: string
+  start: string
+  end: string
+  decision: 'remplacee' | 'annulee'
+  /** `NOM Prenom` du remplacant. */
+  remplacant: string | null
 }
 
 type TeachingMode = 'single' | 'multi'
@@ -175,6 +188,7 @@ export default function ClassForm({
   matieres = [],
   weekStartDay = 1,
   workingDays = 5,
+  seancesRemplacees = [],
 }: ClassFormProps) {
   const workingDayNames = buildWorkingDayNames(weekStartDay, workingDays)
   const router    = useRouter()
@@ -914,7 +928,29 @@ export default function ClassForm({
                       </span>
                     </div>
                   )
-                })() : (
+                })() : seancesRemplacees.length > 0 ? (
+                  // Seances remplacees ou annulees pour une absence du titulaire,
+                  // du jour et a venir (lot 4) : EN LECTURE, la ligne ouvre la
+                  // fiche de l'absence, seul ecran qui les decide.
+                  <div className="liste max-h-[12rem] overflow-y-auto list-scroll">
+                    <table className="w-full text-xs" aria-label="Séances remplacées ou annulées">
+                      <tbody className="divide-y divide-warm-50">
+                        {seancesRemplacees.map(s => (
+                          <tr key={`${s.absenceId}|${s.slotId}|${s.date}`} className="cursor-pointer"
+                            onClick={() => router.push(`/dashboard/absences-enseignants/${s.absenceId}`)}>
+                            <td className="list-td px-3 whitespace-nowrap text-secondary-700">{fmtDate(s.date)}</td>
+                            <td className="list-td px-2 whitespace-nowrap tabular-nums text-warm-700">{s.start}-{s.end}</td>
+                            <td className="list-td px-3">
+                              {s.decision === 'annulee'
+                                ? <span className="font-medium text-red-700">Annulée</span>
+                                : <span className="text-secondary-700">Remplacée par {s.remplacant ?? '·'}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-warm-700">Aucun remplacement.</span>
                     {/* Un remplacement se declare par l'absence du titulaire (lot 3). */}

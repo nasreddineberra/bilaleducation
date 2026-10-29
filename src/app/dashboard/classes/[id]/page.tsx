@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import ClassForm from '@/components/classes/ClassForm'
-import type { AssignmentData } from '@/components/classes/ClassForm'
+import type { AssignmentData, SeanceRemplacee } from '@/components/classes/ClassForm'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -83,6 +83,34 @@ export default async function EditClassPage({ params }: Props) {
 
   if (!cls) notFound()
 
+  // ── Remplacements de la classe (lot 4) : seances remplacees ou annulees pour
+  // une absence d'enseignant, du jour et a venir. Lues dans les decisions de la
+  // page Absences enseignants, seul ecran qui les ecrit ; la fiche les montre.
+  // Jour de PARIS (le serveur tourne en UTC).
+  const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
+  const { data: decisions } = await supabase
+    .from('absences_enseignants_seances')
+    .select('absence_id, schedule_slot_id, seance_date, decision, remplacant_profile_id, schedule_slots!inner(class_id, start_time, end_time)')
+    .eq('schedule_slots.class_id', id)
+    .gte('seance_date', aujourdhui)
+    .order('seance_date')
+  const remplacantsIds = Array.from(new Set((decisions ?? []).map(d => d.remplacant_profile_id).filter((x): x is string => !!x)))
+  const { data: remplacants } = remplacantsIds.length
+    ? await supabase.from('profiles').select('id, first_name, last_name').in('id', remplacantsIds)
+    : { data: [] }
+  const nomRemplacant = new Map((remplacants ?? []).map(p => [p.id, `${p.last_name ?? ''} ${p.first_name ?? ''}`.trim()]))
+  const seancesRemplacees: SeanceRemplacee[] = (decisions ?? [])
+    .map(d => ({
+      absenceId: d.absence_id,
+      slotId: d.schedule_slot_id,
+      date: d.seance_date,
+      start: d.schedule_slots.start_time.slice(0, 5),
+      end: d.schedule_slots.end_time.slice(0, 5),
+      decision: d.decision,
+      remplacant: d.remplacant_profile_id ? (nomRemplacant.get(d.remplacant_profile_id) ?? null) : null,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+
   const initialAssignments: AssignmentData[] = (classTeachers ?? []).map(ct => ({
     teacher_id:      ct.teacher_id,
     teacher_name:    ct.teachers
@@ -117,6 +145,7 @@ export default async function EditClassPage({ params }: Props) {
         matieres={matieres ?? []}
         weekStartDay={etablissement?.week_start_day ?? 1}
         workingDays={etablissement?.working_days ?? 5}
+        seancesRemplacees={seancesRemplacees}
       />
 
     </div>

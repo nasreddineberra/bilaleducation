@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import ListStatCard from '@/components/ui/ListStatCard'
 import TruncatedText from '@/components/ui/TruncatedText'
 import { fmtDuration } from '@/lib/temps-presence/format'
@@ -93,11 +94,13 @@ export default function TeacherAttendance({
   yearLabel,
   workedMinutes,
   absenceMinutes,
+  nbAbsences,
   mois,
   absences,
   remplacements,
   dense = false,
 }: Props) {
+  const router = useRouter()
 
   if (!hasAccount) {
     return <EtatVide texte="Aucun compte de connexion rattaché : aucune présence n'est enregistrée." />
@@ -133,9 +136,9 @@ export default function TeacherAttendance({
             assurées en {yearLabel}
           </span>
           <span>
-            <span className={`text-sm font-bold tabular-nums ${absences.length > 0 ? 'text-red-700' : 'text-secondary-800'}`}>{absences.length}</span>{' '}
-            {accord(absences.length, 'absence')}
-            {absences.length > 0 && <> · {fmtDuration(absenceMinutes)} {accord(absenceMinutes / 60, 'manquée')}</>}
+            <span className={`text-sm font-bold tabular-nums ${nbAbsences > 0 ? 'text-red-700' : 'text-secondary-800'}`}>{nbAbsences}</span>{' '}
+            {accord(nbAbsences, 'absence')}
+            {nbAbsences > 0 && <> · {fmtDuration(absenceMinutes)} {accord(absenceMinutes / 60, 'manquée')}</>}
           </span>
           <span>
             <span className={`text-sm font-bold tabular-nums ${remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}`}>{remplacements.length}</span>{' '}
@@ -150,17 +153,17 @@ export default function TeacherAttendance({
           valueColor="text-secondary-800"
         />
         <ListStatCard
-          value={absences.length}
+          value={nbAbsences}
           label={
             <>
-              {accord(absences.length, 'absence')}
+              {accord(nbAbsences, 'absence')}
               <br />
               {/* « manquée » s'accorde avec les HEURES, pas avec le nombre
                   d'absences : une seule absence peut peser trois heures. */}
               {fmtDuration(absenceMinutes)} {accord(absenceMinutes / 60, 'manquée')}
             </>
           }
-          valueColor={absences.length > 0 ? 'text-red-700' : 'text-secondary-800'}
+          valueColor={nbAbsences > 0 ? 'text-red-700' : 'text-secondary-800'}
         />
         <ListStatCard
           value={remplacements.length}
@@ -247,7 +250,11 @@ export default function TeacherAttendance({
               </thead>
               <tbody className="divide-y divide-warm-50">
                 {absences.map(a => (
-                  <tr key={a.id}>
+                  // Seance d'une absence d'enseignant : la ligne ouvre la fiche
+                  // de l'absence (decisions, remplacant).
+                  <tr key={a.id}
+                    onClick={a.absenceId ? () => router.push(`/dashboard/absences-enseignants/${a.absenceId}`) : undefined}
+                    className={a.absenceId ? 'cursor-pointer' : undefined}>
                     <td className="list-td whitespace-nowrap text-secondary-700">{fmtDate(a.date)}</td>
                     <td className="list-td whitespace-nowrap tabular-nums text-warm-700">{fmtPlage(a.start, a.end)}</td>
                     <td className="list-td text-center tabular-nums text-warm-700">{fmtDuration(a.minutes)}</td>
@@ -263,6 +270,10 @@ export default function TeacherAttendance({
                     <td className="list-td">
                       {a.remplacants.length > 0 ? (
                         <span className="text-secondary-700">{a.remplacants.join(' · ')}</span>
+                      ) : a.etat === 'annulee' ? (
+                        <span className="text-warm-700">Séance annulée</span>
+                      ) : a.etat === 'a_decider' ? (
+                        <span className="text-amber-700 font-medium">À décider</span>
                       ) : (
                         // Un creneau manque sans personne pour le tenir n'est pas
                         // un detail administratif : c'est une classe sans adulte.

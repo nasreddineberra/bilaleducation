@@ -9800,3 +9800,28 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   Remplacée par », neutre « Remplacement : » ; « Absent / Absente / Absence · à décider ». Chez le remplacant,
   « Remplacement de Mme NOM ». Libelles d'etat centres en hauteur entre les informations et l'horaire (ambre compris,
   preconisation acceptee par « go »). « Prof non affecté » ne s'ecrit plus sous le tampon « ANNULÉ » (reste en infobulle).
+
+### 29/10 · Lot 4 du chantier Planning / absences, infobulle de validation
+
+- **Capsule EDT** (signale le 28/10) : la case de validation dit « Valider ma présence » / « Annuler ma validation »
+  sur SA seance (titulaire en poste ou remplacant, `isOwnSlot`), « Valider la séance » / « Annuler la validation »
+  sur celle d'un autre (encadrement) ; `aria-label` idem.
+- **Source unique des absences** : `seancesManquees` (`lib/absences-enseignants/seances-manquees.ts`, module pur
+  teste) donne chaque seance touchee avec sa duree et sa decision (remplacee + remplacant, annulee, a decider) ;
+  `chargerAbsencesEtSeances` (`contexte.ts`) la sert a la liste des absences (rebranchee), Temps de presence et
+  l'assiduite. Une absence pese les heures des SEANCES manquees, pas sa duree brute (preconisation acceptee par
+  « go »).
+- **Temps de presence** : recaps mensuel / annuel et PDF comptent ces seances (rattachees au compte par
+  `teachers.user_id`) ; ni motif ni decision vers l'ecran. Code mort retire (retrait des remplacements
+  `schedule_exceptions` a la suppression d'une absence saisie ici, 4 requetes de page). Les anciennes absences de
+  `staff_time_entries` restent lues (aucune en base au 29/10, dans aucune ecole).
+- **Assiduite** (fiche enseignant, Mon compte) : une ligne par seance manquee, colonne « Remplacé par » = nom,
+  « Séance annulée » ou « À décider » (ambre), ligne cliquable vers la fiche de l'absence ; compteur = nombre
+  d'ABSENCES (`nbAbsences`), pas de seances.
+- **Fiche classe** : encadre Remplacements = seances remplacees ou annulees du jour (Paris) et a venir, en lecture,
+  ligne vers l'absence. Le bloc des remplacants `class_teachers` reste jusqu'au lot 5 (aucun en base).
+- **Migration** `absences-enseignants-comptable.sql` (additive) : le comptable lit `absences_enseignants` (le motif
+  ne part pas vers son ecran) ; controle 29 mis a jour, vu ROUGE avant (comptable ok:0), vert apres (0 KO).
+  Appliquee par l'utilisateur (l'ecriture en production est refusee a l'agent par le garde-fou).
+- **Demande suivante** (29/10) : absences des enseignants dans le calendrier et le panneau du jour de Temps de
+  presence.

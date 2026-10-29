@@ -220,7 +220,7 @@ BEGIN
                                    WHEN 'enseignant' THEN ens WHEN 'parent' THEN par ELSE dir2 END,
       'SELECT (SELECT count(*) FROM absences_enseignants)::text');
     attendu := CASE v_role WHEN 'direction' THEN 'ok:4' WHEN 'secretaire' THEN 'ok:4'
-                           WHEN 'enseignant' THEN 'ok:1' ELSE 'ok:0' END;
+                           WHEN 'comptable' THEN 'ok:4' WHEN 'enseignant' THEN 'ok:1' ELSE 'ok:0' END;
     essais := essais || ARRAY[[v_role || ' lit les absences', attendu, r]];
   END LOOP;
 

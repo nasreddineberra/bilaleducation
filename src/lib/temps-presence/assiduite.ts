@@ -19,11 +19,20 @@
 
 import type { createClient } from '@/lib/supabase/server'
 import { findPresenceType } from './format'
+import { chargerAbsencesEtSeances } from '@/lib/absences-enseignants/contexte'
+import { libelleMotif, type Decision } from '@/lib/absences-enseignants/libelles'
 
 type Sb = Awaited<ReturnType<typeof createClient>>
 
+/**
+ * Une seance manquee. Depuis le lot 4 (29/10), une par seance touchee par une
+ * absence de la page Absences enseignants ; les absences saisies autrefois dans
+ * Temps de presence (`absenceId` null, `etat` null) restent lues.
+ */
 export interface AbsenceLigne {
   id: string
+  /** L'absence d'enseignant dont la seance releve : lien vers sa fiche. */
+  absenceId: string | null
   /** `AAAA-MM-JJ`. */
   date: string
   start: string
@@ -32,6 +41,8 @@ export interface AbsenceLigne {
   motif: string | null
   /** `NOM Prenom` des personnes qui ont assure le creneau. */
   remplacants: string[]
+  /** Decision de la seance (absence d'enseignant). */
+  etat: Decision | null
 }
 
 export interface RemplacementLigne {
@@ -58,6 +69,8 @@ export interface Assiduite {
   yearLabel: string | null
   workedMinutes: number
   absenceMinutes: number
+  /** Nombre d'ABSENCES (une absence fait souvent manquer plusieurs seances). */
+  nbAbsences: number
   mois: MoisAssure[]
   absences: AbsenceLigne[]
   remplacements: RemplacementLigne[]
@@ -68,6 +81,7 @@ const VIDE: Assiduite = {
   yearLabel: null,
   workedMinutes: 0,
   absenceMinutes: 0,
+  nbAbsences: 0,
   mois: [],
   absences: [],
   remplacements: [],
@@ -201,6 +215,8 @@ export async function chargerAssiduite(sb: Sb, profileId: string | null): Promis
         minutes: e.duration_minutes,
         motif: e.absence_reason,
         remplacants: remplacantsParCreneau[cle] ?? [],
+        absenceId: null,
+        etat: null,
       })
     } else {
       // Tout ce qui n'est pas une absence est du temps assure — y compris un code
@@ -223,11 +239,51 @@ export async function chargerAssiduite(sb: Sb, profileId: string | null): Promis
     }
   }
 
+  // ── Absences d'enseignant (lot 4) : page Absences enseignants ─────────────
+  //
+  // Une ligne par seance manquee de l'annee, avec sa decision. Rattachees a la
+  // fiche enseignant du compte ; un membre sans fiche n'en a pas.
+  const { data: fiche } = await sb.from('teachers').select('id').eq('user_id', profileId).maybeSingle()
+  let nbAbsences = absences.length
+  if (fiche) {
+    const { absences: siennes } = await chargerAbsencesEtSeances(sb, { teacherId: fiche.id })
+    const seances = siennes.flatMap(a => a.seances
+      .filter(s => s.date >= annee.start_date! && s.date <= annee.end_date!)
+      .map(s => ({ ...s, motif: a.motif })))
+
+    const remplacantsIds = Array.from(new Set(seances.map(s => s.remplacantProfileId).filter((x): x is string => !!x)))
+    const { data: remplacantsProfils } = remplacantsIds.length
+      ? await sb.from('profiles').select('id, first_name, last_name').in('id', remplacantsIds)
+      : { data: [] }
+    const nomRemplacant = Object.fromEntries(
+      (remplacantsProfils ?? []).map(p => [p.id, `${p.last_name ?? ''} ${p.first_name ?? ''}`.trim()])
+    )
+
+    nbAbsences += new Set(seances.map(s => s.absenceId)).size
+    for (const s of seances) {
+      absenceMinutes += s.minutes
+      absences.push({
+        id: `${s.absenceId}|${s.slotId}|${s.date}`,
+        absenceId: s.absenceId,
+        date: s.date,
+        start: hhmm(s.startTime),
+        end: hhmm(s.endTime),
+        minutes: s.minutes,
+        motif: libelleMotif(s.motif),
+        remplacants: s.remplacantProfileId && nomRemplacant[s.remplacantProfileId] ? [nomRemplacant[s.remplacantProfileId]] : [],
+        etat: s.decision,
+      })
+    }
+    // Ordre des saisies : la plus recente d'abord.
+    absences.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+  }
+
   return {
     hasAccount: true,
     yearLabel: annee.label,
     workedMinutes,
     absenceMinutes,
+    nbAbsences,
     mois: moisEntre(annee.start_date, annee.end_date)
       .map(m => ({ ...m, minutes: parMois[m.cle] ?? 0 })),
     absences,

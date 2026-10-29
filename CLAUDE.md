@@ -404,12 +404,16 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      suppression et au raccourcissement de l'absence. **A voir a l'ecran** (demonstration, messagerie configuree) :
      annulation annoncee puis retablissement, hauteur de « A traiter » (direction), en-tete des tableaux de bord,
      bouton plein ecran, « Ajouter » grise de Temps de presence, capsule EDT (infobulle unique, « Remplacée par »
-     accorde, etats centres). **A corriger (signale le 28/10)** : infobulle de la case de validation de la
-     capsule EDT (`SlotCapsule.tsx`) toujours « Valider ma présence » (et son `aria-label`), meme pour la
-     direction qui valide la seance d'un enseignant : libelle selon que la seance est la sienne ou non
-     (ex. « Valider la séance »), idem « Annuler la validation ». **Prochain : PLAN du lot 4 a presenter** (Temps de presence relie aux absences, encadre
-     Remplacements de la fiche classe en lecture, absences sur la fiche enseignant) et lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort
-     de `SlotFormModal`, remplacants `class_teachers`).
+     accorde, etats centres). Infobulle de validation de la capsule selon que la seance est la sienne ou non (29/10).
+     **Lot 4 FAIT** (29/10) : absences d'enseignant lues partout depuis `chargerAbsencesEtSeances`
+     (`lib/absences-enseignants/contexte.ts` + `seances-manquees.ts` : une ligne par seance touchee, duree, decision) ;
+     Temps de presence (recaps + PDF = heures de seances manquees), assiduite (fiche enseignant, Mon compte : une ligne
+     par seance, decision, lien vers l'absence), encadre Remplacements de la fiche classe (remplacees / annulees du jour
+     et a venir, en lecture) ; comptable lecteur de `absences_enseignants` (migration `absences-enseignants-comptable.sql`,
+     controle 29). **A voir a l'ecran** (demonstration) : ces 4 ecrans + l'infobulle de validation. **Prochain** : absences
+     des enseignants dans le calendrier et le panneau du jour de Temps de presence (demande du 29/10, plan a presenter),
+     puis lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort de `SlotFormModal`, remplacants
+     `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »
      a relier un jour a celle du creneau.

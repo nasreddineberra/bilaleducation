@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import TempsPresenceClient from '@/components/temps-presence/TempsPresenceClient'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { affectationsDesClasses } from '@/lib/edt/seance'
+import { chargerAbsencesEtSeances } from '@/lib/absences-enseignants/contexte'
 
 export default async function TempsPresencePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: initialMonth } = await searchParams
@@ -42,41 +42,26 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .eq('is_current', true)
     .maybeSingle()
 
-  // ── Creneaux de l'annee, pour designer un remplacant PAR CRENEAU ─────────
+  // ── Absences d'enseignant (lot 4) ─────────────────────────────────────────
   //
-  // Charges ici plutot qu'a l'ouverture de la modale : quelques lignes, et une
-  // requete par ouverture rendrait le champ « Remplace par » vide le temps de
-  // l'aller-retour, juste au moment ou on le regarde.
-  const { data: slots } = currentYear
-    ? await supabase
-        .from('schedule_slots')
-        .select('id, class_id, teacher_id, day_of_week, start_time, end_time, slot_type, is_recurring, slot_date, effective_from, effective_until, is_active')
-        .eq('school_year_id', currentYear.id)
-        .eq('is_active', true)
-    : { data: [] }
-
-  const { data: exceptions } = slots?.length
-    ? await supabase
-        .from('schedule_exceptions')
-        .select('schedule_slot_id, exception_date, exception_type, override_teacher_id')
-        .in('schedule_slot_id', slots.map(s => s.id))
-    : { data: [] }
-
-  const { data: classes } = currentYear
-    ? await supabase.from('classes')
-        .select('id, name, class_teachers(teacher_id, is_main_teacher, effective_from, effective_until)')
-        .eq('academic_year', currentYear.label)
-    : { data: [] }
-  // Titulaires dates : le titulaire d'un creneau est DEDUIT (lib/edt/seance.ts).
-  const affectations = affectationsDesClasses(classes ?? [])
-
-  // `teachers.id` et non `profile_id` : c'est ce que portent `schedule_slots`
-  // et `schedule_exceptions`. Le lien vers le compte passe par `user_id`.
-  const { data: teachers } = await supabase
-    .from('teachers')
-    .select('id, user_id, first_name, last_name, civilite')
-    .eq('is_active', true)
-    .order('last_name')
+  // Lues dans « Absences enseignants », seul ecran qui les ecrit : une absence
+  // pese les heures des SEANCES qu'elle fait manquer (remplacees, annulees ou a
+  // decider), rattachees au compte de l'enseignant (`teachers.user_id`). La RLS
+  // borne la lecture (l'enseignant, les siennes). Ni motif ni decision ne
+  // partent vers l'ecran : le recapitulatif dit des heures.
+  const { absences } = await chargerAbsencesEtSeances(supabase)
+  const absencesSeances = absences.flatMap(a => {
+    const profileId = a.teachers?.user_id
+    return profileId
+      ? a.seances.map(se => ({
+          profileId,
+          date: se.date,
+          start: se.startTime.slice(0, 5),
+          end: se.endTime.slice(0, 5),
+          minutes: se.minutes,
+        }))
+      : []
+  })
 
   // Liste des membres pointables (profiles actifs). Exclus : parent, super_admin
   // et admin (l'admin gere le suivi mais ne pointe pas son propre temps).
@@ -122,10 +107,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         canSeeRecap={canSeeRecap}
         staffList={(staffList ?? []) as any[]}
         presenceTypes={(presenceTypes ?? []) as any[]}
-        slots={(slots ?? []) as never[]}
-        exceptions={(exceptions ?? []) as never[]}
-        affectations={affectations}
-        teachers={(teachers ?? []) as never[]}
+        absencesSeances={absencesSeances}
         vacations={(currentYear?.vacations as never[]) ?? []}
         feries={(currentYear?.jours_feries as never[]) ?? []}
         presenceTypeRates={presenceTypeRates}

@@ -300,10 +300,10 @@ export default function SlotCapsule({
           onClick={e => e.stopPropagation()}
         >
           {validated ? (
-            <Tooltip content="Annuler la validation">
+            <Tooltip content={isOwnSlot ? 'Annuler ma validation' : 'Annuler la validation'}>
               <button
                 onClick={onCancelValidation}
-                aria-label={`Annuler la validation de présence : ${ariaLabel}`}
+                aria-label={`${isOwnSlot ? 'Annuler ma validation' : 'Annuler la validation de la séance'} : ${ariaLabel}`}
                 aria-pressed
                 className="w-[15px] h-[15px] rounded bg-[var(--brand-surface)] dark:bg-[var(--brand-accent)] text-white dark:text-[var(--brand-surface-2)] hover:bg-red-500 dark:hover:bg-red-500 dark:hover:text-white transition-colors flex items-center justify-center"
               >
@@ -313,10 +313,12 @@ export default function SlotCapsule({
           ) : (
             /* Non validé = case VIDE. Un ✓ plein, même ambre, se lit « fait » :
                l'état à cocher ne doit pas porter la marque de l'état coché. */
-            <Tooltip content="Valider ma présence">
+            /* Libelle selon que la seance est la sienne (titulaire en poste ou
+               remplacant) ou celle d'un autre, validee par l'encadrement. */
+            <Tooltip content={isOwnSlot ? 'Valider ma présence' : 'Valider la séance'}>
               <button
                 onClick={onValidate}
-                aria-label={`Valider ma présence : ${ariaLabel}`}
+                aria-label={`${isOwnSlot ? 'Valider ma présence' : 'Valider la séance'} : ${ariaLabel}`}
                 aria-pressed={false}
                 className="w-[15px] h-[15px] rounded border-2 border-amber-500 bg-transparent hover:bg-amber-500 hover:text-white text-transparent transition-colors flex items-center justify-center"
               >

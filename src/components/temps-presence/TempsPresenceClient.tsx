@@ -5,11 +5,9 @@ import { clsx } from 'clsx'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, CalendarCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { erreurEcriture, erreurEcritureLot } from '@/lib/supabase/ecriture'
+import { erreurEcriture } from '@/lib/supabase/ecriture'
 import { useToast } from '@/lib/toast-context'
 import type { VacationPeriod, JourFerie } from '@/types/database'
-import { creneauxDuJour, type CreneauSource, type ExceptionSource } from '@/lib/edt/creneaux-du-jour'
-import { indexTitulaires, type AffectationSource } from '@/lib/edt/seance'
 import { jourFerme } from '@/lib/school-year/jours-fermes'
 import { fmtDuration, findPresenceType } from '@/lib/temps-presence/format'
 import { estTypeSaisissable } from '@/lib/temps-presence/saisie'
@@ -74,12 +72,11 @@ interface Props {
   canWriteAll: boolean
   canSeeRecap: boolean
   staffList: StaffMember[]
-  /** Creneaux de l'annee : la modale designe un remplacant par creneau. */
-  slots?: CreneauSource[]
-  exceptions?: ExceptionSource[]
-  /** Affectations des classes : qui est titulaire, a quelle date. */
-  affectations?: AffectationSource[]
-  teachers?: { id: string; user_id: string | null; first_name: string; last_name: string; civilite?: string | null }[]
+  /**
+   * Seances manquees par les enseignants absents (page Absences enseignants),
+   * une par seance, rattachees au compte (`profiles.id`). Annee en cours.
+   */
+  absencesSeances?: (AbsenceLigne & { profileId: string })[]
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
   presenceTypes: PresenceType[]
@@ -162,6 +159,9 @@ function getWeekDays(refDate: Date): Date[] {
 // Les absences se comptent desormais en MINUTES, comme le travail : depuis que
 // l'absence porte des horaires, la demi-journee n'a plus de sens. `absenceDetail`
 // garde chaque absence pour l'infobulle — une somme d'heures ne dit pas QUAND.
+// Depuis le lot 4, l'absence d'un enseignant vient de la page Absences
+// enseignants : une ligne par SEANCE manquee (`absencesSeances`). Les absences
+// saisies ici autrefois (`staff_time_entries`) restent lues.
 interface AbsenceLigne { date: string; start: string; end: string; minutes: number }
 interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; workedMinutes: number; absenceMinutes: number; absenceDetail: AbsenceLigne[]; cost: number }
 interface RecapResult { rows: RecapRow[]; totals: { typeMinutes: Record<string, number>; workedMinutes: number; absenceMinutes: number; cost: number } }
@@ -171,6 +171,7 @@ function buildRecap(
   staffMap: Record<string, StaffMember>,
   presenceTypes: PresenceType[],
   rateByTypeId: Record<string, number>,
+  seancesManquees: (AbsenceLigne & { profileId: string })[],
 ): RecapResult {
   const recapMap: Record<string, Record<string, number>> = {}
   // Absences : conservees ligne par ligne. La somme donne le total, le detail
@@ -192,6 +193,10 @@ function buildRecap(
       const code = e.entry_type.toUpperCase()
       recapMap[e.profile_id][code] = (recapMap[e.profile_id][code] ?? 0) + e.duration_minutes
     }
+  }
+
+  for (const { profileId, ...a } of seancesManquees) {
+    ;(absencesParProfil[profileId] ??= []).push(a)
   }
 
   const allProfileIds = new Set([...Object.keys(recapMap), ...Object.keys(absencesParProfil)])
@@ -243,7 +248,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
-  slots = [], exceptions = [], affectations = [], teachers = [],
+  absencesSeances = [],
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
@@ -401,13 +406,29 @@ export default function TempsPresenceClient({
     () => (memberFilter ? yearEntries.filter(e => e.profile_id === memberFilter) : yearEntries),
     [yearEntries, memberFilter],
   )
+  // Seances manquees : du mois affiche pour le recap mensuel, de l'annee
+  // scolaire pour l'annuel, avec le meme filtre par membre.
+  const moisCle = `${year}-${String(month + 1).padStart(2, '0')}`
+  const seancesFiltrees = useMemo(
+    () => (memberFilter ? absencesSeances.filter(a => a.profileId === memberFilter) : absencesSeances),
+    [absencesSeances, memberFilter],
+  )
+  const seancesDuMois = useMemo(
+    () => seancesFiltrees.filter(a => a.date.startsWith(moisCle)),
+    [seancesFiltrees, moisCle],
+  )
+  const seancesDeLAnnee = useMemo(
+    () => seancesFiltrees.filter(a =>
+      (!schoolYearStart || a.date >= schoolYearStart) && (!schoolYearEnd || a.date <= schoolYearEnd)),
+    [seancesFiltrees, schoolYearStart, schoolYearEnd],
+  )
   const monthlyRecap = useMemo(
-    () => buildRecap(filteredEntries, staffMap, presenceTypes, rateByTypeId),
-    [filteredEntries, staffMap, presenceTypes, rateByTypeId],
+    () => buildRecap(filteredEntries, staffMap, presenceTypes, rateByTypeId, seancesDuMois),
+    [filteredEntries, staffMap, presenceTypes, rateByTypeId, seancesDuMois],
   )
   const annualRecap = useMemo(
-    () => buildRecap(filteredYearEntries, staffMap, presenceTypes, rateByTypeId),
-    [filteredYearEntries, staffMap, presenceTypes, rateByTypeId],
+    () => buildRecap(filteredYearEntries, staffMap, presenceTypes, rateByTypeId, seancesDeLAnnee),
+    [filteredYearEntries, staffMap, presenceTypes, rateByTypeId, seancesDeLAnnee],
   )
 
   // ── Calendar cells ──────────────────────────────────────────────────
@@ -434,37 +455,11 @@ export default function TempsPresenceClient({
       setDeleteConfirm(null)
       return
     }
-    const supprimee = entries.find(e => e.id === id)
     const echec = erreurEcriture(
       await supabase.from('staff_time_entries').delete().eq('id', id).select('id'),
       'Cette saisie',
     )
     if (echec) { toast.error(echec); setDeleteConfirm(null); return }
-
-    // ── Le remplacement suit l'absence ────────────────────────────────────
-    //
-    // Supprimer une absence sans retirer les remplacements designes laisserait
-    // le creneau attribue a quelqu'un d'autre alors que le titulaire n'est plus
-    // absent : deux personnes le verraient, et l'une d'elles validerait des
-    // heures qu'elle n'a pas faites. La designation n'a de sens que tant que
-    // l'absence existe.
-    if (supprimee && findPresenceType(presenceTypes, supprimee.entry_type)?.is_absence) {
-      const teacherId = teachers.find(t => t.user_id === supprimee.profile_id)?.id
-      if (teacherId) {
-        const sesCreneaux = creneauxDuJour(slots, exceptions, indexTitulaires(affectations), teacherId, supprimee.entry_date)
-        const aRetirer = sesCreneaux.filter(cr => cr.remplacantId).map(cr => cr.slotId)
-        if (aRetirer.length) {
-          const echecRempl = erreurEcritureLot(
-            await supabase.from('schedule_exceptions')
-              .delete()
-              .in('schedule_slot_id', aRetirer)
-              .eq('exception_date', supprimee.entry_date),
-            'Les remplacements du jour',
-          )
-          if (echecRempl) { toast.error(echecRempl); setDeleteConfirm(null); return }
-        }
-      }
-    }
 
     setDeleteConfirm(null)
     fetchEntries()

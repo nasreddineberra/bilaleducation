@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { chargerContexteSeances } from '@/lib/absences-enseignants/contexte'
+import { chargerAbsencesEtSeances } from '@/lib/absences-enseignants/contexte'
 import { nomEnseignantCivilite } from '@/lib/teachers/nom'
 import AbsencesEnseignantsClient, { type AbsenceLigne } from '@/components/absences-enseignants/AbsencesEnseignantsClient'
 
@@ -21,36 +21,19 @@ export default async function AbsencesEnseignantsPage() {
   if (!ROLES.includes(role)) redirect('/dashboard')
   const peutGerer = ENCADREMENT.includes(role)
 
-  const { data: absences } = await supabase
-    .from('absences_enseignants')
-    .select('id, teacher_id, debut, fin, motif, teachers(civilite, first_name, last_name)')
-    .order('debut', { ascending: false })
+  // Seances touchees et decisions : source unique (lot 4).
+  const { absences } = await chargerAbsencesEtSeances(supabase)
 
-  const ids = (absences ?? []).map(a => a.id)
-  const { data: decisions } = ids.length
-    ? await supabase
-        .from('absences_enseignants_seances')
-        .select('absence_id, schedule_slot_id, seance_date, decision')
-        .in('absence_id', ids)
-    : { data: [] }
-
-  const ctx = await chargerContexteSeances(supabase)
-
-  const lignes: AbsenceLigne[] = (absences ?? []).map(a => {
-    const seances = ctx.seancesDe({ debut: a.debut, fin: a.fin, teacherId: a.teacher_id })
-    const touchees = new Set(seances.map(s => `${s.slotId}|${s.date}`))
-    const siennes = (decisions ?? []).filter(d => d.absence_id === a.id && touchees.has(`${d.schedule_slot_id}|${d.seance_date}`))
-    return {
-      id: a.id,
-      teacherId: a.teacher_id,
-      enseignant: nomEnseignantCivilite(a.teachers),
-      debut: a.debut.slice(0, 16).replace(' ', 'T'),
-      fin: a.fin.slice(0, 16).replace(' ', 'T'),
-      motif: a.motif,
-      nbSeances: seances.length,
-      nbADecider: seances.length - siennes.length,
-    }
-  })
+  const lignes: AbsenceLigne[] = absences.map(a => ({
+    id: a.id,
+    teacherId: a.teacher_id,
+    enseignant: nomEnseignantCivilite(a.teachers),
+    debut: a.debut.slice(0, 16).replace(' ', 'T'),
+    fin: a.fin.slice(0, 16).replace(' ', 'T'),
+    motif: a.motif,
+    nbSeances: a.seances.length,
+    nbADecider: a.seances.filter(s => s.decision === 'a_decider').length,
+  }))
 
   // Enseignants proposes a la declaration : les fiches actives.
   const { data: enseignants } = peutGerer

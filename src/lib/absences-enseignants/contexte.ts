@@ -4,6 +4,7 @@ import type { VacationPeriod, JourFerie } from '@/types/database'
 import { estJourFerme } from '@/lib/school-year/jours-fermes'
 import { affectationsDesClasses, indexTitulaires } from '@/lib/edt/seance'
 import { seancesTouchees, type PeriodeAbsence, type SeanceTouchee } from '@/lib/edt/absences'
+import { seancesManquees } from './seances-manquees'
 
 /**
  * Ce qu'il faut pour savoir quelles seances une absence touche, lu une fois
@@ -54,5 +55,41 @@ export async function chargerContexteSeances(supabase: SupabaseClient<Database>)
     nomClasse: (classId: string) => nomClasse.get(classId) ?? '·',
     seancesDe: (absence: PeriodeAbsence & { teacherId: string }): SeanceTouchee[] =>
       seancesTouchees(absence, slots ?? [], exceptions ?? [], titulaireDe, estFerme),
+  }
+}
+
+/**
+ * Les absences d'enseignant lisibles par le connecte (la RLS decide : tout
+ * pour l'encadrement et le comptable, les siennes pour un enseignant), chacune
+ * avec les seances qu'elle fait manquer et leur decision (lot 4). Source unique
+ * de la liste des absences, de Temps de presence et de l'assiduite.
+ */
+export async function chargerAbsencesEtSeances(
+  supabase: SupabaseClient<Database>,
+  filtre: { teacherId?: string } = {},
+) {
+  let requete = supabase
+    .from('absences_enseignants')
+    .select('id, teacher_id, debut, fin, motif, teachers(civilite, first_name, last_name, user_id)')
+    .order('debut', { ascending: false })
+  if (filtre.teacherId) requete = requete.eq('teacher_id', filtre.teacherId)
+  const { data: absences } = await requete
+
+  const ids = (absences ?? []).map(a => a.id)
+  const { data: decisions } = ids.length
+    ? await supabase
+        .from('absences_enseignants_seances')
+        .select('absence_id, schedule_slot_id, seance_date, decision, remplacant_profile_id')
+        .in('absence_id', ids)
+    : { data: [] }
+
+  const ctx = await chargerContexteSeances(supabase)
+
+  return {
+    ctx,
+    absences: (absences ?? []).map(a => ({
+      ...a,
+      seances: seancesManquees(a.id, ctx.seancesDe({ debut: a.debut, fin: a.fin, teacherId: a.teacher_id }), decisions ?? []),
+    })),
   }
 }
