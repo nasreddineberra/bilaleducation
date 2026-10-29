@@ -63,6 +63,8 @@ export interface AlerteAbsences {
   nbAbsences: number
   /** Leurs seances encore « a decider » (jours fermes et seances annulees de l'EDT ecartes). */
   nbADecider: number
+  /** Date (`AAAA-MM-JJ`) de la plus proche seance a decider, `null` s'il n'y en a pas. */
+  prochaine: string | null
 }
 
 /**
@@ -81,7 +83,7 @@ export async function chargerAlerteAbsences(
     .from('absences_enseignants').select('id, teacher_id, debut, fin').gte('fin', maintenant)
   if (error) return null
   const absences = (absRes ?? []) as AbsenceEnseignant[]
-  if (absences.length === 0) return { nbAbsences: 0, nbADecider: 0 }
+  if (absences.length === 0) return { nbAbsences: 0, nbADecider: 0, prochaine: null }
 
   const du = absences.reduce((m, a) => (a.debut < m ? a.debut : m), absences[0].debut).slice(0, 10)
   const au = absences.reduce((m, a) => (a.fin > m ? a.fin : m), absences[0].fin).slice(0, 10)
@@ -98,10 +100,13 @@ export async function chargerAlerteAbsences(
   const exceptions = (exRes.data ?? []) as { schedule_slot_id: string; exception_date: string; exception_type: string; remplacant_teacher_id?: string | null }[]
 
   let nbADecider = 0
+  let prochaine: string | null = null
   for (const a of absences) {
     for (const s of seancesTouchees({ ...a, teacherId: a.teacher_id }, slots, exceptions, titulaireDe, estFerme)) {
-      if (!decidees.has(`${s.slotId}|${s.date}`)) nbADecider++
+      if (decidees.has(`${s.slotId}|${s.date}`)) continue
+      nbADecider++
+      if (!prochaine || s.date < prochaine) prochaine = s.date
     }
   }
-  return { nbAbsences: absences.length, nbADecider }
+  return { nbAbsences: absences.length, nbADecider, prochaine }
 }

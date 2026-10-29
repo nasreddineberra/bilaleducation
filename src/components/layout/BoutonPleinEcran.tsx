@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Maximize, Minimize } from 'lucide-react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import Tooltip from '@/components/ui/Tooltip'
 
 /**
@@ -43,7 +43,7 @@ export default function BoutonPleinEcran({ className }: { className?: string }) 
         aria-pressed={plein}
         className={`flex items-center justify-center w-9 h-9 rounded-lg text-warm-700 dark:text-[#8b9aa0] hover:bg-warm-100 dark:hover:bg-white/10 transition-colors motion-reduce:transition-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] ${className ?? ''}`}
       >
-        {plein ? <Minimize size={18} /> : <Maximize size={18} />}
+        {plein ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
       </button>
     </Tooltip>
   )

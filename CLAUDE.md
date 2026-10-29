@@ -101,7 +101,8 @@ Roles (`profiles.role`, unique par compte) : `super_admin`, `admin`, `direction`
 ## 4. Modules (regles metier qui ne se lisent pas d'un coup d'oeil dans le code)
 
 - **Tableau de bord** : une variante par role, une page sans defilement. En-tete : bonjour a gauche, date et
-  periode a droite, plus de raccourcis (28/10). Plein ecran : icone de la barre du haut, ordinateur seulement.
+  periode a droite, plus de raccourcis (28/10). Plein ecran : icone de la barre du haut, ordinateur seulement (`Maximize2`).
+  « A traiter » : une ligne URGENTE (seances d'absence a decider) passe en tete, bandeau ambre `.ligne-urgente`.
 - **Temps de presence** : codes 3 car. ; types RESERVES absence/cours/activite lies a l'EDT ; saisie
   reservee aux gestionnaires ; couts selon le role.
 - **Apprenants** : suppression d'une fiche VIERGE seulement (sinon « Rendre inactif »).

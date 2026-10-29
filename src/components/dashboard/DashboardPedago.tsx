@@ -8,7 +8,7 @@ import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { PenLine, FileText, CheckCheck, CalendarDays } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
 import TruncatedText from '@/components/ui/TruncatedText'
-import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneAbsencesEnseignants, LigneSeance, Puce, Vide } from './tdb'
+import { Tuile, JaugeTuile, Sparkline, Encadre, LigneATraiter, LigneAbsencesEnseignants, absencesUrgentes, LigneSeance, Puce, Vide } from './tdb'
 import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
@@ -30,6 +30,8 @@ const jourEtDate = (d: string) =>
 const lienNom = 'block font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]'
 
 export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
+  // Seances d'absence a decider : la ligne passe en tete de « A traiter », mise en valeur.
+  const urgente = absencesUrgentes(d.aTraiter.absencesEnseignants)
   const petitEcran = usePetitEcran()
   const lien = (href: string, mobile = false) => (petitEcran && !mobile ? null : href)
 
@@ -166,10 +168,12 @@ export default function DashboardPedago({ donnees: d, ...headerProps }: Props) {
 
         <Encadre titre="À traiter" className="lg:h-[268px]">
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
+            {/* Urgente (seances a decider) : en tete. */}
+            {urgente && <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />}
             <LigneATraiter href={lien('/dashboard/emploi-du-temps', true)} label="Séances à valider · 30 jours" n={d.aTraiter.seancesAValider} ton="attente" />
             <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations passées sans note" n={d.aTraiter.evaluationsSansNote} ton="info" />
             <LigneATraiter href={lien('/dashboard/grades')} label="Évaluations aux notes incomplètes" n={d.aTraiter.evaluationsIncompletes} ton="attente" />
-            <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />
+            {!urgente && <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />}
             <LigneATraiter href={lien('/dashboard/cahier-texte', true)} label="Classes sans séance au cahier de texte · 14 jours" n={d.aTraiter.classesSansCahier} ton="orange" />
             <LigneATraiter href={lien('/dashboard/evaluations')} label="Classes sans évaluation sur la période" n={d.aTraiter.classesSansEvaluation} ton="info" />
             <LigneATraiter href={lien('/dashboard/notifications', true)} label="Notifications non lues" n={headerProps.unreadNotifs} ton="ok" />

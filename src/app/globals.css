@@ -765,6 +765,15 @@
 .ton-danger       { color: var(--etat-danger);       background: color-mix(in srgb, #dc2626 14%, transparent); }
 .ton-orange       { color: var(--etat-orange);       background: color-mix(in srgb, #f97316 16%, transparent); }
 .ton-neutre       { color: var(--ink-muted);         background: var(--jauge-fond); }
+/* Ligne URGENTE de « A traiter » (29/10) : couleurs de `.ton-attente`, barre a gauche.
+   Sans marge negative : les listes a defilement la couperaient. */
+.ligne-urgente {
+  padding-left: 0.625rem;
+  padding-right: 0.5rem;
+  border-radius: 0.375rem;
+  border-top-color: transparent;
+  box-shadow: inset 3px 0 0 var(--etat-attente);
+}
 
 /* Lien d'encadre (« Voir tout ») au vert de marque. */
 .lien-tdb {

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import type { LucideIcon } from 'lucide-react'
-import { ChevronRight } from 'lucide-react'
+import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { Cliquable } from '@/components/ui/Cliquable'
 import TruncatedText from '@/components/ui/TruncatedText'
 import type { SeanceAffichee } from '@/lib/dashboard/direction'
@@ -113,24 +113,55 @@ export function LigneATraiter({ href, label, n, ton }: {
   )
 }
 
+type AlerteAbsencesLigne = { nbAbsences: number; nbADecider: number; prochaine: string | null }
+
+/** Des seances d'absence restent a decider : la ligne est URGENTE (tete d'encadre). */
+export function absencesUrgentes(alerte: AlerteAbsencesLigne | null): boolean {
+  return (alerte?.nbADecider ?? 0) > 0
+}
+
+const JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.']
+
+/** `AAAA-MM-JJ` -> « sam. 07/11 » (composantes locales). */
+function jourCourt(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return `${JOURS_COURTS[new Date(y, m - 1, d).getDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`
+}
+
 /**
  * Alerte des absences d'enseignant (lot 3, decision du 28/10) : de la saisie de
  * l'absence a son dernier jour. Le compteur dit combien d'absences sont en cours
- * ou a venir ; en ambre, avec le nombre de seances, tant qu'il en reste a decider.
+ * ou a venir. Tant qu'une seance reste a decider, la ligne est URGENTE (29/10) :
+ * placee en tete par l'appelant (`absencesUrgentes`), bandeau ambre, libelle en
+ * gras avec la plus proche seance a decider.
  */
 export function LigneAbsencesEnseignants({ href, alerte }: {
   href: string | null
-  alerte: { nbAbsences: number; nbADecider: number } | null
+  alerte: AlerteAbsencesLigne | null
 }) {
   const aDecider = alerte?.nbADecider ?? 0
+  if (alerte && aDecider > 0) {
+    return (
+      <Cliquable
+        href={href}
+        className="ligne-tdb ligne-urgente ton-attente"
+        classNameLien="outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]"
+      >
+        <AlertTriangle size={16} className="shrink-0" aria-hidden="true" />
+        <span className="flex-1 font-semibold">
+          Absences d’enseignant · {aDecider} {aDecider > 1 ? 'séances' : 'séance'} à décider
+          {alerte.prochaine && <> · prochaine {jourCourt(alerte.prochaine)}</>}
+        </span>
+        {href && <ChevronRight size={14} className="shrink-0" aria-hidden="true" />}
+      </Cliquable>
+    )
+  }
   return (
     <LigneATraiter
       href={href}
-      label={aDecider > 0
-        ? `Absences d’enseignant · ${aDecider} ${aDecider > 1 ? 'séances' : 'séance'} à décider`
-        : 'Absences d’enseignant en cours ou à venir'}
+      label="Absences d’enseignant en cours ou à venir"
       n={alerte ? alerte.nbAbsences : null}
-      ton={aDecider > 0 ? 'attente' : 'neutre'}
+      ton="neutre"
     />
   )
 }

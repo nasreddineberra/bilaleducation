@@ -9932,3 +9932,15 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   `TOUTES_DATES` = liste et fiche non bornees a une annee. Menu ouvert au comptable.
 - **Limite acceptee** : un enseignant ne lit que SES validations de seance ; sur la fiche d'un collegue, une seance
   validee montre sa decision sans l'etat « validee ».
+
+## 29/10 · Tableaux de bord : action urgente mise en valeur ; icone du plein ecran
+
+- **Demande** : l'alerte des seances d'absence a decider etait presente mais peu visible ; les actions urgentes
+  doivent ressortir. Seule ligne jugee urgente (proposition acceptee) : « Absences d'enseignant » tant qu'une seance
+  reste a decider (echeance : une classe sans enseignant le jour J). Les autres lignes restent du suivi.
+- **Rendu** (direction / admin, resp. pedagogique, secretaire) : la ligne passe en TETE de « A traiter »
+  (`absencesUrgentes`), bandeau `.ton-attente` + barre ambre de 3 px (`.ligne-urgente`, sans marge negative : les
+  listes a defilement la couperaient), triangle d'avertissement decoratif, libelle en gras avec la plus proche seance
+  a decider (« prochaine sam. 07/11 », `AlerteAbsences.prochaine`, calculee sans requete de plus). Sans seance a
+  decider : ligne neutre « en cours ou a venir », a sa place.
+- **Plein ecran** : `Maximize2` / `Minimize2` (fleches diagonales) au lieu de `Maximize` / `Minimize` (choix A).

@@ -6,7 +6,7 @@ import type { DonneesSecretaire } from '@/lib/dashboard/secretaire'
 import { expandPeriodLabel } from '@/lib/school-year/current-period-hint'
 import { Users, UserX, FileWarning, CalendarX } from 'lucide-react'
 import DashboardHeader from './DashboardHeader'
-import { Tuile, JaugeTuile, Encadre, LigneATraiter, LigneAbsencesEnseignants, LigneSeance, RemplissageClasses, Puce, Vide } from './tdb'
+import { Tuile, JaugeTuile, Encadre, LigneATraiter, LigneAbsencesEnseignants, absencesUrgentes, LigneSeance, RemplissageClasses, Puce, Vide } from './tdb'
 import { pluriel } from '@/lib/texte/pluriel'
 
 interface Props {
@@ -25,6 +25,8 @@ const dateCourte = (d: string) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : ''
 const lienNom = 'block font-semibold text-secondary-800 truncate hover:underline rounded outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-surface)] dark:focus-visible:ring-[var(--brand-accent)]'
 
 export default function DashboardSecretaire({ donnees: d, ...headerProps }: Props) {
+  // Seances d'absence a decider : la ligne passe en tete de « A traiter », mise en valeur.
+  const urgente = absencesUrgentes(d.aTraiter.absencesEnseignants)
   const petitEcran = usePetitEcran()
   const lien = (href: string, mobile = false) => (petitEcran && !mobile ? null : href)
 
@@ -123,9 +125,11 @@ export default function DashboardSecretaire({ donnees: d, ...headerProps }: Prop
 
         <Encadre titre="À traiter" className="lg:h-[268px]">
           <div className="flex-1 min-h-0 overflow-y-auto list-scroll pr-1">
+            {/* Urgente (seances a decider) : en tete. */}
+            {urgente && <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />}
             <LigneATraiter href={lien('/dashboard/affectation')} label="Élèves sans classe" n={sansClasse} ton="orange" />
             <LigneATraiter href={lien('/dashboard/absences', true)} label="Absences sans justificatif · 30 jours" n={a30 ? a30.nonJustifiees : null} ton="danger" />
-            <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />
+            {!urgente && <LigneAbsencesEnseignants href={lien('/dashboard/absences-enseignants')} alerte={d.aTraiter.absencesEnseignants} />}
             {/* Masquee tant qu'aucun document n'est declare obligatoire : un
                 « 0 » laisserait croire que les dossiers sont complets. */}
             {d.aTraiter.fichesIncompletes !== null && (
