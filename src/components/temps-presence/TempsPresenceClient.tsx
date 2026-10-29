@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, CalendarCheck } from 'lucide-react'
@@ -79,11 +78,11 @@ interface Props {
   staffList: StaffMember[]
   /**
    * Absences d'enseignant de l'annee, visibles de TOUT le personnel pour
-   * information (29/10), sans motif : barres du calendrier, panneau du jour,
+   * information (29/10), motif compris : barres du calendrier, panneau du jour,
    * colonne Absences des recapitulatifs (heures des seances manquees).
    */
   absences?: AbsenceInformation[]
-  /** Encadrement : une barre ouvre la fiche de l'absence (l'enseignant, les siennes). */
+  /** Encadrement : le panneau du jour ouvre la fiche de l'absence (l'enseignant, les siennes). */
   peutOuvrirAbsence?: boolean
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
@@ -116,8 +115,11 @@ function dotStyle(color: string) {
 const COULEUR_ABSENCE = '#ef4444'
 /** Hauteur d'une barre d'absence (18 px) + son ecart (2 px). */
 const HAUTEUR_BARRE = 20
-/** Seances listees dans l'infobulle d'une barre, au-dela « N autres séances ». */
-const SEANCES_INFOBULLE = 8
+/**
+ * Ecart de 6 px entre la derniere barre d'une semaine et les pastilles d'heures :
+ * 2 px sont deja dans `HAUTEUR_BARRE` (ecart entre deux barres).
+ */
+const ECART_PASTILLES = 4
 
 /** `AAAA-MM-JJ` -> `04/11`. */
 function fmtJourCourt(jour: string): string {
@@ -713,10 +715,9 @@ export default function TempsPresenceClient({
   // ── Badges for calendar cell ────────────────────────────────────────
   // ── Absences d'enseignant : barres du calendrier, panneau du jour ─────────
   //
-  // Visibles de tout le personnel, pour information (decision du 29/10), sans
-  // motif. Une barre par absence couvre ses jours, coupee net au bord d'une
+  // Visibles de tout le personnel, pour information (decision du 29/10), motif
+  // compris. Une barre par absence couvre ses jours, coupee net au bord d'une
   // semaine (`barresDeLaSemaine`). Le filtre par membre s'y applique aussi.
-  const router = useRouter()
   const couleurAbsence = presenceTypes.find(p => p.reserved_kind === 'absence')?.color ?? COULEUR_ABSENCE
   const absencesAffichees = useMemo(
     () => absences
@@ -741,21 +742,16 @@ export default function TempsPresenceClient({
     return () => obs.disconnect()
   }, [])
   const nbSemaines = viewMode === 'month' ? 6 : 1
-  // Numero du jour en haut (24 px), une ligne de pastilles d'heures en bas (20 px).
-  const lignesMax = Math.max(1, Math.floor((hauteurSemaines / nbSemaines - 44) / HAUTEUR_BARRE))
+  // Numero du jour en haut (24 px), ecart (6 px), une ligne de pastilles d'heures en bas (20 px).
+  const lignesMax = Math.max(1, Math.floor((hauteurSemaines / nbSemaines - 50) / HAUTEUR_BARRE))
 
+  // Infobulle SOBRE (demande du 29/10, apres essai) : le nom et le motif. Les
+  // seances et leurs decisions sont dans le panneau du jour et sur la fiche.
   function infobulleAbsence(a: AbsenceInformation) {
     return (
       <span className="flex flex-col gap-0.5 text-left">
         <span className="font-bold">{a.nom}</span>
-        <span>{accordGenre(genreCivilite(a.civilite), 'Absent', 'Absente', 'Absence')} {periodeAbsence(a)}</span>
-        {a.seances.length === 0 && <span>Aucune séance touchée</span>}
-        {a.seances.slice(0, SEANCES_INFOBULLE).map(se => (
-          <span key={`${se.date}|${se.start}|${se.classe}`}>{fmtJourCourt(se.date)} · {se.classe} · {se.start}-{se.end} · {texteDecision(se)}</span>
-        ))}
-        {a.seances.length > SEANCES_INFOBULLE && (
-          <span>{pluriel(a.seances.length - SEANCES_INFOBULLE, 'autre séance', 'autres séances')}</span>
-        )}
+        <span>{a.motif}</span>
       </span>
     )
   }
@@ -765,7 +761,6 @@ export default function TempsPresenceClient({
     if (!a) return null
     // Trait ambre tant qu'une seance reste a decider (meme code que l'EDT).
     const aDecider = a.seances.some(se => se.decision === 'a_decider')
-    const ouvrable = peutOuvrir(a)
     return (
       <div
         key={b.id}
@@ -775,8 +770,10 @@ export default function TempsPresenceClient({
         <Tooltip content={infobulleAbsence(a)} className="w-full" maxWidth="max-w-xs">
           <button
             type="button"
-            onClick={() => (ouvrable ? router.push(`/dashboard/absences-enseignants/${a.id}`) : setSelectedDay(cles[b.colDebut]))}
-            aria-label={`${a.nom}, ${accordGenre(genreCivilite(a.civilite), 'absent', 'absente', 'absence')} ${periodeAbsence(a)}${aDecider ? ', séances à décider' : ''}`}
+            // Le clic ouvre le jour (debut de la barre dans la semaine) ; le lien
+            // vers l'absence est dans le panneau du jour seulement (29/10).
+            onClick={() => setSelectedDay(cles[b.colDebut])}
+            aria-label={`${a.nom}, ${accordGenre(genreCivilite(a.civilite), 'absent', 'absente', 'absence')} ${periodeAbsence(a)}, ${a.motif}${aDecider ? ', séances à décider' : ''}`}
             className={clsx(
               'h-[18px] w-full min-w-0 flex items-center px-1.5 bg-warm-100 text-secondary-800 text-[10px] font-semibold leading-none border-l-[3px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
               b.coupeAvant ? 'rounded-l-none' : 'rounded-l',
@@ -802,6 +799,7 @@ export default function TempsPresenceClient({
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(couleurAbsence)} />
           <span className="font-medium shrink-0">{etat}</span>
           <span className="text-warm-700 shrink-0 tabular-nums">{periodeDuJour(a, selectedDay)}</span>
+          <span className="text-warm-700 shrink-0">{a.motif}</span>
         </div>
         {seancesDuJour.map(se => (
           <div key={`${se.start}|${se.classe}`} className="pl-2 text-[10px] text-warm-700 tabular-nums">
@@ -1043,8 +1041,9 @@ export default function TempsPresenceClient({
                           {/* Place des barres d'absence de la semaine, puis les heures. */}
                           {lignesOccupees > 0 && (
                             <>
-                              <div aria-hidden className="shrink-0" style={{ height: lignesOccupees * HAUTEUR_BARRE }} />
-                              <div className="min-w-0 pt-0.5">{renderCellBadges(dk)}</div>
+                              {/* Ecart de 6 px sous la derniere barre (demande du 29/10). */}
+                              <div aria-hidden className="shrink-0" style={{ height: lignesOccupees * HAUTEUR_BARRE + ECART_PASTILLES }} />
+                              <div className="min-w-0">{renderCellBadges(dk)}</div>
                             </>
                           )}
                         </button>

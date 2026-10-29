@@ -411,9 +411,11 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      par seance, decision, lien vers l'absence), encadre Remplacements de la fiche classe (remplacees / annulees du jour
      et a venir, en lecture) ; comptable lecteur de `absences_enseignants` (migration `absences-enseignants-comptable.sql`,
      controle 29). **Calendrier de Temps de presence FAIT** (29/10) : absences d'enseignant visibles de TOUT le
-     personnel sans motif (`absences_enseignants_information`, migration `absences-enseignants-information.sql`, controle
-     33 ; `chargerAbsencesInformation`), barres sur les jours (`lib/temps-presence/barres-absences.ts`, « NOM P. »,
-     trait ambre si a decider, « +N »), panneau du jour en lecture, calendrier pleine hauteur. **A voir a l'ecran**
+     personnel MOTIF COMPRIS, jamais aux parents (`absences_enseignants_information`, migrations
+     `absences-enseignants-information.sql` puis `-motif.sql`, controle 33 ; `chargerAbsencesInformation`), barres sur
+     les jours (`lib/temps-presence/barres-absences.ts`, « NOM P. », infobulle nom + motif, trait ambre si a decider,
+     « +N », clic = le jour ; lien vers l'absence dans le panneau du jour seulement), calendrier pleine hauteur.
+     Assiduite : remplacements DECIDES avec leur etat (assure / a venir / non valide). **A voir a l'ecran**
      (demonstration) : lot 4 (4 ecrans), infobulle de validation, calendrier (mois, semaine, compte enseignant).
      **Prochain** : lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort de `SlotFormModal`, remplacants
      `class_teachers`).

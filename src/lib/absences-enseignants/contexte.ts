@@ -6,7 +6,7 @@ import { affectationsDesClasses, indexTitulaires } from '@/lib/edt/seance'
 import { seancesTouchees, type PeriodeAbsence, type SeanceTouchee } from '@/lib/edt/absences'
 import { seancesManquees } from './seances-manquees'
 import { nomEnseignant, nomInitialeEnseignant } from '@/lib/teachers/nom'
-import type { Decision } from './libelles'
+import { libelleMotif, type Decision } from './libelles'
 
 /**
  * Ce qu'il faut pour savoir quelles seances une absence touche, lu une fois
@@ -108,7 +108,7 @@ export interface SeanceInformation {
   remplacant: string | null
 }
 
-/** Une absence d'enseignant pour information : jamais le motif. */
+/** Une absence d'enseignant pour information (motif compris, decision du 29/10). */
 export interface AbsenceInformation {
   id: string
   /** Compte de l'enseignant (`teachers.user_id`), pour les heures et le filtre par membre. */
@@ -118,6 +118,8 @@ export interface AbsenceInformation {
   /** `NOM P.` */
   nomCourt: string
   civilite: string | null
+  /** Libelle du motif (« Congé »...), visible de tout le personnel. */
+  motif: string
   /** `AAAA-MM-JJTHH:MM`. */
   debut: string
   fin: string
@@ -126,8 +128,8 @@ export interface AbsenceInformation {
 
 /**
  * Les absences d'enseignant de la periode [`debut`, `fin`] (`AAAA-MM-JJ`), pour
- * TOUT le personnel (decision du 29/10) : `absences_enseignants_information`
- * les rend sans motif, la table restant fermee. Seances touchees, decisions et
+ * TOUT le personnel (decision du 29/10), motif compris :
+ * `absences_enseignants_information` (jamais aux parents). Seances touchees, decisions et
  * remplacants : memes sources que la page Absences enseignants.
  */
 export async function chargerAbsencesInformation(
@@ -165,6 +167,7 @@ export async function chargerAbsencesInformation(
       nom: nomEnseignant(personne),
       nomCourt: nomInitialeEnseignant(personne),
       civilite: a.civilite,
+      motif: libelleMotif(a.motif),
       debut: horodatage(a.debut),
       fin: horodatage(a.fin),
       seances: seances.map(s => ({

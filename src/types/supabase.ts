@@ -4672,6 +4672,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          motif: string
           teacher_id: string
           user_id: string
         }[]

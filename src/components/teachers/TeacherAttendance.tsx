@@ -117,6 +117,17 @@ export default function TeacherAttendance({
 
   const hauteurTable = dense ? 'max-h-[13rem]' : 'max-h-[22rem]'
 
+  // Remplacements : prevus (a venir), faits (assures, ou heures de remplacement
+  // anciennes sans decision), passes sans validation (29/10).
+  const nbAssures = remplacements.filter(r => r.etat === 'assure' || r.etat === null).length
+  const nbAVenir = remplacements.filter(r => r.etat === 'a_venir').length
+  const nbNonValides = remplacements.filter(r => r.etat === 'non_valide').length
+  const detailRemplacements = [
+    `${nbAssures} ${accord(nbAssures, 'assuré')}`,
+    ...(nbAVenir > 0 ? [`${nbAVenir} à venir`] : []),
+    ...(nbNonValides > 0 ? [`${nbNonValides} non ${accord(nbNonValides, 'validé')}`] : []),
+  ].join(' · ')
+
   return (
     // LARGEUR FIXE, et surtout pas `w-fit` : la largeur suivait alors le contenu
     // le plus large, donc le TABLEAU DES ABSENCES. Un enseignant qui en a une
@@ -142,7 +153,7 @@ export default function TeacherAttendance({
           </span>
           <span>
             <span className={`text-sm font-bold tabular-nums ${remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}`}>{remplacements.length}</span>{' '}
-            {accord(remplacements.length, 'remplacement')} {accord(remplacements.length, 'assuré')}
+            {accord(remplacements.length, 'remplacement')} · {detailRemplacements}
           </span>
         </div>
       ) : (
@@ -171,7 +182,7 @@ export default function TeacherAttendance({
             <>
               {accord(remplacements.length, 'remplacement')}
               <br />
-              {accord(remplacements.length, 'assuré')} pour {remplacements.length > 1 ? 'des collègues' : 'un collègue'}
+              {detailRemplacements}
             </>
           }
           valueColor={remplacements.length > 0 ? 'text-[var(--brand-surface)] dark:text-[var(--brand-accent)]' : 'text-secondary-800'}
@@ -290,32 +301,48 @@ export default function TeacherAttendance({
 
       {/* ── Remplacements assures pour d'autres ── */}
       <div className={dense ? 'space-y-2 w-full' : 'card p-0 overflow-hidden w-full'}>
-        <h2 className={dense ? 'stat-label' : TITRE_SECTION}>Remplacements assurés</h2>
+        <h2 className={dense ? 'stat-label' : TITRE_SECTION}>Remplacements</h2>
 
         {remplacements.length === 0 ? (
           <div className={`${dense ? 'border border-warm-100 rounded-lg' : ''} p-3 text-center w-full`}>
-            <p className="text-sm text-warm-700">Aucun remplacement assuré cette année.</p>
+            <p className="text-sm text-warm-700">Aucun remplacement cette année.</p>
           </div>
         ) : (
           <TableauBorne hauteur={hauteurTable} dense={dense}>
-            <table className="liste w-full text-left text-xs" aria-label="Remplacements assurés">
+            <table className="liste w-full text-left text-xs" aria-label="Remplacements">
               <thead className="sticky top-0 z-10">
                 <tr className="liste-entete border-b border-[var(--card-border)]">
                   <th scope="col" className="list-th w-36">Date</th>
                   <th scope="col" className="list-th w-32">Horaires</th>
                   <th scope="col" className="list-th w-20 text-center">Durée</th>
+                  <th scope="col" className="list-th w-28">Classe</th>
                   <th scope="col" className="list-th">À la place de</th>
+                  <th scope="col" className="list-th w-24">État</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-warm-50">
-                {remplacements.map(r => (
-                  <tr key={r.id}>
+                {remplacements.map(r => {
+                  // Ligne vers l'absence remplacee sur la fiche enseignant (lue par
+                  // l'encadrement) ; pas sur Mon compte (`dense`) : l'enseignant ne
+                  // lit que SES absences, celle d'un collegue lui serait introuvable.
+                  const lien = !dense && r.absenceId
+                  return (
+                  <tr key={r.id}
+                    onClick={lien ? () => router.push(`/dashboard/absences-enseignants/${r.absenceId}`) : undefined}
+                    className={lien ? 'cursor-pointer' : undefined}>
                     <td className="list-td whitespace-nowrap text-secondary-700">{fmtDate(r.date)}</td>
                     <td className="list-td whitespace-nowrap tabular-nums text-warm-700">{fmtPlage(r.start, r.end)}</td>
                     <td className="list-td text-center tabular-nums text-warm-700">{fmtDuration(r.minutes)}</td>
+                    <td className="list-td text-warm-700">{r.classe ?? '·'}</td>
                     <td className="list-td text-secondary-700">{r.remplace ?? '·'}</td>
+                    <td className="list-td whitespace-nowrap">
+                      {r.etat === 'a_venir' ? <span className="text-warm-700">À venir</span>
+                        : r.etat === 'non_valide' ? <span className="text-amber-700 font-medium">Non validé</span>
+                        : <span className="text-secondary-700">Assuré</span>}
+                    </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </TableauBorne>

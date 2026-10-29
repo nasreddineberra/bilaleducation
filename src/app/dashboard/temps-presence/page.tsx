@@ -45,7 +45,7 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
   // ── Absences d'enseignant (lot 4, calendrier du 29/10) ───────────────────
   //
   // Lues dans « Absences enseignants », seul ecran qui les ecrit, et visibles
-  // de TOUT le personnel pour information, sans motif. Une absence pese les
+  // de TOUT le personnel pour information, motif compris. Une absence pese les
   // heures des SEANCES qu'elle fait manquer ; l'ecran en tire les barres du
   // calendrier, le panneau du jour et la colonne Absences des recapitulatifs.
   const absences = currentYear?.start_date && currentYear.end_date

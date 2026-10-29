@@ -45,6 +45,11 @@ export interface AbsenceLigne {
   etat: Decision | null
 }
 
+/**
+ * Un remplacement. Depuis le 29/10, ceux que la page Absences enseignants a
+ * DECIDES (prevus comme assures), avec leur etat ; les heures de remplacement
+ * nees d'une validation sans decision correspondante restent lues (`etat` null).
+ */
 export interface RemplacementLigne {
   id: string
   date: string
@@ -53,6 +58,11 @@ export interface RemplacementLigne {
   minutes: number
   /** `NOM Prenom` de la personne remplacee, ou null si son compte a disparu. */
   remplace: string | null
+  classe: string | null
+  /** L'absence remplacee : lien vers sa fiche. */
+  absenceId: string | null
+  /** Assure (seance validee), a venir, ou passe sans validation. */
+  etat: 'assure' | 'a_venir' | 'non_valide' | null
 }
 
 export interface MoisAssure {
@@ -234,6 +244,9 @@ export async function chargerAssiduite(sb: Sb, profileId: string | null): Promis
           end: hhmm(e.end_time),
           minutes: e.duration_minutes,
           remplace: e.replaced_profile_id ? (nomParProfil[e.replaced_profile_id] ?? null) : null,
+          classe: null,
+          absenceId: null,
+          etat: null,
         })
       }
     }
@@ -276,6 +289,59 @@ export async function chargerAssiduite(sb: Sb, profileId: string | null): Promis
     }
     // Ordre des saisies : la plus recente d'abord.
     absences.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
+  }
+
+  // ── Remplacements DECIDES (29/10) : page Absences enseignants ────────────
+  //
+  // Un remplacement a venir n'a pas encore d'heures (elles naissent de la
+  // VALIDATION de la seance) : l'assiduite le montre quand meme, avec son etat.
+  // Le nom de l'absent vient de `absences_enseignants_information` (la fiche
+  // d'un collegue est fermee a l'enseignant).
+  const { data: decides } = await sb
+    .from('absences_enseignants_seances')
+    .select('absence_id, schedule_slot_id, seance_date, schedule_slots!inner(start_time, end_time, classes(name))')
+    .eq('remplacant_profile_id', profileId)
+    .eq('decision', 'remplacee')
+    .gte('seance_date', annee.start_date)
+    .lte('seance_date', annee.end_date)
+  if (decides?.length) {
+    const { data: validations } = await sb
+      .from('schedule_validations')
+      .select('schedule_slot_id, validation_date')
+      .eq('profile_id', profileId)
+      .in('schedule_slot_id', decides.map(d => d.schedule_slot_id))
+    const validees = new Set((validations ?? []).map(v => `${v.schedule_slot_id}|${v.validation_date}`))
+    const { data: infos } = await sb.rpc('absences_enseignants_information', { p_debut: annee.start_date, p_fin: annee.end_date })
+    const absentDe = new Map((infos ?? []).map(a => [a.id, `${a.last_name} ${a.first_name}`.trim()]))
+    // Jour de PARIS (le serveur tourne en UTC).
+    const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
+
+    const decidesCles = new Set<string>()
+    const lignes: RemplacementLigne[] = decides.map(d => {
+      const start = hhmm(d.schedule_slots.start_time)
+      const end = hhmm(d.schedule_slots.end_time)
+      decidesCles.add(`${d.seance_date}|${start}|${end}`)
+      const [h1, m1] = start.split(':').map(Number)
+      const [h2, m2] = end.split(':').map(Number)
+      return {
+        id: `${d.absence_id}|${d.schedule_slot_id}|${d.seance_date}`,
+        date: d.seance_date,
+        start,
+        end,
+        minutes: h2 * 60 + m2 - (h1 * 60 + m1),
+        remplace: absentDe.get(d.absence_id) ?? null,
+        classe: d.schedule_slots.classes?.name ?? null,
+        absenceId: d.absence_id,
+        etat: validees.has(`${d.schedule_slot_id}|${d.seance_date}`) ? 'assure'
+          : d.seance_date >= aujourdhui ? 'a_venir' : 'non_valide',
+      }
+    })
+    // Une heure de remplacement nee de la validation d'une seance decidee est la
+    // MEME chose que la ligne decidee : elle ne s'affiche pas deux fois.
+    const anciennes = remplacements.filter(r => !decidesCles.has(`${r.date}|${r.start}|${r.end}`))
+    remplacements.length = 0
+    remplacements.push(...lignes, ...anciennes)
+    remplacements.sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start))
   }
 
   return {

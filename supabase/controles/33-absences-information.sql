@@ -1,5 +1,5 @@
 -- ============================================================================
--- CONTROLE 33 — Absences enseignants visibles de tous, sans motif (29/10)
+-- CONTROLE 33 — Absences enseignants visibles de tout le personnel (29/10)
 --
 -- Deux ecoles JETABLES ; dans la premiere, deux enseignants absents (un
 -- « maladie », un « personnel ») et un compte par role. Verifie, sous l'identite
@@ -8,9 +8,11 @@
 --     avec le nom de l'enseignant ;
 --   - parent, anonyme et direction d'une autre ecole ne lisent rien ;
 --   - la periode borne le resultat (jours compris) ;
---   - aucune colonne du resultat ne porte le motif ;
+--   - le motif est rendu au personnel (decision du 29/10, migration
+--     absences-enseignants-information-motif.sql) ;
 --   - la table reste fermee : l'enseignant n'y lit que SON absence.
--- Migration : supabase/migrations/absences-enseignants-information.sql.
+-- Migrations : supabase/migrations/absences-enseignants-information.sql et
+-- absences-enseignants-information-motif.sql.
 -- LECTURE SEULE : exception volontaire finale, tout est annule.
 -- ============================================================================
 
@@ -112,10 +114,10 @@ BEGIN
   essais := essais || ARRAY[['periode 10/11 (le second)', 'ok:1', pg_temp.ctl33(dir,
     $q$SELECT count(*) FROM absences_enseignants_information('2026-11-10', '2026-11-10')$q$)]];
 
-  -- ── Jamais le motif ───────────────────────────────────────────────────────
-  essais := essais || ARRAY[['aucune colonne motif', 'ok:0', pg_temp.ctl33(ens,
-    $q$SELECT count(*) FROM absences_enseignants_information('2026-11-01', '2026-11-30') x
-        WHERE to_jsonb(x)::text ~* '(motif|maladie|personnel)'$q$)]];
+  -- ── Le motif, rendu au personnel ──────────────────────────────────────────
+  essais := essais || ARRAY[['motifs lus par un collegue', 'ok:maladie,personnel', pg_temp.ctl33(ens2,
+    $q$SELECT string_agg(motif, ',' ORDER BY debut)
+         FROM absences_enseignants_information('2026-11-01', '2026-11-30')$q$)]];
 
   -- ── La table reste fermee ─────────────────────────────────────────────────
   essais := essais || ARRAY[['enseignant lit la table (la sienne)', 'ok:1', pg_temp.ctl33(ens,

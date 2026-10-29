@@ -9843,3 +9843,18 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   sinon selection du jour. Lignes de barres deduites de la hauteur MESUREE (ResizeObserver), « +N » au-dela.
   Panneau du jour : une ligne en lecture par absent (part du jour, seances du jour, decision). Recapitulatifs :
   l'enseignant n'y voit toujours que ses heures.
+
+### 29/10 · Calendrier de Temps de presence, retouches apres essai ; remplacements dans l'assiduite
+
+- **Motif visible de tout le personnel** (decision de l'utilisateur, revient sur « jamais le motif ») : jamais aux
+  parents. Migration `absences-enseignants-information-motif.sql` (la fonction rend `motif`, supprimee puis recreee,
+  droits compris) ; controle 33 inverse (un collegue lit les motifs), vu rouge, vert apres application.
+- **Infobulle d'une barre** : le nom et le motif seulement (la liste des seances etait trop massive) ; le motif aussi
+  sur la ligne du panneau du jour. **Pastilles d'heures** gardees, ecart de 6 px sous la derniere barre.
+- **Lien vers l'absence** : retire des barres du calendrier (le clic ouvre le jour), garde dans le panneau du jour.
+- **Assiduite, remplacements** : « 0 remplacement assuré » pour une remplacante designee sur deux seances a venir
+  (vrai mais trompeur : les heures naissent de la validation). L'assiduite lit desormais les remplacements DECIDES
+  (`absences_enseignants_seances`), etat Assuré (seance validee) / À venir / Non validé (passee sans validation),
+  classe, absent (nom par `absences_enseignants_information`) ; compteur « N remplacements · X assurés · Y à venir » ;
+  une heure de remplacement nee d'une seance decidee ne s'affiche pas deux fois. Lien vers l'absence sur la fiche
+  enseignant seulement (pas sur Mon compte : un enseignant ne lit pas l'absence d'un collegue).
