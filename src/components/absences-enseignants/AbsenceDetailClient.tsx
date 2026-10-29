@@ -258,6 +258,12 @@ export default function AbsenceDetailClient({ absence, enseignant, seances, memb
           <h2 className="text-xs font-bold uppercase tracking-widest truncate">Séances touchées</h2>
           {peutGerer && seances.length > 0 && (
             <div className="flex items-center gap-2 shrink-0">
+              {/* Retour aux decisions enregistrees : tant que rien n'est enregistre,
+                  les choix des listes se defont d'un clic (demande du 29/10). */}
+              <FloatButton size="mini" variant="secondary" type="button" onClick={() => setChoix(initial)}
+                disabled={modifiees.length === 0 || saving}>
+                Annuler
+              </FloatButton>
               <FloatButton size="mini" variant="submit" type="button" onClick={demanderEnregistrement}
                 loading={saving} disabled={modifiees.length === 0}>
                 Enregistrer

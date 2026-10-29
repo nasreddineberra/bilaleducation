@@ -9873,3 +9873,5 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   « pour toutes » de la hauteur fixe du bandeau, celles des creneaux du bord droit). Colonne de gauche de largeur
   fixe (`COLONNE_TITRE`, 22 rem des `sm`) pour l'index des couleurs et les titres de creneau ; chaque liste suit a la
   meme distance. « Même décision pour toutes » sous le bandeau, a cote de l'index ; Enregistrer reste dans le bandeau.
+- **Fiche d'une absence, Annuler** (demande du 29/10) : bouton « Annuler » (secondaire) a gauche d'Enregistrer, qui
+  remet les listes sur les decisions enregistrees ; grise tant que rien n'est modifie ou pendant l'enregistrement.
