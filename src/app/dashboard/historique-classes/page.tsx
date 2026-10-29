@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import HistoriqueClassesClient, { type ClasseArchivee } from '@/components/historique/HistoriqueClassesClient'
+import HistoriqueClassesClient from '@/components/historique/HistoriqueClassesClient'
 
 // Historique des classes : composition des annees ARCHIVEES (classe, enseignants,
 // creneaux, eleves et adultes), figee au passage d'annee dans `class_year_history`.
@@ -24,7 +24,7 @@ export default async function HistoriqueClassesPage() {
 
   return (
     <div className="h-full animate-fade-in">
-      <HistoriqueClassesClient classes={(data ?? []) as ClasseArchivee[]} />
+      <HistoriqueClassesClient classes={data ?? []} />
     </div>
   )
 }

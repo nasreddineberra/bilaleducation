@@ -1211,17 +1211,17 @@ export type Database = {
           class_name: string
           cotisation_label: string | null
           created_at: string
-          creneaux: Json
+          creneaux: ColonnesJson['class_year_history.creneaux']
           effectif: number
           etablissement_id: string
           id: string
           is_adult: boolean
           level: string | null
           max_students: number | null
-          participants: Json
-          remplacements: Json
+          participants: ColonnesJson['class_year_history.participants']
+          remplacements: ColonnesJson['class_year_history.remplacements']
           school_year_id: string | null
-          titulaires: Json
+          titulaires: ColonnesJson['class_year_history.titulaires']
           year_label: string
         }
         Insert: {
@@ -1229,17 +1229,17 @@ export type Database = {
           class_name: string
           cotisation_label?: string | null
           created_at?: string
-          creneaux?: Json
+          creneaux?: ColonnesJson['class_year_history.creneaux']
           effectif?: number
           etablissement_id: string
           id?: string
           is_adult?: boolean
           level?: string | null
           max_students?: number | null
-          participants?: Json
-          remplacements?: Json
+          participants?: ColonnesJson['class_year_history.participants']
+          remplacements?: ColonnesJson['class_year_history.remplacements']
           school_year_id?: string | null
-          titulaires?: Json
+          titulaires?: ColonnesJson['class_year_history.titulaires']
           year_label: string
         }
         Update: {
@@ -1247,17 +1247,17 @@ export type Database = {
           class_name?: string
           cotisation_label?: string | null
           created_at?: string
-          creneaux?: Json
+          creneaux?: ColonnesJson['class_year_history.creneaux']
           effectif?: number
           etablissement_id?: string
           id?: string
           is_adult?: boolean
           level?: string | null
           max_students?: number | null
-          participants?: Json
-          remplacements?: Json
+          participants?: ColonnesJson['class_year_history.participants']
+          remplacements?: ColonnesJson['class_year_history.remplacements']
           school_year_id?: string | null
-          titulaires?: Json
+          titulaires?: ColonnesJson['class_year_history.titulaires']
           year_label?: string
         }
         Relationships: [
@@ -2159,12 +2159,12 @@ export type Database = {
       }
       family_year_finance: {
         Row: {
-          adjustments_json: Json
-          cotisations_json: Json
+          adjustments_json: ColonnesJson['family_year_finance.adjustments_json']
+          cotisations_json: ColonnesJson['family_year_finance.cotisations_json']
           created_at: string
           etablissement_id: string
           id: string
-          installments_json: Json
+          installments_json: ColonnesJson['family_year_finance.installments_json']
           parent_id: string | null
           remaining: number
           school_year_id: string | null
@@ -2178,12 +2178,12 @@ export type Database = {
           year_label: string
         }
         Insert: {
-          adjustments_json?: Json
-          cotisations_json?: Json
+          adjustments_json?: ColonnesJson['family_year_finance.adjustments_json']
+          cotisations_json?: ColonnesJson['family_year_finance.cotisations_json']
           created_at?: string
           etablissement_id: string
           id?: string
-          installments_json?: Json
+          installments_json?: ColonnesJson['family_year_finance.installments_json']
           parent_id?: string | null
           remaining?: number
           school_year_id?: string | null
@@ -2197,12 +2197,12 @@ export type Database = {
           year_label: string
         }
         Update: {
-          adjustments_json?: Json
-          cotisations_json?: Json
+          adjustments_json?: ColonnesJson['family_year_finance.adjustments_json']
+          cotisations_json?: ColonnesJson['family_year_finance.cotisations_json']
           created_at?: string
           etablissement_id?: string
           id?: string
-          installments_json?: Json
+          installments_json?: ColonnesJson['family_year_finance.installments_json']
           parent_id?: string | null
           remaining?: number
           school_year_id?: string | null
@@ -4083,7 +4083,7 @@ export type Database = {
         Row: {
           absences_justified: number
           absences_unjustified: number
-          bulletin_refs: Json
+          bulletin_refs: ColonnesJson['student_year_history.bulletin_refs']
           class_name: string | null
           cotisation_label: string | null
           created_at: string
@@ -4108,7 +4108,7 @@ export type Database = {
         Insert: {
           absences_justified?: number
           absences_unjustified?: number
-          bulletin_refs?: Json
+          bulletin_refs?: ColonnesJson['student_year_history.bulletin_refs']
           class_name?: string | null
           cotisation_label?: string | null
           created_at?: string
@@ -4133,7 +4133,7 @@ export type Database = {
         Update: {
           absences_justified?: number
           absences_unjustified?: number
-          bulletin_refs?: Json
+          bulletin_refs?: ColonnesJson['student_year_history.bulletin_refs']
           class_name?: string | null
           cotisation_label?: string | null
           created_at?: string

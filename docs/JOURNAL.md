@@ -9944,3 +9944,20 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   a decider (« prochaine sam. 07/11 », `AlerteAbsences.prochaine`, calculee sans requete de plus). Sans seance a
   decider : ligne neutre « en cours ou a venir », a sa place.
 - **Plein ecran** : `Maximize2` / `Minimize2` (fleches diagonales) au lieu de `Maximize` / `Minimize` (choix A).
+
+## 29/10 · Sortie des `any`, lot 3 (`lib/closure`, passage d'annee)
+
+- **Pourquoi d'abord ici** : l'archivage n'a lieu qu'une fois par an ; ses lignes (`any[]`) n'etaient verifiees par
+  personne avant le jour J.
+- **Fait** : les 6 audits et `generateArchive` recoivent `SupabaseClient<Database>` ; 81 `any` retires. Les lignes
+  d'archive sont typees par leurs tables (`TablesInsert<'student_year_history' | 'family_year_finance' |
+  'class_year_history'>`), RETOUR DE `.map` ANNOTE : sans annotation, TypeScript ne signale pas une colonne en trop ou
+  mal orthographiee dans un `.map` (seulement une colonne obligatoire manquante). Essai rouge : `year_lable` -> 4
+  erreurs, une par type de ligne. Colonnes jsonb de l'historique declarees dans `src/types/json.ts` (`ArchiveBulletin`,
+  `ArchivePaiement`, `ArchiveAjustement`, `ArchiveCotisation`, `ArchivePeriode`, `ArchiveCreneau`, `ArchiveParticipant`)
+  et reportees par `npm run types-db` ; l'Historique des classes les reutilise (copie a la main et conversion retirees).
+  Cle adulte par `cleAdulte`. Evaluations sans periode ecartees explicitement (filtrees par periode, jamais vides).
+- **Signale, non traite** : depuis le lot 5, `class_teachers` ne contient que des titulaires ; la colonne
+  `class_year_history.remplacements` (lue dans `class_teachers`) sera donc toujours vide. Les remplacements vivent
+  dans `absences_enseignants_seances` : les archiver de la sont une decision a prendre.
+- Bilan : 433 `any` (lint 0 erreur), 178 tests, build OK, aucune migration.

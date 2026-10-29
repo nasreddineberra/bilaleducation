@@ -4,10 +4,7 @@ import { useMemo, useState } from 'react'
 import { FloatButton, FloatSelect, SearchField } from '@/components/ui/FloatFields'
 import FormModal from '@/components/ui/FormModal'
 import { useFiltresMemorises } from '@/hooks/useFiltresMemorises'
-
-type Periode = { nom: string; du: string | null; au: string | null }
-type Creneau = { jour: string | null; debut: string | null; fin: string | null; salle: string | null; du: string | null; au: string | null }
-type Participant = { type: 'eleve' | 'adulte'; nom: string; prenom: string; numero: string | null }
+import type { ArchiveCreneau as Creneau, ArchiveParticipant as Participant, ArchivePeriode as Periode } from '@/types/json'
 
 export interface ClasseArchivee {
   id: string

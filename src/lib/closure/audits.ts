@@ -2,6 +2,8 @@
 // Une fonction par etape → { blocking, anomalies, items[], summary }.
 // Les liens `href` renvoient vers le module pour corriger.
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 import { getFamilyFinancials } from '@/lib/financements/family-financials'
 import { chargerDeparts } from '@/lib/financements/departs'
 import { classInfoOf } from '@/components/dashboard/classInfo'
@@ -60,7 +62,7 @@ function lienFoyer(parentId: string): string {
 // cloture — sans classe, il n'a ni evaluation a noter, ni bulletin attendu, ni
 // cotisation facturee, si bien que les cinq autres audits se taisaient aussi.
 // C'est precisement l'audit cense l'attraper qui l'ignorait.
-export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function auditAffectations(supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   const [{ data: activeStudents }, { data: enrolled }, { data: parents }, { data: adultEnrolled }] = await Promise.all([
     supabase.from('students').select('id, first_name, last_name, student_number')
       .eq('is_active', true).eq('etablissement_id', ctx.etablissementId),
@@ -76,13 +78,13 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
   ])
 
   // ── Eleves ──
-  const affected = new Set((enrolled ?? []).map((e: any) => e.student_id))
-  const unassigned = (activeStudents ?? []).filter((s: any) => !affected.has(s.id))
+  const affected = new Set((enrolled ?? []).map(e => e.student_id))
+  const unassigned = (activeStudents ?? []).filter(s => !affected.has(s.id))
 
   // ── Adultes ── (cle participant unifiee : `parentId-tutorNumber`)
-  const adultAffected = new Set((adultEnrolled ?? []).map((e: any) => `${e.parent_id}-${e.tutor_number}`))
+  const adultAffected = new Set((adultEnrolled ?? []).map(e => `${e.parent_id}-${e.tutor_number}`))
   const adultesNonAffectes: { label: string; parentId: string }[] = []
-  for (const p of (parents ?? []) as any[]) {
+  for (const p of (parents ?? [])) {
     if (p.tutor1_adult_courses && !adultAffected.has(`${p.id}-1`)) {
       adultesNonAffectes.push({ label: nom(p.tutor1_last_name, p.tutor1_first_name), parentId: p.id })
     }
@@ -108,7 +110,7 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
       // corriger a la source — rendre l'apprenant INACTIF, ou decocher
       // « inscrit aux cours adultes » sur le foyer. Deux gestes qui se font sur
       // la fiche, et nulle part ailleurs.
-      ...unassigned.map((s: any) => ({
+      ...unassigned.map(s => ({
         label: nom(s.last_name, s.first_name),
         detail: s.student_number ?? 'Non affecté',
         // `?from=audit` : apres avoir rendu l'apprenant inactif, on revient ICI
@@ -132,7 +134,7 @@ export async function auditAffectations(supabase: any, ctx: YearCtx): Promise<Au
 }
 
 // ─── 2. Absences (avertissement) : non justifiees en attente ────────────────
-export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function auditAbsences(supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   if (ctx.periodIds.length === 0) {
     return { blocking: false, anomalies: 0, items: [], summary: 'Aucune période configurée.' }
   }
@@ -143,8 +145,8 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     .select('student_id, period_id, students:student_id(first_name, last_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
     .in('period_id', ctx.periodIds).eq('is_justified', false).eq('absence_type', 'absence')
 
-  const byStudent = new Map<string, { name: string; adulte?: boolean; count: number; perPeriod: Map<string, number>; cls: any }>()
-  for (const a of (abs ?? []) as any[]) {
+  const byStudent = new Map<string, { name: string; adulte?: boolean; count: number; perPeriod: Map<string, number>; cls: NonNullable<typeof abs>[number]['classes'] }>()
+  for (const a of (abs ?? [])) {
     const cur = byStudent.get(a.student_id) ?? { name: nom(a.students?.last_name, a.students?.first_name), count: 0, perPeriod: new Map<string, number>(), cls: a.classes }
     cur.count++
     cur.perPeriod.set(a.period_id, (cur.perPeriod.get(a.period_id) ?? 0) + 1)
@@ -159,7 +161,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
     .select('parent_id, tutor_number, period_id, parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name), classes:class_id(name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name)))')
     .in('period_id', ctx.periodIds).eq('is_justified', false).eq('absence_type', 'absence')
 
-  for (const a of (absA ?? []) as any[]) {
+  for (const a of (absA ?? [])) {
     const cle = `${a.parent_id}-${a.tutor_number}`
     const nomA = a.tutor_number === 2
       ? nom(a.parents?.tutor2_last_name, a.parents?.tutor2_first_name)
@@ -199,7 +201,7 @@ export async function auditAbsences(supabase: any, ctx: YearCtx): Promise<AuditR
 // Deux anomalies : (a) une classe avec participants qui n'a AUCUNE evaluation sur
 // une periode ; (b) une evaluation incomplete (notes < participants inscrits).
 // Les classes sans participant sont ignorees.
-export async function auditNotes(supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function auditNotes(supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   if (ctx.periodIds.length === 0) {
     return { blocking: true, anomalies: 0, items: [], summary: 'Aucune période configurée.' }
   }
@@ -207,7 +209,7 @@ export async function auditNotes(supabase: any, ctx: YearCtx): Promise<AuditResu
     .from('classes')
     .select('id, name, level, day_of_week, start_time, end_time, cotisation_types:cotisation_type_id(label, is_adult), class_teachers(is_main_teacher, effective_from, effective_until, teachers(civilite, first_name, last_name))')
     .eq('academic_year', ctx.yearLabel)
-  const classList = (classes ?? []) as any[]
+  const classList = (classes ?? [])
   if (classList.length === 0) {
     return { blocking: true, anomalies: 0, items: [], summary: 'Aucune classe cette année.' }
   }
@@ -221,39 +223,41 @@ export async function auditNotes(supabase: any, ctx: YearCtx): Promise<AuditResu
 
   // Participants ACTUELS par classe (cles : student_id pour eleves, `parent-tutor` pour adultes).
   const studentsByClass = new Map<string, Set<string>>()
-  for (const e of (enr ?? []) as any[]) {
+  for (const e of (enr ?? [])) {
     if (!studentsByClass.has(e.class_id)) studentsByClass.set(e.class_id, new Set())
     studentsByClass.get(e.class_id)!.add(e.student_id)
   }
   const adultsByClass = new Map<string, Set<string>>()
-  for (const p of (pce ?? []) as any[]) {
+  for (const p of (pce ?? [])) {
     if (!adultsByClass.has(p.class_id)) adultsByClass.set(p.class_id, new Set())
     adultsByClass.get(p.class_id)!.add(`${p.parent_id}-${p.tutor_number}`)
   }
 
+  type Classe = typeof classList[number]
   const classById = new Map(classList.map(c => [c.id, c]))
-  const isAdultOf = (c: any) => !!c?.cotisation_types?.is_adult
-  const currentSet = (c: any): Set<string> => (isAdultOf(c) ? adultsByClass.get(c.id) : studentsByClass.get(c.id)) ?? new Set()
-  const partOf = (c: any) => currentSet(c).size
+  const isAdultOf = (c: Classe | undefined) => !!c?.cotisation_types?.is_adult
+  const currentSet = (c: Classe | undefined): Set<string> => (!c ? undefined : isAdultOf(c) ? adultsByClass.get(c.id) : studentsByClass.get(c.id)) ?? new Set()
+  const partOf = (c: Classe | undefined) => currentSet(c).size
 
-  const evalList = (evals ?? []) as any[]
+  // Filtrees par periode : `period_id` n'est jamais vide ici.
+  const evalList = (evals ?? []).filter((e): e is typeof e & { period_id: string } => !!e.period_id)
   const evalIds = evalList.map(e => e.id)
   const [{ data: g }, { data: ag }] = await Promise.all([
     evalIds.length ? supabase.from('grades').select('evaluation_id, student_id, score, comment, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
     evalIds.length ? supabase.from('adult_grades').select('evaluation_id, parent_id, tutor_number, score, comment, is_absent').in('evaluation_id', evalIds) : Promise.resolve({ data: [] }),
   ])
 
-  const hasValue = (r: any) => r.score !== null || r.comment !== null || r.is_absent
+  const hasValue = (r: { score: number | null; comment: string | null; is_absent: boolean | null }) => r.score !== null || r.comment !== null || r.is_absent
   // Notes VALORISEES, restreintes aux participants ACTUELS (ignore les notes orphelines).
   const gradedSet = new Map<string, Set<string>>()
   for (const e of evalList) gradedSet.set(e.id, new Set())
   const evalClass = new Map(evalList.map(e => [e.id, classById.get(e.class_id)]))
-  for (const r of (g ?? []) as any[]) {
+  for (const r of (g ?? [])) {
     const c = evalClass.get(r.evaluation_id)
     if (!c || isAdultOf(c) || !hasValue(r)) continue
     if (currentSet(c).has(r.student_id)) gradedSet.get(r.evaluation_id)!.add(r.student_id)
   }
-  for (const r of (ag ?? []) as any[]) {
+  for (const r of (ag ?? [])) {
     const c = evalClass.get(r.evaluation_id)
     if (!c || !isAdultOf(c) || !hasValue(r)) continue
     const key = `${r.parent_id}-${r.tutor_number}`
@@ -321,7 +325,7 @@ export async function auditNotes(supabase: any, ctx: YearCtx): Promise<AuditResu
 }
 
 // ─── 4. Bulletins (bloquant) : chaque participant × chaque période ──────────
-export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function auditBulletins(supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   if (ctx.periodIds.length === 0) {
     return { blocking: true, anomalies: 0, items: [], summary: 'Aucune période configurée.' }
   }
@@ -334,7 +338,7 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
     .select('student_id, students:student_id(first_name, last_name, is_active), classes!inner(academic_year)')
     .eq('status', 'active').eq('classes.academic_year', ctx.yearLabel)
   const students = new Map<string, string>() // id -> nom
-  for (const e of (enr ?? []) as any[]) {
+  for (const e of (enr ?? [])) {
     if (e.students?.is_active) students.set(e.student_id, nom(e.students?.last_name, e.students?.first_name))
   }
   const studentIds = [...students.keys()]
@@ -344,7 +348,7 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
     const { data: ba } = await supabase
       .from('bulletin_archives').select('student_id, period_id')
       .in('period_id', ctx.periodIds).in('student_id', studentIds)
-    const have = new Set((ba ?? []).map((b: any) => `${b.student_id}|${b.period_id}`))
+    const have = new Set((ba ?? []).map(b => `${b.student_id}|${b.period_id}`))
     for (const [sid, name] of students) {
       const miss = ctx.periodIds.filter(pid => !have.has(`${sid}|${pid}`))
       if (miss.length > 0) {
@@ -359,15 +363,15 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
     .from('parent_class_enrollments')
     .select('parent_id, tutor_number, class_id, classes!inner(academic_year, cotisation_types:cotisation_type_id(is_adult)), parents:parent_id(tutor1_last_name, tutor1_first_name, tutor2_last_name, tutor2_first_name)')
     .eq('status', 'active').eq('classes.academic_year', ctx.yearLabel)
-  const adults = (pce ?? []).filter((p: any) => p.classes?.cotisation_types?.is_adult)
+  const adults = (pce ?? []).filter(p => p.classes?.cotisation_types?.is_adult)
 
   let adultMissing = 0
   if (adults.length > 0) {
     const { data: aba } = await supabase
       .from('adult_bulletin_archives').select('parent_id, tutor_number, class_id, period_id')
       .in('period_id', ctx.periodIds)
-    const have = new Set((aba ?? []).map((b: any) => `${b.parent_id}|${b.tutor_number}|${b.class_id}|${b.period_id}`))
-    for (const p of adults as any[]) {
+    const have = new Set((aba ?? []).map(b => `${b.parent_id}|${b.tutor_number}|${b.class_id}|${b.period_id}`))
+    for (const p of adults) {
       const name = p.tutor_number === 2
         ? nom(p.parents?.tutor2_last_name, p.parents?.tutor2_first_name)
         : nom(p.parents?.tutor1_last_name, p.parents?.tutor1_first_name)
@@ -397,7 +401,7 @@ export async function auditBulletins(supabase: any, ctx: YearCtx): Promise<Audit
 }
 
 // ─── 5. Temps de présence (avertissement) : personnel sans saisie ───────────
-export async function auditTempsPresence(supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function auditTempsPresence(supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   const { data: staff } = await supabase
     .from('profiles').select('id, first_name, last_name')
     .eq('etablissement_id', ctx.etablissementId)
@@ -407,13 +411,13 @@ export async function auditTempsPresence(supabase: any, ctx: YearCtx): Promise<A
   if (ctx.startDate) q = q.gte('entry_date', ctx.startDate)
   if (ctx.endDate) q = q.lte('entry_date', ctx.endDate)
   const { data: entries } = await q
-  const withEntries = new Set((entries ?? []).map((e: any) => e.profile_id))
+  const withEntries = new Set((entries ?? []).map(e => e.profile_id))
 
-  const noEntry = (staff ?? []).filter((s: any) => !withEntries.has(s.id))
+  const noEntry = (staff ?? []).filter(s => !withEntries.has(s.id))
   return {
     blocking: false,
     anomalies: noEntry.length,
-    items: ordonnerAnomalies(noEntry.map((s: any) => ({ label: nom(s.last_name, s.first_name), detail: 'aucune saisie sur l’année', href: '/dashboard/temps-presence' }))),
+    items: ordonnerAnomalies(noEntry.map(s => ({ label: nom(s.last_name, s.first_name), detail: 'aucune saisie sur l’année', href: '/dashboard/temps-presence' }))),
     summary: noEntry.length === 0
       ? 'Tout le personnel a au moins une saisie de présence.'
       : `${pluriel(noEntry.length, 'membre')} du personnel sans aucune saisie.`,
@@ -421,7 +425,7 @@ export async function auditTempsPresence(supabase: any, ctx: YearCtx): Promise<A
 }
 
 // ─── 6. Financements (avertissement) : foyers non soldés + trop-perçus ──────
-export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function auditFinancements(supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   const fin = await getFamilyFinancials(supabase, {
     id: ctx.yearId, label: ctx.yearLabel, start_date: ctx.startDate, end_date: ctx.endDate,
   })
@@ -516,7 +520,7 @@ export async function auditFinancements(supabase: any, ctx: YearCtx): Promise<Au
 }
 
 // ─── Dispatcher ─────────────────────────────────────────────────────────────
-const AUDITS: Record<string, (supabase: any, ctx: YearCtx) => Promise<AuditResult>> = {
+const AUDITS: Record<string, (supabase: SupabaseClient<Database>, ctx: YearCtx) => Promise<AuditResult>> = {
   affectations:   auditAffectations,
   absences:       auditAbsences,
   notes:          auditNotes,
@@ -525,7 +529,7 @@ const AUDITS: Record<string, (supabase: any, ctx: YearCtx) => Promise<AuditResul
   financements:   auditFinancements,
 }
 
-export async function runAuditFor(stepKey: string, supabase: any, ctx: YearCtx): Promise<AuditResult> {
+export async function runAuditFor(stepKey: string, supabase: SupabaseClient<Database>, ctx: YearCtx): Promise<AuditResult> {
   const fn = AUDITS[stepKey]
   if (!fn) return { blocking: false, anomalies: 0, items: [], summary: 'Audit inconnu.' }
   return fn(supabase, ctx)
