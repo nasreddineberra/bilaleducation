@@ -410,9 +410,12 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      Temps de presence (recaps + PDF = heures de seances manquees), assiduite (fiche enseignant, Mon compte : une ligne
      par seance, decision, lien vers l'absence), encadre Remplacements de la fiche classe (remplacees / annulees du jour
      et a venir, en lecture) ; comptable lecteur de `absences_enseignants` (migration `absences-enseignants-comptable.sql`,
-     controle 29). **A voir a l'ecran** (demonstration) : ces 4 ecrans + l'infobulle de validation. **Prochain** : absences
-     des enseignants dans le calendrier et le panneau du jour de Temps de presence (demande du 29/10, plan a presenter),
-     puis lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort de `SlotFormModal`, remplacants
+     controle 29). **Calendrier de Temps de presence FAIT** (29/10) : absences d'enseignant visibles de TOUT le
+     personnel sans motif (`absences_enseignants_information`, migration `absences-enseignants-information.sql`, controle
+     33 ; `chargerAbsencesInformation`), barres sur les jours (`lib/temps-presence/barres-absences.ts`, « NOM P. »,
+     trait ambre si a decider, « +N »), panneau du jour en lecture, calendrier pleine hauteur. **A voir a l'ecran**
+     (demonstration) : lot 4 (4 ecrans), infobulle de validation, calendrier (mois, semaine, compte enseignant).
+     **Prochain** : lot 5 (nettoyage : `teacher_id` et `room_number`, code d'edition mort de `SlotFormModal`, remplacants
      `class_teachers`).
    - Ensuite : sortie des `any` lot 2 (`lib/dashboard`), voir le point 4.
    - Ecarts notes : fiche classe 30 eleves par defaut contre 25 en base ; matiere du cahier de texte « General »

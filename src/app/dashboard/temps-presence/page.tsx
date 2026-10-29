@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 import TempsPresenceClient from '@/components/temps-presence/TempsPresenceClient'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { chargerAbsencesEtSeances } from '@/lib/absences-enseignants/contexte'
+import { chargerAbsencesInformation } from '@/lib/absences-enseignants/contexte'
 
 export default async function TempsPresencePage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month: initialMonth } = await searchParams
@@ -42,26 +42,15 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
     .eq('is_current', true)
     .maybeSingle()
 
-  // ── Absences d'enseignant (lot 4) ─────────────────────────────────────────
+  // ── Absences d'enseignant (lot 4, calendrier du 29/10) ───────────────────
   //
-  // Lues dans « Absences enseignants », seul ecran qui les ecrit : une absence
-  // pese les heures des SEANCES qu'elle fait manquer (remplacees, annulees ou a
-  // decider), rattachees au compte de l'enseignant (`teachers.user_id`). La RLS
-  // borne la lecture (l'enseignant, les siennes). Ni motif ni decision ne
-  // partent vers l'ecran : le recapitulatif dit des heures.
-  const { absences } = await chargerAbsencesEtSeances(supabase)
-  const absencesSeances = absences.flatMap(a => {
-    const profileId = a.teachers?.user_id
-    return profileId
-      ? a.seances.map(se => ({
-          profileId,
-          date: se.date,
-          start: se.startTime.slice(0, 5),
-          end: se.endTime.slice(0, 5),
-          minutes: se.minutes,
-        }))
-      : []
-  })
+  // Lues dans « Absences enseignants », seul ecran qui les ecrit, et visibles
+  // de TOUT le personnel pour information, sans motif. Une absence pese les
+  // heures des SEANCES qu'elle fait manquer ; l'ecran en tire les barres du
+  // calendrier, le panneau du jour et la colonne Absences des recapitulatifs.
+  const absences = currentYear?.start_date && currentYear.end_date
+    ? await chargerAbsencesInformation(supabase, currentYear.start_date, currentYear.end_date)
+    : []
 
   // Liste des membres pointables (profiles actifs). Exclus : parent, super_admin
   // et admin (l'admin gere le suivi mais ne pointe pas son propre temps).
@@ -107,7 +96,8 @@ export default async function TempsPresencePage({ searchParams }: { searchParams
         canSeeRecap={canSeeRecap}
         staffList={(staffList ?? []) as any[]}
         presenceTypes={(presenceTypes ?? []) as any[]}
-        absencesSeances={absencesSeances}
+        absences={absences}
+        peutOuvrirAbsence={['admin', 'direction', 'responsable_pedagogique', 'secretaire'].includes(role)}
         vacations={(currentYear?.vacations as never[]) ?? []}
         feries={(currentYear?.jours_feries as never[]) ?? []}
         presenceTypeRates={presenceTypeRates}

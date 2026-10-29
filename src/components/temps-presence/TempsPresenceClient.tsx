@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Pencil, Trash2, Clock, AlertTriangle, CalendarCheck } from 'lucide-react'
@@ -22,6 +23,10 @@ import { generateStaffTimePDF } from './staffTimePdf'
 import { ouvrirOngletPdf, fermerOngletPdf } from '@/lib/pdf/ouvrir'
 import { usePetitEcran } from '@/hooks/usePetitEcran'
 import { pluriel } from '@/lib/texte/pluriel'
+import { accordGenre } from '@/lib/texte/genre'
+import { genreCivilite } from '@/lib/teachers/nom'
+import { barresDeLaSemaine, joursCouverts, type Barre } from '@/lib/temps-presence/barres-absences'
+import type { AbsenceInformation, SeanceInformation } from '@/lib/absences-enseignants/contexte'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,10 +78,13 @@ interface Props {
   canSeeRecap: boolean
   staffList: StaffMember[]
   /**
-   * Seances manquees par les enseignants absents (page Absences enseignants),
-   * une par seance, rattachees au compte (`profiles.id`). Annee en cours.
+   * Absences d'enseignant de l'annee, visibles de TOUT le personnel pour
+   * information (29/10), sans motif : barres du calendrier, panneau du jour,
+   * colonne Absences des recapitulatifs (heures des seances manquees).
    */
-  absencesSeances?: (AbsenceLigne & { profileId: string })[]
+  absences?: AbsenceInformation[]
+  /** Encadrement : une barre ouvre la fiche de l'absence (l'enseignant, les siennes). */
+  peutOuvrirAbsence?: boolean
   vacations?: VacationPeriod[]
   feries?: JourFerie[]
   presenceTypes: PresenceType[]
@@ -101,6 +109,44 @@ function entryStyle(color: string) {
 
 function dotStyle(color: string) {
   return { backgroundColor: color }
+}
+
+// Absences d'enseignant dans le calendrier (29/10). Repli si l'ecole n'a pas de
+// type reserve « absence » : le rouge des erreurs de la charte (Tailwind red-500).
+const COULEUR_ABSENCE = '#ef4444'
+/** Hauteur d'une barre d'absence (18 px) + son ecart (2 px). */
+const HAUTEUR_BARRE = 20
+/** Seances listees dans l'infobulle d'une barre, au-dela « N autres séances ». */
+const SEANCES_INFOBULLE = 8
+
+/** `AAAA-MM-JJ` -> `04/11`. */
+function fmtJourCourt(jour: string): string {
+  return `${jour.slice(8, 10)}/${jour.slice(5, 7)}`
+}
+
+/** « le 04/11 · 08:00-18:00 » ou « du 04/11 08:00 au 06/11 18:00 ». */
+function periodeAbsence(a: { debut: string; fin: string }): string {
+  const [j1, h1] = [a.debut.slice(0, 10), a.debut.slice(11, 16)]
+  const [j2, h2] = [a.fin.slice(0, 10), a.fin.slice(11, 16)]
+  return j1 === j2
+    ? `le ${fmtJourCourt(j1)} · ${h1}-${h2}`
+    : `du ${fmtJourCourt(j1)} ${h1} au ${fmtJourCourt(j2)} ${h2}`
+}
+
+/** La part de l'absence qui tombe le jour `jour` : « 08:00-12:00 », « dès 14:00 », « Journée ». */
+function periodeDuJour(a: { debut: string; fin: string }, jour: string): string {
+  const debut = a.debut.slice(0, 10) === jour ? a.debut.slice(11, 16) : null
+  const fin = a.fin.slice(0, 10) === jour ? a.fin.slice(11, 16) : null
+  if (debut && fin) return `${debut}-${fin}`
+  if (debut) return `dès ${debut}`
+  if (fin) return `jusqu’à ${fin}`
+  return 'Journée'
+}
+
+function texteDecision(se: SeanceInformation): string {
+  return se.decision === 'remplacee' ? `Remplacée par ${se.remplacant ?? '·'}`
+    : se.decision === 'annulee' ? 'Annulée'
+    : 'À décider'
 }
 
 // Fallback si le type n'est pas trouve dans presence_types
@@ -160,7 +206,7 @@ function getWeekDays(refDate: Date): Date[] {
 // l'absence porte des horaires, la demi-journee n'a plus de sens. `absenceDetail`
 // garde chaque absence pour l'infobulle — une somme d'heures ne dit pas QUAND.
 // Depuis le lot 4, l'absence d'un enseignant vient de la page Absences
-// enseignants : une ligne par SEANCE manquee (`absencesSeances`). Les absences
+// enseignants : une ligne par SEANCE manquee (prop `absences`). Les absences
 // saisies ici autrefois (`staff_time_entries`) restent lues.
 interface AbsenceLigne { date: string; start: string; end: string; minutes: number }
 interface RecapRow { profileId: string; name: string; typeMinutes: Record<string, number>; workedMinutes: number; absenceMinutes: number; absenceDetail: AbsenceLigne[]; cost: number }
@@ -248,7 +294,7 @@ function buildRecap(
 export default function TempsPresenceClient({
   currentUserId, role, canSeeAll, canWriteAll, canSeeRecap,
   staffList, presenceTypes, presenceTypeRates, schoolYearId, initialMonth,
-  absencesSeances = [],
+  absences = [], peutOuvrirAbsence = false,
   vacations = [], feries = [],
   schoolYearLabel, schoolYearStart, schoolYearEnd,
   etablissementNom, etablissementLogo,
@@ -409,6 +455,14 @@ export default function TempsPresenceClient({
   // Seances manquees : du mois affiche pour le recap mensuel, de l'annee
   // scolaire pour l'annuel, avec le meme filtre par membre.
   const moisCle = `${year}-${String(month + 1).padStart(2, '0')}`
+  // Toutes pour qui lit tout le personnel ; les siennes pour l'enseignant, dont
+  // le recapitulatif ne porte que ses propres heures.
+  const absencesSeances = useMemo(
+    () => absences.flatMap(a => a.profileId && (canSeeAll || a.profileId === currentUserId)
+      ? a.seances.map(se => ({ profileId: a.profileId as string, date: se.date, start: se.start, end: se.end, minutes: se.minutes }))
+      : []),
+    [absences, canSeeAll, currentUserId],
+  )
   const seancesFiltrees = useMemo(
     () => (memberFilter ? absencesSeances.filter(a => a.profileId === memberFilter) : absencesSeances),
     [absencesSeances, memberFilter],
@@ -657,6 +711,131 @@ export default function TempsPresenceClient({
   )
 
   // ── Badges for calendar cell ────────────────────────────────────────
+  // ── Absences d'enseignant : barres du calendrier, panneau du jour ─────────
+  //
+  // Visibles de tout le personnel, pour information (decision du 29/10), sans
+  // motif. Une barre par absence couvre ses jours, coupee net au bord d'une
+  // semaine (`barresDeLaSemaine`). Le filtre par membre s'y applique aussi.
+  const router = useRouter()
+  const couleurAbsence = presenceTypes.find(p => p.reserved_kind === 'absence')?.color ?? COULEUR_ABSENCE
+  const absencesAffichees = useMemo(
+    () => absences
+      .filter(a => !memberFilter || a.profileId === memberFilter)
+      .map(a => ({ ...a, ...joursCouverts(a.debut, a.fin) })),
+    [absences, memberFilter],
+  )
+  const absencesParId = useMemo(() => new Map(absencesAffichees.map(a => [a.id, a])), [absencesAffichees])
+  const absencesDuJour = absencesAffichees.filter(a => a.premier <= selectedDay && a.dernier >= selectedDay)
+  const peutOuvrir = (a: AbsenceInformation) => peutOuvrirAbsence || a.profileId === currentUserId
+
+  // HAUTEUR : le calendrier occupe la page jusqu'en bas (demande du 29/10) ; le
+  // nombre de barres par semaine se deduit de la hauteur MESUREE d'une semaine.
+  // Au-dela, « +N » sur les jours concernes (le clic ouvre le jour).
+  const semainesRef = useRef<HTMLDivElement>(null)
+  const [hauteurSemaines, setHauteurSemaines] = useState(0)
+  useEffect(() => {
+    const el = semainesRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const obs = new ResizeObserver(([e]) => setHauteurSemaines(e.contentRect.height))
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  const nbSemaines = viewMode === 'month' ? 6 : 1
+  // Numero du jour en haut (24 px), une ligne de pastilles d'heures en bas (20 px).
+  const lignesMax = Math.max(1, Math.floor((hauteurSemaines / nbSemaines - 44) / HAUTEUR_BARRE))
+
+  function infobulleAbsence(a: AbsenceInformation) {
+    return (
+      <span className="flex flex-col gap-0.5 text-left">
+        <span className="font-bold">{a.nom}</span>
+        <span>{accordGenre(genreCivilite(a.civilite), 'Absent', 'Absente', 'Absence')} {periodeAbsence(a)}</span>
+        {a.seances.length === 0 && <span>Aucune séance touchée</span>}
+        {a.seances.slice(0, SEANCES_INFOBULLE).map(se => (
+          <span key={`${se.date}|${se.start}|${se.classe}`}>{fmtJourCourt(se.date)} · {se.classe} · {se.start}-{se.end} · {texteDecision(se)}</span>
+        ))}
+        {a.seances.length > SEANCES_INFOBULLE && (
+          <span>{pluriel(a.seances.length - SEANCES_INFOBULLE, 'autre séance', 'autres séances')}</span>
+        )}
+      </span>
+    )
+  }
+
+  function renderBarre(b: Barre, cles: string[]) {
+    const a = absencesParId.get(b.id)
+    if (!a) return null
+    // Trait ambre tant qu'une seance reste a decider (meme code que l'EDT).
+    const aDecider = a.seances.some(se => se.decision === 'a_decider')
+    const ouvrable = peutOuvrir(a)
+    return (
+      <div
+        key={b.id}
+        style={{ gridColumn: `${b.colDebut + 1} / ${b.colFin + 2}`, gridRow: b.ligne + 1 }}
+        className={clsx('pointer-events-auto min-w-0', !b.coupeAvant && 'pl-1', !b.coupeApres && 'pr-1')}
+      >
+        <Tooltip content={infobulleAbsence(a)} className="w-full" maxWidth="max-w-xs">
+          <button
+            type="button"
+            onClick={() => (ouvrable ? router.push(`/dashboard/absences-enseignants/${a.id}`) : setSelectedDay(cles[b.colDebut]))}
+            aria-label={`${a.nom}, ${accordGenre(genreCivilite(a.civilite), 'absent', 'absente', 'absence')} ${periodeAbsence(a)}${aDecider ? ', séances à décider' : ''}`}
+            className={clsx(
+              'h-[18px] w-full min-w-0 flex items-center px-1.5 bg-warm-100 text-secondary-800 text-[10px] font-semibold leading-none border-l-[3px] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]',
+              b.coupeAvant ? 'rounded-l-none' : 'rounded-l',
+              b.coupeApres ? 'rounded-r-none' : 'rounded-r',
+              aDecider && 'border-l-amber-500',
+            )}
+            style={aDecider ? undefined : { borderLeftColor: couleurAbsence }}
+          >
+            <span className="truncate">{a.nomCourt}</span>
+          </button>
+        </Tooltip>
+      </div>
+    )
+  }
+
+  function renderAbsenceDuJour(a: AbsenceInformation) {
+    const seancesDuJour = a.seances.filter(se => se.date === selectedDay)
+    const etat = accordGenre(genreCivilite(a.civilite), 'Absent', 'Absente', 'Absence')
+    const initiales = (a.nomCourt.charAt(0) + (a.nomCourt.match(/ (\S)\.$/)?.[1] ?? '')).toUpperCase()
+    const contenu = (
+      <>
+        <div className="flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 text-[11px]" style={entryStyle(couleurAbsence)}>
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={dotStyle(couleurAbsence)} />
+          <span className="font-medium shrink-0">{etat}</span>
+          <span className="text-warm-700 shrink-0 tabular-nums">{periodeDuJour(a, selectedDay)}</span>
+        </div>
+        {seancesDuJour.map(se => (
+          <div key={`${se.start}|${se.classe}`} className="pl-2 text-[10px] text-warm-700 tabular-nums">
+            {se.classe} · {se.start}-{se.end} ·{' '}
+            <span className={clsx(
+              se.decision === 'a_decider' && 'text-amber-700 font-medium',
+              se.decision === 'annulee' && 'text-red-700 font-medium',
+              se.decision === 'remplacee' && 'text-secondary-700',
+            )}>{texteDecision(se)}</span>
+          </div>
+        ))}
+      </>
+    )
+    return (
+      <div key={`abs-${a.id}`} className="flex items-start gap-2 py-2">
+        <div className="flex items-center gap-1.5 w-36 shrink-0">
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand-tint)] text-[var(--brand-surface)] dark:text-[var(--brand-accent)] text-[10px] font-bold shrink-0">
+            {initiales}
+          </span>
+          <TruncatedText text={a.nom} className="text-[11px] font-bold text-warm-800" />
+        </div>
+        {/* Lecture seule : l'absence se regle dans Absences enseignants. */}
+        {peutOuvrir(a) ? (
+          <Link href={`/dashboard/absences-enseignants/${a.id}`} aria-label={`Ouvrir l’absence de ${a.nom}`}
+            className="flex-1 min-w-0 space-y-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]">
+            {contenu}
+          </Link>
+        ) : (
+          <div className="flex-1 min-w-0 space-y-1">{contenu}</div>
+        )}
+      </div>
+    )
+  }
+
   function renderCellBadges(dk: string) {
     const cellEntries = entriesByDate[dk] ?? []
     if (cellEntries.length === 0) return null
@@ -722,10 +901,10 @@ export default function TempsPresenceClient({
   const fermetureJour = jourFerme(selectedDay, vacations, feries)
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5 lg:h-full">
 
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="card px-3 py-2 flex flex-wrap items-center gap-3">
+      <div className="card px-3 py-2 flex flex-wrap items-center gap-3 shrink-0">
         <FiltreSwitch
           ariaLabel="Mode d'affichage"
           actif={viewMode}
@@ -797,64 +976,110 @@ export default function TempsPresenceClient({
       )}
 
       {/* ── Calendar + Day panel ─────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:flex-1 lg:min-h-0">
 
         {/* Calendar */}
-        <div className="lg:col-span-2 card overflow-hidden">
+        <div className="lg:col-span-2 card overflow-hidden flex flex-col lg:min-h-0">
           {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-warm-100 bg-warm-50">
+          <div className="grid grid-cols-7 border-b border-warm-100 bg-warm-50 shrink-0">
             {DAY_NAMES.map(d => (
               <div key={d} className="px-1 h-9 flex items-center justify-center text-[10px] font-bold text-warm-700 uppercase">{d}</div>
             ))}
           </div>
-          {/* Day cells */}
-          <div className={clsx('grid grid-cols-7', viewMode === 'month' ? 'grid-rows-6' : 'grid-rows-1')}>
-            {calDays.slice(0, viewMode === 'month' ? 42 : 7).map((d, i) => {
-              const dk = dateKey(d)
-              const isCurrentMonth = d.getMonth() === month
-              const isSelected = dk === selectedDay
-              const isToday = dk === todayKey
-              const cellCount = (entriesByDate[dk] ?? []).length
-              const dLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-              // Jour ferme : meme ambre que l'emploi du temps, pour qu'un jour
-              // sans ecole se reconnaisse d'un ecran a l'autre. La NATURE part
-              // dans l'aria-label : un fond colore ne se lit pas au clavier.
-              const ferme = jourFerme(dk, vacations, feries)
-              const ariaLabel = `${dLabel}${isToday ? " (aujourd'hui)" : ''}${ferme ? `, ${ferme.titre}${ferme.label ? ` ${ferme.label}` : ''}` : ''}, ${cellCount === 0 ? 'aucune saisie' : cellCount === 1 ? '1 saisie' : `${cellCount} saisies`}`
-              return (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDay(dk)}
-                  aria-label={ariaLabel}
-                  aria-pressed={isSelected}
-                  aria-current={isToday ? 'date' : undefined}
-                  className={clsx(
-                    'relative border border-warm-50 p-1 text-left transition-colors min-h-[70px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] focus-visible:z-10',
-                    viewMode === 'week' && 'min-h-[120px]',
-                    ferme ? 'bg-amber-50' : (isCurrentMonth ? 'bg-white' : 'bg-warm-50/50'),
-                    isSelected && 'ring-2 ring-[var(--brand-surface)] dark:ring-[var(--brand-accent)] ring-inset',
-                    !isSelected && (ferme ? 'hover:bg-amber-100' : 'hover:bg-warm-100'),
-                  )}
-                >
-                  <div className="flex items-start gap-1">
-                    <span className={clsx(
-                      'text-xs font-medium shrink-0',
-                      // Marqueur du jour : meme ambre que l'emploi du temps.
-                      isToday && 'bg-amber-700 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
-                      !isToday && (isCurrentMonth ? 'text-warm-700' : 'text-warm-700'),
-                    )}>
-                      {d.getDate()}
-                    </span>
-                    <div className="flex-1 min-w-0">{renderCellBadges(dk)}</div>
+          {/* Semaines : les cases du jour, et par-dessus les barres d'absence. */}
+          <div ref={semainesRef} className="flex flex-col lg:flex-1 lg:min-h-0">
+            {(() => {
+              const jours = calDays.slice(0, viewMode === 'month' ? 42 : 7)
+              const semaines: Date[][] = []
+              for (let i = 0; i < jours.length; i += 7) semaines.push(jours.slice(i, i + 7))
+              return semaines.map((sem, w) => {
+                const cles = sem.map(dateKey)
+                const barres = barresDeLaSemaine(absencesAffichees, cles)
+                const nbLignes = barres.reduce((m, b) => Math.max(m, b.ligne + 1), 0)
+                const deborde = nbLignes > lignesMax
+                const lignesVisibles = deborde ? lignesMax - 1 : nbLignes
+                const cachees = barres.filter(b => b.ligne >= lignesVisibles)
+                const lignesOccupees = Math.min(nbLignes, lignesMax)
+                return (
+                  <div key={w} className={clsx('relative grid grid-cols-7 lg:flex-1 lg:min-h-0', viewMode === 'month' ? 'min-h-[70px]' : 'min-h-[120px]')}>
+                    {sem.map((d, i) => {
+                      const dk = cles[i]
+                      const isCurrentMonth = d.getMonth() === month
+                      const isSelected = dk === selectedDay
+                      const isToday = dk === todayKey
+                      const cellCount = (entriesByDate[dk] ?? []).length
+                      const nbAbsents = absencesAffichees.filter(a => a.premier <= dk && a.dernier >= dk).length
+                      const dLabel = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+                      // Jour ferme : meme ambre que l'emploi du temps, pour qu'un jour
+                      // sans ecole se reconnaisse d'un ecran a l'autre. La NATURE part
+                      // dans l'aria-label : un fond colore ne se lit pas au clavier.
+                      const ferme = jourFerme(dk, vacations, feries)
+                      const ariaLabel = `${dLabel}${isToday ? " (aujourd'hui)" : ''}${ferme ? `, ${ferme.titre}${ferme.label ? ` ${ferme.label}` : ''}` : ''}, ${cellCount === 0 ? 'aucune saisie' : cellCount === 1 ? '1 saisie' : `${cellCount} saisies`}${nbAbsents > 0 ? `, ${pluriel(nbAbsents, 'enseignant absent', 'enseignants absents')}` : ''}`
+                      return (
+                        <button
+                          key={dk}
+                          onClick={() => setSelectedDay(dk)}
+                          aria-label={ariaLabel}
+                          aria-pressed={isSelected}
+                          aria-current={isToday ? 'date' : undefined}
+                          className={clsx(
+                            'relative border border-warm-50 p-1 text-left transition-colors h-full min-h-0 overflow-hidden flex flex-col outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] focus-visible:z-10',
+                            ferme ? 'bg-amber-50' : (isCurrentMonth ? 'bg-white' : 'bg-warm-50/50'),
+                            isSelected && 'ring-2 ring-[var(--brand-surface)] dark:ring-[var(--brand-accent)] ring-inset',
+                            !isSelected && (ferme ? 'hover:bg-amber-100' : 'hover:bg-warm-100'),
+                          )}
+                        >
+                          <div className="flex items-start gap-1">
+                            <span className={clsx(
+                              'text-xs font-medium shrink-0',
+                              // Marqueur du jour : meme ambre que l'emploi du temps.
+                              isToday && 'bg-amber-700 text-white rounded-full w-5 h-5 inline-flex items-center justify-center',
+                              !isToday && 'text-warm-700',
+                            )}>
+                              {d.getDate()}
+                            </span>
+                            {lignesOccupees === 0 && <div className="flex-1 min-w-0">{renderCellBadges(dk)}</div>}
+                          </div>
+                          {/* Place des barres d'absence de la semaine, puis les heures. */}
+                          {lignesOccupees > 0 && (
+                            <>
+                              <div aria-hidden className="shrink-0" style={{ height: lignesOccupees * HAUTEUR_BARRE }} />
+                              <div className="min-w-0 pt-0.5">{renderCellBadges(dk)}</div>
+                            </>
+                          )}
+                        </button>
+                      )
+                    })}
+                    {barres.length > 0 && (
+                      <div className="absolute inset-x-0 top-6 grid grid-cols-7 gap-y-0.5 pointer-events-none" style={{ gridAutoRows: '18px' }}>
+                        {barres.filter(b => b.ligne < lignesVisibles).map(b => renderBarre(b, cles))}
+                        {deborde && cles.map((dk, c) => {
+                          const n = cachees.filter(b => b.colDebut <= c && b.colFin >= c).length
+                          return n > 0 && (
+                            <div key={`plus-${dk}`} style={{ gridColumn: c + 1, gridRow: lignesMax }} className="pointer-events-auto px-1 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDay(dk)}
+                                aria-label={`${pluriel(n, 'autre absence', 'autres absences')} ce jour`}
+                                className="h-[18px] w-full text-left px-1.5 rounded text-[10px] font-bold text-warm-700 outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)]"
+                              >
+                                +{n}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
-                </button>
-              )
-            })}
+                )
+              })
+            })()}
           </div>
         </div>
 
-        {/* Day panel : hauteur = contenu (self-start) au lieu de s'etirer sur le calendrier */}
-        <div className="card flex flex-col self-start">
+        {/* Day panel : hauteur du contenu sur telephone ; sur ordinateur, celle du
+            calendrier (pleine page), la liste defile a l'interieur. */}
+        <div className="card flex flex-col self-start lg:self-stretch lg:min-h-0">
           <div className="px-4 h-9 border-b border-warm-100 bg-warm-50 flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <h3 className="text-xs font-bold text-secondary-800 capitalize whitespace-nowrap">{selectedDayLabel}</h3>
@@ -888,11 +1113,13 @@ export default function TempsPresenceClient({
             )}
           </div>
 
-          <div className="overflow-y-auto max-h-[65vh] px-3 py-1 divide-y divide-warm-100">
-            {Object.keys(dayByStaff).length === 0 ? (
+          <div className="overflow-y-auto max-h-[65vh] lg:max-h-none lg:flex-1 lg:min-h-0 px-3 py-1 divide-y divide-warm-100">
+            {absencesDuJour.length === 0 && Object.keys(dayByStaff).length === 0 ? (
               <p className="text-xs text-warm-700 italic text-center py-8">Aucune saisie ce jour</p>
-            ) : (
-              Object.entries(dayByStaff).map(([pid, pEntries]) => {
+            ) : (<>
+              {/* Absences d'enseignant du jour, pour information (lecture seule). */}
+              {absencesDuJour.map(renderAbsenceDuJour)}
+              {Object.entries(dayByStaff).map(([pid, pEntries]) => {
                 const s = staffMap[pid]
                 const name = s ? `${s.last_name} ${s.first_name}` : '·'
                 return (
@@ -984,8 +1211,8 @@ export default function TempsPresenceClient({
                     </div>
                   </div>
                 )
-              })
-            )}
+              })}
+            </>)}
           </div>
 
           {/* Day total */}

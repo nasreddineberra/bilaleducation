@@ -5,6 +5,8 @@ import { estJourFerme } from '@/lib/school-year/jours-fermes'
 import { affectationsDesClasses, indexTitulaires } from '@/lib/edt/seance'
 import { seancesTouchees, type PeriodeAbsence, type SeanceTouchee } from '@/lib/edt/absences'
 import { seancesManquees } from './seances-manquees'
+import { nomEnseignant, nomInitialeEnseignant } from '@/lib/teachers/nom'
+import type { Decision } from './libelles'
 
 /**
  * Ce qu'il faut pour savoir quelles seances une absence touche, lu une fois
@@ -92,4 +94,88 @@ export async function chargerAbsencesEtSeances(
       seances: seancesManquees(a.id, ctx.seancesDe({ debut: a.debut, fin: a.fin, teacherId: a.teacher_id }), decisions ?? []),
     })),
   }
+}
+
+/** Une seance manquee, telle que le calendrier de Temps de presence l'affiche. */
+export interface SeanceInformation {
+  date: string
+  start: string
+  end: string
+  minutes: number
+  classe: string
+  decision: Decision
+  /** `NOM Prenom` du remplacant. */
+  remplacant: string | null
+}
+
+/** Une absence d'enseignant pour information : jamais le motif. */
+export interface AbsenceInformation {
+  id: string
+  /** Compte de l'enseignant (`teachers.user_id`), pour les heures et le filtre par membre. */
+  profileId: string | null
+  /** `NOM Prenom`. */
+  nom: string
+  /** `NOM P.` */
+  nomCourt: string
+  civilite: string | null
+  /** `AAAA-MM-JJTHH:MM`. */
+  debut: string
+  fin: string
+  seances: SeanceInformation[]
+}
+
+/**
+ * Les absences d'enseignant de la periode [`debut`, `fin`] (`AAAA-MM-JJ`), pour
+ * TOUT le personnel (decision du 29/10) : `absences_enseignants_information`
+ * les rend sans motif, la table restant fermee. Seances touchees, decisions et
+ * remplacants : memes sources que la page Absences enseignants.
+ */
+export async function chargerAbsencesInformation(
+  supabase: SupabaseClient<Database>,
+  debut: string,
+  fin: string,
+): Promise<AbsenceInformation[]> {
+  const { data: absences } = await supabase.rpc('absences_enseignants_information', { p_debut: debut, p_fin: fin })
+  if (!absences?.length) return []
+
+  const { data: decisions } = await supabase
+    .from('absences_enseignants_seances')
+    .select('absence_id, schedule_slot_id, seance_date, decision, remplacant_profile_id')
+    .in('absence_id', absences.map(a => a.id))
+
+  const remplacantsIds = Array.from(new Set((decisions ?? []).map(d => d.remplacant_profile_id).filter((x): x is string => !!x)))
+  const { data: remplacants } = remplacantsIds.length
+    ? await supabase.from('profiles').select('id, first_name, last_name').in('id', remplacantsIds)
+    : { data: [] }
+  const nomRemplacant = new Map((remplacants ?? []).map(p => [p.id, `${p.last_name ?? ''} ${p.first_name ?? ''}`.trim()]))
+
+  const ctx = await chargerContexteSeances(supabase)
+  const horodatage = (h: string) => h.slice(0, 16).replace(' ', 'T')
+
+  return absences.map(a => {
+    const personne = { first_name: a.first_name, last_name: a.last_name, civilite: a.civilite }
+    const seances = seancesManquees(
+      a.id,
+      ctx.seancesDe({ debut: a.debut, fin: a.fin, teacherId: a.teacher_id }),
+      decisions ?? [],
+    )
+    return {
+      id: a.id,
+      profileId: a.user_id,
+      nom: nomEnseignant(personne),
+      nomCourt: nomInitialeEnseignant(personne),
+      civilite: a.civilite,
+      debut: horodatage(a.debut),
+      fin: horodatage(a.fin),
+      seances: seances.map(s => ({
+        date: s.date,
+        start: s.startTime.slice(0, 5),
+        end: s.endTime.slice(0, 5),
+        minutes: s.minutes,
+        classe: ctx.nomClasse(s.classId),
+        decision: s.decision,
+        remplacant: s.remplacantProfileId ? (nomRemplacant.get(s.remplacantProfileId) ?? null) : null,
+      })),
+    }
+  })
 }

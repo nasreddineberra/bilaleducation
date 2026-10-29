@@ -9825,3 +9825,21 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   Appliquee par l'utilisateur (l'ecriture en production est refusee a l'agent par le garde-fou).
 - **Demande suivante** (29/10) : absences des enseignants dans le calendrier et le panneau du jour de Temps de
   presence.
+
+### 29/10 · Absences des enseignants dans le calendrier de Temps de presence
+
+- **Decisions de l'utilisateur** : les absences d'enseignant sont visibles de TOUT le personnel, enseignants compris,
+  avec les memes informations (seances, decision, remplacant) ; jamais le motif (preconisation). Rendu inspire d'une
+  capture fournie (barres sur les jours) ; calendrier jusqu'en bas de la page.
+- **Base** : `absences_enseignants_information(p_debut, p_fin)` (SECURITY DEFINER, tout le personnel, jamais un parent,
+  ecole par `current_etablissement_id()`), sans motif, avec le nom (la fiche `teachers` d'un collegue est fermee a
+  l'enseignant). La table reste fermee. Migration `absences-enseignants-information.sql`, controle 33 (vu rouge, vert
+  en transaction annulee, vert apres application par l'utilisateur).
+- **Ecran** : `chargerAbsencesInformation` (contexte.ts) ; `barresDeLaSemaine` / `joursCouverts`
+  (`lib/temps-presence/barres-absences.ts`, teste : coupe aux bords de semaine, rangement sans chevauchement, minuit
+  pile = jour non couvert). Barre « NOM P. » (`nomInitialeEnseignant`, NOM avant Prenom malgre la capture), fond
+  neutre, trait de la couleur du type reserve « absence », ambre s'il reste des seances a decider ; infobulle (nom,
+  periode, seances et decisions, 8 au plus) ; clic = fiche de l'absence (encadrement, ou l'enseignant pour les siennes),
+  sinon selection du jour. Lignes de barres deduites de la hauteur MESUREE (ResizeObserver), « +N » au-dela.
+  Panneau du jour : une ligne en lecture par absent (part du jour, seances du jour, decision). Recapitulatifs :
+  l'enseignant n'y voit toujours que ses heures.

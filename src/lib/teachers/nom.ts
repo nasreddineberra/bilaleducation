@@ -71,3 +71,13 @@ export function nomEnseignantCivilite(p: Personne): string {
   const civ = p.civilite === 'Mme' ? 'Mme' : 'M.'
   return `${civ} ${p.last_name} ${p.first_name}`.trim()
 }
+
+/**
+ * « NOM P. » : barre d'absence du calendrier de Temps de presence, ou la place
+ * manque (NOM avant Prenom, comme partout ; demande du 29/10).
+ */
+export function nomInitialeEnseignant(p: Personne): string {
+  if (!p) return ''
+  const initiale = p.first_name.trim().charAt(0).toUpperCase()
+  return initiale ? `${p.last_name.trim()} ${initiale}.` : p.last_name.trim()
+}
