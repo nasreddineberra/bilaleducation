@@ -389,7 +389,7 @@ ecritures silencieuses) ; refonte de l'interface faite sur l'ecole ET la console
      **3b-1 FAIT** (28/10) : page Absences enseignants (liste, declaration avec « Journee entiere », fiche avec
      decision par seance), `remplacants_possibles` (migration `absences-enseignants-remplacants.sql`, controle 30 ;
      compte `admin` ecarte des remplacants, signale a l'utilisateur), Temps de presence ne propose plus l'absence ni
-     « En remplacement de ». L'enseignant voit SES absences en lecture (choix par defaut, « go » sans reponse).
+     « En remplacement de ». Enseignant et comptable voient TOUTES les absences de l'ecole en lecture (liste et fiche, 29/10).
      **3b-2a FAIT** (28/10) : validation par la base (`valider_seance` / `retirer_validation_seance`, migration
      `absences-enseignants-validation.sql`, controle 31), EDT branche sur les decisions (`fusionnerDecisions` de
      `lib/edt/seance.ts`, « Absent · a decider » en ambre, menu « Regler l'absence » -> fiche de l'absence),

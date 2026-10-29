@@ -335,11 +335,11 @@ const navItems: NavItem[] = [
   },
   {
     // Absences enseignants (lot 3) : seul chemin des absences d'enseignant et des
-    // remplacements. L'enseignant y voit SES absences, en lecture.
+    // remplacements. L'enseignant et le comptable y voient tout, en lecture.
     name:  'Absences enseignants',
     href:  '/dashboard/absences-enseignants',
     icon:  UserX,
-    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'enseignant'],
+    roles: ['admin', 'direction', 'responsable_pedagogique', 'secretaire', 'enseignant', 'comptable'],
   },
   {
     name:  'Communications',

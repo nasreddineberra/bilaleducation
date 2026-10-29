@@ -9920,3 +9920,15 @@ a CONFIRMER point par point avant de coder ; colonne du jour `--edt-jour` en ess
   bord enseignant (toleree par PostgREST, corrigee) ; cle adulte des notes par `cleAdulte` (source unique) ; dates
   d'inscription et d'evaluation NULL possibles en base ecartees par le filtre qui les supposait presentes.
   Comportement inchange. Bilan : 520 `any` (lint 0 erreur, 527 avertissements), 178 tests, build OK.
+
+## 29/10 · Absences enseignants : lecture pour l'enseignant et le comptable
+
+- **Demande** : hors encadrement et secretaire, le personnel voit les absences d'enseignant en lecture. Remplace le
+  choix du lot 3b-1 (« l'enseignant voit SES absences », pris par defaut). Le comptable est inclus (reponse du 29/10).
+- **Sans migration** : pour ces roles, la liste et la fiche lisent `absences_enseignants_information` (SECURITY
+  DEFINER, ouverte a tout le personnel, jamais aux parents), deja source du calendrier de Temps de presence. La RLS de
+  `absences_enseignants` reste celle du lot 3 (l'enseignant n'y lit que les siennes), et celle de `teachers` ne lui
+  rendrait pas le nom d'un collegue. `AbsenceInformation` porte aussi `teacherId`, `nomCivilite`, `motifCle` ;
+  `TOUTES_DATES` = liste et fiche non bornees a une annee. Menu ouvert au comptable.
+- **Limite acceptee** : un enseignant ne lit que SES validations de seance ; sur la fiche d'un collegue, une seance
+  validee montre sa decision sans l'etat « validee ».

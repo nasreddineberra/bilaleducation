@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { effectiveRole } from '@/lib/auth/effective-role'
-import { chargerContexteSeances } from '@/lib/absences-enseignants/contexte'
+import { chargerContexteSeances, TOUTES_DATES } from '@/lib/absences-enseignants/contexte'
 import { nomEnseignant, nomEnseignantCivilite } from '@/lib/teachers/nom'
 import { libelleRole } from '@/lib/auth/role-labels'
 import { hasSmtpConfig } from '@/lib/email'
@@ -19,15 +19,25 @@ export default async function AbsenceEnseignantPage({ params }: { params: Promis
   if (!user) redirect('/login')
   const { data: me } = await supabase.from('profiles').select('role, etablissement_id').eq('id', user.id).single()
   const role = effectiveRole(me) ?? ''
-  if (![...ENCADREMENT, 'enseignant'].includes(role)) redirect('/dashboard')
+  if (![...ENCADREMENT, 'enseignant', 'comptable'].includes(role)) redirect('/dashboard')
   const peutGerer = ENCADREMENT.includes(role)
 
-  // La RLS ne rend a l'enseignant que SES absences : une autre donne une fiche introuvable.
-  const { data: absence } = await supabase
-    .from('absences_enseignants')
-    .select('id, etablissement_id, teacher_id, debut, fin, motif, teachers(civilite, first_name, last_name)')
-    .eq('id', id)
-    .maybeSingle()
+  // L'encadrement lit la table (la RLS juge). L'enseignant et le comptable lisent
+  // toute absence de l'ecole par `absences_enseignants_information` (decision du
+  // 29/10) : la RLS de `teachers` ne rendrait pas a un enseignant le nom d'un collegue.
+  let absence: { teacher_id: string; debut: string; fin: string; motif: string; enseignant: string; etablissement_id: string | null } | null = null
+  if (peutGerer) {
+    const { data } = await supabase
+      .from('absences_enseignants')
+      .select('id, etablissement_id, teacher_id, debut, fin, motif, teachers(civilite, first_name, last_name)')
+      .eq('id', id)
+      .maybeSingle()
+    if (data) absence = { ...data, enseignant: nomEnseignantCivilite(data.teachers) }
+  } else {
+    const { data } = await supabase.rpc('absences_enseignants_information', { p_debut: TOUTES_DATES.debut, p_fin: TOUTES_DATES.fin })
+    const a = (data ?? []).find(x => x.id === id)
+    if (a) absence = { teacher_id: a.teacher_id, debut: a.debut, fin: a.fin, motif: a.motif, enseignant: nomEnseignantCivilite(a), etablissement_id: null }
+  }
   if (!absence) notFound()
 
   const debut = absence.debut.slice(0, 16).replace(' ', 'T')
@@ -100,11 +110,11 @@ export default async function AbsenceEnseignantPage({ params }: { params: Promis
     <div className="h-full animate-fade-in">
       <AbsenceDetailClient
         absence={{ id, teacherId: absence.teacher_id, debut, fin, motif: absence.motif }}
-        enseignant={nomEnseignantCivilite(absence.teachers)}
+        enseignant={absence.enseignant}
         seances={seances}
         membres={membres}
         peutGerer={peutGerer}
-        messagerie={peutGerer && await hasSmtpConfig(absence.etablissement_id)}
+        messagerie={peutGerer && !!absence.etablissement_id && await hasSmtpConfig(absence.etablissement_id)}
       />
     </div>
   )

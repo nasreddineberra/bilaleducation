@@ -5,7 +5,7 @@ import { estJourFerme } from '@/lib/school-year/jours-fermes'
 import { affectationsDesClasses, indexTitulaires } from '@/lib/edt/seance'
 import { seancesTouchees, type PeriodeAbsence, type SeanceTouchee } from '@/lib/edt/absences'
 import { seancesManquees } from './seances-manquees'
-import { nomEnseignant, nomInitialeEnseignant } from '@/lib/teachers/nom'
+import { nomEnseignant, nomEnseignantCivilite, nomInitialeEnseignant } from '@/lib/teachers/nom'
 import { libelleMotif, type Decision } from './libelles'
 
 /**
@@ -108,18 +108,26 @@ export interface SeanceInformation {
   remplacant: string | null
 }
 
+/** Toutes les dates : la liste et la fiche des absences ne sont pas bornees a une annee. */
+export const TOUTES_DATES = { debut: '2000-01-01', fin: '2100-12-31' } as const
+
 /** Une absence d'enseignant pour information (motif compris, decision du 29/10). */
 export interface AbsenceInformation {
   id: string
+  teacherId: string
   /** Compte de l'enseignant (`teachers.user_id`), pour les heures et le filtre par membre. */
   profileId: string | null
   /** `NOM Prenom`. */
   nom: string
   /** `NOM P.` */
   nomCourt: string
+  /** `Civilite NOM Prenom`. */
+  nomCivilite: string
   civilite: string | null
   /** Libelle du motif (« Congé »...), visible de tout le personnel. */
   motif: string
+  /** Cle du motif (`conge`...). */
+  motifCle: string
   /** `AAAA-MM-JJTHH:MM`. */
   debut: string
   fin: string
@@ -163,11 +171,14 @@ export async function chargerAbsencesInformation(
     )
     return {
       id: a.id,
+      teacherId: a.teacher_id,
       profileId: a.user_id,
       nom: nomEnseignant(personne),
       nomCourt: nomInitialeEnseignant(personne),
+      nomCivilite: nomEnseignantCivilite(personne),
       civilite: a.civilite,
       motif: libelleMotif(a.motif),
+      motifCle: a.motif,
       debut: horodatage(a.debut),
       fin: horodatage(a.fin),
       seances: seances.map(s => ({
